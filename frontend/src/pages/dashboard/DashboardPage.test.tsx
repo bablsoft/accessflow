@@ -57,17 +57,19 @@ vi.mock('@ant-design/charts', () => ({
 }));
 
 import { useAuthStore } from '@/store/authStore';
-import type { Role } from '@/types/api';
+import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
 const { default: DashboardPage } = await import('./DashboardPage');
 
-function setRole(role: Role) {
+function setRole(role: keyof typeof SYSTEM_ROLE_PERMISSIONS) {
   useAuthStore.setState({
     user: {
       id: 'u-1',
       email: 'me@x.io',
       display_name: 'Me',
       role,
+      role_id: null,
+      permissions: SYSTEM_ROLE_PERMISSIONS[role],
       auth_provider: 'LOCAL',
       totp_enabled: false,
       platform_admin: false,

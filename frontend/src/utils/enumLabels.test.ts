@@ -16,6 +16,7 @@ import {
   optimizationTypeLabel,
   queryTemplateChangeLabel,
   reviewDecisionTypeLabel,
+  roleLabel,
   submissionReasonLabel,
 } from './enumLabels';
 
@@ -108,5 +109,20 @@ describe('lifecycle enum labels', () => {
     );
     expect(lifecycleSubjectTypeLabel(t, 'EMAIL')).toBe('enums.lifecycle_subject_type.EMAIL');
     expect(erasureStatusLabel(t, 'PENDING_REVIEW')).toBe('enums.erasure_status.PENDING_REVIEW');
+  });
+});
+
+describe('roleLabel (AF-522)', () => {
+  it('localizes system role names via enums.role keys', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    expect(roleLabel(realT, 'READONLY')).toBe('Read-only');
+    expect(roleLabel(realT, 'ADMIN')).toBe('Admin');
+  });
+
+  it('falls back to the raw name for custom roles without a translation key', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    expect(roleLabel(realT, 'Release Manager')).toBe('Release Manager');
   });
 });

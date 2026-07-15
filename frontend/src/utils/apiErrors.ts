@@ -432,6 +432,32 @@ export function organizationErrorMessage(err: unknown): string {
   return i18n.t('errors.organization_generic');
 }
 
+// Custom roles admin errors (AF-522).
+export function rolesErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'ROLE_IN_USE') {
+      return i18n.t('errors.role_in_use');
+    }
+    if (code === 'ROLE_SYSTEM_IMMUTABLE') {
+      return i18n.t('errors.role_system_immutable');
+    }
+    if (code === 'ROLE_NAME_ALREADY_EXISTS') {
+      return i18n.t('errors.role_name_already_exists');
+    }
+    if (code === 'ROLE_NOT_FOUND') {
+      return i18n.t('errors.role_not_found');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.roles_generic');
+}
+
 export function routingPolicyErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

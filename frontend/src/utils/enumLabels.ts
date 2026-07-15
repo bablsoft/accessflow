@@ -38,7 +38,6 @@ import type {
   RequestGroupTargetKind,
   ReviewDecisionType,
   RiskLevel,
-  Role,
   RoutingAction,
   RoutingConditionOperand,
   RowSecurityOperator,
@@ -105,8 +104,12 @@ export const commentStatusLabel = (t: TFunction, v: CommentStatus): string =>
 export const riskLevelLabel = (t: TFunction, v: RiskLevel): string =>
   t(`enums.risk_level.${v}` as const);
 
-export const roleLabel = (t: TFunction, v: Role): string =>
-  t(`enums.role.${v}` as const);
+/**
+ * Role display label (AF-522). System role names resolve through `enums.role.<NAME>`;
+ * custom role names have no translation key and render verbatim.
+ */
+export const roleLabel = (t: TFunction, v: string): string =>
+  t(`enums.role.${v}`, { defaultValue: v });
 
 export const dbTypeLabel = (t: TFunction, v: DbType): string =>
   t(`enums.db_type.${v}` as const);
@@ -229,13 +232,6 @@ export const RISK_LEVELS: readonly RiskLevel[] = [
   'MEDIUM',
   'HIGH',
   'CRITICAL',
-] as const;
-
-export const ROUTING_ROLES: readonly Role[] = [
-  'READONLY',
-  'ANALYST',
-  'REVIEWER',
-  'ADMIN',
 ] as const;
 
 export const ROUTING_ACTIONS: readonly RoutingAction[] = [

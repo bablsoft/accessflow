@@ -36,6 +36,7 @@ import {
 } from '@/api/routingPolicies';
 import { listDatasources } from '@/api/datasources';
 import { listAllGroups } from '@/api/groups';
+import { listRoles, roleKeys } from '@/api/roles';
 import { routingPolicyErrorMessage } from '@/utils/apiErrors';
 import {
   COMPARISON_OPERATORS,
@@ -43,17 +44,16 @@ import {
   QUERY_TYPES,
   RISK_LEVELS,
   ROUTING_ACTIONS,
-  ROUTING_ROLES,
   WEEKDAYS,
   comparisonOperatorLabel,
   conditionOperandLabel,
   enumOptions,
   queryTypeLabel,
   riskLevelLabel,
-  roleLabel,
   routingActionLabel,
   weekdayLabel,
 } from '@/utils/enumLabels';
+import { roleSelectOptions, type RoleOption } from '@/utils/roleOptions';
 import { showApiError } from '@/utils/showApiError';
 import {
   ROUTING_POLICY_DEFAULT_VALUES as DEFAULT_VALUES,
@@ -145,6 +145,16 @@ export function RoutingPoliciesPage() {
     queryFn: listAllGroups,
     staleTime: 60_000,
   });
+
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+    staleTime: 60_000,
+  });
+  const roleOptions = useMemo(
+    () => roleSelectOptions(rolesQuery.data ?? [], t, 'name'),
+    [rolesQuery.data, t],
+  );
 
   const isOpen = creating || editing !== null;
 
@@ -624,6 +634,7 @@ export function RoutingPoliciesPage() {
                               name={name}
                               operand={form.getFieldValue(['conditions', name, 'operand'])}
                               groups={groupsQuery.data ?? []}
+                              roleOptions={roleOptions}
                             />
                           )}
                         </Form.Item>
@@ -653,9 +664,10 @@ interface ConditionValueEditorProps {
   name: number;
   operand: RoutingConditionOperand | undefined;
   groups: { id: string; name: string }[];
+  roleOptions: RoleOption[];
 }
 
-function ConditionValueEditor({ name, operand, groups }: ConditionValueEditorProps) {
+function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionValueEditorProps) {
   const { t } = useTranslation();
   switch (operand) {
     case 'query_type':
@@ -698,7 +710,7 @@ function ConditionValueEditor({ name, operand, groups }: ConditionValueEditorPro
     case 'requester_role':
       return (
         <Form.Item name={[name, 'roles']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
-          <Select mode="multiple" options={enumOptions(ROUTING_ROLES, roleLabel, t)} />
+          <Select mode="multiple" options={roleOptions} />
         </Form.Item>
       );
     case 'requester_group':

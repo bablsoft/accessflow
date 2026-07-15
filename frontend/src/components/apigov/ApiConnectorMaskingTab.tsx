@@ -33,14 +33,15 @@ import {
 import { apiConnectorKeys, listApiOperations } from '@/api/apiConnectors';
 import { listUsers, userKeys } from '@/api/admin';
 import { groupKeys, listAllGroups } from '@/api/groups';
+import { listRoles, roleKeys } from '@/api/roles';
 import {
   API_MASKING_MATCHER_TYPES,
   apiMaskingMatcherTypeLabel,
   enumOptions,
   MASKING_STRATEGIES,
   maskingStrategyLabel,
-  roleLabel,
 } from '@/utils/enumLabels';
+import { roleSelectOptions } from '@/utils/roleOptions';
 import { maskingPreview } from '@/utils/maskingPreview';
 import { userDisplay } from '@/utils/userDisplay';
 import { apiErrorMessage } from '@/utils/apiErrors';
@@ -50,11 +51,8 @@ import type {
   ApiMaskingMatcherType,
   CreateApiConnectorMaskingPolicyInput,
   MaskingStrategy,
-  Role,
   User,
 } from '@/types/api';
-
-const REVEAL_ROLE_VALUES: Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'];
 
 export function ApiConnectorMaskingTab({ connectorId }: { connectorId: string }) {
   const { t } = useTranslation();
@@ -290,6 +288,15 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
     queryFn: () => listAllGroups(),
     enabled: open,
   });
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+    enabled: open,
+  });
+  const roleOptions = useMemo(
+    () => roleSelectOptions(rolesQuery.data ?? [], t, 'name'),
+    [rolesQuery.data, t],
+  );
 
   const operationOptions = useMemo(
     () =>
@@ -461,7 +468,8 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           <Select<string[]>
             mode="multiple"
             allowClear
-            options={enumOptions(REVEAL_ROLE_VALUES, roleLabel, t)}
+            options={roleOptions}
+            loading={rolesQuery.isLoading}
           />
         </Form.Item>
 

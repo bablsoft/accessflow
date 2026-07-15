@@ -19,6 +19,8 @@ const sessionPayload = {
     email: 'a@b.com',
     display_name: 'A',
     role: 'ANALYST' as const,
+    role_id: null,
+    permissions: ['QUERY_SUBMIT_SELECT', 'QUERY_SUBMIT_DML'],
     auth_provider: 'LOCAL' as const,
     totp_enabled: false,
     platform_admin: false,

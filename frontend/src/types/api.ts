@@ -103,7 +103,11 @@ export interface User {
   id: string;
   email: string;
   display_name: string;
-  role: Role;
+  /** System role enum name, or null for a user assigned a custom role (AF-522). */
+  role: Role | null;
+  role_id: string | null;
+  /** The role's display name — always present; equals the enum name for system roles. */
+  role_name: string | null;
   auth_provider: AuthProvider;
   active: boolean;
   totp_enabled: boolean;
@@ -116,7 +120,8 @@ export interface MeProfile {
   id: string;
   email: string;
   display_name: string;
-  role: Role;
+  /** Effective role NAME — a system role or a custom role's name (AF-522). */
+  role: string;
   auth_provider: AuthProvider;
   totp_enabled: boolean;
   platform_admin: boolean;
@@ -234,11 +239,11 @@ export interface CreateUserInput {
   email: string;
   password: string;
   display_name?: string | null;
-  role: Role;
+  role_id: string;
 }
 
 export interface UpdateUserInput {
-  role?: Role;
+  role_id?: string;
   active?: boolean;
   display_name?: string | null;
   attributes?: Record<string, string>;
@@ -754,7 +759,8 @@ export type DatasourcePage = PaginatedResponse<Datasource>;
  */
 export interface ReviewPlanApprover {
   user_id: string | null;
-  role: 'ADMIN' | 'REVIEWER' | null;
+  /** Role NAME — a system role or a custom role's name (AF-522). */
+  role: string | null;
   stage: number;
 }
 
@@ -786,7 +792,7 @@ export interface ReviewPlanWriteRequest {
 }
 
 export interface ReviewPlanTemplateApprover {
-  role: 'ADMIN' | 'REVIEWER';
+  role: string;
   stage: number;
 }
 
@@ -1162,7 +1168,7 @@ export type RoutingCondition =
   | { type: 'referenced_table'; globs: string[] }
   | { type: 'risk_level'; any_of: RiskLevel[] }
   | { type: 'risk_score'; operator: ComparisonOperator; value: number }
-  | { type: 'requester_role'; any_of: Role[] }
+  | { type: 'requester_role'; any_of: string[] }
   | { type: 'requester_group'; group_ids: string[] }
   | { type: 'time_of_day'; start_minute_of_day: number; end_minute_of_day: number }
   | { type: 'day_of_week'; any_of: Weekday[] }
@@ -1346,7 +1352,7 @@ export interface MaskingPolicy {
   column_ref: string;
   strategy: MaskingStrategy;
   strategy_params: Record<string, string>;
-  reveal_to_roles: Role[];
+  reveal_to_roles: string[];
   reveal_to_group_ids: string[];
   reveal_to_user_ids: string[];
   enabled: boolean;
@@ -1386,7 +1392,7 @@ export interface RowSecurityPolicy {
   operator: RowSecurityOperator;
   value_type: RowSecurityValueType;
   value_expression: string;
-  applies_to_roles: Role[];
+  applies_to_roles: string[];
   applies_to_group_ids: string[];
   applies_to_user_ids: string[];
   enabled: boolean;
@@ -1735,7 +1741,10 @@ export interface UserInvitation {
   organization_id: string;
   email: string;
   display_name: string | null;
-  role: Role;
+  /** System role enum name, or null when the invitation targets a custom role (AF-522). */
+  role: Role | null;
+  role_id: string | null;
+  role_name: string | null;
   status: InvitationStatus;
   expires_at: string;
   accepted_at: string | null;
@@ -1749,13 +1758,14 @@ export type UserInvitationPage = PageEnvelope<UserInvitation>;
 export interface InviteUserInput {
   email: string;
   display_name?: string | null;
-  role: Role;
+  role_id: string;
 }
 
 export interface InvitationPreview {
   email: string;
   display_name: string | null;
-  role: Role;
+  /** Role NAME — a system role or a custom role's name (AF-522). */
+  role: string;
   organization_name: string;
   expires_at: string;
 }
@@ -2525,7 +2535,7 @@ export interface ApiConnectorMaskingPolicy {
   field_ref: string;
   strategy: MaskingStrategy;
   strategy_params: Record<string, string>;
-  reveal_to_roles: Role[];
+  reveal_to_roles: string[];
   reveal_to_group_ids: string[];
   reveal_to_user_ids: string[];
   enabled: boolean;
@@ -2963,4 +2973,45 @@ export interface GroupDecision {
   decision: 'APPROVED' | 'REJECTED';
   resulting_status: RequestGroupStatus;
   idempotent_replay: boolean;
+}
+
+// --- AF-522: custom roles & fine-grained permissions ---
+
+/** One role row from GET /api/v1/admin/roles (snake_case wire format). */
+export interface RoleSummary {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string | null;
+  /** Built-in system role (immutable) vs. an org-defined custom role. */
+  system: boolean;
+  permissions: string[];
+  assigned_user_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** GET /api/v1/admin/roles/{id} returns the same shape as the list rows. */
+export type RoleDetail = RoleSummary;
+
+export interface CreateRoleInput {
+  name: string;
+  description?: string | null;
+  permissions: string[];
+}
+
+export interface UpdateRoleInput {
+  name?: string;
+  description?: string | null;
+  permissions?: string[];
+}
+
+export interface PermissionCatalogGroup {
+  group: string;
+  permissions: string[];
+}
+
+/** GET /api/v1/admin/permissions — the fixed, code-defined permission catalog. */
+export interface PermissionCatalog {
+  groups: PermissionCatalogGroup[];
 }

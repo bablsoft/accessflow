@@ -1,11 +1,15 @@
 import { apiClient } from './client';
-import type { AuthProvider, OAuth2ProviderSummary, Role } from '@/types/api';
+import type { AuthProvider, OAuth2ProviderSummary } from '@/types/api';
 
 export interface AuthUser {
   id: string;
   email: string;
   display_name: string;
-  role: Role;
+  /** Effective role NAME — a system role ("ADMIN", …) or a custom role's name (AF-522). */
+  role: string;
+  role_id: string | null;
+  /** Resolved functional permissions of the user's role (AF-522) — drives all gating. */
+  permissions: string[];
   auth_provider: AuthProvider;
   totp_enabled: boolean;
   platform_admin: boolean;

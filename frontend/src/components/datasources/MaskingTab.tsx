@@ -34,12 +34,13 @@ import {
 import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
 import { listUsers, userKeys } from '@/api/admin';
 import { groupKeys, listAllGroups } from '@/api/groups';
+import { listRoles, roleKeys } from '@/api/roles';
 import {
   enumOptions,
   MASKING_STRATEGIES,
   maskingStrategyLabel,
-  roleLabel,
 } from '@/utils/enumLabels';
+import { roleSelectOptions } from '@/utils/roleOptions';
 import { maskingPreview } from '@/utils/maskingPreview';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
@@ -49,11 +50,8 @@ import type {
   CreateMaskingPolicyInput,
   MaskingPolicy,
   MaskingStrategy,
-  Role,
   User,
 } from '@/types/api';
-
-const REVEAL_ROLE_VALUES: Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'];
 
 export function MaskingTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
@@ -273,6 +271,15 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
     queryFn: () => listAllGroups(),
     enabled: open,
   });
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+    enabled: open,
+  });
+  const roleOptions = useMemo(
+    () => roleSelectOptions(rolesQuery.data ?? [], t, 'name'),
+    [rolesQuery.data, t],
+  );
 
   const columnOptions = useMemo(
     () => flattenSchemaToColumns(schemaQuery.data?.schemas ?? []),
@@ -420,7 +427,8 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
           <Select<string[]>
             mode="multiple"
             allowClear
-            options={enumOptions(REVEAL_ROLE_VALUES, roleLabel, t)}
+            options={roleOptions}
+            loading={rolesQuery.isLoading}
           />
         </Form.Item>
 

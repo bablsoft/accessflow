@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
-import { adminErrorMessage, queryReplayErrorMessage } from './apiErrors';
+import { adminErrorMessage, queryReplayErrorMessage, rolesErrorMessage } from './apiErrors';
 
 function axiosError(status: number, data: unknown): AxiosError {
   const response = {
@@ -65,5 +65,37 @@ describe('adminErrorMessage — INVALID_ERASURE_CONFIG', () => {
       axiosError(422, { error: 'INVALID_ERASURE_CONFIG', title: 'Unprocessable Content' }),
     );
     expect(msg).toMatch(/erasure request configuration is invalid/i);
+  });
+});
+
+describe('rolesErrorMessage (AF-522)', () => {
+  it('maps ROLE_IN_USE to a friendly message', () => {
+    const msg = rolesErrorMessage(axiosError(409, { error: 'ROLE_IN_USE' }));
+    expect(msg).toMatch(/assigned to users/i);
+  });
+
+  it('maps ROLE_SYSTEM_IMMUTABLE to a friendly message', () => {
+    const msg = rolesErrorMessage(axiosError(409, { error: 'ROLE_SYSTEM_IMMUTABLE' }));
+    expect(msg).toMatch(/system role/i);
+  });
+
+  it('maps ROLE_NAME_ALREADY_EXISTS to a friendly message', () => {
+    const msg = rolesErrorMessage(axiosError(409, { error: 'ROLE_NAME_ALREADY_EXISTS' }));
+    expect(msg).toMatch(/name/i);
+  });
+
+  it('maps ROLE_NOT_FOUND to a friendly message', () => {
+    const msg = rolesErrorMessage(axiosError(404, { error: 'ROLE_NOT_FOUND' }));
+    expect(msg).toMatch(/no longer exists/i);
+  });
+
+  it('prefers the backend detail for unmapped codes', () => {
+    const msg = rolesErrorMessage(axiosError(400, { error: 'OTHER', detail: 'specific detail' }));
+    expect(msg).toBe('specific detail');
+  });
+
+  it('falls back to the generic message for unknown errors', () => {
+    const msg = rolesErrorMessage({});
+    expect(msg).toMatch(/role/i);
   });
 });

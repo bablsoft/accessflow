@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { hasPermission } from '@/utils/permissions';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -65,7 +66,7 @@ export function SetupProgressWidget() {
   const skipped = usePreferencesStore((s) => s.setupProgressSkipped);
   const skipStep = usePreferencesStore((s) => s.skipSetupStep);
   const unskipStep = usePreferencesStore((s) => s.unskipSetupStep);
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = hasPermission(user, 'SETUP_PROGRESS_VIEW');
 
   const { data } = useQuery({
     queryKey: setupProgressKeys.current(),

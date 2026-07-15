@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
 import { AxiosError, type AxiosResponse } from 'axios';
 import type { ReactNode } from 'react';
-import type { QueryDetail, Role } from '@/types/api';
+import type { QueryDetail } from '@/types/api';
+import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
 
@@ -130,13 +131,15 @@ function failedQuery(): QueryDetail {
   };
 }
 
-function setUser(role: Role, userId = 'u-reviewer') {
+function setUser(role: keyof typeof SYSTEM_ROLE_PERMISSIONS, userId = 'u-reviewer') {
   useAuthStore.setState({
     user: {
       id: userId,
       email: `${role.toLowerCase()}@example.com`,
       display_name: role,
       role,
+      role_id: null,
+      permissions: SYSTEM_ROLE_PERMISSIONS[role],
       auth_provider: 'LOCAL',
       totp_enabled: false,
       platform_admin: false,

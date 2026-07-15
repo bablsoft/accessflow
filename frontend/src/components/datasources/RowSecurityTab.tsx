@@ -32,27 +32,26 @@ import {
 import { datasourceKeys, getDatasourceSchema } from '@/api/datasources';
 import { listUsers, userKeys } from '@/api/admin';
 import { groupKeys, listAllGroups } from '@/api/groups';
+import { listRoles, roleKeys } from '@/api/roles';
 import {
   enumOptions,
   ROW_SECURITY_OPERATORS,
   ROW_SECURITY_VALUE_TYPES,
-  roleLabel,
   rowSecurityOperatorLabel,
   rowSecurityValueTypeLabel,
 } from '@/utils/enumLabels';
+import { roleSelectOptions } from '@/utils/roleOptions';
 import { userDisplay } from '@/utils/userDisplay';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   CreateRowSecurityPolicyInput,
-  Role,
   RowSecurityOperator,
   RowSecurityPolicy,
   RowSecurityValueType,
   User,
 } from '@/types/api';
 
-const APPLIES_ROLE_VALUES: Role[] = ['ADMIN', 'REVIEWER', 'ANALYST', 'READONLY'];
 const BUILT_IN_VARIABLES = [':user.id', ':user.email', ':user.role', ':user.groups'];
 
 export function RowSecurityTab({ dsId }: { dsId: string }) {
@@ -283,6 +282,15 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
     queryFn: () => listAllGroups(),
     enabled: open,
   });
+  const rolesQuery = useQuery({
+    queryKey: roleKeys.lists(),
+    queryFn: listRoles,
+    enabled: open,
+  });
+  const roleOptions = useMemo(
+    () => roleSelectOptions(rolesQuery.data ?? [], t, 'name'),
+    [rolesQuery.data, t],
+  );
 
   const tableOptions = useMemo(
     () =>
@@ -475,7 +483,8 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           <Select<string[]>
             mode="multiple"
             allowClear
-            options={enumOptions(APPLIES_ROLE_VALUES, roleLabel, t)}
+            options={roleOptions}
+            loading={rolesQuery.isLoading}
             placeholder={t('datasources.settings.row_security.applies_everyone')}
           />
         </Form.Item>

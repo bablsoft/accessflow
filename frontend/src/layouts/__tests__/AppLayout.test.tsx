@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { AuthUser } from '@/api/auth';
 import type { PendingReviewsPage } from '@/types/api';
+import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
 const { listPendingReviewsMock } = vi.hoisted(() => ({
   listPendingReviewsMock: vi.fn(),
@@ -37,6 +38,8 @@ const reviewerUser: AuthUser = {
   email: 'reviewer@example.com',
   display_name: 'Test Reviewer',
   role: 'REVIEWER',
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
   auth_provider: 'LOCAL',
   totp_enabled: false,
   platform_admin: false,
@@ -48,6 +51,8 @@ const adminUser: AuthUser = {
   email: 'admin@example.com',
   display_name: 'Test Admin',
   role: 'ADMIN',
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.ADMIN,
   auth_provider: 'LOCAL',
   totp_enabled: false,
   platform_admin: false,
@@ -59,6 +64,8 @@ const analystUser: AuthUser = {
   email: 'analyst@example.com',
   display_name: 'Test Analyst',
   role: 'ANALYST',
+  role_id: null,
+  permissions: SYSTEM_ROLE_PERMISSIONS.ANALYST,
   auth_provider: 'LOCAL',
   totp_enabled: false,
   platform_admin: false,
