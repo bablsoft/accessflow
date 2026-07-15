@@ -299,7 +299,7 @@
         <div class="arch-callouts">
           <div class="arch-callout">
             <span class="k">Encryption</span>
-            <span class="v">AES-256-GCM for datasource credentials at rest. RSA-2048 JWT signing. SAML 2.0 keystore.</span>
+            <span class="v">AES-256-GCM for datasource credentials at rest — or resolve them from HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault via secret references at connection time. RSA-2048 JWT signing. SAML 2.0 keystore.</span>
           </div>
           <div class="arch-callout">
             <span class="k">Runtime</span>
@@ -806,7 +806,7 @@
               <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
               <ul class="uc-benefits">
                 <li>Every query attributable to a person, a reason, and an approval</li>
-                <li>Credentials AES-256 encrypted, decrypted only inside the proxy — never shown to users</li>
+                <li>Credentials AES-256 encrypted — or fetched from Vault / AWS Secrets Manager / Azure Key Vault at connection time — resolved only inside the proxy, never shown to users</li>
                 <li>SQL or NoSQL, the same flow — PostgreSQL and MongoDB governed identically</li>
               </ul>
             </div>
@@ -1265,6 +1265,12 @@
               <ul>
                 <li>Native wire-protocol gateway</li>
                 <li>Column-level permissions</li>
+              </ul>
+            </div>
+            <div class="rm-group">
+              <h5 class="rm-cat">Security</h5>
+              <ul>
+                <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
               </ul>
             </div>
             <div class="rm-group">

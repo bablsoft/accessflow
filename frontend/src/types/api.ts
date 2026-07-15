@@ -704,6 +704,13 @@ export interface DatasourceTypesResponse {
   types: DatasourceTypeOption[];
 }
 
+/** External secret-store providers enabled in this deployment (AF-448). */
+export interface SecretProvidersResponse {
+  providers: SecretProvider[];
+}
+
+export type SecretProvider = 'vault' | 'aws' | 'azure';
+
 export interface Connector {
   id: string;
   db_type: DbType;

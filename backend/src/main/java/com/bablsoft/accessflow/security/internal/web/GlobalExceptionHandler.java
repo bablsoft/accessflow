@@ -14,6 +14,9 @@ import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionNotFoundException;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
+import com.bablsoft.accessflow.core.api.InvalidSecretReferenceException;
+import com.bablsoft.accessflow.core.api.SecretProviderDisabledException;
+import com.bablsoft.accessflow.core.api.SecretResolutionException;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
@@ -335,6 +338,36 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.datasource_connection_test_failed"));
         pd.setProperty("error", "DATASOURCE_CONNECTION_TEST_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidSecretReferenceException.class)
+    ProblemDetail handleInvalidSecretReference(InvalidSecretReferenceException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.invalid_secret_reference", ex.reference()));
+        pd.setProperty("error", "INVALID_SECRET_REFERENCE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(SecretProviderDisabledException.class)
+    ProblemDetail handleSecretProviderDisabled(SecretProviderDisabledException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.secret_provider_disabled", ex.provider()));
+        pd.setProperty("error", "SECRET_PROVIDER_DISABLED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("provider", ex.provider());
+        return pd;
+    }
+
+    @ExceptionHandler(SecretResolutionException.class)
+    ProblemDetail handleSecretResolution(SecretResolutionException ex) {
+        // Message resolved at throw site via MessageSource — see DefaultSecretResolutionService.
+        // 502: the external secret store failed, not the user's input.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        pd.setProperty("error", "SECRET_RESOLUTION_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        pd.setProperty("provider", ex.provider());
         return pd;
     }
 

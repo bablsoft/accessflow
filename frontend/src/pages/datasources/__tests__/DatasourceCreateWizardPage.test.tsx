@@ -25,17 +25,20 @@ const createDatasource = vi.fn();
 const updateDatasource = vi.fn();
 const testConnection = vi.fn();
 const getDatasourceTypes = vi.fn();
+const getSecretProviders = vi.fn();
 
 vi.mock('@/api/datasources', () => ({
   createDatasource: (...args: unknown[]) => createDatasource(...args),
   updateDatasource: (...args: unknown[]) => updateDatasource(...args),
   testConnection: (...args: unknown[]) => testConnection(...args),
   getDatasourceTypes: (...args: unknown[]) => getDatasourceTypes(...args),
+  getSecretProviders: () => getSecretProviders(),
   datasourceKeys: {
     all: ['datasources'] as const,
     lists: () => ['datasources', 'list'] as const,
     detail: (id: string) => ['datasources', 'detail', id] as const,
     types: () => ['datasources', 'types'] as const,
+    secretProviders: () => ['datasources', 'secret-providers'] as const,
   },
 }));
 
@@ -155,6 +158,35 @@ describe('DatasourceCreateWizardPage', () => {
     getDatasourceTypes.mockReset();
     navigateMock.mockReset();
     getDatasourceTypes.mockResolvedValue(typesResponse);
+    getSecretProviders.mockResolvedValue({ providers: [] });
+  });
+
+  it('shows secret-reference help for enabled providers and rejects disabled ones', async () => {
+    getSecretProviders.mockResolvedValue({ providers: ['vault'] });
+
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+
+    await screen.findByLabelText('Password');
+    await screen.findByText(/HashiCorp Vault: vault:/);
+    expect(screen.queryByText(/AWS Secrets Manager: aws:/)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Password'), {
+      target: { value: 'aws:prod/db#password' },
+    });
+    await screen.findByText('The aws secret store is not enabled in this deployment.');
+  });
+
+  it('shows no secret-reference help when no provider is enabled', async () => {
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    await screen.findByText('PostgreSQL');
+    fireEvent.click(screen.getByText('PostgreSQL'));
+
+    await screen.findByLabelText('Password');
+    expect(screen.queryByText(/HashiCorp Vault/)).toBeNull();
   });
 
   it('POSTs once on first submit and advances to test step', async () => {

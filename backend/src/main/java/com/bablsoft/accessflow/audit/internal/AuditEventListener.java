@@ -14,12 +14,15 @@ import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceDeactivatedEvent;
+import com.bablsoft.accessflow.core.events.SecretReferenceResolutionFailedEvent;
+import com.bablsoft.accessflow.core.events.SecretReferenceResolvedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -317,6 +320,64 @@ class AuditEventListener {
                     null));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for DatasourceDeactivatedEvent {}", event.datasourceId(), ex);
+        }
+    }
+
+    // The two secret-reference handlers (AF-448) use plain @EventListener deliberately:
+    // @ApplicationModuleListener is an AFTER_COMMIT listener, and pool-init-time resolves are
+    // published outside any application-DB transaction, where transactional events are
+    // silently dropped.
+
+    @EventListener
+    void onSecretReferenceResolved(SecretReferenceResolvedEvent event) {
+        try {
+            recordSecretResolution(AuditAction.DATASOURCE_SECRET_RESOLVED,
+                    event.provider(), event.reference(), event.datasourceId(),
+                    event.organizationId(), null);
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for SecretReferenceResolvedEvent {}", event.reference(), ex);
+        }
+    }
+
+    @EventListener
+    void onSecretReferenceResolutionFailed(SecretReferenceResolutionFailedEvent event) {
+        try {
+            recordSecretResolution(AuditAction.DATASOURCE_SECRET_RESOLUTION_FAILED,
+                    event.provider(), event.reference(), event.datasourceId(),
+                    event.organizationId(), event.error());
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for SecretReferenceResolutionFailedEvent {}",
+                    event.reference(), ex);
+        }
+    }
+
+    /**
+     * Records one audit row per owning datasource. Engine-lane resolves carry no datasource
+     * context ({@code datasourceId}/{@code organizationId} null) — those are attributed by
+     * matching the reference against the stored credential columns. The metadata carries the
+     * provider and the reference (a store path, not a secret) — never the resolved value.
+     */
+    private void recordSecretResolution(AuditAction action, String provider, String reference,
+                                        UUID datasourceId, UUID organizationId, String error) {
+        var metadata = new HashMap<String, Object>();
+        metadata.put("provider", provider);
+        metadata.put("reference", reference);
+        if (error != null) {
+            metadata.put("error", error);
+        }
+        if (datasourceId != null && organizationId != null) {
+            auditLogService.record(new AuditEntry(action, AuditResourceType.DATASOURCE,
+                    datasourceId, organizationId, null, metadata, null, null));
+            return;
+        }
+        var owners = datasourceLookupService.findByCredentialReference(reference);
+        if (owners.isEmpty()) {
+            log.warn("{} for reference {} could not be attributed to a datasource", action, reference);
+            return;
+        }
+        for (var owner : owners) {
+            auditLogService.record(new AuditEntry(action, AuditResourceType.DATASOURCE,
+                    owner.id(), owner.organizationId(), null, metadata, null, null));
         }
     }
 

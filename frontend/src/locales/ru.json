@@ -855,6 +855,13 @@
       "source_connector": "Коннекторы",
       "source_connector_help": "Готовые драйверы, устанавливаемые из каталога коннекторов."
     },
+    "secret_ref": {
+      "help_intro": "Вместо значения в открытом виде можно указать ссылку на внешний секрет.",
+      "help_vault": "HashiCorp Vault: vault:<mount>/<путь>#<поле>.",
+      "help_aws": "AWS Secrets Manager: aws:<имя-или-arn>[#jsonПоле].",
+      "help_azure": "Azure Key Vault: azure:<имя-секрета>.",
+      "provider_disabled": "Хранилище секретов {{provider}} не включено в этой установке."
+    },
     "settings": {
       "label_text_to_sql_enabled": "Включить генерацию SQL из текста",
       "text_to_sql_help": "Позволяет пользователям составлять SQL на естественном языке (использует конфигурацию ИИ).",

@@ -600,6 +600,40 @@ transformed values; the raw data is never sent over the wire).
 - The decrypted password is passed directly to HikariCP and not retained in application memory beyond pool initialization
 - A dedicated low-privilege service account is recommended on each customer database (SELECT only, or specific table grants matching `allowed_tables`)
 
+### External secret stores (AF-448)
+
+High-security deployments can keep datasource credentials in an external secret manager instead
+of the local AES layer. When a provider is enabled (`accessflow.secrets.*` — see
+[docs/09-deployment.md → Secrets Manager](09-deployment.md)), the datasource credential fields
+(`password`, `read_replica_password`, `api_key`) accept a **secret reference** that is stored
+verbatim in the credential column and resolved through the store at credential-use time:
+
+| Provider | Reference syntax | Resolution |
+|----------|------------------|------------|
+| HashiCorp Vault | `vault:<mount>/<path>#<field>` | KV v2 (default) reads `<mount>/data/<path>` and extracts `data.data.<field>`; KV v1 reads `<mount>/<path>`. Auth: static token, AppRole (renewed by spring-vault's session manager), or Kubernetes service-account JWT. |
+| AWS Secrets Manager | `aws:<name-or-arn>[#jsonField]` | `GetSecretValue` on the `SecretId`; without `#jsonField` the whole `SecretString` is the value, with it the string is parsed as a JSON object. Credentials via the SDK default chain (env vars, IRSA, instance profile) or explicit static keys. |
+| Azure Key Vault | `azure:<secret-name>` | Latest version of the named secret from the configured vault URL. Credentials via `DefaultAzureCredential` (workload/managed identity) or an explicit client-secret credential. |
+
+Semantics and guarantees:
+
+- **Detection is unambiguous** — AES-GCM ciphertext is Base64 and can never contain `:`, so a
+  lowercase `vault:` / `aws:` / `azure:` prefix always means "reference". Anything else is
+  encrypted locally exactly as before (the local AES layer remains the default and fallback).
+- **Resolve-at-use, never cached.** References are resolved at JDBC pool init, native-engine
+  client construction, test-connection, and schema introspection. The resolved plaintext follows
+  the same drop-after-pool-init discipline as decryption (Security rule #4); AccessFlow never
+  caches resolved secret values. Provider auth tokens are managed and refreshed by the SDKs.
+- **Write-time validation.** Saving a datasource with a malformed reference returns
+  `400 INVALID_SECRET_REFERENCE`; a reference to a provider that is not enabled returns
+  `400 SECRET_PROVIDER_DISABLED`. Store failures at use time surface as
+  `502 SECRET_RESOLUTION_FAILED`.
+- **Every external resolve is audited** — `DATASOURCE_SECRET_RESOLVED` /
+  `DATASOURCE_SECRET_RESOLUTION_FAILED` rows carry the provider and the reference (a store path,
+  never the secret value).
+- **Rotation caveat.** Rotating the secret in the external store does not restart live
+  connection pools — the new value is picked up on the next pool creation (credential change,
+  pool eviction, or restart). Re-save or test the datasource to force a refresh.
+
 ---
 
 ## API Access Governance security (AF-500)
@@ -784,7 +818,8 @@ Content-Security-Policy: default-src 'self'
 | `AUDIT_HMAC_KEY` | Environment variable / Kubernetes Secret (hex, ≥ 32 bytes). Optional — when unset, derived from `ENCRYPTION_KEY` via HKDF-SHA256. |
 | `AI_API_KEY` | Environment variable / Kubernetes Secret |
 | `DB_PASSWORD` | Environment variable / Kubernetes Secret |
-| Customer DB credentials | Stored encrypted in DB; never in env vars |
+| Customer DB credentials | Stored encrypted in DB; never in env vars. Optionally a secret **reference** resolved from HashiCorp Vault / AWS Secrets Manager / Azure Key Vault at credential-use time (AF-448 — see "External secret stores" above) |
+| `ACCESSFLOW_SECRETS_VAULT_TOKEN` / `_APP_ROLE_SECRET_ID`, `ACCESSFLOW_SECRETS_AWS_SECRET_ACCESS_KEY`, `ACCESSFLOW_SECRETS_AZURE_CLIENT_SECRET` | Environment variable / Kubernetes Secret (only when the respective secret-store provider is enabled with explicit credentials; cloud-native identity needs none) |
 | SAML keystore password | Environment variable / Kubernetes Secret |
 
 For Kubernetes deployments, all secrets should be injected via `secretKeyRef` in the deployment manifest, not hardcoded in `values.yaml`.

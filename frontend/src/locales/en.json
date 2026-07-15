@@ -855,6 +855,13 @@
       "source_connector": "Connectors",
       "source_connector_help": "Pre-packaged drivers installed from the connector catalog."
     },
+    "secret_ref": {
+      "help_intro": "You can also enter an external secret reference instead of a raw value.",
+      "help_vault": "HashiCorp Vault: vault:<mount>/<path>#<field>.",
+      "help_aws": "AWS Secrets Manager: aws:<name-or-arn>[#jsonField].",
+      "help_azure": "Azure Key Vault: azure:<secret-name>.",
+      "provider_disabled": "The {{provider}} secret store is not enabled in this deployment."
+    },
     "settings": {
       "back_button": "Back",
       "test_connection": "Test connection",

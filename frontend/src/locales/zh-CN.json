@@ -855,6 +855,13 @@
       "source_connector": "连接器",
       "source_connector_help": "从连接器目录安装的预置驱动。"
     },
+    "secret_ref": {
+      "help_intro": "也可以输入外部密钥引用来代替明文值。",
+      "help_vault": "HashiCorp Vault：vault:<mount>/<path>#<field>。",
+      "help_aws": "AWS Secrets Manager：aws:<name-or-arn>[#jsonField]。",
+      "help_azure": "Azure Key Vault：azure:<secret-name>。",
+      "provider_disabled": "此部署未启用 {{provider}} 密钥库。"
+    },
     "settings": {
       "label_text_to_sql_enabled": "启用文本转 SQL",
       "text_to_sql_help": "允许用户用自然语言起草 SQL（使用该 AI 配置）。",

@@ -1,12 +1,12 @@
 package com.bablsoft.accessflow.proxy.internal.driver;
 
-import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -31,7 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * shared driver cache; the JAR is loaded into an isolated child {@link URLClassLoader}; and the
  * {@link QueryEngine} implementation is discovered via {@link ServiceLoader}, matched by
  * {@link QueryEngine#engineId()} against the connector id. The engine is initialized once with a
- * {@link QueryEngineContext} (host message resolution, credential decryption, the per-engine
+ * {@link QueryEngineContext} (host message resolution, credential resolution — local AES
+ * decryption or an external secret-store fetch for {@code vault:}/{@code aws:}/{@code azure:}
+ * references (AF-448) — the per-engine
  * tuning config from {@code accessflow.proxy.engines.<id>.*}, the UTC clock) and cached for the
  * application lifetime — like JDBC connector classloaders, engine classloaders are never
  * unloaded.
@@ -44,19 +46,19 @@ class DefaultQueryEngineCatalog implements QueryEngineCatalog {
     private final ConnectorCatalog catalog;
     private final DriverJarCache jarCache;
     private final MessageSource messageSource;
-    private final CredentialEncryptionService encryptionService;
+    private final SecretResolutionService secretResolutionService;
     private final EngineConfigProperties engineConfigProperties;
     private final Clock clock;
     private final Map<String, QueryEngine> engines = new ConcurrentHashMap<>();
 
     DefaultQueryEngineCatalog(ConnectorCatalog catalog, DriverJarCache jarCache,
                               MessageSource messageSource,
-                              CredentialEncryptionService encryptionService,
+                              SecretResolutionService secretResolutionService,
                               EngineConfigProperties engineConfigProperties, Clock clock) {
         this.catalog = catalog;
         this.jarCache = jarCache;
         this.messageSource = messageSource;
-        this.encryptionService = encryptionService;
+        this.secretResolutionService = secretResolutionService;
         this.engineConfigProperties = engineConfigProperties;
         this.clock = clock;
     }
@@ -80,7 +82,7 @@ class DefaultQueryEngineCatalog implements QueryEngineCatalog {
             }
             var engine = load(manifest);
             engine.initialize(new QueryEngineContext(
-                    hostMessages(), encryptionService::decrypt, engineConfig(manifest.id()), clock));
+                    hostMessages(), secretResolutionService::resolve, engineConfig(manifest.id()), clock));
             engines.put(manifest.id(), engine);
             log.info("Loaded query engine {} ({})", manifest.id(), engine.getClass().getName());
             return engine;

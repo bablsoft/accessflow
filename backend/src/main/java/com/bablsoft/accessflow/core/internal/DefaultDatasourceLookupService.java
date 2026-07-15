@@ -89,6 +89,17 @@ class DefaultDatasourceLookupService implements DatasourceLookupService {
                 .findActiveAiAnalysisAiConfigIdsByOrganization(organizationId));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourceConnectionDescriptor> findByCredentialReference(String reference) {
+        if (reference == null || reference.isBlank()) {
+            return List.of();
+        }
+        return datasourceRepository.findAllByCredentialReference(reference).stream()
+                .map(DefaultDatasourceLookupService::toDescriptor)
+                .toList();
+    }
+
     private static DatasourceConnectionDescriptor toDescriptor(DatasourceEntity entity) {
         return DatasourceDescriptorMapper.from(entity);
     }

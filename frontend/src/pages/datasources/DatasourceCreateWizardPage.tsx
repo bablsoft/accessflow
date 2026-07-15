@@ -17,6 +17,8 @@ import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
+import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
+import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { showApiError } from '@/utils/showApiError';
 import type {
   ConnectionTestResult,
@@ -94,6 +96,10 @@ export default function DatasourceCreateWizardPage() {
     queryKey: reviewPlanKeys.lists(),
     queryFn: listReviewPlans,
   });
+
+  const secretProviders = useSecretProviders();
+  const secretRefHelp = secretReferenceHelp(secretProviders, t);
+  const secretRefRule = secretReferenceRule(secretProviders, t);
 
   const connectionValues = Form.useWatch([], connectionForm);
   const settingsValues = Form.useWatch([], settingsForm);
@@ -485,7 +491,8 @@ export default function DatasourceCreateWizardPage() {
                       : t('datasources.create.field_password')
                   }
                   name="password"
-                  rules={[{ required: true }, { max: 4096 }]}
+                  extra={secretRefHelp}
+                  rules={[{ required: true }, { max: 4096 }, secretRefRule]}
                 >
                   <Input.Password />
                 </Form.Item>
@@ -495,10 +502,15 @@ export default function DatasourceCreateWizardPage() {
               <Form.Item
                 label={t('datasources.create.field_api_key')}
                 name="api_key"
-                extra={t('datasources.create.field_api_key_help')}
+                extra={
+                  secretRefHelp
+                    ? `${t('datasources.create.field_api_key_help')} ${secretRefHelp}`
+                    : t('datasources.create.field_api_key_help')
+                }
                 rules={[
                   { required: true, message: t('datasources.create.field_api_key_required') },
                   { max: 4096 },
+                  secretRefRule,
                 ]}
               >
                 <Input.Password />

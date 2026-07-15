@@ -45,6 +45,14 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
     List<Object[]> countByAiConfigIdIn(@Param("aiConfigIds") Collection<UUID> aiConfigIds);
 
     @Query("""
+            select d from DatasourceEntity d
+             where d.passwordEncrypted = :reference
+                or d.readReplicaPasswordEncrypted = :reference
+                or d.apiKeyEncrypted = :reference
+            """)
+    List<DatasourceEntity> findAllByCredentialReference(@Param("reference") String reference);
+
+    @Query("""
             select distinct d.aiConfigId from DatasourceEntity d
              where d.organization.id = :orgId
                and d.aiAnalysisEnabled = true

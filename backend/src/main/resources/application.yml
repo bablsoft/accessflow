@@ -121,6 +121,42 @@ logging:
 
 accessflow:
   encryption-key: ${ENCRYPTION_KEY:}
+  secrets:
+    # External secret stores (AF-448). A datasource credential may be stored as a secret
+    # reference (vault:<mount>/<path>#<field> / aws:<name-or-arn>[#jsonField] /
+    # azure:<secret-name>) resolved through the enabled provider at credential-use time instead
+    # of local AES-256-GCM ciphertext. Each provider is opt-in; when disabled its reference
+    # prefix is rejected at datasource write time. Full setup guide: docs/09-deployment.md.
+    vault:
+      enabled: ${ACCESSFLOW_SECRETS_VAULT_ENABLED:false}
+      uri: ${ACCESSFLOW_SECRETS_VAULT_URI:}
+      # TOKEN (default), APPROLE or KUBERNETES.
+      auth-method: ${ACCESSFLOW_SECRETS_VAULT_AUTH_METHOD:TOKEN}
+      token: ${ACCESSFLOW_SECRETS_VAULT_TOKEN:}
+      app-role-id: ${ACCESSFLOW_SECRETS_VAULT_APP_ROLE_ID:}
+      app-role-secret-id: ${ACCESSFLOW_SECRETS_VAULT_APP_ROLE_SECRET_ID:}
+      kubernetes-role: ${ACCESSFLOW_SECRETS_VAULT_KUBERNETES_ROLE:}
+      kubernetes-auth-path: ${ACCESSFLOW_SECRETS_VAULT_KUBERNETES_AUTH_PATH:kubernetes}
+      # KV secrets-engine version used to build read paths (2 inserts /data/ after the mount).
+      kv-version: ${ACCESSFLOW_SECRETS_VAULT_KV_VERSION:2}
+      # Vault Enterprise namespace (X-Vault-Namespace header); leave empty for OSS Vault.
+      namespace: ${ACCESSFLOW_SECRETS_VAULT_NAMESPACE:}
+    aws:
+      enabled: ${ACCESSFLOW_SECRETS_AWS_ENABLED:false}
+      # When unset, the SDK default region/credentials chain applies (env vars, IRSA, instance
+      # profile). endpoint-override targets LocalStack or a VPC endpoint.
+      region: ${ACCESSFLOW_SECRETS_AWS_REGION:}
+      endpoint-override: ${ACCESSFLOW_SECRETS_AWS_ENDPOINT_OVERRIDE:}
+      access-key-id: ${ACCESSFLOW_SECRETS_AWS_ACCESS_KEY_ID:}
+      secret-access-key: ${ACCESSFLOW_SECRETS_AWS_SECRET_ACCESS_KEY:}
+    azure:
+      enabled: ${ACCESSFLOW_SECRETS_AZURE_ENABLED:false}
+      vault-url: ${ACCESSFLOW_SECRETS_AZURE_VAULT_URL:}
+      # When tenant/client id + secret are set a client-secret credential is used; otherwise
+      # DefaultAzureCredential (workload identity, managed identity, env vars).
+      tenant-id: ${ACCESSFLOW_SECRETS_AZURE_TENANT_ID:}
+      client-id: ${ACCESSFLOW_SECRETS_AZURE_CLIENT_ID:}
+      client-secret: ${ACCESSFLOW_SECRETS_AZURE_CLIENT_SECRET:}
   rag:
     pgvector:
       # When false, the deployment opts out of the in-app pgvector store entirely: no extension

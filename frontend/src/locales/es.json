@@ -855,6 +855,13 @@
       "source_connector": "Conectores",
       "source_connector_help": "Controladores preconfigurados instalados desde el catálogo de conectores."
     },
+    "secret_ref": {
+      "help_intro": "También puede introducir una referencia de secreto externa en lugar de un valor directo.",
+      "help_vault": "HashiCorp Vault: vault:<mount>/<ruta>#<campo>.",
+      "help_aws": "AWS Secrets Manager: aws:<nombre-o-arn>[#campoJson].",
+      "help_azure": "Azure Key Vault: azure:<nombre-del-secreto>.",
+      "provider_disabled": "El almacén de secretos {{provider}} no está habilitado en esta instalación."
+    },
     "settings": {
       "label_text_to_sql_enabled": "Habilitar texto a SQL",
       "text_to_sql_help": "Permite a los usuarios redactar SQL a partir de lenguaje natural (usa la configuración de IA).",

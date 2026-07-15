@@ -855,6 +855,13 @@
       "source_connector": "Միակցիչներ",
       "source_connector_help": "Կանխապատրաստված դրայվերներ՝ տեղադրված միակցիչների կատալոգից։"
     },
+    "secret_ref": {
+      "help_intro": "Բաց արժեքի փոխարեն կարող եք մուտքագրել նաև արտաքին գաղտնիքի հղում։",
+      "help_vault": "HashiCorp Vault՝ vault:<mount>/<ուղի>#<դաշտ>։",
+      "help_aws": "AWS Secrets Manager՝ aws:<անուն-կամ-arn>[#jsonԴաշտ]։",
+      "help_azure": "Azure Key Vault՝ azure:<գաղտնիքի-անուն>։",
+      "provider_disabled": "{{provider}} գաղտնիքների պահոցը միացված չէ այս տեղակայման մեջ։"
+    },
     "settings": {
       "label_text_to_sql_enabled": "Միացնել տեքստից SQL",
       "text_to_sql_help": "Թույլ տվեք օգտատերերին SQL ստեղծել բնական լեզվից (օգտագործում է AI կարգավորումը)։",
