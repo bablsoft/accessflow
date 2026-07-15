@@ -381,6 +381,28 @@
             rejection rates, and connection-pool stats — see
             <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-observability.yaml">examples/values-observability.yaml</a>.
           </p>
+          <p>
+            <strong>External secrets managers.</strong> Datasource credentials can live in
+            <strong>HashiCorp Vault</strong>, <strong>AWS Secrets Manager</strong>, or
+            <strong>Azure Key Vault</strong> instead of the built-in AES layer: enable a provider
+            (<code>ACCESSFLOW_SECRETS_VAULT_ENABLED=true</code> +
+            <code>ACCESSFLOW_SECRETS_VAULT_URI</code>/<code>_TOKEN</code> (or AppRole /
+            Kubernetes auth), <code>ACCESSFLOW_SECRETS_AWS_ENABLED=true</code> (region and
+            credentials from the SDK default chain — env vars, IRSA, instance profile — or
+            explicit <code>_REGION</code>/<code>_ACCESS_KEY_ID</code>/<code>_SECRET_ACCESS_KEY</code>),
+            or <code>ACCESSFLOW_SECRETS_AZURE_ENABLED=true</code> +
+            <code>ACCESSFLOW_SECRETS_AZURE_VAULT_URL</code> (workload/managed identity or an
+            explicit client-secret credential)) and enter a <em>secret reference</em> in a
+            datasource's password field instead of the raw value:
+            <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>,
+            <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or
+            <code>azure:&lt;secret-name&gt;</code>. AccessFlow resolves the reference through the
+            store at connection time (never caching the value), audits every resolve, and keeps
+            local AES-256-GCM encryption as the default for plain passwords. Full variable
+            reference:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">docs/09-deployment.md
+            → Secrets Manager</a>.
+          </p>
 
           <h3 id="run-helm">Kubernetes &amp; Helm</h3>
           <p>
@@ -1030,7 +1052,7 @@
           </figure>
           <ol>
             <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships built-in; other drivers download on first use and are verified against a pinned SHA-256 checksum). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
-            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response.</li>
+            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response. When an external secrets manager is enabled (see <a href="#run-docker-compose">Run &amp; deploy</a>), any credential field also accepts a <em>secret reference</em> — <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>, <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or <code>azure:&lt;secret-name&gt;</code> — stored as-is and resolved through the store at connection time; the form shows the syntax hints for whichever providers are enabled.</li>
             <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
             <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-query</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-query on, users can draft a query from a natural-language prompt in the editor — in the engine's native query language (SQL or a NoSQL query) — and the draft still flows through the normal review pipeline. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
           </ol>

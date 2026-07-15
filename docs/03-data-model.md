@@ -134,7 +134,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `port` | INTEGER — nullable; same rule as `host` |
 | `database_name` | VARCHAR(255) — nullable; same rule as `host` |
 | `username` | VARCHAR(255) — service account username |
-| `password_encrypted` | TEXT — AES-256-GCM encrypted at rest |
+| `password_encrypted` | TEXT — AES-256-GCM encrypted at rest, **or** a verbatim external secret reference (`vault:<mount>/<path>#<field>` / `aws:<name-or-arn>[#jsonField]` / `azure:<secret-name>`, AF-448) resolved through the deployment's enabled secret store at credential-use time. Detection is by prefix — AES ciphertext is Base64 and never contains `:`. |
 | `ssl_mode` | ENUM: `DISABLE` \| `REQUIRE` \| `VERIFY_CA` \| `VERIFY_FULL` |
 | `connection_pool_size` | INTEGER DEFAULT 10 |
 | `max_rows_per_query` | INTEGER DEFAULT 1000 — hard cap on SELECT result rows. Surfaced to the proxy module via `DatasourceConnectionDescriptor.maxRowsPerQuery` and clamped at execution time to `accessflow.proxy.execution.max-rows`. |
@@ -149,9 +149,9 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; used by an uploaded-driver `CUSTOM` datasource (required there, rejected for any bundled `db_type` and for connector-backed datasources, which build their URL from the connector template). |
 | `read_replica_jdbc_url` | TEXT NULL — when set, SELECT queries are routed to a sibling HikariCP pool built from this URL. INSERT/UPDATE/DELETE/DDL always hit the primary. Reuses the primary's driver class. |
 | `read_replica_username` | VARCHAR(255) NULL — username for the replica pool. When `NULL` the primary `username` is reused. |
-| `read_replica_password_encrypted` | TEXT NULL — AES-256-GCM encrypted; same key (`ENCRYPTION_KEY`) as `password_encrypted`. When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity. |
+| `read_replica_password_encrypted` | TEXT NULL — AES-256-GCM encrypted; same key (`ENCRYPTION_KEY`) as `password_encrypted`. When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `local_datacenter` | VARCHAR(255) NULL (AF-421, migration `V77`) — the Cassandra / ScyllaDB driver's load-balancing datacenter (`withLocalDatacenter(...)`). NULL for every other dialect; the service layer **requires** it when `db_type` is `CASSANDRA` or `SCYLLADB`. |
-| `api_key_encrypted` | TEXT NULL (AF-420, migration `V80`) — AES-256-GCM-encrypted API key for the search engines (`ELASTICSEARCH` / `OPENSEARCH`), sent as `Authorization: ApiKey`. `@JsonIgnore`, never returned in an API response. NULL for basic-auth search datasources and every other dialect; the service layer requires **either** `username`+`password` **or** `api_key` for a search datasource. |
+| `api_key_encrypted` | TEXT NULL (AF-420, migration `V80`) — AES-256-GCM-encrypted API key for the search engines (`ELASTICSEARCH` / `OPENSEARCH`), sent as `Authorization: ApiKey`. `@JsonIgnore`, never returned in an API response. NULL for basic-auth search datasources and every other dialect; the service layer requires **either** `username`+`password` **or** `api_key` for a search datasource. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
@@ -1171,6 +1171,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_CANCELLED` | Submitter cancels |
 | `DATASOURCE_CREATED` | Admin creates datasource |
 | `DATASOURCE_UPDATED` | Admin updates datasource config |
+| `DATASOURCE_SECRET_RESOLVED` | A datasource credential secret reference was resolved through its external store (AF-448). Metadata: `provider`, `reference` — never the secret value. Resource: `datasource`. System-initiated (`actorId=null`). |
+| `DATASOURCE_SECRET_RESOLUTION_FAILED` | Resolving a datasource credential secret reference failed (store unreachable, secret/field missing, provider disabled). Metadata: `provider`, `reference`, `error`. Resource: `datasource`. |
 | `PERMISSION_GRANTED` | Admin grants user access to datasource |
 | `PERMISSION_REVOKED` | Admin revokes access |
 | `USER_LOGIN` | Successful login |

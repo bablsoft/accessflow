@@ -176,6 +176,7 @@
 **Theme:** Native client access.
 
 - **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
+- **External secrets managers** — datasource credentials resolved from HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault at connection time via a secret reference (`vault:…` / `aws:…` / `azure:…`) stored in place of the encrypted password, with local AES-256-GCM as the fallback, per-resolve audit, and SDK-managed token refresh (AF-448)
 
 ---
 

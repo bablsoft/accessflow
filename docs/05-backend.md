@@ -220,7 +220,7 @@ Implemented in `proxy/internal/`:
 
 - `DatasourceConnectionPoolManager` (public API) — `DataSource resolve(UUID)`, `Optional<DataSource> resolveReplica(UUID)`, `void evict(UUID)`, and `Optional<DatasourcePoolStats> poolStats(UUID)`. Returns Hikari pools typed as `javax.sql.DataSource` so callers stay framework-agnostic and use the standard JDBC `try-with-resources` idiom. `resolveReplica` returns empty when the datasource has no replica configured; `evict` closes both the primary and replica pools. `poolStats` reads the live `HikariPoolMXBean` gauges (active / idle / waiting / total / max) for the **already-cached** primary pool and returns empty when none is cached — it never creates a pool, so reading health metrics can't trigger a connection attempt against an unreachable customer DB.
 - `DefaultDatasourceConnectionPoolManager` — `ConcurrentHashMap` cache, atomic lazy creation via `compute`, `@PreDestroy` shutdown closes all pools.
-- `DatasourcePoolFactory` — owns the Hikari wiring; decrypts the password only here and drops the local reference before returning.
+- `DatasourcePoolFactory` — owns the Hikari wiring; resolves the stored credential to plaintext only here (via `SecretResolutionService`) and drops the local reference before returning.
 - `DatasourcePoolEvictionListener` — `@ApplicationModuleListener` for `DatasourceConfigChangedEvent` and `DatasourceDeactivatedEvent` (both in `core/events/`); fires in a new transaction after the publisher's transaction commits. Annotation comes from `spring-modulith-events-api`.
 
 Behavior:
@@ -230,8 +230,34 @@ Behavior:
   - `evict(...)` is called (e.g. by the listener after a config-change or deactivation event).
   - The application shuts down (`@PreDestroy`).
 - Per-pool config: `maximumPoolSize` from `datasource.connection_pool_size`, plus the timeouts under `accessflow.proxy.*` (`connection-timeout`, `idle-timeout`, `max-lifetime`, optional `leak-detection-threshold`).
-- Customer DB credentials decrypted from `password_encrypted` at pool creation time only; the local plaintext reference is dropped before `createPool` returns. Hikari retains its own copy for reconnects.
+- Customer DB credentials resolved from `password_encrypted` at pool creation time only; the local plaintext reference is dropped before `createPool` returns. Hikari retains its own copy for reconnects.
 - Pool init is fail-fast: bad credentials or unreachable hosts raise `PoolInitializationException` from `resolve(...)` rather than on first `getConnection()`.
+
+#### Datasource credential resolution (AF-448)
+
+Every place that used to decrypt `password_encrypted` now goes through
+`core.api.SecretResolutionService`: a stored value with a lowercase `vault:` / `aws:` / `azure:`
+prefix is a **secret reference** fetched from the corresponding external store
+(`core/internal/secrets/` — one `SecretStore` bean per provider enabled via
+`accessflow.secrets.<provider>.enabled`); anything else falls back to local AES-256-GCM
+decryption. The seam covers, with no engine-plugin changes:
+
+- `DatasourcePoolFactory.buildPool(...)` — JDBC primary + replica pools (resolve carries the
+  datasource + organization ids for audit context).
+- `DefaultQueryEngineCatalog` — hands `secretResolutionService::resolve` as the
+  `CredentialDecryptor` in `QueryEngineContext`, so all native engines (incl. `api_key` and the
+  DynamoDB secret key) resolve references transparently.
+- `DatasourceAdminServiceImpl` — test-connection, replica test, and JDBC schema introspection.
+
+On write, `DatasourceAdminServiceImpl.storeCredential(...)` stores a validated reference
+verbatim instead of encrypting it. Resolved values are never cached (Security rule #4); each
+successful/failed external resolve publishes `SecretReferenceResolvedEvent` /
+`SecretReferenceResolutionFailedEvent` (plain `@EventListener` in the audit module — pool-init
+resolves happen outside a transaction, where `@ApplicationModuleListener`'s AFTER_COMMIT
+delivery would drop them). Context-less engine-lane resolves are attributed to their owning
+datasource(s) via `DatasourceLookupService.findByCredentialReference(...)`. Store failures
+throw `SecretResolutionException` (HTTP 502 on admin paths; `PoolInitializationException`
+semantics on the execution path).
 
 Eviction events (in `core/events/`, published by `DatasourceAdminServiceImpl`):
 

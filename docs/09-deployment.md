@@ -873,6 +873,36 @@ Two layers exist:
 | `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional | — | PEM-encoded RSA private key for the SP. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. The operator owns rotation. |
 | `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional | — | PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow and persists the encrypted private key + cleartext cert into `saml_config` so it survives restarts. |
 
+#### Secrets Manager (AF-448)
+
+Optional external secret stores for datasource credentials. All providers are **off by default**
+— when a provider is enabled, a datasource credential field (`password`,
+`read_replica_password`, `api_key`) may hold a secret reference
+(`vault:<mount>/<path>#<field>` / `aws:<name-or-arn>[#jsonField]` / `azure:<secret-name>`)
+that is stored verbatim and resolved through the store at credential-use time instead of the
+local `ENCRYPTION_KEY` AES layer. Enabling a provider with missing required settings aborts
+startup with an explicit message. See [docs/07-security.md → External secret
+stores](07-security.md) for reference syntax, audit, and rotation semantics.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_SECRETS_VAULT_ENABLED` | Optional | `false` | Enable the HashiCorp Vault store. |
+| `ACCESSFLOW_SECRETS_VAULT_URI` | With Vault | — | Vault base URI, e.g. `https://vault.internal:8200`. Custom CAs go into the JVM truststore. |
+| `ACCESSFLOW_SECRETS_VAULT_AUTH_METHOD` | Optional | `TOKEN` | `TOKEN`, `APPROLE`, or `KUBERNETES`. AppRole and Kubernetes login tokens are renewed / re-acquired automatically. |
+| `ACCESSFLOW_SECRETS_VAULT_TOKEN` | With `TOKEN` | — | Static Vault token. |
+| `ACCESSFLOW_SECRETS_VAULT_APP_ROLE_ID` / `ACCESSFLOW_SECRETS_VAULT_APP_ROLE_SECRET_ID` | With `APPROLE` | — | AppRole role id + secret id. |
+| `ACCESSFLOW_SECRETS_VAULT_KUBERNETES_ROLE` | With `KUBERNETES` | — | Vault Kubernetes-auth role bound to the pod's service account (JWT read from the standard token file). |
+| `ACCESSFLOW_SECRETS_VAULT_KUBERNETES_AUTH_PATH` | Optional | `kubernetes` | Mount path of the Kubernetes auth method. |
+| `ACCESSFLOW_SECRETS_VAULT_KV_VERSION` | Optional | `2` | KV secrets-engine version used to build read paths (`2` inserts `/data/` after the mount). |
+| `ACCESSFLOW_SECRETS_VAULT_NAMESPACE` | Optional | — | Vault Enterprise namespace (`X-Vault-Namespace` header). |
+| `ACCESSFLOW_SECRETS_AWS_ENABLED` | Optional | `false` | Enable the AWS Secrets Manager store. |
+| `ACCESSFLOW_SECRETS_AWS_REGION` | Optional | SDK chain | AWS region; when unset the SDK default chain applies (env vars, IRSA, instance profile). |
+| `ACCESSFLOW_SECRETS_AWS_ACCESS_KEY_ID` / `ACCESSFLOW_SECRETS_AWS_SECRET_ACCESS_KEY` | Optional | SDK chain | Explicit static credentials; leave unset to use the ambient identity (recommended on EKS/EC2). |
+| `ACCESSFLOW_SECRETS_AWS_ENDPOINT_OVERRIDE` | Optional | — | Custom endpoint (LocalStack, VPC endpoint). |
+| `ACCESSFLOW_SECRETS_AZURE_ENABLED` | Optional | `false` | Enable the Azure Key Vault store. |
+| `ACCESSFLOW_SECRETS_AZURE_VAULT_URL` | With Azure | — | Key Vault URL, e.g. `https://myvault.vault.azure.net`. |
+| `ACCESSFLOW_SECRETS_AZURE_TENANT_ID` / `ACCESSFLOW_SECRETS_AZURE_CLIENT_ID` / `ACCESSFLOW_SECRETS_AZURE_CLIENT_SECRET` | Optional | `DefaultAzureCredential` | Explicit client-secret credential; leave unset to use workload identity / managed identity (recommended on AKS). |
+
 #### Langfuse Integration
 
 Per-organization Langfuse credentials and toggles live in the `langfuse_config` table (managed from `/admin/langfuse`), not in env. These variables only set deployment-wide defaults for the outbound Langfuse client.
