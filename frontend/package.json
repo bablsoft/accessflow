@@ -28,7 +28,7 @@
     "@types/dagre": "^0.7.54",
     "@xyflow/react": "^12.11.0",
     "antd": "^6.4.3",
-    "axios": "^1.18.0",
+    "axios": "^1.18.1",
     "codemirror": "^6.0.2",
     "dagre": "^0.8.5",
     "dayjs": "^1.11.20",
