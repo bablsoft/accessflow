@@ -38,6 +38,9 @@ public class QueryRequestResultEntity {
     @Column(nullable = false)
     private boolean truncated;
 
+    @Column(name = "truncated_reason")
+    private String truncatedReason;
+
     @Column(name = "duration_ms", nullable = false)
     private int durationMs;
 

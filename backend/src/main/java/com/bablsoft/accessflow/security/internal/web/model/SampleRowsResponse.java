@@ -15,6 +15,7 @@ public record SampleRowsResponse(
         List<List<Object>> rows,
         long rowCount,
         boolean truncated,
+        String truncatedReason,
         long durationMs) {
 
     public record Column(String name, String type, boolean restricted) {
@@ -25,6 +26,6 @@ public record SampleRowsResponse(
                 .map(c -> new Column(c.name(), c.typeName(), c.restricted()))
                 .toList();
         return new SampleRowsResponse(columns, result.rows(), result.rowCount(),
-                result.truncated(), result.duration().toMillis());
+                result.truncated(), result.truncatedReason(), result.duration().toMillis());
     }
 }

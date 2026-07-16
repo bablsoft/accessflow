@@ -556,11 +556,12 @@ GET /api/v1/datasources/{id}/sample-rows?schema=public&table=users&limit=50
   ],
   "row_count": 2,
   "truncated": false,
+  "truncated_reason": null,
   "duration_ms": 14
 }
 ```
 
-`restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap.
+`restricted: true` flags a column the backend masked (via a masking policy or `restricted_columns`); its cell values are the masked output only. `truncated` is `true` when the sample hit the row cap or the result byte cap (#49); `truncated_reason` says which (`"ROW_LIMIT"` | `"BYTE_LIMIT"`, `null` when not truncated).
 
 ADMINs may sample any datasource in their organization; non-ADMINs need a permission row with `can_read` and the target within their `allowed_schemas` / `allowed_tables`.
 
@@ -1429,10 +1430,13 @@ The replay is **distinctly audited**: a `QUERY_SUBMITTED` audit row is written o
   "rows": [[1, "***"], [2, "***"]],
   "row_count": 2,
   "truncated": false,
+  "truncated_reason": null,
   "page": 0,
   "size": 100
 }
 ```
+
+`truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit the per-result byte cap (`ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES`, #49), and `null` when the result was not truncated (or was persisted before the field existed).
 
 `columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
 
@@ -4779,6 +4783,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `QUERY_EXECUTION_TIMEOUT` | 504 | `QueryExecutionTimeoutException` | Query exceeded the configured statement timeout. Body includes `timeoutSeconds`. |
 | `DATASOURCE_UNAVAILABLE` | 422 | `DatasourceUnavailableException` | Datasource is missing or marked inactive. |
 | `POOL_INITIALIZATION_FAILED` | 503 | `PoolInitializationException` | HikariCP could not open a pool to the customer database (bad credentials, host unreachable, etc.). |
+| `QUERY_CONCURRENCY_LIMIT` | 503 | `QueryConcurrencyLimitExceededException` | The global in-flight execution budget (`ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT`, #49) stayed saturated past the acquire timeout — retry later. |
 | `USER_NOTIFICATION_NOT_FOUND` | 404 | `UserNotificationNotFoundException` | The notification id does not belong to the authenticated caller. |
 | `UNSUPPORTED_LANGUAGE` | 400 | `UnsupportedLanguageException` | A BCP-47 code in a localization request is not one of the seven supported languages. Body includes `language`. |
 | `LANGUAGE_NOT_IN_ALLOWED_LIST` | 400 | `LanguageNotInAllowedListException` | User attempted to pick a language that is not in the org's `available_languages`. Body includes `language`. |

@@ -674,6 +674,79 @@ class JdbcResultRowMapperTest {
         assertThat(result.rows().getFirst().getFirst()).isNull();
     }
 
+    @Test
+    void rowCapTruncationSetsRowLimitReason() throws SQLException {
+        var metadata = singleColumnMeta("v", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, true, true, false);
+        when(rs.getObject(1)).thenReturn("x");
+        when(rs.getString(1)).thenReturn("x");
+
+        var result = mapper.materialize(rs, 2, DbType.POSTGRESQL, Duration.ZERO);
+
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason())
+                .isEqualTo(com.bablsoft.accessflow.core.api.SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+    }
+
+    @Test
+    void untruncatedResultHasNullReason() throws SQLException {
+        var metadata = singleColumnMeta("v", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, false);
+        when(rs.getObject(1)).thenReturn("x");
+        when(rs.getString(1)).thenReturn("x");
+
+        var result = mapper.materialize(rs, 10, DbType.POSTGRESQL, Duration.ZERO);
+
+        assertThat(result.truncated()).isFalse();
+        assertThat(result.truncatedReason()).isNull();
+    }
+
+    @Test
+    void byteCapTruncationSetsByteLimitReason() throws SQLException {
+        var metadata = singleColumnMeta("v", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, true, true, false);
+        var wide = "x".repeat(100);
+        when(rs.getObject(1)).thenReturn(wide);
+        when(rs.getString(1)).thenReturn(wide);
+
+        // Each row estimates to ~272 bytes; the 300-byte cap admits the first row only.
+        var result = mapper.materialize(rs, 10, 300L, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of());
+
+        assertThat(result.rows()).hasSize(1);
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason())
+                .isEqualTo(com.bablsoft.accessflow.core.api.SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+    }
+
+    @Test
+    void singleOversizedRowIsStillReturned() throws SQLException {
+        var metadata = singleColumnMeta("v", Types.VARCHAR, "varchar");
+        var rs = mock(ResultSet.class);
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.next()).thenReturn(true, true, false);
+        var huge = "x".repeat(10_000);
+        when(rs.getObject(1)).thenReturn(huge);
+        when(rs.getString(1)).thenReturn(huge);
+
+        // The first row alone blows the cap but is kept; the second triggers truncation.
+        var result = mapper.materialize(rs, 10, 100L, DbType.POSTGRESQL, Duration.ZERO,
+                List.of(), List.of());
+
+        assertThat(result.rows()).hasSize(1);
+        assertThat(result.rows().getFirst().getFirst()).isEqualTo(huge);
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason())
+                .isEqualTo(com.bablsoft.accessflow.core.api.SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+    }
+
     private static ResultSetMetaData singleColumnMeta(String name, int type, String typeName)
             throws SQLException {
         var metadata = mock(ResultSetMetaData.class);

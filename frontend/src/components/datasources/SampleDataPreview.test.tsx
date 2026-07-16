@@ -69,4 +69,19 @@ describe('SampleDataPreview', () => {
     renderPreview();
     expect(screen.getByText(/capped by the proxy row limit/i)).toBeInTheDocument();
   });
+
+  it('renders the byte-limit footer when truncated_reason is BYTE_LIMIT', () => {
+    useTableSampleMock.mockReturnValue({
+      data: {
+        columns: [{ name: 'id', type: 'uuid', restricted: false }],
+        rows: [['1']],
+        row_count: 1,
+        truncated: true,
+        truncated_reason: 'BYTE_LIMIT',
+        duration_ms: 4,
+      },
+    });
+    renderPreview();
+    expect(screen.getByText(/capped by the result size limit/i)).toBeInTheDocument();
+  });
 });

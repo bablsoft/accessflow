@@ -1198,6 +1198,13 @@
               <code>ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT</code> (<code>30s</code>),
               <code>ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE</code> (<code>1000</code>),
               <code>ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE</code> (<code>1000</code>).</li>
+            <li><strong>Heap protection (relational engines):</strong>
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES</code> (<code>52428800</code> —
+              per-result byte cap; larger SELECT results are truncated),
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT</code> (<code>32</code> —
+              global in-flight execution budget across all datasources),
+              <code>ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT</code> (<code>5s</code> —
+              wait before overflow executions are rejected with HTTP 503).</li>
             <li><strong>SELECT result cache:</strong>
               <code>ACCESSFLOW_PROXY_CACHE_ENABLED</code> (<code>true</code>),
               <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code> (<code>PT60S</code>),

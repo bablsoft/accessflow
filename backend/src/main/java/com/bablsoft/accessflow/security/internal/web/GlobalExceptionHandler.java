@@ -78,6 +78,7 @@ import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
+import com.bablsoft.accessflow.proxy.api.QueryConcurrencyLimitExceededException;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
 import lombok.RequiredArgsConstructor;
@@ -571,6 +572,15 @@ class GlobalExceptionHandler {
         // Message resolved at throw site via MessageSource
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
         pd.setProperty("error", "POOL_INITIALIZATION_FAILED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(QueryConcurrencyLimitExceededException.class)
+    ProblemDetail handleQueryConcurrencyLimitExceeded(QueryConcurrencyLimitExceededException ex) {
+        // Message resolved at throw site via MessageSource
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+        pd.setProperty("error", "QUERY_CONCURRENCY_LIMIT");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

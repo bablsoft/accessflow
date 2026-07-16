@@ -333,6 +333,17 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void queryConcurrencyLimitExceededReturns503() {
+        var pd = handler.handleQueryConcurrencyLimitExceeded(
+                new com.bablsoft.accessflow.proxy.api.QueryConcurrencyLimitExceededException(
+                        "too many in flight"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE.value());
+        assertThat(pd.getProperties()).containsEntry("error", "QUERY_CONCURRENCY_LIMIT");
+        assertThat(pd.getDetail()).isEqualTo("too many in flight");
+    }
+
+    @Test
     void uncaughtExceptionReturns500() {
         var pd = handler.handleGeneral(new RuntimeException("boom"));
 

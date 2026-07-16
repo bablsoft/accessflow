@@ -141,7 +141,7 @@ class McpToolServiceTest {
                 .thenReturn(Optional.of(detail));
         when(queryResultPersistenceService.find(detail.id())).thenReturn(Optional.of(
                 new QueryResultPersistenceService.QueryResultSnapshot(
-                        detail.id(), "[]", "[]", 0L, false, 12)));
+                        detail.id(), "[]", "[]", 0L, false, null, 12)));
         var result = tools.getQueryResult(detail.id());
         assertThat(result.rowCount()).isZero();
         assertThat(result.durationMs()).isEqualTo(12);

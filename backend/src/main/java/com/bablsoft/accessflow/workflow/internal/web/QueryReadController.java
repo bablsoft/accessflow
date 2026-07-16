@@ -338,6 +338,7 @@ class QueryReadController {
                     sliced.toString(),
                     snapshot.rowCount(),
                     snapshot.truncated(),
+                    snapshot.truncatedReason(),
                     page,
                     size);
         } catch (RuntimeException ex) {

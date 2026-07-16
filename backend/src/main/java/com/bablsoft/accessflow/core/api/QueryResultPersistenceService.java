@@ -22,6 +22,7 @@ public interface QueryResultPersistenceService {
             String rowsJson,
             long rowCount,
             boolean truncated,
+            String truncatedReason,
             int durationMs) {
     }
 
@@ -31,6 +32,7 @@ public interface QueryResultPersistenceService {
             String rowsJson,
             long rowCount,
             boolean truncated,
+            String truncatedReason,
             int durationMs) {
     }
 }

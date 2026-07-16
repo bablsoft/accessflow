@@ -329,6 +329,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
                 rowsArray.toString(),
                 select.rowCount(),
                 select.truncated(),
+                select.truncatedReason(),
                 durationMs));
     }
 

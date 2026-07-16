@@ -137,7 +137,8 @@ class DefaultQueryExecutor implements QueryExecutor {
                 statement.setFetchSize(Math.min(effectiveMaxRows + 1, execProps.defaultFetchSize()));
                 bind(statement, rewrite.binds());
                 if (request.queryType() == QueryType.SELECT) {
-                    var result = runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
+                    var result = runSelect(statement, effectiveMaxRows,
+                            execProps.maxResultBytes(), descriptor.dbType(), start,
                             request.restrictedColumns(), request.columnMasks(),
                             rewrite.appliedPolicyIds());
                     if (cacheable && result instanceof SelectExecutionResult select) {
@@ -345,15 +346,15 @@ class DefaultQueryExecutor implements QueryExecutor {
     }
 
     private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,
-                                           DbType dbType, Instant start,
+                                           long maxResultBytes, DbType dbType, Instant start,
                                            List<String> restrictedColumns,
                                            List<ColumnMaskDirective> columnMasks,
                                            java.util.Set<java.util.UUID> appliedRowSecurityPolicyIds)
             throws SQLException {
         statement.setMaxRows(effectiveMaxRows + 1);
         try (var resultSet = statement.executeQuery()) {
-            SelectExecutionResult result = rowMapper.materialize(resultSet, effectiveMaxRows, dbType,
-                    durationSince(start), restrictedColumns, columnMasks);
+            SelectExecutionResult result = rowMapper.materialize(resultSet, effectiveMaxRows,
+                    maxResultBytes, dbType, durationSince(start), restrictedColumns, columnMasks);
             return appliedRowSecurityPolicyIds.isEmpty()
                     ? result
                     : result.withRowSecurityPolicyIds(appliedRowSecurityPolicyIds);

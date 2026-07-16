@@ -621,7 +621,7 @@ class QueryReadControllerIntegrationTest {
                 qid,
                 "[{\"name\":\"id\",\"type\":\"int4\"},{\"name\":\"name\",\"type\":\"text\"}]",
                 "[[1,\"a\"],[2,\"b\"],[3,\"c\"]]",
-                3L, false, 12);
+                3L, false, null, 12);
         when(queryResultPersistenceService.find(qid)).thenReturn(Optional.of(snapshot));
 
         var response = mvc.get().uri("/api/v1/queries/" + qid + "/results?page=0&size=2")
@@ -700,10 +700,10 @@ class QueryReadControllerIntegrationTest {
                 .thenReturn(Optional.of(previous));
         when(queryResultPersistenceService.find(currentId)).thenReturn(Optional.of(
                 new QueryResultPersistenceService.QueryResultSnapshot(
-                        currentId, "[]", "[]", 10L, false, 30)));
+                        currentId, "[]", "[]", 10L, false, null, 30)));
         when(queryResultPersistenceService.find(previousId)).thenReturn(Optional.of(
                 new QueryResultPersistenceService.QueryResultSnapshot(
-                        previousId, "[]", "[]", 8L, false, 50)));
+                        previousId, "[]", "[]", 8L, false, null, 50)));
 
         var response = mvc.get().uri("/api/v1/queries/" + currentId + "/diff")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)

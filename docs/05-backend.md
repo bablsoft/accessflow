@@ -332,6 +332,9 @@ Configuration (`accessflow.proxy.execution.*`, see `application.yml` block above
 | `max-rows` | `10000` | Global ceiling for SELECT result rows. Per-datasource `maxRowsPerQuery` is clamped to this. |
 | `statement-timeout` | `30s` | Default JDBC `setQueryTimeout` for every execution. |
 | `default-fetch-size` | `1000` | JDBC `setFetchSize` hint to bound driver-side buffers. |
+| `max-result-bytes` | `52428800` (50 MiB) | Per-result byte cap enforced during row materialization (#49). |
+| `max-concurrent` | `32` | Global in-flight execution budget across all datasources (#49). |
+| `acquire-timeout` | `5s` | How long an overflow execution waits for a permit before a 503 (#49). |
 
 Exception → HTTP mapping is in `security/internal/web/GlobalExceptionHandler.java`:
 
@@ -341,8 +344,32 @@ Exception → HTTP mapping is in `security/internal/web/GlobalExceptionHandler.j
 | `QueryExecutionFailedException` | 422 Unprocessable Entity | `QUERY_EXECUTION_FAILED` (also exposes `sqlState`, `vendorCode`) |
 | `DatasourceUnavailableException` | 422 Unprocessable Entity | `DATASOURCE_UNAVAILABLE` |
 | `PoolInitializationException` | 503 Service Unavailable | `POOL_INITIALIZATION_FAILED` |
+| `QueryConcurrencyLimitExceededException` | 503 Service Unavailable | `QUERY_CONCURRENCY_LIMIT` |
 
-Out of scope for the executor itself (tracked separately): persistent storage of SELECT rows for the `/queries/{id}/results` endpoint, byte-size caps and concurrency budgets, and the workflow orchestrator that flips `QueryStatus` and writes execution metadata onto `query_requests`.
+#### Result byte cap & concurrency budget (#49)
+
+Two heap-protection guards on top of the row cap:
+
+- **Per-result byte cap** (`max-result-bytes`, default 50 MiB). `JdbcResultRowMapper` accumulates a
+  rough per-row size estimate (`ResultByteEstimator`: string length ×2 + overhead, BigDecimal digit
+  count, fixed sizes for primitives, recursive for arrays) while materializing; when the running
+  total would exceed the cap it stops, marks the result `truncated=true`, and sets
+  `truncatedReason="BYTE_LIMIT"` (row-cap truncation sets `"ROW_LIMIT"`; an untruncated result has
+  `null`). The first row is always kept so a single oversized row still returns data. The reason is
+  persisted on `query_request_results.truncated_reason` and surfaced in
+  `GET /queries/{id}/results` and `GET /datasources/{id}/sample-rows`. The cap applies to the
+  relational JDBC path only — engine-managed (NoSQL) datasources enforce their own `effectiveMaxRows`
+  but are not byte-capped.
+- **Global concurrency budget** (`max-concurrent` default 32, `acquire-timeout` default 5s).
+  `ConcurrencyLimitingQueryExecutor` — the `@Primary` `QueryExecutor` decorator — holds a fair
+  `Semaphore` permit around `execute()` and `sampleTable()` (both materialize rows in heap);
+  `dryRun()` passes through unguarded (EXPLAIN-only, zero rows). Overflow callers block up to the
+  acquire timeout, then get `QueryConcurrencyLimitExceededException` → 503
+  `QUERY_CONCURRENCY_LIMIT`. Per-datasource concurrency remains HikariCP's job
+  (`connectionPoolSize`) — the budget only bounds JVM-wide heap pressure. A saturation load test
+  lives at `backend/load-tests/concurrency-budget.js` (k6, manual — see its README).
+
+Out of scope for the executor itself (tracked separately): the workflow orchestrator that flips `QueryStatus` and writes execution metadata onto `query_requests`.
 
 ### Break-glass / emergency access (AF-385)
 
