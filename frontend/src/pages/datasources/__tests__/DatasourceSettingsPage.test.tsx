@@ -100,11 +100,12 @@ const baseDs: Datasource = {
   custom_driver_id: null,
   connector_id: null,
   jdbc_url_override: null,
-  read_replica_jdbc_url: null,
-  read_replica_username: null,
+  read_replicas: [],
   local_datacenter: null,
   active: true,
   created_at: '2026-05-01T00:00:00Z',
+  result_cache_enabled: false,
+  result_cache_ttl_seconds: null,
 };
 
 function wrap(node: ReactNode) {
@@ -137,44 +138,48 @@ describe('DatasourceSettingsPage — read replica section', () => {
     listAllGroups.mockResolvedValue([]);
   });
 
-  it('renders the read replica section with empty fields when datasource has no replica', async () => {
+  it('renders no endpoint rows and an add button when datasource has no replicas', async () => {
     getDatasource.mockResolvedValue(baseDs);
 
     render(wrap(<DatasourceSettingsPage />));
 
-    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
-    expect((screen.getByLabelText('Replica JDBC URL') as HTMLInputElement).value).toBe('');
-    expect((screen.getByLabelText('Replica username') as HTMLInputElement).value).toBe('');
-    expect(screen.getByRole('button', { name: /Test replica/i })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Add replica endpoint/i })).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText('Replica JDBC URL')).not.toBeInTheDocument();
   });
 
-  it('pre-fills the form when datasource has a replica configured', async () => {
+  it('pre-fills one row per configured endpoint', async () => {
     getDatasource.mockResolvedValue({
       ...baseDs,
-      read_replica_jdbc_url: 'jdbc:postgresql://replica:5432/app',
-      read_replica_username: 'replica-user',
+      read_replicas: [
+        { id: 'rep-1', jdbc_url: 'jdbc:postgresql://replica-a:5432/app', username: 'ua' },
+        { id: 'rep-2', jdbc_url: 'jdbc:postgresql://replica-b:5432/app', username: 'ub' },
+      ],
     });
 
     render(wrap(<DatasourceSettingsPage />));
 
     await waitFor(() =>
-      expect((screen.getByLabelText('Replica JDBC URL') as HTMLInputElement).value).toBe(
-        'jdbc:postgresql://replica:5432/app',
-      ),
+      expect(screen.getAllByLabelText('Replica JDBC URL')).toHaveLength(2),
     );
-    expect((screen.getByLabelText('Replica username') as HTMLInputElement).value).toBe(
-      'replica-user',
-    );
+    const urls = screen.getAllByLabelText('Replica JDBC URL') as HTMLInputElement[];
+    expect(urls[0]!.value).toBe('jdbc:postgresql://replica-a:5432/app');
+    expect(urls[1]!.value).toBe('jdbc:postgresql://replica-b:5432/app');
   });
 
-  it('calls testReplicaConnection with live form values when Test replica is clicked', async () => {
+  it('adds an endpoint row and tests it with live values', async () => {
     getDatasource.mockResolvedValue(baseDs);
     testReplicaConnection.mockResolvedValue({ ok: true, latency_ms: 8, message: null });
 
     render(wrap(<DatasourceSettingsPage />));
 
-    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Add replica endpoint/i })).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Add replica endpoint/i }));
 
+    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText('Replica JDBC URL'), {
       target: { value: 'jdbc:postgresql://r:5432/db' },
     });
@@ -192,15 +197,17 @@ describe('DatasourceSettingsPage — read replica section', () => {
         jdbc_url: 'jdbc:postgresql://r:5432/db',
         username: 'ru',
         password: 'rpw',
+        replica_id: undefined,
       }),
     );
   });
 
-  it('omits password when blank so the backend uses the persisted value', async () => {
+  it('falls back to the persisted password via replica_id when none is typed', async () => {
     getDatasource.mockResolvedValue({
       ...baseDs,
-      read_replica_jdbc_url: 'jdbc:postgresql://replica:5432/app',
-      read_replica_username: 'replica-user',
+      read_replicas: [
+        { id: 'rep-1', jdbc_url: 'jdbc:postgresql://replica:5432/app', username: 'replica-user' },
+      ],
     });
     testReplicaConnection.mockResolvedValue({ ok: true, latency_ms: 5, message: null });
 
@@ -215,55 +222,103 @@ describe('DatasourceSettingsPage — read replica section', () => {
         jdbc_url: 'jdbc:postgresql://replica:5432/app',
         username: 'replica-user',
         password: undefined,
+        replica_id: 'rep-1',
       }),
     );
   });
 
-  it('submits replica fields on save and strips blank password', async () => {
+  it('submits the endpoint list on save, keeping the stored password when blank', async () => {
+    getDatasource.mockResolvedValue({
+      ...baseDs,
+      read_replicas: [
+        { id: 'rep-1', jdbc_url: 'jdbc:postgresql://replica:5432/app', username: 'ru' },
+      ],
+    });
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Replica JDBC URL'), {
+      target: { value: 'jdbc:postgresql://replica-new:5432/app' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as {
+      read_replicas: { id?: string; jdbc_url: string; username?: string; password?: string }[];
+    };
+    expect(body.read_replicas).toHaveLength(1);
+    expect(body.read_replicas[0]!.id).toBe('rep-1');
+    expect(body.read_replicas[0]!.jdbc_url).toBe('jdbc:postgresql://replica-new:5432/app');
+    expect(body.read_replicas[0]!.username).toBe('ru');
+    expect(body.read_replicas[0]!.password).toBeUndefined();
+  });
+
+  it('submits an empty endpoint list after removing the last replica', async () => {
+    getDatasource.mockResolvedValue({
+      ...baseDs,
+      read_replicas: [
+        { id: 'rep-1', jdbc_url: 'jdbc:postgresql://replica:5432/app', username: 'ru' },
+      ],
+    });
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /Remove/i }));
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Replica JDBC URL')).not.toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as { read_replicas: unknown[] };
+    expect(body.read_replicas).toEqual([]);
+  });
+});
+
+describe('DatasourceSettingsPage — performance card', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    updateDatasource.mockReset();
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+  });
+
+  it('submits cache opt-in and TTL on save', async () => {
     getDatasource.mockResolvedValue(baseDs);
     updateDatasource.mockResolvedValue(baseDs);
 
     render(wrap(<DatasourceSettingsPage />));
 
-    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByLabelText('Cache SELECT results')).toBeInTheDocument(),
+    );
+    // TTL is disabled until the cache is enabled.
+    expect(screen.getByLabelText('Cache TTL (seconds)')).toBeDisabled();
 
-    fireEvent.change(screen.getByLabelText('Replica JDBC URL'), {
-      target: { value: 'jdbc:postgresql://r:5432/db' },
+    fireEvent.click(screen.getByLabelText('Cache SELECT results'));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Cache TTL (seconds)')).not.toBeDisabled(),
+    );
+    fireEvent.change(screen.getByLabelText('Cache TTL (seconds)'), {
+      target: { value: '120' },
     });
-    fireEvent.change(screen.getByLabelText('Replica username'), {
-      target: { value: 'ru' },
-    });
-    // Leave replica password blank.
 
     fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
 
     await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
     const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
-    expect(body.read_replica_jdbc_url).toBe('jdbc:postgresql://r:5432/db');
-    expect(body.read_replica_username).toBe('ru');
-    expect(body).not.toHaveProperty('read_replica_password');
-  });
-
-  it('passes blank read_replica_jdbc_url through on save so the backend clear-on-blank rule fires', async () => {
-    getDatasource.mockResolvedValue({
-      ...baseDs,
-      read_replica_jdbc_url: 'jdbc:postgresql://replica:5432/app',
-      read_replica_username: 'ru',
-    });
-    updateDatasource.mockResolvedValue(baseDs);
-
-    render(wrap(<DatasourceSettingsPage />));
-
-    await waitFor(() => expect(screen.getByLabelText('Replica JDBC URL')).toBeInTheDocument());
-
-    fireEvent.change(screen.getByLabelText('Replica JDBC URL'), {
-      target: { value: '' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
-
-    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
-    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
-    expect(body.read_replica_jdbc_url).toBe('');
+    expect(body.result_cache_enabled).toBe(true);
+    expect(body.result_cache_ttl_seconds).toBe(120);
   });
 });
 

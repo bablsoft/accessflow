@@ -1057,21 +1057,39 @@
             <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-query</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-query on, users can draft a query from a natural-language prompt in the editor — in the engine's native query language (SQL or a NoSQL query) — and the draft still flows through the normal review pipeline. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
           </ol>
           <p>
-            <strong>Read-replica routing (optional).</strong> On the datasource settings page,
-            the <em>Read replica</em> card accepts an optional JDBC URL plus username and password.
-            When set, AccessFlow opens a separate connection pool and routes every query classified as
-            <code>SELECT</code> to the replica; INSERT / UPDATE / DELETE / DDL
-            and transactional <code>BEGIN … COMMIT</code> batches always hit the primary. The
-            replica must use the same database engine as the primary (it reuses the primary's
-            JDBC driver). Replica credentials are AES-256-GCM encrypted with the same
-            <code>ENCRYPTION_KEY</code> as the primary. Click <em>Test replica</em> to validate
-            the URL + credentials live without persisting; leaving the password field blank reuses
-            the saved replica password. If the replica is unreachable at query time, AccessFlow
-            falls back to the primary so the query still runs and writes a
-            <code>DATASOURCE_REPLICA_FALLBACK</code> audit row so the failure is visible at
-            <code>/admin/audit-log</code>. Clear the JDBC URL field to disable replica routing.
-            Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> connection-pool tuning as the
-            primary — no separate environment variables.
+            <strong>Read replicas &amp; load balancing (optional).</strong> On the datasource
+            settings page, the <em>Read replicas</em> card takes any number of replica endpoints
+            (JDBC URL plus optional username and password per endpoint — blank credentials reuse
+            the primary's). AccessFlow opens one connection pool per endpoint and load-balances
+            every query classified as <code>SELECT</code> round-robin across the healthy replicas;
+            INSERT / UPDATE / DELETE / DDL and transactional <code>BEGIN … COMMIT</code> batches
+            always hit the primary. Replicas must use the same database engine as the primary
+            (they reuse the primary's JDBC driver), and credentials are AES-256-GCM encrypted with
+            the same <code>ENCRYPTION_KEY</code>. Per-node health checks (a background prober plus
+            a circuit breaker) take a failed endpoint out of rotation for a cooldown
+            (<code>ACCESSFLOW_PROXY_REPLICA_COOLDOWN</code>, default 30s) and its health shows on
+            the <em>Datasource health</em> dashboard; only when every replica is down does the
+            read fall back to the primary, with one <code>DATASOURCE_REPLICA_FALLBACK</code> audit
+            row visible at <code>/admin/audit-log</code>. Click <em>Test replica</em> on any row
+            to validate its URL + credentials live without persisting; leaving the password blank
+            reuses that endpoint's saved password. Remove every endpoint to disable replica
+            routing. Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> connection-pool
+            tuning as the primary; the health checks are tuned by the
+            <code>ACCESSFLOW_PROXY_REPLICA_*</code> variables.
+          </p>
+          <p>
+            <strong>SELECT result caching (optional).</strong> The settings page's
+            <em>Performance</em> card opts a datasource into a Redis-backed result cache for
+            repeated identical <code>SELECT</code>s, with a per-datasource TTL (1–86,400 seconds;
+            blank uses <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code>, default 60s). Caching is
+            security-safe by construction — entries are keyed over the row-security-rewritten
+            query and the caller's masking scope, so masking and row-level security always apply —
+            and any write executed through AccessFlow to a referenced table (including GDPR
+            erasure and retention deletes) immediately invalidates the affected entries. Note that
+            writes made <em>outside</em> AccessFlow are invisible to the cache and are served
+            stale until the TTL expires, so pick a TTL that matches how the datasource is written.
+            <code>ACCESSFLOW_PROXY_CACHE_ENABLED=false</code> switches the feature off
+            deployment-wide.
           </p>
           <p>
             <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, and restricted columns (masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
@@ -1178,7 +1196,16 @@
             <li><strong>Statement execution (all engines):</strong>
               <code>ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS</code> (<code>10000</code>),
               <code>ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT</code> (<code>30s</code>),
-              <code>ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE</code> (<code>1000</code>).</li>
+              <code>ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE</code> (<code>1000</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE</code> (<code>1000</code>).</li>
+            <li><strong>SELECT result cache:</strong>
+              <code>ACCESSFLOW_PROXY_CACHE_ENABLED</code> (<code>true</code>),
+              <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code> (<code>PT60S</code>),
+              <code>ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES</code> (<code>1000000</code>).</li>
+            <li><strong>Read-replica health checks:</strong>
+              <code>ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL</code> (<code>PT30S</code>),
+              <code>ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT</code> (<code>PT5S</code>),
+              <code>ACCESSFLOW_PROXY_REPLICA_COOLDOWN</code> (<code>PT30S</code>).</li>
             <li><strong>MongoDB:</strong> <code>ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT</code>
               (<code>PT10S</code>), <code>…_SERVER_SELECTION_TIMEOUT</code> (<code>PT10S</code>),
               <code>…_MAX_POOL_SIZE</code> (<code>10</code>).</li>

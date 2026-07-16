@@ -774,8 +774,27 @@ class DatasourceControllerIntegrationTest {
     }
 
     @Test
-    void testReplicaFallsBackToPersistedPasswordWhenOmitted() {
+    void testReplicaFallsBackToPersistedPasswordViaReplicaId() {
         var ds = saveContainerDatasourceWithReplica(primaryOrg, "DS-Replica-Pw");
+        var replicaId = ds.getReadReplicas().get(0).getId();
+        var body = String.format(
+                "{\"jdbc_url\":\"%s\",\"username\":\"%s\",\"replica_id\":\"%s\"}",
+                TestcontainersConfig.postgres.getJdbcUrl(),
+                TestcontainersConfig.postgres.getUsername(),
+                replicaId);
+
+        var result = mvc.post().uri("/api/v1/datasources/" + ds.getId() + "/test-replica")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+    }
+
+    @Test
+    void testReplicaWithoutPasswordAndWithoutReplicaIdReturns422() {
+        var ds = saveContainerDatasourceWithReplica(primaryOrg, "DS-Replica-NoId");
         var body = String.format(
                 "{\"jdbc_url\":\"%s\",\"username\":\"%s\"}",
                 TestcontainersConfig.postgres.getJdbcUrl(),
@@ -787,7 +806,7 @@ class DatasourceControllerIntegrationTest {
                 .content(body)
                 .exchange();
 
-        assertThat(result).hasStatus(200);
+        assertThat(result).hasStatus(422);
     }
 
     @Test
@@ -882,9 +901,15 @@ class DatasourceControllerIntegrationTest {
     private DatasourceEntity saveContainerDatasourceWithReplica(OrganizationEntity org, String name) {
         var ds = saveContainerDatasource(org, name);
         var pg = TestcontainersConfig.postgres;
-        ds.setReadReplicaJdbcUrl(pg.getJdbcUrl());
-        ds.setReadReplicaUsername(pg.getUsername());
-        ds.setReadReplicaPasswordEncrypted(encryptionService.encrypt(pg.getPassword()));
+        var replica = new com.bablsoft.accessflow.core.internal.persistence.entity
+                .DatasourceReadReplicaEntity();
+        replica.setId(UUID.randomUUID());
+        replica.setDatasource(ds);
+        replica.setJdbcUrl(pg.getJdbcUrl());
+        replica.setUsername(pg.getUsername());
+        replica.setPasswordEncrypted(encryptionService.encrypt(pg.getPassword()));
+        replica.setPosition(0);
+        ds.getReadReplicas().add(replica);
         return datasourceRepository.save(ds);
     }
 

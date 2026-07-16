@@ -282,11 +282,22 @@ interface ConfigTabProps {
   deletePending: boolean;
 }
 
+interface ReplicaFormRow {
+  id?: string;
+  jdbc_url: string;
+  username?: string;
+  password?: string;
+}
+
+type SettingsFormValues = Omit<UpdateDatasourceInput, 'read_replicas'> & {
+  read_replicas: ReplicaFormRow[];
+};
+
 function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const [form] = Form.useForm<UpdateDatasourceInput>();
+  const [form] = Form.useForm<SettingsFormValues>();
 
   const reviewPlansQuery = useQuery({
     queryKey: reviewPlanKeys.lists(),
@@ -297,7 +308,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const secretRefHelp = secretReferenceHelp(secretProviders, t);
   const secretRefRule = secretReferenceRule(secretProviders, t);
 
-  const initialValues: UpdateDatasourceInput = {
+  const initialValues: SettingsFormValues = {
     name: ds.name,
     host: ds.host ?? undefined,
     port: ds.port ?? undefined,
@@ -312,51 +323,58 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     ai_analysis_enabled: ds.ai_analysis_enabled,
     ai_config_id: ds.ai_config_id ?? null,
     text_to_sql_enabled: ds.text_to_sql_enabled,
-    read_replica_jdbc_url: ds.read_replica_jdbc_url ?? '',
-    read_replica_username: ds.read_replica_username ?? '',
+    read_replicas: ds.read_replicas.map((r) => ({
+      id: r.id,
+      jdbc_url: r.jdbc_url,
+      username: r.username ?? '',
+      password: '',
+    })),
+    result_cache_enabled: ds.result_cache_enabled,
+    result_cache_ttl_seconds: ds.result_cache_ttl_seconds ?? undefined,
     active: ds.active,
   };
 
-  const [replicaResult, setReplicaResult] = useState<ConnectionTestResult | null>(null);
-  const [replicaError, setReplicaError] = useState<string | null>(null);
+  const [replicaResults, setReplicaResults] = useState<
+    Record<number, { result?: ConnectionTestResult; error?: string }>
+  >({});
   const testReplicaMutation = useMutation({
-    mutationFn: () => {
-      const values = form.getFieldsValue([
-        'read_replica_jdbc_url',
-        'read_replica_username',
-        'read_replica_password',
-      ]) as {
-        read_replica_jdbc_url?: string;
-        read_replica_username?: string;
-        read_replica_password?: string;
-      };
-      const password = values.read_replica_password?.trim()
-        ? values.read_replica_password
-        : undefined;
+    mutationFn: (index: number) => {
+      const rows = (form.getFieldValue('read_replicas') ?? []) as ReplicaFormRow[];
+      const row = rows[index] ?? { jdbc_url: '' };
+      const password = row.password?.trim() ? row.password : undefined;
       return testReplicaConnection(ds.id, {
-        jdbc_url: values.read_replica_jdbc_url ?? '',
-        username: values.read_replica_username ?? '',
+        jdbc_url: row.jdbc_url ?? '',
+        username: row.username ?? '',
         password,
+        // Fall back to this endpoint's stored password when none was typed.
+        replica_id: !password && row.id ? row.id : undefined,
       });
     },
-    onMutate: () => {
-      setReplicaResult(null);
-      setReplicaError(null);
+    onMutate: (index: number) => {
+      setReplicaResults((prev) => ({ ...prev, [index]: {} }));
     },
-    onSuccess: (result) => {
-      setReplicaResult(result);
+    onSuccess: (result, index) => {
+      setReplicaResults((prev) => ({ ...prev, [index]: { result } }));
       if (result.ok) {
         message.success(t('datasources.settings.replica_connection_ok', { ms: result.latency_ms }));
       } else {
-        setReplicaError(result.message ?? t('datasources.settings.replica_connection_failed'));
+        setReplicaResults((prev) => ({
+          ...prev,
+          [index]: {
+            error: result.message ?? t('datasources.settings.replica_connection_failed'),
+          },
+        }));
       }
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, index) => {
       const detail =
         isAxiosError(err) && typeof err.response?.data === 'object' && err.response?.data
           ? (err.response.data as { detail?: string }).detail
           : null;
-      setReplicaError(detail ?? t('datasources.settings.replica_connection_failed'));
+      setReplicaResults((prev) => ({
+        ...prev,
+        [index]: { error: detail ?? t('datasources.settings.replica_connection_failed') },
+      }));
     },
   });
 
@@ -377,8 +395,9 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     },
   });
 
-  const onFinish = (values: UpdateDatasourceInput & { password?: string }) => {
-    const body: UpdateDatasourceInput = { ...values };
+  const onFinish = (values: SettingsFormValues) => {
+    const { read_replicas: replicaRows, ...rest } = values;
+    const body: UpdateDatasourceInput = { ...rest };
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
@@ -387,10 +406,17 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
       body.clear_ai_config = true;
       body.ai_config_id = null;
     }
-    if (!body.read_replica_password || body.read_replica_password.trim().length === 0) {
-      delete body.read_replica_password;
+    // Full-list replacement: an empty list deletes every endpoint. A blank password on an
+    // existing row keeps the stored secret (undefined), never clears it.
+    body.read_replicas = (replicaRows ?? []).map((row) => ({
+      id: row.id ?? undefined,
+      jdbc_url: row.jdbc_url,
+      username: row.username?.trim() ? row.username : undefined,
+      password: row.password?.trim() ? row.password : undefined,
+    }));
+    if (body.result_cache_enabled === false) {
+      delete body.result_cache_ttl_seconds;
     }
-    // Pass blank read_replica_jdbc_url straight through so the backend clear-on-blank rule fires.
     updateMutation.mutate(body);
   };
 
@@ -458,47 +484,135 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
           </Grid>
         </Section>
         <Section title={t('datasources.settings.section_read_replica')}>
+          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+            {t('datasources.settings.replica_list_help')}
+          </p>
+          <Form.List name="read_replicas">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name }) => (
+                  <div
+                    key={key}
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius)',
+                      padding: 16,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <Form.Item name={[name, 'id']} hidden>
+                      <Input type="hidden" />
+                    </Form.Item>
+                    <Grid>
+                      <Form.Item
+                        label={t('datasources.settings.label_replica_jdbc_url')}
+                        name={[name, 'jdbc_url']}
+                        extra={t('datasources.settings.replica_jdbc_url_help')}
+                        rules={[
+                          {
+                            required: true,
+                            message: t('datasources.settings.replica_jdbc_url_required'),
+                          },
+                          { max: 2048 },
+                        ]}
+                      >
+                        <Input
+                          className="mono"
+                          placeholder="jdbc:postgresql://replica-host:5432/db"
+                        />
+                      </Form.Item>
+                      <div />
+                      <Form.Item
+                        label={t('datasources.settings.label_replica_username')}
+                        name={[name, 'username']}
+                        rules={[{ max: 255 }]}
+                      >
+                        <Input className="mono" />
+                      </Form.Item>
+                      <Form.Item
+                        label={t('datasources.settings.label_replica_password')}
+                        name={[name, 'password']}
+                        extra={secretRefHelp}
+                        rules={[secretRefRule]}
+                      >
+                        <Input.Password
+                          placeholder={t('datasources.settings.replica_password_placeholder')}
+                        />
+                      </Form.Item>
+                    </Grid>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <ConnectionTester
+                        driverStatus="READY"
+                        pending={
+                          testReplicaMutation.isPending
+                          && testReplicaMutation.variables === name
+                        }
+                        result={replicaResults[name]?.result ?? null}
+                        errorMessage={replicaResults[name]?.error ?? null}
+                        onRunTest={() => testReplicaMutation.mutate(name)}
+                        buttonLabel={t('datasources.settings.test_replica_connection')}
+                        successLabel={(ms) =>
+                          t('datasources.settings.replica_connection_ok', { ms })
+                        }
+                      />
+                      <div style={{ flex: 1 }} />
+                      <Button
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => remove(name)}
+                      >
+                        {t('datasources.settings.replica_remove')}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  icon={<PlusOutlined />}
+                  onClick={() => add({ jdbc_url: '', username: '', password: '' })}
+                  disabled={fields.length >= 5}
+                >
+                  {t('datasources.settings.replica_add')}
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </Section>
+        <Section title={t('datasources.settings.section_performance')}>
           <Grid>
             <Form.Item
-              label={t('datasources.settings.label_replica_jdbc_url')}
-              name="read_replica_jdbc_url"
-              extra={t('datasources.settings.replica_jdbc_url_help')}
-              rules={[{ max: 2048 }]}
+              label={t('datasources.settings.label_cache_enabled')}
+              name="result_cache_enabled"
+              valuePropName="checked"
+              extra={t('datasources.settings.cache_enabled_help')}
             >
-              <Input className="mono" placeholder="jdbc:postgresql://replica-host:5432/db" />
-            </Form.Item>
-            <div />
-            <Form.Item
-              label={t('datasources.settings.label_replica_username')}
-              name="read_replica_username"
-              rules={[{ max: 255 }]}
-            >
-              <Input className="mono" />
+              <Switch />
             </Form.Item>
             <Form.Item
-              label={t('datasources.settings.label_replica_password')}
-              name="read_replica_password"
-              extra={secretRefHelp}
-              rules={[secretRefRule]}
+              shouldUpdate={(prev, next) =>
+                prev.result_cache_enabled !== next.result_cache_enabled
+              }
+              noStyle
             >
-              <Input.Password
-                placeholder={t('datasources.settings.replica_password_placeholder')}
-              />
+              {({ getFieldValue }) => (
+                <Form.Item
+                  label={t('datasources.settings.label_cache_ttl')}
+                  name="result_cache_ttl_seconds"
+                  extra={t('datasources.settings.cache_ttl_help')}
+                  rules={[{ type: 'number', min: 1, max: 86_400 }]}
+                >
+                  <InputNumber
+                    className="mono"
+                    min={1}
+                    max={86_400}
+                    style={{ width: '100%' }}
+                    disabled={getFieldValue('result_cache_enabled') !== true}
+                    placeholder={t('datasources.settings.cache_ttl_placeholder')}
+                  />
+                </Form.Item>
+              )}
             </Form.Item>
           </Grid>
-          <div style={{ marginTop: 8 }}>
-            <ConnectionTester
-              driverStatus="READY"
-              pending={testReplicaMutation.isPending}
-              result={replicaResult}
-              errorMessage={replicaError}
-              onRunTest={() => testReplicaMutation.mutate()}
-              buttonLabel={t('datasources.settings.test_replica_connection')}
-              successLabel={(ms) =>
-                t('datasources.settings.replica_connection_ok', { ms })
-              }
-            />
-          </div>
         </Section>
         <Section title={t('datasources.settings.section_limits')}>
           <Grid>

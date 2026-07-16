@@ -890,7 +890,7 @@
       "er_diagram_fk_label": "{{from}} → {{to}}",
       "er_diagram_help": "点击表以突出显示其关系。点击背景以清除。",
       "section_connection": "连接",
-      "section_read_replica": "只读副本",
+      "section_read_replica": "读副本",
       "section_limits": "限制与策略",
       "label_name": "名称",
       "label_db_type": "数据库类型",
@@ -903,7 +903,7 @@
       "label_replica_jdbc_url": "副本 JDBC URL",
       "label_replica_username": "副本用户名",
       "label_replica_password": "副本密码",
-      "replica_jdbc_url_help": "SELECT 查询会路由到该副本；INSERT/UPDATE/DDL 始终在主库执行。留空可禁用副本路由。",
+      "replica_jdbc_url_help": "此副本端点的 JDBC URL。它必须与主库运行相同的引擎。",
       "replica_password_placeholder": "留空以沿用已保存的副本密码",
       "test_replica_connection": "测试副本",
       "replica_connection_ok": "副本已连接 · {{ms}}ms",
@@ -1162,7 +1162,17 @@
       "sample_truncated": "{{count}} 行（受代理行数限制）",
       "sample_row_count": "{{count}} 行",
       "sample_select_prompt": "浏览架构并预览任意表的受控、有限的行样本。",
-      "sample_preview_aria": "预览 {{table}} 的数据"
+      "sample_preview_aria": "预览 {{table}} 的数据",
+      "replica_list_help": "SELECT 查询在健康的副本之间轮询负载均衡；INSERT/UPDATE/DDL 始终发送到主库。不可用的端点会被跳过，直至恢复。",
+      "replica_jdbc_url_required": "副本 JDBC URL 为必填项",
+      "replica_add": "添加副本端点",
+      "replica_remove": "移除",
+      "section_performance": "性能",
+      "label_cache_enabled": "缓存 SELECT 结果",
+      "cache_enabled_help": "从 Redis 缓存中响应重复的相同 SELECT。对被引用表的任何写入都会使条目失效；脱敏和行级安全仍然生效。",
+      "label_cache_ttl": "缓存 TTL（秒）",
+      "cache_ttl_help": "缓存结果的有效时长（1–86,400 秒）。留空则使用部署默认值。",
+      "cache_ttl_placeholder": "部署默认值"
     }
   },
   "admin": {
@@ -1819,7 +1829,8 @@
       "errors_last_24h": "错误（24 小时）",
       "execution_p50": "执行 p50",
       "execution_p95": "执行 p95",
-      "unit_ms": "毫秒"
+      "unit_ms": "毫秒",
+      "replicas_title": "{{healthy}}/{{total}} 个副本健康"
     },
     "slack": {
       "title": "Slack 应用",

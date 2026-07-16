@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record DatasourceResponse(
@@ -28,12 +29,20 @@ public record DatasourceResponse(
         UUID customDriverId,
         String connectorId,
         String jdbcUrlOverride,
-        String readReplicaJdbcUrl,
-        String readReplicaUsername,
+        List<ReadReplicaResponse> readReplicas,
         boolean active,
         Instant createdAt,
-        String localDatacenter
+        String localDatacenter,
+        boolean resultCacheEnabled,
+        Integer resultCacheTtlSeconds
 ) {
+    /** One read-replica endpoint — never carries the password. */
+    public record ReadReplicaResponse(UUID id, String jdbcUrl, String username) {
+        static ReadReplicaResponse from(DatasourceView.ReadReplicaView view) {
+            return new ReadReplicaResponse(view.id(), view.jdbcUrl(), view.username());
+        }
+    }
+
     public static DatasourceResponse from(DatasourceView view) {
         return new DatasourceResponse(
                 view.id(),
@@ -56,10 +65,11 @@ public record DatasourceResponse(
                 view.customDriverId(),
                 view.connectorId(),
                 view.jdbcUrlOverride(),
-                view.readReplicaJdbcUrl(),
-                view.readReplicaUsername(),
+                view.readReplicas().stream().map(ReadReplicaResponse::from).toList(),
                 view.active(),
                 view.createdAt(),
-                view.localDatacenter());
+                view.localDatacenter(),
+                view.resultCacheEnabled(),
+                view.resultCacheTtlSeconds());
     }
 }

@@ -39,10 +39,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * End-to-end test of read-replica routing using two real PostgreSQL containers. The primary and
- * replica are seeded with different rows so the test can prove the SELECT was answered by the
- * replica; INSERT/UPDATE go to the primary; stopping the replica triggers a primary-fallback with
- * a {@link AuditAction#DATASOURCE_REPLICA_FALLBACK} audit row.
+ * End-to-end test of multi-replica read routing (AF-457) using three real PostgreSQL containers
+ * (primary + two replicas). Each is seeded with a distinct row so the test can prove which
+ * database answered a SELECT: reads round-robin across the replicas, a downed replica is skipped
+ * in favour of its sibling, INSERT/UPDATE go to the primary, and only when every replica is down
+ * does the read fall back to the primary with a
+ * {@link AuditAction#DATASOURCE_REPLICA_FALLBACK} audit row.
  */
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
@@ -59,6 +61,12 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
             .withDatabaseName("replica_db")
             .withUsername("r_user")
             .withPassword("r-pw");
+
+    @SuppressWarnings({"rawtypes", "resource"})
+    static PostgreSQLContainer replicaDb2 = new PostgreSQLContainer("postgres:18-alpine")
+            .withDatabaseName("replica2_db")
+            .withUsername("r2_user")
+            .withPassword("r2-pw");
 
     @Autowired QueryExecutor executor;
     @Autowired DatasourceConnectionPoolManager poolManager;
@@ -90,6 +98,7 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
     static void startContainers() {
         primaryDb.start();
         replicaDb.start();
+        replicaDb2.start();
     }
 
     @AfterAll
@@ -99,6 +108,9 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
         }
         if (replicaDb.isRunning()) {
             replicaDb.stop();
+        }
+        if (replicaDb2.isRunning()) {
+            replicaDb2.stop();
         }
     }
 
@@ -116,7 +128,8 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
         datasource = saveDatasource();
 
         seed(primaryDb, "primary-row");
-        seed(replicaDb, "replica-row");
+        seed(replicaDb, "replica-a-row");
+        seed(replicaDb2, "replica-b-row");
     }
 
     @SuppressWarnings("rawtypes")
@@ -132,14 +145,40 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
     }
 
     @Test
-    void selectIsServedByReplicaWhenConfigured() {
+    void selectsRoundRobinAcrossBothReplicas() {
         var request = new QueryExecutionRequest(datasource.getId(),
                 "SELECT label FROM items", QueryType.SELECT, null, null);
 
-        var result = (SelectExecutionResult) executor.execute(request);
+        var first = (SelectExecutionResult) executor.execute(request);
+        var second = (SelectExecutionResult) executor.execute(request);
 
-        assertThat(result.rows()).hasSize(1);
-        assertThat(result.rows().get(0)).containsExactly("replica-row");
+        var labels = java.util.Set.of(
+                (String) first.rows().get(0).get(0),
+                (String) second.rows().get(0).get(0));
+        // Consecutive SELECTs alternate between the two replicas; neither hits the primary.
+        assertThat(labels).containsExactlyInAnyOrder("replica-a-row", "replica-b-row");
+    }
+
+    @Test
+    void downedReplicaIsSkippedInFavourOfSibling() {
+        // Warm both replica pools.
+        var request = new QueryExecutionRequest(datasource.getId(),
+                "SELECT label FROM items", QueryType.SELECT, null, null);
+        executor.execute(request);
+        executor.execute(request);
+
+        replicaDb2.stop();
+        // Evict cached pools so the downed endpoint fails fast at pool init instead of waiting
+        // out the Hikari connection timeout on a dead pooled connection.
+        poolManager.evict(datasource.getId());
+        try {
+            for (int i = 0; i < 3; i++) {
+                var result = (SelectExecutionResult) executor.execute(request);
+                assertThat(result.rows().get(0)).containsExactly("replica-a-row");
+            }
+        } finally {
+            replicaDb2.start();
+        }
     }
 
     @Test
@@ -160,16 +199,17 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
     }
 
     @Test
-    void selectFallsBackToPrimaryWhenReplicaUnreachable() {
+    void selectFallsBackToPrimaryWhenAllReplicasUnreachable() {
         // Warm the primary pool so the fallback path isn't constructing a pool from scratch.
         var warmup = new QueryExecutionRequest(datasource.getId(),
                 "SELECT label FROM items", QueryType.SELECT, null, null);
         executor.execute(warmup);
 
         replicaDb.stop();
+        replicaDb2.stop();
         poolManager.evict(datasource.getId());
         try {
-            // Reload primary pool only; replica resolve will fail after eviction.
+            // Reload primary pool only; every replica resolve fails after eviction.
             var fallback = new QueryExecutionRequest(datasource.getId(),
                     "SELECT label FROM items", QueryType.SELECT, null, null);
             var result = (SelectExecutionResult) executor.execute(fallback);
@@ -183,6 +223,7 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
             assertThat(audits.content()).isNotEmpty();
         } finally {
             replicaDb.start();
+            replicaDb2.start();
         }
     }
 
@@ -203,10 +244,24 @@ class DefaultQueryExecutorReadReplicaIntegrationTest {
         ds.setRequireReviewReads(false);
         ds.setRequireReviewWrites(true);
         ds.setAiAnalysisEnabled(false);
-        ds.setReadReplicaJdbcUrl(replicaDb.getJdbcUrl());
-        ds.setReadReplicaUsername(replicaDb.getUsername());
-        ds.setReadReplicaPasswordEncrypted(encryptionService.encrypt(replicaDb.getPassword()));
+        addReplica(ds, replicaDb.getJdbcUrl(), replicaDb.getUsername(),
+                encryptionService.encrypt(replicaDb.getPassword()));
+        addReplica(ds, replicaDb2.getJdbcUrl(), replicaDb2.getUsername(),
+                encryptionService.encrypt(replicaDb2.getPassword()));
         ds.setActive(true);
         return datasourceRepository.save(ds);
+    }
+
+    private static void addReplica(DatasourceEntity ds, String jdbcUrl, String username,
+                                   String passwordEncrypted) {
+        var replica = new com.bablsoft.accessflow.core.internal.persistence.entity
+                .DatasourceReadReplicaEntity();
+        replica.setId(UUID.randomUUID());
+        replica.setDatasource(ds);
+        replica.setJdbcUrl(jdbcUrl);
+        replica.setUsername(username);
+        replica.setPasswordEncrypted(passwordEncrypted);
+        replica.setPosition(ds.getReadReplicas().size());
+        ds.getReadReplicas().add(replica);
     }
 }

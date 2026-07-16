@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -74,13 +75,14 @@ class DefaultQueryExecutorTest {
     private final SqlExceptionTranslator translator = new SqlExceptionTranslator(messageSource);
     private final ProxyPoolProperties properties = new ProxyPoolProperties(
             null, null, null, null, null,
-            new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000));
+            new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, null));
     private final AtomicLong nanos = new AtomicLong();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-05T12:00:00Z"), ZoneOffset.UTC);
 
     private final com.bablsoft.accessflow.core.api.QueryEngineCatalog engineCatalog =
             mock(com.bablsoft.accessflow.core.api.QueryEngineCatalog.class);
     private final DryRunPlanner dryRunPlanner = mock(DryRunPlanner.class);
+    private final SelectResultCache resultCache = mock(SelectResultCache.class);
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     private final ObservationRegistry observationRegistry = ObservationRegistry.create();
 
@@ -97,17 +99,20 @@ class DefaultQueryExecutorTest {
         when(dataSource.getConnection()).thenReturn(connection);
         when(connection.prepareStatement(anyString())).thenReturn(statement);
         when(poolManager.resolve(datasourceId)).thenReturn(dataSource);
-        when(poolManager.resolveReplica(datasourceId)).thenReturn(Optional.empty());
+        when(poolManager.replicaEndpoints(datasourceId)).thenReturn(List.of());
         when(lookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(2_000)));
         observationRegistry.observationConfig()
                 .observationHandler(new DefaultMeterObservationHandler(meterRegistry));
-        var router = new RoutingDataSourceResolver(poolManager, lookupService, auditLogService,
-                messageSource, observationRegistry);
+        var healthRegistry = new ReplicaHealthRegistry(clock,
+                new ProxyReplicaProperties(null, null, null));
+        var router = new RoutingDataSourceResolver(poolManager, healthRegistry, lookupService,
+                auditLogService, messageSource, observationRegistry);
         when(dryRunPlanner.supportedTypes()).thenReturn(java.util.Set.of(DbType.POSTGRESQL));
         var dryRunRegistry = new DryRunPlannerRegistry(List.of(dryRunPlanner));
         executor = new DefaultQueryExecutor(router, lookupService, properties,
                 rowMapper, translator, new RowSecurityRewriter(messageSource),
-                engineCatalog, dryRunRegistry, clock, messageSource, observationRegistry);
+                engineCatalog, dryRunRegistry, resultCache, clock, messageSource,
+                observationRegistry);
     }
 
     @Test
@@ -303,13 +308,10 @@ class DefaultQueryExecutorTest {
     }
 
     @Test
-    void transactionalSumsRowsAffectedAndCommits() throws SQLException {
-        var stmt1 = mock(PreparedStatement.class);
-        var stmt2 = mock(PreparedStatement.class);
-        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)")).thenReturn(stmt1);
-        when(connection.prepareStatement("INSERT INTO t(id) VALUES (2)")).thenReturn(stmt2);
-        when(stmt1.executeLargeUpdate()).thenReturn(1L);
-        when(stmt2.executeLargeUpdate()).thenReturn(1L);
+    void transactionalBatchesHomogeneousInsertsAndCommits() throws SQLException {
+        var batchStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t (id) VALUES (?)")).thenReturn(batchStmt);
+        when(batchStmt.executeLargeBatch()).thenReturn(new long[]{1L, 1L});
 
         var request = new QueryExecutionRequest(datasourceId,
                 "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (2); COMMIT;",
@@ -319,6 +321,11 @@ class DefaultQueryExecutorTest {
         var result = (UpdateExecutionResult) executor.execute(request);
 
         assertThat(result.rowsAffected()).isEqualTo(2L);
+        verify(batchStmt).setObject(1, 1L);
+        verify(batchStmt).setObject(1, 2L);
+        verify(batchStmt, times(2)).addBatch();
+        verify(batchStmt, times(1)).executeLargeBatch();
+        verify(batchStmt, never()).executeLargeUpdate();
         verify(connection).setReadOnly(false);
         verify(connection).setAutoCommit(false);
         verify(connection).commit();
@@ -326,25 +333,180 @@ class DefaultQueryExecutorTest {
     }
 
     @Test
-    void transactionalRollsBackOnFailure() throws SQLException {
+    void transactionalHeterogeneousStatementsUsePerStatementPath() throws SQLException {
         var stmt1 = mock(PreparedStatement.class);
         var stmt2 = mock(PreparedStatement.class);
-        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)")).thenReturn(stmt1);
-        when(connection.prepareStatement("INSERT INTO t(id) VALUES (1)/* dup */")).thenReturn(stmt2);
+        when(connection.prepareStatement("UPDATE t SET v = 1 WHERE id = 1")).thenReturn(stmt1);
+        when(connection.prepareStatement("DELETE FROM u WHERE id = 2")).thenReturn(stmt2);
         when(stmt1.executeLargeUpdate()).thenReturn(1L);
-        when(stmt2.executeLargeUpdate())
+        when(stmt2.executeLargeUpdate()).thenReturn(1L);
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; UPDATE t SET v = 1 WHERE id = 1; DELETE FROM u WHERE id = 2; COMMIT;",
+                QueryType.UPDATE, null, null, List.of(), true,
+                List.of("UPDATE t SET v = 1 WHERE id = 1", "DELETE FROM u WHERE id = 2"));
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(2L);
+        verify(connection).commit();
+    }
+
+    @Test
+    void transactionalBatchFlushesEveryChunkSizeRows() throws SQLException {
+        var chunkedProperties = new ProxyPoolProperties(
+                null, null, null, null, null,
+                new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, 2));
+        var healthRegistry = new ReplicaHealthRegistry(clock,
+                new ProxyReplicaProperties(null, null, null));
+        var router = new RoutingDataSourceResolver(poolManager, healthRegistry, lookupService,
+                auditLogService, messageSource, observationRegistry);
+        var chunkedExecutor = new DefaultQueryExecutor(router, lookupService, chunkedProperties,
+                rowMapper, translator, new RowSecurityRewriter(messageSource),
+                engineCatalog, new DryRunPlannerRegistry(List.of(dryRunPlanner)), resultCache,
+                clock, messageSource, observationRegistry);
+        var batchStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t (id) VALUES (?)")).thenReturn(batchStmt);
+        when(batchStmt.executeLargeBatch()).thenReturn(new long[]{1L, 1L}, new long[]{1L});
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (2);"
+                        + " INSERT INTO t(id) VALUES (3); COMMIT;",
+                QueryType.INSERT, null, null, List.of(), true,
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (2)",
+                        "INSERT INTO t(id) VALUES (3)"));
+
+        var result = (UpdateExecutionResult) chunkedExecutor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(3L);
+        verify(batchStmt, times(2)).executeLargeBatch();
+    }
+
+    @Test
+    void transactionalBatchCountsSuccessNoInfoAsOneRow() throws SQLException {
+        var batchStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t (id) VALUES (?)")).thenReturn(batchStmt);
+        when(batchStmt.executeLargeBatch())
+                .thenReturn(new long[]{java.sql.Statement.SUCCESS_NO_INFO, 1L});
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (2); COMMIT;",
+                QueryType.INSERT, null, null, List.of(), true,
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (2)"));
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(2L);
+    }
+
+    @Test
+    void transactionalRollsBackOnFailure() throws SQLException {
+        var batchStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t (id) VALUES (?)")).thenReturn(batchStmt);
+        when(batchStmt.executeLargeBatch())
                 .thenThrow(new SQLException("duplicate key", "23505", 7));
 
         var request = new QueryExecutionRequest(datasourceId,
-                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (1)/* dup */; COMMIT;",
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (1); COMMIT;",
                 QueryType.INSERT, null, null, List.of(), true,
-                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (1)/* dup */"));
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (1)"));
 
         assertThatThrownBy(() -> executor.execute(request))
                 .isInstanceOf(QueryExecutionFailedException.class);
 
         verify(connection).rollback();
         verify(connection, never()).commit();
+    }
+
+    @Test
+    void selectCacheHitReturnsCachedResultWithoutTouchingJdbc() throws SQLException {
+        var cached = new SelectExecutionResult(List.of(), List.of(), 0, false, Duration.ZERO);
+        when(resultCache.enabledFor(any())).thenReturn(true);
+        when(resultCache.get(eq(datasourceId), anyString(), any(Duration.class)))
+                .thenReturn(Optional.of(cached));
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT v FROM t",
+                QueryType.SELECT, null, null, List.of(), List.of(), List.of(), false, null,
+                List.of(), java.util.Set.of("t"));
+
+        var result = executor.execute(request);
+
+        assertThat(result).isSameAs(cached);
+        verify(poolManager, never()).resolve(datasourceId);
+        verify(resultCache, never()).put(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    void selectCacheMissExecutesAndStoresResult() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(resultCache.enabledFor(any())).thenReturn(true);
+        when(resultCache.get(eq(datasourceId), anyString(), any(Duration.class)))
+                .thenReturn(Optional.empty());
+        when(resultCache.ttlFor(any())).thenReturn(Duration.ofSeconds(45));
+
+        var request = new QueryExecutionRequest(datasourceId, "SELECT v FROM t",
+                QueryType.SELECT, null, null, List.of(), List.of(), List.of(), false, null,
+                List.of(), java.util.Set.of("t"));
+
+        var result = executor.execute(request);
+
+        assertThat(result).isInstanceOf(SelectExecutionResult.class);
+        verify(resultCache).put(eq(datasourceId), anyString(), eq(java.util.Set.of("t")),
+                eq(Duration.ofSeconds(45)), any(SelectExecutionResult.class));
+    }
+
+    @Test
+    void selectWithUnknownReferencedTablesIsNeverCached() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(resultCache.enabledFor(any())).thenReturn(true);
+
+        executor.execute(new QueryExecutionRequest(datasourceId, "SELECT 1",
+                QueryType.SELECT, null, null));
+
+        verify(resultCache, never()).get(any(), anyString(), any());
+        verify(resultCache, never()).put(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    void selectWithCacheDisabledForDatasourceSkipsCache() throws SQLException {
+        var rs = emptyResultSet();
+        when(statement.executeQuery()).thenReturn(rs);
+        when(resultCache.enabledFor(any())).thenReturn(false);
+
+        executor.execute(new QueryExecutionRequest(datasourceId, "SELECT v FROM t",
+                QueryType.SELECT, null, null, List.of(), List.of(), List.of(), false, null,
+                List.of(), java.util.Set.of("t")));
+
+        verify(resultCache, never()).get(any(), anyString(), any());
+        verify(resultCache, never()).put(any(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    void updateInvalidatesCachedEntriesForReferencedTables() throws SQLException {
+        when(statement.executeLargeUpdate()).thenReturn(3L);
+
+        executor.execute(new QueryExecutionRequest(datasourceId, "UPDATE t SET v = 1",
+                QueryType.UPDATE, null, null, List.of(), List.of(), List.of(), false, null,
+                List.of(), java.util.Set.of("t")));
+
+        verify(resultCache).invalidateTables(datasourceId, java.util.Set.of("t"));
+    }
+
+    @Test
+    void transactionalCommitInvalidatesCachedEntriesForReferencedTables() throws SQLException {
+        var batchStmt = mock(PreparedStatement.class);
+        when(connection.prepareStatement("INSERT INTO t (id) VALUES (?)")).thenReturn(batchStmt);
+        when(batchStmt.executeLargeBatch()).thenReturn(new long[]{1L, 1L});
+
+        executor.execute(new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO t(id) VALUES (1); INSERT INTO t(id) VALUES (2); COMMIT;",
+                QueryType.INSERT, null, null, List.of(), List.of(), List.of(), true,
+                List.of("INSERT INTO t(id) VALUES (1)", "INSERT INTO t(id) VALUES (2)"),
+                List.of(), java.util.Set.of("t")));
+
+        verify(resultCache).invalidateTables(datasourceId, java.util.Set.of("t"));
     }
 
     @Test

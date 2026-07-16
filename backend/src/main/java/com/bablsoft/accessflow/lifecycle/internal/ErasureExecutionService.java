@@ -29,6 +29,7 @@ import tools.jackson.databind.node.ArrayNode;
 
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -117,9 +118,11 @@ public class ErasureExecutionService {
                 entity.getRawWhere(), null, null);
         String sql = "DELETE FROM " + table
                 + (compiled.whereClause() == null ? "" : " WHERE " + compiled.whereClause());
+        // referencedTables drives SELECT result-cache invalidation (AF-457) — erased rows must
+        // not survive in cached reads.
         var request = new QueryExecutionRequest(entity.getDatasourceId(), sql,
                 QueryType.DELETE, null, null, List.of(), List.of(), compiled.directives(),
-                false, null, softDeletes);
+                false, null, softDeletes, Set.of(table.toLowerCase(Locale.ROOT)));
         var result = queryExecutor.execute(request);
         return result instanceof UpdateExecutionResult u ? u.rowsAffected() : 0;
     }

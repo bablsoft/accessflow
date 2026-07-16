@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
+import com.bablsoft.accessflow.core.api.ReadReplicaEndpoint;
 import com.bablsoft.accessflow.core.api.ResolvedDriver;
 import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.zaxxer.hikari.HikariConfig;
@@ -51,23 +52,25 @@ class DatasourcePoolFactory {
     }
 
     /**
-     * Build a Hikari pool against the read replica URL/credentials on the descriptor. Reuses
-     * the same driver class as the primary (so the replica must be the same engine). Caller is
-     * responsible for ensuring {@link DatasourceConnectionDescriptor#hasReadReplica()} is true.
+     * Build a Hikari pool against one read-replica endpoint of the descriptor (AF-457). Reuses
+     * the same driver class as the primary (so the replica must be the same engine); the
+     * endpoint's username/password fall back to the primary's when {@code null}.
      */
-    HikariDataSource createReplicaPool(DatasourceConnectionDescriptor descriptor) {
+    HikariDataSource createReplicaPool(DatasourceConnectionDescriptor descriptor,
+                                       ReadReplicaEndpoint endpoint) {
         ResolvedDriver resolved = resolveDriver(descriptor);
-        String username = descriptor.readReplicaUsername() != null
-                ? descriptor.readReplicaUsername()
+        String username = endpoint.username() != null
+                ? endpoint.username()
                 : descriptor.username();
-        String encrypted = descriptor.readReplicaPasswordEncrypted() != null
-                ? descriptor.readReplicaPasswordEncrypted()
+        String encrypted = endpoint.passwordEncrypted() != null
+                ? endpoint.passwordEncrypted()
                 : descriptor.passwordEncrypted();
+        int position = descriptor.readReplicas().indexOf(endpoint);
         return buildPool(
                 descriptor,
                 resolved,
-                descriptor.id() + "-replica",
-                descriptor.readReplicaJdbcUrl(),
+                descriptor.id() + "-replica-" + (position >= 0 ? position : endpoint.id()),
+                endpoint.jdbcUrl(),
                 username,
                 encrypted,
                 descriptor.connectionPoolSize());

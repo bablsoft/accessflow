@@ -932,7 +932,7 @@
       "er_diagram_fk_label": "{{from}} → {{to}}",
       "er_diagram_help": "Click a table to highlight its relationships. Click the background to clear.",
       "section_connection": "Connection",
-      "section_read_replica": "Read replica",
+      "section_read_replica": "Read replicas",
       "section_limits": "Limits & policies",
       "label_name": "Name",
       "label_db_type": "Database type",
@@ -945,7 +945,7 @@
       "label_replica_jdbc_url": "Replica JDBC URL",
       "label_replica_username": "Replica username",
       "label_replica_password": "Replica password",
-      "replica_jdbc_url_help": "SELECT queries are routed to this replica; INSERT/UPDATE/DDL always hit the primary. Leave blank to disable replica routing.",
+      "replica_jdbc_url_help": "JDBC URL of this replica endpoint. It must run the same engine as the primary.",
       "replica_password_placeholder": "Leave blank to reuse the saved replica password",
       "test_replica_connection": "Test replica",
       "replica_connection_ok": "Replica connected · {{ms}}ms",
@@ -1162,7 +1162,17 @@
       "sample_truncated": "{{count}} rows (capped by the proxy row limit)",
       "sample_row_count": "{{count}} rows",
       "sample_select_prompt": "Browse the schema and preview a bounded, governed sample of any table's rows.",
-      "sample_preview_aria": "Preview data for {{table}}"
+      "sample_preview_aria": "Preview data for {{table}}",
+      "replica_list_help": "SELECT queries load-balance round-robin across healthy replicas; INSERT/UPDATE/DDL always hit the primary. Unhealthy endpoints are skipped until they recover.",
+      "replica_jdbc_url_required": "Replica JDBC URL is required",
+      "replica_add": "Add replica endpoint",
+      "replica_remove": "Remove",
+      "section_performance": "Performance",
+      "label_cache_enabled": "Cache SELECT results",
+      "cache_enabled_help": "Serve repeated identical SELECTs from a Redis cache. Entries are invalidated on any write to a referenced table; masking and row-security still apply.",
+      "label_cache_ttl": "Cache TTL (seconds)",
+      "cache_ttl_help": "How long a cached result stays valid (1–86,400 seconds). Leave blank for the deployment default.",
+      "cache_ttl_placeholder": "Deployment default"
     }
   },
   "admin": {
@@ -1819,7 +1829,8 @@
       "errors_last_24h": "Errors (24h)",
       "execution_p50": "Exec p50",
       "execution_p95": "Exec p95",
-      "unit_ms": "ms"
+      "unit_ms": "ms",
+      "replicas_title": "{{healthy}}/{{total}} replicas healthy"
     },
     "slack": {
       "title": "Slack app",

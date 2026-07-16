@@ -166,7 +166,7 @@ public class GroupExecutionService {
         var result = queryExecutor.execute(new QueryExecutionRequest(
                 item.getDatasourceId(), item.getSqlText(), item.getQueryType(), null, null,
                 restrictedColumns, columnMasks, rowSecurity, parsed.transactional(),
-                parsed.statements()));
+                parsed.statements(), List.of(), parsed.referencedTables()));
         long rows = switch (result) {
             case SelectExecutionResult select -> select.rowCount();
             case UpdateExecutionResult update -> update.rowsAffected();

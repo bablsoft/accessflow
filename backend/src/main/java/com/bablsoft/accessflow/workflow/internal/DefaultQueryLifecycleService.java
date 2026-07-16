@@ -194,7 +194,7 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             var result = queryExecutor.execute(new QueryExecutionRequest(
                     query.datasourceId(), query.sqlText(), query.queryType(), null, null,
                     restrictedColumns, columnMasks, rowSecurityPredicates, parsed.transactional(),
-                    parsed.statements(), softDeletes));
+                    parsed.statements(), softDeletes, parsed.referencedTables()));
             var completedAt = Instant.now();
             var durationMs = (int) result.duration().toMillis();
             Long rowsAffected;

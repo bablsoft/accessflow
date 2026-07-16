@@ -890,7 +890,7 @@
       "er_diagram_fk_label": "{{from}} → {{to}}",
       "er_diagram_help": "Klicken Sie auf eine Tabelle, um ihre Beziehungen hervorzuheben. Klicken Sie auf den Hintergrund, um die Auswahl aufzuheben.",
       "section_connection": "Verbindung",
-      "section_read_replica": "Lese-Replik",
+      "section_read_replica": "Lesereplikate",
       "section_limits": "Limits & Richtlinien",
       "label_name": "Name",
       "label_db_type": "Datenbanktyp",
@@ -903,7 +903,7 @@
       "label_replica_jdbc_url": "Replik-JDBC-URL",
       "label_replica_username": "Replik-Benutzername",
       "label_replica_password": "Replik-Passwort",
-      "replica_jdbc_url_help": "SELECT-Anfragen werden an diese Replik geleitet; INSERT/UPDATE/DDL gehen stets zur primären Datenbank. Leer lassen, um Replik-Routing zu deaktivieren.",
+      "replica_jdbc_url_help": "JDBC-URL dieses Replikat-Endpunkts. Er muss dieselbe Engine wie die Primärdatenbank verwenden.",
       "replica_password_placeholder": "Leer lassen, um das gespeicherte Replik-Passwort weiterzuverwenden",
       "test_replica_connection": "Replik testen",
       "replica_connection_ok": "Replik verbunden · {{ms}}ms",
@@ -1162,7 +1162,17 @@
       "sample_truncated": "{{count}} Zeilen (durch Proxy-Zeilenlimit begrenzt)",
       "sample_row_count": "{{count}} Zeilen",
       "sample_select_prompt": "Durchsuchen Sie das Schema und zeigen Sie eine begrenzte, kontrollierte Stichprobe der Zeilen einer Tabelle an.",
-      "sample_preview_aria": "Daten für {{table}} anzeigen"
+      "sample_preview_aria": "Daten für {{table}} anzeigen",
+      "replica_list_help": "SELECT-Abfragen werden im Round-Robin-Verfahren auf gesunde Replikate verteilt; INSERT/UPDATE/DDL treffen immer die Primärdatenbank. Ausgefallene Endpunkte werden übersprungen, bis sie sich erholen.",
+      "replica_jdbc_url_required": "Replikat-JDBC-URL ist erforderlich",
+      "replica_add": "Replikat-Endpunkt hinzufügen",
+      "replica_remove": "Entfernen",
+      "section_performance": "Leistung",
+      "label_cache_enabled": "SELECT-Ergebnisse zwischenspeichern",
+      "cache_enabled_help": "Wiederholte identische SELECTs aus einem Redis-Cache bedienen. Einträge werden bei jedem Schreibzugriff auf eine referenzierte Tabelle invalidiert; Maskierung und Zeilensicherheit gelten weiterhin.",
+      "label_cache_ttl": "Cache-TTL (Sekunden)",
+      "cache_ttl_help": "Wie lange ein zwischengespeichertes Ergebnis gültig bleibt (1–86.400 Sekunden). Leer lassen für den Bereitstellungsstandard.",
+      "cache_ttl_placeholder": "Bereitstellungsstandard"
     }
   },
   "admin": {
@@ -1819,7 +1829,8 @@
       "errors_last_24h": "Fehler (24 Std.)",
       "execution_p50": "Ausf. p50",
       "execution_p95": "Ausf. p95",
-      "unit_ms": "ms"
+      "unit_ms": "ms",
+      "replicas_title": "{{healthy}}/{{total}} Replikate gesund"
     },
     "slack": {
       "title": "Slack-App",

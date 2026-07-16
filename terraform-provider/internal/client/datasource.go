@@ -3,7 +3,7 @@ package client
 import "context"
 
 // Datasource is the API response shape for a datasource. Write-only fields (password,
-// read_replica_password, api_key) are never returned and are absent here.
+// each read_replicas[].password, api_key) are never returned and are absent here.
 type Datasource struct {
 	ID                  string  `json:"id"`
 	OrganizationID      string  `json:"organization_id"`

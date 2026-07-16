@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.ReadReplicaEndpoint;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 
 /**
@@ -32,11 +33,15 @@ final class DatasourceDescriptorMapper {
                 entity.getCustomDriver() != null ? entity.getCustomDriver().getId() : null,
                 entity.getConnectorId(),
                 entity.getJdbcUrlOverride(),
-                entity.getReadReplicaJdbcUrl(),
-                entity.getReadReplicaUsername(),
-                entity.getReadReplicaPasswordEncrypted(),
+                entity.getReadReplicas().stream()
+                        .map(replica -> new ReadReplicaEndpoint(replica.getId(),
+                                replica.getJdbcUrl(), replica.getUsername(),
+                                replica.getPasswordEncrypted()))
+                        .toList(),
                 entity.isActive(),
                 entity.getLocalDatacenter(),
-                entity.getApiKeyEncrypted());
+                entity.getApiKeyEncrypted(),
+                entity.isResultCacheEnabled(),
+                entity.getResultCacheTtlSeconds());
     }
 }

@@ -177,6 +177,7 @@
 
 - **Native database wire-protocol gateway** — connect existing SQL clients (psql, DBeaver, DataGrip) and BI tools (Metabase, Tableau, Superset) through AccessFlow over the native PostgreSQL wire protocol, with every statement still flowing through the proxy's validation, masking, row-security, and audit path (AF-382)
 - **External secrets managers** — datasource credentials resolved from HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault at connection time via a secret reference (`vault:…` / `aws:…` / `azure:…`) stored in place of the encrypted password, with local AES-256-GCM as the fallback, per-resolve audit, and SDK-managed token refresh (AF-448)
+- **High-volume proxy performance** — opt-in Redis-backed SELECT result caching keyed over the security-rewritten query (invalidated on any proxied write to a referenced table), JDBC `executeBatch()` for homogeneous INSERT runs inside `BEGIN…COMMIT` envelopes, and multi-endpoint read-replica load balancing with per-node circuit-breaker health checks and primary failover (AF-457)
 
 ---
 

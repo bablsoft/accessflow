@@ -45,6 +45,7 @@ function row(overrides: Partial<DatasourceHealth> = {}): DatasourceHealth {
     execution_ms_p50: 12.5,
     execution_ms_p95: 88,
     errors_last_24h: 3,
+    replicas: [],
     ...overrides,
   };
 }

@@ -47,8 +47,10 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
     @Query("""
             select d from DatasourceEntity d
              where d.passwordEncrypted = :reference
-                or d.readReplicaPasswordEncrypted = :reference
                 or d.apiKeyEncrypted = :reference
+                or exists (
+                    select 1 from DatasourceReadReplicaEntity r
+                     where r.datasource = d and r.passwordEncrypted = :reference)
             """)
     List<DatasourceEntity> findAllByCredentialReference(@Param("reference") String reference);
 

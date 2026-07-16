@@ -223,6 +223,20 @@ accessflow:
       max-rows: ${ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS:10000}
       statement-timeout: ${ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT:30s}
       default-fetch-size: ${ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE:1000}
+      insert-batch-chunk-size: ${ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE:1000}
+    # Opt-in SELECT result cache (AF-457). `enabled` is the deployment-wide kill-switch; the real
+    # gate is each datasource's result_cache_enabled flag. default-ttl applies when a datasource
+    # opts in without its own TTL; entries above max-entry-bytes are never cached.
+    cache:
+      enabled: ${ACCESSFLOW_PROXY_CACHE_ENABLED:true}
+      default-ttl: ${ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL:PT60S}
+      max-entry-bytes: ${ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES:1000000}
+    # Read-replica health checks (AF-457): per-node prober cadence, per-endpoint isValid timeout,
+    # and how long a failed endpoint sits out of the read rotation before a half-open retry.
+    replica:
+      probe-interval: ${ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL:PT30S}
+      probe-timeout: ${ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT:PT5S}
+      cooldown: ${ACCESSFLOW_PROXY_REPLICA_COOLDOWN:PT30S}
     # Per-engine plugin tuning, passed verbatim (after key normalization) into the engine's
     # QueryEngineContext config map. Generic env form: ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>.
     # The ACCESSFLOW_PROXY_MONGO_* names are legacy aliases kept working via these placeholders.

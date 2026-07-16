@@ -51,6 +51,7 @@ class DefaultQueryExecutor implements QueryExecutor {
     private final RowSecurityRewriter rowSecurityRewriter;
     private final QueryEngineCatalog engineCatalog;
     private final DryRunPlannerRegistry dryRunPlannerRegistry;
+    private final SelectResultCache resultCache;
     private final Clock clock;
     private final MessageSource messageSource;
     private final ObservationRegistry observationRegistry;
@@ -79,7 +80,7 @@ class DefaultQueryExecutor implements QueryExecutor {
                 .start();
         try (Observation.Scope ignored = observation.openScope()) {
             QueryExecutionResult result = executeInternal(request, descriptor,
-                    effectiveMaxRows, effectiveTimeout, execProps);
+                    effectiveMaxRows, effectiveTimeout, execProps, observation);
             observation.lowCardinalityKeyValue("outcome", "success");
             return result;
         } catch (RuntimeException ex) {
@@ -94,7 +95,8 @@ class DefaultQueryExecutor implements QueryExecutor {
     private QueryExecutionResult executeInternal(QueryExecutionRequest request,
                                                  DatasourceConnectionDescriptor descriptor,
                                                  int effectiveMaxRows, Duration effectiveTimeout,
-                                                 ProxyPoolProperties.Execution execProps) {
+                                                 ProxyPoolProperties.Execution execProps,
+                                                 Observation observation) {
         if (engineCatalog.isEngineManaged(descriptor.dbType())) {
             return engineCatalog.engineFor(descriptor.dbType())
                     .execute(new QueryEngineExecutionRequest(
@@ -103,10 +105,30 @@ class DefaultQueryExecutor implements QueryExecutor {
 
         Instant start = clock.instant();
         if (request.transactional()) {
-            return executeTransactional(request, effectiveTimeout, start);
+            var result = executeTransactional(request, descriptor.dbType(), effectiveTimeout,
+                    start);
+            resultCache.invalidateTables(request.datasourceId(), request.referencedTables());
+            return result;
         }
         var rewrite = rowSecurityRewriter.rewrite(request.sql(), request.rowSecurityPredicates(),
                 request.softDeleteDirectives());
+        // SELECT result cache (AF-457): keyed over the RLS-rewritten SQL + binds + mask/restriction
+        // directives + row cap, so security scope is part of the key. SELECTs whose referenced
+        // tables are unknown are never cached (no write-invalidation coverage).
+        boolean cacheable = request.queryType() == QueryType.SELECT
+                && !request.referencedTables().isEmpty()
+                && resultCache.enabledFor(descriptor);
+        String cacheKey = null;
+        if (cacheable) {
+            cacheKey = SelectResultCache.cacheKey(rewrite.sql(), rewrite.binds(),
+                    request.restrictedColumns(), request.columnMasks(), effectiveMaxRows);
+            var hit = resultCache.get(request.datasourceId(), cacheKey, durationSince(start));
+            if (hit.isPresent()) {
+                observation.lowCardinalityKeyValue("cache", "hit");
+                return hit.get();
+            }
+        }
+        observation.lowCardinalityKeyValue("cache", cacheable ? "miss" : "off");
         try (Connection connection = routingResolver.acquire(request.datasourceId(),
                 request.queryType())) {
             connection.setReadOnly(request.queryType() == QueryType.SELECT);
@@ -115,11 +137,20 @@ class DefaultQueryExecutor implements QueryExecutor {
                 statement.setFetchSize(Math.min(effectiveMaxRows + 1, execProps.defaultFetchSize()));
                 bind(statement, rewrite.binds());
                 if (request.queryType() == QueryType.SELECT) {
-                    return runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
+                    var result = runSelect(statement, effectiveMaxRows, descriptor.dbType(), start,
                             request.restrictedColumns(), request.columnMasks(),
                             rewrite.appliedPolicyIds());
+                    if (cacheable && result instanceof SelectExecutionResult select) {
+                        resultCache.put(request.datasourceId(), cacheKey,
+                                request.referencedTables(), resultCache.ttlFor(descriptor), select);
+                    }
+                    return result;
                 }
-                return runUpdate(statement, start, rewrite.appliedPolicyIds());
+                var result = runUpdate(statement, start, rewrite.appliedPolicyIds());
+                // Any successful write drops cached SELECTs over the touched tables (unknown
+                // tables ⇒ full-datasource purge, fail-safe for DDL).
+                resultCache.invalidateTables(request.datasourceId(), request.referencedTables());
+                return result;
             }
         } catch (SQLException ex) {
             log.debug("SQL execution failed for datasource {}: {}",
@@ -199,24 +230,38 @@ class DefaultQueryExecutor implements QueryExecutor {
         }
     }
 
-    private QueryExecutionResult executeTransactional(QueryExecutionRequest request,
+    private QueryExecutionResult executeTransactional(QueryExecutionRequest request, DbType dbType,
                                                       Duration effectiveTimeout, Instant start) {
         var appliedPolicyIds = new java.util.LinkedHashSet<java.util.UUID>();
+        // Rewrite every statement first; only rewrite-no-op statements (no RLS/soft-delete binds,
+        // SQL unchanged) are candidates for INSERT batching (AF-457).
+        var statements = request.statements();
+        var rewrites = new RowSecurityRewriter.RewriteResult[statements.size()];
+        var batchable = new boolean[statements.size()];
+        for (int i = 0; i < statements.size(); i++) {
+            rewrites[i] = rowSecurityRewriter.rewrite(statements.get(i),
+                    request.rowSecurityPredicates(), request.softDeleteDirectives());
+            appliedPolicyIds.addAll(rewrites[i].appliedPolicyIds());
+            batchable[i] = rewrites[i].binds().isEmpty()
+                    && rewrites[i].sql().equals(statements.get(i));
+        }
+        var steps = BatchInsertPlanner.plan(statements, batchable);
+        int chunkSize = properties.execution().insertBatchChunkSize();
         try (Connection connection = routingResolver.acquire(request.datasourceId(),
                 QueryType.OTHER)) {
             connection.setReadOnly(false);
             connection.setAutoCommit(false);
             long totalAffected = 0;
             try {
-                for (String stmtSql : request.statements()) {
-                    var rewrite = rowSecurityRewriter.rewrite(stmtSql,
-                            request.rowSecurityPredicates(), request.softDeleteDirectives());
-                    appliedPolicyIds.addAll(rewrite.appliedPolicyIds());
-                    try (PreparedStatement statement = connection.prepareStatement(rewrite.sql())) {
-                        statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
-                        bind(statement, rewrite.binds());
-                        totalAffected += statement.executeLargeUpdate();
-                    }
+                for (var step : steps) {
+                    totalAffected += switch (step) {
+                        case BatchInsertPlanner.SingleStep single ->
+                                runTransactionalStatement(connection,
+                                        rewrites[single.statementIndex()], effectiveTimeout);
+                        case BatchInsertPlanner.BatchStep batch ->
+                                runInsertBatch(connection, batch, dbType, effectiveTimeout,
+                                        chunkSize);
+                    };
                 }
                 connection.commit();
             } catch (SQLException ex) {
@@ -233,6 +278,70 @@ class DefaultQueryExecutor implements QueryExecutor {
                     request.datasourceId(), ex.getMessage());
             throw sqlExceptionTranslator.translate(ex, effectiveTimeout, LocaleContextHolder.getLocale());
         }
+    }
+
+    private long runTransactionalStatement(Connection connection,
+                                           RowSecurityRewriter.RewriteResult rewrite,
+                                           Duration effectiveTimeout) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(rewrite.sql())) {
+            statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
+            bind(statement, rewrite.binds());
+            return statement.executeLargeUpdate();
+        }
+    }
+
+    /**
+     * Executes one homogeneous INSERT run as a single {@code PreparedStatement} with
+     * {@code addBatch()} per row, flushing {@code executeLargeBatch()} every {@code chunkSize}
+     * rows. {@code SUCCESS_NO_INFO} counts as one affected row.
+     */
+    private long runInsertBatch(Connection connection, BatchInsertPlanner.BatchStep batch,
+                                DbType dbType, Duration effectiveTimeout, int chunkSize)
+            throws SQLException {
+        long affected = 0;
+        try (PreparedStatement statement = connection.prepareStatement(batch.templateSql())) {
+            statement.setQueryTimeout(toTimeoutSeconds(effectiveTimeout));
+            int pending = 0;
+            for (var row : batch.rowBinds()) {
+                bindBatchRow(statement, row, dbType);
+                statement.addBatch();
+                pending++;
+                if (pending >= chunkSize) {
+                    affected += sumBatchCounts(statement.executeLargeBatch());
+                    pending = 0;
+                }
+            }
+            if (pending > 0) {
+                affected += sumBatchCounts(statement.executeLargeBatch());
+            }
+        }
+        return affected;
+    }
+
+    /**
+     * Binds one batched-INSERT row. String literals came out of SQL text where the server infers
+     * the column type; PostgreSQL types a plain {@code setString} bind as {@code varchar} and then
+     * rejects it against uuid/jsonb/enum columns (42804), so PG strings are sent with an
+     * unspecified type ({@code Types.OTHER}) to preserve literal semantics.
+     */
+    private static void bindBatchRow(PreparedStatement statement, List<Object> row, DbType dbType)
+            throws SQLException {
+        for (int i = 0; i < row.size(); i++) {
+            Object value = row.get(i);
+            if (value instanceof String text && dbType == DbType.POSTGRESQL) {
+                statement.setObject(i + 1, text, java.sql.Types.OTHER);
+            } else {
+                statement.setObject(i + 1, value);
+            }
+        }
+    }
+
+    private static long sumBatchCounts(long[] counts) {
+        long sum = 0;
+        for (long count : counts) {
+            sum += count == java.sql.Statement.SUCCESS_NO_INFO ? 1 : Math.max(count, 0);
+        }
+        return sum;
     }
 
     private QueryExecutionResult runSelect(PreparedStatement statement, int effectiveMaxRows,

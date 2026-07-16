@@ -1,11 +1,13 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.SslMode;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
 import java.util.UUID;
 
 public record UpdateDatasourceRequest(
@@ -31,15 +33,16 @@ public record UpdateDatasourceRequest(
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
                 message = "{validation.jdbc_url.format}") String jdbcUrlOverride,
-        // Replica URL accepts either a valid JDBC URL or an empty string (clear-on-blank). The
-        // pattern allows ^$ to permit the clear; the service maps blank → null on all 3 fields.
-        @Size(max = 2048, message = "{validation.jdbc_url.length}")
-        @Pattern(regexp = "^$|^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
-                message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
-        @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
-        @Size(max = 4096) String readReplicaPassword,
+        // Full-list replacement merged by endpoint id: null keeps the current endpoints, an empty
+        // list deletes them all (AF-457).
+        @Size(max = 5, message = "{validation.read_replicas.max}")
+        List<@Valid ReadReplicaRequest> readReplicas,
         Boolean active,
         @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter,
         // API key for the search engines (Elasticsearch / OpenSearch); a blank value clears it.
-        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey
+        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey,
+        Boolean resultCacheEnabled,
+        @Min(value = 1, message = "{validation.result_cache_ttl.range}")
+        @Max(value = 86_400, message = "{validation.result_cache_ttl.range}")
+        Integer resultCacheTtlSeconds
 ) {}

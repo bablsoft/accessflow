@@ -49,7 +49,9 @@ class DefaultDatasourceHealthServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultDatasourceHealthService(datasourceAdminService, poolManager,
-                queryStatsLookupService, clock, new ConcurrentMapCacheManager());
+                queryStatsLookupService,
+                new ReplicaHealthRegistry(clock, new ProxyReplicaProperties(null, null, null)),
+                clock, new ConcurrentMapCacheManager());
     }
 
     private static DatasourceView view(UUID id, UUID org, String name, DbType type, boolean active) {
@@ -85,6 +87,33 @@ class DefaultDatasourceHealthServiceTest {
         assertThat(row.poolWaiting()).isNull();
         assertThat(row.poolTotal()).isNull();
         assertThat(row.poolMax()).isNull();
+    }
+
+    @Test
+    void replicaEndpointsSurfaceHealthAndPoolGauges() {
+        var dsId = UUID.randomUUID();
+        var replicaId = UUID.randomUUID();
+        var replicaView = new DatasourceView(dsId, orgId, "replicated-ds", DbType.POSTGRESQL,
+                "host", 5432, "db", "user", SslMode.DISABLE, 10, 1000, false, false, null, false,
+                null, false, null, null, null,
+                List.of(new DatasourceView.ReadReplicaView(replicaId,
+                        "jdbc:postgresql://replica-a:5432/db", "ru")),
+                true, Instant.parse("2026-01-01T00:00:00Z"), null, false, null);
+        stubPage(replicaView);
+        when(queryStatsLookupService.statsFor(anyCollection(), any())).thenReturn(Map.of());
+        when(poolManager.poolStats(dsId)).thenReturn(Optional.empty());
+        when(poolManager.replicaPoolStats(dsId, replicaId))
+                .thenReturn(Optional.of(new DatasourcePoolStats(2, 1, 0, 3, 10)));
+
+        var row = service.snapshot(orgId, PageRequest.of(0, 50)).content().getFirst();
+
+        assertThat(row.replicas()).hasSize(1);
+        var replica = row.replicas().getFirst();
+        assertThat(replica.endpointId()).isEqualTo(replicaId);
+        assertThat(replica.label()).isEqualTo("replica-a:5432");
+        assertThat(replica.healthy()).isTrue();
+        assertThat(replica.poolActive()).isEqualTo(2);
+        assertThat(replica.poolTotal()).isEqualTo(3);
     }
 
     @Test

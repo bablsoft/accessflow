@@ -605,7 +605,7 @@ transformed values; the raw data is never sent over the wire).
 High-security deployments can keep datasource credentials in an external secret manager instead
 of the local AES layer. When a provider is enabled (`accessflow.secrets.*` — see
 [docs/09-deployment.md → Secrets Manager](09-deployment.md)), the datasource credential fields
-(`password`, `read_replica_password`, `api_key`) accept a **secret reference** that is stored
+(`password`, each `read_replicas[].password`, `api_key`) accept a **secret reference** that is stored
 verbatim in the credential column and resolved through the store at credential-use time:
 
 | Provider | Reference syntax | Resolution |

@@ -12,7 +12,8 @@ import java.time.Clock;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({ProxyPoolProperties.class, DriverProperties.class,
-        ProxyHealthProperties.class, EngineConfigProperties.class})
+        ProxyHealthProperties.class, EngineConfigProperties.class,
+        ProxyReplicaProperties.class, ProxyCacheProperties.class})
 class ProxyConfiguration {
 
     /** Spring cache holding per-{@code (organizationId, datasourceId)} health snapshots. */
