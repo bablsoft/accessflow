@@ -75,6 +75,7 @@ the right.
 | [`frontend/src/pages/admin/`](../frontend/src/pages/admin/), [`frontend/src/pages/datasources/`](../frontend/src/pages/datasources/) — admin SPA pages | [`docs/index.html`](docs/index.html) configuration walkthroughs (Users, User groups, Datasources + Schema explorer (searchable object tree + RLS/masking-aware sample-data previews, AF-443; see [`docs/05-backend.md`](../docs/05-backend.md) "Sample data path" + [`docs/04-api-spec.md`](../docs/04-api-spec.md) `/datasources/{id}/sample-rows`) + ER diagram + Masking + Row security tabs, Connectors, Custom JDBC drivers, Review plans + templates, Routing policies, Access requests queue, AI configs + Langfuse + RAG, AI analyses dashboard, Datasource health, Organizations (multi-tenant management + quotas), Auditor dashboard, Anomalies (UBA), Break-glass log, Notifications, System SMTP, OAuth, SAML, Slack app, Audit log) + matching PNGs under [`images/docs/`](images/docs/) (incl. `routing-policies`, `access-requests-queue`, `datasources-masking`, `datasources-row-security`, `langfuse-config`, `ai-configs-rag`, `organizations-list`, `auditor-dashboard`, `anomalies-dashboard`, `break-glass-log`, `dashboard`, `attestation-campaigns`, `api-connectors-list`, `lifecycle-policies`, light + dark) |
 | [`frontend/src/pages/editor/QueryEditorPage.tsx`](../frontend/src/pages/editor/QueryEditorPage.tsx), [`frontend/src/pages/reviews/ReviewQueuePage.tsx`](../frontend/src/pages/reviews/ReviewQueuePage.tsx) — end-user SPA pages | [`docs/index.html`](docs/index.html) "End-user workflows" section (Submitting / Scheduling a query, Drafting queries from natural language, Query templates library, Reviewing &amp; bulk approval) + matching PNGs under [`images/docs/`](images/docs/) (`editor-light`, `editor-text-to-sql-light`, `editor-schedule-light`, `editor-query-templates-light`, `reviews-queue-bulk-light`, `request-groups-list-light`, `api-requests-list-light`) |
 | Existing on-page copy (hero, features, supported DBs, license) | SEO meta block (canonical, OG, Twitter, JSON-LD) in both [`index.html`](index.html) and [`docs/index.html`](docs/index.html) |
+| Homepage meta description + docs grid cards (`#docs`) + [`docs/`](../docs/) chapter list | [`llms.txt`](llms.txt) — llmstxt.org index for LLM agents (summary blockquote, chapter link list with raw-markdown URLs). When the pitch, supported-DB list, or docs chapters change, update it in the same change set |
 
 ---
 
@@ -89,6 +90,7 @@ website/
 ├── og-image.png    # 1200×630 social-share image (Open Graph / Twitter Card)
 ├── robots.txt      # Crawler directives + sitemap pointer
 ├── sitemap.xml     # XML sitemap (homepage + docs page)
+├── llms.txt        # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
 ├── docs/
 │   └── index.html  # Public user documentation — run + configure (sidebar TOC)
 ├── images/
