@@ -1,0 +1,35 @@
+# AccessFlow
+
+> AccessFlow is an open-source access proxy for SQL and NoSQL databases — PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, and Neo4j — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0.
+
+AccessFlow sits between people (and AI agents) and production data as a full query proxy: a submitted query or API call is parsed and validated, analyzed for risk by a configurable AI provider (Anthropic, OpenAI, Ollama, or any OpenAI-compatible endpoint), routed through multi-stage human approval chains, and only then executed — with schema allow-lists, dynamic data masking, row-level security, and row caps enforced at execution time. Every step lands in an INSERT-only, hash-chained audit log.
+
+It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI agents can discover schemas and validate and submit queries through the same governance pipeline, and offers a Terraform/OpenTofu provider plus reusable CI actions for infrastructure-as-code management. Source code lives at https://github.com/bablsoft/accessflow.
+
+## Docs
+
+- [User documentation](https://accessflow.bablsoft.com/docs/): Run and configure AccessFlow — deployment, first-run setup, datasources, review plans, AI configs, SSO, notifications, end-user workflows
+- [Project README](https://raw.githubusercontent.com/bablsoft/accessflow/main/README.md): Project overview and quick start
+- [Overview](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/01-overview.md): Problem statement, goals, non-goals, value proposition
+- [Architecture](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/02-architecture.md): Subsystems, technology stack, request flow
+- [Data model](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/03-data-model.md): Internal entities, audit log schema, retention
+- [REST API](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/04-api-spec.md): Endpoints, payloads, WebSocket events
+- [Backend](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/05-backend.md): Modular backend, proxy engine, workflow state machine
+- [Frontend](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/06-frontend.md): React/Vite layout, SQL editor, TanStack & Zustand
+- [Security](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/07-security.md): JWT, SAML, OAuth, encryption, audit integrity
+- [Notifications](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/08-notifications.md): Email, Slack, Discord, Telegram, Teams, PagerDuty, signed webhook delivery
+- [Deployment](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/09-deployment.md): Docker Compose, Helm, env-var reference
+- [Development](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/11-development.md): Repo layout, tests, coding standards, Git workflow
+- [Roadmap](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/12-roadmap.md): Milestones, contribution path
+- [MCP server](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/13-mcp.md): Stateless tool surface for AI agents — discover, validate, sample, submit; API keys
+- [Connectors](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/14-connectors.md): Declarative connector catalog, manifests, install lifecycle
+- [Engine-plugin SDK](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/15-engine-sdk.md): Authoring guide for native NoSQL engine plugins
+- [Infrastructure as Code](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/16-iac.md): Terraform/OpenTofu provider, CI Actions, service-account keys, registry publishing
+- [API Access Governance](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/17-api-governance.md): Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions
+
+## Optional
+
+- [GitHub repository](https://github.com/bablsoft/accessflow): Source code, issues, releases (Apache 2.0)
+- [Agent rulebook](https://raw.githubusercontent.com/bablsoft/accessflow/main/CLAUDE.md): Authoritative implementation rules for AI agents contributing to the codebase
+- [Install / quick start](https://accessflow.bablsoft.com/#install): Docker Compose, Helm, and from-source install commands
+- [Helm chart repository](https://bablsoft.github.io/accessflow): Published Helm chart index for Kubernetes installs
