@@ -85,6 +85,8 @@ export interface TestReplicaInput {
   jdbc_url: string;
   username: string;
   password?: string;
+  // Persisted endpoint whose stored password backs the test when `password` is omitted (AF-457).
+  replica_id?: string;
 }
 
 export async function testReplicaConnection(

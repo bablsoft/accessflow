@@ -890,7 +890,7 @@
       "er_diagram_fk_label": "{{from}} → {{to}}",
       "er_diagram_help": "Haz clic en una tabla para resaltar sus relaciones. Haz clic en el fondo para limpiar.",
       "section_connection": "Conexión",
-      "section_read_replica": "Réplica de lectura",
+      "section_read_replica": "Réplicas de lectura",
       "section_limits": "Límites y políticas",
       "label_name": "Nombre",
       "label_db_type": "Tipo de base de datos",
@@ -903,7 +903,7 @@
       "label_replica_jdbc_url": "URL JDBC de la réplica",
       "label_replica_username": "Usuario de la réplica",
       "label_replica_password": "Contraseña de la réplica",
-      "replica_jdbc_url_help": "Las consultas SELECT se enrutan a esta réplica; INSERT/UPDATE/DDL siempre van a la primaria. Deja en blanco para desactivar el enrutamiento a la réplica.",
+      "replica_jdbc_url_help": "URL JDBC de este punto de conexión de réplica. Debe ejecutar el mismo motor que la base primaria.",
       "replica_password_placeholder": "Deja en blanco para reutilizar la contraseña guardada de la réplica",
       "test_replica_connection": "Probar réplica",
       "replica_connection_ok": "Réplica conectada · {{ms}}ms",
@@ -1162,7 +1162,17 @@
       "sample_truncated": "{{count}} filas (limitado por el límite de filas del proxy)",
       "sample_row_count": "{{count}} filas",
       "sample_select_prompt": "Explore el esquema y previsualice una muestra limitada y controlada de las filas de cualquier tabla.",
-      "sample_preview_aria": "Previsualizar datos de {{table}}"
+      "sample_preview_aria": "Previsualizar datos de {{table}}",
+      "replica_list_help": "Las consultas SELECT se balancean en round-robin entre las réplicas sanas; INSERT/UPDATE/DDL siempre van a la base primaria. Los puntos de conexión no disponibles se omiten hasta que se recuperan.",
+      "replica_jdbc_url_required": "La URL JDBC de la réplica es obligatoria",
+      "replica_add": "Añadir punto de conexión de réplica",
+      "replica_remove": "Eliminar",
+      "section_performance": "Rendimiento",
+      "label_cache_enabled": "Cachear resultados SELECT",
+      "cache_enabled_help": "Servir SELECTs idénticos repetidos desde una caché Redis. Las entradas se invalidan con cada escritura en una tabla referenciada; el enmascaramiento y la seguridad de filas siguen aplicándose.",
+      "label_cache_ttl": "TTL de caché (segundos)",
+      "cache_ttl_help": "Cuánto tiempo permanece válido un resultado en caché (1–86.400 segundos). Déjelo en blanco para el valor por defecto del despliegue.",
+      "cache_ttl_placeholder": "Valor por defecto del despliegue"
     }
   },
   "admin": {
@@ -1819,7 +1829,8 @@
       "errors_last_24h": "Errores (24 h)",
       "execution_p50": "Ejec p50",
       "execution_p95": "Ejec p95",
-      "unit_ms": "ms"
+      "unit_ms": "ms",
+      "replicas_title": "{{healthy}}/{{total}} réplicas sanas"
     },
     "slack": {
       "title": "Aplicación de Slack",

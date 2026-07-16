@@ -147,15 +147,32 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `custom_driver_id` | FK → `custom_jdbc_driver(id)` NULL, ON DELETE RESTRICT — when set, the proxy uses the uploaded driver's per-driver classloader instead of a catalog connector. A `CUSTOM` datasource sets exactly one of `custom_driver_id` or `connector_id`. |
 | `connector_id` | VARCHAR(64) NULL — references a catalog connector by its manifest id (e.g. `clickhouse`; see [14-connectors.md](./14-connectors.md)). Set for a `CUSTOM` datasource backed by an installed connector: the proxy loads the connector's cached driver into a per-connector classloader and builds the JDBC URL from the connector's template + host/port/database. Null for the five dialects and for uploaded-driver datasources. Only allowed when `db_type=CUSTOM`. |
 | `jdbc_url_override` | TEXT NULL — free-form JDBC connection string; used by an uploaded-driver `CUSTOM` datasource (required there, rejected for any bundled `db_type` and for connector-backed datasources, which build their URL from the connector template). |
-| `read_replica_jdbc_url` | TEXT NULL — when set, SELECT queries are routed to a sibling HikariCP pool built from this URL. INSERT/UPDATE/DELETE/DDL always hit the primary. Reuses the primary's driver class. |
-| `read_replica_username` | VARCHAR(255) NULL — username for the replica pool. When `NULL` the primary `username` is reused. |
-| `read_replica_password_encrypted` | TEXT NULL — AES-256-GCM encrypted; same key (`ENCRYPTION_KEY`) as `password_encrypted`. When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `local_datacenter` | VARCHAR(255) NULL (AF-421, migration `V77`) — the Cassandra / ScyllaDB driver's load-balancing datacenter (`withLocalDatacenter(...)`). NULL for every other dialect; the service layer **requires** it when `db_type` is `CASSANDRA` or `SCYLLADB`. |
+| `result_cache_enabled` | BOOLEAN NOT NULL DEFAULT false (AF-457, migration `V115`) — opt-in SELECT result caching for this datasource. Entries live in Redis and are invalidated on any write to a referenced table; see [05-backend.md → SELECT result caching](./05-backend.md#select-result-caching). |
+| `result_cache_ttl_seconds` | INTEGER NULL (AF-457, migration `V115`) — per-datasource cache TTL. NULL falls back to the deployment default (`ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL`). |
 | `api_key_encrypted` | TEXT NULL (AF-420, migration `V80`) — AES-256-GCM-encrypted API key for the search engines (`ELASTICSEARCH` / `OPENSEARCH`), sent as `Authorization: ApiKey`. `@JsonIgnore`, never returned in an API response. NULL for basic-auth search datasources and every other dialect; the service layer requires **either** `username`+`password` **or** `api_key` for a search datasource. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
 > **Constraint:** `UNIQUE (organization_id, name)` — added in `V10__datasource_unique_name_per_org.sql`. Attempting to create or rename a datasource into an existing name in the same organization returns HTTP 409 with `error: DATASOURCE_NAME_ALREADY_EXISTS`.
+
+> **Migration note (AF-457, `V115`):** the pre-2.2 single-replica columns `read_replica_jdbc_url` / `read_replica_username` / `read_replica_password_encrypted` were **dropped** in favour of the `datasource_read_replicas` child table below. `V115` copies any existing single-replica config into the child table before dropping the columns, so no replica configuration is lost on upgrade.
+
+---
+
+## datasource_read_replicas
+
+Read-replica endpoints of a datasource (AF-457, migration `V115`). A datasource may have any number of endpoints (the API caps a payload at 5); SELECT queries load-balance round-robin across the healthy ones. Replaces the pre-2.2 single `read_replica_*` columns on `datasources`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `datasource_id` | FK → `datasources` NOT NULL, ON DELETE CASCADE. Indexed (`idx_datasource_read_replicas_datasource`). |
+| `jdbc_url` | TEXT NOT NULL — the endpoint's JDBC URL. Must run the same engine as the primary (the replica pool reuses the primary's driver class). |
+| `username` | VARCHAR(255) NULL — username for this endpoint's pool. When `NULL` the primary `username` is reused. |
+| `password_encrypted` | TEXT NULL — AES-256-GCM encrypted (same `ENCRYPTION_KEY` as the primary) or an external secret reference (AF-448). When `NULL`, the primary `password_encrypted` is reused. `@JsonIgnore` on the entity; never returned in an API response. |
+| `position` | INT NOT NULL DEFAULT 0 — display / round-robin seed order. |
+| `created_at` | TIMESTAMPTZ |
 
 ---
 

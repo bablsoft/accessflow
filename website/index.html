@@ -329,7 +329,7 @@
             </div>
             <h3>Full query proxy — SQL and NoSQL</h3>
             <p>Every query is inspected before it ever reaches the database — parsed, sorted by type (read, write, or schema change), checked against the tables a user is allowed to touch, and routed through your review policy. The same governance covers <strong>NoSQL</strong> too: MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, and Neo4j all flow through identical checks, with dangerous or server-side commands blocked up front. Layer on <strong>row-level security</strong> so users only see the rows they're cleared for, <strong>dynamic masking</strong> that hides sensitive columns per person, and <strong>data-classification tags</strong> (PII, PCI, PHI, GDPR) that auto-apply masking and raise a query's risk score. A <strong>dry-run preview</strong> shows a query's impact before review without changing any data, and every executed query is saved as an exact snapshot you can <strong>replay in a test environment</strong>.</p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · connector catalog · custom drivers · read-replica routing · dynamic masking · row-level security · data classification</span>
+            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · connector catalog · custom drivers · read-replica load balancing · result caching · dynamic masking · row-level security · data classification</span>
           </div>
 
           <div class="feat">
@@ -1264,6 +1264,7 @@
               <h5 class="rm-cat">Connectors &amp; access</h5>
               <ul>
                 <li>Native wire-protocol gateway</li>
+                <li>Result caching · multi-replica load balancing</li>
                 <li>Column-level permissions</li>
               </ul>
             </div>

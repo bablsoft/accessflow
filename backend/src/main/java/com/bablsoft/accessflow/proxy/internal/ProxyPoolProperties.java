@@ -30,11 +30,12 @@ record ProxyPoolProperties(
             poolNamePrefix = "accessflow-ds-";
         }
         if (execution == null) {
-            execution = new Execution(null, null, null);
+            execution = new Execution(null, null, null, null);
         }
     }
 
-    record Execution(Integer maxRows, Duration statementTimeout, Integer defaultFetchSize) {
+    record Execution(Integer maxRows, Duration statementTimeout, Integer defaultFetchSize,
+                     Integer insertBatchChunkSize) {
 
         Execution {
             if (maxRows == null) {
@@ -46,6 +47,11 @@ record ProxyPoolProperties(
             if (defaultFetchSize == null) {
                 defaultFetchSize = 1_000;
             }
+            if (insertBatchChunkSize == null) {
+                insertBatchChunkSize = 1_000;
+            }
         }
+        // NOTE: no overloaded constructors here — @ConfigurationProperties record binding
+        // silently degrades to all-defaults when the record has more than one constructor.
     }
 }

@@ -16,6 +16,7 @@ import com.bablsoft.accessflow.core.api.DatasourceReviewerService;
 import com.bablsoft.accessflow.core.api.DriverCatalogService;
 import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.IllegalDatasourceReviewerException;
+import com.bablsoft.accessflow.core.api.ReplicaEndpointInput;
 import com.bablsoft.accessflow.core.api.TestReplicaCommand;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
 import com.bablsoft.accessflow.proxy.api.SampleDataService;
@@ -36,6 +37,7 @@ import com.bablsoft.accessflow.security.internal.web.model.GroupPermissionListRe
 import com.bablsoft.accessflow.security.internal.web.model.GroupPermissionResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.PermissionResponse;
+import com.bablsoft.accessflow.security.internal.web.model.ReadReplicaRequest;
 import com.bablsoft.accessflow.security.internal.web.model.TestReplicaRequest;
 import com.bablsoft.accessflow.security.internal.web.model.SampleRowsResponse;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateDatasourceRequest;
@@ -65,6 +67,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -159,11 +162,11 @@ class DatasourceController {
                 request.customDriverId(),
                 request.connectorId(),
                 request.jdbcUrlOverride(),
-                request.readReplicaJdbcUrl(),
-                request.readReplicaUsername(),
-                request.readReplicaPassword(),
+                toReplicaInputs(request.readReplicas()),
                 request.localDatacenter(),
-                request.apiKey());
+                request.apiKey(),
+                request.resultCacheEnabled(),
+                request.resultCacheTtlSeconds());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -216,12 +219,12 @@ class DatasourceController {
                 request.textToSqlEnabled(),
                 request.clearAiConfig(),
                 request.jdbcUrlOverride(),
-                request.readReplicaJdbcUrl(),
-                request.readReplicaUsername(),
-                request.readReplicaPassword(),
+                toReplicaInputs(request.readReplicas()),
                 request.active(),
                 request.localDatacenter(),
-                request.apiKey());
+                request.apiKey(),
+                request.resultCacheEnabled(),
+                request.resultCacheTtlSeconds());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
                 auditContext, Map.of("name", updated.name()));
@@ -264,7 +267,7 @@ class DatasourceController {
                                                  Authentication authentication) {
         var caller = currentClaims(authentication);
         var command = new TestReplicaCommand(request.jdbcUrl(), request.username(),
-                request.password());
+                request.password(), request.replicaId());
         return ConnectionTestResponse.from(
                 datasourceAdminService.testReplica(id, caller.organizationId(), command));
     }
@@ -506,6 +509,15 @@ class DatasourceController {
         recordAudit(AuditAction.DATASOURCE_REVIEWER_REMOVED, AuditResourceType.DATASOURCE_REVIEWER,
                 reviewerId, caller, auditContext, Map.of("datasource_id", id.toString()));
         return ResponseEntity.noContent().build();
+    }
+
+    private static List<ReplicaEndpointInput> toReplicaInputs(List<ReadReplicaRequest> requests) {
+        if (requests == null) {
+            return null;
+        }
+        return requests.stream()
+                .map(r -> new ReplicaEndpointInput(r.id(), r.jdbcUrl(), r.username(), r.password()))
+                .toList();
     }
 
     private JwtClaims currentClaims(Authentication authentication) {

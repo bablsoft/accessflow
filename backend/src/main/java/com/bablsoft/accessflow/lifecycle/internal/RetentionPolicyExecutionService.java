@@ -27,7 +27,9 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -123,8 +125,11 @@ public class RetentionPolicyExecutionService {
                 ? directiveResolutionService.resolveSoftDeletes(
                         policy.getOrganizationId(), policy.getDatasourceId())
                 : List.of();
+        // referencedTables drives SELECT result-cache invalidation (AF-457) — retention-expired
+        // rows must not survive in cached reads.
         var request = new QueryExecutionRequest(policy.getDatasourceId(), sql, QueryType.DELETE,
-                null, null, List.of(), List.of(), compiled.directives(), false, null, softDeletes);
+                null, null, List.of(), List.of(), compiled.directives(), false, null, softDeletes,
+                Set.of(table.toLowerCase(Locale.ROOT)));
         var result = queryExecutor.execute(request);
         return result instanceof UpdateExecutionResult u ? u.rowsAffected() : 0;
     }

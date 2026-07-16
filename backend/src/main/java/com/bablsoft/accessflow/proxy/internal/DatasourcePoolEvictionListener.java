@@ -12,14 +12,17 @@ import org.springframework.stereotype.Component;
 class DatasourcePoolEvictionListener {
 
     private final DatasourceConnectionPoolManager connectionPoolManager;
+    private final ReplicaHealthRegistry replicaHealthRegistry;
 
     @ApplicationModuleListener
     void onConfigChanged(DatasourceConfigChangedEvent event) {
         connectionPoolManager.evict(event.datasourceId());
+        replicaHealthRegistry.evict(event.datasourceId());
     }
 
     @ApplicationModuleListener
     void onDeactivated(DatasourceDeactivatedEvent event) {
         connectionPoolManager.evict(event.datasourceId());
+        replicaHealthRegistry.evict(event.datasourceId());
     }
 }

@@ -4,8 +4,15 @@ package com.bablsoft.accessflow.core.api;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
+/**
+ * {@code referencedTables} (AF-457) carries the parser's normalized table set (lowercase
+ * {@code schema.table} or bare {@code table}) so the proxy can index cached SELECT results for
+ * write-invalidation. An empty set means "tables unknown": SELECTs are then never cached and
+ * writes purge the whole datasource cache (fail-safe).
+ */
 public record QueryExecutionRequest(
         UUID datasourceId,
         String sql,
@@ -17,7 +24,8 @@ public record QueryExecutionRequest(
         List<RowSecurityDirective> rowSecurityPredicates,
         boolean transactional,
         List<String> statements,
-        List<SoftDeleteDirective> softDeleteDirectives) {
+        List<SoftDeleteDirective> softDeleteDirectives,
+        Set<String> referencedTables) {
 
     public QueryExecutionRequest {
         Objects.requireNonNull(datasourceId, "datasourceId");
@@ -41,6 +49,7 @@ public record QueryExecutionRequest(
                 : List.copyOf(statements);
         softDeleteDirectives = softDeleteDirectives == null
                 ? List.of() : List.copyOf(softDeleteDirectives);
+        referencedTables = referencedTables == null ? Set.of() : Set.copyOf(referencedTables);
         if (transactional) {
             if (queryType != QueryType.INSERT
                     && queryType != QueryType.UPDATE
@@ -55,6 +64,18 @@ public record QueryExecutionRequest(
                 }
             }
         }
+    }
+
+    /** Backward-compatible constructor without referenced tables (defaults to unknown). */
+    public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,
+                                 Integer maxRowsOverride, Duration statementTimeoutOverride,
+                                 List<String> restrictedColumns, List<ColumnMaskDirective> columnMasks,
+                                 List<RowSecurityDirective> rowSecurityPredicates,
+                                 boolean transactional, List<String> statements,
+                                 List<SoftDeleteDirective> softDeleteDirectives) {
+        this(datasourceId, sql, queryType, maxRowsOverride, statementTimeoutOverride,
+                restrictedColumns, columnMasks, rowSecurityPredicates, transactional, statements,
+                softDeleteDirectives, Set.of());
     }
 
     public QueryExecutionRequest(UUID datasourceId, String sql, QueryType queryType,

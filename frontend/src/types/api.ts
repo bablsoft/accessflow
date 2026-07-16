@@ -585,11 +585,29 @@ export interface Datasource {
   custom_driver_id: string | null;
   connector_id: string | null;
   jdbc_url_override: string | null;
-  read_replica_jdbc_url: string | null;
-  read_replica_username: string | null;
+  read_replicas: ReadReplica[];
   local_datacenter: string | null;
   active: boolean;
   created_at: string;
+  result_cache_enabled: boolean;
+  result_cache_ttl_seconds: number | null;
+}
+
+// One read-replica endpoint of a datasource (AF-457); the password never round-trips.
+export interface ReadReplica {
+  id: string;
+  jdbc_url: string;
+  username: string | null;
+}
+
+// Replica endpoint in a create/update payload. `id` targets an existing endpoint on update
+// (absent = create new). Password semantics on update: undefined keeps the stored secret,
+// empty string clears it (primary-credential fallback), non-blank re-encrypts.
+export interface ReadReplicaInput {
+  id?: string | null;
+  jdbc_url: string;
+  username?: string | null;
+  password?: string | null;
 }
 
 export interface ConnectionTestResult {
@@ -618,11 +636,11 @@ export interface CreateDatasourceInput {
   custom_driver_id?: string | null;
   connector_id?: string | null;
   jdbc_url_override?: string | null;
-  read_replica_jdbc_url?: string | null;
-  read_replica_username?: string | null;
-  read_replica_password?: string | null;
+  read_replicas?: ReadReplicaInput[] | null;
   local_datacenter?: string | null;
   api_key?: string | null;
+  result_cache_enabled?: boolean;
+  result_cache_ttl_seconds?: number | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -643,12 +661,14 @@ export interface UpdateDatasourceInput {
   text_to_sql_enabled?: boolean;
   clear_ai_config?: boolean;
   jdbc_url_override?: string | null;
-  read_replica_jdbc_url?: string | null;
-  read_replica_username?: string | null;
-  read_replica_password?: string | null;
+  // Full-list replacement merged by endpoint id; undefined keeps the current endpoints,
+  // an empty array deletes them all (AF-457).
+  read_replicas?: ReadReplicaInput[] | null;
   local_datacenter?: string | null;
   api_key?: string | null;
   active?: boolean;
+  result_cache_enabled?: boolean;
+  result_cache_ttl_seconds?: number | null;
 }
 
 export interface CreatePermissionInput {
@@ -1953,6 +1973,16 @@ export interface DatasourceHealth {
   execution_ms_p50: number | null;
   execution_ms_p95: number | null;
   errors_last_24h: number;
+  // Per-endpoint read-replica health on this node (AF-457); empty when no replicas configured.
+  replicas: ReplicaHealth[];
+}
+
+export interface ReplicaHealth {
+  endpoint_id: string;
+  label: string;
+  healthy: boolean;
+  pool_active: number | null;
+  pool_total: number | null;
 }
 
 export type DatasourceHealthPage = PageEnvelope<DatasourceHealth>;

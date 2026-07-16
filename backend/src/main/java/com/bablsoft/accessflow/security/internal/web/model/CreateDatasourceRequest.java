@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal.web.model;
 
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -9,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
 import java.util.UUID;
 
 public record CreateDatasourceRequest(
@@ -42,12 +44,13 @@ public record CreateDatasourceRequest(
         @Size(max = 2048, message = "{validation.jdbc_url.length}")
         @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
                 message = "{validation.jdbc_url.format}") String jdbcUrlOverride,
-        @Size(max = 2048, message = "{validation.jdbc_url.length}")
-        @Pattern(regexp = "^jdbc:[a-zA-Z][a-zA-Z0-9+\\-.]*:.+$",
-                message = "{validation.jdbc_url.format}") String readReplicaJdbcUrl,
-        @Size(max = 255, message = "{validation.display_name.max}") String readReplicaUsername,
-        @Size(max = 4096) String readReplicaPassword,
+        @Size(max = 5, message = "{validation.read_replicas.max}")
+        List<@Valid ReadReplicaRequest> readReplicas,
         @Size(max = 255, message = "{validation.local_datacenter.max}") String localDatacenter,
         // API key for the search engines (Elasticsearch / OpenSearch); encrypted before persistence.
-        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey
+        @Size(max = 4096, message = "{validation.api_key.max}") String apiKey,
+        Boolean resultCacheEnabled,
+        @Min(value = 1, message = "{validation.result_cache_ttl.range}")
+        @Max(value = 86_400, message = "{validation.result_cache_ttl.range}")
+        Integer resultCacheTtlSeconds
 ) {}

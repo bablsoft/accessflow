@@ -287,6 +287,13 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
+| `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457, default `1000`). |
+| `ACCESSFLOW_PROXY_CACHE_ENABLED` | Deployment-wide kill-switch for the opt-in SELECT result cache (AF-457, default `true`). The real gate is each datasource's `result_cache_enabled` flag; entries are Redis-backed and invalidated on any proxied write to a referenced table. |
+| `ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL` | ISO-8601 duration. Result-cache TTL used when a datasource opts in without its own `result_cache_ttl_seconds` (default `PT60S`). |
+| `ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES` | Serialized-size cap per cached SELECT result; larger results are never cached (default `1000000`). |
+| `ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL` | ISO-8601 duration. Cadence of the per-node read-replica health prober (AF-457, default `PT30S`). Deliberately per-node (not ShedLock'd) — pools and breaker state are per JVM. |
+| `ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT` | ISO-8601 duration. JDBC `isValid` timeout per replica endpoint probe (default `PT5S`). |
+| `ACCESSFLOW_PROXY_REPLICA_COOLDOWN` | ISO-8601 duration. How long a failed replica endpoint sits out of the read rotation before a half-open retry (default `PT30S`). |
 | `ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>` | Generic per-engine plugin tuning (AF-418): binds `accessflow.proxy.engines.<connector-id>.*`, passed verbatim into the engine's `QueryEngineContext` config map. Key names are each engine's contract (`_`/`.` normalize to `-`); generic env vars override `application.yml` defaults. See `docs/15-engine-sdk.md`. |
 | `ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-MongoDB-datasource `MongoClient` (default `PT10S`). MongoDB-only; the relational pools use the `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` HikariCP knob. Legacy alias for `accessflow.proxy.engines.mongodb.connect-timeout` — still fully supported. |
 | `ACCESSFLOW_PROXY_MONGO_SERVER_SELECTION_TIMEOUT` | ISO-8601 duration. MongoDB server-selection timeout (default `PT10S`). Legacy alias for `accessflow.proxy.engines.mongodb.server-selection-timeout`. |

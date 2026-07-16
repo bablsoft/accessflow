@@ -159,6 +159,31 @@ class DefaultQueryExecutorPostgresIntegrationTest {
     }
 
     @Test
+    void transactionalEnvelopeBatchesHomogeneousInsertsAndPersistsAllRows() {
+        var request = new QueryExecutionRequest(datasource.getId(),
+                """
+                BEGIN;
+                INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000011', 'fig', 8);
+                INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000012', 'grape', 9);
+                INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000013', 'honeydew', 10);
+                COMMIT;
+                """,
+                QueryType.INSERT, null, null, List.of(), true,
+                List.of("INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000011', 'fig', 8)",
+                        "INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000012', 'grape', 9)",
+                        "INSERT INTO items (id, name, qty) VALUES ('00000000-0000-0000-0000-000000000013', 'honeydew', 10)"));
+
+        var result = (UpdateExecutionResult) executor.execute(request);
+
+        assertThat(result.rowsAffected()).isEqualTo(3L);
+        var select = new QueryExecutionRequest(datasource.getId(),
+                "SELECT name FROM items WHERE qty >= 8 ORDER BY qty", QueryType.SELECT, null, null);
+        var rows = (SelectExecutionResult) executor.execute(select);
+        assertThat(rows.rows()).extracting(row -> row.get(0))
+                .containsExactly("fig", "grape", "honeydew");
+    }
+
+    @Test
     void rowSecurityPredicateFiltersSelectedRows() {
         var policyId = UUID.randomUUID();
         var directive = new RowSecurityDirective(policyId, "items", "qty",

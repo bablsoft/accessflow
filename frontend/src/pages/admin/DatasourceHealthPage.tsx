@@ -132,6 +132,30 @@ function HealthCard({ row }: { row: DatasourceHealth }) {
           />
         </div>
       </div>
+      {row.replicas.length > 0 && (
+        <div style={{ marginTop: 16 }} data-testid="replica-health-row">
+          <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
+            {t('admin.datasource_health.replicas_title', {
+              healthy: row.replicas.filter((r) => r.healthy).length,
+              total: row.replicas.length,
+            })}
+          </div>
+          <Space wrap>
+            {row.replicas.map((replica) => (
+              <Tag
+                key={replica.endpoint_id}
+                color={replica.healthy ? 'green' : 'red'}
+                className="mono"
+              >
+                {replica.label}
+                {replica.pool_active != null && replica.pool_total != null
+                  ? ` · ${replica.pool_active}/${replica.pool_total}`
+                  : ''}
+              </Tag>
+            ))}
+          </Space>
+        </div>
+      )}
     </Card>
   );
 }

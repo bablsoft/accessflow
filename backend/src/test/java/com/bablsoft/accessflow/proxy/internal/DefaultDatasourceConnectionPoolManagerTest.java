@@ -183,29 +183,54 @@ class DefaultDatasourceConnectionPoolManagerTest {
     }
 
     @Test
-    void resolveReplicaReturnsEmptyWhenNoReplicaConfigured() {
+    void replicaEndpointsReturnsEmptyWhenNoReplicaConfigured() {
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(activeDescriptor));
 
-        assertThat(manager.resolveReplica(id)).isEmpty();
-        verify(poolFactory, never()).createReplicaPool(any());
+        assertThat(manager.replicaEndpoints(id)).isEmpty();
+        verify(poolFactory, never()).createReplicaPool(any(), any());
     }
 
     @Test
-    void resolveReplicaCreatesAndCachesPoolWhenReplicaConfigured() {
+    void replicaEndpointsCarryRedactedLabels() {
+        var replicaDescriptor = new DatasourceConnectionDescriptor(
+                id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
+                10, 1000, false, null, false, null, null, null,
+                "jdbc:postgresql://replica:5432/db?password=secret", "ru", "ENC(rpw)", true);
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
+
+        var endpoints = manager.replicaEndpoints(id);
+
+        assertThat(endpoints).hasSize(1);
+        assertThat(endpoints.get(0).endpointId())
+                .isEqualTo(replicaDescriptor.readReplicas().get(0).id());
+        assertThat(endpoints.get(0).label()).isEqualTo("replica:5432");
+    }
+
+    @Test
+    void resolveReplicaCreatesAndCachesPoolPerEndpoint() {
         var replicaDescriptor = new DatasourceConnectionDescriptor(
                 id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
                 10, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
         var replicaPool = mock(HikariDataSource.class);
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
-        when(poolFactory.createReplicaPool(replicaDescriptor)).thenReturn(replicaPool);
+        when(poolFactory.createReplicaPool(replicaDescriptor, endpoint)).thenReturn(replicaPool);
 
-        var first = manager.resolveReplica(id);
-        var second = manager.resolveReplica(id);
+        var first = manager.resolveReplica(id, endpoint.id());
+        var second = manager.resolveReplica(id, endpoint.id());
 
-        assertThat(first).containsSame(replicaPool);
-        assertThat(second).containsSame(replicaPool);
-        verify(poolFactory, times(1)).createReplicaPool(replicaDescriptor);
+        assertThat(first).isSameAs(replicaPool);
+        assertThat(second).isSameAs(replicaPool);
+        verify(poolFactory, times(1)).createReplicaPool(replicaDescriptor, endpoint);
+    }
+
+    @Test
+    void resolveReplicaWithUnknownEndpointThrowsDatasourceUnavailable() {
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(activeDescriptor));
+
+        assertThatThrownBy(() -> manager.resolveReplica(id, UUID.randomUUID()))
+                .isInstanceOf(DatasourceUnavailableException.class);
     }
 
     @Test
@@ -214,13 +239,14 @@ class DefaultDatasourceConnectionPoolManagerTest {
                 id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
                 10, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
         var primaryPool = mock(HikariDataSource.class);
         var replicaPool = mock(HikariDataSource.class);
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
         when(poolFactory.createPool(replicaDescriptor)).thenReturn(primaryPool);
-        when(poolFactory.createReplicaPool(replicaDescriptor)).thenReturn(replicaPool);
+        when(poolFactory.createReplicaPool(replicaDescriptor, endpoint)).thenReturn(replicaPool);
         manager.resolve(id);
-        manager.resolveReplica(id);
+        manager.resolveReplica(id, endpoint.id());
 
         manager.evict(id);
 
@@ -276,10 +302,59 @@ class DefaultDatasourceConnectionPoolManagerTest {
                 id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
                 10, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
         when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
-        when(poolFactory.createReplicaPool(replicaDescriptor)).thenThrow(new RuntimeException("boom"));
+        when(poolFactory.createReplicaPool(replicaDescriptor, endpoint))
+                .thenThrow(new RuntimeException("boom"));
 
-        assertThatThrownBy(() -> manager.resolveReplica(id))
+        assertThatThrownBy(() -> manager.resolveReplica(id, endpoint.id()))
                 .isInstanceOf(PoolInitializationException.class);
+    }
+
+    @Test
+    void replicaPoolStatsReturnsEmptyWithoutCachedPoolAndGaugesWithOne() {
+        var replicaDescriptor = new DatasourceConnectionDescriptor(
+                id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
+                10, 1000, false, null, false, null, null, null,
+                "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
+        assertThat(manager.replicaPoolStats(id, endpoint.id())).isEmpty();
+
+        var replicaPool = mock(HikariDataSource.class);
+        var mxBean = mock(HikariPoolMXBean.class);
+        when(replicaPool.getHikariPoolMXBean()).thenReturn(mxBean);
+        when(mxBean.getActiveConnections()).thenReturn(1);
+        when(mxBean.getTotalConnections()).thenReturn(4);
+        when(replicaPool.getMaximumPoolSize()).thenReturn(10);
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
+        when(poolFactory.createReplicaPool(replicaDescriptor, endpoint)).thenReturn(replicaPool);
+        manager.resolveReplica(id, endpoint.id());
+
+        assertThat(manager.replicaPoolStats(id, endpoint.id())).hasValueSatisfying(s -> {
+            assertThat(s.active()).isEqualTo(1);
+            assertThat(s.total()).isEqualTo(4);
+        });
+    }
+
+    @Test
+    void forEachCachedReplicaPoolVisitsOnlyOpenPools() {
+        var replicaDescriptor = new DatasourceConnectionDescriptor(
+                id, organizationId, DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE,
+                10, 1000, false, null, false, null, null, null,
+                "jdbc:postgresql://replica:5432/db", "ru", "ENC(rpw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
+        var replicaPool = mock(HikariDataSource.class);
+        when(datasourceLookupService.findById(id)).thenReturn(Optional.of(replicaDescriptor));
+        when(poolFactory.createReplicaPool(replicaDescriptor, endpoint)).thenReturn(replicaPool);
+        manager.resolveReplica(id, endpoint.id());
+
+        var visited = new java.util.ArrayList<UUID>();
+        manager.forEachCachedReplicaPool((dsId, endpointId, pool) -> visited.add(endpointId));
+        assertThat(visited).containsExactly(endpoint.id());
+
+        when(replicaPool.isClosed()).thenReturn(true);
+        visited.clear();
+        manager.forEachCachedReplicaPool((dsId, endpointId, pool) -> visited.add(endpointId));
+        assertThat(visited).isEmpty();
     }
 }

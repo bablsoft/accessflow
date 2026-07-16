@@ -12,11 +12,14 @@ import com.bablsoft.accessflow.core.api.DriverResolutionException;
 import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.JdbcCoordinatesFactory;
 import com.bablsoft.accessflow.core.api.MissingAiConfigForDatasourceException;
+import com.bablsoft.accessflow.core.api.ReplicaEndpointInput;
 import com.bablsoft.accessflow.core.api.SslMode;
 import com.bablsoft.accessflow.core.api.UpdateDatasourceCommand;
+import com.bablsoft.accessflow.core.events.DatasourceCacheConfigChangedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceConfigChangedEvent;
 import com.bablsoft.accessflow.core.events.DatasourceDeactivatedEvent;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceReadReplicaEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceUserPermissionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -493,7 +496,7 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
-    void updateSetsReplicaFieldsAndEncryptsPassword() {
+    void updateAddsReplicaEndpointAndEncryptsPassword() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
         when(encryptionService.encrypt("replica-pw")).thenReturn("ENC(replica-pw)");
@@ -503,19 +506,20 @@ class DatasourceAdminServiceImplTest {
                 null, null, null, null, null,
                 "jdbc:postgresql://replica:5432/appdb", "replica-user", "replica-pw", null));
 
-        assertThat(entity.getReadReplicaJdbcUrl())
-                .isEqualTo("jdbc:postgresql://replica:5432/appdb");
-        assertThat(entity.getReadReplicaUsername()).isEqualTo("replica-user");
-        assertThat(entity.getReadReplicaPasswordEncrypted()).isEqualTo("ENC(replica-pw)");
+        assertThat(entity.getReadReplicas()).hasSize(1);
+        var replica = entity.getReadReplicas().get(0);
+        assertThat(replica.getJdbcUrl()).isEqualTo("jdbc:postgresql://replica:5432/appdb");
+        assertThat(replica.getUsername()).isEqualTo("replica-user");
+        assertThat(replica.getPasswordEncrypted()).isEqualTo("ENC(replica-pw)");
+        assertThat(replica.getId()).isNotNull();
+        assertThat(replica.getPosition()).isZero();
         verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
     }
 
     @Test
-    void updateClearsReplicaWhenJdbcUrlBlank() {
+    void updateWithEmptyReplicaListRemovesAllEndpoints() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
-        entity.setReadReplicaJdbcUrl("jdbc:postgresql://replica/appdb");
-        entity.setReadReplicaUsername("ru");
-        entity.setReadReplicaPasswordEncrypted("ENC(rpw)");
+        addReplica(entity, "jdbc:postgresql://replica/appdb", "ru", "ENC(rpw)");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
 
         service.update(datasourceId, orgId, new UpdateDatasourceCommand(
@@ -523,10 +527,75 @@ class DatasourceAdminServiceImplTest {
                 null, null, null, null, null,
                 "", null, null, null));
 
-        assertThat(entity.getReadReplicaJdbcUrl()).isNull();
-        assertThat(entity.getReadReplicaUsername()).isNull();
-        assertThat(entity.getReadReplicaPasswordEncrypted()).isNull();
+        assertThat(entity.getReadReplicas()).isEmpty();
         verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void updateMergesReplicaListByEndpointId() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        addReplica(entity, "jdbc:postgresql://replica-a/appdb", "ua", "ENC(a)");
+        addReplica(entity, "jdbc:postgresql://replica-b/appdb", "ub", "ENC(b)");
+        var keptId = entity.getReadReplicas().get(0).getId();
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("new-pw")).thenReturn("ENC(new-pw)");
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                List.of(
+                        // Existing endpoint: URL changed, password null → stored secret kept.
+                        new ReplicaEndpointInput(keptId,
+                                "jdbc:postgresql://replica-a2/appdb", "ua2", null),
+                        // New endpoint (no id) with a fresh password.
+                        new ReplicaEndpointInput(null,
+                                "jdbc:postgresql://replica-c/appdb", "uc", "new-pw")),
+                null, null, null, null, null));
+
+        assertThat(entity.getReadReplicas()).hasSize(2);
+        var kept = entity.getReadReplicas().get(0);
+        assertThat(kept.getId()).isEqualTo(keptId);
+        assertThat(kept.getJdbcUrl()).isEqualTo("jdbc:postgresql://replica-a2/appdb");
+        assertThat(kept.getUsername()).isEqualTo("ua2");
+        assertThat(kept.getPasswordEncrypted()).isEqualTo("ENC(a)");
+        assertThat(kept.getPosition()).isZero();
+        var added = entity.getReadReplicas().get(1);
+        assertThat(added.getJdbcUrl()).isEqualTo("jdbc:postgresql://replica-c/appdb");
+        assertThat(added.getPasswordEncrypted()).isEqualTo("ENC(new-pw)");
+        assertThat(added.getPosition()).isEqualTo(1);
+        verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void updateReplicaEmptyPasswordClearsStoredSecret() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        addReplica(entity, "jdbc:postgresql://replica/appdb", "ru", "ENC(rpw)");
+        var replicaId = entity.getReadReplicas().get(0).getId();
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null,
+                List.of(new ReplicaEndpointInput(replicaId,
+                        "jdbc:postgresql://replica/appdb", "ru", "")),
+                null, null, null, null, null));
+
+        assertThat(entity.getReadReplicas().get(0).getPasswordEncrypted()).isNull();
+    }
+
+    @Test
+    void updateCacheSettingsPublishesCacheConfigChangedWithoutPoolEviction() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, new UpdateDatasourceCommand(
+                null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, true, 120));
+
+        assertThat(entity.isResultCacheEnabled()).isTrue();
+        assertThat(entity.getResultCacheTtlSeconds()).isEqualTo(120);
+        verify(eventPublisher).publishEvent(new DatasourceCacheConfigChangedEvent(datasourceId));
+        verify(eventPublisher, never()).publishEvent(any(DatasourceConfigChangedEvent.class));
     }
 
     @Test
@@ -552,6 +621,21 @@ class DatasourceAdminServiceImplTest {
         assertThatThrownBy(() -> service.testReplica(datasourceId, orgId,
                 new com.bablsoft.accessflow.core.api.TestReplicaCommand(
                         "jdbc:postgresql://r/db", "u", null)))
+                .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
+    }
+
+    @Test
+    void testReplicaWithReplicaIdButNoStoredSecretThrowsDatasourceConnectionTestException() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        addReplica(entity, "jdbc:postgresql://replica/appdb", "ru", null);
+        var replicaId = entity.getReadReplicas().get(0).getId();
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(messageSource.getMessage(eq("error.replica_not_configured"), any(), any()))
+                .thenReturn("not configured");
+
+        assertThatThrownBy(() -> service.testReplica(datasourceId, orgId,
+                new com.bablsoft.accessflow.core.api.TestReplicaCommand(
+                        "jdbc:postgresql://replica/appdb", "ru", null, replicaId)))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.DatasourceConnectionTestException.class);
     }
 
@@ -957,6 +1041,18 @@ class DatasourceAdminServiceImplTest {
         entity.setAiAnalysisEnabled(false);
         entity.setActive(true);
         return entity;
+    }
+
+    private static void addReplica(DatasourceEntity entity, String jdbcUrl, String username,
+                                   String passwordEncrypted) {
+        var replica = new DatasourceReadReplicaEntity();
+        replica.setId(UUID.randomUUID());
+        replica.setDatasource(entity);
+        replica.setJdbcUrl(jdbcUrl);
+        replica.setUsername(username);
+        replica.setPasswordEncrypted(passwordEncrypted);
+        replica.setPosition(entity.getReadReplicas().size());
+        entity.getReadReplicas().add(replica);
     }
 
     @Test

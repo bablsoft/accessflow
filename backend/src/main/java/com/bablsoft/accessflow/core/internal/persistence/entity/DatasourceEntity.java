@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal.persistence.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,6 +12,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,6 +22,8 @@ import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -99,15 +104,15 @@ public class DatasourceEntity {
     @Column(name = "connector_id", length = 64)
     private String connectorId;
 
-    @Column(name = "read_replica_jdbc_url", columnDefinition = "TEXT")
-    private String readReplicaJdbcUrl;
+    @OneToMany(mappedBy = "datasource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position")
+    private List<DatasourceReadReplicaEntity> readReplicas = new ArrayList<>();
 
-    @Column(name = "read_replica_username", length = 255)
-    private String readReplicaUsername;
+    @Column(name = "result_cache_enabled", nullable = false)
+    private boolean resultCacheEnabled = false;
 
-    @JsonIgnore
-    @Column(name = "read_replica_password_encrypted", columnDefinition = "TEXT")
-    private String readReplicaPasswordEncrypted;
+    @Column(name = "result_cache_ttl_seconds")
+    private Integer resultCacheTtlSeconds;
 
     @Column(name = "local_datacenter", length = 255)
     private String localDatacenter;

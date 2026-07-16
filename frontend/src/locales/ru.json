@@ -890,7 +890,7 @@
       "er_diagram_fk_label": "{{from}} → {{to}}",
       "er_diagram_help": "Нажмите на таблицу, чтобы выделить её связи. Нажмите на фон, чтобы сбросить выделение.",
       "section_connection": "Подключение",
-      "section_read_replica": "Реплика чтения",
+      "section_read_replica": "Реплики чтения",
       "section_limits": "Лимиты и политики",
       "label_name": "Название",
       "label_db_type": "Тип базы",
@@ -903,7 +903,7 @@
       "label_replica_jdbc_url": "JDBC URL реплики",
       "label_replica_username": "Имя пользователя реплики",
       "label_replica_password": "Пароль реплики",
-      "replica_jdbc_url_help": "Запросы SELECT направляются на эту реплику; INSERT/UPDATE/DDL всегда выполняются на основной БД. Оставьте пустым, чтобы отключить маршрутизацию на реплику.",
+      "replica_jdbc_url_help": "JDBC URL этой конечной точки реплики. Она должна работать на том же движке, что и основная база.",
       "replica_password_placeholder": "Оставьте пустым, чтобы использовать сохранённый пароль реплики",
       "test_replica_connection": "Проверить реплику",
       "replica_connection_ok": "Реплика подключена · {{ms}} мс",
@@ -1162,7 +1162,17 @@
       "sample_truncated": "{{count}} строк (ограничено лимитом строк прокси)",
       "sample_row_count": "{{count}} строк",
       "sample_select_prompt": "Просматривайте схему и предварительно просматривайте ограниченную, контролируемую выборку строк любой таблицы.",
-      "sample_preview_aria": "Предпросмотр данных {{table}}"
+      "sample_preview_aria": "Предпросмотр данных {{table}}",
+      "replica_list_help": "Запросы SELECT балансируются по алгоритму round-robin между работоспособными репликами; INSERT/UPDATE/DDL всегда идут в основную базу. Недоступные конечные точки пропускаются до восстановления.",
+      "replica_jdbc_url_required": "JDBC URL реплики обязателен",
+      "replica_add": "Добавить конечную точку реплики",
+      "replica_remove": "Удалить",
+      "section_performance": "Производительность",
+      "label_cache_enabled": "Кэшировать результаты SELECT",
+      "cache_enabled_help": "Обслуживать повторяющиеся одинаковые SELECT из кэша Redis. Записи инвалидируются при любой записи в связанную таблицу; маскирование и защита строк продолжают действовать.",
+      "label_cache_ttl": "TTL кэша (секунды)",
+      "cache_ttl_help": "Как долго кэшированный результат остаётся действительным (1–86 400 секунд). Оставьте пустым для значения по умолчанию.",
+      "cache_ttl_placeholder": "Значение по умолчанию"
     }
   },
   "admin": {
@@ -1819,7 +1829,8 @@
       "errors_last_24h": "Ошибки (24 ч)",
       "execution_p50": "Вып. p50",
       "execution_p95": "Вып. p95",
-      "unit_ms": "мс"
+      "unit_ms": "мс",
+      "replicas_title": "{{healthy}}/{{total}} реплик работоспособны"
     },
     "slack": {
       "title": "Приложение Slack",

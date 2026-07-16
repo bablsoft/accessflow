@@ -877,7 +877,7 @@ Two layers exist:
 
 Optional external secret stores for datasource credentials. All providers are **off by default**
 — when a provider is enabled, a datasource credential field (`password`,
-`read_replica_password`, `api_key`) may hold a secret reference
+each `read_replicas[].password`, `api_key`) may hold a secret reference
 (`vault:<mount>/<path>#<field>` / `aws:<name-or-arn>[#jsonField]` / `azure:<secret-name>`)
 that is stored verbatim and resolved through the store at credential-use time instead of the
 local `ENCRYPTION_KEY` AES layer. Enabling a provider with missing required settings aborts
@@ -976,6 +976,13 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Optional | `10000` | Hard cap on rows returned by a single query execution |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Optional | `30s` | Statement-level timeout applied to customer-DB JDBC statements |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Optional | `1000` | Default JDBC fetch size |
+| `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Optional | `1000` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457) |
+| `ACCESSFLOW_PROXY_CACHE_ENABLED` | Optional | `true` | Deployment-wide kill-switch for the opt-in SELECT result cache (AF-457); the real gate is each datasource's `result_cache_enabled` flag |
+| `ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL` | Optional | `PT60S` | Result-cache TTL used when a datasource opts in without its own `result_cache_ttl_seconds` |
+| `ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES` | Optional | `1000000` | Serialized-size cap per cached SELECT result; larger results are never cached |
+| `ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL` | Optional | `PT30S` | Cadence of the per-node read-replica health prober (AF-457) |
+| `ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT` | Optional | `PT5S` | JDBC `isValid` timeout per replica endpoint probe |
+| `ACCESSFLOW_PROXY_REPLICA_COOLDOWN` | Optional | `PT30S` | How long a failed replica endpoint sits out of the read rotation before a half-open retry |
 | `ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>` | Optional | — | Generic per-engine plugin tuning (AF-418): binds `accessflow.proxy.engines.<connector-id>.*` and is passed verbatim into the engine's `QueryEngineContext` config map. Key names are each engine's own contract (`_`/`.` in `<KEY>` normalize to `-`, e.g. `ACCESSFLOW_PROXY_ENGINES_MONGODB_CONNECT_TIMEOUT` → `connect-timeout`); generic env vars override the `application.yml` defaults |
 | `ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-MongoDB-datasource native `MongoClient` (MongoDB-only; relational pools use `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT`). Legacy alias for `accessflow.proxy.engines.mongodb.connect-timeout` — still fully supported |
 | `ACCESSFLOW_PROXY_MONGO_SERVER_SELECTION_TIMEOUT` | Optional | `PT10S` | MongoDB server-selection timeout. Legacy alias for `accessflow.proxy.engines.mongodb.server-selection-timeout` |
@@ -998,7 +1005,7 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE` | Optional | `100` | Max connections in the native Neo4j driver's internal Bolt connection pool for a datasource |
 | `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | Optional | `PT30S` | Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll. MongoDB, Redis, Cassandra, and ScyllaDB datasources report query stats but no JDBC pool counters |
 
-> **Read-replica routing** (added in v1.2 — see [docs/05-backend.md → "Read-replica routing"](05-backend.md#read-replica-routing)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above; there are no replica-specific env vars. Configure replicas per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with `read_replica_jdbc_url`/`read_replica_username`/`read_replica_password`.
+> **Read-replica routing & load balancing** (multi-endpoint since v2.2/AF-457 — see [docs/05-backend.md → "Read-replica routing & load balancing"](05-backend.md#read-replica-routing--load-balancing-af-457)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above for every replica pool; the `ACCESSFLOW_PROXY_REPLICA_*` vars tune only the health checks. Configure endpoints per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with the `read_replicas` array (the pre-2.2 flat `read_replica_*` fields were removed; migration `V115` auto-converts existing config).
 
 #### Custom JDBC Driver Cache
 

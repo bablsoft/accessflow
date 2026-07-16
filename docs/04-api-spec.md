@@ -291,7 +291,7 @@ fields.
 ```
 
 When a provider is enabled, the datasource credential fields (`password`,
-`read_replica_password`, `api_key`) accept an external secret **reference** instead of a raw
+each `read_replicas[].password`, `api_key`) accept an external secret **reference** instead of a raw
 value — `vault:<mount>/<path>#<field>`, `aws:<name-or-arn>[#jsonField]`, or
 `azure:<secret-name>`. References are stored verbatim (not encrypted) and resolved through the
 store at credential-use time. Error responses on the create/update endpoints:
@@ -364,9 +364,9 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "ai_analysis_enabled": true,
   "custom_driver_id": null,
   "jdbc_url_override": null,
-  "read_replica_jdbc_url": null,
-  "read_replica_username": null,
-  "read_replica_password": null
+  "read_replicas": [],
+  "result_cache_enabled": false,
+  "result_cache_ttl_seconds": null
 }
 ```
 
@@ -374,7 +374,11 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
 
 `api_key` (≤ 4096, AES-256-GCM encrypted, never returned) is the search-engine alternative to basic auth: for `db_type` `ELASTICSEARCH` / `OPENSEARCH` the request must carry **either** `username` + `password` **or** `api_key` (sent to the cluster as `Authorization: ApiKey`); supplying it is rejected for every other dialect. For these search datasources `database_name` is optional (it only scopes introspection — the index is named in the query). On update, sending a blank `api_key` clears it (reverting to basic auth). Null/unused for every non-search dialect.
 
-When `read_replica_jdbc_url` is set, SELECT queries are routed to the replica pool while INSERT/UPDATE/DELETE/DDL always hit the primary. The replica reuses the primary's JDBC driver class — it must be the same engine. `read_replica_username` and `read_replica_password` are optional; when omitted, the primary's username/password is reused. `read_replica_password` is AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password.
+`read_replicas` (AF-457, ≤ 5 items) lists the datasource's read-replica endpoints as `{ "id": "uuid|null", "jdbc_url": "...", "username": "...", "password": "..." }` objects. SELECT queries load-balance round-robin across the healthy endpoints while INSERT/UPDATE/DELETE/DDL always hit the primary; each replica reuses the primary's JDBC driver class — it must be the same engine. `username` / `password` are optional per endpoint; when omitted, the primary's credentials are reused. Passwords are AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password and never returned (responses carry only `id`, `jdbc_url`, `username` per endpoint).
+
+`result_cache_enabled` / `result_cache_ttl_seconds` (AF-457) opt this datasource into SELECT result caching; the TTL must be 1–86400 seconds and `null` falls back to the deployment default. See [05-backend.md → SELECT result caching](./05-backend.md#select-result-caching).
+
+> **Breaking change (2.2.0, AF-457):** the flat `read_replica_jdbc_url` / `read_replica_username` / `read_replica_password` fields were removed from datasource create/update payloads and responses in favour of the `read_replicas` array. Migration `V115` auto-converts any existing single-replica configuration.
 
 For datasources backed by an uploaded driver, set `custom_driver_id` to the
 `custom_jdbc_driver.id`. For fully dynamic datasources, set `db_type=CUSTOM`,
@@ -422,14 +426,17 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   "password": "new-service-account-password",
   "local_datacenter": null,
   "connection_pool_size": 25,
-  "read_replica_jdbc_url": "jdbc:postgresql://replica.company.com:5432/app_prod",
-  "read_replica_username": "ro_svc",
-  "read_replica_password": "replica-secret",
+  "read_replicas": [
+    { "id": "existing-endpoint-uuid", "jdbc_url": "jdbc:postgresql://replica-a.company.com:5432/app_prod", "username": "ro_svc" },
+    { "jdbc_url": "jdbc:postgresql://replica-b.company.com:5432/app_prod", "username": "ro_svc", "password": "replica-secret" }
+  ],
+  "result_cache_enabled": true,
+  "result_cache_ttl_seconds": 120,
   "active": true
 }
 ```
 
-Setting `read_replica_jdbc_url` to an empty string clears all three replica fields. Providing `read_replica_password` triggers re-encryption with a fresh IV.
+`read_replicas` is a **full-list replacement merged by endpoint id**: omitting the field keeps the current endpoints, an empty array deletes them all, and a non-empty array replaces the list — items whose `id` matches a stored endpoint update it (a `null`/omitted `password` keeps the stored secret, an empty string clears it back to the primary-credential fallback, a non-blank value re-encrypts with a fresh IV), items without an `id` create new endpoints, and stored endpoints absent from the array are removed.
 
 **Response 200:** Updated datasource object.
 **Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
@@ -466,11 +473,12 @@ Opens a transient JDBC connection to a candidate read-replica using the values s
 {
   "jdbc_url": "jdbc:postgresql://replica.company.com:5432/app_prod",
   "username": "ro_svc",
-  "password": "replica-secret"
+  "password": "replica-secret",
+  "replica_id": "existing-endpoint-uuid"
 }
 ```
 
-`password` is optional — when omitted, the test reuses the currently-persisted replica password (lets an admin retest after changing only the URL or username without re-typing the secret). If neither the body nor the stored datasource has a password, the call returns 400 `DATASOURCE_CONNECTION_TEST_FAILED` with a "no read replica configured" detail.
+`password` is optional — when omitted, the test reuses the persisted password of the endpoint named by the optional `replica_id` (lets an admin retest a saved endpoint after changing only the URL or username without re-typing the secret). If the body has no password and `replica_id` names no endpoint with a stored password, the call returns 422 `DATASOURCE_CONNECTION_TEST_FAILED` with a "no read replica configured" detail.
 
 **Response 200:**
 ```json
@@ -4026,7 +4034,11 @@ The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cach
       "queries_last_24h": 142,
       "execution_ms_p50": 12.5,
       "execution_ms_p95": 88.0,
-      "errors_last_24h": 3
+      "errors_last_24h": 3,
+      "replicas": [
+        { "endpoint_id": "9a2b…", "label": "replica-a.company.com:5432", "healthy": true, "pool_active": 1, "pool_total": 4 },
+        { "endpoint_id": "b41c…", "label": "replica-b.company.com:5432", "healthy": false, "pool_active": null, "pool_total": null }
+      ]
     }
   ],
   "page": 0,
@@ -4035,6 +4047,8 @@ The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cach
   "total_pages": 1
 }
 ```
+
+`replicas` (AF-457) carries per-endpoint read-replica health on the serving node: `label` is the redacted host:port of the endpoint's JDBC URL, `healthy` reflects the node's circuit-breaker state (an unhealthy endpoint is being skipped by the read load-balancer until its cooldown elapses), and the pool gauges are `null` when the endpoint's pool has not been created on that node yet. Empty for datasources without replicas.
 
 **Response 401:** Not authenticated.
 **Response 403:** Caller is not an `ADMIN`.

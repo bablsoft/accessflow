@@ -243,6 +243,7 @@ class DatasourcePoolFactoryTest {
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
                 "ENC(primary)", SslMode.DISABLE, 15, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/appdb", "replica-user", "ENC(replica-pw)", true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
         when(secretResolutionService.resolve("ENC(replica-pw)", datasourceId, organizationId))
                 .thenReturn("replica-pw-plain");
 
@@ -251,14 +252,15 @@ class DatasourcePoolFactoryTest {
                 HikariDataSource.class,
                 (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
 
-            factory.createReplicaPool(replicaDescriptor);
+            factory.createReplicaPool(replicaDescriptor, endpoint);
 
             assertThat(mocked.constructed()).hasSize(1);
             var config = captured.get();
             assertThat(config.getJdbcUrl()).isEqualTo("jdbc:postgresql://replica:5432/appdb");
             assertThat(config.getUsername()).isEqualTo("replica-user");
             assertThat(config.getPassword()).isEqualTo("replica-pw-plain");
-            assertThat(config.getPoolName()).isEqualTo("accessflow-ds-" + datasourceId + "-replica");
+            assertThat(config.getPoolName())
+                    .isEqualTo("accessflow-ds-" + datasourceId + "-replica-0");
             // Primary password must not have been resolved on the replica path.
             verify(secretResolutionService, times(0))
                     .resolve("ENC(primary)", datasourceId, organizationId);
@@ -271,13 +273,14 @@ class DatasourcePoolFactoryTest {
                 datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
                 "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, null, null, null,
                 "jdbc:postgresql://replica:5432/appdb", null, null, true);
+        var endpoint = replicaDescriptor.readReplicas().get(0);
 
         var captured = new AtomicReference<HikariConfig>();
         try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
                 HikariDataSource.class,
                 (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
 
-            factory.createReplicaPool(replicaDescriptor);
+            factory.createReplicaPool(replicaDescriptor, endpoint);
 
             var config = captured.get();
             assertThat(config.getUsername()).isEqualTo("svc");

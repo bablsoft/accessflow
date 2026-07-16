@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
 import com.bablsoft.accessflow.proxy.api.DatasourceHealthService;
 import com.bablsoft.accessflow.proxy.api.DatasourceHealthSnapshot;
 import com.bablsoft.accessflow.proxy.api.DatasourcePoolStats;
+import com.bablsoft.accessflow.proxy.api.ReplicaEndpointHealth;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
@@ -29,17 +30,20 @@ class DefaultDatasourceHealthService implements DatasourceHealthService {
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceConnectionPoolManager poolManager;
     private final DatasourceQueryStatsLookupService queryStatsLookupService;
+    private final ReplicaHealthRegistry replicaHealthRegistry;
     private final Clock clock;
     private final CacheManager cacheManager;
 
     DefaultDatasourceHealthService(DatasourceAdminService datasourceAdminService,
                                    DatasourceConnectionPoolManager poolManager,
                                    DatasourceQueryStatsLookupService queryStatsLookupService,
+                                   ReplicaHealthRegistry replicaHealthRegistry,
                                    Clock proxyClock,
                                    CacheManager cacheManager) {
         this.datasourceAdminService = datasourceAdminService;
         this.poolManager = poolManager;
         this.queryStatsLookupService = queryStatsLookupService;
+        this.replicaHealthRegistry = replicaHealthRegistry;
         this.clock = proxyClock;
         this.cacheManager = cacheManager;
     }
@@ -84,8 +88,8 @@ class DefaultDatasourceHealthService implements DatasourceHealthService {
                 page.totalElements(), page.totalPages());
     }
 
-    private static DatasourceHealthSnapshot toSnapshot(DatasourceView view, DatasourcePoolStats pool,
-                                                       DatasourceQueryStats stats) {
+    private DatasourceHealthSnapshot toSnapshot(DatasourceView view, DatasourcePoolStats pool,
+                                                DatasourceQueryStats stats) {
         return new DatasourceHealthSnapshot(
                 view.id(),
                 view.name(),
@@ -99,7 +103,22 @@ class DefaultDatasourceHealthService implements DatasourceHealthService {
                 stats.queriesLast24h(),
                 stats.executionMsP50(),
                 stats.executionMsP95(),
-                stats.errorsLast24h());
+                stats.errorsLast24h(),
+                replicaHealth(view));
+    }
+
+    private List<ReplicaEndpointHealth> replicaHealth(DatasourceView view) {
+        return view.readReplicas().stream()
+                .map(replica -> {
+                    var pool = poolManager.replicaPoolStats(view.id(), replica.id()).orElse(null);
+                    return new ReplicaEndpointHealth(
+                            replica.id(),
+                            DefaultDatasourceConnectionPoolManager.label(replica.jdbcUrl()),
+                            replicaHealthRegistry.isHealthy(view.id(), replica.id()),
+                            pool == null ? null : pool.active(),
+                            pool == null ? null : pool.total());
+                })
+                .toList();
     }
 
     private record HealthKey(UUID organizationId, UUID datasourceId) {
