@@ -327,6 +327,7 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL` | PagerDuty Events API v2 base URL used by `PAGERDUTY` notification channels (default `https://events.pagerduty.com/`). Override for air-gapped installs that route through an internal proxy. |
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL` | ISO-8601 duration. TTL of the one-time Slack account-link code issued for the `/accessflow link <code>` slash-command flow, stored single-use in Redis (default `PT10M`). |
 | `ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE` | ISO-8601 duration. Acceptance window for the inbound Slack `X-Slack-Signature` HMAC (`X-Slack-Request-Timestamp` skew) on `/api/v1/integrations/slack/{actions,commands}`; also the Redis replay-dedup window (default `PT5M`). |
+| `ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE` | ISO-8601 duration (AF-453). Acceptance window for the `X-AccessFlow-Signature` HMAC (`X-AccessFlow-Timestamp` skew) on the inbound ServiceNow / Jira ticket-status webhooks `/api/v1/integrations/{servicenow,jira}/webhook/{channelId}`; also the Redis replay-dedup window (default `PT5M`). |
 | `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |
 | `ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD` | ISO-8601 duration. Largest period a single compliance report (AF-459) may span; a longer window is rejected `400 INVALID_REPORT_PERIOD` (default `P366D`). |
 | `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Hard cap on executed-query snapshots scanned by a single compliance report / signed export; beyond it the report sets `truncated=true` (default `50000`). Export signing reuses `JWT_PRIVATE_KEY` — no separate signing key. |
@@ -420,6 +421,11 @@ com.bablsoft.accessflow/
                           submission_reason=EMERGENCY_ACCESS, no QuerySubmittedEvent — AF-385)
   PENDING_AI → REJECTED  (routing-policy AUTO_REJECT — AF-379; no review_decisions row,
                           audited via QueryAutoRejectedEvent)
+  PENDING_REVIEW → APPROVED or REJECTED (external ticket resolution — AF-453; a channel with
+                          bidirectional_sync=true maps a ServiceNow/Jira ticket resolution onto a
+                          decision via workflow.api.ExternalDecisionService. System-attributed:
+                          no review_decisions row, publishes QueryAutoApproved/RejectedEvent with
+                          the ticket provenance as reason; no-op when a manual decision raced)
   PENDING_REVIEW → CANCELLED (submitter only)
   APPROVED       → CANCELLED (submitter only, when scheduled_for is set and the
                               deferred run has not yet fired — AF-345)

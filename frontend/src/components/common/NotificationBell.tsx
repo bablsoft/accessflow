@@ -171,6 +171,8 @@ function renderMessage(
       return t('notifications.events.QUERY_APPROVED', { datasource });
     case 'QUERY_REJECTED':
       return t('notifications.events.QUERY_REJECTED', { datasource });
+    case 'QUERY_ESCALATED':
+      return t('notifications.events.QUERY_ESCALATED', { datasource });
     case 'REVIEW_TIMEOUT':
       return t('notifications.events.REVIEW_TIMEOUT', { datasource });
     case 'AI_HIGH_RISK':

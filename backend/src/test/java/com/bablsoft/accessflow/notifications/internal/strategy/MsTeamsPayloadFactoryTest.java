@@ -72,6 +72,13 @@ class MsTeamsPayloadFactoryTest {
     }
 
     @Test
+    void escalatedHeaderIsUsed() {
+        var ctx = ctx(NotificationEventType.QUERY_ESCALATED, null);
+        var body = factory.buildEventBody(ctx);
+        assertThat(body).contains("Query Escalated for Review");
+    }
+
+    @Test
     void weeklyDigestRendersFactsAndDashboardAction() {
         var body = factory.buildEventBody(digestCtx());
         assertThat(body).contains("Weekly Digest")

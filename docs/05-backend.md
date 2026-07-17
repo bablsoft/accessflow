@@ -1013,6 +1013,16 @@ The job is idempotent: a row already in `TIMED_OUT` (or any non-`PENDING_REVIEW`
 
 The `GET /queries/{id}` response surfaces the active plan via `review_plan_name` and `approval_timeout_hours` so clients can render the timeout reason on the detail page (and, for queries still in `PENDING_REVIEW`, an "auto-rejects in N hours" hint).
 
+### External ticket decisions (ServiceNow / Jira bi-directional sync, AF-453)
+
+`workflow.api.ExternalDecisionService` (`DefaultExternalDecisionService`) is the entry point the notifications module's ticketing inbound webhook calls when a linked ticket's resolution should decide a query (see [docs/08-notifications.md → Ticketing inbound webhooks](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453)):
+
+- `applyTicketDecision(queryRequestId, organizationId, APPROVE | REJECT, reason)` is **idempotent and race-safe**: it returns `false` (never throws) when the query is missing, belongs to another organization, is no longer `PENDING_REVIEW`, or a manual decision races the transition.
+- An `APPROVE` transitions `PENDING_REVIEW → APPROVED` via `QueryRequestStateService.transitionTo` and publishes `QueryAutoApprovedEvent(id, null, reason, null, null)`; a `REJECT` transitions to `REJECTED` and publishes `QueryAutoRejectedEvent(id, null, reason)`. Reusing the auto-decision core events means the existing audit and notification listeners fire exactly as they do for routing-policy decisions — the `reason` string (e.g. `"ServiceNow ticket INC0010023 moved to 'Resolved' by jdoe"`) carries the provenance into the audit metadata.
+- Like the timeout path, **no `review_decisions` row is inserted** — there is no reviewer; the trail is the audit rows (`TICKET_STATUS_SYNCED` from the webhook + the auto-decision `QUERY_APPROVED`/`QUERY_REJECTED` row).
+
+Ticket **creation** is the notifications module's job (`TicketingNotificationStrategy` and its ServiceNow / Jira subclasses); the persisted links live in core (`query_tickets`, `core.api.QueryTicketService`) so `QueryReadController` can embed them as `linked_tickets` in the query detail response without a workflow → notifications dependency.
+
 ### Query result diffing (AF-361)
 
 When a submitter re-runs the same SQL against the same datasource, AccessFlow links the new `query_requests` row to the previous successful run and surfaces a small delta panel on `QueryDetailPage`. The implementation is intentionally narrow — three scalar deltas (rows affected, execution duration, result row count) and a "previous run" link, no row-level diff.

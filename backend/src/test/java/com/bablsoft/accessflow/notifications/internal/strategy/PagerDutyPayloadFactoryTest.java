@@ -87,6 +87,19 @@ class PagerDutyPayloadFactoryTest {
     }
 
     @Test
+    void escalatedSummaryMentionsRoutingPolicyAndDatasource() {
+        var ctx = sampleContext(NotificationEventType.QUERY_ESCALATED, null);
+        var config = new PagerDutyChannelConfig("k", PagerDutySeverity.WARNING,
+                EnumSet.of(PagerDutyTrigger.ESCALATION));
+
+        var tree = objectMapper.readTree(factory.buildEventBody(ctx, config));
+
+        assertThat(tree.get("payload").get("summary").asString())
+                .isEqualTo("AccessFlow: a routing policy escalated a query on Production");
+        assertThat(tree.get("payload").get("class").asString()).isEqualTo("QUERY_ESCALATED");
+    }
+
+    @Test
     void buildTestBodyUsesFixedDedupKeyAndInfoSeverity() {
         var config = new PagerDutyChannelConfig("R0UT1NGKEY", PagerDutySeverity.CRITICAL,
                 EnumSet.of(PagerDutyTrigger.CRITICAL_RISK));

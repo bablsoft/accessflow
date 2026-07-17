@@ -58,7 +58,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 
 *Connect a database in the admin UI — credentials are AES-256-GCM encrypted at rest, the proxy holds them, and end users never see them.*
 
-> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.bablsoft.com/docs/).
+> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.bablsoft.com/docs/).
 
 ---
 
@@ -96,7 +96,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 - **Personalized dashboard** — the default post-login home (`/dashboard`) gives every user a self-scoped view of what's waiting on them: pending approvals as a reviewer, their recent queries with status/risk trend sparklines, an actionable AI optimization-suggestion backlog (dismissable, one-click "open in editor"), and their own behavioural-anomaly alerts. Widgets are customizable — show/hide, collapse, and drag-and-drop reorder, persisted across sessions. The week's summary is exportable on demand as a **digitally signed** PDF/CSV, and an opt-in **weekly email digest** delivers it on a schedule.
 - **Observability** — OpenTelemetry OTLP trace export of the full proxy pipeline (parse → AI analyze → pool acquire → execute) to Tempo / Jaeger / Honeycomb, Prometheus metrics at `/actuator/prometheus`, and two pre-built Grafana dashboards (shipped via the Helm chart) covering query volume, approval SLAs, AI usage/cost, rejection rates, and connection-pool stats. Structured JSON logging (logstash / ECS / GELF) with a `traceId` correlated across logs, error responses, and traces.
 - **Real-time updates** — single WebSocket at `/ws` fans review-queue, status, and AI-analysis events to connected clients.
-- **Notifications** — Email (SMTP), Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and HMAC-signed outbound webhooks with retry policy.
+- **Notifications** — Email (SMTP), Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and HMAC-signed outbound webhooks with retry policy. **ServiceNow & Jira ticketing**: auto-create an incident/issue when a query is rejected, escalated, or times out awaiting review, with linked tickets on the query detail page and signed inbound webhooks syncing ticket status back — a ticket resolution can even approve/reject the pending query (bi-directional sync).
 - **Slack approve/reject** — a configured Slack app adds **Approve** / **Reject** buttons to review-request messages; the decision runs through the same self-approval and RBAC guards as the REST API (HMAC-verified Interactive Components).
 - **Mobile approvals (PWA) with one-tap push** — install AccessFlow as a Progressive Web App with an offline-capable review queue, and get **Web Push** notifications when a query needs your approval. Approve or reject in one tap — the decision only commits after a **step-up re-verification** (password, or TOTP when 2FA is on), and the self-approval guard is enforced server-side on every channel.
 - **Identity & SSO** — JWT access tokens (15 min) + HttpOnly refresh cookies, optional SAML 2.0 SSO, OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab plus a generic `OIDC` provider for other IdPs (Keycloak, Auth0, Okta, Authentik, Zitadel), password reset and user-invitation flows.
@@ -126,7 +126,7 @@ AccessFlow is a single Spring Boot 4 application organized as Spring Modulith mo
 - **Proxy** — parses, validates, and executes queries against customer databases: SQL via per-datasource HikariCP pools, MongoDB / Couchbase / Redis / Cassandra / ScyllaDB / Elasticsearch / OpenSearch / DynamoDB / Neo4j via on-demand engine plugins (`engines/mongodb/`, `engines/couchbase/`, `engines/redis/`, `engines/cassandra/`, `engines/elasticsearch/`, `engines/dynamodb/`, `engines/neo4j/` — per-datasource native clients behind the `core.api.QueryEngine` SPI).
 - **Workflow** — review-plan state machine, approval chains, scheduled timeout auto-reject.
 - **AI Analyzer** — Spring AI–backed adapters resolved per organization from the `ai_config` row.
-- **Notifications** — async dispatcher fanning events to Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, and outbound webhooks.
+- **Notifications** — async dispatcher fanning events to Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow / Jira ticketing, and outbound webhooks.
 - **Audit** — INSERT-only, HMAC-chained record of every domain event.
 - **Compliance** — pre-built compliance reports and signed PDF/CSV exports over the immutable query snapshots, gated to the read-only Auditor role.
 - **Realtime** — WebSocket fan-out for the React SPA.
@@ -252,7 +252,7 @@ accessflow/
 │   │   ├── access/           # JIT time-bound access requests + grant-expiry job
 │   │   ├── ai/               # Spring AI adapters (OpenAI / Anthropic / Ollama / Hugging Face)
 │   │   ├── security/         # JWT, Spring Security filters, SAML 2.0 SSO
-│   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty dispatchers
+│   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty / ServiceNow / Jira dispatchers
 │   │   ├── audit/            # INSERT-only, HMAC-chained audit log
 │   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
@@ -283,7 +283,7 @@ accessflow/
 | [`docs/05-backend.md`](https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md) | Modulith layout, proxy engine, workflow state machine, AI analyzer, scheduled jobs |
 | [`docs/06-frontend.md`](https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md) | Frontend structure, routing, state management, SQL editor |
 | [`docs/07-security.md`](https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md) | Auth, RBAC matrix, credential encryption, audit integrity |
-| [`docs/08-notifications.md`](https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md) | Event types; Email, Slack, Webhook, Discord, Telegram, Microsoft Teams, and PagerDuty channel config; signed payload schema |
+| [`docs/08-notifications.md`](https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md) | Event types; Email, Slack, Webhook, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, and Jira channel config; ticketing bi-directional sync; signed payload schema |
 | [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) | Docker Compose, Helm, environment-variable reference |
 | [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) | Local setup, testing strategy, coding standards, Git workflow |
 | [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md) | v1.0 → v2.x milestone scope |

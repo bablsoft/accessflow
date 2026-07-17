@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.query_escalated.title}">Query escalated for review</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; color: #fff; font-size: 12px; font-weight: 600; }
+        .badge-LOW { background: #2f855a; }
+        .badge-MEDIUM { background: #c05621; }
+        .badge-HIGH { background: #c53030; }
+        .badge-CRITICAL { background: #742a2a; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.query_escalated.heading}">Query escalated for your review</h2>
+    <p th:text="#{notification.email.query_escalated.intro}">A routing policy escalated this query — it requires additional approvals before it can run.</p>
+    <p class="meta">
+        <strong th:text="#{notification.email.common.datasource_label}">Datasource:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.query_ready_for_review.submitted_by_label}">Submitted by:</strong>
+        <span th:text="${submitterDisplayName ?: (submitterEmail ?: '—')}">—</span>
+        <span th:if="${submitterEmail != null and submitterDisplayName != null}">&lt;<span th:text="${submitterEmail}"></span>&gt;</span><br>
+        <strong th:text="#{notification.email.query_ready_for_review.query_type_label}">Query type:</strong>
+        <span th:text="${queryType} ?: '—'">—</span>
+    </p>
+    <p th:if="${riskLevel}">
+        <strong th:text="#{notification.email.query_ready_for_review.ai_risk_label}">AI risk:</strong>
+        <span th:classappend="'badge badge-' + ${riskLevel}" th:text="${riskLevel}">RISK</span>
+        <span th:if="${riskScore != null}"
+              th:text="#{notification.email.query_ready_for_review.risk_score_format(${riskScore})}"></span>
+    </p>
+    <p th:if="${aiSummary}"><em th:text="${aiSummary}"></em></p>
+    <p><strong th:text="#{notification.email.common.sql_preview_label}">SQL preview:</strong></p>
+    <pre th:text="${sqlPreview}"></pre>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.query_ready_for_review.cta}">Review in AccessFlow</a>
+    </p>
+</body>
+</html>

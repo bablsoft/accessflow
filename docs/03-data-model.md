@@ -1276,13 +1276,13 @@ Unique constraint on `(organization_id, resource_type, resource_id)` (`uq_bootst
 
 ## notification_channels
 
-Stores notification channel configurations (email, Slack, webhook, Discord, Telegram, Microsoft Teams, PagerDuty).
+Stores notification channel configurations (email, Slack, webhook, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, Jira).
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` |
-| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` \| `DISCORD` \| `TELEGRAM` \| `MS_TEAMS` \| `PAGERDUTY` |
+| `channel_type` | ENUM: `EMAIL` \| `SLACK` \| `WEBHOOK` \| `DISCORD` \| `TELEGRAM` \| `MS_TEAMS` \| `PAGERDUTY` \| `SERVICENOW` \| `JIRA` |
 | `name` | VARCHAR(255) — human label |
 | `config` | JSONB — channel-specific config (sensitive fields AES-encrypted) |
 | `is_active` | BOOLEAN DEFAULT true |
@@ -1294,6 +1294,31 @@ Sensitive `config` fields encrypted with AES-256-GCM and masked on read:
 - `WEBHOOK` → `secret` → `secret_encrypted`
 - `TELEGRAM` → `bot_token` → `bot_token_encrypted`
 - `PAGERDUTY` → `routing_key` → `routing_key_encrypted`
+- `SERVICENOW` → `password` → `password_encrypted`; `webhook_secret` → `webhook_secret_encrypted`
+- `JIRA` → `api_token` → `api_token_encrypted`; `webhook_secret` → `webhook_secret_encrypted`
+
+---
+
+## query_tickets
+
+Tickets auto-created in an external ticketing system (ServiceNow incident / Jira issue, AF-453) for workflow events on a query, plus the state last synced back by the signed inbound webhook. Owned by the core module so both notifications (writer) and workflow (query-detail reader) can reach it without a module cycle.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `query_request_id` | FK → `query_requests` ON DELETE CASCADE |
+| `channel_id` | FK → `notification_channels` ON DELETE CASCADE |
+| `ticket_system` | VARCHAR(20) — `SERVICENOW` \| `JIRA` (channel-type name, plain text — the enum lives in the notifications module) |
+| `trigger_event` | VARCHAR(40) — the `NotificationEventType` that opened the ticket (`QUERY_REJECTED` \| `REVIEW_TIMEOUT` \| `QUERY_ESCALATED`) |
+| `external_id` | VARCHAR(255) — ServiceNow sys_id / Jira issue id |
+| `external_key` | VARCHAR(255) — human-readable key (`INC0010023` / `SEC-42`) |
+| `url` | TEXT nullable — deep link into the ticketing system |
+| `status` | VARCHAR(100) — external status label, updated by the inbound webhook |
+| `resolution` | VARCHAR(100) nullable |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Constraints: `UNIQUE (channel_id, query_request_id, trigger_event)` (create-once dedupe) and `UNIQUE (channel_id, external_id)` (unambiguous inbound resolution); index on `query_request_id` for the detail page.
 
 ---
 

@@ -283,6 +283,10 @@ accessflow:
       # Acceptance window for the X-Slack-Request-Timestamp HMAC signature; also the replay-dedup
       # window. Stale or replayed inbound Slack callbacks outside this window are rejected.
       signature-tolerance: ${ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE:PT5M}
+    ticketing:
+      # Acceptance window for the X-AccessFlow-Timestamp HMAC signature on inbound ServiceNow /
+      # Jira ticket-status webhooks (AF-453); also the replay-dedup window.
+      signature-tolerance: ${ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE:PT5M}
     # PagerDuty Events API v2 base URL used by PAGERDUTY notification channels. Override for
     # air-gapped installs that route through an internal proxy.
     pagerduty-api-base-url: ${ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL:https://events.pagerduty.com/}

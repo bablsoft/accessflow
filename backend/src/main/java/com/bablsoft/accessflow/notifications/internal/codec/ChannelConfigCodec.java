@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +66,26 @@ public class ChannelConfigCodec {
     static final String KEY_DEFAULT_SEVERITY = "default_severity";
     static final String KEY_TRIGGERS = "triggers";
 
+    static final String KEY_INSTANCE_URL = "instance_url";
+    static final String KEY_TICKET_USERNAME = "username";
+    static final String KEY_PASSWORD = "password";
+    static final String KEY_PASSWORD_ENCRYPTED = "password_encrypted";
+    static final String KEY_ASSIGNMENT_GROUP = "assignment_group";
+    static final String KEY_URGENCY = "urgency";
+    static final String KEY_BASE_URL = "base_url";
+    static final String KEY_USER_EMAIL = "user_email";
+    static final String KEY_API_TOKEN = "api_token";
+    static final String KEY_API_TOKEN_ENCRYPTED = "api_token_encrypted";
+    static final String KEY_PROJECT_KEY = "project_key";
+    static final String KEY_ISSUE_TYPE = "issue_type";
+    static final String KEY_BIDIRECTIONAL_SYNC = "bidirectional_sync";
+    static final String KEY_WEBHOOK_SECRET = "webhook_secret";
+    static final String KEY_WEBHOOK_SECRET_ENCRYPTED = "webhook_secret_encrypted";
+    static final String KEY_APPROVE_STATUSES = "approve_statuses";
+    static final String KEY_REJECT_STATUSES = "reject_statuses";
+
+    static final String DEFAULT_JIRA_ISSUE_TYPE = "Task";
+
     private final ObjectMapper objectMapper;
     private final CredentialEncryptionService encryptionService;
 
@@ -81,6 +102,8 @@ public class ChannelConfigCodec {
             case TELEGRAM -> validateTelegram(config);
             case MS_TEAMS -> validateMsTeams(config);
             case PAGERDUTY -> validatePagerDuty(config);
+            case SERVICENOW -> validateServiceNow(config);
+            case JIRA -> validateJira(config);
         }
         encryptSensitive(config);
         return writeJson(config);
@@ -109,6 +132,8 @@ public class ChannelConfigCodec {
             case TELEGRAM -> validateTelegram(existing);
             case MS_TEAMS -> validateMsTeams(existing);
             case PAGERDUTY -> validatePagerDuty(existing);
+            case SERVICENOW -> validateServiceNow(existing);
+            case JIRA -> validateJira(existing);
         }
         encryptSensitive(existing);
         return writeJson(existing);
@@ -135,6 +160,18 @@ public class ChannelConfigCodec {
         if (view.containsKey(KEY_ROUTING_KEY_ENCRYPTED)) {
             view.remove(KEY_ROUTING_KEY_ENCRYPTED);
             view.put(KEY_ROUTING_KEY, MASK);
+        }
+        if (view.containsKey(KEY_PASSWORD_ENCRYPTED)) {
+            view.remove(KEY_PASSWORD_ENCRYPTED);
+            view.put(KEY_PASSWORD, MASK);
+        }
+        if (view.containsKey(KEY_API_TOKEN_ENCRYPTED)) {
+            view.remove(KEY_API_TOKEN_ENCRYPTED);
+            view.put(KEY_API_TOKEN, MASK);
+        }
+        if (view.containsKey(KEY_WEBHOOK_SECRET_ENCRYPTED)) {
+            view.remove(KEY_WEBHOOK_SECRET_ENCRYPTED);
+            view.put(KEY_WEBHOOK_SECRET, MASK);
         }
         return view;
     }
@@ -206,6 +243,57 @@ public class ChannelConfigCodec {
                 triggers);
     }
 
+    public ServiceNowChannelConfig decodeServiceNow(String storedJson) {
+        var c = readJson(storedJson);
+        return new ServiceNowChannelConfig(
+                requireUri(c, KEY_INSTANCE_URL),
+                requireString(c, KEY_TICKET_USERNAME),
+                decryptOrNull(c, KEY_PASSWORD_ENCRYPTED),
+                stringOrNull(c.get(KEY_ASSIGNMENT_GROUP)),
+                c.get(KEY_URGENCY) == null ? null : requireInt(c, KEY_URGENCY),
+                ticketingTriggers(c),
+                booleanOrDefault(c.get(KEY_BIDIRECTIONAL_SYNC), false),
+                decryptOrNull(c, KEY_WEBHOOK_SECRET_ENCRYPTED),
+                statusList(c.get(KEY_APPROVE_STATUSES),
+                        TicketingChannelConfig.DEFAULT_APPROVE_STATUSES),
+                statusList(c.get(KEY_REJECT_STATUSES),
+                        TicketingChannelConfig.DEFAULT_REJECT_STATUSES));
+    }
+
+    public JiraChannelConfig decodeJira(String storedJson) {
+        var c = readJson(storedJson);
+        var issueType = stringOrNull(c.get(KEY_ISSUE_TYPE));
+        return new JiraChannelConfig(
+                requireUri(c, KEY_BASE_URL),
+                requireString(c, KEY_USER_EMAIL),
+                decryptOrNull(c, KEY_API_TOKEN_ENCRYPTED),
+                requireString(c, KEY_PROJECT_KEY),
+                issueType == null || issueType.isBlank() ? DEFAULT_JIRA_ISSUE_TYPE : issueType,
+                ticketingTriggers(c),
+                booleanOrDefault(c.get(KEY_BIDIRECTIONAL_SYNC), false),
+                decryptOrNull(c, KEY_WEBHOOK_SECRET_ENCRYPTED),
+                statusList(c.get(KEY_APPROVE_STATUSES),
+                        TicketingChannelConfig.DEFAULT_APPROVE_STATUSES),
+                statusList(c.get(KEY_REJECT_STATUSES),
+                        TicketingChannelConfig.DEFAULT_REJECT_STATUSES));
+    }
+
+    private String decryptOrNull(Map<String, Object> config, String encryptedKey) {
+        var encrypted = stringOrNull(config.get(encryptedKey));
+        return encrypted != null ? encryptionService.decrypt(encrypted) : null;
+    }
+
+    private Set<TicketingTrigger> ticketingTriggers(Map<String, Object> config) {
+        return stringList(config.get(KEY_TRIGGERS)).stream()
+                .map(TicketingTrigger::fromConfig)
+                .collect(Collectors.toCollection(() -> EnumSet.noneOf(TicketingTrigger.class)));
+    }
+
+    private static List<String> statusList(Object value, List<String> defaults) {
+        var list = stringList(value);
+        return list.isEmpty() ? defaults : list;
+    }
+
     private Map<String, Object> sanitizeInput(Map<String, Object> input) {
         if (input == null) {
             return new LinkedHashMap<>();
@@ -233,6 +321,15 @@ public class ChannelConfigCodec {
         if (MASK.equals(config.get(KEY_ROUTING_KEY))) {
             config.remove(KEY_ROUTING_KEY);
         }
+        if (MASK.equals(config.get(KEY_PASSWORD))) {
+            config.remove(KEY_PASSWORD);
+        }
+        if (MASK.equals(config.get(KEY_API_TOKEN))) {
+            config.remove(KEY_API_TOKEN);
+        }
+        if (MASK.equals(config.get(KEY_WEBHOOK_SECRET))) {
+            config.remove(KEY_WEBHOOK_SECRET);
+        }
     }
 
     private void encryptSensitive(Map<String, Object> config) {
@@ -251,6 +348,18 @@ public class ChannelConfigCodec {
         var routingKey = stringOrNull(config.remove(KEY_ROUTING_KEY));
         if (routingKey != null && !routingKey.isBlank()) {
             config.put(KEY_ROUTING_KEY_ENCRYPTED, encryptionService.encrypt(routingKey));
+        }
+        var password = stringOrNull(config.remove(KEY_PASSWORD));
+        if (password != null && !password.isBlank()) {
+            config.put(KEY_PASSWORD_ENCRYPTED, encryptionService.encrypt(password));
+        }
+        var apiToken = stringOrNull(config.remove(KEY_API_TOKEN));
+        if (apiToken != null && !apiToken.isBlank()) {
+            config.put(KEY_API_TOKEN_ENCRYPTED, encryptionService.encrypt(apiToken));
+        }
+        var webhookSecret = stringOrNull(config.remove(KEY_WEBHOOK_SECRET));
+        if (webhookSecret != null && !webhookSecret.isBlank()) {
+            config.put(KEY_WEBHOOK_SECRET_ENCRYPTED, encryptionService.encrypt(webhookSecret));
         }
     }
 
@@ -312,6 +421,56 @@ public class ChannelConfigCodec {
                     "PagerDuty channel config requires at least one '" + KEY_TRIGGERS + "'");
         }
         triggers.forEach(PagerDutyTrigger::fromConfig);
+    }
+
+    private void validateServiceNow(Map<String, Object> config) {
+        requireUri(config, KEY_INSTANCE_URL);
+        requireString(config, KEY_TICKET_USERNAME);
+        var hasPlaintext = stringOrNull(config.get(KEY_PASSWORD)) != null;
+        var hasCipher = stringOrNull(config.get(KEY_PASSWORD_ENCRYPTED)) != null;
+        if (!hasPlaintext && !hasCipher) {
+            throw new NotificationChannelConfigException(
+                    "ServiceNow channel config requires '" + KEY_PASSWORD + "'");
+        }
+        if (config.get(KEY_URGENCY) != null) {
+            var urgency = requireInt(config, KEY_URGENCY);
+            if (urgency < 1 || urgency > 3) {
+                throw new NotificationChannelConfigException(
+                        "Config key '" + KEY_URGENCY + "' must be between 1 and 3");
+            }
+        }
+        validateTicketingCommon(config, "ServiceNow");
+    }
+
+    private void validateJira(Map<String, Object> config) {
+        requireUri(config, KEY_BASE_URL);
+        requireString(config, KEY_USER_EMAIL);
+        requireString(config, KEY_PROJECT_KEY);
+        var hasPlaintext = stringOrNull(config.get(KEY_API_TOKEN)) != null;
+        var hasCipher = stringOrNull(config.get(KEY_API_TOKEN_ENCRYPTED)) != null;
+        if (!hasPlaintext && !hasCipher) {
+            throw new NotificationChannelConfigException(
+                    "Jira channel config requires '" + KEY_API_TOKEN + "'");
+        }
+        validateTicketingCommon(config, "Jira");
+    }
+
+    private void validateTicketingCommon(Map<String, Object> config, String label) {
+        var triggers = stringList(config.get(KEY_TRIGGERS));
+        if (triggers.isEmpty()) {
+            throw new NotificationChannelConfigException(
+                    label + " channel config requires at least one '" + KEY_TRIGGERS + "'");
+        }
+        triggers.forEach(TicketingTrigger::fromConfig);
+        if (booleanOrDefault(config.get(KEY_BIDIRECTIONAL_SYNC), false)) {
+            var hasPlaintext = stringOrNull(config.get(KEY_WEBHOOK_SECRET)) != null;
+            var hasCipher = stringOrNull(config.get(KEY_WEBHOOK_SECRET_ENCRYPTED)) != null;
+            if (!hasPlaintext && !hasCipher) {
+                throw new NotificationChannelConfigException(
+                        label + " channel config requires '" + KEY_WEBHOOK_SECRET
+                                + "' when '" + KEY_BIDIRECTIONAL_SYNC + "' is enabled");
+            }
+        }
     }
 
     private Map<String, Object> readJson(String json) {

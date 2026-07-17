@@ -161,6 +161,10 @@ class AuditEventListener {
                         if (event.reason() != null) {
                             metadata.put("reason", event.reason());
                         }
+                    } else if (event.reason() != null) {
+                        // No policy or grant lineage — e.g. an external ticket resolution
+                        // (AF-453); the reason string carries the provenance.
+                        metadata.put("reason", event.reason());
                     }
                     return new AuditEntry(
                             AuditAction.QUERY_APPROVED,
@@ -181,8 +185,8 @@ class AuditEventListener {
                 snapshot -> {
                     var metadata = new HashMap<String, Object>();
                     metadata.put("auto_rejected", true);
-                    metadata.put("source", "ROUTING_POLICY");
                     if (event.matchedPolicyId() != null) {
+                        metadata.put("source", "ROUTING_POLICY");
                         metadata.put("routing_policy_id", event.matchedPolicyId().toString());
                     }
                     if (event.reason() != null) {

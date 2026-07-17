@@ -1343,6 +1343,19 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "expires_at": "2026-07-01T13:00:00Z"
   },
   "previous_run_id": "uuid",
+  "linked_tickets": [
+    {
+      "id": "uuid",
+      "system": "SERVICENOW",
+      "trigger_event": "QUERY_REJECTED",
+      "external_key": "INC0010023",
+      "url": "https://company.service-now.com/nav_to.do?uri=incident.do?sys_id=abc123",
+      "status": "In Progress",
+      "resolution": null,
+      "created_at": "2025-01-15T10:01:00Z",
+      "updated_at": "2025-01-15T11:20:00Z"
+    }
+  ],
   "scheduled_for": "2026-06-01T03:00:00Z",
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
@@ -1352,6 +1365,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 `matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
 `approved_by_grant` is the provenance of a grant-covered auto-approval (#582); `null` for every query that was not auto-approved by a pre-approving JIT access grant. `grant_id` always reflects the query's persisted `approved_by_grant_id`; the approver fields (`approver_id`, `approver_email`, `approved_at` — the grant's final-stage approval) and `expires_at` are resolved from the grant row at read time and are `null` when the grant row or its approver is no longer resolvable. The frontend renders an "auto-approved under an access grant" alert on the detail page when this object is present. See [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582).
+
+`linked_tickets` lists the tickets auto-created in an external ticketing system (ServiceNow / Jira, AF-453) for this query's workflow events, oldest first — empty array when none. `system` is `SERVICENOW` | `JIRA`; `status` / `resolution` reflect the external system's labels as last synced by the [ticketing inbound webhook](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
@@ -2618,6 +2633,8 @@ Required `config` keys per channel type:
 - `DISCORD`: `webhook_url` (optional: `username`, `avatar_url`).
 - `TELEGRAM`: `bot_token`, `chat_id`. The `bot_token` is AES-encrypted at rest and replaced with `********` on read; pass the literal `********` back on `PUT` to preserve the existing ciphertext.
 - `MS_TEAMS`: `webhook_url`.
+- `SERVICENOW` (AF-453): `instance_url`, `username`, `password`, `triggers` (≥ 1 of `QUERY_REJECTED` | `REVIEW_TIMEOUT` | `QUERY_ESCALATED`) (optional: `assignment_group`, `urgency` 1–3, `bidirectional_sync` default false — when true `webhook_secret` becomes required, `approve_statuses`, `reject_statuses`). `password` and `webhook_secret` are AES-encrypted at rest and masked on read.
+- `JIRA` (AF-453): `base_url`, `user_email`, `api_token`, `project_key`, `triggers` (same values) (optional: `issue_type` default `Task`, `bidirectional_sync` — when true `webhook_secret` becomes required, `approve_statuses`, `reject_statuses`). `api_token` and `webhook_secret` are AES-encrypted at rest and masked on read.
 
 #### PUT /admin/notification-channels/{id}
 
@@ -4267,6 +4284,27 @@ Receives Slack `block_actions` callbacks (`application/x-www-form-urlencoded`, b
 ### POST /api/v1/integrations/slack/commands *(JWT-exempt — HMAC-signed)*
 
 Receives the `/accessflow link <code>` slash command (same signature verification). On success persists the `user_slack_mapping` row and returns a `200` with an ephemeral `{ "response_type": "ephemeral", "text": "…" }` reply; `401` on signature failure.
+
+---
+
+## Ticketing Integration Endpoints (ServiceNow / Jira, AF-453)
+
+Inbound ticket-status callbacks for the `SERVICENOW` / `JIRA` notification channels. The webhook URL embeds the channel id; the payload is the generic contract below (assembled by a ServiceNow Business Rule or Jira Automation rule — AccessFlow does not parse native webhook shapes).
+
+### POST /api/v1/integrations/servicenow/webhook/{channelId} *(JWT-exempt — HMAC-signed)*
+### POST /api/v1/integrations/jira/webhook/{channelId} *(JWT-exempt — HMAC-signed)*
+
+**Headers:** `X-AccessFlow-Timestamp` (Unix seconds) and `X-AccessFlow-Signature: sha256=<hex>` where hex = `HMAC-SHA256(webhook_secret, "v1:{timestamp}:{rawBody}")`. The channel's `webhook_secret` config field keys the HMAC; timestamps outside `accessflow.notifications.ticketing.signature-tolerance` (default `PT5M`) and replayed signatures are rejected.
+
+**Body** (`application/json`):
+
+```json
+{ "external_id": "abc123", "status": "Resolved", "resolution": "Done", "actor": "jdoe" }
+```
+
+`external_id` (ServiceNow sys_id / Jira issue id) and `status` are required; `resolution` and `actor` are optional.
+
+**Responses:** `200` `{ "result": "ignored" | "synced" | "decision_applied" }` — `ignored` when no linked ticket matches `external_id`; `synced` when the ticket row was updated (and no query decision applied); `decision_applied` when `bidirectional_sync` mapped the status/resolution onto an approve/reject of the still-`PENDING_REVIEW` query. `400` unparseable payload or missing required fields; `401` missing/stale/invalid/replayed signature; `404` unknown, inactive, or type-mismatched channel. See [docs/08-notifications.md → Ticketing inbound webhooks](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
 
 ---
 

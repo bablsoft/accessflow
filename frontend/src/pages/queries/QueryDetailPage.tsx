@@ -31,7 +31,7 @@ import { OptimizationCard } from '@/components/editor/OptimizationCard';
 import { QueryCollaboration } from '@/components/editor/QueryCollaboration';
 import { QueryResultsTable } from '@/components/queries/QueryResultsTable';
 import { useAuthStore } from '@/store/authStore';
-import { routingActionLabel } from '@/utils/enumLabels';
+import { channelTypeLabel, routingActionLabel } from '@/utils/enumLabels';
 import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { engineMode } from '@/utils/engineModes';
 import {
@@ -52,7 +52,7 @@ import {
 import { apiErrorMessage, queryCancelErrorMessage, queryReplayErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
-import type { QueryDetail } from '@/types/api';
+import type { LinkedTicketRef, QueryDetail } from '@/types/api';
 import { QueryDiffCard } from './QueryDiffCard';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
@@ -752,6 +752,7 @@ export function QueryDetailPage() {
 
         <div className="qd-side">
           <ApprovalTimeline stages={stages} />
+          {query.linked_tickets?.length > 0 && <LinkedTickets tickets={query.linked_tickets} />}
           <Metadata query={query} />
         </div>
       </div>
@@ -774,6 +775,47 @@ function Stat({ label, value }: { label: string; value: string }) {
         {label}
       </div>
       <div style={{ fontSize: 18, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{value}</div>
+    </div>
+  );
+}
+
+function LinkedTickets({ tickets }: { tickets: LinkedTicketRef[] }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        background: 'var(--bg-elev)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)',
+        padding: 16,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>
+        {t('queries.detail.linked_tickets_title')}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {tickets.map((ticket) => (
+          <div key={ticket.id} style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              {ticket.url ? (
+                <a href={ticket.url} target="_blank" rel="noopener noreferrer">
+                  {ticket.external_key}
+                </a>
+              ) : (
+                <span>{ticket.external_key}</span>
+              )}
+              <span className="muted">{channelTypeLabel(t, ticket.system)}</span>
+            </div>
+            <div className="muted" style={{ marginTop: 2 }}>
+              {t('queries.detail.linked_tickets_status', {
+                status: ticket.resolution
+                  ? `${ticket.status} (${ticket.resolution})`
+                  : ticket.status,
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

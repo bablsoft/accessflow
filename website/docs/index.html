@@ -1731,7 +1731,7 @@ APPROVED → FAILED (execution error)</pre>
                    alt="Add notification channel modal with name, channel type selected as EMAIL, active toggle on, and conditional SMTP fields revealed — host, port, user, password, TLS toggle, from address, and from name."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email, Slack, Webhook, Discord, Telegram, Microsoft Teams, and PagerDuty fields when you change <em>Type</em>.</figcaption>
+            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email, Slack, Webhook, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, and Jira fields when you change <em>Type</em>.</figcaption>
           </figure>
           <ol>
             <li><strong>Open <code>/admin/notifications</code></strong> and click <em>Add channel</em>.</li>
@@ -1743,15 +1743,20 @@ APPROVED → FAILED (execution error)</pre>
                 <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
                 <li><strong>Telegram</strong> — create a bot via <a href="https://core.telegram.org/bots/tutorial">@BotFather</a>, add it to the target group/channel, and configure the <em>bot token</em> plus numeric <em>chat ID</em>. Messages use MarkdownV2 formatting.</li>
                 <li><strong>Microsoft Teams</strong> — paste the channel's Incoming Webhook (or Power Automate webhook) URL. Messages render as an Adaptive Card with a <em>View in AccessFlow</em> action button.</li>
-                <li><strong>PagerDuty</strong> — paste an Events API v2 <em>integration routing key</em>, pick a default <em>severity</em> (critical / error / warning / info), and choose which <em>triggers</em> page the channel: <em>AI critical-risk query</em> and/or <em>review timeout</em>. Other events never fire it. AccessFlow sends a <code>trigger</code> event with a query-stable dedup key so repeat events fold into one incident.</li>
+                <li><strong>PagerDuty</strong> — paste an Events API v2 <em>integration routing key</em>, pick a default <em>severity</em> (critical / error / warning / info), and choose which <em>triggers</em> page the channel: <em>AI critical-risk query</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Other events never fire it. AccessFlow sends a <code>trigger</code> event with a query-stable dedup key so repeat events fold into one incident.</li>
+                <li><strong>ServiceNow</strong> — supply the <em>instance URL</em> plus a <em>username / password</em> allowed to create incidents via the Table API, optionally an <em>assignment group</em> and <em>urgency</em> (1–3), and choose which <em>triggers</em> open an incident: <em>query rejected</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Created incidents link back onto the query detail page.</li>
+                <li><strong>Jira</strong> — supply the <em>site URL</em>, an <em>account email + API token</em>, the target <em>project key</em>, and optionally an <em>issue type</em> (default <em>Task</em>); pick the same trigger set. Issues are created via REST v2 with an <code>accessflow</code> label and link back onto the query detail page.</li>
               </ul>
+            </li>
+            <li><strong>Bi-directional status sync (ServiceNow / Jira).</strong> Toggle <em>Bi-directional status sync</em> on the channel and set a <em>webhook secret</em>; then point a ServiceNow Business Rule / Jira Automation rule at <code>POST /api/v1/integrations/servicenow/webhook/&#123;channelId&#125;</code> (or <code>…/jira/webhook/&#123;channelId&#125;</code>) sending <code>{"external_id", "status", "resolution", "actor"}</code> signed with <code>X-AccessFlow-Timestamp</code> + <code>X-AccessFlow-Signature: sha256=HMAC-SHA256(secret, "v1:&#123;timestamp&#125;:&#123;body&#125;")</code>. Ticket status updates flow onto the query detail page, and a resolution matching the channel's <em>approve</em> / <em>reject</em> status lists decides a query still awaiting review — attributed to the ticketing system in the audit log.
             </li>
             <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
             <li><strong>Edit or remove.</strong> Each card also has <em>Edit</em> and <em>Delete</em> buttons. Deleting a channel is immediate (hard delete) — there is no soft-delete, but webhook retries already scheduled before the delete still complete.</li>
           </ol>
           <p>
             Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>,
-            <em>Telegram bot token</em>, <em>PagerDuty routing key</em>) are AES-256-GCM encrypted at
+            <em>Telegram bot token</em>, <em>PagerDuty routing key</em>, <em>ServiceNow password</em>,
+            <em>Jira API token</em>, <em>ticketing webhook secret</em>) are AES-256-GCM encrypted at
             rest and are never shown in plaintext after the channel is saved.
           </p>
           <div class="docs-callout info">
@@ -1770,7 +1775,9 @@ APPROVED → FAILED (execution error)</pre>
             <code>ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL</code>
             (<code>https://api.telegram.org/</code>) and
             <code>ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL</code>
-            (<code>https://events.pagerduty.com/</code>).
+            (<code>https://events.pagerduty.com/</code>). The inbound ticketing-webhook signature
+            window is <code>ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE</code>
+            (<code>PT5M</code>).
           </p>
 
           <h4 id="cfg-slack">Slack app — Approve / Reject from Slack</h4>

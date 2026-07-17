@@ -125,6 +125,7 @@ function failedQuery(): QueryDetail {
     matched_policy: null,
     approved_by_grant: null,
     review_decisions: [],
+    linked_tickets: [],
     scheduled_for: null,
     created_at: '2026-05-01T10:00:00Z',
     updated_at: '2026-05-01T10:00:30Z',
@@ -827,5 +828,67 @@ describe('QueryDetailPage — replay in test environment (AF-449)', () => {
     expect(
       screen.queryByRole('button', { name: /Replay in test environment/i }),
     ).toBeNull();
+  });
+});
+
+describe('QueryDetailPage — linked tickets (AF-453)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders the linked-tickets card with an external link and status', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = pendingReviewQuery();
+    q.linked_tickets = [
+      {
+        id: 't-1',
+        system: 'SERVICENOW',
+        trigger_event: 'QUERY_ESCALATED',
+        external_key: 'INC0010023',
+        url: 'https://sn.example.test/nav_to.do?uri=incident.do?sys_id=abc',
+        status: 'In Progress',
+        resolution: null,
+        created_at: '2026-05-01T10:02:00Z',
+        updated_at: '2026-05-01T10:05:00Z',
+      },
+      {
+        id: 't-2',
+        system: 'JIRA',
+        trigger_event: 'QUERY_REJECTED',
+        external_key: 'SEC-42',
+        url: null,
+        status: 'Done',
+        resolution: 'Done',
+        created_at: '2026-05-01T10:03:00Z',
+        updated_at: '2026-05-01T10:06:00Z',
+      },
+    ];
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Linked tickets')).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'INC0010023' });
+    expect(link).toHaveAttribute('href', 'https://sn.example.test/nav_to.do?uri=incident.do?sys_id=abc');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The Jira ticket has no URL — rendered as plain text, with its resolution appended.
+    expect(screen.getByText('SEC-42')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'SEC-42' })).toBeNull();
+    expect(screen.getByText('Status: Done (Done)')).toBeInTheDocument();
+  });
+
+  it('renders no linked-tickets card when the list is empty', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText('Linked tickets')).toBeNull();
   });
 });

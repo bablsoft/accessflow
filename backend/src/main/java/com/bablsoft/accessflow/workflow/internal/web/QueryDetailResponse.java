@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.QueryTicketView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
@@ -36,6 +37,7 @@ public record QueryDetailResponse(
         MatchedPolicyDetail matchedPolicy,
         ApprovedByGrantDetail approvedByGrant,
         List<ReviewDecisionDetail> reviewDecisions,
+        List<LinkedTicketDetail> linkedTickets,
         Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
@@ -50,6 +52,11 @@ public record QueryDetailResponse(
 
     public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
                                            AccessGrantView grant) {
+        return from(view, matched, grant, List.of());
+    }
+
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant, List<QueryTicketView> tickets) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -70,9 +77,38 @@ public record QueryDetailResponse(
                 MatchedPolicyDetail.from(matched),
                 ApprovedByGrantDetail.from(view.approvedByGrantId(), grant),
                 view.reviewDecisions().stream().map(ReviewDecisionDetail::from).toList(),
+                tickets == null
+                        ? List.of()
+                        : tickets.stream().map(LinkedTicketDetail::from).toList(),
                 view.scheduledFor(),
                 view.createdAt(),
                 view.updatedAt());
+    }
+
+    /** A ticket auto-created in an external ticketing system for this query (AF-453). */
+    public record LinkedTicketDetail(
+            UUID id,
+            String system,
+            String triggerEvent,
+            String externalKey,
+            String url,
+            String status,
+            String resolution,
+            Instant createdAt,
+            Instant updatedAt) {
+
+        static LinkedTicketDetail from(QueryTicketView src) {
+            return new LinkedTicketDetail(
+                    src.id(),
+                    src.ticketSystem(),
+                    src.triggerEvent(),
+                    src.externalKey(),
+                    src.url(),
+                    src.status(),
+                    src.resolution(),
+                    src.createdAt(),
+                    src.updatedAt());
+        }
     }
 
     public record MatchedPolicyDetail(

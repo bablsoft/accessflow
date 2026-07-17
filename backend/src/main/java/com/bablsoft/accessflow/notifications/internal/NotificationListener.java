@@ -37,6 +37,12 @@ class NotificationListener {
     void onQueryReadyForReview(QueryReadyForReviewEvent event) {
         safeDispatch(NotificationEventType.QUERY_SUBMITTED, event.queryRequestId(),
                 null, null, null);
+        // A populated matched-policy pair means a routing policy (ESCALATE / REQUIRE_APPROVALS,
+        // AF-446) raised the approval bar — surface it as a distinct escalation event (AF-453).
+        if (event.matchedPolicyId() != null && event.effectiveMinApprovals() != null) {
+            safeDispatch(NotificationEventType.QUERY_ESCALATED, event.queryRequestId(),
+                    null, null, null);
+        }
     }
 
     @ApplicationModuleListener

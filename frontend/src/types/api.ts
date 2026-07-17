@@ -87,7 +87,9 @@ export type ChannelType =
   | 'DISCORD'
   | 'TELEGRAM'
   | 'MS_TEAMS'
-  | 'PAGERDUTY';
+  | 'PAGERDUTY'
+  | 'SERVICENOW'
+  | 'JIRA';
 export type AiProvider =
   | 'OPENAI'
   | 'ANTHROPIC'
@@ -1166,7 +1168,21 @@ export interface QueryDetail {
   matched_policy: MatchedRoutingPolicy | null;
   approved_by_grant: ApprovedByGrant | null;
   review_decisions: ReviewDecisionDetail[];
+  linked_tickets: LinkedTicketRef[];
   scheduled_for: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A ticket auto-created in an external ticketing system for this query (AF-453). */
+export interface LinkedTicketRef {
+  id: string;
+  system: 'SERVICENOW' | 'JIRA';
+  trigger_event: string;
+  external_key: string;
+  url: string | null;
+  status: string;
+  resolution: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -1587,12 +1603,39 @@ export interface NotificationChannelPagerDutyConfig {
   default_severity: 'critical' | 'error' | 'warning' | 'info';
   triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT'>;
 }
+export type TicketingTrigger = 'QUERY_REJECTED' | 'REVIEW_TIMEOUT' | 'QUERY_ESCALATED';
+export interface NotificationChannelServiceNowConfig {
+  instance_url: string;
+  username: string;
+  password?: string;
+  assignment_group?: string;
+  urgency?: number;
+  triggers: TicketingTrigger[];
+  bidirectional_sync?: boolean;
+  webhook_secret?: string;
+  approve_statuses?: string[];
+  reject_statuses?: string[];
+}
+export interface NotificationChannelJiraConfig {
+  base_url: string;
+  user_email: string;
+  api_token?: string;
+  project_key: string;
+  issue_type?: string;
+  triggers: TicketingTrigger[];
+  bidirectional_sync?: boolean;
+  webhook_secret?: string;
+  approve_statuses?: string[];
+  reject_statuses?: string[];
+}
 
 export type NotificationChannelConfig =
   | NotificationChannelEmailConfig
   | NotificationChannelSlackConfig
   | NotificationChannelWebhookConfig
-  | NotificationChannelPagerDutyConfig;
+  | NotificationChannelPagerDutyConfig
+  | NotificationChannelServiceNowConfig
+  | NotificationChannelJiraConfig;
 
 export interface NotificationChannel {
   id: string;
@@ -1667,6 +1710,7 @@ export type UserNotificationEventType =
   | 'QUERY_SUBMITTED'
   | 'QUERY_APPROVED'
   | 'QUERY_REJECTED'
+  | 'QUERY_ESCALATED'
   | 'REVIEW_TIMEOUT'
   | 'AI_HIGH_RISK'
   | 'API_REQUEST_SUBMITTED'
