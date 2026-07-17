@@ -231,6 +231,57 @@ class DefaultAuditLogServiceTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    // --- All-organizations verification sweep (AF-458) ---
+
+    @Test
+    void verifyAllOrganizationsReturnsEmptyWhenNoAuditRows() {
+        when(repository.findDistinctOrganizationIds()).thenReturn(java.util.List.of());
+
+        assertThat(service.verifyAllOrganizations()).isEmpty();
+    }
+
+    @Test
+    void verifyAllOrganizationsReportsPerOrgOutcome() {
+        var intactOrg = UUID.randomUUID();
+        var tamperedOrg = UUID.randomUUID();
+        when(repository.findDistinctOrganizationIds())
+                .thenReturn(java.util.List.of(intactOrg, tamperedOrg));
+
+        var intactAnchor = chainRow(intactOrg, null);
+        var intactNext = chainRow(intactOrg, intactAnchor.getCurrentHash());
+        var tamperedAnchor = chainRow(tamperedOrg, null);
+        tamperedAnchor.setMetadata("{\"tampered\":true}"); // stored hash no longer matches content
+        when(repository.findForVerification(any(Specification.class)))
+                .thenReturn(java.util.List.of(intactAnchor, intactNext))
+                .thenReturn(java.util.List.of(tamperedAnchor));
+
+        var summaries = service.verifyAllOrganizations();
+
+        assertThat(summaries).hasSize(2);
+        assertThat(summaries.get(0).organizationId()).isEqualTo(intactOrg);
+        assertThat(summaries.get(0).result().ok()).isTrue();
+        assertThat(summaries.get(0).result().rowsChecked()).isEqualTo(2);
+        assertThat(summaries.get(1).organizationId()).isEqualTo(tamperedOrg);
+        assertThat(summaries.get(1).result().ok()).isFalse();
+        assertThat(summaries.get(1).result().firstBadReason())
+                .isEqualTo(DefaultAuditLogService.REASON_CURRENT_HASH_MISMATCH);
+        assertThat(summaries.get(1).result().firstBadRowId()).isEqualTo(tamperedAnchor.getId());
+    }
+
+    private AuditLogEntity chainRow(UUID orgId, byte[] previousHash) {
+        var row = new AuditLogEntity();
+        row.setId(UUID.randomUUID());
+        row.setOrganizationId(orgId);
+        row.setActorId(actorId);
+        row.setAction(AuditAction.USER_LOGIN.name());
+        row.setResourceType(AuditResourceType.USER.dbValue());
+        row.setMetadata("{}");
+        row.setCreatedAt(Instant.parse("2026-01-01T00:00:00Z"));
+        row.setPreviousHash(previousHash);
+        row.setCurrentHash(hasher.hash(row, previousHash));
+        return row;
+    }
+
     @SuppressWarnings("unused")
     private static long unusedLong() { return anyLong(); }
 }

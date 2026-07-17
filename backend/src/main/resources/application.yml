@@ -321,6 +321,10 @@ accessflow:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.
     hmac-key: ${AUDIT_HMAC_KEY:}
+    # Post-restore integrity sweep (AF-458): when true, every organization's audit-log HMAC chain
+    # is verified on ApplicationReadyEvent and the outcome logged per org (never fails startup).
+    # Enable for the first boot after a database restore — see docs/09-deployment.md → Disaster Recovery.
+    verify-chain-on-startup: ${ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP:false}
     # Separate Postgres role used solely to INSERT into audit_log (issue #67). The role must
     # own audit_log so that REVOKE on the general DB_USER bites; provisioning lives in the
     # deployment manifests (deploy/postgres-init/01-audit-role.sql for compose, the Helm
