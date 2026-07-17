@@ -69,7 +69,8 @@ public class AiConfigReconciler {
                     // (RAG / embedding settings are likewise admin-managed — configs default to RAG off.)
                     null,
                     spec.langfusePromptName(),
-                    spec.langfusePromptLabel()));
+                    spec.langfusePromptLabel(),
+                    spec.fallbackPriority()));
             log.info("Bootstrap: created AI config '{}' (id={})", spec.name(), created.id());
             stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                     created.id(), specFingerprint,
@@ -106,7 +107,9 @@ public class AiConfigReconciler {
                 // (RAG / embedding settings are likewise left unchanged — admin-managed.)
                 null,
                 spec.langfusePromptName(),
-                spec.langfusePromptLabel()));
+                spec.langfusePromptLabel(),
+                // Declarative: a spec without fallbackPriority means "not a fallback" (-1 clears).
+                spec.fallbackPriority() == null ? -1 : spec.fallbackPriority()));
         log.info("Bootstrap: updated AI config '{}' (id={})", spec.name(), updated.id());
         stateTracker.recordFingerprintAndPublish(organizationId, BootstrapResourceType.AI_CONFIG,
                 updated.id(), specFingerprint,
@@ -138,6 +141,7 @@ public class AiConfigReconciler {
         map.put("max_completion_tokens", spec.maxCompletionTokens());
         map.put("langfuse_prompt_name", spec.langfusePromptName());
         map.put("langfuse_prompt_label", spec.langfusePromptLabel());
+        map.put("fallback_priority", spec.fallbackPriority());
         return map;
     }
 
@@ -152,6 +156,7 @@ public class AiConfigReconciler {
         map.put("max_completion_tokens", view.maxCompletionTokens());
         map.put("langfuse_prompt_name", view.langfusePromptName());
         map.put("langfuse_prompt_label", view.langfusePromptLabel());
+        map.put("fallback_priority", view.fallbackPriority());
         return map;
     }
 }

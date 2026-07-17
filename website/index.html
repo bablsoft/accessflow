@@ -340,8 +340,8 @@
               </svg>
             </div>
             <h3>AI query analysis</h3>
-            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Run <strong>several models at once</strong> and combine their verdicts by weighted, highest-risk, or majority voting — say a fast local model alongside a deep cloud one — with per-model cost and latency charted on the dashboard. Add <strong>guardrails</strong> that block configured prompt patterns before a model is ever called. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time.</p>
-            <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · History dashboard</span>
+            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Run <strong>several models at once</strong> and combine their verdicts by weighted, highest-risk, or majority voting — say a fast local model alongside a deep cloud one — with per-model cost and latency charted on the dashboard. Add <strong>guardrails</strong> that block configured prompt patterns before a model is ever called. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time. Mark configurations as an ordered <strong>fallback pool</strong> — typically a local Ollama — so analysis keeps working when the primary provider is unreachable, air-gap friendly by design.</p>
+            <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Fallback pool · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · History dashboard</span>
           </div>
 
           <div class="feat">
@@ -1269,14 +1269,16 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Security</h5>
+              <h5 class="rm-cat">Security &amp; ops</h5>
               <ul>
                 <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
+                <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
               </ul>
             </div>
             <div class="rm-group">
               <h5 class="rm-cat">AI</h5>
               <ul>
+                <li>Offline AI fallback — provider fallback pool with local Ollama</li>
                 <li>Custom analyzer plugins (SPI / HTTP)</li>
                 <li>Automatic query suggestions</li>
               </ul>

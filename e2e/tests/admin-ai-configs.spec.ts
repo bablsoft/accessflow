@@ -19,6 +19,7 @@ const BOUND_DS_NAME = `e2e-ds-bound-${UNIQUE_SUFFIX}`;
 const PROMPT_NAME = `e2e-prompt-${UNIQUE_SUFFIX}`;
 const RAG_NAME = `e2e-rag-${UNIQUE_SUFFIX}`;
 const ORCH_NAME = `e2e-orch-${UNIQUE_SUFFIX}`;
+const FALLBACK_NAME = `e2e-fallback-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -181,6 +182,8 @@ async function openWizardFresh(page: Page): Promise<void> {
 //      reset to default" fills the built-in template, and a custom prompt round-trips on save.
 //  14. Edit page RAG config (AF-336): enable RAG, pick pgvector + Ollama embeddings, save, and
 //      assert the rag_*/embedding_* fields round-trip (ingestion/retrieval not e2e-covered).
+//  16. Edit page fallback priority (AF-458): set a priority → list shows the Fallback tag;
+//      clearing the field sends -1 and removes the tag.
 //
 // describe.serial because the primary Ollama config walks through tests
 // 2 → 4 → 5 → 6 → 7 → 8 (create → edit → test ok → test ok via list →
@@ -199,6 +202,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let promptAiConfigId: string | null = null;
   let ragAiConfigId: string | null = null;
   let orchAiConfigId: string | null = null;
+  let fallbackAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -224,6 +228,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       promptAiConfigId,
       ragAiConfigId,
       orchAiConfigId,
+      fallbackAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -1115,5 +1120,72 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await expect(
       page.getByText('AI configuration saved', { exact: true }),
     ).toBeVisible({ timeout: 10_000 });
+  });
+
+  // AF-458: provider fallback pool. Setting a fallback priority on the edit page marks the
+  // config as an org-wide fallback (list shows a "Fallback #N" tag); clearing the field sends
+  // the -1 sentinel which clears the stored priority and removes the tag.
+  test('16) edit page — fallback priority round-trips and drives the list tag', async ({
+    page,
+    request,
+  }) => {
+    const cfg = await createAiConfigViaApi(request, adminAccessToken, {
+      name: FALLBACK_NAME,
+      provider: 'OLLAMA',
+      model: 'llama3.1:70b',
+      endpoint: 'http://localhost:11434/api',
+    });
+    fallbackAiConfigId = cfg.id;
+
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/admin/ai-configs/${fallbackAiConfigId}`);
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(FALLBACK_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Set priority 0 and save.
+    await page.getByLabel('Fallback priority').fill('0');
+    const setResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${fallbackAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const setResponse = await setResponsePromise;
+    expect(setResponse.status()).toBe(200);
+    const setBody = (await setResponse.json()) as { fallback_priority: number | null };
+    expect(setBody.fallback_priority).toBe(0);
+
+    // The list row now carries the Fallback tag.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await page.waitForURL('**/admin/ai-configs');
+    await waitForAiConfigsListReady(page);
+    const row = page.getByRole('row', { name: new RegExp(escapeRegex(FALLBACK_NAME)) });
+    await expect(row).toBeVisible();
+    await expect(row.getByText('Fallback #0', { exact: true })).toBeVisible();
+
+    // Clear the priority on the edit page — the -1 sentinel clears it server-side.
+    await row.getByRole('button', { name: 'Edit' }).click();
+    await page.waitForURL(`**/admin/ai-configs/${fallbackAiConfigId}`);
+    await page.getByLabel('Fallback priority').fill('');
+    const clearResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${fallbackAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const clearResponse = await clearResponsePromise;
+    expect(clearResponse.status()).toBe(200);
+    const clearBody = (await clearResponse.json()) as { fallback_priority?: number | null };
+    expect(clearBody.fallback_priority ?? null).toBeNull();
+
+    // Back on the list, the tag is gone.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await page.waitForURL('**/admin/ai-configs');
+    await waitForAiConfigsListReady(page);
+    await expect(row).toBeVisible();
+    await expect(row.getByText(/Fallback #/)).toHaveCount(0);
   });
 });

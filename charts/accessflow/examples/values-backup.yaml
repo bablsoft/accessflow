@@ -1,0 +1,45 @@
+# Nightly backups of the AccessFlow database to a chart-managed PVC (AF-458),
+# with optional off-cluster upload via rclone. Full disaster-recovery runbook:
+# docs/09-deployment.md → "Disaster Recovery".
+#
+#   helm install accessflow accessflow/accessflow -f values-backup.yaml
+
+backup:
+  enabled: true
+  # Daily at 02:00 UTC; dumps are pg_dump -Fc archives named
+  # accessflow-<UTC timestamp>.dump on the backups volume.
+  schedule: "0 2 * * *"
+  retention:
+    keepLast: 14
+  persistence:
+    size: 50Gi
+    # NFS destination: point the PVC at an NFS-backed StorageClass (or set
+    # `existingClaim` to a pre-provisioned NFS PVC) — no upload step needed.
+    # storageClass: nfs-client
+    # existingClaim: accessflow-backups-nfs
+
+  # S3 / GCS / Azure / SFTP shipping via rclone. Create a Secret holding your
+  # rclone.conf and name the remote path to copy the backup directory into:
+  #
+  #   kubectl create secret generic accessflow-rclone \
+  #     --from-file=rclone.conf=$HOME/.config/rclone/rclone.conf
+  #
+  # upload:
+  #   enabled: true
+  #   remote: "s3backup:my-bucket/accessflow"
+  #   existingSecret: accessflow-rclone
+
+# Restore is a one-shot helm-hook Job, disabled by default. To restore a dump
+# from the backups volume (scale the backend to 0 first — see the runbook):
+#
+#   helm upgrade accessflow accessflow/accessflow --reuse-values \
+#     --set restore.enabled=true \
+#     --set restore.dumpFile=accessflow-20260717T020000Z.dump
+#
+# After the Job completes, scale the backend back up with the audit-chain
+# verifier enabled for the first boot and check the per-organization
+# "Audit chain OK/BROKEN" log lines:
+#
+# backend:
+#   env:
+#     ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP: "true"

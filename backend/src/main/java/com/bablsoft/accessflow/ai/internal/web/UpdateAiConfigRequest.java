@@ -48,7 +48,10 @@ record UpdateAiConfigRequest(
         @Size(max = 50, message = "{validation.ai_config.guardrail_patterns.count}")
         List<@Size(max = 500, message = "{validation.ai_config.guardrail_pattern.max}") String> guardrailPatterns,
         @Size(max = 20, message = "{validation.ai_config.models.count}")
-        List<@Valid AiConfigModelRequest> models) {
+        List<@Valid AiConfigModelRequest> models,
+        // -1 clears the stored priority (the config stops being a fallback); null leaves it unchanged.
+        @Min(value = -1, message = "{validation.ai_config.fallback_priority.range}")
+        @Max(value = 100, message = "{validation.ai_config.fallback_priority.range}") Integer fallbackPriority) {
 
     /** Convenience constructor for callers that do not change RAG settings (tests). */
     UpdateAiConfigRequest(String name, AiProviderType provider, String model, String endpoint,
@@ -57,7 +60,7 @@ record UpdateAiConfigRequest(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     UpdateAiConfigCommand toCommand() {
@@ -88,6 +91,7 @@ record UpdateAiConfigRequest(
                 votingStrategy,
                 votingWeight,
                 guardrailPatterns,
-                models == null ? null : models.stream().map(AiConfigModelRequest::toCommand).toList());
+                models == null ? null : models.stream().map(AiConfigModelRequest::toCommand).toList(),
+                fallbackPriority);
     }
 }

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,4 +34,12 @@ public interface AuditLogService {
      * non-null {@code current_hash} anchors the chain and must have {@code previous_hash IS NULL}.
      */
     AuditLogVerificationResult verify(UUID organizationId, Instant from, Instant to);
+
+    /**
+     * Walks the full hash chain of every organization present in {@code audit_log} (no time
+     * window) and returns one {@link AuditChainVerificationSummary} per organization, ordered by
+     * organization id. Intended for post-restore integrity sweeps (AF-458) — see the startup
+     * verifier gated by {@code accessflow.audit.verify-chain-on-startup}.
+     */
+    List<AuditChainVerificationSummary> verifyAllOrganizations();
 }

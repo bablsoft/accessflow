@@ -130,6 +130,78 @@ class DefaultAiConfigServiceTest {
         verify(encryptionService).encrypt("sk-test");
     }
 
+    // --- Provider fallback pool (AF-458) ---
+
+    @Test
+    void createPersistsFallbackPriority() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Fallback")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("Fallback", AiProviderType.OLLAMA,
+                "llama3.1:70b", null, null, null, null, null, null, null, null, 0);
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.fallbackPriority()).isEqualTo(0);
+    }
+
+    @Test
+    void createNormalizesNegativeFallbackPriorityToNull() {
+        when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "NotFallback")).thenReturn(false);
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var cmd = new CreateAiConfigCommand("NotFallback", AiProviderType.OLLAMA,
+                "llama3.1:70b", null, null, null, null, null, null, null, null, -1);
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.fallbackPriority()).isNull();
+    }
+
+    @Test
+    void updateSetsFallbackPriority() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null,
+                null, null, null, 5);
+        var view = service.update(configId, orgId, cmd);
+
+        assertThat(view.fallbackPriority()).isEqualTo(5);
+        assertThat(entity.getFallbackPriority()).isEqualTo(5);
+    }
+
+    @Test
+    void updateWithNegativeFallbackPriorityClearsIt() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        entity.setFallbackPriority(3);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null,
+                null, null, null, -1);
+        var view = service.update(configId, orgId, cmd);
+
+        assertThat(view.fallbackPriority()).isNull();
+        assertThat(entity.getFallbackPriority()).isNull();
+    }
+
+    @Test
+    void updateWithNullFallbackPriorityLeavesItUnchanged() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        entity.setFallbackPriority(2);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
+
+        var cmd = new UpdateAiConfigCommand(null, null, "gpt-4o", null, null, null, null, null,
+                null, null, null);
+        service.update(configId, orgId, cmd);
+
+        assertThat(entity.getFallbackPriority()).isEqualTo(2);
+    }
+
     @Test
     void createWithoutApiKeyDoesNotEncrypt() {
         when(repository.existsByOrganizationIdAndNameIgnoreCase(orgId, "Local")).thenReturn(false);
@@ -712,7 +784,7 @@ class DefaultAiConfigServiceTest {
 
         var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, VotingStrategy.MAX_RISK, null, null, null);
+                null, VotingStrategy.MAX_RISK, null, null, null, null);
         service.update(configId, orgId, cmd);
 
         var event = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
@@ -745,7 +817,7 @@ class DefaultAiConfigServiceTest {
                 UpdateAiConfigCommand.MASKED_API_KEY, 3.0, true);
         var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                true, null, null, null, List.of(keep));
+                true, null, null, null, List.of(keep), null);
         service.update(configId, orgId, cmd);
 
         assertThat(existing.getApiKeyEncrypted()).isEqualTo("ENC(old)"); // masked → preserved
@@ -759,7 +831,7 @@ class DefaultAiConfigServiceTest {
         return new CreateAiConfigCommand(name, AiProviderType.ANTHROPIC, "claude-sonnet-4", null,
                 null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null, null, null,
-                enabled, strategy, weight, guardrails, models);
+                enabled, strategy, weight, guardrails, models, null);
     }
 
     private CreateAiConfigCommand ragCommand(RagStoreType storeType, AiProviderType embeddingProvider,

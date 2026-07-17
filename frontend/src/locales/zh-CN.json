@@ -1476,7 +1476,10 @@
         "remove_pattern": "移除模式",
         "pattern_placeholder": "例如 ignore previous instructions",
         "invalid_regex": "不是有效的正则表达式"
-      }
+      },
+      "field_fallback_priority": "回退优先级",
+      "fallback_priority_help": "可选。将此配置标记为组织级回退：当处理请求的配置失败时，将按优先级从小到大依次尝试回退配置（数值越小越先尝试）。如果此配置不是回退配置，请留空。",
+      "fallback_tag": "回退 #{{priority}}"
     },
     "notifications": {
       "title": "通知通道",

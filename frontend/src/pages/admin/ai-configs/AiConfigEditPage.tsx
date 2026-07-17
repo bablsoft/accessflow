@@ -63,6 +63,7 @@ interface FormValues {
   voting_weight: number;
   guardrail_patterns: string[];
   models: AiConfigModel[];
+  fallback_priority: number | null;
 }
 
 export default function AiConfigEditPage() {
@@ -116,6 +117,7 @@ export default function AiConfigEditPage() {
         voting_weight: cfgQuery.data.voting_weight,
         guardrail_patterns: cfgQuery.data.guardrail_patterns,
         models: cfgQuery.data.models,
+        fallback_priority: cfgQuery.data.fallback_priority ?? null,
       });
     }
   }, [cfgQuery.data, form]);
@@ -231,6 +233,8 @@ export default function AiConfigEditPage() {
         weight: m.weight ?? 1,
         enabled: m.enabled ?? true,
       })),
+      // -1 clears the stored priority — an emptied field stops the config being a fallback.
+      fallback_priority: values.fallback_priority ?? -1,
     });
   };
 
@@ -313,6 +317,14 @@ export default function AiConfigEditPage() {
               <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
             </Form.Item>
           </div>
+          <Form.Item
+            name="fallback_priority"
+            label={t('admin.ai_configs.field_fallback_priority')}
+            extra={t('admin.ai_configs.fallback_priority_help')}
+            rules={[{ type: 'number', min: 0, max: 100 }]}
+          >
+            <InputNumber className="mono" min={0} max={100} style={{ width: 200 }} />
+          </Form.Item>
           <Form.Item
             name="system_prompt_template"
             label={t('admin.ai_configs.field_system_prompt')}

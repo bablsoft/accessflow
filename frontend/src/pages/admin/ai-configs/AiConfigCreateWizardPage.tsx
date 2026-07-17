@@ -97,6 +97,7 @@ interface FormValues {
   embedding_model: string;
   embedding_endpoint: string;
   embedding_api_key: string;
+  fallback_priority: number | null;
 }
 
 export default function AiConfigCreateWizardPage() {
@@ -145,6 +146,7 @@ export default function AiConfigCreateWizardPage() {
         embedding_model: values.rag_enabled ? values.embedding_model?.trim() || null : null,
         embedding_endpoint: values.embedding_endpoint?.trim() || null,
         embedding_api_key: values.embedding_api_key?.trim() || null,
+        fallback_priority: values.fallback_priority ?? null,
       };
       return createAiConfig(input);
     },
@@ -307,6 +309,14 @@ export default function AiConfigCreateWizardPage() {
                   <InputNumber className="mono" min={100} max={200000} style={{ width: '100%' }} />
                 </Form.Item>
               </div>
+              <Form.Item
+                name="fallback_priority"
+                label={t('admin.ai_configs.field_fallback_priority')}
+                extra={t('admin.ai_configs.fallback_priority_help')}
+                rules={[{ type: 'number', min: 0, max: 100 }]}
+              >
+                <InputNumber className="mono" min={0} max={100} style={{ width: 200 }} />
+              </Form.Item>
               <Form.Item
                 name="system_prompt_template"
                 label={t('admin.ai_configs.field_system_prompt')}

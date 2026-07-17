@@ -1476,7 +1476,10 @@
         "remove_pattern": "Muster entfernen",
         "pattern_placeholder": "z. B. ignore previous instructions",
         "invalid_regex": "Kein gültiger regulärer Ausdruck"
-      }
+      },
+      "field_fallback_priority": "Fallback-Priorität",
+      "fallback_priority_help": "Optional. Markiert diese Konfiguration als organisationsweiten Fallback: Wenn die Konfiguration einer Anfrage fehlschlägt, werden Fallbacks in aufsteigender Prioritätsreihenfolge versucht (niedriger = zuerst). Leer lassen, wenn diese Konfiguration kein Fallback ist.",
+      "fallback_tag": "Fallback #{{priority}}"
     },
     "notifications": {
       "title": "Benachrichtigungskanäle",

@@ -11,6 +11,9 @@ public interface AiConfigRepository extends JpaRepository<AiConfigEntity, UUID> 
 
     List<AiConfigEntity> findAllByOrganizationIdOrderByNameAsc(UUID organizationId);
 
+    List<AiConfigEntity> findByOrganizationIdAndFallbackPriorityNotNullOrderByFallbackPriorityAscNameAsc(
+            UUID organizationId);
+
     Optional<AiConfigEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     boolean existsByIdAndOrganizationId(UUID id, UUID organizationId);

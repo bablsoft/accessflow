@@ -1,9 +1,13 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
+import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
+import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
@@ -29,6 +33,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -85,14 +90,14 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         if (aiConfigId == null) {
             throw notConfigured();
         }
-        var delegate = cache.computeIfAbsent(aiConfigId, key -> {
-            var entity = aiConfigRepository.findById(key)
-                    .orElseThrow(() -> new AiConfigNotFoundException(key));
-            log.debug("Building AI analyzer delegate for ai_config={} provider={} model={}",
-                    key, entity.getProvider(), entity.getModel());
-            return buildDelegate(entity);
-        });
-        return delegate.analyze(sql, dbType, schemaContext, language, aiConfigId);
+        try {
+            return delegateFor(aiConfigId).analyze(sql, dbType, schemaContext, language, aiConfigId);
+        } catch (AiAnalysisException | AiAnalysisParseException primary) {
+            rethrowIfNotFallbackEligible(primary);
+            return failover(aiConfigId, primary, fallback ->
+                    delegateFor(fallback.getId()).analyze(sql, dbType, schemaContext, language,
+                            fallback.getId()));
+        }
     }
 
     @Override
@@ -101,14 +106,74 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
         if (aiConfigId == null) {
             throw notConfigured();
         }
-        var delegate = cache.computeIfAbsent(aiConfigId, key -> {
+        try {
+            return delegateFor(aiConfigId).generateSql(prompt, dbType, schemaContext, language,
+                    aiConfigId);
+        } catch (AiAnalysisException | AiAnalysisParseException primary) {
+            rethrowIfNotFallbackEligible(primary);
+            return failover(aiConfigId, primary, fallback ->
+                    delegateFor(fallback.getId()).generateSql(prompt, dbType, schemaContext, language,
+                            fallback.getId()));
+        }
+    }
+
+    private AiAnalyzerStrategy delegateFor(UUID aiConfigId) {
+        return cache.computeIfAbsent(aiConfigId, key -> {
             var entity = aiConfigRepository.findById(key)
                     .orElseThrow(() -> new AiConfigNotFoundException(key));
             log.debug("Building AI analyzer delegate for ai_config={} provider={} model={}",
                     key, entity.getProvider(), entity.getModel());
             return buildDelegate(entity);
         });
-        return delegate.generateSql(prompt, dbType, schemaContext, language, aiConfigId);
+    }
+
+    /**
+     * Provider fallback pool (AF-458). Retries the failed request once against each of the
+     * organization's fallback configs ({@code fallback_priority IS NOT NULL}) in ascending priority
+     * order, skipping the config that just failed; the first success wins and the original failure
+     * is rethrown when the pool is exhausted (or empty). Fallbacks are resolved lazily per failure
+     * — a fresh repository read — so the per-id delegate-cache eviction stays correct.
+     */
+    private <T> T failover(UUID failedConfigId, RuntimeException primary,
+                           Function<AiConfigEntity, T> attempt) {
+        var failed = aiConfigRepository.findById(failedConfigId).orElse(null);
+        if (failed == null) {
+            throw primary;
+        }
+        var fallbacks = aiConfigRepository
+                .findByOrganizationIdAndFallbackPriorityNotNullOrderByFallbackPriorityAscNameAsc(
+                        failed.getOrganizationId());
+        for (var fallback : fallbacks) {
+            if (fallback.getId().equals(failedConfigId)) {
+                continue;
+            }
+            try {
+                var result = attempt.apply(fallback);
+                log.warn("AI fallback config {} '{}' (priority {}) served the request after config {} failed: {}",
+                        fallback.getId(), fallback.getName(), fallback.getFallbackPriority(),
+                        failedConfigId, primary.getMessage());
+                return result;
+            } catch (AiAnalysisException | AiAnalysisParseException next) {
+                rethrowIfNotFallbackEligible(next);
+                log.warn("AI fallback config {} '{}' (priority {}) also failed: {}",
+                        fallback.getId(), fallback.getName(), fallback.getFallbackPriority(),
+                        next.getMessage());
+            }
+        }
+        throw primary;
+    }
+
+    /**
+     * A guardrail block is a policy decision and budget / rate-limit exceedance is an org-level
+     * quota — none of them indicate an unreachable provider, so they must never trigger (or be
+     * swallowed by) the fallback pool.
+     */
+    private static void rethrowIfNotFallbackEligible(RuntimeException ex) {
+        if (ex instanceof AiGuardrailViolationException
+                || ex instanceof AiBudgetExceededException
+                || ex instanceof AiRateLimitExceededException) {
+            throw ex;
+        }
     }
 
     /**

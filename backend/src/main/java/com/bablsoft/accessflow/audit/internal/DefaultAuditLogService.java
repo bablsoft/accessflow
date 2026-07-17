@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.audit.internal;
 
 import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditChainVerificationSummary;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogQuery;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -212,6 +214,14 @@ class DefaultAuditLogService implements AuditLogService {
             rowsChecked++;
         }
         return AuditLogVerificationResult.ok(rowsChecked);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AuditChainVerificationSummary> verifyAllOrganizations() {
+        return repository.findDistinctOrganizationIds().stream()
+                .map(orgId -> new AuditChainVerificationSummary(orgId, verify(orgId, null, null)))
+                .toList();
     }
 
     private String serializeMetadata(Map<String, Object> metadata) {

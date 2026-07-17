@@ -225,7 +225,9 @@ jobs:
             --set externalDatabase.existingSecret=external-db-secret \
             --set audit.db.existingSecret=external-audit-db-secret \
             --set externalRedis.url=redis://r.example.com:6379 \
+            --set backup.enabled=true \
             > /tmp/rendered-external.yaml
+          grep -q "kind: CronJob" /tmp/rendered-external.yaml
 
       - name: Render with ingress TLS enabled
         run: |
@@ -250,6 +252,22 @@ jobs:
             > /tmp/rendered-observability.yaml
           grep -q "grafana_dashboard" /tmp/rendered-observability.yaml
           grep -q "OTEL_EXPORTER_OTLP_ENDPOINT" /tmp/rendered-observability.yaml
+
+      - name: Render with backup CronJob + restore Job (AF-458)
+        run: |
+          helm template accessflow charts/accessflow \
+            -f charts/accessflow/examples/values-backup.yaml \
+            --set backup.upload.enabled=true \
+            --set backup.upload.remote=s3backup:my-bucket/accessflow \
+            --set backup.upload.existingSecret=accessflow-rclone \
+            --set restore.enabled=true \
+            --set restore.dumpFile=accessflow-20260101T000000Z.dump \
+            > /tmp/rendered-backup.yaml
+          grep -q "kind: CronJob" /tmp/rendered-backup.yaml
+          grep -q "pg_dump -Fc" /tmp/rendered-backup.yaml
+          grep -q "rclone-upload" /tmp/rendered-backup.yaml
+          grep -q "pg_restore --clean --if-exists" /tmp/rendered-backup.yaml
+          grep -q "accessflow-20260101T000000Z.dump" /tmp/rendered-backup.yaml
 
   e2e:
     name: E2E (${{ matrix.variant.name }})

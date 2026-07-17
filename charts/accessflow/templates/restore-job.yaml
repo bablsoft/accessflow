@@ -1,0 +1,130 @@
+{{- /*
+One-shot restore Job (AF-458). Rendered only when restore.enabled=true AND
+restore.dumpFile is set; runs as a post-install/post-upgrade helm hook so an
+operator triggers it with:
+
+  helm upgrade <release> charts/accessflow \
+    --reuse-values --set restore.enabled=true \
+    --set restore.dumpFile=accessflow-<timestamp>.dump
+
+Scale the backend to 0 replicas first — the full runbook (including the
+post-restore audit-chain verification via ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP)
+lives in docs/09-deployment.md → "Disaster Recovery". The hook-delete-policy
+removes the previous Job before each run (Jobs are immutable), so repeated
+restore upgrades work.
+
+The Job provisions the audit-writer role first (same idempotent SQL as the
+backend's audit-role-provisioner initContainer) and then runs a plain
+`pg_restore --clean --if-exists` as an admin role — no --no-owner/--no-acl, so
+audit_log comes back owned by the audit role with the V38 REVOKE/GRANT ACLs
+intact.
+*/ -}}
+{{- if and .Values.restore.enabled .Values.restore.dumpFile }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "accessflow.fullname" . }}-restore
+  labels:
+    {{- include "accessflow.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+    helm.sh/hook-weight: "0"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        {{- include "accessflow.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: restore
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+      containers:
+        - name: pg-restore
+          image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            {{- include "accessflow.backup.dbConnectionEnv" . | nindent 12 }}
+            {{- if .Values.postgresql.enabled }}
+            - name: PGUSER
+              value: postgres
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.db.passwordSecret" . }}
+                  key: postgres-password
+            {{- else }}
+            - name: PGUSER
+              value: {{ .Values.restore.db.username | quote }}
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "restore.db.existingSecret (admin credentials) is required when postgresql.enabled=false" .Values.restore.db.existingSecret }}
+                  key: {{ .Values.restore.db.existingSecretPasswordKey | default "password" }}
+            {{- end }}
+            - name: AUDIT_DB_USER
+              value: {{ include "accessflow.auditDb.username" . | quote }}
+            - name: AUDIT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "accessflow.auditDb.passwordSecret" . }}
+                  key: {{ include "accessflow.auditDb.passwordSecretKey" . }}
+            - name: APP_DB_USER
+              value: {{ include "accessflow.db.username" . | quote }}
+            - name: DUMP_FILE
+              value: {{ .Values.restore.dumpFile | quote }}
+            - name: BACKUP_DIR
+              value: /backups
+          command:
+            - /bin/bash
+            - -euo
+            - pipefail
+            - -c
+            - |
+              for attempt in $(seq 1 60); do
+                if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" >/dev/null 2>&1; then
+                  break
+                fi
+                echo "waiting for postgres (attempt $attempt/60)..."
+                sleep 2
+              done
+              if [ ! -f "${BACKUP_DIR}/${DUMP_FILE}" ]; then
+                echo "ERROR: dump file ${BACKUP_DIR}/${DUMP_FILE} not found on the backups volume" >&2
+                ls -lh "${BACKUP_DIR}" >&2 || true
+                exit 1
+              fi
+              # Provision the audit-writer role before the restore replays the
+              # ALTER TABLE audit_log OWNER + V38 ACLs (idempotent — same SQL as
+              # the backend's audit-role-provisioner initContainer).
+              psql -v ON_ERROR_STOP=1 -w <<-EOSQL
+                DO \$do\$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${AUDIT_DB_USER}') THEN
+                        EXECUTE format('CREATE ROLE %I LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+                    ELSE
+                        EXECUTE format('ALTER ROLE %I WITH LOGIN PASSWORD %L', '${AUDIT_DB_USER}', '${AUDIT_DB_PASSWORD}');
+                    END IF;
+                END \$do\$;
+                GRANT CONNECT ON DATABASE "${PGDATABASE}" TO "${AUDIT_DB_USER}";
+                GRANT USAGE, CREATE ON SCHEMA public TO "${AUDIT_DB_USER}";
+                GRANT "${AUDIT_DB_USER}" TO "${APP_DB_USER}";
+                CREATE EXTENSION IF NOT EXISTS vector;
+              EOSQL
+              echo "restoring ${BACKUP_DIR}/${DUMP_FILE} into ${PGDATABASE}"
+              pg_restore --clean --if-exists --exit-on-error -d "${PGDATABASE}" "${BACKUP_DIR}/${DUMP_FILE}"
+              echo "restore complete — scale the backend back up with ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP=true"
+          volumeMounts:
+            - name: backups
+              mountPath: /backups
+              readOnly: true
+          resources:
+            {{- toYaml .Values.backup.resources | nindent 12 }}
+      volumes:
+        - name: backups
+          persistentVolumeClaim:
+            claimName: {{ .Values.backup.persistence.existingClaim | default (printf "%s-backups" (include "accessflow.fullname" .)) }}
+{{- end }}
