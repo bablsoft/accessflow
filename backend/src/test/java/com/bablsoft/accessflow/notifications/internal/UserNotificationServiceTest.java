@@ -209,6 +209,21 @@ class UserNotificationServiceTest {
                 .isInstanceOf(UserNotificationNotFoundException.class);
     }
 
+    @Test
+    void deleteAllRemovesEveryOwnedNotification() {
+        when(repository.deleteAllForUser(userId)).thenReturn(4);
+
+        assertThat(service.deleteAll(userId)).isEqualTo(4);
+        verify(repository).deleteAllForUser(userId);
+    }
+
+    @Test
+    void deleteAllOnEmptyInboxIsANoOpNotAnError() {
+        when(repository.deleteAllForUser(userId)).thenReturn(0);
+
+        assertThat(service.deleteAll(userId)).isZero();
+    }
+
     private UserNotificationEntity entity(boolean read) {
         var e = new UserNotificationEntity();
         e.setId(UUID.randomUUID());

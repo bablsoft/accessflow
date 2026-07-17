@@ -12,12 +12,14 @@ const {
   markNotificationReadMock,
   markAllReadMock,
   deleteNotificationMock,
+  deleteAllNotificationsMock,
 } = vi.hoisted(() => ({
   fetchUnreadCountMock: vi.fn(),
   listNotificationsMock: vi.fn(),
   markNotificationReadMock: vi.fn(),
   markAllReadMock: vi.fn(),
   deleteNotificationMock: vi.fn(),
+  deleteAllNotificationsMock: vi.fn(),
 }));
 
 vi.mock('@/api/notifications', () => ({
@@ -26,6 +28,7 @@ vi.mock('@/api/notifications', () => ({
   markNotificationRead: markNotificationReadMock,
   markAllNotificationsRead: markAllReadMock,
   deleteNotification: deleteNotificationMock,
+  deleteAllNotifications: deleteAllNotificationsMock,
   notificationKeys: {
     all: ['notifications'],
     list: () => ['notifications', 'list'],
@@ -69,6 +72,7 @@ describe('NotificationBell', () => {
     markNotificationReadMock.mockReset();
     markAllReadMock.mockReset();
     deleteNotificationMock.mockReset();
+    deleteAllNotificationsMock.mockReset();
     navigateMock.mockReset();
   });
 
@@ -359,5 +363,52 @@ describe('NotificationBell', () => {
 
     await waitFor(() => expect(deleteNotificationMock).toHaveBeenCalledWith('n7'));
     expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('hides the delete-all button when the list is empty', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 0 });
+    listNotificationsMock.mockResolvedValue(page([]));
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+
+    await waitFor(() => expect(screen.getByText('No notifications yet.')).toBeInTheDocument());
+    expect(screen.queryByText('Delete all')).not.toBeInTheDocument();
+  });
+
+  it('delete-all confirms, calls deleteAllNotifications, and refetches the list', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    deleteAllNotificationsMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'n8',
+          event_type: 'QUERY_APPROVED',
+          query_request_id: 'q-8',
+          api_request_id: null,
+          payload: { datasource: 'sales' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    await waitFor(() => screen.getByText('Delete all'));
+
+    // The mutation only fires after the Popconfirm is confirmed.
+    fireEvent.click(screen.getByText('Delete all'));
+    expect(deleteAllNotificationsMock).not.toHaveBeenCalled();
+
+    const confirmButtons = await screen.findAllByRole('button', { name: 'Delete all' });
+    const confirmButton = confirmButtons.at(-1);
+    if (!confirmButton) throw new Error('confirm button not found');
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(deleteAllNotificationsMock).toHaveBeenCalledTimes(1));
+    // The list is refetched off the invalidated key rather than trusting the mutation result.
+    await waitFor(() => expect(listNotificationsMock.mock.calls.length).toBeGreaterThan(1));
   });
 });

@@ -28,4 +28,9 @@ public interface UserNotificationRepository
             + "set n.read = true, n.readAt = :now "
             + "where n.userId = :userId and n.read = false")
     int markAllReadForUser(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    @Modifying
+    @Transactional
+    @Query("delete from UserNotificationEntity n where n.userId = :userId")
+    int deleteAllForUser(@Param("userId") UUID userId);
 }

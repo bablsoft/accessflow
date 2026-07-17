@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Badge, Button, Dropdown, List, message, Skeleton, Tooltip } from 'antd';
+import { Badge, Button, Dropdown, List, message, Popconfirm, Skeleton, Tooltip } from 'antd';
 import { BellOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
+  deleteAllNotifications,
   deleteNotification,
   fetchUnreadCount,
   listNotifications,
@@ -59,6 +60,12 @@ export function NotificationBell() {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('notifications.error'))),
   });
 
+  const removeAll = useMutation({
+    mutationFn: () => deleteAllNotifications(),
+    onSuccess: invalidate,
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('notifications.error'))),
+  });
+
   const onRowClick = (item: UserNotification) => {
     if (!item.read) {
       markRead.mutate(item.id);
@@ -77,16 +84,31 @@ export function NotificationBell() {
     <div className="af-notif-panel" role="menu">
       <div className="af-notif-header">
         <span className="af-notif-title">{t('notifications.title')}</span>
-        {unreadCount > 0 && (
-          <Button
-            type="link"
-            size="small"
-            onClick={() => markAll.mutate()}
-            disabled={markAll.isPending}
-          >
-            {t('notifications.mark_all_read')}
-          </Button>
-        )}
+        <span className="af-notif-actions">
+          {unreadCount > 0 && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() => markAll.mutate()}
+              disabled={markAll.isPending}
+            >
+              {t('notifications.mark_all_read')}
+            </Button>
+          )}
+          {items.length > 0 && (
+            <Popconfirm
+              title={t('notifications.delete_all_confirm')}
+              okText={t('notifications.delete_all')}
+              okButtonProps={{ danger: true, loading: removeAll.isPending }}
+              cancelText={t('common.cancel')}
+              onConfirm={() => removeAll.mutate()}
+            >
+              <Button type="link" size="small" danger disabled={removeAll.isPending}>
+                {t('notifications.delete_all')}
+              </Button>
+            </Popconfirm>
+          )}
+        </span>
       </div>
       {listQuery.isLoading && open ? (
         <div style={{ padding: 12 }}>

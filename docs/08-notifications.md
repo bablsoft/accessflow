@@ -509,6 +509,7 @@ delivery.
 - `POST /api/v1/notifications/{id}/read` — mark single notification as read
 - `POST /api/v1/notifications/read-all` — mark all unread as read
 - `DELETE /api/v1/notifications/{id}` — delete a notification
+- `DELETE /api/v1/notifications` — delete every notification in the caller's inbox
 
 The frontend (`NotificationBell` in `frontend/src/components/common/`) consumes these
 endpoints via TanStack Query and invalidates the `['notifications', 'list']` and

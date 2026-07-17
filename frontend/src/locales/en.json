@@ -2002,6 +2002,8 @@
     "mark_all_read": "Mark all as read",
     "mark_read": "Mark as read",
     "delete": "Delete notification",
+    "delete_all": "Delete all",
+    "delete_all_confirm": "Delete all notifications? This cannot be undone.",
     "loading": "Loading…",
     "error": "Failed to load notifications.",
     "events": {

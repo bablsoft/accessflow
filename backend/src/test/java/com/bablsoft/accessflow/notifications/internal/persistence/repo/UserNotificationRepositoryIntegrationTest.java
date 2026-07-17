@@ -134,6 +134,25 @@ class UserNotificationRepositoryIntegrationTest {
                 .isNotEqualTo(now);
     }
 
+    @Test
+    void deleteAllForUserRemovesOnlyCallersRows() {
+        save(userA, Instant.now(), false);
+        save(userA, Instant.now(), true);
+        var otherUsersRow = save(userB, Instant.now(), false);
+
+        var deleted = repository.deleteAllForUser(userA.getId());
+
+        assertThat(deleted).isEqualTo(2);
+        assertThat(repository.findByUserIdOrderByCreatedAtDesc(userA.getId(), PageRequest.of(0, 10)))
+                .isEmpty();
+        assertThat(repository.findById(otherUsersRow.getId())).isPresent();
+    }
+
+    @Test
+    void deleteAllForUserOnEmptyInboxDeletesNothing() {
+        assertThat(repository.deleteAllForUser(userA.getId())).isZero();
+    }
+
     private UserNotificationEntity save(UserEntity owner, Instant createdAt, boolean read) {
         var n = new UserNotificationEntity();
         n.setId(UUID.randomUUID());

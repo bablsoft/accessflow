@@ -18,6 +18,11 @@
   font-weight: 600;
   font-size: 14px;
 }
+.af-notif-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 .af-notif-empty {
   padding: 32px 16px;
   text-align: center;

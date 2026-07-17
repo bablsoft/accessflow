@@ -44,3 +44,7 @@ export async function markAllNotificationsRead(): Promise<void> {
 export async function deleteNotification(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
 }
+
+export async function deleteAllNotifications(): Promise<void> {
+  await apiClient.delete(BASE);
+}

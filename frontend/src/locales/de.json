@@ -2002,6 +2002,8 @@
     "mark_all_read": "Alle als gelesen markieren",
     "mark_read": "Als gelesen markieren",
     "delete": "Benachrichtigung löschen",
+    "delete_all": "Alle löschen",
+    "delete_all_confirm": "Alle Benachrichtigungen löschen? Dies kann nicht rückgängig gemacht werden.",
     "loading": "Wird geladen…",
     "error": "Benachrichtigungen konnten nicht geladen werden.",
     "events": {

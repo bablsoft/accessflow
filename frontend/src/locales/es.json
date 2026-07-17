@@ -2002,6 +2002,8 @@
     "mark_all_read": "Marcar todas como leídas",
     "mark_read": "Marcar como leída",
     "delete": "Eliminar notificación",
+    "delete_all": "Eliminar todas",
+    "delete_all_confirm": "¿Eliminar todas las notificaciones? Esta acción no se puede deshacer.",
     "loading": "Cargando…",
     "error": "No se pudieron cargar las notificaciones.",
     "events": {

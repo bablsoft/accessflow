@@ -88,6 +88,15 @@ class UserNotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping
+    @Operation(summary = "Delete every notification in the caller's inbox")
+    @ApiResponse(responseCode = "204", description = "All notifications deleted")
+    ResponseEntity<Void> deleteAll(Authentication authentication) {
+        var caller = currentClaims(authentication);
+        service.deleteAll(caller.userId());
+        return ResponseEntity.noContent().build();
+    }
+
     private static JwtClaims currentClaims(Authentication authentication) {
         return (JwtClaims) authentication.getPrincipal();
     }
