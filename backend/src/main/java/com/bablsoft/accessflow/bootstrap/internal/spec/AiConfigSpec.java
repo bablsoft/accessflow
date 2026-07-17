@@ -12,6 +12,7 @@ public record AiConfigSpec(
         Integer maxPromptTokens,
         Integer maxCompletionTokens,
         String langfusePromptName,
-        String langfusePromptLabel
+        String langfusePromptLabel,
+        Integer fallbackPriority
 ) {
 }

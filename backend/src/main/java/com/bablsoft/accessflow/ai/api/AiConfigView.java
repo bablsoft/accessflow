@@ -45,6 +45,8 @@ public record AiConfigView(
         double votingWeight,
         List<String> guardrailPatterns,
         List<AiConfigModelView> models,
+        // --- Provider fallback pool (AF-458): null = not a fallback; lower = tried first ---
+        Integer fallbackPriority,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {

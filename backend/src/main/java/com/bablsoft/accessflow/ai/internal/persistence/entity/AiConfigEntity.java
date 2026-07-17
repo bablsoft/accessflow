@@ -129,6 +129,11 @@ public class AiConfigEntity {
     @Column(name = "guardrail_patterns", nullable = false, columnDefinition = "jsonb")
     private String guardrailPatterns = "[]";
 
+    // --- Provider fallback pool (AF-458): NULL = not a fallback; lower value = tried first ---
+
+    @Column(name = "fallback_priority")
+    private Integer fallbackPriority;
+
     @Version
     @Column(nullable = false)
     private long version;

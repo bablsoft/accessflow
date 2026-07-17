@@ -52,7 +52,9 @@ record CreateAiConfigRequest(
         @Size(max = 50, message = "{validation.ai_config.guardrail_patterns.count}")
         List<@Size(max = 500, message = "{validation.ai_config.guardrail_pattern.max}") String> guardrailPatterns,
         @Size(max = 20, message = "{validation.ai_config.models.count}")
-        List<@Valid AiConfigModelRequest> models) {
+        List<@Valid AiConfigModelRequest> models,
+        @Min(value = 0, message = "{validation.ai_config.fallback_priority.range}")
+        @Max(value = 100, message = "{validation.ai_config.fallback_priority.range}") Integer fallbackPriority) {
 
     /** Convenience constructor for callers that do not configure RAG (tests). */
     CreateAiConfigRequest(String name, AiProviderType provider, String model, String endpoint,
@@ -61,7 +63,7 @@ record CreateAiConfigRequest(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     CreateAiConfigCommand toCommand() {
@@ -92,6 +94,7 @@ record CreateAiConfigRequest(
                 votingStrategy,
                 votingWeight,
                 guardrailPatterns,
-                models == null ? null : models.stream().map(AiConfigModelRequest::toCommand).toList());
+                models == null ? null : models.stream().map(AiConfigModelRequest::toCommand).toList(),
+                fallbackPriority);
     }
 }

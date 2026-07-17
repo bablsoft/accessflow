@@ -18,6 +18,10 @@ import java.util.List;
  * {@code guardrailPatterns} / {@code models} fields configure multi-model orchestration + guardrails
  * (AF-450). {@code models} are the extra orchestration members; {@code guardrailPatterns} are
  * case-insensitive regex prompt blocks. They default to off when {@code null}.
+ *
+ * <p>{@code fallbackPriority} marks the config as an org-wide fallback (AF-458): {@code null} or a
+ * negative value means "not a fallback"; a non-negative value places it in the fallback pool tried
+ * in ascending priority order when the config bound to a request fails at call time.
  */
 public record CreateAiConfigCommand(
         String name,
@@ -46,15 +50,26 @@ public record CreateAiConfigCommand(
         VotingStrategy votingStrategy,
         Double votingWeight,
         List<String> guardrailPatterns,
-        List<AiConfigModelCommand> models) {
+        List<AiConfigModelCommand> models,
+        Integer fallbackPriority) {
 
     /** Convenience constructor for callers that do not configure RAG (bootstrap, tests). */
     public CreateAiConfigCommand(String name, AiProviderType provider, String model, String endpoint,
             String apiKey, Integer timeoutMs, Integer maxPromptTokens, Integer maxCompletionTokens,
             String systemPromptTemplate, String langfusePromptName, String langfusePromptLabel) {
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
+                systemPromptTemplate, langfusePromptName, langfusePromptLabel, null);
+    }
+
+    /** Convenience constructor for callers that configure the fallback pool but not RAG (bootstrap, tests). */
+    public CreateAiConfigCommand(String name, AiProviderType provider, String model, String endpoint,
+            String apiKey, Integer timeoutMs, Integer maxPromptTokens, Integer maxCompletionTokens,
+            String systemPromptTemplate, String langfusePromptName, String langfusePromptLabel,
+            Integer fallbackPriority) {
+        this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
-                null, null, null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, null, fallbackPriority);
     }
 
     /** Convenience constructor for callers that configure RAG but not orchestration (tests). */
@@ -68,6 +83,6 @@ public record CreateAiConfigCommand(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel, ragEnabled, ragStoreType,
                 ragTopK, ragSimilarityThreshold, ragEndpoint, ragCollection, ragApiKey, embeddingProvider,
-                embeddingModel, embeddingEndpoint, embeddingApiKey, null, null, null, null, null);
+                embeddingModel, embeddingEndpoint, embeddingApiKey, null, null, null, null, null, null);
     }
 }

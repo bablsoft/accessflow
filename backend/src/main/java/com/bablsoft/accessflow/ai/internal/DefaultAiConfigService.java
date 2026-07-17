@@ -137,6 +137,7 @@ class DefaultAiConfigService implements AiConfigService {
         }
         applyOrchestration(entity, command.orchestrationEnabled(), command.votingStrategy(),
                 command.votingWeight(), command.guardrailPatterns());
+        entity.setFallbackPriority(normalizeFallbackPriority(command.fallbackPriority()));
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
@@ -203,6 +204,9 @@ class DefaultAiConfigService implements AiConfigService {
         normalizeLangfusePrompt(entity);
         applyRagUpdate(entity, command);
         applyOrchestrationUpdate(entity, command);
+        if (command.fallbackPriority() != null) {
+            entity.setFallbackPriority(normalizeFallbackPriority(command.fallbackPriority()));
+        }
         entity.setUpdatedAt(Instant.now());
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
@@ -434,9 +438,15 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getVotingWeight(),
                 guardrailPatterns,
                 models,
+                entity.getFallbackPriority(),
                 inUseCount,
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
+    }
+
+    /** Maps the {@code -1}-clears update sentinel (any negative value) onto the stored NULL. */
+    private static Integer normalizeFallbackPriority(Integer submitted) {
+        return submitted == null || submitted < 0 ? null : submitted;
     }
 
     // --- Multi-model orchestration + guardrails (AF-450) ---

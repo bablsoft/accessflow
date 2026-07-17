@@ -155,6 +155,10 @@ ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_{{ $i }}_MAX_PROMPT_TOKENS: {{ . | quote }}
 {{- with $ai.maxCompletionTokens }}
 ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_{{ $i }}_MAX_COMPLETION_TOKENS: {{ . | quote }}
 {{- end }}
+{{- /* hasKey (not `with`): a fallbackPriority of 0 is meaningful and `with` would skip it. */}}
+{{- if hasKey $ai "fallbackPriority" }}
+ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_{{ $i }}_FALLBACK_PRIORITY: {{ $ai.fallbackPriority | quote }}
+{{- end }}
 {{- end }}
 {{- range $i, $ds := .Values.bootstrap.datasources }}
 ACCESSFLOW_BOOTSTRAP_DATASOURCES_{{ $i }}_NAME: {{ $ds.name | quote }}

@@ -40,6 +40,7 @@ record AiConfigResponse(
         double votingWeight,
         List<String> guardrailPatterns,
         List<AiConfigModelResponse> models,
+        Integer fallbackPriority,
         int inUseCount,
         Instant createdAt,
         Instant updatedAt) {
@@ -75,6 +76,7 @@ record AiConfigResponse(
                 view.votingWeight(),
                 view.guardrailPatterns(),
                 view.models().stream().map(AiConfigModelResponse::from).toList(),
+                view.fallbackPriority(),
                 view.inUseCount(),
                 view.createdAt(),
                 view.updatedAt());

@@ -92,6 +92,13 @@ bootstrap:
       timeoutMs: 30000
       maxPromptTokens: 4000
       maxCompletionTokens: 1024
+    # A keyless local Ollama config marked as the org-wide fallback (AF-458): tried when the
+    # config bound to a request is unreachable. Lower fallbackPriority = tried first.
+    - name: local-ollama
+      provider: OLLAMA
+      model: llama3.1:70b
+      endpoint: http://ollama:11434
+      fallbackPriority: 0
 
   datasources:
     - name: prod-postgres

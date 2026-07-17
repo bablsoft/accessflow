@@ -198,6 +198,59 @@ class AdminAiConfigsControllerIntegrationTest {
     }
 
     @Test
+    void createWithFallbackPriorityRoundTripsAndNegativeUpdateClearsIt() {
+        var body = """
+                {
+                  "name": "LocalFallback",
+                  "provider": "OLLAMA",
+                  "model": "llama3.1:70b",
+                  "endpoint": "http://ollama:11434",
+                  "fallback_priority": 0
+                }""";
+
+        var created = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(created).hasStatus(201);
+        assertThat(created).bodyJson().extractingPath("$.fallback_priority").asNumber().isEqualTo(0);
+
+        var id = repository.findAllByOrganizationIdOrderByNameAsc(org.getId()).stream()
+                .filter(e -> e.getName().equals("LocalFallback"))
+                .findFirst().orElseThrow().getId();
+        var cleared = mvc.put().uri("/api/v1/admin/ai-configs/" + id)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fallback_priority\": -1}")
+                .exchange();
+
+        assertThat(cleared).hasStatus(200);
+        // Cleared priority — the config is no longer a fallback (null is not serialized).
+        assertThat(cleared).bodyJson().doesNotHavePath("$.fallback_priority");
+    }
+
+    @Test
+    void createWithOutOfRangeFallbackPriorityReturns400() {
+        var body = """
+                {
+                  "name": "BadFallback",
+                  "provider": "OLLAMA",
+                  "model": "llama3.1:70b",
+                  "fallback_priority": 101
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+    }
+
+    @Test
     void createDuplicateNameReturns409() {
         seedConfig("Existing", AiProviderType.ANTHROPIC, null);
         var body = """
