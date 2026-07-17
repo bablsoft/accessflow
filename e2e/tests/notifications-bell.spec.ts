@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  cancelQueryViaApi,
   createPostgresDatasource,
   createReviewPlanViaApi,
   deleteDatasource,
@@ -41,6 +42,7 @@ test.describe.serial('notification bell — delete all (#611)', () => {
   let submitterAccessToken = '';
   let reviewPlan: CreatedReviewPlan | null = null;
   let datasource: CreatedDatasource | null = null;
+  const seededQueryIds: string[] = [];
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -90,6 +92,13 @@ test.describe.serial('notification bell — delete all (#611)', () => {
   });
 
   test.afterAll(async ({ request }) => {
+    // Leave the shared review queue as we found it. The seeded queries sit in
+    // PENDING_REVIEW forever otherwise, and specs that approve a row on
+    // /reviews (query-execute) match every Approve button on the page — extra
+    // pending rows there turn their locator into a strict-mode violation.
+    for (const id of seededQueryIds) {
+      await cancelQueryViaApi(request, submitterAccessToken, id);
+    }
     if (datasource) {
       await deleteDatasource(request, adminAccessToken, datasource.id);
     }
@@ -117,6 +126,7 @@ test.describe.serial('notification bell — delete all (#611)', () => {
         submitted.id,
         'PENDING_REVIEW',
       );
+      seededQueryIds.push(submitted.id);
     }
 
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);

@@ -422,6 +422,23 @@ export async function approveQueryViaApi(
   }
 }
 
+// POST /api/v1/queries/{id}/cancel — submitter-only, PENDING_REVIEW → CANCELLED.
+// Specs that seed queries they never approve should call this in afterAll:
+// rows left in PENDING_REVIEW pile up in the shared /reviews queue and break
+// other specs' Approve locators.
+export async function cancelQueryViaApi(
+  request: APIRequestContext,
+  submitterAccessToken: string,
+  queryId: string,
+): Promise<void> {
+  const res = await request.post(`${apiBase()}/api/v1/queries/${queryId}/cancel`, {
+    headers: { Authorization: `Bearer ${submitterAccessToken}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`Cancel query failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
 export interface GrantedPermission {
   id: string;
   user_id: string;
