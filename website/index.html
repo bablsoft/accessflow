@@ -349,8 +349,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
             <h3>Configurable review workflows</h3>
-            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, timeouts, and bulk decisions — and scope each queue to the right team by user or group. Add <strong>policy-as-code routing</strong> to auto-approve, escalate, or require extra approvals based on query type, AI risk, who's asking, time of day, and where the request came from. Users can request <strong>just-in-time</strong> temporary access to a database or a governed API connection, and for genuine emergencies <strong>break-glass</strong> runs a query immediately — still through every guard — while paging all admins and opening a mandatory follow-up review. Reviewers are notified by Email, Slack, Discord, Telegram, Teams, PagerDuty, or webhook, and can <strong>approve right from Slack</strong> or <strong>one tap on a mobile push</strong> (with a step-up check). While a query waits, reviewers and the submitter can even <strong>co-author it live</strong> — any edit re-enters review, so approvals are never skipped.</p>
-            <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Break-glass emergency access · Bulk decisions · Real-time co-authoring · Inline comments · Slack approve/reject · Mobile PWA · One-tap push approvals · Email · Slack · Discord · Telegram · Teams · PagerDuty · Webhooks</span>
+            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, timeouts, and bulk decisions — and scope each queue to the right team by user or group. Add <strong>policy-as-code routing</strong> to auto-approve, escalate, or require extra approvals based on query type, AI risk, who's asking, time of day, and where the request came from. Users can request <strong>just-in-time</strong> temporary access to a database or a governed API connection, and for genuine emergencies <strong>break-glass</strong> runs a query immediately — still through every guard — while paging all admins and opening a mandatory follow-up review. Reviewers are notified by Email, Slack, Discord, Telegram, Teams, PagerDuty, or webhook — with <strong>ServiceNow &amp; Jira ticketing</strong> auto-opening an incident when a query is rejected, escalated, or times out (and a ticket resolution syncing back as the decision) — and can <strong>approve right from Slack</strong> or <strong>one tap on a mobile push</strong> (with a step-up check). While a query waits, reviewers and the submitter can even <strong>co-author it live</strong> — any edit re-enters review, so approvals are never skipped.</p>
+            <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Break-glass emergency access · Bulk decisions · Real-time co-authoring · Inline comments · Slack approve/reject · Mobile PWA · One-tap push approvals · Email · Slack · Discord · Telegram · Teams · PagerDuty · ServiceNow · Jira · Webhooks</span>
           </div>
 
           <div class="feat">
@@ -573,7 +573,7 @@
               <div class="flow-num">03</div>
               <div>
                 <h4>Humans approve</h4>
-                <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook. Multi-stage approval chains run as a state machine.</p>
+                <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook — and ServiceNow / Jira tickets open automatically with bi-directional status sync. Multi-stage approval chains run as a state machine.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
@@ -1273,6 +1273,7 @@
               <ul>
                 <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
                 <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
+                <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
               </ul>
             </div>
             <div class="rm-group">
@@ -1335,7 +1336,7 @@
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md" class="doc-card">
             <span class="doc-num">08</span>
             <h4>Notifications</h4>
-            <p>Email, Slack, Discord, Telegram, Teams, PagerDuty, signed webhook delivery.</p>
+            <p>Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow &amp; Jira ticketing, signed webhook delivery.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="doc-card">
             <span class="doc-num">09</span>

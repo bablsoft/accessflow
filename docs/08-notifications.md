@@ -17,6 +17,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_SUBMITTED` | Query enters `PENDING_REVIEW` | Reviewers eligible at the lowest stage of the review plan (rules with explicit `userId` plus all org users matching `ApproverRule.role`), excluding the submitter | implemented |
 | `QUERY_APPROVED` | Query fully approved (all stages complete) — fired for both human approval and auto-approval | Query submitter | implemented |
 | `QUERY_REJECTED` | Reviewer rejects query | Query submitter | implemented |
+| `QUERY_ESCALATED` | A routing policy escalated the query (`ESCALATE` / `REQUIRE_APPROVALS` raised the approval bar, AF-446) as it entered `PENDING_REVIEW` — fired **in addition to** `QUERY_SUBMITTED` (AF-453) | Reviewers eligible at the lowest stage of the review plan (same set as `QUERY_SUBMITTED`) | implemented |
 | `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
 | `ANOMALY_DETECTED` | `BehaviorAnomalyDetectionJob` flags a behavioural anomaly (UBA, AF-383) | All ADMIN users in the org plus the flagged user. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `BREAK_GLASS_EXECUTED` | A break-glass / emergency-access query executes, bypassing review (AF-385) | All active ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
@@ -300,6 +301,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
   - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385).
+  - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
 The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.
@@ -307,6 +309,92 @@ The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<que
 PagerDuty delivery uses the **same async retry scheduler as the generic `WEBHOOK` channel** — one initial attempt plus up to three retries at `accessflow.notifications.retry.{first,second,third}` (default +30s / +2m / +10m). On exhaustion the dispatcher logs `ERROR` and publishes a `NotificationDeliveryExhaustedEvent` to the audit log. The Events API base URL is configurable via `accessflow.notifications.pagerduty-api-base-url` (default `https://events.pagerduty.com/`) for air-gapped installs that route through an internal proxy.
 
 > The PagerDuty `resolve` action is intentionally out of scope: AccessFlow's `TIMED_OUT` state is terminal, so no event currently un-resolves an incident. The `dedup_key` is query-stable so a future `resolve` can target the same incident without a config change.
+
+---
+
+### ServiceNow (ticketing, AF-453)
+
+Auto-creates a ServiceNow **incident** through the [Table API](https://docs.servicenow.com/bundle/latest/page/integrate/inbound-rest/concept/c_TableAPI.html) (`POST {instance_url}/api/now/table/incident`, Basic auth) when a selected workflow event fires. Like PagerDuty, a ServiceNow channel only reacts to the **triggers** it opts into; every other event is dropped before any HTTP call. Each created incident is persisted as a `query_tickets` link (sys_id + incident number + deep link) and surfaces on the query detail page.
+
+**Configuration:**
+```json
+{
+  "instance_url": "https://company.service-now.com",
+  "username": "accessflow.integration",
+  "password": "…",
+  "assignment_group": "Database Operations",
+  "urgency": 2,
+  "triggers": ["QUERY_REJECTED", "REVIEW_TIMEOUT", "QUERY_ESCALATED"],
+  "bidirectional_sync": true,
+  "webhook_secret": "…",
+  "approve_statuses": ["resolved", "closed"],
+  "reject_statuses": ["rejected", "cancelled"]
+}
+```
+
+- `instance_url` (required) — the ServiceNow instance base URL.
+- `username` / `password` (required; password AES-256-GCM encrypted at rest, masked on read) — a ServiceNow account allowed to create incidents via the Table API.
+- `assignment_group` (optional) — group name or sys_id stamped on created incidents.
+- `urgency` (optional, 1–3) — ServiceNow urgency for created incidents; omitted = instance default.
+- `triggers` (required, at least one) — which events open a ticket: `QUERY_REJECTED` (manual or routing-policy rejection), `REVIEW_TIMEOUT` (auto-reject past `approval_timeout_hours`), `QUERY_ESCALATED` (routing-policy escalation).
+- `bidirectional_sync` / `webhook_secret` / `approve_statuses` / `reject_statuses` — see [Ticketing inbound webhooks](#ticketing-inbound-webhooks--bi-directional-sync-af-453) below. `webhook_secret` is required when `bidirectional_sync` is enabled (AES-256-GCM encrypted at rest, masked on read).
+
+The incident body carries a `short_description` ("[AccessFlow] Query rejected on <datasource>"), a plain-text `description` (event, submitter, AI risk, justification, reviewer comment, SQL preview, review deep link), and `correlation_id=accessflow-<queryRequestId>`. **Create-once dedupe:** at most one ticket per `(channel, query, event)` — retries and event redeliveries never open duplicates. Delivery reuses the standard notification retry scheduler (+30s / +2m / +10m; `NotificationDeliveryExhaustedEvent` on exhaustion). A successful create writes a `TICKET_CREATED` audit row.
+
+---
+
+### Jira (ticketing, AF-453)
+
+Auto-creates a Jira **issue** through the REST v2 API (`POST {base_url}/rest/api/2/issue`, Basic auth `user_email:api_token`). v2 is used deliberately — its plain-text `description` avoids the Atlassian Document Format that v3 requires; it is supported by both Jira Cloud and Data Center. Trigger filtering, create-once dedupe, retry, `query_tickets` persistence, and audit are identical to the ServiceNow channel.
+
+**Configuration:**
+```json
+{
+  "base_url": "https://company.atlassian.net",
+  "user_email": "accessflow-bot@company.com",
+  "api_token": "…",
+  "project_key": "SEC",
+  "issue_type": "Task",
+  "triggers": ["QUERY_REJECTED", "QUERY_ESCALATED"],
+  "bidirectional_sync": false
+}
+```
+
+- `base_url` (required) — the Jira site URL.
+- `user_email` / `api_token` (required; token AES-256-GCM encrypted at rest, masked on read) — an Atlassian account email + API token.
+- `project_key` (required) — target project for created issues.
+- `issue_type` (optional, default `Task`) — issue type name.
+- `triggers` / `bidirectional_sync` / `webhook_secret` / `approve_statuses` / `reject_statuses` — same semantics as ServiceNow.
+
+Created issues get the `accessflow` label, a summary/description identical in shape to the ServiceNow incident, and a `{base_url}/browse/{key}` deep link on the ticket record.
+
+---
+
+### Ticketing inbound webhooks & bi-directional sync (AF-453)
+
+Both ticketing channels can accept **signed status callbacks** so the linked ticket's state stays current in AccessFlow — and, when the channel opts in, so a ticket resolution can decide a query still in review.
+
+**Endpoints** (JWT-exempt; authenticated by HMAC):
+
+```
+POST /api/v1/integrations/servicenow/webhook/{channelId}
+POST /api/v1/integrations/jira/webhook/{channelId}
+```
+
+**Payload** — a deliberately generic JSON contract that a ServiceNow Business Rule or Jira Automation rule assembles (AccessFlow does not parse native webhook shapes):
+
+```json
+{
+  "external_id": "abc123",        // ServiceNow sys_id / Jira issue id — required
+  "status": "Resolved",           // new status label — required
+  "resolution": "Done",            // optional resolution
+  "actor": "jdoe"                  // optional display name of who changed the ticket
+}
+```
+
+**Signature.** Two headers are required: `X-AccessFlow-Timestamp` (Unix seconds) and `X-AccessFlow-Signature: sha256=<hex>`, where the hex value is `HMAC-SHA256(webhook_secret, "v1:{timestamp}:{rawBody}")`. Verification is constant-time; timestamps outside `accessflow.notifications.ticketing.signature-tolerance` (default `PT5M`) are rejected, and a Redis replay guard rejects a second sighting of the same signature within that window. Responses: `401` bad/stale/replayed signature, `404` unknown/inactive/type-mismatched channel, `400` unparseable payload, `200` with `{"result": "ignored" | "synced" | "decision_applied"}`.
+
+**Sync semantics.** A verified update always refreshes the linked `query_tickets` row (status + resolution) and writes a `TICKET_STATUS_SYNCED` audit row. When the channel has `bidirectional_sync=true` and the inbound `resolution`/`status` matches (case-insensitively) the channel's `reject_statuses` (checked first) or `approve_statuses`, and the query is still `PENDING_REVIEW`, the workflow's `ExternalDecisionService` force-applies the decision: `PENDING_REVIEW → APPROVED` or `→ REJECTED`, attributed to the external system (no `review_decisions` row — mirroring the review-timeout path) with the ticket key and actor recorded in the audit reason. Defaults when the lists are omitted: approve = `resolved, closed, done, approved, complete`; reject = `rejected, declined, cancelled, canceled, won't do`. Queries already in a terminal state only get the ticket-metadata update — a late ticket change never reopens or flips a decided query.
 
 ---
 
@@ -358,6 +446,8 @@ flows.
 - **Discord / MS Teams:** Posts a one-line confirmation embed/card to the configured webhook URL
 - **Telegram:** Posts a one-line MarkdownV2 confirmation to the configured chat ID
 - **PagerDuty:** Posts a `trigger` event with a fixed `accessflow-test` dedup key and `info` severity (the trigger filter is bypassed for tests)
+- **ServiceNow:** Read-only auth probe — `GET /api/now/table/incident?sysparm_limit=1` with the configured credentials; **no test incident is created**
+- **Jira:** Read-only auth probe — `GET /rest/api/2/myself` with the configured credentials; **no test issue is created**
 
 ---
 
@@ -375,7 +465,7 @@ POST /api/v1/admin/notification-channels
 }
 ```
 
-Sensitive `config` fields — `smtp_password`, `secret`, `bot_token`, and `routing_key` — are AES-256-GCM encrypted before being stored in the database. They are never returned in GET responses — only a masked placeholder is shown.
+Sensitive `config` fields — `smtp_password`, `secret`, `bot_token`, `routing_key`, `password` (ServiceNow), `api_token` (Jira), and `webhook_secret` (ticketing sync) — are AES-256-GCM encrypted before being stored in the database. They are never returned in GET responses — only a masked placeholder is shown.
 
 ---
 
