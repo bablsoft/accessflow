@@ -1674,6 +1674,40 @@ unchanged. The delegate is a chain: `GuardrailAiAnalyzerStrategy( OrchestratingA
   `AiConfigUpdatedEvent` (now carrying `orchestrationChanged`), evicting the cached delegate so the next
   call rebuilds the chain.
 
+### AI provider fallback pool (AF-458)
+
+An organization can mark any number of `ai_config` rows as **fallbacks** via the nullable
+`fallback_priority` column (`NULL` = not a fallback; lower value = tried first; `-1` on the
+update API clears it). When the config bound to a request fails at call time — on either
+`analyze()` or `generateSql()` — `AiAnalyzerStrategyHolder` retries the request **once per
+fallback config** in ascending `(fallback_priority, name)` order, skipping the config that
+just failed; the first success wins and the **original** failure is rethrown when the pool
+is exhausted (or empty), so existing failure semantics (sentinel `CRITICAL` row on the async
+path, `503 AI_PROVIDER_UNAVAILABLE` on preview) are unchanged when no fallback helps.
+
+Semantics worth knowing:
+
+- **Trigger set.** `AiAnalysisException` (provider unreachable / HTTP error / timeout /
+  missing key — a keyless or misconfigured primary also fails over) and
+  `AiAnalysisParseException` (provider responded with unusable output). The
+  `AiGuardrailViolationException` / `AiBudgetExceededException` / `AiRateLimitExceededException`
+  subclasses never trigger the pool — a guardrail block is a policy decision and
+  budget/rate-limit exceedance is org-level — and a *fallback's* guardrail block is
+  rethrown rather than swallowed.
+- **Lazy resolution.** Fallbacks are resolved per failure with a fresh repository read
+  (indexed partial scan on `(organization_id, fallback_priority)`), so the holder's
+  per-id delegate-cache eviction needs no fan-out and priority edits take effect
+  immediately without an `AiConfigUpdatedEvent`.
+- **Attribution.** A fallback-served analysis records the *fallback's* provider/model in
+  `ai_analyses` (the result carries them from the serving delegate) and logs a WARN naming
+  both configs.
+- **Offline / air-gapped story.** The intended use is a keyless local **Ollama** config
+  marked `fallback_priority = 0` (see `charts/accessflow/examples/values-airgapped.yaml`
+  and `bootstrap.aiConfigs[].fallbackPriority`): cloud-provider outages degrade to the
+  self-hosted model instead of pushing every query to manual review. Ollama verifies
+  pulled model blobs by SHA-256 digest natively, so pre-pulled models on an internal
+  mirror stay integrity-checked — AccessFlow ships no separate model-download tooling.
+
 ### Risk Score Heuristics
 
 | Condition | Score Contribution |
@@ -1778,10 +1812,27 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 - The `audit_log` entity lives under `audit/internal/persistence/entity/`, with plain `UUID` columns for `organizationId` / `actorId` (no JPA `@ManyToOne` joins — same pattern as `NotificationChannelEntity`). Postgres-level FKs to `organizations` and `users` were dropped in V14 so audit history survives org/user deletion.
 - Cross-module event types live in `core/events/` (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`, `QueryStatusChangedEvent`, `AiAnalysisCompletedEvent`) and `workflow/events/` (`QueryApprovedEvent`, `QueryRejectedEvent`, `QueryCancelledEvent`, `QueryExecutedEvent`, `ReviewDecisionMadeEvent`). Keeping the read-side events in `core/events/` lets audit and realtime consume them without depending on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
 
-### Deferred
+### Chain verification
 
-- **Tamper-evident hash chain** (`previous_hash` / `current_hash`) — not yet implemented; tracked as a follow-up issue.
-- **Separate audit-writer DB user** with INSERT-only privilege — deployment-level, tracked as a follow-up issue.
+Both hardening layers originally listed as deferred have shipped: the **tamper-evident
+HMAC-SHA256 hash chain** (`previous_hash` / `current_hash`, V26 — keyed by `AUDIT_HMAC_KEY`
+or an HKDF derivative of `ENCRYPTION_KEY`, see `audit/internal/AuditChainHasher`) and the
+**separate audit-writer DB role** (`AUDIT_DB_USER`, V38 — see
+[docs/09-deployment.md → audit_log role separation](09-deployment.md#audit_log-role-separation)).
+
+Verification entry points:
+
+- **Per organization** — `AuditLogService.verify(orgId, from, to)`, exposed to admins as
+  `GET /api/v1/admin/audit-log/verify`. Walks the chain ASC by `(created_at, id)`,
+  recomputing every HMAC; pre-V26 NULL-hash rows are skipped as pre-chain.
+- **All organizations** (AF-458) — `AuditLogService.verifyAllOrganizations()` returns one
+  `AuditChainVerificationSummary` per org. Consumed by `audit/internal/AuditChainStartupVerifier`:
+  when `accessflow.audit.verify-chain-on-startup` (env `ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP`,
+  default `false`) is set, the sweep runs on `ApplicationReadyEvent` and logs a per-org
+  outcome — INFO when intact, ERROR with the first bad row id + reason when broken. It
+  never fails startup. This is the post-restore integrity check in the
+  [disaster-recovery runbook](09-deployment.md#disaster-recovery); verification only
+  succeeds under the same HMAC key material the rows were written with.
 
 ---
 

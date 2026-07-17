@@ -784,6 +784,7 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `voting_strategy` | ENUM `voting_strategy`: `WEIGHTED_AVERAGE` (default) \| `MAX_RISK` \| `MAJORITY` (AF-450). How members' risk verdicts combine. |
 | `voting_weight` | DOUBLE PRECISION DEFAULT 1.0, CHECK > 0 (AF-450) — the primary model's weight in the vote. |
 | `guardrail_patterns` | JSONB DEFAULT `'[]'` (AF-450) — array of case-insensitive regex strings; a submitted SQL / NL prompt matching any is blocked before the model call (HTTP 422 `AI_GUARDRAIL_BLOCKED`). Empty = guardrails off. Each pattern must compile as a regex (else HTTP 400 `AI_CONFIG_ORCHESTRATION_INVALID`). |
+| `fallback_priority` | INTEGER nullable, CHECK >= 0 (AF-458) — marks the config as an org-wide **fallback**: when the config bound to a request fails at call time, fallbacks are retried once each in ascending `(fallback_priority, name)` order. NULL = not a fallback. Partial index `idx_ai_config_org_fallback` on `(organization_id, fallback_priority) WHERE fallback_priority IS NOT NULL`. |
 | `version` | BIGINT — optimistic locking |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |

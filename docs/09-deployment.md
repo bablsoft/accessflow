@@ -635,6 +635,13 @@ bootstrap:
       provider: ANTHROPIC
       model: claude-sonnet-4-20250514
       apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: anthropic-key }
+    # Optional org-wide fallback (AF-458): tried in ascending priority order when the
+    # config bound to a request fails. Maps to ACCESSFLOW_BOOTSTRAP_AI_CONFIGS_<N>_FALLBACK_PRIORITY.
+    - name: local-ollama
+      provider: OLLAMA
+      model: llama3.1:70b
+      endpoint: http://ollama:11434
+      fallbackPriority: 0
   datasources:
     - name: prod-postgres
       dbType: POSTGRESQL
@@ -863,6 +870,7 @@ Two layers exist:
 | `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | Optional | `PT15M` | ISO-8601 duration for the access-token TTL |
 | `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | Optional | `P7D` | ISO-8601 duration for the refresh-token TTL (`HttpOnly` cookie) |
 | `AUDIT_HMAC_KEY` | Optional | derived | Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256 and logs a single WARN. Rotating this key starts a new logical chain — historical rows continue to verify under the old key only. |
+| `ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP` | Optional | `false` | Post-restore integrity sweep (AF-458): when `true`, every organization's `audit_log` HMAC chain is verified on `ApplicationReadyEvent` and the outcome logged per org (INFO when intact, ERROR with the first bad row when broken). Never fails startup. Enable for the first boot after a database restore — see [Disaster Recovery](#disaster-recovery). |
 | `ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD` | Optional | `P366D` | ISO-8601 duration. Largest period a single compliance report (AF-459) may span; a longer `from`/`to` window is rejected with `400 INVALID_REPORT_PERIOD`. |
 | `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Optional | `50000` | Hard cap on the number of executed-query snapshots a single compliance report or signed export scans; beyond it the report sets `truncated=true`. Compliance-export signing reuses the `JWT_PRIVATE_KEY` RS256 key pair — no separate signing key. |
 | `CORS_ALLOWED_ORIGIN` | Optional | `http://localhost:5173` | Frontend origin for CORS policy |
@@ -1317,6 +1325,137 @@ psql "$DB_URL" -c "DELETE FROM audit_log WHERE id IS NULL"
 
 The integration test `AuditRoleSeparationIntegrationTest` asserts the same property as
 part of every backend build.
+
+---
+
+## Disaster Recovery
+
+AccessFlow's own state — organizations, users, datasource configs (with AES-encrypted
+credentials), review plans, query history, and the tamper-evident `audit_log` — lives
+entirely in its internal PostgreSQL. Disaster recovery therefore reduces to three
+concerns: **backing up that database**, **restoring it correctly** (the `audit_log`
+ownership split makes a naive restore subtly wrong), and **proving the audit chain
+survived intact**.
+
+### Backup strategy (Helm)
+
+The chart ships an opt-in backup CronJob (AF-458):
+
+```yaml
+backup:
+  enabled: true
+  schedule: "0 2 * * *"        # cron, UTC
+  retention:
+    keepLast: 14               # prune to the newest N dumps after each run
+  persistence:
+    size: 50Gi
+    # storageClass: nfs-client       # NFS destination — no upload step needed
+    # existingClaim: my-backups-pvc  # or bring your own PVC
+```
+
+Each run executes `pg_dump -Fc` of the AccessFlow database into
+`accessflow-<UTC timestamp>.dump` on a dedicated backups PVC (annotated
+`helm.sh/resource-policy: keep`, so it survives `helm uninstall`), then prunes to the
+newest `retention.keepLast` dumps. Against the bundled subchart the dump runs as the
+`postgres` admin; against `externalDatabase` it defaults to the app credentials (the
+app role retains SELECT on `audit_log` per V38), overridable via `backup.db.*`.
+
+To ship dumps off-cluster (S3, GCS, Azure Blob, SFTP, …) enable the rclone upload
+step — one mechanism for every backend rclone supports:
+
+```bash
+kubectl create secret generic accessflow-rclone \
+  --from-file=rclone.conf=$HOME/.config/rclone/rclone.conf
+```
+
+```yaml
+backup:
+  upload:
+    enabled: true
+    remote: "s3backup:my-bucket/accessflow"
+    existingSecret: accessflow-rclone
+```
+
+For Docker Compose deployments, run the equivalent by hand or on a host cron:
+`docker compose exec postgres pg_dump -Fc -U postgres accessflow > accessflow-$(date -u +%Y%m%dT%H%M%SZ).dump`.
+
+> **What else to back up:** the chart-managed Secrets (`ENCRYPTION_KEY`,
+> `JWT_PRIVATE_KEY`, the audit-role password — all `helm.sh/resource-policy: keep`).
+> Encrypted datasource credentials in a restored database are **unreadable without the
+> original `ENCRYPTION_KEY`**, and the audit-chain verification below needs the original
+> `AUDIT_HMAC_KEY` (or `ENCRYPTION_KEY`, from which it is HKDF-derived when unset).
+> Export them once and store them with your backups:
+> `kubectl get secret <release>-accessflow-secrets -o yaml > secrets-backup.yaml`.
+
+### Restore runbook (Helm)
+
+1. **Stop writes** — scale the backend to zero:
+   ```bash
+   kubectl scale deployment <release>-accessflow-backend --replicas=0
+   ```
+2. **Run the restore Job** (a `post-upgrade` helm hook, rendered only while
+   `restore.enabled=true` and a dump file is named):
+   ```bash
+   helm upgrade <release> accessflow/accessflow --reuse-values \
+     --set restore.enabled=true \
+     --set restore.dumpFile=accessflow-20260717T020000Z.dump
+   ```
+   The Job waits for Postgres, provisions the `accessflow_audit` role idempotently
+   (same SQL as the backend's `audit-role-provisioner` initContainer), then runs
+   `pg_restore --clean --if-exists --exit-on-error` **as an admin role** — deliberately
+   *without* `--no-owner`/`--no-acl`, so `audit_log` comes back owned by the audit role
+   with the V38 REVOKE/GRANT ACLs intact. For `postgresql.enabled=false` provide admin
+   credentials via `restore.db.existingSecret`. Restoring into a cluster whose role
+   names differ from the dump's is out of scope — that requires a manual
+   `--no-owner --no-acl` restore plus re-owning `audit_log` by hand.
+3. **Verify the audit chain on first boot** — scale the backend back up with the
+   startup verifier enabled:
+   ```yaml
+   backend:
+     env:
+       ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP: "true"
+   ```
+   ```bash
+   helm upgrade <release> accessflow/accessflow --reuse-values \
+     --set restore.enabled=false \
+     --set backend.env.ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP=true
+   kubectl logs deployment/<release>-accessflow-backend | grep "Audit chain"
+   ```
+   The verifier walks **every organization's** `audit_log` HMAC chain on
+   `ApplicationReadyEvent` and logs `Audit chain OK for organization … (N rows checked)`
+   per org, or `Audit chain BROKEN …` with the first bad row id and reason. It never
+   fails startup. Disable the flag again after a clean run — it re-walks the full table
+   on every boot. The same sweep is available per-organization at
+   `GET /api/v1/admin/audit-log/verify`.
+4. **Key caveat** — verification recomputes HMACs with the *running* deployment's key
+   material. A restored database paired with a rotated `AUDIT_HMAC_KEY` (or a different
+   `ENCRYPTION_KEY` when the HMAC key is derived) reports every chain as broken even
+   though the data is fine — restore the original Secrets from step "What else to back
+   up" first, then re-verify before suspecting tampering.
+
+### Failover runbook (external database)
+
+For `postgresql.enabled=false` deployments on managed Postgres (RDS, Cloud SQL, …),
+prefer the platform's replication + PITR over dump-based recovery, and keep the chart's
+CronJob as the portable, offline-restorable layer. To fail over:
+
+1. Promote the replica / restore the PITR target per your platform's procedure.
+2. Repoint the chart: `--set externalDatabase.host=<new-endpoint>` (credentials
+   unchanged when the replica carries the same roles — including `accessflow_audit`).
+3. Roll the backend and run the audit-chain verification boot (step 3 above).
+
+AccessFlow's proxy holds no durable state outside Postgres — Redis carries only token
+revocations, scheduler locks, and caches, all safe to lose on failover.
+
+### Offline / air-gapped AI fallback
+
+Related resilience knob: mark a local Ollama AI configuration as an organization-wide
+**fallback** (`fallback_priority`, AF-458) so query analysis degrades to the in-cluster
+model when the primary cloud provider is unreachable — see
+[docs/05-backend.md → AI provider fallback pool](05-backend.md) and
+[`charts/accessflow/examples/values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml).
+Ollama verifies pulled model blobs by SHA-256 digest natively, so pre-pulling from an
+internal mirror keeps the model integrity-checked without extra tooling.
 
 ---
 

@@ -493,7 +493,28 @@
               <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-airgapped.yaml"><code>values-airgapped.yaml</code></a>
               — air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret.
             </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-backup.yaml"><code>values-backup.yaml</code></a>
+              — nightly <code>pg_dump</code> backups to a PVC with retention pruning, optional rclone upload (S3/GCS/…), and the one-shot restore Job.
+            </li>
           </ul>
+          <p>
+            <strong>Backup, restore &amp; disaster recovery.</strong> Set
+            <code>backup.enabled=true</code> to run a nightly <code>pg_dump</code> CronJob of the
+            AccessFlow database onto a dedicated backups volume (kept across
+            <code>helm uninstall</code>), pruned to <code>backup.retention.keepLast</code> dumps,
+            with an optional rclone step shipping the directory to S3 / GCS / Azure / SFTP. To
+            restore: scale the backend to zero, run
+            <code>helm upgrade --reuse-values --set restore.enabled=true --set restore.dumpFile=&lt;name&gt;.dump</code>
+            (the hook Job re-provisions the audit-writer role and replays the dump with ownership
+            and grants intact), then boot the backend once with
+            <code>ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP=true</code> — every organization's
+            tamper-evident audit chain is re-verified and the outcome logged per organization.
+            Verification needs the same <code>AUDIT_HMAC_KEY</code> / <code>ENCRYPTION_KEY</code>
+            as when the rows were written, so back those Secrets up alongside the dumps. Full
+            runbook (including external-database failover):
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#disaster-recovery">docs/09-deployment.md → Disaster Recovery</a>.
+          </p>
           <p>
             <strong>Bootstrap slices</strong> (each declares organization + first admin
             user and is meant to layer on a deployment shape):
@@ -1541,6 +1562,18 @@ APPROVED → FAILED (execution error)</pre>
             is called — useful for prompt-injection strings or content you never want sent to a
             provider. A blocked editor preview returns an error inline; a blocked submitted query is
             recorded as a failed (critical) analysis. Each pattern is validated as a regex when you save.
+          </p>
+          <p>
+            <strong>Fallback pool.</strong> Give any configuration a <em>Fallback priority</em>
+            (0–100, on the wizard's <em>Connection</em> step or the edit page) to mark it as an
+            organization-wide fallback: when the configuration handling a request fails — provider
+            unreachable, timeout, bad credentials — AccessFlow retries the request once against each
+            fallback in ascending priority order (lower = tried first) before giving up with the
+            original error. Fallback configurations show a <em>Fallback #N</em> tag in the list;
+            clear the field to remove one from the pool. The typical setup marks a keyless local
+            <strong>Ollama</strong> configuration as priority 0, so query analysis keeps working —
+            air-gap friendly — when the cloud provider is down. Guardrail blocks and rate-limit /
+            budget rejections never trigger the fallback pool.
           </p>
           <h4 id="cfg-langfuse">Langfuse integration</h4>
           <p>
