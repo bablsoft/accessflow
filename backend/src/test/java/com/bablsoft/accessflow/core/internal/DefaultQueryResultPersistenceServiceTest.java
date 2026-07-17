@@ -30,7 +30,8 @@ class DefaultQueryResultPersistenceServiceTest {
         when(repository.save(org.mockito.ArgumentMatchers.any()))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        service.save(new SaveResultCommand(queryId, "[{\"name\":\"id\"}]", "[[1]]", 1L, false, 12));
+        service.save(new SaveResultCommand(queryId, "[{\"name\":\"id\"}]", "[[1]]", 1L, false, null,
+                12));
 
         var captor = ArgumentCaptor.forClass(QueryRequestResultEntity.class);
         org.mockito.Mockito.verify(repository).save(captor.capture());
@@ -40,6 +41,7 @@ class DefaultQueryResultPersistenceServiceTest {
         assertThat(saved.getRows()).isEqualTo("[[1]]");
         assertThat(saved.getRowCount()).isEqualTo(1L);
         assertThat(saved.isTruncated()).isFalse();
+        assertThat(saved.getTruncatedReason()).isNull();
         assertThat(saved.getDurationMs()).isEqualTo(12);
         assertThat(saved.getRecordedAt()).isNotNull();
     }
@@ -57,13 +59,14 @@ class DefaultQueryResultPersistenceServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
 
         service.save(new SaveResultCommand(queryId, "[{\"name\":\"x\"}]",
-                "[[42]]", 1L, true, 99));
+                "[[42]]", 1L, true, "BYTE_LIMIT", 99));
 
         // The same entity instance is updated and saved.
         assertThat(existing.getColumns()).isEqualTo("[{\"name\":\"x\"}]");
         assertThat(existing.getRows()).isEqualTo("[[42]]");
         assertThat(existing.getRowCount()).isEqualTo(1L);
         assertThat(existing.isTruncated()).isTrue();
+        assertThat(existing.getTruncatedReason()).isEqualTo("BYTE_LIMIT");
         assertThat(existing.getDurationMs()).isEqualTo(99);
     }
 
@@ -82,7 +85,7 @@ class DefaultQueryResultPersistenceServiceTest {
         var snapshot = service.find(queryId).orElseThrow();
 
         assertThat(snapshot).isEqualTo(new QueryResultSnapshot(queryId,
-                "[{\"name\":\"id\"}]", "[[1],[2]]", 2L, false, 45));
+                "[{\"name\":\"id\"}]", "[[1],[2]]", 2L, false, null, 45));
     }
 
     @Test

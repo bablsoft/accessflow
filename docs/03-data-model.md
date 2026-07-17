@@ -682,6 +682,23 @@ APPROVED       → FAILED    (on execution error)
 
 ---
 
+## query_request_results
+
+JSONB snapshot of the **last** SELECT execution for a query request (migration `V15`); overwritten on re-execute, read by `GET /queries/{id}/results`. Values are post-mask — restricted columns are stored as `"***"`, never raw.
+
+| Column | Notes |
+|--------|-------|
+| `query_request_id` | UUID PK, FK → `query_requests` ON DELETE CASCADE |
+| `columns` | JSONB NOT NULL — `[{name, type, restricted}]` |
+| `rows` | JSONB NOT NULL — array of row arrays |
+| `row_count` | BIGINT NOT NULL |
+| `truncated` | BOOLEAN NOT NULL DEFAULT FALSE — result was cut short by a cap |
+| `truncated_reason` | TEXT NULL (`V116`, #49) — `ROW_LIMIT` \| `BYTE_LIMIT`; NULL when not truncated or persisted pre-V116 |
+| `duration_ms` | INTEGER NOT NULL |
+| `recorded_at` | TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP |
+
+---
+
 ## ai_analyses
 
 Stores the result of an AI analysis run for a query request.

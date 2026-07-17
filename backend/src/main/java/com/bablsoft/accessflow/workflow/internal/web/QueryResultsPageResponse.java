@@ -8,6 +8,7 @@ public record QueryResultsPageResponse(
         @JsonRawValue String rows,
         long rowCount,
         boolean truncated,
+        String truncatedReason,
         int page,
         int size) {
 }

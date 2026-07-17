@@ -224,6 +224,9 @@ accessflow:
       statement-timeout: ${ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT:30s}
       default-fetch-size: ${ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE:1000}
       insert-batch-chunk-size: ${ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE:1000}
+      max-result-bytes: ${ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES:52428800}
+      max-concurrent: ${ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT:32}
+      acquire-timeout: ${ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT:5s}
     # Opt-in SELECT result cache (AF-457). `enabled` is the deployment-wide kill-switch; the real
     # gate is each datasource's result_cache_enabled flag. default-ttl applies when a datasource
     # opts in without its own TTL; entries above max-entry-bytes are never cached.

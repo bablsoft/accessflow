@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -33,17 +34,26 @@ class JdbcResultRowMapper {
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration)
             throws SQLException {
-        return materialize(rs, maxRows, dbType, duration, List.of(), List.of());
+        return materialize(rs, maxRows, Long.MAX_VALUE, dbType, duration, List.of(), List.of());
     }
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration,
                                       List<String> restrictedColumns)
             throws SQLException {
-        return materialize(rs, maxRows, dbType, duration, restrictedColumns, List.of());
+        return materialize(rs, maxRows, Long.MAX_VALUE, dbType, duration, restrictedColumns,
+                List.of());
     }
 
     SelectExecutionResult materialize(ResultSet rs, int maxRows, DbType dbType, Duration duration,
                                       List<String> restrictedColumns,
+                                      List<ColumnMaskDirective> columnMasks)
+            throws SQLException {
+        return materialize(rs, maxRows, Long.MAX_VALUE, dbType, duration, restrictedColumns,
+                columnMasks);
+    }
+
+    SelectExecutionResult materialize(ResultSet rs, int maxRows, long maxResultBytes, DbType dbType,
+                                      Duration duration, List<String> restrictedColumns,
                                       List<ColumnMaskDirective> columnMasks)
             throws SQLException {
         var metadata = rs.getMetaData();
@@ -51,15 +61,27 @@ class JdbcResultRowMapper {
         var columns = describeColumns(metadata, resolver);
         var rows = new ArrayList<List<Object>>();
         boolean truncated = false;
+        String truncatedReason = null;
+        long estimatedBytes = 0;
         while (rs.next()) {
             if (rows.size() >= maxRows) {
                 truncated = true;
+                truncatedReason = SelectExecutionResult.TRUNCATED_ROW_LIMIT;
                 break;
             }
-            rows.add(readRow(rs, metadata, dbType, resolver));
+            var row = readRow(rs, metadata, dbType, resolver);
+            estimatedBytes += ResultByteEstimator.estimateRow(row);
+            // The first row is always kept, even when it alone exceeds the byte cap —
+            // an empty-but-truncated result would be useless to the caller.
+            if (estimatedBytes > maxResultBytes && !rows.isEmpty()) {
+                truncated = true;
+                truncatedReason = SelectExecutionResult.TRUNCATED_BYTE_LIMIT;
+                break;
+            }
+            rows.add(row);
         }
         return new SelectExecutionResult(columns, rows, rows.size(), truncated, duration,
-                resolver.appliedPolicyIds());
+                resolver.appliedPolicyIds(), Set.of(), truncatedReason);
     }
 
     private List<ResultColumn> describeColumns(ResultSetMetaData metadata,

@@ -59,12 +59,16 @@ class SelectResultCacheTest {
     }
 
     private static SelectExecutionResult sampleResult() {
+        return sampleResult(false, null);
+    }
+
+    private static SelectExecutionResult sampleResult(boolean truncated, String truncatedReason) {
         return new SelectExecutionResult(
                 List.of(new ResultColumn("id", Types.BIGINT, "int8"),
                         new ResultColumn("email", Types.VARCHAR, "text", true)),
                 List.of(List.of(1L, "a@example.com"), List.of(2L, "b@example.com")),
-                2, false, Duration.ofMillis(12),
-                Set.of(UUID.randomUUID()), Set.of(UUID.randomUUID()));
+                2, truncated, Duration.ofMillis(12),
+                Set.of(UUID.randomUUID()), Set.of(UUID.randomUUID()), truncatedReason);
     }
 
     private DatasourceConnectionDescriptor descriptor(boolean cacheEnabled, Integer ttlSeconds) {
@@ -125,6 +129,7 @@ class SelectResultCacheTest {
         assertThat(cached.columns()).isEqualTo(result.columns());
         assertThat(cached.rowCount()).isEqualTo(2);
         assertThat(cached.truncated()).isFalse();
+        assertThat(cached.truncatedReason()).isNull();
         assertThat(cached.duration()).isEqualTo(Duration.ofMillis(1));
         assertThat(cached.appliedMaskingPolicyIds())
                 .isEqualTo(result.appliedMaskingPolicyIds());
@@ -133,6 +138,23 @@ class SelectResultCacheTest {
         // JSON-natural types: numbers stay numbers, strings stay strings.
         assertThat(cached.rows().get(0).get(1)).isEqualTo("a@example.com");
         assertThat(((Number) cached.rows().get(0).get(0)).longValue()).isEqualTo(1L);
+    }
+
+    @Test
+    void getRoundTripsTruncatedReason() {
+        var result = sampleResult(true, SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+        cache.put(datasourceId, "abc", Set.of("t"), Duration.ofSeconds(30), result);
+        var jsonCaptor = ArgumentCaptor.forClass(String.class);
+        verify(valueOps).set(anyString(), jsonCaptor.capture(), any(Duration.class));
+        when(valueOps.get(SelectResultCache.VALUE_PREFIX + datasourceId + ":abc"))
+                .thenReturn(jsonCaptor.getValue());
+
+        var hit = cache.get(datasourceId, "abc", Duration.ofMillis(1));
+
+        assertThat(hit).isPresent();
+        assertThat(hit.get().truncated()).isTrue();
+        assertThat(hit.get().truncatedReason())
+                .isEqualTo(SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
     }
 
     @Test

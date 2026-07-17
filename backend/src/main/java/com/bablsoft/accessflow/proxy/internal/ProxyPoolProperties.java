@@ -30,12 +30,13 @@ record ProxyPoolProperties(
             poolNamePrefix = "accessflow-ds-";
         }
         if (execution == null) {
-            execution = new Execution(null, null, null, null);
+            execution = new Execution(null, null, null, null, null, null, null);
         }
     }
 
     record Execution(Integer maxRows, Duration statementTimeout, Integer defaultFetchSize,
-                     Integer insertBatchChunkSize) {
+                     Integer insertBatchChunkSize, Long maxResultBytes, Integer maxConcurrent,
+                     Duration acquireTimeout) {
 
         Execution {
             if (maxRows == null) {
@@ -49,6 +50,15 @@ record ProxyPoolProperties(
             }
             if (insertBatchChunkSize == null) {
                 insertBatchChunkSize = 1_000;
+            }
+            if (maxResultBytes == null) {
+                maxResultBytes = 52_428_800L;
+            }
+            if (maxConcurrent == null) {
+                maxConcurrent = 32;
+            }
+            if (acquireTimeout == null) {
+                acquireTimeout = Duration.ofSeconds(5);
             }
         }
         // NOTE: no overloaded constructors here — @ConfigurationProperties record binding

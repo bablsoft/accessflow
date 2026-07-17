@@ -75,7 +75,8 @@ class DefaultQueryExecutorTest {
     private final SqlExceptionTranslator translator = new SqlExceptionTranslator(messageSource);
     private final ProxyPoolProperties properties = new ProxyPoolProperties(
             null, null, null, null, null,
-            new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, null));
+            new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, null,
+                    null, null, null));
     private final AtomicLong nanos = new AtomicLong();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-05T12:00:00Z"), ZoneOffset.UTC);
 
@@ -356,7 +357,8 @@ class DefaultQueryExecutorTest {
     void transactionalBatchFlushesEveryChunkSizeRows() throws SQLException {
         var chunkedProperties = new ProxyPoolProperties(
                 null, null, null, null, null,
-                new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, 2));
+                new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, 2,
+                        null, null, null));
         var healthRegistry = new ReplicaHealthRegistry(clock,
                 new ProxyReplicaProperties(null, null, null));
         var router = new RoutingDataSourceResolver(poolManager, healthRegistry, lookupService,

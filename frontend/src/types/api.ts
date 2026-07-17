@@ -1263,11 +1263,14 @@ export interface QueryResultColumn {
   restricted?: boolean;
 }
 
+export type TruncatedReason = 'ROW_LIMIT' | 'BYTE_LIMIT';
+
 export interface QueryResultsPage {
   columns: QueryResultColumn[];
   rows: unknown[][];
   row_count: number;
   truncated: boolean;
+  truncated_reason?: TruncatedReason | null;
   page: number;
   size: number;
 }
@@ -1651,6 +1654,7 @@ export interface SampleRowsResponse {
   rows: unknown[][];
   row_count: number;
   truncated: boolean;
+  truncated_reason?: TruncatedReason | null;
   duration_ms: number;
 }
 

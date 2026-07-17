@@ -30,4 +30,27 @@ class SelectExecutionResultTest {
                 Set.of(id));
         assertThat(result.appliedMaskingPolicyIds()).containsExactly(id);
     }
+
+    @Test
+    void legacyConstructorsDefaultTruncatedReasonToNull() {
+        assertThat(new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO)
+                .truncatedReason()).isNull();
+        assertThat(new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO,
+                Set.of()).truncatedReason()).isNull();
+        assertThat(new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO,
+                Set.of(), Set.of()).truncatedReason()).isNull();
+    }
+
+    @Test
+    void withRowSecurityPolicyIdsPreservesTruncatedReason() {
+        var result = new SelectExecutionResult(List.of(), List.of(), 0L, true, Duration.ZERO,
+                Set.of(), Set.of(), SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+        var id = UUID.randomUUID();
+
+        var withIds = result.withRowSecurityPolicyIds(Set.of(id));
+
+        assertThat(withIds.appliedRowSecurityPolicyIds()).containsExactly(id);
+        assertThat(withIds.truncatedReason())
+                .isEqualTo(SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+    }
 }

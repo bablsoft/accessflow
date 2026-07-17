@@ -30,6 +30,7 @@ class DefaultQueryResultPersistenceService implements QueryResultPersistenceServ
         entity.setRows(command.rowsJson());
         entity.setRowCount(command.rowCount());
         entity.setTruncated(command.truncated());
+        entity.setTruncatedReason(command.truncatedReason());
         entity.setDurationMs(command.durationMs());
         entity.setRecordedAt(Instant.now());
         repository.save(entity);
@@ -44,6 +45,7 @@ class DefaultQueryResultPersistenceService implements QueryResultPersistenceServ
                 e.getRows(),
                 e.getRowCount(),
                 e.isTruncated(),
+                e.getTruncatedReason(),
                 e.getDurationMs()));
     }
 }

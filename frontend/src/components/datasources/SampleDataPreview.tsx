@@ -81,7 +81,12 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
         footer={() =>
           data.truncated ? (
             <span className="muted" style={{ fontSize: 11 }}>
-              {t('datasources.settings.sample_truncated', { count: data.row_count })}
+              {t(
+                data.truncated_reason === 'BYTE_LIMIT'
+                  ? 'datasources.settings.sample_truncated_bytes'
+                  : 'datasources.settings.sample_truncated',
+                { count: data.row_count },
+              )}
             </span>
           ) : (
             <span className="muted" style={{ fontSize: 11 }}>

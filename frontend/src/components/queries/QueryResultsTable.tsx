@@ -5,6 +5,7 @@ import { LockOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getQueryResults, queryKeys } from '@/api/queries';
+import type { TruncatedReason } from '@/types/api';
 import { documentsToJson } from '@/utils/resultDocuments';
 
 type ResultView = 'table' | 'json';
@@ -111,7 +112,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
         </pre>
         {data.truncated ? (
           <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>
-            {t('queries.detail.results_truncated', { count: data.row_count })}
+            {t(truncatedMessageKey(data.truncated_reason), { count: data.row_count })}
           </div>
         ) : null}
       </div>
@@ -141,13 +142,19 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
         footer={() =>
           data.truncated ? (
             <span className="muted" style={{ fontSize: 11 }}>
-              {t('queries.detail.results_truncated', { count: data.row_count })}
+              {t(truncatedMessageKey(data.truncated_reason), { count: data.row_count })}
             </span>
           ) : null
         }
       />
     </div>
   );
+}
+
+function truncatedMessageKey(reason: TruncatedReason | null | undefined) {
+  return reason === 'BYTE_LIMIT'
+    ? ('queries.detail.results_truncated_bytes' as const)
+    : ('queries.detail.results_truncated' as const);
 }
 
 function formatCell(value: unknown): string {

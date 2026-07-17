@@ -977,6 +977,9 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Optional | `30s` | Statement-level timeout applied to customer-DB JDBC statements |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Optional | `1000` | Default JDBC fetch size |
 | `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Optional | `1000` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457) |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` | Optional | `52428800` | Per-result byte cap enforced while materializing SELECT rows (#49); when exceeded the result is truncated with `truncated_reason=BYTE_LIMIT`. Relational JDBC path only |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT` | Optional | `32` | Global budget of in-flight query executions across all datasources (#49); per-datasource concurrency stays bounded by the HikariCP pool size |
+| `ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT` | Optional | `5s` | How long an overflow execution waits for a concurrency permit before being rejected with `503 QUERY_CONCURRENCY_LIMIT` (#49) |
 | `ACCESSFLOW_PROXY_CACHE_ENABLED` | Optional | `true` | Deployment-wide kill-switch for the opt-in SELECT result cache (AF-457); the real gate is each datasource's `result_cache_enabled` flag |
 | `ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL` | Optional | `PT60S` | Result-cache TTL used when a datasource opts in without its own `result_cache_ttl_seconds` |
 | `ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES` | Optional | `1000000` | Serialized-size cap per cached SELECT result; larger results are never cached |

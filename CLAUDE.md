@@ -288,6 +288,9 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
 | `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457, default `1000`). |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` | Per-result byte cap enforced while materializing SELECT rows (#49); exceeding it truncates the result with `truncated_reason=BYTE_LIMIT`. Relational JDBC path only (default `52428800`). |
+| `ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT` | Global budget of in-flight query executions across all datasources (#49); overflow waits then gets 503 `QUERY_CONCURRENCY_LIMIT`. Per-datasource concurrency stays HikariCP's job (default `32`). |
+| `ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT` | ISO-8601/simple duration. How long an overflow execution waits for a concurrency permit before the 503 (#49, default `5s`). |
 | `ACCESSFLOW_PROXY_CACHE_ENABLED` | Deployment-wide kill-switch for the opt-in SELECT result cache (AF-457, default `true`). The real gate is each datasource's `result_cache_enabled` flag; entries are Redis-backed and invalidated on any proxied write to a referenced table. |
 | `ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL` | ISO-8601 duration. Result-cache TTL used when a datasource opts in without its own `result_cache_ttl_seconds` (default `PT60S`). |
 | `ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES` | Serialized-size cap per cached SELECT result; larger results are never cached (default `1000000`). |
