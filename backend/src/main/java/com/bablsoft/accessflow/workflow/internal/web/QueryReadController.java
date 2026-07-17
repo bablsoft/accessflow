@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
+import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -66,6 +67,7 @@ class QueryReadController {
     private final QueryCsvExportService queryCsvExportService;
     private final RoutingDecisionService routingDecisionService;
     private final AccessGrantLookupService accessGrantLookupService;
+    private final QueryTicketService queryTicketService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -157,7 +159,8 @@ class QueryReadController {
         var matchedPolicy = routingDecisionService.findMatchedPolicy(id).orElse(null);
         var approvingGrant = detail.approvedByGrantId() == null ? null
                 : accessGrantLookupService.findGrant(detail.approvedByGrantId()).orElse(null);
-        return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant);
+        var tickets = queryTicketService.listByQueryRequest(id, caller.organizationId());
+        return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets);
     }
 
     @PostMapping("/{id}/cancel")

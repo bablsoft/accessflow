@@ -38,6 +38,38 @@ class NotificationListenerTest {
         listener.onQueryReadyForReview(new QueryReadyForReviewEvent(id));
         verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_SUBMITTED), eq(id),
                 isNull(), isNull(), isNull());
+        verify(dispatcher, never()).dispatch(eq(NotificationEventType.QUERY_ESCALATED), any(),
+                any(), any(), any());
+    }
+
+    @Test
+    void readyForReviewWithMatchedPolicyAlsoDispatchesQueryEscalated() {
+        var id = UUID.randomUUID();
+        listener.onQueryReadyForReview(
+                new QueryReadyForReviewEvent(id, UUID.randomUUID(), "off-network", 3));
+        verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_SUBMITTED), eq(id),
+                isNull(), isNull(), isNull());
+        verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_ESCALATED), eq(id),
+                isNull(), isNull(), isNull());
+    }
+
+    @Test
+    void readyForReviewWithPolicyButNoMinApprovalsDoesNotEscalate() {
+        var id = UUID.randomUUID();
+        listener.onQueryReadyForReview(
+                new QueryReadyForReviewEvent(id, UUID.randomUUID(), "matched", null));
+        verify(dispatcher).dispatch(eq(NotificationEventType.QUERY_SUBMITTED), eq(id),
+                isNull(), isNull(), isNull());
+        verify(dispatcher, never()).dispatch(eq(NotificationEventType.QUERY_ESCALATED), any(),
+                any(), any(), any());
+    }
+
+    @Test
+    void readyForReviewWithMinApprovalsButNoPolicyDoesNotEscalate() {
+        var id = UUID.randomUUID();
+        listener.onQueryReadyForReview(new QueryReadyForReviewEvent(id, null, null, 3));
+        verify(dispatcher, never()).dispatch(eq(NotificationEventType.QUERY_ESCALATED), any(),
+                any(), any(), any());
     }
 
     @Test

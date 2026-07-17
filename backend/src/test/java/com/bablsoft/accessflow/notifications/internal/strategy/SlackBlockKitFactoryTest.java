@@ -121,6 +121,15 @@ class SlackBlockKitFactoryTest {
     }
 
     @Test
+    void escalatedHeaderUsesEscalationLabel() {
+        var ctx = ctxWith(NotificationEventType.QUERY_ESCALATED);
+        var payload = factory.buildEventPayload(ctx, null);
+        var header = (HeaderBlock) payload.getBlocks().get(0);
+        assertThat(header.getText().getText()).contains("Query Escalated for Review");
+        assertThat(payload.getText()).contains("Query Escalated for Review");
+    }
+
+    @Test
     void approvedHeaderUsesCheckmark() {
         var ctx = ctxWith(NotificationEventType.QUERY_APPROVED);
         var payload = factory.buildEventPayload(ctx, null);

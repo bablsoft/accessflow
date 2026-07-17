@@ -65,6 +65,12 @@ class TelegramMessageFactoryTest {
     }
 
     @Test
+    void escalatedHeaderUsed() {
+        var body = factory.buildEventBody(ctx(NotificationEventType.QUERY_ESCALATED, null), "-100");
+        assertThat(body).contains("Query Escalated for Review");
+    }
+
+    @Test
     void weeklyDigestRendersMetricsAndDashboardLink() {
         var body = factory.buildEventBody(digestCtx(), "-100");
         assertThat(body).contains("Weekly Digest")

@@ -141,6 +141,18 @@ class EmailNotificationStrategyTest {
     }
 
     @Test
+    void deliverUsesEscalatedTemplateAndSubjectForEscalatedEvent() throws Exception {
+        var ctx = ctx(NotificationEventType.QUERY_ESCALATED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+        strategy.deliver(ctx, channel());
+        verify(templateEngine).process(eq("email/query-escalated"), any());
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        assertThat(captor.getValue().getSubject())
+                .isEqualTo("subject:notification.email.subject.query_escalated");
+    }
+
+    @Test
     void deliverUsesReviewTemplateForAiHighRisk() {
         var ctx = ctx(NotificationEventType.AI_HIGH_RISK, List.of(
                 new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
@@ -285,6 +297,8 @@ class EmailNotificationStrategyTest {
         assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_SUBMITTED))
                 .isTrue();
         assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_APPROVED))
+                .isTrue();
+        assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_ESCALATED))
                 .isTrue();
         // …while TEST and the JIT access (in-app only) events have no template.
         assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.TEST)).isFalse();

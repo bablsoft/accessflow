@@ -173,6 +173,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_SUBMITTED -> "email/query-ready-for-review";
             case QUERY_APPROVED -> "email/query-approved";
             case QUERY_REJECTED -> "email/query-rejected";
+            case QUERY_ESCALATED -> "email/query-escalated";
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case ANOMALY_DETECTED -> "email/anomaly-detected";
@@ -205,6 +206,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_SUBMITTED -> "notification.email.subject.query_submitted";
             case QUERY_APPROVED -> "notification.email.subject.query_approved";
             case QUERY_REJECTED -> "notification.email.subject.query_rejected";
+            case QUERY_ESCALATED -> "notification.email.subject.query_escalated";
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
             case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";

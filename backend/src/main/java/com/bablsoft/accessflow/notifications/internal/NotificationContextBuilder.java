@@ -108,7 +108,9 @@ class NotificationContextBuilder {
                                                   ReviewPlanSnapshot plan,
                                                   UserView submitter) {
         return switch (eventType) {
-            case QUERY_SUBMITTED -> reviewersForLowestStage(plan, snapshot);
+            // QUERY_ESCALATED targets the same reviewer set as QUERY_SUBMITTED — a routing policy
+            // raised the approval bar, but the people who must act are still the plan's reviewers.
+            case QUERY_SUBMITTED, QUERY_ESCALATED -> reviewersForLowestStage(plan, snapshot);
             case QUERY_APPROVED, QUERY_REJECTED -> submitter != null
                     ? List.of(toRecipient(submitter))
                     : List.of();

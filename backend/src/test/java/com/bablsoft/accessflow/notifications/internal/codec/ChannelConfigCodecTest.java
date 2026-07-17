@@ -424,6 +424,288 @@ class ChannelConfigCodecTest {
         assertThat(codec.decodePagerDuty(kept).routingKeyPlain()).isEqualTo("old");
     }
 
+    // --- ServiceNow (AF-453) -------------------------------------------------------------------
+
+    private static Map<String, Object> serviceNowInput() {
+        return new java.util.HashMap<>(Map.of(
+                "instance_url", "https://dev1234.service-now.com",
+                "username", "integration",
+                "password", "sn-pw",
+                "assignment_group", "DBA",
+                "urgency", 2,
+                "triggers", java.util.List.of("QUERY_REJECTED", "QUERY_ESCALATED"),
+                "bidirectional_sync", true,
+                "webhook_secret", "hook-secret"));
+    }
+
+    @Test
+    void encodesServiceNowChannelEncryptsSecretsAndMasksOnRead() {
+        var json = codec.encodeForPersistence(NotificationChannelType.SERVICENOW,
+                serviceNowInput());
+
+        assertThat(json).contains("password_encrypted")
+                .contains("enc:sn-pw")
+                .contains("webhook_secret_encrypted")
+                .contains("enc:hook-secret")
+                .doesNotContain("\"password\"")
+                .doesNotContain("\"webhook_secret\"");
+
+        var view = codec.decodeForApi(json);
+        assertThat(view).containsEntry("password", "********")
+                .containsEntry("webhook_secret", "********")
+                .doesNotContainKey("password_encrypted")
+                .doesNotContainKey("webhook_secret_encrypted");
+
+        var typed = codec.decodeServiceNow(json);
+        assertThat(typed.instanceUrl().toString()).isEqualTo("https://dev1234.service-now.com");
+        assertThat(typed.username()).isEqualTo("integration");
+        assertThat(typed.passwordPlain()).isEqualTo("sn-pw");
+        assertThat(typed.assignmentGroup()).isEqualTo("DBA");
+        assertThat(typed.urgency()).isEqualTo(2);
+        assertThat(typed.triggers()).containsExactlyInAnyOrder(
+                TicketingTrigger.QUERY_REJECTED, TicketingTrigger.QUERY_ESCALATED);
+        assertThat(typed.bidirectionalSync()).isTrue();
+        assertThat(typed.webhookSecretPlain()).isEqualTo("hook-secret");
+        assertThat(typed.approveStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_APPROVE_STATUSES);
+        assertThat(typed.rejectStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_REJECT_STATUSES);
+    }
+
+    @Test
+    void serviceNowMinimalConfigAppliesDefaults() {
+        var json = codec.encodeForPersistence(NotificationChannelType.SERVICENOW, Map.of(
+                "instance_url", "https://dev1234.service-now.com",
+                "username", "integration",
+                "password", "sn-pw",
+                "triggers", java.util.List.of("REVIEW_TIMEOUT")));
+
+        var typed = codec.decodeServiceNow(json);
+        assertThat(typed.assignmentGroup()).isNull();
+        assertThat(typed.urgency()).isNull();
+        assertThat(typed.bidirectionalSync()).isFalse();
+        assertThat(typed.webhookSecretPlain()).isNull();
+        assertThat(typed.approveStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_APPROVE_STATUSES);
+        assertThat(typed.rejectStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_REJECT_STATUSES);
+    }
+
+    @Test
+    void serviceNowCustomStatusListsOverrideDefaults() {
+        var input = serviceNowInput();
+        input.put("approve_statuses", java.util.List.of("Fixed"));
+        input.put("reject_statuses", java.util.List.of("Nope", "Never"));
+        var json = codec.encodeForPersistence(NotificationChannelType.SERVICENOW, input);
+
+        var typed = codec.decodeServiceNow(json);
+        assertThat(typed.approveStatuses()).containsExactly("Fixed");
+        assertThat(typed.rejectStatuses()).containsExactly("Nope", "Never");
+    }
+
+    @Test
+    void rejectsServiceNowWithoutRequiredKeys() {
+        for (var missing : new String[]{"instance_url", "username", "password"}) {
+            var input = serviceNowInput();
+            input.remove(missing);
+            assertThatThrownBy(() -> codec.encodeForPersistence(
+                    NotificationChannelType.SERVICENOW, input))
+                    .as("missing " + missing)
+                    .isInstanceOf(NotificationChannelConfigException.class)
+                    .hasMessageContaining(missing);
+        }
+    }
+
+    @Test
+    void rejectsServiceNowWithMalformedInstanceUrl() {
+        var input = serviceNowInput();
+        input.put("instance_url", "not a uri with spaces");
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.SERVICENOW, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("valid URI");
+    }
+
+    @Test
+    void rejectsServiceNowUrgencyOutOfRangeOrNonNumeric() {
+        for (var bad : new Object[]{0, 4, "not-a-number"}) {
+            var input = serviceNowInput();
+            input.put("urgency", bad);
+            assertThatThrownBy(() -> codec.encodeForPersistence(
+                    NotificationChannelType.SERVICENOW, input))
+                    .as("urgency " + bad)
+                    .isInstanceOf(NotificationChannelConfigException.class)
+                    .hasMessageContaining("urgency");
+        }
+    }
+
+    @Test
+    void serviceNowUrgencyBoundsAreAccepted() {
+        for (var ok : new Object[]{1, 3, "2"}) {
+            var input = serviceNowInput();
+            input.put("urgency", ok);
+            var json = codec.encodeForPersistence(NotificationChannelType.SERVICENOW, input);
+            assertThat(codec.decodeServiceNow(json).urgency())
+                    .isEqualTo(Integer.parseInt(ok.toString()));
+        }
+    }
+
+    @Test
+    void rejectsServiceNowWithoutTriggersOrWithInvalidTrigger() {
+        var noTriggers = serviceNowInput();
+        noTriggers.remove("triggers");
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.SERVICENOW, noTriggers))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("triggers");
+
+        var badTrigger = serviceNowInput();
+        badTrigger.put("triggers", java.util.List.of("BOGUS"));
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.SERVICENOW, badTrigger))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("triggers");
+    }
+
+    @Test
+    void rejectsServiceNowBidirectionalSyncWithoutWebhookSecret() {
+        var input = serviceNowInput();
+        input.remove("webhook_secret");
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.SERVICENOW, input))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("webhook_secret");
+    }
+
+    @Test
+    void serviceNowWebhookSecretOptionalWhenSyncDisabled() {
+        var input = serviceNowInput();
+        input.remove("webhook_secret");
+        input.put("bidirectional_sync", false);
+        var json = codec.encodeForPersistence(NotificationChannelType.SERVICENOW, input);
+        assertThat(codec.decodeServiceNow(json).webhookSecretPlain()).isNull();
+    }
+
+    @Test
+    void mergePreservesServiceNowSecretsOnMaskAndRotatesOnNewValue() {
+        var original = codec.encodeForPersistence(NotificationChannelType.SERVICENOW,
+                serviceNowInput());
+
+        var kept = codec.mergeForPersistence(NotificationChannelType.SERVICENOW, original, Map.of(
+                "password", "********",
+                "webhook_secret", "********"));
+        assertThat(codec.decodeServiceNow(kept).passwordPlain()).isEqualTo("sn-pw");
+        assertThat(codec.decodeServiceNow(kept).webhookSecretPlain()).isEqualTo("hook-secret");
+
+        var rotated = codec.mergeForPersistence(NotificationChannelType.SERVICENOW, original,
+                Map.of("password", "new-pw", "webhook_secret", "new-secret"));
+        assertThat(codec.decodeServiceNow(rotated).passwordPlain()).isEqualTo("new-pw");
+        assertThat(codec.decodeServiceNow(rotated).webhookSecretPlain()).isEqualTo("new-secret");
+    }
+
+    // --- Jira (AF-453) -------------------------------------------------------------------------
+
+    private static Map<String, Object> jiraInput() {
+        return new java.util.HashMap<>(Map.of(
+                "base_url", "https://example.atlassian.net",
+                "user_email", "bot@example.com",
+                "api_token", "jira-token",
+                "project_key", "AF",
+                "issue_type", "Bug",
+                "triggers", java.util.List.of("QUERY_ESCALATED"),
+                "bidirectional_sync", true,
+                "webhook_secret", "hook-secret"));
+    }
+
+    @Test
+    void encodesJiraChannelEncryptsSecretsAndMasksOnRead() {
+        var json = codec.encodeForPersistence(NotificationChannelType.JIRA, jiraInput());
+
+        assertThat(json).contains("api_token_encrypted")
+                .contains("enc:jira-token")
+                .contains("webhook_secret_encrypted")
+                .doesNotContain("\"api_token\"")
+                .doesNotContain("\"webhook_secret\"");
+
+        var view = codec.decodeForApi(json);
+        assertThat(view).containsEntry("api_token", "********")
+                .containsEntry("webhook_secret", "********")
+                .doesNotContainKey("api_token_encrypted")
+                .doesNotContainKey("webhook_secret_encrypted");
+
+        var typed = codec.decodeJira(json);
+        assertThat(typed.baseUrl().toString()).isEqualTo("https://example.atlassian.net");
+        assertThat(typed.userEmail()).isEqualTo("bot@example.com");
+        assertThat(typed.apiTokenPlain()).isEqualTo("jira-token");
+        assertThat(typed.projectKey()).isEqualTo("AF");
+        assertThat(typed.issueType()).isEqualTo("Bug");
+        assertThat(typed.triggers()).containsExactly(TicketingTrigger.QUERY_ESCALATED);
+        assertThat(typed.bidirectionalSync()).isTrue();
+        assertThat(typed.webhookSecretPlain()).isEqualTo("hook-secret");
+    }
+
+    @Test
+    void jiraIssueTypeDefaultsToTaskAndSyncDefaultsToFalse() {
+        var json = codec.encodeForPersistence(NotificationChannelType.JIRA, Map.of(
+                "base_url", "https://example.atlassian.net",
+                "user_email", "bot@example.com",
+                "api_token", "jira-token",
+                "project_key", "AF",
+                "triggers", java.util.List.of("QUERY_REJECTED")));
+
+        var typed = codec.decodeJira(json);
+        assertThat(typed.issueType()).isEqualTo("Task");
+        assertThat(typed.bidirectionalSync()).isFalse();
+        assertThat(typed.webhookSecretPlain()).isNull();
+        assertThat(typed.approveStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_APPROVE_STATUSES);
+        assertThat(typed.rejectStatuses())
+                .isEqualTo(TicketingChannelConfig.DEFAULT_REJECT_STATUSES);
+    }
+
+    @Test
+    void rejectsJiraWithoutRequiredKeys() {
+        for (var missing : new String[]{"base_url", "user_email", "project_key", "api_token"}) {
+            var input = jiraInput();
+            input.remove(missing);
+            assertThatThrownBy(() -> codec.encodeForPersistence(
+                    NotificationChannelType.JIRA, input))
+                    .as("missing " + missing)
+                    .isInstanceOf(NotificationChannelConfigException.class)
+                    .hasMessageContaining(missing);
+        }
+    }
+
+    @Test
+    void rejectsJiraWithoutTriggersAndSyncWithoutSecret() {
+        var noTriggers = jiraInput();
+        noTriggers.put("triggers", java.util.List.of());
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.JIRA, noTriggers))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("triggers");
+
+        var noSecret = jiraInput();
+        noSecret.remove("webhook_secret");
+        assertThatThrownBy(() -> codec.encodeForPersistence(
+                NotificationChannelType.JIRA, noSecret))
+                .isInstanceOf(NotificationChannelConfigException.class)
+                .hasMessageContaining("webhook_secret");
+    }
+
+    @Test
+    void mergePreservesJiraApiTokenOnMaskAndRotatesOnNewValue() {
+        var original = codec.encodeForPersistence(NotificationChannelType.JIRA, jiraInput());
+
+        var kept = codec.mergeForPersistence(NotificationChannelType.JIRA, original, Map.of(
+                "api_token", "********"));
+        assertThat(codec.decodeJira(kept).apiTokenPlain()).isEqualTo("jira-token");
+
+        var rotated = codec.mergeForPersistence(NotificationChannelType.JIRA, original, Map.of(
+                "api_token", "rotated"));
+        assertThat(codec.decodeJira(rotated).apiTokenPlain()).isEqualTo("rotated");
+    }
+
     /**
      * Trivial reversible "encryption" used to exercise the round-trip without depending on
      * core's package-private AES helper. Prepends a marker so encrypted values are visibly

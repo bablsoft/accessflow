@@ -171,6 +171,40 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void linkedTicketsAreEmptyForThreeArgOverloadAndNullList() {
+        assertThat(QueryDetailResponse.from(minimalView()).linkedTickets()).isEmpty();
+        assertThat(QueryDetailResponse.from(minimalView(), null).linkedTickets()).isEmpty();
+        assertThat(QueryDetailResponse.from(minimalView(), null, null).linkedTickets()).isEmpty();
+        assertThat(QueryDetailResponse.from(minimalView(), null, null, null).linkedTickets())
+                .isEmpty();
+    }
+
+    @Test
+    void linkedTicketsAreMappedFromQueryTicketViews() {
+        var ticketId = UUID.randomUUID();
+        var createdAt = Instant.parse("2026-07-01T09:00:00Z");
+        var updatedAt = Instant.parse("2026-07-01T10:00:00Z");
+        var ticket = new com.bablsoft.accessflow.core.api.QueryTicketView(
+                ticketId, UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "SERVICENOW", "QUERY_REJECTED", "sys-id-1", "INC0010023",
+                "https://sn.example/incident/1", "Resolved", "Fixed", createdAt, updatedAt);
+
+        var response = QueryDetailResponse.from(minimalView(), null, null, List.of(ticket));
+
+        assertThat(response.linkedTickets()).hasSize(1);
+        var out = response.linkedTickets().get(0);
+        assertThat(out.id()).isEqualTo(ticketId);
+        assertThat(out.system()).isEqualTo("SERVICENOW");
+        assertThat(out.triggerEvent()).isEqualTo("QUERY_REJECTED");
+        assertThat(out.externalKey()).isEqualTo("INC0010023");
+        assertThat(out.url()).isEqualTo("https://sn.example/incident/1");
+        assertThat(out.status()).isEqualTo("Resolved");
+        assertThat(out.resolution()).isEqualTo("Fixed");
+        assertThat(out.createdAt()).isEqualTo(createdAt);
+        assertThat(out.updatedAt()).isEqualTo(updatedAt);
+    }
+
+    @Test
     void approvedByGrantIsNullWithoutGrantProvenance() {
         var response = QueryDetailResponse.from(minimalView());
 

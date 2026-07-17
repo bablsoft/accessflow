@@ -179,6 +179,7 @@ class MsTeamsPayloadFactory {
             case QUERY_SUBMITTED -> "🔍 New Query Awaiting Review";
             case QUERY_APPROVED -> "✅ Query Approved";
             case QUERY_REJECTED -> "❌ Query Rejected";
+            case QUERY_ESCALATED -> "⚠️ Query Escalated for Review";
             case REVIEW_TIMEOUT -> "⌛ Query Auto-Rejected (review timeout)";
             case AI_HIGH_RISK -> "🚨 AI Flagged High-Risk Query";
             case TEST -> "AccessFlow Test";

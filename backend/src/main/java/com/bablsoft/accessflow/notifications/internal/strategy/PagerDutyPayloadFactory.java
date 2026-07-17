@@ -138,6 +138,7 @@ class PagerDutyPayloadFactory {
                 : ctx.datasourceName();
         return switch (ctx.eventType()) {
             case AI_HIGH_RISK -> "AccessFlow: AI flagged a CRITICAL-risk query on " + datasource;
+            case QUERY_ESCALATED -> "AccessFlow: a routing policy escalated a query on " + datasource;
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
             case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             case BREAK_GLASS_EXECUTED -> "AccessFlow: break-glass query executed on " + datasource;

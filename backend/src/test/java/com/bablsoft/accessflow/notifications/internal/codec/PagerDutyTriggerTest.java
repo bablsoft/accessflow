@@ -15,6 +15,8 @@ class PagerDutyTriggerTest {
                 .isEqualTo(NotificationEventType.AI_HIGH_RISK);
         assertThat(PagerDutyTrigger.REVIEW_TIMEOUT.eventType())
                 .isEqualTo(NotificationEventType.REVIEW_TIMEOUT);
+        assertThat(PagerDutyTrigger.ESCALATION.eventType())
+                .isEqualTo(NotificationEventType.QUERY_ESCALATED);
     }
 
     @Test
@@ -23,6 +25,8 @@ class PagerDutyTriggerTest {
                 .contains(PagerDutyTrigger.CRITICAL_RISK);
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.REVIEW_TIMEOUT))
                 .contains(PagerDutyTrigger.REVIEW_TIMEOUT);
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.QUERY_ESCALATED))
+                .contains(PagerDutyTrigger.ESCALATION);
     }
 
     @Test
@@ -39,6 +43,8 @@ class PagerDutyTriggerTest {
                 .isEqualTo(PagerDutyTrigger.CRITICAL_RISK);
         assertThat(PagerDutyTrigger.fromConfig(" REVIEW_TIMEOUT "))
                 .isEqualTo(PagerDutyTrigger.REVIEW_TIMEOUT);
+        assertThat(PagerDutyTrigger.fromConfig("escalation"))
+                .isEqualTo(PagerDutyTrigger.ESCALATION);
     }
 
     @Test

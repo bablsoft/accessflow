@@ -11,7 +11,7 @@ import org.springframework.web.client.RestClient;
 
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({NotificationsProperties.class, SlackProperties.class,
-        PushProperties.class})
+        PushProperties.class, TicketingProperties.class})
 class NotificationsConfiguration {
 
     // @Primary so the notification strategies' by-type RestClient injection keeps resolving now

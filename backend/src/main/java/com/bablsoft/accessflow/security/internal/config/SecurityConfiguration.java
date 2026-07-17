@@ -141,6 +141,10 @@ class SecurityConfiguration {
                         // cannot send an Authorization header on these server-to-server posts.
                         .requestMatchers("/api/v1/integrations/slack/actions",
                                 "/api/v1/integrations/slack/commands").permitAll()
+                        // Ticketing status callbacks (AF-453) authenticate via the
+                        // X-AccessFlow-Signature HMAC keyed by the channel's webhook_secret.
+                        .requestMatchers("/api/v1/integrations/servicenow/webhook/**",
+                                "/api/v1/integrations/jira/webhook/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // Actuator health + info are consumed unauthenticated by k8s probes and
                         // by the frontend version footer (see docs/09-deployment.md). The exposure

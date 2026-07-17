@@ -224,6 +224,29 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void queryEscalatedTargetsSameReviewerSetAsQuerySubmitted() {
+        var reviewerId = UUID.randomUUID();
+        var rule = new ApproverRule(reviewerId, null, 1);
+        when(reviewPlanLookup.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(plan(List.of(rule), List.of())));
+        when(userQuery.findById(reviewerId)).thenReturn(Optional.of(user(reviewerId,
+                "rev@example.com", UserRoleType.REVIEWER)));
+
+        var submitted = builder
+                .build(NotificationEventType.QUERY_SUBMITTED, queryId, null, null, null)
+                .orElseThrow();
+        var escalated = builder
+                .build(NotificationEventType.QUERY_ESCALATED, queryId, null, null, null)
+                .orElseThrow();
+
+        assertThat(escalated.eventType()).isEqualTo(NotificationEventType.QUERY_ESCALATED);
+        assertThat(escalated.recipients()).extracting(RecipientView::email)
+                .containsExactly("rev@example.com");
+        assertThat(escalated.recipients())
+                .containsExactlyElementsOf(submitted.recipients());
+    }
+
+    @Test
     void queryApprovedRecipientsContainOnlySubmitter() {
         var reviewerId = UUID.randomUUID();
         when(userQuery.findById(reviewerId)).thenReturn(Optional.of(

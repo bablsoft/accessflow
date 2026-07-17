@@ -79,6 +79,14 @@ class DiscordPayloadFactoryTest {
     }
 
     @Test
+    void escalatedHeaderIsUsed() {
+        var ctx = ctx(NotificationEventType.QUERY_ESCALATED, null);
+        var body = factory.buildEventBody(ctx,
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("Query Escalated for Review");
+    }
+
+    @Test
     void weeklyDigestRendersDigestFields() {
         var body = factory.buildEventBody(digestCtx(),
                 new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));

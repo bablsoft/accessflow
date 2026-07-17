@@ -181,6 +181,25 @@ class AuditEventListenerTest {
     }
 
     @Test
+    void onQueryAutoApprovedRecordsReasonOnlyProvenanceForExternalTickets() {
+        var queryId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoApproved(new QueryAutoApprovedEvent(queryId, null,
+                "ServiceNow ticket INC1 resolved", null, null));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_APPROVED);
+        assertThat(entry.metadata()).containsEntry("auto_approved", true);
+        assertThat(entry.metadata()).containsEntry("reason", "ServiceNow ticket INC1 resolved");
+        assertThat(entry.metadata()).doesNotContainKey("source");
+        assertThat(entry.metadata()).doesNotContainKey("routing_policy_id");
+        assertThat(entry.metadata()).doesNotContainKey("access_grant_id");
+    }
+
+    @Test
     void onQueryAutoRejectedRecordsRejectedWithPolicyProvenance() {
         var queryId = UUID.randomUUID();
         var policyId = UUID.randomUUID();
@@ -199,6 +218,25 @@ class AuditEventListenerTest {
         assertThat(entry.metadata()).containsEntry("source", "ROUTING_POLICY");
         assertThat(entry.metadata()).containsEntry("routing_policy_id", policyId.toString());
         assertThat(entry.metadata()).containsEntry("reason", "payroll deletes blocked");
+    }
+
+    @Test
+    void onQueryAutoRejectedWithoutPolicyRecordsReasonWithoutRoutingSource() {
+        var queryId = UUID.randomUUID();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot(queryId)));
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        when(auditLogService.record(captor.capture())).thenReturn(UUID.randomUUID());
+
+        listener.onQueryAutoRejected(
+                new com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent(queryId, null,
+                        "Jira ticket AF-1 declined"));
+
+        var entry = captor.getValue();
+        assertThat(entry.action()).isEqualTo(AuditAction.QUERY_REJECTED);
+        assertThat(entry.metadata()).containsEntry("auto_rejected", true);
+        assertThat(entry.metadata()).containsEntry("reason", "Jira ticket AF-1 declined");
+        assertThat(entry.metadata()).doesNotContainKey("source");
+        assertThat(entry.metadata()).doesNotContainKey("routing_policy_id");
     }
 
     @Test

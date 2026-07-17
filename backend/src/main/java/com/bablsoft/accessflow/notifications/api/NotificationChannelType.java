@@ -7,5 +7,7 @@ public enum NotificationChannelType {
     DISCORD,
     TELEGRAM,
     MS_TEAMS,
-    PAGERDUTY
+    PAGERDUTY,
+    SERVICENOW,
+    JIRA
 }
