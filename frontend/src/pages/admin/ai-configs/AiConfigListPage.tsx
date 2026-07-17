@@ -73,7 +73,16 @@ export function AiConfigListPage() {
       title: t('admin.ai_configs.column_name'),
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => <span className="mono">{name}</span>,
+      render: (name: string, row) => (
+        <span className="mono">
+          {name}
+          {row.fallback_priority != null && (
+            <Tag color="orange" style={{ marginLeft: 8 }}>
+              {t('admin.ai_configs.fallback_tag', { priority: row.fallback_priority })}
+            </Tag>
+          )}
+        </span>
+      ),
     },
     {
       title: t('admin.ai_configs.column_provider'),

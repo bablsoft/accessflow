@@ -1476,7 +1476,10 @@
         "remove_pattern": "Supprimer le motif",
         "pattern_placeholder": "p. ex. ignore previous instructions",
         "invalid_regex": "Expression régulière non valide"
-      }
+      },
+      "field_fallback_priority": "Priorité de repli",
+      "fallback_priority_help": "Facultatif. Marque cette configuration comme repli à l'échelle de l'organisation : lorsque la configuration traitant une requête échoue, les replis sont essayés par ordre de priorité croissant (plus petit = premier). Laissez vide si cette configuration n'est pas un repli.",
+      "fallback_tag": "Repli n° {{priority}}"
     },
     "notifications": {
       "title": "Canaux de notification",

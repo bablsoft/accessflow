@@ -292,6 +292,8 @@ export interface AiConfig {
   voting_weight: number;
   guardrail_patterns: string[];
   models: AiConfigModel[];
+  // AF-458 fallback pool: null/absent = not a fallback; lower value = tried first.
+  fallback_priority?: number | null;
   in_use_count: number;
   created_at: string;
   updated_at: string;
@@ -335,6 +337,7 @@ export interface CreateAiConfigInput {
   voting_weight?: number;
   guardrail_patterns?: string[];
   models?: AiConfigModel[];
+  fallback_priority?: number | null;
 }
 
 export interface UpdateAiConfigInput {
@@ -365,6 +368,8 @@ export interface UpdateAiConfigInput {
   voting_weight?: number;
   guardrail_patterns?: string[];
   models?: AiConfigModel[];
+  // undefined = leave unchanged; -1 clears the stored priority (stops being a fallback).
+  fallback_priority?: number | null;
 }
 
 export interface TestAiConfigResult {

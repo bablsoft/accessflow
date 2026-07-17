@@ -1476,7 +1476,10 @@
         "remove_pattern": "Eliminar patrón",
         "pattern_placeholder": "p. ej. ignore previous instructions",
         "invalid_regex": "No es una expresión regular válida"
-      }
+      },
+      "field_fallback_priority": "Prioridad de respaldo",
+      "fallback_priority_help": "Opcional. Marca esta configuración como respaldo para toda la organización: cuando la configuración que atiende una solicitud falla, los respaldos se prueban en orden ascendente de prioridad (menor = primero). Déjelo en blanco si esta configuración no es un respaldo.",
+      "fallback_tag": "Respaldo #{{priority}}"
     },
     "notifications": {
       "title": "Canales de notificación",

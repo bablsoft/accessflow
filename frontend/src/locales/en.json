@@ -1533,7 +1533,10 @@
         "remove_pattern": "Remove pattern",
         "pattern_placeholder": "e.g. ignore previous instructions",
         "invalid_regex": "Not a valid regular expression"
-      }
+      },
+      "field_fallback_priority": "Fallback priority",
+      "fallback_priority_help": "Optional. Marks this config as an organization-wide fallback: when the config handling a request fails, fallbacks are tried in ascending priority order (lower = tried first). Leave blank if this config is not a fallback.",
+      "fallback_tag": "Fallback #{{priority}}"
     },
     "notifications": {
       "title": "Notification channels",
