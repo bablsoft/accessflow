@@ -48,6 +48,7 @@ function makeQuery(overrides: Partial<QueryDetail>): QueryDetail {
     matched_policy: null,
     approved_by_grant: null,
     review_decisions: [],
+    linked_tickets: [],
     scheduled_for: null,
     created_at: '2026-05-01T09:00:00Z',
     updated_at: '2026-05-01T09:00:00Z',

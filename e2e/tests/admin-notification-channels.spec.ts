@@ -19,6 +19,8 @@ const SLACK_NAME = `e2e-slack-${UNIQUE_SUFFIX}`;
 const WEBHOOK_NAME = `e2e-webhook-${UNIQUE_SUFFIX}`;
 const DISCORD_NAME = `e2e-discord-${UNIQUE_SUFFIX}`;
 const PAGERDUTY_NAME = `e2e-pagerduty-${UNIQUE_SUFFIX}`;
+const SERVICENOW_NAME = `e2e-servicenow-${UNIQUE_SUFFIX}`;
+const JIRA_NAME = `e2e-jira-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -133,7 +135,9 @@ async function deleteChannelViaApi(
 //   6. Row Test action on WEBHOOK (stubbed 502 ProblemDetail) → error toast.
 //   7. Add channel with invalid URL → inline validation, no POST fired.
 //   8. Delete SLACK via Popconfirm → card removed.
-//   9. Delete WEBHOOK + DISCORD + PAGERDUTY via Popconfirm → cards removed.
+//   3c. Create SERVICENOW ticketing channel via modal → card appears (AF-453).
+//   3d. Create JIRA ticketing channel with bi-directional sync via modal → card appears (AF-453).
+//   9. Delete WEBHOOK + DISCORD + PAGERDUTY + SERVICENOW + JIRA via Popconfirm → cards removed.
 //
 // describe.serial because the SLACK card moves through tests 1 → 4 → 5 → 8 and
 // the WEBHOOK / DISCORD cards persist between tests 2/3 and the delete loop.
@@ -289,6 +293,83 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
       timeout: 10_000,
     });
     await expect(page.getByText(PAGERDUTY_NAME, { exact: true })).toBeVisible();
+  });
+
+  test('3c) create SERVICENOW channel via modal → card appears', async ({ page }) => {
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/notifications');
+    await waitForChannelsListReady(page);
+
+    await page.getByRole('button', { name: 'Add channel' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    await dialog.getByLabel('Name', { exact: true }).fill(SERVICENOW_NAME);
+    await selectAntdOption(dialog, 'Type', 'ServiceNow');
+    await dialog.getByLabel('Instance URL').fill('https://e2e.service-now.com');
+    await dialog.getByLabel('Username').fill('integration.user');
+    await dialog.getByLabel('Password').fill(`snow-${UNIQUE_SUFFIX}`);
+    await dialog.getByRole('checkbox', { name: 'Query rejected' }).check();
+    await dialog.getByRole('checkbox', { name: 'Review timeout', exact: true }).check();
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/notification-channels$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await dialog.getByRole('button', { name: 'Create channel' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as { id: string; name: string };
+    created.set('servicenow', { id: body.id, name: body.name });
+    expect(body.name).toBe(SERVICENOW_NAME);
+
+    await expect(page.getByText('Channel created', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText(SERVICENOW_NAME, { exact: true })).toBeVisible();
+  });
+
+  test('3d) create JIRA channel via modal (bi-directional sync) → card appears', async ({
+    page,
+  }) => {
+    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto('/admin/notifications');
+    await waitForChannelsListReady(page);
+
+    await page.getByRole('button', { name: 'Add channel' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add notification channel' });
+    await expect(dialog).toBeVisible({ timeout: 10_000 });
+
+    await dialog.getByLabel('Name', { exact: true }).fill(JIRA_NAME);
+    await selectAntdOption(dialog, 'Type', 'Jira');
+    await dialog.getByLabel('Site URL').fill('https://e2e.atlassian.net');
+    await dialog.getByLabel('Account email').fill('bot@accessflow.test');
+    await dialog.getByLabel('API token').fill(`jira-${UNIQUE_SUFFIX}`);
+    await dialog.getByLabel('Project key').fill('SEC');
+    await dialog.getByRole('checkbox', { name: 'Routing-policy escalation' }).check();
+    // Enabling bi-directional sync reveals the required webhook secret field.
+    await dialog.getByLabel('Bi-directional status sync').click();
+    await dialog.getByLabel('Webhook secret').fill(`whsec-${UNIQUE_SUFFIX}`);
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/admin\/notification-channels$/.test(r.url()),
+      { timeout: 15_000 },
+    );
+    await dialog.getByRole('button', { name: 'Create channel' }).click();
+    const createResponse = await createResponsePromise;
+    expect(createResponse.status()).toBe(201);
+    const body = (await createResponse.json()) as { id: string; name: string };
+    created.set('jira', { id: body.id, name: body.name });
+    expect(body.name).toBe(JIRA_NAME);
+
+    await expect(page.getByText('Channel created', { exact: true })).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(page.getByText(JIRA_NAME, { exact: true })).toBeVisible();
   });
 
   test('4) edit SLACK channel name → card reflects new name', async ({ page }) => {
@@ -504,25 +585,33 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     created.delete('slack');
   });
 
-  test('9) delete WEBHOOK + DISCORD + PAGERDUTY via Popconfirm → cards removed', async ({
+  test('9) delete WEBHOOK + DISCORD + PAGERDUTY + SERVICENOW + JIRA via Popconfirm → cards removed', async ({
     page,
   }) => {
     const webhook = created.get('webhook');
     const discord = created.get('discord');
     const pagerduty = created.get('pagerduty');
+    const servicenow = created.get('servicenow');
+    const jira = created.get('jira');
     test.skip(
-      !webhook || !discord || !pagerduty,
-      'Tests 2, 3 and 3b must succeed to seed WEBHOOK + DISCORD + PAGERDUTY',
+      !webhook || !discord || !pagerduty || !servicenow || !jira,
+      'Tests 2, 3, 3b, 3c and 3d must succeed to seed the deletable channels',
     );
 
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
-    const targets: Array<{ key: 'webhook' | 'discord' | 'pagerduty'; id: string; name: string }> = [
+    const targets: Array<{
+      key: 'webhook' | 'discord' | 'pagerduty' | 'servicenow' | 'jira';
+      id: string;
+      name: string;
+    }> = [
       { key: 'webhook', id: webhook!.id, name: WEBHOOK_NAME },
       { key: 'discord', id: discord!.id, name: DISCORD_NAME },
       { key: 'pagerduty', id: pagerduty!.id, name: PAGERDUTY_NAME },
+      { key: 'servicenow', id: servicenow!.id, name: SERVICENOW_NAME },
+      { key: 'jira', id: jira!.id, name: JIRA_NAME },
     ];
 
     for (const target of targets) {

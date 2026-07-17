@@ -15,6 +15,7 @@ import {
 import {
   AlertOutlined,
   ApiOutlined,
+  BugOutlined,
   DeleteOutlined,
   EditOutlined,
   MailOutlined,
@@ -25,6 +26,7 @@ import {
   RocketOutlined,
   SendOutlined,
   TeamOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -60,6 +62,8 @@ const CHANNEL_TYPES: readonly ChannelType[] = [
   'TELEGRAM',
   'MS_TEAMS',
   'PAGERDUTY',
+  'SERVICENOW',
+  'JIRA',
 ] as const;
 
 interface ChannelFormValues {
@@ -85,6 +89,20 @@ interface ChannelFormValues {
   routing_key?: string;
   default_severity?: string;
   triggers?: string[];
+  instance_url?: string;
+  sn_username?: string;
+  password?: string;
+  assignment_group?: string;
+  urgency?: number;
+  base_url?: string;
+  user_email?: string;
+  api_token?: string;
+  project_key?: string;
+  issue_type?: string;
+  bidirectional_sync?: boolean;
+  webhook_secret?: string;
+  approve_statuses?: string[];
+  reject_statuses?: string[];
 }
 
 export function NotificationsPage() {
@@ -283,6 +301,10 @@ function ChannelCard({
         return <TeamOutlined style={{ fontSize: 18 }} />;
       case 'PAGERDUTY':
         return <AlertOutlined style={{ fontSize: 18 }} />;
+      case 'SERVICENOW':
+        return <ToolOutlined style={{ fontSize: 18 }} />;
+      case 'JIRA':
+        return <BugOutlined style={{ fontSize: 18 }} />;
       default:
         return <SendOutlined style={{ fontSize: 18 }} />;
     }
@@ -303,6 +325,10 @@ function ChannelCard({
         return '#4b53bc';
       case 'PAGERDUTY':
         return '#06ac38';
+      case 'SERVICENOW':
+        return '#0f8577';
+      case 'JIRA':
+        return '#0052cc';
       default:
         return '#64748b';
     }
@@ -461,6 +487,30 @@ function ConfigPreview({ channel }: { channel: NotificationChannel }) {
       </>
     );
   }
+  if (channel.channel_type === 'SERVICENOW') {
+    const triggers = Array.isArray(cfg.triggers) ? (cfg.triggers as string[]) : [];
+    return (
+      <>
+        instance: {String(cfg.instance_url ?? '—')}
+        <br />
+        triggers: {triggers.length ? triggers.join(', ') : '—'}
+        <br />
+        sync: {cfg.bidirectional_sync ? 'on' : 'off'}
+      </>
+    );
+  }
+  if (channel.channel_type === 'JIRA') {
+    const triggers = Array.isArray(cfg.triggers) ? (cfg.triggers as string[]) : [];
+    return (
+      <>
+        project: {String(cfg.project_key ?? '—')} @ {String(cfg.base_url ?? '—')}
+        <br />
+        triggers: {triggers.length ? triggers.join(', ') : '—'}
+        <br />
+        sync: {cfg.bidirectional_sync ? 'on' : 'off'}
+      </>
+    );
+  }
   const url = String(cfg.url ?? '');
   return (
     <>
@@ -487,6 +537,7 @@ function ChannelFormModal({
   const { t } = useTranslation();
   const [form] = Form.useForm<ChannelFormValues>();
   const channelType = Form.useWatch('channel_type', form);
+  const bidirectionalSync = Form.useWatch('bidirectional_sync', form);
 
   useEffect(() => {
     if (!open) return;
@@ -515,6 +566,21 @@ function ChannelFormModal({
         routing_key: c.routing_key as string | undefined,
         default_severity: c.default_severity as string | undefined,
         triggers: c.triggers as string[] | undefined,
+        instance_url: c.instance_url as string | undefined,
+        sn_username:
+          editing.channel_type === 'SERVICENOW' ? (c.username as string | undefined) : undefined,
+        password: c.password as string | undefined,
+        assignment_group: c.assignment_group as string | undefined,
+        urgency: c.urgency as number | undefined,
+        base_url: c.base_url as string | undefined,
+        user_email: c.user_email as string | undefined,
+        api_token: c.api_token as string | undefined,
+        project_key: c.project_key as string | undefined,
+        issue_type: c.issue_type as string | undefined,
+        bidirectional_sync: c.bidirectional_sync as boolean | undefined,
+        webhook_secret: c.webhook_secret as string | undefined,
+        approve_statuses: c.approve_statuses as string[] | undefined,
+        reject_statuses: c.reject_statuses as string[] | undefined,
       });
     } else {
       form.resetFields();
@@ -552,6 +618,27 @@ function ChannelFormModal({
       setIf('routing_key', values.routing_key);
       setIf('default_severity', values.default_severity);
       if (values.triggers && values.triggers.length) config['triggers'] = values.triggers;
+    } else if (values.channel_type === 'SERVICENOW' || values.channel_type === 'JIRA') {
+      if (values.channel_type === 'SERVICENOW') {
+        setIf('instance_url', values.instance_url);
+        setIf('username', values.sn_username);
+        setIf('password', values.password);
+        setIf('assignment_group', values.assignment_group);
+        setIf('urgency', values.urgency);
+      } else {
+        setIf('base_url', values.base_url);
+        setIf('user_email', values.user_email);
+        setIf('api_token', values.api_token);
+        setIf('project_key', values.project_key);
+        setIf('issue_type', values.issue_type);
+      }
+      if (values.triggers && values.triggers.length) config['triggers'] = values.triggers;
+      config['bidirectional_sync'] = !!values.bidirectional_sync;
+      if (values.bidirectional_sync) setIf('webhook_secret', values.webhook_secret);
+      if (values.approve_statuses && values.approve_statuses.length)
+        config['approve_statuses'] = values.approve_statuses;
+      if (values.reject_statuses && values.reject_statuses.length)
+        config['reject_statuses'] = values.reject_statuses;
     } else {
       setIf('url', values.url);
       setIf('secret', values.secret);
@@ -795,9 +882,152 @@ function ChannelFormModal({
                     value: 'REVIEW_TIMEOUT',
                     label: t('admin.notifications.label_pagerduty_trigger_review_timeout'),
                   },
+                  {
+                    value: 'ESCALATION',
+                    label: t('admin.notifications.label_pagerduty_trigger_escalation'),
+                  },
                 ]}
               />
             </Form.Item>
+          </>
+        )}
+
+        {channelType === 'SERVICENOW' && (
+          <>
+            <Form.Item
+              name="instance_url"
+              label={t('admin.notifications.label_servicenow_instance_url')}
+              rules={[{ required: true, type: 'url' }]}
+            >
+              <Input placeholder="https://company.service-now.com" />
+            </Form.Item>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item
+                name="sn_username"
+                label={t('admin.notifications.label_servicenow_username')}
+                rules={[{ required: true }]}
+              >
+                <Input autoComplete="off" />
+              </Form.Item>
+              <Form.Item
+                name="password"
+                label={t('admin.notifications.label_servicenow_password')}
+                rules={[{ required: !editing }]}
+              >
+                <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
+              </Form.Item>
+              <Form.Item
+                name="assignment_group"
+                label={t('admin.notifications.label_servicenow_assignment_group')}
+              >
+                <Input placeholder="Database Operations" />
+              </Form.Item>
+              <Form.Item
+                name="urgency"
+                label={t('admin.notifications.label_servicenow_urgency')}
+                rules={[{ type: 'number', min: 1, max: 3 }]}
+              >
+                <InputNumber min={1} max={3} style={{ width: '100%' }} />
+              </Form.Item>
+            </div>
+          </>
+        )}
+
+        {channelType === 'JIRA' && (
+          <>
+            <Form.Item
+              name="base_url"
+              label={t('admin.notifications.label_jira_base_url')}
+              rules={[{ required: true, type: 'url' }]}
+            >
+              <Input placeholder="https://company.atlassian.net" />
+            </Form.Item>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Form.Item
+                name="user_email"
+                label={t('admin.notifications.label_jira_user_email')}
+                rules={[{ required: true, type: 'email' }]}
+              >
+                <Input autoComplete="off" />
+              </Form.Item>
+              <Form.Item
+                name="api_token"
+                label={t('admin.notifications.label_jira_api_token')}
+                rules={[{ required: !editing }]}
+              >
+                <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
+              </Form.Item>
+              <Form.Item
+                name="project_key"
+                label={t('admin.notifications.label_jira_project_key')}
+                rules={[{ required: true }]}
+              >
+                <Input placeholder="SEC" />
+              </Form.Item>
+              <Form.Item name="issue_type" label={t('admin.notifications.label_jira_issue_type')}>
+                <Input placeholder="Task" />
+              </Form.Item>
+            </div>
+          </>
+        )}
+
+        {(channelType === 'SERVICENOW' || channelType === 'JIRA') && (
+          <>
+            <Form.Item
+              name="triggers"
+              label={t('admin.notifications.label_ticketing_triggers')}
+              rules={[{ required: true, type: 'array', min: 1 }]}
+            >
+              <Checkbox.Group
+                options={[
+                  {
+                    value: 'QUERY_REJECTED',
+                    label: t('admin.notifications.label_ticketing_trigger_query_rejected'),
+                  },
+                  {
+                    value: 'REVIEW_TIMEOUT',
+                    label: t('admin.notifications.label_ticketing_trigger_review_timeout'),
+                  },
+                  {
+                    value: 'QUERY_ESCALATED',
+                    label: t('admin.notifications.label_ticketing_trigger_query_escalated'),
+                  },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item
+              name="bidirectional_sync"
+              label={t('admin.notifications.label_ticketing_bidirectional_sync')}
+              valuePropName="checked"
+              extra={t('admin.notifications.help_ticketing_bidirectional_sync')}
+            >
+              <Switch />
+            </Form.Item>
+            {bidirectionalSync && (
+              <>
+                <Form.Item
+                  name="webhook_secret"
+                  label={t('admin.notifications.label_ticketing_webhook_secret')}
+                  rules={[{ required: !editing }]}
+                >
+                  <Input.Password placeholder={editing ? MASK : ''} autoComplete="new-password" />
+                </Form.Item>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Form.Item
+                    name="approve_statuses"
+                    label={t('admin.notifications.label_ticketing_approve_statuses')}
+                  >
+                    <Select mode="tags" open={false} suffixIcon={null} placeholder="resolved, done…" />
+                  </Form.Item>
+                  <Form.Item
+                    name="reject_statuses"
+                    label={t('admin.notifications.label_ticketing_reject_statuses')}
+                  >
+                    <Select mode="tags" open={false} suffixIcon={null} placeholder="rejected, declined…" />
+                  </Form.Item>
+                </div>
+              </>
+            )}
           </>
         )}
       </Form>
