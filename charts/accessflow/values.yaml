@@ -94,9 +94,10 @@ externalDatabase:
 #
 # AccessFlow uses a dedicated Postgres role to INSERT into audit_log so the general
 # DB_USER can have UPDATE/DELETE/TRUNCATE revoked on that table. The role is provisioned
-# by `postgresql.primary.initdb.scripts` (see above) when the bundled subchart is in
-# use; for external Postgres the operator provisions it manually — see
-# docs/09-deployment.md → "audit_log role separation".
+# by the backend Deployment's `audit-role-provisioner` initContainer (see
+# templates/backend-deployment.yaml — #228 explains why not bitnami initdb scripts) when
+# the bundled subchart is in use; for external Postgres the operator provisions it
+# manually — see docs/09-deployment.md → "audit_log role separation".
 audit:
   db:
     # Username of the dedicated audit-writer role. Must match what the initdb script
@@ -108,6 +109,75 @@ audit:
     # postgresql.enabled=true: the chart generates and pins a random password under
     # `{release}-accessflow-audit-db` (kept across uninstall in lock-step with the
     # postgresql PVC, same as the main DB Secret).
+    existingSecret: ""
+    existingSecretPasswordKey: password
+
+# --- Backup & restore for the AccessFlow database (AF-458).
+#
+# `backup` renders a CronJob that runs `pg_dump -Fc` of the AccessFlow database
+# (bundled subchart or externalDatabase) onto a dedicated backups PVC, prunes to
+# the newest `retention.keepLast` dumps, and — when `upload.enabled` — ships the
+# directory to any rclone remote (S3, GCS, Azure, SFTP, …). NFS destinations
+# need no upload step: point `persistence.storageClass`/`existingClaim` at an
+# NFS-backed volume. Restore path + full DR runbook: docs/09-deployment.md →
+# "Disaster Recovery".
+backup:
+  enabled: false
+  # Cron schedule (UTC). Default: daily at 02:00.
+  schedule: "0 2 * * *"
+  retention:
+    # Prune the backup directory to this many newest dumps after each run.
+    keepLast: 7
+  image:
+    # Needs pg_dump 18+ (same image the audit-role-provisioner initContainer uses).
+    repository: docker.io/library/postgres
+    tag: 18-alpine
+  persistence:
+    # Use an operator-managed PVC (e.g. NFS-backed) instead of a chart-created one.
+    existingClaim: ""
+    size: 20Gi
+    storageClass: ""
+    accessMode: ReadWriteOnce
+  # Credentials for pg_dump against an EXTERNAL Postgres (postgresql.enabled=false).
+  # Defaults to the externalDatabase user — after V38 the app role keeps SELECT on
+  # audit_log, which is all pg_dump needs. Ignored for the bundled subchart (the
+  # CronJob connects as the `postgres` admin there).
+  db:
+    username: ""             # defaults to externalDatabase.username
+    existingSecret: ""       # defaults to externalDatabase.existingSecret
+    existingSecretPasswordKey: password
+  upload:
+    enabled: false
+    # rclone destination, e.g. "s3backup:my-bucket/accessflow". The remote name
+    # must exist in the rclone.conf provided via existingSecret.
+    remote: ""
+    # Operator Secret with an `rclone.conf` key holding the rclone config file.
+    existingSecret: ""
+    image:
+      repository: docker.io/rclone/rclone
+      tag: "1.74.4"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+# One-shot restore Job (helm hook). Rendered only when BOTH `enabled=true` and
+# `dumpFile` name a dump on the backups volume; runs on install/upgrade, provisions
+# the audit role, then `pg_restore --clean --if-exists`. Scale the backend to 0
+# first — full runbook in docs/09-deployment.md → "Disaster Recovery".
+restore:
+  enabled: false
+  # File name (not path) of the dump on the backups volume,
+  # e.g. "accessflow-20260717T020000Z.dump".
+  dumpFile: ""
+  # Admin credentials for an EXTERNAL Postgres (postgresql.enabled=false). The role
+  # must be able to DROP/CREATE objects owned by both the app and audit roles —
+  # in practice the `postgres` superuser. Ignored for the bundled subchart.
+  db:
+    username: postgres
     existingSecret: ""
     existingSecretPasswordKey: password
 

@@ -1,0 +1,20 @@
+{{- if and .Values.backup.enabled (not .Values.backup.persistence.existingClaim) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "accessflow.fullname" . }}-backups
+  labels:
+    {{- include "accessflow.labels" . | nindent 4 }}
+  annotations:
+    # Backups must survive `helm uninstall` — they are the disaster-recovery input.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ .Values.backup.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.backup.persistence.size }}
+  {{- with .Values.backup.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+{{- end }}

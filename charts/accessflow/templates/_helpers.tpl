@@ -401,3 +401,90 @@ value. That's expected: lookup is only meaningful against a live cluster.
 {{- .default -}}
 {{- end -}}
 {{- end }}
+
+{{/*
+Backup / restore (AF-458): PGHOST / PGPORT / PGDATABASE env entries for the
+AccessFlow database — bundled subchart service or externalDatabase.
+*/}}
+{{- define "accessflow.backup.dbConnectionEnv" -}}
+{{- if .Values.postgresql.enabled -}}
+- name: PGHOST
+  value: {{ printf "%s-postgresql" .Release.Name | quote }}
+- name: PGPORT
+  value: "5432"
+- name: PGDATABASE
+  value: {{ .Values.postgresql.auth.database | quote }}
+{{- else -}}
+- name: PGHOST
+  value: {{ required "externalDatabase.host is required when postgresql.enabled=false" .Values.externalDatabase.host | quote }}
+- name: PGPORT
+  value: {{ .Values.externalDatabase.port | quote }}
+- name: PGDATABASE
+  value: {{ .Values.externalDatabase.database | quote }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Backup (AF-458): the pg_dump container body — shared between the CronJob's
+plain-container mode and its initContainer-plus-rclone mode. Bundled subchart
+dumps as the `postgres` admin (same idiom as the audit-role-provisioner);
+external Postgres defaults to the externalDatabase credentials (the app role
+keeps SELECT on audit_log per V38), overridable via backup.db.*.
+*/}}
+{{- define "accessflow.backup.dumpContainer" -}}
+image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+imagePullPolicy: IfNotPresent
+env:
+  {{- include "accessflow.backup.dbConnectionEnv" . | nindent 2 }}
+  {{- if .Values.postgresql.enabled }}
+  - name: PGUSER
+    value: postgres
+  - name: PGPASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: {{ include "accessflow.db.passwordSecret" . }}
+        key: postgres-password
+  {{- else }}
+  - name: PGUSER
+    value: {{ .Values.backup.db.username | default .Values.externalDatabase.username | quote }}
+  - name: PGPASSWORD
+    valueFrom:
+      secretKeyRef:
+        {{- if .Values.backup.db.existingSecret }}
+        name: {{ .Values.backup.db.existingSecret }}
+        key: {{ .Values.backup.db.existingSecretPasswordKey | default "password" }}
+        {{- else }}
+        name: {{ include "accessflow.db.passwordSecret" . }}
+        key: {{ include "accessflow.db.passwordSecretKey" . }}
+        {{- end }}
+  {{- end }}
+  - name: KEEP_LAST
+    value: {{ .Values.backup.retention.keepLast | quote }}
+  - name: BACKUP_DIR
+    value: /backups
+command:
+  - /bin/bash
+  - -euo
+  - pipefail
+  - -c
+  - |
+    for attempt in $(seq 1 12); do
+      if pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" >/dev/null 2>&1; then
+        break
+      fi
+      echo "waiting for postgres (attempt $attempt/12)..."
+      sleep 5
+    done
+    ts="$(date -u +%Y%m%dT%H%M%SZ)"
+    echo "dumping ${PGDATABASE} to ${BACKUP_DIR}/accessflow-${ts}.dump"
+    pg_dump -Fc -w -f "${BACKUP_DIR}/accessflow-${ts}.dump" "${PGDATABASE}"
+    # Prune to the newest KEEP_LAST dumps (name-embedded UTC timestamps sort with ls -1t).
+    ls -1t "${BACKUP_DIR}"/accessflow-*.dump | tail -n +$((KEEP_LAST + 1)) | xargs -r rm -f
+    echo "backup complete; retained dumps:"
+    ls -lh "${BACKUP_DIR}"
+volumeMounts:
+  - name: backups
+    mountPath: /backups
+resources:
+  {{- toYaml .Values.backup.resources | nindent 2 }}
+{{- end }}

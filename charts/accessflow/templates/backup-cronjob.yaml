@@ -1,0 +1,74 @@
+{{- if .Values.backup.enabled -}}
+{{- if .Values.backup.upload.enabled }}
+{{- $_ := required "backup.upload.remote is required when backup.upload.enabled=true" .Values.backup.upload.remote }}
+{{- $_ := required "backup.upload.existingSecret (a Secret with an rclone.conf key) is required when backup.upload.enabled=true" .Values.backup.upload.existingSecret }}
+{{- end }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "accessflow.fullname" . }}-backup
+  labels:
+    {{- include "accessflow.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            {{- include "accessflow.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            # uid 70 = postgres in the alpine image; fsGroup makes the PVC writable.
+            runAsUser: 70
+            fsGroup: 70
+          {{- if .Values.backup.upload.enabled }}
+          # With upload enabled the dump runs as an initContainer and the main
+          # container ships the whole backup directory to the rclone remote.
+          initContainers:
+            - name: pg-dump
+              {{- include "accessflow.backup.dumpContainer" . | nindent 14 }}
+          containers:
+            - name: rclone-upload
+              image: "{{ .Values.backup.upload.image.repository }}:{{ .Values.backup.upload.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              args:
+                - --config
+                - /etc/rclone/rclone.conf
+                - copy
+                - /backups
+                - {{ .Values.backup.upload.remote | quote }}
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+                  readOnly: true
+                - name: rclone-config
+                  mountPath: /etc/rclone
+                  readOnly: true
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+          {{- else }}
+          containers:
+            - name: pg-dump
+              {{- include "accessflow.backup.dumpContainer" . | nindent 14 }}
+          {{- end }}
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: {{ .Values.backup.persistence.existingClaim | default (printf "%s-backups" (include "accessflow.fullname" .)) }}
+            {{- if .Values.backup.upload.enabled }}
+            - name: rclone-config
+              secret:
+                secretName: {{ .Values.backup.upload.existingSecret }}
+                items:
+                  - key: rclone.conf
+                    path: rclone.conf
+            {{- end }}
+{{- end }}

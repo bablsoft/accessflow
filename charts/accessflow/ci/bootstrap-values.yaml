@@ -37,6 +37,12 @@ bootstrap:
       provider: ANTHROPIC
       model: claude-sonnet-4-20250514
       apiKeySecretRef: { name: accessflow-bootstrap-secrets, key: anthropic-key }
+    - name: local-ollama
+      provider: OLLAMA
+      model: llama3.1:70b
+      endpoint: http://ollama:11434
+      # AF-458: org-wide fallback pool — 0 renders even though it's falsy in Go templates.
+      fallbackPriority: 0
   datasources:
     - name: prod-postgres
       dbType: POSTGRESQL

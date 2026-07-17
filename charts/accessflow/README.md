@@ -46,6 +46,7 @@ helm install accessflow accessflow/accessflow \
 | [`examples/values-external-services.yaml`](examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
 | [`examples/values-airgapped.yaml`](examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
 | [`examples/values-observability.yaml`](examples/values-observability.yaml) | OTLP trace export to a collector + Prometheus scrape annotations + the pre-built Grafana dashboards. |
+| [`examples/values-backup.yaml`](examples/values-backup.yaml) | Nightly `pg_dump` backups to a PVC with retention pruning, optional rclone upload (S3/GCS/…), and the one-shot restore Job (AF-458). |
 
 ### Observability (AF-454)
 
@@ -56,6 +57,23 @@ adds Prometheus scrape annotations for `/actuator/prometheus` (unauthenticated f
 scraping — keep it off the public ingress and restrict with a NetworkPolicy). `dashboards.enabled=true`
 ships the JSON in [`dashboards/`](dashboards/) as a `grafana_dashboard`-labelled ConfigMap that the
 Grafana sidecar auto-imports (query volume, approval SLAs, AI usage/cost, rejection rates, pool stats).
+
+### Backup & restore (AF-458)
+
+`backup.enabled=true` renders a CronJob that `pg_dump -Fc`s the AccessFlow database
+(bundled subchart or `externalDatabase`) onto a dedicated backups PVC (`helm.sh/resource-policy: keep`),
+prunes to the newest `backup.retention.keepLast` dumps, and — with `backup.upload.enabled` —
+ships the directory to any rclone remote (S3, GCS, Azure, SFTP, …) using an operator
+Secret holding `rclone.conf`. NFS destinations need no upload step: point
+`backup.persistence.storageClass` / `.existingClaim` at an NFS-backed volume.
+
+Restore is a one-shot helm-hook Job: scale the backend to 0, then
+`helm upgrade --reuse-values --set restore.enabled=true --set restore.dumpFile=<name>.dump`.
+The Job provisions the audit-writer role and runs `pg_restore --clean --if-exists`
+preserving `audit_log` ownership + ACLs. Afterwards scale the backend back up with
+`ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP=true` (via `backend.env`) to verify every
+organization's audit HMAC chain. Full runbook:
+[docs/09-deployment.md → Disaster Recovery](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md).
 
 ### Bootstrap (declarative admin config)
 
@@ -193,6 +211,11 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `podDisruptionBudget.backend.enabled` | `false` | PDB protecting backend during rolling updates. Off by default — enable on production deployments running ≥ 2 replicas. |
 | `driverCache.persistence.enabled` | `false` | Use a **durable PVC** for the on-demand driver / engine-plugin cache. When `false`, an ephemeral `emptyDir` is mounted at the same path instead — so connectors work out of the box either way; the PVC just avoids re-downloading on restart. A writable cache volume is **always** mounted (the default `~/.accessflow/drivers` is not writable under `runAsUser: 1000`, which would leave every non-bundled connector `UNAVAILABLE`). |
 | `driverCache.emptyDir.sizeLimit` | `""` | Optional `sizeLimit` for the ephemeral cache (e.g. `1Gi`), used only when `persistence.enabled=false`. Empty = no limit. |
+| `backup.enabled` | `false` | Nightly `pg_dump -Fc` CronJob onto the backups PVC, pruned to `backup.retention.keepLast` dumps (AF-458). |
+| `backup.schedule` / `backup.retention.keepLast` | `"0 2 * * *"` / `7` | Backup cadence (cron, UTC) and how many newest dumps to keep. |
+| `backup.persistence.existingClaim` / `.size` / `.storageClass` | `""` / `20Gi` / `""` | Backups volume — chart-created PVC (kept across uninstall) or an operator-managed claim (e.g. NFS). |
+| `backup.upload.enabled` / `.remote` / `.existingSecret` | `false` / `""` / `""` | Optional rclone shipping of the backup directory to S3/GCS/… — the Secret must hold an `rclone.conf` key. |
+| `restore.enabled` / `restore.dumpFile` | `false` / `""` | One-shot restore Job (helm hook) replaying a named dump from the backups volume. See the Backup & restore section. |
 
 ## Upgrade
 

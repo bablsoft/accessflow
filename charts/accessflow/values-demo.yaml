@@ -1,0 +1,17 @@
+# -- Number of replicas for each tier
+replicaCount:
+  backend: 1
+  frontend: 1
+
+config:
+  corsAllowedOrigin: https://demo.accessflow.bablsoft.com
+  publicBaseUrl: https://demo.accessflow.bablsoft.com
+  frontend:
+    apiBaseUrl: https://demo.accessflow.bablsoft.com
+    wsUrl: wss://demo.accessflow.bablsoft.com/ws
+
+# --- Ingress
+ingress:
+  className: traefik
+  hosts:
+    - host: demo.accessflow.bablsoft.com

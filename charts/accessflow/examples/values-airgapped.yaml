@@ -71,3 +71,12 @@ ingress:
   tls:
     enabled: true
     secretName: accessflow-tls   # pre-created by the platform team
+
+# --- Offline AI resilience (AF-458).
+# Run a local Ollama in-cluster and mark its AI configuration as the org-wide
+# fallback (fallback_priority: 0 in the admin UI, or bootstrap.aiConfigs[].
+# fallbackPriority). When the primary provider is unreachable, analysis falls
+# back to the local model. Ollama's `ollama pull` verifies model blobs by
+# SHA-256 digest natively, so a pre-pulled model on an internal mirror stays
+# integrity-checked without extra tooling. See examples/values-bootstrap.yaml
+# for the declarative aiConfigs shape.
