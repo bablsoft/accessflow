@@ -4419,6 +4419,7 @@ no role is required — every authenticated user can read and manage their own i
 | `POST` | `/notifications/{id}/read` | Mark a single notification as read (404 if not the caller's) |
 | `POST` | `/notifications/read-all` | Mark every unread notification as read |
 | `DELETE` | `/notifications/{id}` | Delete a notification (404 if not the caller's) |
+| `DELETE` | `/notifications` | Delete every notification in the caller's inbox |
 
 ### GET /notifications — Query Parameters
 
@@ -4470,6 +4471,16 @@ optional.
 
 All return 204 on success. `404 USER_NOTIFICATION_NOT_FOUND` if the id does not belong to
 the caller.
+
+### DELETE /notifications
+
+Clears the caller's entire inbox in a single statement — the bulk counterpart to
+`DELETE /notifications/{id}`, for a bell dropdown's "Delete all" action.
+
+Returns 204 on success. The scope is always the caller's own rows: the endpoint takes no
+body and no id list, and ownership is enforced by a `user_id` predicate on the delete, so
+another user's notifications can never be reached. Deleting an empty inbox is a success,
+not a 404 — the endpoint is idempotent.
 
 ---
 

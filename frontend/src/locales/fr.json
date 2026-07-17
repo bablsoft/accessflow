@@ -1980,6 +1980,8 @@
     "mark_all_read": "Tout marquer comme lu",
     "mark_read": "Marquer comme lue",
     "delete": "Supprimer la notification",
+    "delete_all": "Tout supprimer",
+    "delete_all_confirm": "Supprimer toutes les notifications ? Cette action est irréversible.",
     "loading": "Chargement…",
     "error": "Impossible de charger les notifications.",
     "events": {

@@ -447,7 +447,10 @@ Add new enums by extending `frontend/src/types/api.ts` with the union, adding an
 around the bell icon. It uses TanStack Query for the unread count
 (`['notifications','unread-count']`, polled every 60 s) and lazy-loads the inbox list
 (`['notifications','list',{page,size}]`) when the dropdown opens. Mutations for mark-read,
-mark-all-read, and delete invalidate both keys on success. Clicking a row navigates to
+mark-all-read, delete, and delete-all invalidate both keys on success. The dropdown header
+carries the two bulk actions: **Mark all read** (shown while the unread count is non-zero)
+and **Delete all** (shown while the list is non-empty), the latter guarded by an Ant Design
+`<Popconfirm>` because clearing the inbox is destructive and irreversible. Clicking a row navigates to
 `/queries/{query_id}` when the payload has one and marks the row read in the same handler.
 The `notification.created` WebSocket event triggers default invalidations (see the WS
 default-invalidations table) so the badge and list update in near-real-time without

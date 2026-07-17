@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -187,6 +188,41 @@ class UserNotificationControllerIntegrationTest {
 
         assertThat(result).hasStatus(404);
         assertThat(notificationRepository.findById(n.getId())).isPresent();
+    }
+
+    @Test
+    void deleteAllClearsCallersInboxAndLeavesOtherUsersIntact() {
+        seed(userA, false);
+        seed(userA, true);
+        var otherUsersRow = seed(userB, false);
+
+        var result = mvc.delete().uri("/api/v1/notifications")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenA)
+                .exchange();
+
+        assertThat(result).hasStatus(204);
+        assertThat(notificationRepository.findByUserIdOrderByCreatedAtDesc(
+                userA.getId(), PageRequest.of(0, 10))).isEmpty();
+        assertThat(notificationRepository.findById(otherUsersRow.getId())).isPresent();
+    }
+
+    @Test
+    void deleteAllOnEmptyInboxReturns204() {
+        var result = mvc.delete().uri("/api/v1/notifications")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenB)
+                .exchange();
+
+        assertThat(result).hasStatus(204);
+    }
+
+    @Test
+    void deleteAllUnauthenticatedReturns401() {
+        seed(userA, false);
+
+        var result = mvc.delete().uri("/api/v1/notifications").exchange();
+
+        assertThat(result).hasStatus(401);
+        assertThat(notificationRepository.countByUserIdAndReadFalse(userA.getId())).isEqualTo(1L);
     }
 
     private UserNotificationEntity seed(UserEntity user, boolean read) {

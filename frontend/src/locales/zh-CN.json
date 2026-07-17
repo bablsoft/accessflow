@@ -1980,6 +1980,8 @@
     "mark_all_read": "全部标记为已读",
     "mark_read": "标记为已读",
     "delete": "删除通知",
+    "delete_all": "全部删除",
+    "delete_all_confirm": "删除所有通知？此操作无法撤销。",
     "loading": "正在加载…",
     "error": "加载通知失败。",
     "events": {

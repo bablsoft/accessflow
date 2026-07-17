@@ -20,7 +20,7 @@ import java.util.UUID;
 
 /**
  * Persists per-user in-app notifications and exposes the read/write operations the bell-icon
- * inbox needs (list, unread count, mark-read, mark-all-read, delete). Each persisted notification
+ * inbox needs (list, unread count, mark-read, mark-all-read, delete, delete-all). Each persisted notification
  * publishes a {@link UserNotificationCreatedEvent} so the realtime module can fan it out over the
  * WebSocket.
  */
@@ -103,6 +103,11 @@ public class UserNotificationService {
         var entity = repository.findByIdAndUserId(notificationId, userId)
                 .orElseThrow(() -> new UserNotificationNotFoundException(notificationId));
         repository.delete(entity);
+    }
+
+    @Transactional
+    public int deleteAll(UUID userId) {
+        return repository.deleteAllForUser(userId);
     }
 
     private UserNotificationView toView(UserNotificationEntity entity) {
