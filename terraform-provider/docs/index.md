@@ -1,13 +1,13 @@
 ---
 page_title: "AccessFlow Provider"
 description: |-
-  Manage AccessFlow database access governance resources declaratively.
+  Manage AccessFlow database & API access governance resources declaratively.
 ---
 
 # AccessFlow Provider
 
 The AccessFlow provider manages [AccessFlow](https://accessflow.bablsoft.com/) — the
-open-source database access governance platform — declaratively through its REST API. Use it to
+open-source database & API access governance platform — declaratively through its REST API. Use it to
 provision datasources, review plans, routing/row-security/masking policies, AI configs, and
 notification channels as code, with the same authoritative-upsert semantics as the built-in
 `bootstrap` GitOps reconciler.

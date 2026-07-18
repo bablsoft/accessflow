@@ -16,7 +16,7 @@
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>accessflow</name>
-    <description>AccessFlow - Database Access Governance Platform</description>
+    <description>AccessFlow - Database &amp; API Access Governance Platform</description>
 
     <properties>
         <java.version>25</java.version>

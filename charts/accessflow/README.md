@@ -1,6 +1,6 @@
 # AccessFlow Helm Chart
 
-Helm chart for [AccessFlow](https://github.com/bablsoft/accessflow) — an open-source database access governance platform.
+Helm chart for [AccessFlow](https://github.com/bablsoft/accessflow) — an open-source database & API access governance platform.
 
 ## TL;DR
 

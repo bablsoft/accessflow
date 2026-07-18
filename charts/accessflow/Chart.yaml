@@ -1,6 +1,6 @@
 apiVersion: v2
 name: accessflow
-description: Database access governance platform — SQL proxy with review workflows, AI analysis, and tamper-evident audit log.
+description: Database & API access governance platform — SQL, NoSQL, and API proxy with review workflows, AI analysis, and tamper-evident audit log.
 type: application
 version: 0.1.0
 appVersion: 0.1.0
