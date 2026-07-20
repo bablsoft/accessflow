@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -301,12 +301,12 @@ describe('ApiConnectorSettingsPage — schema import filter (AF-614)', () => {
     render(wrap(<ApiConnectorSettingsPage />));
     fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit filter' }));
-    const deprecated = await screen.findByRole('checkbox', {
-      name: 'Exclude deprecated operations',
-    });
-    fireEvent.click(deprecated);
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    // Text queries + a dialog-scoped subtree keep this off the whole-page role scan
+    // (AntD keeps every tab panel mounted, and the Config tab has its own "Save").
+    fireEvent.click(await screen.findByText('Edit filter'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox'));
+    fireEvent.click(within(dialog).getByText('Save'));
 
     await waitFor(() =>
       expect(updateApiSchemaFilter).toHaveBeenCalledWith(
