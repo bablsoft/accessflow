@@ -2085,7 +2085,8 @@ The full REST contract is in `docs/04-api-spec.md` → "API Keys".
 The **`apigov/` module** governs outbound API calls (REST / SOAP / GraphQL / gRPC) with the same
 review/approval/audit model as a database query. The foundation shipped today: connector
 management (CRUD + encrypted auth secret + test-connection probe), schema ingestion (OpenAPI via
-swagger-parser; GraphQL/proto/WSDL via dependency-free parsers behind the `ApiSchemaParser` SPI)
+swagger-parser; GraphQL/proto/WSDL/**Postman collection** via dependency-free parsers behind the
+`ApiSchemaParser` SPI — see **Postman collection import** below)
 producing a normalized operation catalog with read/write classification, an **import-time operation
 filter** (AF-614, below), and per-user "share-with-team" permissions. The governed-call pipeline is implemented end-to-end:
 submit (`POST /api/v1/api-requests`) → async rate-limited AI risk scoring (`ai.api.ApiCallAnalyzer`,
@@ -2122,6 +2123,37 @@ the operation-id glob is the load-bearing dimension since `path` is synthesized.
 persisting or auditing. Upload **and** filter edits both write `API_SCHEMA_UPLOADED` audit metadata
 carrying the filter, `total_operation_count`, and `excluded_count` (the edit path is distinguished by
 `action=filter_updated`). An absent/empty filter is exactly the pre-AF-614 behaviour.
+
+**Postman collection import (#612).** Plenty of teams have no OpenAPI/WSDL/SDL/proto document but do
+have a Postman collection that is already the de-facto contract. `PostmanCollectionParser`
+(`apigov/internal/schema/`) accepts a **Collection v2.x export** (v2.0 and v2.1 — a v1 export, which
+has no `info.schema` and a flat `requests` array, is rejected 422 pointing at Postman's v2.1 export).
+It is discovered by `SchemaParserRegistry` from its `supportedType()` like every other parser, so
+neither the registry nor `POST /api-connectors/{id}/schemas` changed. Folders are flattened into a
+slugified, deterministic `operationId` (`billing/invoices/create-invoice`, collisions suffixed
+`-2`/`-3`) — `ApiOperation` is unchanged; collection-level `variable[]` values are substituted into
+paths and every remaining `{{var}}` (and Postman's `:id` param form) normalizes to a `{var}`
+template, leaving the connector's `base_url` to the admin. Read/write classification is the usual
+safe-method rule, so the `require_review_reads`/`require_review_writes` gates apply unchanged.
+
+Postman carries **examples, not schemas**, so `requestSchema`/`responseSchema` are *inferred* from
+the saved example bodies by `JsonShapeInferrer` (JSON shape → a compact JSON-Schema-shaped document;
+arrays typed from their first element, depth-bounded; urlencoded/form-data bodies become string
+properties). That fidelity gap is real and is stated in the upload UI.
+
+Two security properties shape the design. First, **no secret from an export is ever persisted**:
+only the declared auth *type* is read, mapped onto `ApiAuthMethod` and surfaced as the schema row's
+`detected_auth_method` so the admin knows what to re-enter on the connector. Second, `event` blocks
+carry arbitrary pre-request/test **JavaScript** and are ignored entirely — never stored, evaluated,
+or fed to the AI analyzer. Because `api_schemas.raw_content` persists the uploaded document verbatim,
+neither property could hold by parsing alone, so the `ApiSchemaParser` SPI returns
+`apigov.api.ParsedApiSchema` (operations + `detectedAuthMethod` + `sanitizedContent`) instead of a
+bare operation list: the Postman parser hands back a redacted copy of the collection — every `event`
+block and every auth credential array stripped — and `DefaultApiSchemaService` stores *that* as
+`raw_content`. The other four parsers return `null` for both new fields and are otherwise unchanged.
+Documents over 5 MiB or defining more than 2000 requests are rejected 422 (parser constants, mirroring
+`DefaultApiSchemaService.MAX_FETCH_BYTES` — no new configuration property). A `sourceUrl` pointing at
+a public collection link goes through the same fetch guard as any other schema type.
 
 **Masking & classification (AF-518).** Connector-level response governance mirroring datasource
 dynamic masking (AF-381) + classification tagging (AF-447), adapted to non-tabular bodies. A

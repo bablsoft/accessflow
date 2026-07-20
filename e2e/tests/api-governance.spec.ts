@@ -80,6 +80,85 @@ test('admin creates an API connector and uploads an OpenAPI schema', async ({ pa
   await expect(page.getByText(CONNECTOR_NAME)).toBeVisible();
 });
 
+// #612: a Postman Collection v2.1 export is a first-class schema source. Folders flatten into
+// slugified operation ids, {{variables}} become path templates, and the export's credentials and
+// pre-request scripts are dropped rather than stored.
+const POSTMAN_COLLECTION = JSON.stringify({
+  info: {
+    name: 'Billing',
+    schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
+  },
+  variable: [{ key: 'baseUrl', value: 'https://billing.example.com' }],
+  auth: { type: 'bearer', bearer: [{ key: 'token', value: 'E2E-LEAKED-TOKEN' }] },
+  item: [
+    {
+      name: 'Invoices',
+      item: [
+        {
+          name: 'Create Invoice',
+          event: [{ listen: 'prerequest', script: { exec: ["pm.environment.set('x', 1)"] } }],
+          request: {
+            method: 'POST',
+            url: { raw: '{{baseUrl}}/v1/invoices', path: ['v1', 'invoices'] },
+            body: { mode: 'raw', raw: '{"amount": 10}' },
+          },
+        },
+        {
+          name: 'Get Invoice',
+          request: {
+            method: 'GET',
+            url: { raw: '{{baseUrl}}/v1/invoices/:id', path: ['v1', 'invoices', ':id'] },
+          },
+        },
+      ],
+    },
+  ],
+});
+
+test('admin imports a Postman collection as a connector schema (#612)', async ({ page, request }) => {
+  const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+  const connector = await createApiConnectorViaApi(request, adminToken, {
+    name: `Billing ${Date.now()}`,
+    aiAnalysisEnabled: false,
+  });
+
+  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await page.goto(`/api-connectors/${connector.id}/settings`);
+  await page.getByRole('tab', { name: 'Schema' }).click();
+
+  // Pick the Postman schema type; the caveat banner must appear before upload.
+  const panel = page.locator('.ant-tabs-tabpane-active');
+  await panel.getByRole('combobox', { name: 'Schema type' }).click();
+  await page.getByTitle('Postman Collection').click();
+  await expect(page.getByText(/inferred from the saved example bodies/)).toBeVisible();
+  await expect(page.getByText(/credentials in your export are ignored/)).toBeVisible();
+
+  await panel.getByPlaceholder('Schema document').fill(POSTMAN_COLLECTION);
+  const uploadResponse = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && r.url().includes('/schemas') && r.ok(),
+  );
+  await panel.getByRole('button', { name: 'Upload schema' }).click();
+  await uploadResponse;
+
+  // Folder-nested items flatten into stable slugified ids, :id becomes a {id} path template.
+  await page.getByRole('tab', { name: 'Operations' }).click();
+  await expect(page.getByText('invoices/create-invoice')).toBeVisible();
+  await expect(page.getByText('invoices/get-invoice')).toBeVisible();
+  await expect(page.getByText('/v1/invoices/{id}')).toBeVisible();
+
+  // The declared auth type is surfaced, but the token in the export is never persisted.
+  await page.getByRole('tab', { name: 'Schema' }).click();
+  await expect(panel.getByText('Bearer Token')).toBeVisible();
+
+  const operations = await request.get(
+    `${apiBase()}/api/v1/api-connectors/${connector.id}/operations`,
+    { headers: { Authorization: `Bearer ${adminToken}` } },
+  );
+  const body = await operations.text();
+  expect(body).not.toContain('E2E-LEAKED-TOKEN');
+  expect(body).not.toContain('pm.environment.set');
+});
+
 test('API Requests and API Reviews pages render their filter bars (#512)', async ({ page }) => {
   await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 

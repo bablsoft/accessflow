@@ -2437,7 +2437,12 @@ export type ApiAuthMethod =
   | 'OAUTH2_CLIENT_CREDENTIALS'
   | 'CUSTOM_HEADER'
   | 'MTLS';
-export type ApiSchemaType = 'OPENAPI' | 'WSDL' | 'GRAPHQL_SDL' | 'GRPC_PROTO';
+export type ApiSchemaType =
+  | 'OPENAPI'
+  | 'WSDL'
+  | 'GRAPHQL_SDL'
+  | 'GRPC_PROTO'
+  | 'POSTMAN_COLLECTION';
 export type Oauth2GrantType = 'CLIENT_CREDENTIALS' | 'REFRESH_TOKEN' | 'PASSWORD';
 export type Oauth2ClientAuth = 'CLIENT_SECRET_BASIC' | 'CLIENT_SECRET_POST';
 export type ApiBodyType = 'NONE' | 'RAW' | 'FORM_DATA' | 'FORM_URLENCODED' | 'BINARY';
@@ -2615,6 +2620,8 @@ export interface ApiSchema {
   operation_count: number;
   total_operation_count: number;
   operation_filter: ApiOperationFilter | null;
+  /** Auth type the uploaded document declared (Postman collections carry one); never a credential. */
+  detected_auth_method: ApiAuthMethod | null;
   created_at: string;
 }
 

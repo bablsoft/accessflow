@@ -42,7 +42,7 @@ class OpenApiSchemaParserTest {
 
     @Test
     void parsesOperationsWithReadWriteClassification() {
-        var ops = parser.parse(SPEC);
+        var ops = parser.parse(SPEC).operations();
 
         assertThat(ops).hasSize(3);
         var get = ops.stream().filter(o -> o.operationId().equals("listPets")).findFirst().orElseThrow();
@@ -59,7 +59,7 @@ class OpenApiSchemaParserTest {
 
     @Test
     void capturesTagsAndDeprecatedForOpenApi() {
-        var ops = parser.parse(SPEC);
+        var ops = parser.parse(SPEC).operations();
 
         var get = ops.stream().filter(o -> o.operationId().equals("listPets")).findFirst().orElseThrow();
         assertThat(get.tags()).containsExactlyInAnyOrder("pets", "public");

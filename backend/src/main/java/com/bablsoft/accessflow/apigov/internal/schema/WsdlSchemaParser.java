@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.schema;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Element;
 
@@ -30,7 +31,7 @@ public class WsdlSchemaParser implements ApiSchemaParser {
     }
 
     @Override
-    public List<ApiOperation> parse(String content) {
+    public ParsedApiSchema parse(String content) {
         if (content == null || content.isBlank()) {
             throw new ApiSchemaParseException("Empty WSDL document");
         }
@@ -58,7 +59,7 @@ public class WsdlSchemaParser implements ApiSchemaParser {
             if (operations.isEmpty()) {
                 throw new ApiSchemaParseException("WSDL defines no portType operations");
             }
-            return operations;
+            return new ParsedApiSchema(operations);
         } catch (ApiSchemaParseException ex) {
             throw ex;
         } catch (Exception ex) {

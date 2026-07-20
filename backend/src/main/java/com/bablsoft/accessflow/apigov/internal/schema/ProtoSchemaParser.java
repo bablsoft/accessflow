@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.schema;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -34,7 +35,7 @@ public class ProtoSchemaParser implements ApiSchemaParser {
     }
 
     @Override
-    public List<ApiOperation> parse(String content) {
+    public ParsedApiSchema parse(String content) {
         if (content == null || content.isBlank()) {
             throw new ApiSchemaParseException("Empty proto document");
         }
@@ -53,7 +54,7 @@ public class ProtoSchemaParser implements ApiSchemaParser {
         if (operations.isEmpty()) {
             throw new ApiSchemaParseException("proto document defines no service rpc methods");
         }
-        return operations;
+        return new ParsedApiSchema(operations);
     }
 
     private static boolean isWrite(String method) {

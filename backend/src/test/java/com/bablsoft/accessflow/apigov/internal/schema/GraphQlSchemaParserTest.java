@@ -29,7 +29,7 @@ class GraphQlSchemaParserTest {
 
     @Test
     void parsesQueryAndMutationFields() {
-        var ops = parser.parse(SDL);
+        var ops = parser.parse(SDL).operations();
 
         var query = ops.stream().filter(o -> o.operationId().equals("users")).findFirst().orElseThrow();
         assertThat(query.verb()).isEqualTo("query");

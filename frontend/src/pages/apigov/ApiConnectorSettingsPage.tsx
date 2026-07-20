@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   App,
   Button,
   Checkbox,
@@ -18,7 +19,7 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { InboxOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -274,6 +275,8 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
 const HTTP_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
 const MAX_FILTER_LIST = 100;
 const MAX_FILTER_PATTERN = 200;
+// Mirrors the backend's 5 MiB document bound so an oversized file fails before the round-trip.
+const MAX_SCHEMA_FILE_BYTES = 5 * 1024 * 1024;
 
 const EMPTY_FILTER: ApiOperationFilter = {
   includePaths: [],
@@ -432,6 +435,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
   const [source, setSource] = useState<'paste' | 'upload' | 'url'>('paste');
   const [content, setContent] = useState('');
   const [fileName, setFileName] = useState('');
+  const [fileError, setFileError] = useState<string | null>(null);
   const [sourceUrl, setSourceUrl] = useState('');
   const [filter, setFilter] = useState<ApiOperationFilter>(EMPTY_FILTER);
   const [preview, setPreview] = useState<ApiSchemaFilterPreview | null>(null);
@@ -459,6 +463,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
       setImported({ kept: schema.operation_count, total: schema.total_operation_count });
       setContent('');
       setFileName('');
+      setFileError(null);
       setSourceUrl('');
       setPreview(null);
       invalidate();
@@ -486,8 +491,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     }
     previewMutation.mutate();
   };
-  const canUpload =
-    source === 'url' ? !!sourceUrl.trim() : source === 'upload' ? !!content : !!content.trim();
+  const canUpload = source === 'url' ? !!sourceUrl.trim() : !!content.trim();
   const deleteMutation = useMutation({
     mutationFn: (schemaId: string) => deleteApiSchema(connectorId, schemaId),
     onSuccess: () => {
@@ -503,7 +507,21 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         value={schemaType}
         onChange={setSchemaType}
         options={enumOptions(API_SCHEMA_TYPES, apiSchemaTypeLabel, t)}
+        aria-label={t('apiGov.settings.schemaType')}
       />
+      {schemaType === 'POSTMAN_COLLECTION' && (
+        <Alert
+          type="warning"
+          showIcon
+          message={t('apiGov.settings.postmanCaveatTitle')}
+          description={
+            <>
+              <div>{t('apiGov.settings.postmanInferredSchemas')}</div>
+              <div>{t('apiGov.settings.postmanCredentialsIgnored')}</div>
+            </>
+          }
+        />
+      )}
       <Segmented
         value={source}
         onChange={(v) => setSource(v as 'paste' | 'upload' | 'url')}
@@ -522,20 +540,33 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         />
       )}
       {source === 'upload' && (
-        <Upload
-          maxCount={1}
-          showUploadList={false}
-          accept=".json,.yaml,.yml,.wsdl,.xml,.graphql,.graphqls,.proto"
-          beforeUpload={(file) => {
-            void file.text().then((text) => {
-              setContent(text);
-              setFileName(file.name);
-            });
-            return false;
-          }}
-        >
-          <Button icon={<UploadOutlined />}>{fileName || t('apiGov.settings.schemaFile')}</Button>
-        </Upload>
+        <>
+          <Upload.Dragger
+            multiple={false}
+            maxCount={1}
+            showUploadList={false}
+            accept=".json,.yaml,.yml,.wsdl,.xml,.graphql,.graphqls,.proto,.postman_collection.json"
+            beforeUpload={(file) => {
+              setFileError(null);
+              if (file.size > MAX_SCHEMA_FILE_BYTES) {
+                setFileError(t('apiGov.settings.schemaFileTooLarge'));
+                return Upload.LIST_IGNORE;
+              }
+              void file.text().then((text) => {
+                setContent(text);
+                setFileName(file.name);
+              });
+              return false; // read client-side; the document is POSTed as raw_content
+            }}
+          >
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <p className="ant-upload-text">{fileName || t('apiGov.settings.schemaFileDragHint')}</p>
+            <p className="ant-upload-hint">{t('apiGov.settings.schemaFileFormats')}</p>
+          </Upload.Dragger>
+          {fileError && <Alert type="error" showIcon message={fileError} />}
+        </>
       )}
       {source === 'url' && (
         <Input
@@ -609,6 +640,18 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
               row.operation_filter
                 ? t('apiGov.settings.filterKeepsOf', { kept: row.operation_count, total: row.total_operation_count })
                 : row.operation_count,
+          },
+          {
+            title: t('apiGov.settings.detectedAuth'),
+            key: 'detected_auth',
+            render: (_: unknown, row: ApiSchema) =>
+              row.detected_auth_method ? (
+                <Tag>{apiAuthMethodLabel(t, row.detected_auth_method)}</Tag>
+              ) : (
+                <Typography.Text type="secondary">
+                  {t('apiGov.settings.detectedAuthNone')}
+                </Typography.Text>
+              ),
           },
           { title: '', key: 'a', render: (_: unknown, row: ApiSchema) => (
             <Space>

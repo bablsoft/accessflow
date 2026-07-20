@@ -51,14 +51,18 @@ public class DefaultApiSchemaService implements ApiSchemaService {
         requireConnector(connectorId, organizationId);
         var content = (rawContent == null || rawContent.isBlank()) && sourceUrl != null && !sourceUrl.isBlank()
                 ? fetch(sourceUrl) : rawContent;
-        var operations = parserRegistry.parse(schemaType, content);
+        var parsed = parserRegistry.parse(schemaType, content);
+        var operations = parsed.operations();
         var effectiveFilter = filter == null ? OperationFilter.EMPTY : filter;
         var kept = filterMatcher.apply(operations, effectiveFilter);
         var entity = new ApiSchemaEntity();
         entity.setId(UUID.randomUUID());
         entity.setConnectorId(connectorId);
         entity.setSchemaType(schemaType);
-        entity.setRawContent(content);
+        // A parser may hand back a redacted document to persist in place of the upload — Postman
+        // exports carry live credentials and pre-request/test scripts that must never be stored.
+        entity.setRawContent(parsed.sanitizedContent() != null ? parsed.sanitizedContent() : content);
+        entity.setDetectedAuthMethod(parsed.detectedAuthMethod());
         entity.setSourceUrl(sourceUrl);
         entity.setParsedOperations(objectMapper.writeValueAsString(operations));
         entity.setOperationFilter(effectiveFilter.isEmpty() ? null : objectMapper.writeValueAsString(effectiveFilter));
@@ -105,7 +109,7 @@ public class DefaultApiSchemaService implements ApiSchemaService {
         requireConnector(connectorId, organizationId);
         var content = (rawContent == null || rawContent.isBlank()) && sourceUrl != null && !sourceUrl.isBlank()
                 ? fetch(sourceUrl) : rawContent;
-        var operations = parserRegistry.parse(schemaType, content);
+        var operations = parserRegistry.parse(schemaType, content).operations();
         var effectiveFilter = filter == null ? OperationFilter.EMPTY : filter;
         var kept = filterMatcher.apply(operations, effectiveFilter);
         var excluded = operations.stream().filter(op -> !kept.contains(op)).toList();
@@ -170,7 +174,8 @@ public class DefaultApiSchemaService implements ApiSchemaService {
 
     private ApiSchemaView toView(ApiSchemaEntity e) {
         return new ApiSchemaView(e.getId(), e.getConnectorId(), e.getSchemaType(), e.getSourceUrl(),
-                e.getOperationCount(), totalOperationCount(e), readFilter(e), e.getCreatedAt());
+                e.getOperationCount(), totalOperationCount(e), readFilter(e), e.getDetectedAuthMethod(),
+                e.getCreatedAt());
     }
 
     /** Array length only — avoids materializing every {@link ApiOperation} just to count them. */

@@ -2439,7 +2439,8 @@
       "OPENAPI": "OpenAPI",
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
-      "GRPC_PROTO": "gRPC Proto"
+      "GRPC_PROTO": "gRPC Proto",
+      "POSTMAN_COLLECTION": "Postman-ի հավաքածու"
     },
     "oauth2_grant_type": {
       "CLIENT_CREDENTIALS": "Հաճախորդի հավատարմագրեր",
@@ -3149,6 +3150,14 @@
       "schemaUrlRequired": "Մուտքագրեք սխեմայի URL",
       "schemaFile": "Սխեմայի ֆայլ",
       "schemaFileRequired": "Ընտրեք սխեմայի ֆայլ",
+      "postmanCaveatTitle": "Postman-ի հավաքածուները նկարագրում են օրինակներ, ոչ թե սխեմաներ",
+      "postmanInferredSchemas": "Հարցման և պատասխանի սխեմաները ենթադրվում են պահպանված օրինակների հիման վրա, ուստի դրանք ավելի քիչ ճշգրիտ են, քան OpenAPI փաստաթուղթը։",
+      "postmanCredentialsIgnored": "Ձեր արտահանման մեջ առկա ցանկացած հավատարմագիր անտեսվում է և երբեք չի պահվում — կրկին մուտքագրեք դրանք միակցիչի նույնականացման կարգավորումներում։",
+      "schemaFileDragHint": "Սեղմեք կամ քաշեք սխեմայի ֆայլն այստեղ",
+      "schemaFileFormats": "OpenAPI, WSDL, GraphQL SDL, gRPC proto կամ Postman-ի v2.1 հավաքածուի արտահանում (առավելագույնը 5 ՄԲ)",
+      "schemaFileTooLarge": "Այդ ֆայլը գերազանցում է 5 ՄԲ սահմանաչափը",
+      "detectedAuth": "Հայտնաբերված նույնականացում",
+      "detectedAuthNone": "Հայտարարված չէ",
       "tabMasking": "Քողարկում",
       "tabClassification": "Դասակարգում",
       "tabVariables": "Փոփոխականներ",

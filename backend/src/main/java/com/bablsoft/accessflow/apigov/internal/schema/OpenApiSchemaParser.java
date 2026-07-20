@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.schema;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import io.swagger.parser.OpenAPIParser;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
 import org.springframework.stereotype.Component;
@@ -26,7 +27,7 @@ public class OpenApiSchemaParser implements ApiSchemaParser {
     }
 
     @Override
-    public List<ApiOperation> parse(String content) {
+    public ParsedApiSchema parse(String content) {
         SwaggerParseResult result;
         try {
             result = new OpenAPIParser().readContents(content, null, null);
@@ -53,6 +54,6 @@ public class OpenApiSchemaParser implements ApiSchemaParser {
         if (operations.isEmpty()) {
             throw new ApiSchemaParseException("OpenAPI document defines no operations");
         }
-        return operations;
+        return new ParsedApiSchema(operations);
     }
 }

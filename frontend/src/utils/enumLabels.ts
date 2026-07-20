@@ -426,6 +426,7 @@ export const API_SCHEMA_TYPES: readonly ApiSchemaType[] = [
   'WSDL',
   'GRAPHQL_SDL',
   'GRPC_PROTO',
+  'POSTMAN_COLLECTION',
 ] as const;
 
 export const apiSchemaTypeLabel = (t: TFunction, v: ApiSchemaType): string =>

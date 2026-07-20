@@ -4658,9 +4658,9 @@ secrets themselves are never returned.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. Optional `filter` object (AF-614) narrows the governed catalog at import — see **Operation import filter** below. |
+| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`/`POSTMAN_COLLECTION`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. Optional `filter` object (AF-614) narrows the governed catalog at import — see **Operation import filter** below. See **Postman collection import** below for the `POSTMAN_COLLECTION` specifics (#612). |
 | `POST` | `/api-connectors/{id}/schemas/preview` | **Admin** (AF-614). Dry-runs the same body's `filter` against the parsed document **without persisting**. Returns `{ totalCount, keptCount, excluded[] }` so the admin sees what a pattern drops before committing. |
-| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). Each row carries `operationCount` (post-filter), `totalOperationCount` (pre-filter), and `operationFilter` (null when unset). |
+| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). Each row carries `operationCount` (post-filter), `totalOperationCount` (pre-filter), `operationFilter` (null when unset), and `detectedAuthMethod` (the auth type the document itself declared — Postman collections carry one; `null` for every other schema type). |
 | `PUT` | `/api-connectors/{id}/schemas/{schemaId}/filter` | **Admin** (AF-614). Replaces a schema's operation filter **without re-uploading the document** and recomputes `operationCount` from the stored full catalog. Body is the filter object. |
 | `DELETE` | `/api-connectors/{id}/schemas/{schemaId}` | **Admin.** Delete a schema (`204`). |
 | `GET` | `/api-connectors/{id}/operations` | The **governed** operation catalog from the connector's latest schema (post-filter) — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification), plus `tags` / `deprecated` (OpenAPI-only, null elsewhere). Filtered-out operations are unreachable here, and therefore also from `/api-editor`, text-to-API, and the `allowedOperations` grant picker. |
@@ -4698,6 +4698,43 @@ dimension matches — exclude wins.**
 The document itself is always stored complete in `parsed_operations`, so the filter is re-editable
 via `PUT .../filter` without re-fetching a remote `sourceUrl`. `API_SCHEMA_UPLOADED` audit metadata
 records the filter, `total_operation_count`, and `excluded_count` for both upload and filter edits.
+
+#### Postman collection import (#612)
+
+`schemaType=POSTMAN_COLLECTION` accepts a **Postman Collection v2.x export** (v2.0 and v2.1; a v1
+export is rejected `422` with a reason pointing at Postman's Collection v2.1 export). A public
+collection link is a natural `sourceUrl`.
+
+| Postman v2.x | `ApiOperation` |
+|---|---|
+| folder path + `item[].name`, slugified and `/`-joined | `operationId` — e.g. `billing/invoices/create-invoice` |
+| `item[].request.method` | `verb` |
+| `url.path[]` (else `url.raw` with scheme+host stripped) | `path` |
+| `item[].request.description` | `summary` |
+| verb ∈ `GET`/`HEAD`/`OPTIONS` | `write=false`, else `true` |
+| `item[].request.body` (raw JSON / urlencoded / formdata) | `requestSchema` — **inferred** |
+| first `item[].response[].body` | `responseSchema` — **inferred**, null when no example is saved |
+
+- **Fidelity gap.** Postman carries *examples, not schemas*, so `requestSchema`/`responseSchema` are
+  inferred from the example payloads (JSON shape → types) rather than declared. They are less
+  precise than an OpenAPI document; the upload UI states this.
+- **Folders flatten** into the `operationId`; `ApiOperation` is unchanged. Colliding names get a
+  deterministic `-2`/`-3` suffix so ids are stable across re-imports.
+- **Variables.** Collection-level `variable[]` values are substituted; every remaining `{{var}}`
+  normalizes to a `{var}` path template, as does Postman's `:id` path-param form. The connector's
+  own `base_url` is the admin's to set — an Environment export is not consumed.
+- **Auth.** The collection's declared auth *type* maps onto `ApiAuthMethod` (`apikey`→`API_KEY`,
+  `bearer`/`jwt`→`BEARER_TOKEN`, `basic`→`BASIC`, `oauth2`→`OAUTH2_CLIENT_CREDENTIALS`,
+  `noauth`→`NONE`) and is surfaced as `detectedAuthMethod`. **No credential value is ever read or
+  stored** — exports frequently contain live tokens, and the admin re-enters credentials through the
+  connector's own authentication settings.
+- **`event` blocks** (arbitrary pre-request/test JavaScript) are ignored entirely: never stored,
+  never evaluated, never fed to the AI analyzer. The document persisted as the schema's raw content
+  is a **redacted** copy with every `event` block and every auth credential array removed.
+- **Bounds.** A collection over 5 MiB or defining more than 2000 requests is rejected `422`.
+- Read/write classification drives the existing `require_review_reads` / `require_review_writes`
+  connector gates unchanged, and the import filter applies exactly as it does to other formats
+  (`tags`/`deprecated` are OpenAPI-only, so the operation-id glob is the load-bearing dimension).
 
 ### Permissions ("share with team")
 

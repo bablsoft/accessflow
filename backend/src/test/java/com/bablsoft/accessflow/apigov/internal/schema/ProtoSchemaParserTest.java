@@ -28,7 +28,7 @@ class ProtoSchemaParserTest {
 
     @Test
     void parsesRpcsWithServicePrefixAndClassification() {
-        var ops = parser.parse(PROTO);
+        var ops = parser.parse(PROTO).operations();
 
         assertThat(ops).hasSize(3);
         var get = ops.stream().filter(o -> o.operationId().equals("UserService.GetUser")).findFirst().orElseThrow();

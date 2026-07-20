@@ -1,8 +1,8 @@
 package com.bablsoft.accessflow.apigov.internal.schema;
 
-import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import org.springframework.stereotype.Component;
 
 import java.util.EnumMap;
@@ -21,7 +21,7 @@ public class SchemaParserRegistry {
         }
     }
 
-    public List<ApiOperation> parse(ApiSchemaType type, String content) {
+    public ParsedApiSchema parse(ApiSchemaType type, String content) {
         var parser = parsers.get(type);
         if (parser == null) {
             throw new ApiSchemaParseException("No parser registered for schema type " + type);

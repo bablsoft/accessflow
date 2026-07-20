@@ -2439,7 +2439,8 @@
       "OPENAPI": "OpenAPI",
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
-      "GRPC_PROTO": "gRPC Proto"
+      "GRPC_PROTO": "gRPC Proto",
+      "POSTMAN_COLLECTION": "Postman 集合"
     },
     "oauth2_grant_type": {
       "CLIENT_CREDENTIALS": "客户端凭据",
@@ -3149,6 +3150,14 @@
       "schemaUrlRequired": "请输入模式 URL",
       "schemaFile": "模式文件",
       "schemaFileRequired": "请选择模式文件",
+      "postmanCaveatTitle": "Postman 集合描述的是示例，而非模式",
+      "postmanInferredSchemas": "请求和响应模式是根据保存的示例内容推断的，因此不如 OpenAPI 文档精确。",
+      "postmanCredentialsIgnored": "导出文件中的任何凭据都会被忽略且永不存储——请在连接器的身份验证设置中重新输入。",
+      "schemaFileDragHint": "点击或将模式文件拖到此处",
+      "schemaFileFormats": "OpenAPI、WSDL、GraphQL SDL、gRPC proto 或 Postman 集合 v2.1 导出文件（最大 5 MB）",
+      "schemaFileTooLarge": "该文件超过 5 MB 限制",
+      "detectedAuth": "检测到的身份验证",
+      "detectedAuthNone": "未声明",
       "tabMasking": "脱敏",
       "tabClassification": "分类",
       "tabVariables": "变量",
