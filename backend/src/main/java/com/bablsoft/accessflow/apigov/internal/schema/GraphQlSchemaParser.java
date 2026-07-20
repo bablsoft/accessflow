@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.schema;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -30,7 +31,7 @@ public class GraphQlSchemaParser implements ApiSchemaParser {
     }
 
     @Override
-    public List<ApiOperation> parse(String content) {
+    public ParsedApiSchema parse(String content) {
         if (content == null || content.isBlank()) {
             throw new ApiSchemaParseException("Empty GraphQL SDL document");
         }
@@ -40,7 +41,7 @@ public class GraphQlSchemaParser implements ApiSchemaParser {
         if (operations.isEmpty()) {
             throw new ApiSchemaParseException("GraphQL SDL defines no Query or Mutation fields");
         }
-        return operations;
+        return new ParsedApiSchema(operations);
     }
 
     private void extract(String content, Pattern block, String verb, boolean write,

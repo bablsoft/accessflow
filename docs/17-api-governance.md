@@ -29,7 +29,7 @@ com.bablsoft.accessflow.apigov/
     ├── DefaultApiConnectorAdminService, DefaultApiSchemaService
     ├── persistence/{entity,repo}/   # ApiConnectorEntity, ApiSchemaEntity,
     │                                 # ApiConnectorUserPermissionEntity + repos
-    ├── schema/      # ApiSchemaParser SPI + OpenApi/GraphQl/Proto/Wsdl parsers + SchemaParserRegistry
+    ├── schema/      # ApiSchemaParser SPI + OpenApi/GraphQl/Proto/Wsdl/Postman parsers + SchemaParserRegistry
     ├── client/      # ApiConnectorProber (test-connection); per-protocol execution clients (planned)
     └── web/         # ApiConnectorController, ApiSchemaController, DTOs, exception handler, audit writer
 ```
@@ -99,7 +99,7 @@ encrypted, `@JsonIgnore`, never-returned secrets `oauth2_client_secret_encrypted
 ## 2. Schema ingestion & operation catalog
 
 An admin uploads a schema document (`POST /api-connectors/{id}/schemas`) with a `schema_type`
-(`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`) and `rawContent`. It is parsed **immediately** into a
+(`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`/`POSTMAN_COLLECTION`) and `rawContent`. It is parsed **immediately** into a
 normalized `ApiOperation` catalog — `operationId`, `verb`, `path`, `summary`, and a **read/write
 classification** (`write`) so the same review plans and permissions apply uniformly:
 
@@ -114,11 +114,30 @@ Parsers live behind the `ApiSchemaParser` SPI, dispatched by `SchemaParserRegist
 | `GRAPHQL_SDL` | `GraphQlSchemaParser` | lightweight SDL extractor (root `Query`/`Mutation` fields) |
 | `GRPC_PROTO` | `ProtoSchemaParser` | lightweight `.proto` extractor (`service`/`rpc` → `service.method`) |
 | `WSDL` | `WsdlSchemaParser` | JDK DOM (XXE-hardened); `portType` `<operation>` elements |
+| `POSTMAN_COLLECTION` | `PostmanCollectionParser` | Collection v2.x JSON tree (#612); folders flattened, examples inferred, credentials + scripts stripped |
 
-> The GraphQL/proto/WSDL parsers are dependency-free (no graphql-java / wire / wsdl4j) to keep the
-> build offline-reproducible; they cover the common document shapes. Replacing them with the full
+> The GraphQL/proto/WSDL/Postman parsers are dependency-free (no graphql-java / wire / wsdl4j) to keep
+> the build offline-reproducible; they cover the common document shapes. Replacing them with the full
 > grammar libraries is a drop-in change behind the SPI if richer request/response schema extraction
 > is needed.
+
+A parser returns `apigov.api.ParsedApiSchema` — the operation list plus two optional extras a format
+may carry: `detectedAuthMethod` (the auth scheme the document declares) and `sanitizedContent` (a
+redacted document to persist in place of the upload). Only the Postman parser populates them today;
+the other four return `null` for both.
+
+**Postman collections (#612).** A Collection v2.x export is a first-class schema source for teams
+with no OpenAPI document. Folders flatten into a slugified deterministic `operationId`
+(`billing/invoices/create-invoice`); collection `variable[]` values are substituted and every
+remaining `{{var}}` — plus Postman's `:id` form — becomes a `{var}` path template, leaving `base_url`
+to the admin. Because Postman stores **examples, not schemas**, `requestSchema`/`responseSchema` are
+*inferred* from the saved example bodies (`JsonShapeInferrer`) and are correspondingly less precise
+— the upload UI says so. Two hard security rules: the collection's declared auth **type** is read
+(surfaced as `api_schemas.detected_auth_method`) but **no credential value is ever persisted**, and
+`event` blocks — arbitrary pre-request/test JavaScript — are dropped entirely. Since `raw_content`
+stores the document verbatim, the parser returns a redacted copy (credential arrays and `event`
+blocks removed) as `sanitizedContent`, and that is what gets stored. A v1 export is rejected `422`
+with a pointer to Postman's v2.1 export; documents over 5 MiB or 2000 requests are rejected too.
 
 The catalog is cached on `api_schemas.parsed_operations` and re-parsed on each upload. Invalid
 documents are rejected `422 API_SCHEMA_PARSE_ERROR`. The editor reads it via

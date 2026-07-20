@@ -2439,7 +2439,8 @@
       "OPENAPI": "OpenAPI",
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
-      "GRPC_PROTO": "gRPC Proto"
+      "GRPC_PROTO": "gRPC Proto",
+      "POSTMAN_COLLECTION": "Postman-Collection"
     },
     "oauth2_grant_type": {
       "CLIENT_CREDENTIALS": "Client Credentials",
@@ -3149,6 +3150,14 @@
       "schemaUrlRequired": "Geben Sie eine Schema-URL ein",
       "schemaFile": "Schema-Datei",
       "schemaFileRequired": "Wählen Sie eine Schema-Datei",
+      "postmanCaveatTitle": "Postman-Collections beschreiben Beispiele, keine Schemas",
+      "postmanInferredSchemas": "Anfrage- und Antwortschemas werden aus den gespeicherten Beispieltexten abgeleitet und sind daher ungenauer als ein OpenAPI-Dokument.",
+      "postmanCredentialsIgnored": "Zugangsdaten in deinem Export werden ignoriert und niemals gespeichert – gib sie in den Authentifizierungseinstellungen des Konnektors erneut ein.",
+      "schemaFileDragHint": "Schemadatei hierher ziehen oder klicken",
+      "schemaFileFormats": "OpenAPI, WSDL, GraphQL SDL, gRPC-Proto oder ein Postman-Collection-v2.1-Export (max. 5 MB)",
+      "schemaFileTooLarge": "Diese Datei überschreitet das Limit von 5 MB",
+      "detectedAuth": "Erkannte Authentifizierung",
+      "detectedAuthNone": "Keine angegeben",
       "tabMasking": "Maskierung",
       "tabClassification": "Klassifizierung",
       "tabVariables": "Variablen",

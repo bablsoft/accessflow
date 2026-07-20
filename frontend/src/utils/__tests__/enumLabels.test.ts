@@ -234,7 +234,8 @@ describe('API governance enum labels (AF-500)', () => {
   it('maps API schema types to their translations', () => {
     expect(apiSchemaTypeLabel(t, 'OPENAPI')).toBe('OpenAPI');
     expect(apiSchemaTypeLabel(t, 'GRPC_PROTO')).toBe('gRPC Proto');
-    expect(API_SCHEMA_TYPES).toHaveLength(4);
+    expect(apiSchemaTypeLabel(t, 'POSTMAN_COLLECTION')).toBe('Postman Collection');
+    expect(API_SCHEMA_TYPES).toHaveLength(5);
   });
 
   it('maps OAuth2 grant types to their translations', () => {

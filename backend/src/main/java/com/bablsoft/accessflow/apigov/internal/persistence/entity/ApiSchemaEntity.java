@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal.persistence.entity;
 
+import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,6 +53,13 @@ public class ApiSchemaEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "operation_filter", columnDefinition = "jsonb")
     private String operationFilter;
+
+    // The auth scheme the uploaded document declared, when its format carries one (Postman does).
+    // A hint for the admin — the credential values themselves are never read or stored.
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "detected_auth_method", columnDefinition = "api_auth_method")
+    private ApiAuthMethod detectedAuthMethod;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

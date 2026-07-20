@@ -28,7 +28,7 @@ class WsdlSchemaParserTest {
 
     @Test
     void parsesPortTypeOperationsWithClassification() {
-        var ops = parser.parse(WSDL);
+        var ops = parser.parse(WSDL).operations();
 
         assertThat(ops).hasSize(2);
         var get = ops.stream().filter(o -> o.operationId().equals("GetPrice")).findFirst().orElseThrow();

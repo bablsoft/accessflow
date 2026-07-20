@@ -1676,17 +1676,19 @@ plus the outbound-OAuth2 enums (#506) `oauth2_grant_type`
 ## api_schemas (AF-500)
 
 Uploaded schema documents per connector; the normalized operation catalog is cached on the row.
-Enum `api_schema_type` (`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`).
+Enum `api_schema_type` (`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`/`POSTMAN_COLLECTION` — the last
+added by V122, #612).
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | UUID PK | |
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
 | `schema_type` | `api_schema_type` | |
-| `raw_content` / `source_url` | TEXT | One of: uploaded body or fetched URL. |
-| `parsed_operations` | JSONB | Cached `ApiOperation[]` (operationId, verb, path, summary, write, tags, deprecated — the last two OpenAPI-only, null elsewhere). Always the **complete** parsed catalog, even when an import filter is set. Default `[]`. |
+| `raw_content` / `source_url` | TEXT | One of: uploaded body or fetched URL. For `POSTMAN_COLLECTION` the stored body is the parser's **redacted** copy — every `event` script block and every auth credential array removed (#612) — never the export as uploaded. |
+| `parsed_operations` | JSONB | Cached `ApiOperation[]` (operationId, verb, path, summary, write, requestSchema, responseSchema, tags, deprecated — the last two OpenAPI-only, null elsewhere; the two schemas are populated by the gRPC-proto and Postman parsers, and are *inferred from examples* for Postman). Always the **complete** parsed catalog, even when an import filter is set. Default `[]`. |
 | `operation_filter` | JSONB | Nullable (AF-614). Import-time operation filter — `includePaths`/`excludePaths`, `includeVerbs`/`excludeVerbs`, `includeOperationIds`/`excludeOperationIds`, `includeTags`/`excludeTags` (all string arrays), `excludeDeprecated` (bool). Applied on the read path by `listOperations`; re-editable without re-uploading. `NULL` = no filter = pre-AF-614 behaviour. |
 | `operation_count` | INTEGER | **Post-filter** (kept) operation count. Equals the full catalog size when `operation_filter` is `NULL`. |
+| `detected_auth_method` | `api_auth_method` | Nullable (V123, #612). The auth scheme the uploaded document itself declared — Postman collections carry one; `NULL` for every other schema type and for rows predating the column. A hint telling the admin what to configure on the connector; **no credential value from the document is ever stored**. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_connector_user_permissions (AF-500)

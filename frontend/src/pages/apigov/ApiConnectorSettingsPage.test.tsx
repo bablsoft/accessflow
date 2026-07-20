@@ -320,3 +320,116 @@ describe('ApiConnectorSettingsPage — schema import filter (AF-614)', () => {
     );
   });
 });
+
+describe('ApiConnectorSettingsPage — Postman collection import (AF-612)', () => {
+  beforeEach(() => {
+    getApiConnector.mockReset();
+    getApiConnector.mockResolvedValue(baseConnector);
+    listReviewPlans.mockReset();
+    listReviewPlans.mockResolvedValue([]);
+    listApiSchemas.mockReset();
+    listApiSchemas.mockResolvedValue([]);
+    uploadApiSchema.mockReset();
+    previewApiSchemaFilter.mockReset();
+    updateApiSchemaFilter.mockReset();
+  });
+
+  /** Activates the Schema tab and picks a schema type from the type Select. */
+  async function openSchemaTabWithType(label: string) {
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    const panel = document.querySelector('.ant-tabs-tabpane-active') as HTMLElement;
+    fireEvent.mouseDown(within(panel).getByRole('combobox', { name: 'Schema type' }));
+    fireEvent.click(await screen.findByTitle(label));
+    return panel;
+  }
+
+  it('offers Postman Collection as a schema type', async () => {
+    await openSchemaTabWithType('Postman Collection');
+
+    expect(await screen.findByText(/Postman collections describe examples/)).toBeInTheDocument();
+  });
+
+  it('warns that schemas are inferred and export credentials are ignored', async () => {
+    await openSchemaTabWithType('Postman Collection');
+
+    expect(
+      await screen.findByText(/inferred from the saved example bodies/),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/credentials in your export are ignored/)).toBeInTheDocument();
+  });
+
+  it('does not show the Postman caveat for other schema types', async () => {
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+
+    await screen.findByPlaceholderText('Schema document');
+    expect(screen.queryByText(/Postman collections describe examples/)).not.toBeInTheDocument();
+  });
+
+  it('uploads a pasted collection with schema_type POSTMAN_COLLECTION', async () => {
+    uploadApiSchema.mockResolvedValue({
+      id: 's1',
+      schema_type: 'POSTMAN_COLLECTION',
+      source_url: null,
+      operation_count: 2,
+      total_operation_count: 2,
+      operation_filter: null,
+      detected_auth_method: 'BEARER_TOKEN',
+      created_at: '2026-05-01T00:00:00Z',
+    });
+    const panel = await openSchemaTabWithType('Postman Collection');
+    fireEvent.change(within(panel).getByPlaceholderText('Schema document'), {
+      target: { value: '{"info":{"schema":"v2.1.0"}}' },
+    });
+
+    fireEvent.click(within(panel).getByText('Upload schema'));
+
+    await waitFor(() =>
+      expect(uploadApiSchema).toHaveBeenCalledWith(
+        'conn-1',
+        expect.objectContaining({ schema_type: 'POSTMAN_COLLECTION' }),
+      ),
+    );
+  });
+
+  it('shows the detected auth type on an uploaded schema row', async () => {
+    listApiSchemas.mockResolvedValue([
+      {
+        id: 's1',
+        schema_type: 'POSTMAN_COLLECTION',
+        source_url: null,
+        operation_count: 2,
+        total_operation_count: 2,
+        operation_filter: null,
+        detected_auth_method: 'BEARER_TOKEN',
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+
+    expect(await screen.findByText('Bearer Token')).toBeInTheDocument();
+  });
+
+  it('falls back to "None declared" when the document declared no auth', async () => {
+    listApiSchemas.mockResolvedValue([
+      {
+        id: 's1',
+        schema_type: 'OPENAPI',
+        source_url: null,
+        operation_count: 1,
+        total_operation_count: 1,
+        operation_filter: null,
+        detected_auth_method: null,
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+
+    expect(await screen.findByText('None declared')).toBeInTheDocument();
+  });
+});

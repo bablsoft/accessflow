@@ -1,10 +1,12 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
 import com.bablsoft.accessflow.apigov.api.OperationFilter;
+import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiSchemaEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
@@ -57,9 +59,9 @@ class DefaultApiSchemaServiceTest {
     @Test
     void uploadParsesAndPersistsCatalog() {
         connectorExists();
-        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(List.of(
+        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(new ParsedApiSchema(List.of(
                 new ApiOperation("listPets", "GET", "/pets", null, false, null, null),
-                new ApiOperation("createPet", "POST", "/pets", null, true, null, null)));
+                new ApiOperation("createPet", "POST", "/pets", null, true, null, null))));
         when(schemaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         var view = service.upload(connectorId, orgId, ApiSchemaType.OPENAPI, "spec", null,
@@ -74,9 +76,9 @@ class DefaultApiSchemaServiceTest {
     @Test
     void uploadAppliesFilterToOperationCountAndPersistsFullCatalog() {
         connectorExists();
-        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(List.of(
+        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(new ParsedApiSchema(List.of(
                 new ApiOperation("listPets", "GET", "/pets", null, false, null, null),
-                new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null)));
+                new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null))));
         var saved = new java.util.concurrent.atomic.AtomicReference<ApiSchemaEntity>();
         when(schemaRepository.save(any())).thenAnswer(i -> {
             saved.set(i.getArgument(0));
@@ -95,10 +97,51 @@ class DefaultApiSchemaServiceTest {
     }
 
     @Test
+    void uploadPersistsTheParserSanitizedContentAndDetectedAuthMethod() {
+        connectorExists();
+        when(parserRegistry.parse(eq(ApiSchemaType.POSTMAN_COLLECTION), any())).thenReturn(new ParsedApiSchema(
+                List.of(new ApiOperation("ping", "GET", "/ping", null, false, null, null)),
+                ApiAuthMethod.BEARER_TOKEN, "{\"redacted\":true}"));
+        var saved = new java.util.concurrent.atomic.AtomicReference<ApiSchemaEntity>();
+        when(schemaRepository.save(any())).thenAnswer(i -> {
+            saved.set(i.getArgument(0));
+            return i.getArgument(0);
+        });
+
+        var view = service.upload(connectorId, orgId, ApiSchemaType.POSTMAN_COLLECTION,
+                "{\"token\":\"SUPER-SECRET\"}", null, OperationFilter.EMPTY);
+
+        // The uploaded document is never what gets stored when the parser redacted it.
+        assertThat(saved.get().getRawContent()).isEqualTo("{\"redacted\":true}").doesNotContain("SUPER-SECRET");
+        assertThat(saved.get().getDetectedAuthMethod()).isEqualTo(ApiAuthMethod.BEARER_TOKEN);
+        assertThat(view.detectedAuthMethod()).isEqualTo(ApiAuthMethod.BEARER_TOKEN);
+    }
+
+    @Test
+    void uploadStoresTheOriginalDocumentWhenTheParserDidNotSanitize() {
+        connectorExists();
+        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(new ParsedApiSchema(
+                List.of(new ApiOperation("listPets", "GET", "/pets", null, false, null, null))));
+        var saved = new java.util.concurrent.atomic.AtomicReference<ApiSchemaEntity>();
+        when(schemaRepository.save(any())).thenAnswer(i -> {
+            saved.set(i.getArgument(0));
+            return i.getArgument(0);
+        });
+
+        var view = service.upload(connectorId, orgId, ApiSchemaType.OPENAPI, "spec", null,
+                OperationFilter.EMPTY);
+
+        assertThat(saved.get().getRawContent()).isEqualTo("spec");
+        assertThat(saved.get().getDetectedAuthMethod()).isNull();
+        assertThat(view.detectedAuthMethod()).isNull();
+    }
+
+    @Test
     void uploadFetchesFromSourceUrlWhenRawContentBlank() throws Exception {
         connectorExists();
         when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), eq("fetched-spec")))
-                .thenReturn(List.of(new ApiOperation("listPets", "GET", "/pets", null, false, null, null)));
+                .thenReturn(new ParsedApiSchema(
+                        List.of(new ApiOperation("listPets", "GET", "/pets", null, false, null, null))));
         when(schemaRepository.save(any())).thenAnswer(i -> i.getArgument(0));
         var server = com.sun.net.httpserver.HttpServer.create(
                 new java.net.InetSocketAddress("127.0.0.1", 0), 0);
@@ -222,9 +265,9 @@ class DefaultApiSchemaServiceTest {
     @Test
     void previewFilterReportsCountsWithoutPersisting() {
         connectorExists();
-        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(List.of(
+        when(parserRegistry.parse(eq(ApiSchemaType.OPENAPI), any())).thenReturn(new ParsedApiSchema(List.of(
                 new ApiOperation("listPets", "GET", "/pets", null, false, null, null),
-                new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null)));
+                new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null))));
         var filter = new OperationFilter(null, List.of("/internal/**"), null, null, null, null, null, null, false);
 
         var preview = service.previewFilter(connectorId, orgId, ApiSchemaType.OPENAPI, "spec", null, filter);

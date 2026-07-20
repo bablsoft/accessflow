@@ -2474,7 +2474,8 @@
       "OPENAPI": "OpenAPI",
       "WSDL": "WSDL",
       "GRAPHQL_SDL": "GraphQL SDL",
-      "GRPC_PROTO": "gRPC Proto"
+      "GRPC_PROTO": "gRPC Proto",
+      "POSTMAN_COLLECTION": "Postman Collection"
     },
     "oauth2_grant_type": {
       "CLIENT_CREDENTIALS": "Client Credentials",
@@ -3149,6 +3150,14 @@
       "schemaUrlRequired": "Enter a schema URL",
       "schemaFile": "Schema file",
       "schemaFileRequired": "Choose a schema file",
+      "postmanCaveatTitle": "Postman collections describe examples, not schemas",
+      "postmanInferredSchemas": "Request and response schemas are inferred from the saved example bodies, so they are less precise than an OpenAPI document.",
+      "postmanCredentialsIgnored": "Any credentials in your export are ignored and never stored — re-enter them in the connector's authentication settings.",
+      "schemaFileDragHint": "Click or drag a schema file here",
+      "schemaFileFormats": "OpenAPI, WSDL, GraphQL SDL, gRPC proto or a Postman Collection v2.1 export (max 5 MB)",
+      "schemaFileTooLarge": "That file is larger than the 5 MB limit",
+      "detectedAuth": "Detected auth",
+      "detectedAuthNone": "None declared",
       "tabMasking": "Masking",
       "tabClassification": "Classification",
       "tabVariables": "Variables",

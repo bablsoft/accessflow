@@ -57,7 +57,7 @@ class ApiSchemaControllerTest {
 
     private ApiSchemaView schemaView() {
         return new ApiSchemaView(UUID.randomUUID(), connectorId, ApiSchemaType.OPENAPI, null, 3, 5,
-                OperationFilter.EMPTY, Instant.now());
+                OperationFilter.EMPTY, null, Instant.now());
     }
 
     @Test
