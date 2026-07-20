@@ -1684,8 +1684,9 @@ Enum `api_schema_type` (`OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`).
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
 | `schema_type` | `api_schema_type` | |
 | `raw_content` / `source_url` | TEXT | One of: uploaded body or fetched URL. |
-| `parsed_operations` | JSONB | Cached `ApiOperation[]` (operationId, verb, path, summary, write). Default `[]`. |
-| `operation_count` | INTEGER | |
+| `parsed_operations` | JSONB | Cached `ApiOperation[]` (operationId, verb, path, summary, write, tags, deprecated — the last two OpenAPI-only, null elsewhere). Always the **complete** parsed catalog, even when an import filter is set. Default `[]`. |
+| `operation_filter` | JSONB | Nullable (AF-614). Import-time operation filter — `includePaths`/`excludePaths`, `includeVerbs`/`excludeVerbs`, `includeOperationIds`/`excludeOperationIds`, `includeTags`/`excludeTags` (all string arrays), `excludeDeprecated` (bool). Applied on the read path by `listOperations`; re-editable without re-uploading. `NULL` = no filter = pre-AF-614 behaviour. |
+| `operation_count` | INTEGER | **Post-filter** (kept) operation count. Equals the full catalog size when `operation_filter` is `NULL`. |
 | `created_at` | TIMESTAMPTZ | |
 
 ## api_connector_user_permissions (AF-500)

@@ -46,7 +46,9 @@ public class OpenApiSchemaParser implements ApiSchemaParser {
                     var opId = op.getOperationId() != null && !op.getOperationId().isBlank()
                             ? op.getOperationId() : verb + " " + path;
                     boolean write = !READ_METHODS.contains(verb);
-                    operations.add(new ApiOperation(opId, verb, path, op.getSummary(), write, null, null));
+                    var tags = op.getTags() != null ? List.copyOf(op.getTags()) : null;
+                    operations.add(new ApiOperation(opId, verb, path, op.getSummary(), write, null, null,
+                            tags, op.getDeprecated()));
                 }));
         if (operations.isEmpty()) {
             throw new ApiSchemaParseException("OpenAPI document defines no operations");

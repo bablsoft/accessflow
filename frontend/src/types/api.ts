@@ -2591,11 +2591,25 @@ export interface GrantApiConnectorGroupPermissionInput {
 
 export type UpdateApiConnectorGroupPermissionInput = UpdateApiConnectorPermissionInput;
 
+export interface ApiOperationFilter {
+  includePaths?: string[];
+  excludePaths?: string[];
+  includeVerbs?: string[];
+  excludeVerbs?: string[];
+  includeOperationIds?: string[];
+  excludeOperationIds?: string[];
+  includeTags?: string[];
+  excludeTags?: string[];
+  excludeDeprecated?: boolean;
+}
+
 export interface ApiSchema {
   id: string;
   schema_type: ApiSchemaType;
   source_url: string | null;
   operation_count: number;
+  total_operation_count: number;
+  operation_filter: ApiOperationFilter | null;
   created_at: string;
 }
 
@@ -2603,6 +2617,7 @@ export interface UploadApiSchemaInput {
   schema_type: ApiSchemaType;
   raw_content: string;
   source_url?: string | null;
+  filter?: ApiOperationFilter | null;
 }
 
 export interface ApiOperation {
@@ -2611,6 +2626,14 @@ export interface ApiOperation {
   path: string;
   summary: string | null;
   write: boolean;
+  tags?: string[] | null;
+  deprecated?: boolean | null;
+}
+
+export interface ApiSchemaFilterPreview {
+  total_count: number;
+  kept_count: number;
+  excluded: ApiOperation[];
 }
 
 // --- AF-518: API connector masking & classification ---

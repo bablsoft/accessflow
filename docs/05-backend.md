@@ -2086,8 +2086,8 @@ The **`apigov/` module** governs outbound API calls (REST / SOAP / GraphQL / gRP
 review/approval/audit model as a database query. The foundation shipped today: connector
 management (CRUD + encrypted auth secret + test-connection probe), schema ingestion (OpenAPI via
 swagger-parser; GraphQL/proto/WSDL via dependency-free parsers behind the `ApiSchemaParser` SPI)
-producing a normalized operation catalog with read/write classification, and per-user
-"share-with-team" permissions. The governed-call pipeline is implemented end-to-end:
+producing a normalized operation catalog with read/write classification, an **import-time operation
+filter** (AF-614, below), and per-user "share-with-team" permissions. The governed-call pipeline is implemented end-to-end:
 submit (`POST /api/v1/api-requests`) → async rate-limited AI risk scoring (`ai.api.ApiCallAnalyzer`,
 fail-safe) → routing (`api_routing_policies`) + human review (`ApiReviewService`, self-approval
 forbidden, via `ApiReviewStateMachine`) → guarded execution (`ApiExecutionService`: connector-auth
@@ -2099,6 +2099,29 @@ full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), schedu
 **execution** is the one piece not yet wired (REST/SOAP/GraphQL execute over the JDK HTTP client).
 Cross-module references are bare UUIDs (like `access`); `apigov.api` is JDK + project types only.
 Full design: [docs/17-api-governance.md](17-api-governance.md).
+
+**Operation import filter (AF-614).** Real-world OpenAPI documents carry operations nobody should
+reach through AccessFlow (`/internal/**`, `/actuator/**`, deprecated or admin-only surfaces). An
+admin declares an `apigov.api.OperationFilter` per schema upload; it is **persisted on the
+`api_schemas` row (`operation_filter` JSONB) and applied on the read path**, not at parse time —
+`parsed_operations` always keeps the complete parsed catalog, so the filter is re-editable via
+`PUT /api-connectors/{id}/schemas/{schemaId}/filter` without re-fetching a remote `sourceUrl` (the
+raw document is stored in `raw_content` anyway, so parse-time filtering would not keep the excluded
+surface off disk). `DefaultApiSchemaService.listOperations` runs the stored filter through
+`OperationFilterMatcher`, which is the single choke point that makes filtered-out operations
+unreachable from `/api-editor`, text-to-API, and the `allowed_operations` grant picker alike.
+`operation_count` is the post-filter (kept) count; the pre-filter size is surfaced as
+`totalOperationCount`. Evaluation is *keep when every non-empty include dimension matches AND no
+exclude dimension matches* — **exclude wins**. Dimensions: path glob, HTTP verb (exact,
+case-insensitive), operation-id glob, tag (exact, case-insensitive), and `excludeDeprecated`; globs
+use the same `*`-only syntax as the routing-policy table globs. `ApiOperation` carries `tags` +
+`deprecated` (boxed `Boolean`, so schemas parsed before AF-614 deserialize as `null` rather than
+tripping `FAIL_ON_NULL_FOR_PRIMITIVES`); both are OpenAPI-only — for GraphQL SDL / WSDL / gRPC proto
+the operation-id glob is the load-bearing dimension since `path` is synthesized.
+`POST .../schemas/preview` dry-runs a filter (kept/excluded counts + the dropped operations) without
+persisting or auditing. Upload **and** filter edits both write `API_SCHEMA_UPLOADED` audit metadata
+carrying the filter, `total_operation_count`, and `excluded_count` (the edit path is distinguished by
+`action=filter_updated`). An absent/empty filter is exactly the pre-AF-614 behaviour.
 
 **Masking & classification (AF-518).** Connector-level response governance mirroring datasource
 dynamic masking (AF-381) + classification tagging (AF-447), adapted to non-tabular bodies. A

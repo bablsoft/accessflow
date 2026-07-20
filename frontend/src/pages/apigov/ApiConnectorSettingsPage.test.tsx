@@ -10,13 +10,19 @@ import type { ApiConnector } from '@/types/api';
 const getApiConnector = vi.fn();
 const updateApiConnector = vi.fn();
 const listReviewPlans = vi.fn();
+const listApiSchemas = vi.fn();
+const uploadApiSchema = vi.fn();
+const previewApiSchemaFilter = vi.fn();
+const updateApiSchemaFilter = vi.fn();
 
 vi.mock('@/api/apiConnectors', () => ({
   getApiConnector: (...args: unknown[]) => getApiConnector(...args),
   updateApiConnector: (...args: unknown[]) => updateApiConnector(...args),
-  listApiSchemas: () => Promise.resolve([]),
+  listApiSchemas: (...args: unknown[]) => listApiSchemas(...args),
   listApiOperations: () => Promise.resolve([]),
-  uploadApiSchema: vi.fn(),
+  uploadApiSchema: (...args: unknown[]) => uploadApiSchema(...args),
+  previewApiSchemaFilter: (...args: unknown[]) => previewApiSchemaFilter(...args),
+  updateApiSchemaFilter: (...args: unknown[]) => updateApiSchemaFilter(...args),
   deleteApiSchema: vi.fn(),
   apiConnectorKeys: {
     all: ['api-connectors'] as const,
@@ -103,6 +109,8 @@ describe('ApiConnectorSettingsPage — review plan (AF-579)', () => {
     updateApiConnector.mockReset();
     listReviewPlans.mockReset();
     listReviewPlans.mockResolvedValue([{ id: 'plan-1', name: 'Two approvals' }]);
+    listApiSchemas.mockReset();
+    listApiSchemas.mockResolvedValue([]);
   });
 
   it('shows the assigned review plan in the config form', async () => {
@@ -152,6 +160,162 @@ describe('ApiConnectorSettingsPage — review plan (AF-579)', () => {
       expect(updateApiConnector).toHaveBeenCalledWith(
         'conn-1',
         expect.objectContaining({ clear_review_plan: true }),
+      ),
+    );
+  });
+});
+
+describe('ApiConnectorSettingsPage — schema import filter (AF-614)', () => {
+  beforeEach(() => {
+    getApiConnector.mockReset();
+    getApiConnector.mockResolvedValue(baseConnector);
+    listReviewPlans.mockReset();
+    listReviewPlans.mockResolvedValue([]);
+    listApiSchemas.mockReset();
+    listApiSchemas.mockResolvedValue([]);
+    uploadApiSchema.mockReset();
+    previewApiSchemaFilter.mockReset();
+    updateApiSchemaFilter.mockReset();
+  });
+
+  /** Activates the Schema tab and pastes a document into the textarea. */
+  async function openSchemaTabWithContent() {
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    const textarea = await screen.findByPlaceholderText('Schema document');
+    fireEvent.change(textarea, { target: { value: 'openapi: 3.0.0' } });
+    return textarea;
+  }
+
+  it('uploads with a null filter when none is configured', async () => {
+    uploadApiSchema.mockResolvedValue({
+      id: 's1',
+      schema_type: 'OPENAPI',
+      source_url: null,
+      operation_count: 3,
+      total_operation_count: 3,
+      operation_filter: null,
+      created_at: '2026-05-01T00:00:00Z',
+    });
+
+    await openSchemaTabWithContent();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schema' }));
+
+    await waitFor(() =>
+      expect(uploadApiSchema).toHaveBeenCalledWith(
+        'conn-1',
+        expect.objectContaining({
+          schema_type: 'OPENAPI',
+          raw_content: 'openapi: 3.0.0',
+          filter: null,
+        }),
+      ),
+    );
+  });
+
+  it('reports the post-filter imported count after upload', async () => {
+    uploadApiSchema.mockResolvedValue({
+      id: 's1',
+      schema_type: 'OPENAPI',
+      source_url: null,
+      operation_count: 2,
+      total_operation_count: 5,
+      operation_filter: { excludePaths: ['/internal/**'] },
+      created_at: '2026-05-01T00:00:00Z',
+    });
+
+    await openSchemaTabWithContent();
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schema' }));
+
+    expect(await screen.findByText('2 of 5 operations imported')).toBeInTheDocument();
+  });
+
+  it('previews which operations a filter drops without uploading', async () => {
+    previewApiSchemaFilter.mockResolvedValue({
+      total_count: 2,
+      kept_count: 1,
+      excluded: [
+        {
+          operation_id: 'internalSync',
+          verb: 'POST',
+          path: '/internal/sync',
+          summary: null,
+          write: true,
+        },
+      ],
+    });
+
+    await openSchemaTabWithContent();
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+
+    await waitFor(() => expect(previewApiSchemaFilter).toHaveBeenCalled());
+    expect(await screen.findByText('Keeps 1 of 2 operations')).toBeInTheDocument();
+    expect(await screen.findByText('internalSync')).toBeInTheDocument();
+    expect(uploadApiSchema).not.toHaveBeenCalled();
+  });
+
+  it('threads a configured exclude-path glob into the upload payload', async () => {
+    uploadApiSchema.mockResolvedValue({
+      id: 's1',
+      schema_type: 'OPENAPI',
+      source_url: null,
+      operation_count: 1,
+      total_operation_count: 2,
+      operation_filter: { excludePaths: ['/internal/**'] },
+      created_at: '2026-05-01T00:00:00Z',
+    });
+
+    await openSchemaTabWithContent();
+    fireEvent.click(screen.getByText('Import filter (optional)'));
+
+    const excludePaths = await screen.findByLabelText('Exclude paths');
+    fireEvent.change(excludePaths, { target: { value: '/internal/**' } });
+    fireEvent.keyDown(excludePaths, { key: 'Enter', keyCode: 13 });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Upload schema' }));
+
+    await waitFor(() =>
+      expect(uploadApiSchema).toHaveBeenCalledWith(
+        'conn-1',
+        expect.objectContaining({
+          filter: expect.objectContaining({ excludePaths: ['/internal/**'] }),
+        }),
+      ),
+    );
+  });
+
+  it('edits an existing schema filter without re-uploading', async () => {
+    listApiSchemas.mockResolvedValue([
+      {
+        id: 's1',
+        schema_type: 'OPENAPI',
+        source_url: null,
+        operation_count: 1,
+        total_operation_count: 2,
+        operation_filter: { excludePaths: ['/internal/**'], excludeDeprecated: false },
+        created_at: '2026-05-01T00:00:00Z',
+      },
+    ]);
+    updateApiSchemaFilter.mockResolvedValue({});
+
+    render(wrap(<ApiConnectorSettingsPage />));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit filter' }));
+    const deprecated = await screen.findByRole('checkbox', {
+      name: 'Exclude deprecated operations',
+    });
+    fireEvent.click(deprecated);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() =>
+      expect(updateApiSchemaFilter).toHaveBeenCalledWith(
+        'conn-1',
+        's1',
+        expect.objectContaining({
+          excludePaths: ['/internal/**'],
+          excludeDeprecated: true,
+        }),
       ),
     );
   });
