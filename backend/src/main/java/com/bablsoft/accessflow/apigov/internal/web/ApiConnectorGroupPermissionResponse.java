@@ -15,6 +15,7 @@ public record ApiConnectorGroupPermissionResponse(
         boolean canRead,
         boolean canWrite,
         boolean canBreakGlass,
+        boolean canOverrideVariables,
         Instant expiresAt,
         List<String> allowedOperations,
         List<String> restrictedResponseFields,
@@ -22,7 +23,7 @@ public record ApiConnectorGroupPermissionResponse(
 
     static ApiConnectorGroupPermissionResponse from(ApiConnectorGroupPermissionView v) {
         return new ApiConnectorGroupPermissionResponse(v.id(), v.connectorId(), v.groupId(),
-                v.groupName(), v.memberCount(), v.canRead(), v.canWrite(), v.canBreakGlass(),
+                v.groupName(), v.memberCount(), v.canRead(), v.canWrite(), v.canBreakGlass(), v.canOverrideVariables(),
                 v.expiresAt(), v.allowedOperations(), v.restrictedResponseFields(), v.createdAt());
     }
 }

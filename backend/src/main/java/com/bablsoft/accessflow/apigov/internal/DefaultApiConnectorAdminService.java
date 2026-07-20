@@ -305,6 +305,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setCanRead(command.canRead());
         entity.setCanWrite(command.canWrite());
         entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setCanOverrideVariables(command.canOverrideVariables());
         entity.setExpiresAt(command.expiresAt());
         entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
@@ -323,6 +324,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setCanRead(command.canRead());
         entity.setCanWrite(command.canWrite());
         entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setCanOverrideVariables(command.canOverrideVariables());
         entity.setExpiresAt(command.expiresAt());
         entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
@@ -370,6 +372,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setCanRead(command.canRead());
         entity.setCanWrite(command.canWrite());
         entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setCanOverrideVariables(command.canOverrideVariables());
         entity.setExpiresAt(command.expiresAt());
         entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
@@ -388,6 +391,7 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
         entity.setCanRead(command.canRead());
         entity.setCanWrite(command.canWrite());
         entity.setCanBreakGlass(command.canBreakGlass());
+        entity.setCanOverrideVariables(command.canOverrideVariables());
         entity.setExpiresAt(command.expiresAt());
         entity.setAllowedOperations(toArray(command.allowedOperations()));
         entity.setRestrictedResponseFields(toArray(command.restrictedResponseFields()));
@@ -453,7 +457,8 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 e.getId(), e.getConnectorId(), e.getUserId(),
                 user != null ? user.email() : null,
                 user != null ? user.displayName() : null,
-                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.getExpiresAt(),
+                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.isCanOverrideVariables(),
+                e.getExpiresAt(),
                 e.getAllowedOperations() != null ? List.of(e.getAllowedOperations()) : List.of(),
                 e.getRestrictedResponseFields() != null ? List.of(e.getRestrictedResponseFields()) : List.of(),
                 e.getCreatedAt());
@@ -470,7 +475,8 @@ public class DefaultApiConnectorAdminService implements ApiConnectorAdminService
                 e.getId(), e.getConnectorId(), e.getGroupId(),
                 group != null ? group.name() : null,
                 group != null ? group.memberCount() : 0,
-                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.getExpiresAt(),
+                e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(), e.isCanOverrideVariables(),
+                e.getExpiresAt(),
                 e.getAllowedOperations() != null ? List.of(e.getAllowedOperations()) : List.of(),
                 e.getRestrictedResponseFields() != null ? List.of(e.getRestrictedResponseFields()) : List.of(),
                 e.getCreatedAt());

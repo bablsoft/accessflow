@@ -24,6 +24,7 @@ class DefaultApiConnectorPermissionLookupService implements ApiConnectorPermissi
                         p.canRead(),
                         p.canWrite(),
                         p.canBreakGlass(),
+                        p.canOverrideVariables(),
                         p.allowedOperations(),
                         p.expiresAt()));
     }

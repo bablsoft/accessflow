@@ -14,6 +14,7 @@ public record ApiConnectorPermissionResponse(
         boolean canRead,
         boolean canWrite,
         boolean canBreakGlass,
+        boolean canOverrideVariables,
         Instant expiresAt,
         List<String> allowedOperations,
         List<String> restrictedResponseFields,
@@ -21,7 +22,7 @@ public record ApiConnectorPermissionResponse(
 
     static ApiConnectorPermissionResponse from(ApiConnectorPermissionView v) {
         return new ApiConnectorPermissionResponse(v.id(), v.userId(), v.userEmail(), v.userDisplayName(),
-                v.canRead(), v.canWrite(), v.canBreakGlass(), v.expiresAt(), v.allowedOperations(),
+                v.canRead(), v.canWrite(), v.canBreakGlass(), v.canOverrideVariables(), v.expiresAt(), v.allowedOperations(),
                 v.restrictedResponseFields(), v.createdAt());
     }
 }

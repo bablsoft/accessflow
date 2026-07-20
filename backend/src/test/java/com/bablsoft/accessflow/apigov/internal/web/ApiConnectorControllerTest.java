@@ -40,12 +40,16 @@ class ApiConnectorControllerTest {
     private final UUID userId = UUID.randomUUID();
     private final UUID connectorId = UUID.randomUUID();
     private final RequestAuditContext auditContext = new RequestAuditContext("203.0.113.9", "ua/1");
+    private com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService variableLookupService;
 
     @BeforeEach
     void setUp() {
         service = mock(ApiConnectorAdminService.class);
         auditLogService = mock(AuditLogService.class);
-        controller = new ApiConnectorController(service, new ApiGovAuditWriter(auditLogService));
+        variableLookupService =
+                mock(com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService.class);
+        controller = new ApiConnectorController(service, variableLookupService,
+                new ApiGovAuditWriter(auditLogService));
     }
 
     private Authentication auth(UserRoleType role) {
@@ -154,7 +158,7 @@ class ApiConnectorControllerTest {
         var target = UUID.randomUUID();
         when(service.grantPermission(eq(connectorId), eq(orgId), eq(userId), any()))
                 .thenReturn(permissionView());
-        controller.grant(connectorId, new GrantApiConnectorPermissionRequest(target, true, false, false,
+        controller.grant(connectorId, new GrantApiConnectorPermissionRequest(target, true, false, false, false,
                 null, null, null), auth(UserRoleType.ADMIN), auditContext);
         verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GRANTED));
 
@@ -171,7 +175,7 @@ class ApiConnectorControllerTest {
                 .thenReturn(permissionView());
 
         var response = controller.update(connectorId, permId,
-                new UpdateApiConnectorPermissionRequest(false, true, false, null,
+                new UpdateApiConnectorPermissionRequest(false, true, false, false, null,
                         List.of("createPet"), List.of("data.token")),
                 auth(UserRoleType.ADMIN), auditContext);
 
@@ -197,7 +201,7 @@ class ApiConnectorControllerTest {
         when(service.grantGroupPermission(eq(connectorId), eq(orgId), eq(userId), any()))
                 .thenReturn(groupPermissionView());
         controller.grantGroup(connectorId,
-                new GrantApiConnectorGroupPermissionRequest(groupId, true, false, false, null, null, null),
+                new GrantApiConnectorGroupPermissionRequest(groupId, true, false, false, false, null, null, null),
                 auth(UserRoleType.ADMIN), auditContext);
         verify(auditLogService).record(auditEntry(AuditAction.API_PERMISSION_GROUP_GRANTED));
 
@@ -214,7 +218,7 @@ class ApiConnectorControllerTest {
                 .thenReturn(groupPermissionView());
 
         var response = controller.updateGroup(connectorId, permId,
-                new UpdateApiConnectorGroupPermissionRequest(true, false, false, null,
+                new UpdateApiConnectorGroupPermissionRequest(true, false, false, false, null,
                         List.of("listPets"), List.of("data.ssn")),
                 auth(UserRoleType.ADMIN), auditContext);
 
@@ -225,12 +229,12 @@ class ApiConnectorControllerTest {
 
     private ApiConnectorPermissionView permissionView() {
         return new ApiConnectorPermissionView(UUID.randomUUID(), connectorId, UUID.randomUUID(),
-                "u@acme.test", "User", true, false, false, null, List.of(), List.of(), Instant.now());
+                "u@acme.test", "User", true, false, false, false, null, List.of(), List.of(), Instant.now());
     }
 
     private com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView groupPermissionView() {
         return new com.bablsoft.accessflow.apigov.api.ApiConnectorGroupPermissionView(UUID.randomUUID(),
-                connectorId, UUID.randomUUID(), "Analysts", 3, true, false, false, null,
+                connectorId, UUID.randomUUID(), "Analysts", 3, true, false, false, false, null,
                 List.of(), List.of(), Instant.now());
     }
 

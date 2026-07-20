@@ -1,7 +1,9 @@
 import { Button, Input, Radio, Segmented, Space, Tabs, Upload } from 'antd';
 import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import type { ApiBodyType } from '@/types/api';
+import { Tag, Tooltip } from 'antd';
+import type { ApiBodyType, ApiConnectorVariableSummary } from '@/types/api';
+import { apiVariableKindLabel } from '@/utils/enumLabels';
 import { KeyValueEditor } from './KeyValueEditor';
 import { API_BODY_TYPES, apiBodyTypeLabel } from '@/utils/enumLabels';
 import {
@@ -16,13 +18,25 @@ interface Props {
   onChange: (next: ApiRequestComposition) => void;
   defaultHeaders: Record<string, string>;
   onTooLarge: () => void;
+  /**
+   * The connector's dynamic variables (AF-613). Drives the Variables tab, which only appears when
+   * at least one variable exists. Pass `[]` where per-request overrides do not apply.
+   */
+  connectorVariables?: ApiConnectorVariableSummary[];
 }
 
-export function ApiRequestComposer({ value, onChange, defaultHeaders, onTooLarge }: Props) {
+export function ApiRequestComposer({
+  value,
+  onChange,
+  defaultHeaders,
+  onTooLarge,
+  connectorVariables = [],
+}: Props) {
   const { t } = useTranslation();
   const patch = (p: Partial<ApiRequestComposition>) => onChange({ ...value, ...p });
 
   const defaultHeaderPairs = Object.entries(defaultHeaders).map(([key, v]) => ({ key, value: v }));
+  const overridableVariables = connectorVariables.filter((v) => v.overridable);
 
   const updateFormField = (index: number, p: Partial<FormFieldRow>) =>
     patch({ formFields: value.formFields.map((f, i) => (i === index ? { ...f, ...p } : f)) });
@@ -174,6 +188,48 @@ export function ApiRequestComposer({ value, onChange, defaultHeaders, onTooLarge
           ),
         },
         { key: 'body', label: t('apiGov.editor.tabBody'), children: bodyTab },
+        ...(connectorVariables.length > 0
+          ? [
+              {
+                key: 'variables',
+                label: t('apiGov.editor.tabVariables'),
+                children: (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="muted">{t('apiGov.editor.variablesHint')}</div>
+                    {overridableVariables.length > 0 ? (
+                      <div>
+                        <div className="muted" style={{ marginBottom: 4 }}>
+                          {t('apiGov.editor.variableOverrides')} ·{' '}
+                          {t('apiGov.editor.variableOverridesHint')}
+                        </div>
+                        <KeyValueEditor
+                          pairs={value.variableOverrides}
+                          onChange={(p) => patch({ variableOverrides: p })}
+                        />
+                      </div>
+                    ) : (
+                      <div className="muted">{t('apiGov.editor.noOverridableVariables')}</div>
+                    )}
+                    <div>
+                      <div className="muted" style={{ marginBottom: 4 }}>
+                        {t('apiGov.editor.availableVariables')}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {connectorVariables.map((v) => (
+                          <Tooltip key={v.name} title={v.description ?? undefined}>
+                            <Tag color={v.overridable ? 'blue' : undefined}>
+                              <span className="mono">{`{{${v.name}}}`}</span>{' '}
+                              {apiVariableKindLabel(t, v.kind)}
+                            </Tag>
+                          </Tooltip>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ),
+              },
+            ]
+          : []),
       ]}
     />
   );

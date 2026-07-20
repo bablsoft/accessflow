@@ -100,7 +100,7 @@ class DefaultRequestGroupServiceCrudTest {
     }
 
     private ApiConnectorPermissionLookupView apiPerm(boolean read, boolean write, boolean bg) {
-        return new ApiConnectorPermissionLookupView(connectorId, userId, read, write, bg, List.of(), null);
+        return new ApiConnectorPermissionLookupView(connectorId, userId, read, write, bg, false, List.of(), null);
     }
 
     private RequestGroupItemInput queryInput() {

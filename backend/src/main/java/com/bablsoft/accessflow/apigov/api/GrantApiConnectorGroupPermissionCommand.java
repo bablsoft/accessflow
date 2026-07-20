@@ -10,6 +10,7 @@ public record GrantApiConnectorGroupPermissionCommand(
         boolean canRead,
         boolean canWrite,
         boolean canBreakGlass,
+        boolean canOverrideVariables,
         Instant expiresAt,
         List<String> allowedOperations,
         List<String> restrictedResponseFields) {

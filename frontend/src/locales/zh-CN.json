@@ -2580,6 +2580,27 @@
       "SMTP_CONFIGURE": "配置 SMTP",
       "LOCALIZATION_CONFIGURE": "配置本地化",
       "SETUP_PROGRESS_VIEW": "查看设置进度"
+    },
+    "api_variable_kind": {
+      "CONSTANT": "常量",
+      "UUID": "随机 UUID",
+      "TIMESTAMP": "时间戳",
+      "EPOCH_MILLIS": "Epoch 毫秒",
+      "RANDOM_HEX": "随机字节",
+      "HASH": "哈希",
+      "HMAC": "HMAC 签名",
+      "ENCODE": "编码"
+    },
+    "api_variable_algorithm": {
+      "HMAC_SHA256": "HMAC-SHA256",
+      "HMAC_SHA512": "HMAC-SHA512",
+      "SHA256": "SHA-256",
+      "MD5": "MD5"
+    },
+    "api_variable_encoding": {
+      "HEX": "十六进制",
+      "BASE64": "Base64",
+      "BASE64URL": "Base64（URL 安全、无填充）"
     }
   },
   "access": {
@@ -3130,6 +3151,7 @@
       "schemaFileRequired": "请选择模式文件",
       "tabMasking": "脱敏",
       "tabClassification": "分类",
+      "tabVariables": "变量",
       "masking": {
         "title": "响应脱敏",
         "description": "在存储之前对此连接器的 API 响应中的字段进行脱敏。位于揭示列表中的用户可看到未脱敏的值。",
@@ -3241,7 +3263,77 @@
       "allowedOperationsPlaceholder": "所有操作（留空）",
       "allOperations": "全部",
       "restrictedResponseFields": "掩码响应字段",
-      "restrictedResponseFieldsPlaceholder": "添加点路径（如 data.ssn）"
+      "restrictedResponseFieldsPlaceholder": "添加点路径（如 data.ssn）",
+      "variables": {
+        "title": "动态变量",
+        "description": "按请求计算的命名值，通过 {{name}} 占位符替换到请求头、路径、查询参数和请求体中——请求签名、随机数、时间戳、幂等键。在身份验证之后求值，因此表达式可以对已解析的 Authorization 请求头进行签名。",
+        "add": "添加变量",
+        "edit": "编辑",
+        "delete": "删除",
+        "move_up": "上移",
+        "move_down": "下移",
+        "create_title": "添加变量",
+        "edit_title": "编辑变量",
+        "empty_title": "暂无变量",
+        "empty_description": "添加变量以对发往该连接器的每个请求进行签名、加时间戳或随机化。",
+        "col_name": "占位符",
+        "col_kind": "类型",
+        "col_expression": "表达式",
+        "col_target": "注入到",
+        "col_flags": "标记",
+        "col_actions": "操作",
+        "target_none": "仅占位符",
+        "has_secret": "该变量已存储共享密钥",
+        "secret_tag": "密钥",
+        "overridable_tag": "可覆盖",
+        "label_name": "名称",
+        "name_hint": "在请求头值、路径、查询值或请求体中以 {{name}} 引用。",
+        "placeholder_name": "signature",
+        "name_required": "必须提供变量名称",
+        "name_invalid": "以字母开头；仅限字母、数字和下划线（最多 64 个字符）",
+        "label_kind": "类型",
+        "kind_required": "必须提供类型",
+        "label_expression": "表达式",
+        "expression_required": "必须提供表达式",
+        "expression_too_long": "表达式最多 8,192 个字符",
+        "placeholder_expression": "{{request.headers.Authorization}}{{request.body}}",
+        "expression_hint_constant": "固定值。可引用其他变量和请求字段。",
+        "expression_hint_timestamp": "可选的日期格式（UTC）。留空则使用 ISO-8601。",
+        "expression_hint_random_hex": "可选字节数，介于 1 和 256 之间。默认 16。",
+        "expression_hint_hash": "要摘要的文本。可引用 {{request.body}}、{{request.path}} 或其他变量。",
+        "expression_hint_hmac": "要签名的文本。请求字段反映替换之前的请求状态，因此被签名的请求体仍包含其占位符。",
+        "expression_hint_encode": "要重新编码的文本。",
+        "label_algorithm": "算法",
+        "algorithm_required": "必须提供算法",
+        "md5_warning": "MD5 不具备抗碰撞性。仅在供应商合约要求时使用，切勿用于签名。",
+        "label_encoding": "编码方式",
+        "encoding_required": "必须提供编码方式",
+        "encoding_default_hint": "留空时默认使用十六进制。",
+        "label_secret": "共享密钥",
+        "secret_required": "必须提供共享密钥",
+        "secret_too_long": "密钥最多 4,096 个字符",
+        "secret_hint": "静态加密存储，且不会再次显示。",
+        "secret_unchanged_hint": "已存储密钥。留空以保留，或输入新值以替换。",
+        "label_target": "注入到（可选）",
+        "target_hint": "header:X-Signature 或 query:signature——该值会自动写入其中。留空则改用 {{name}} 占位符。",
+        "placeholder_target": "header:X-Signature",
+        "target_invalid": "请使用 header:名称 或 query:名称",
+        "label_overridable": "允许按请求覆盖",
+        "overridable_hint": "在该连接器上拥有覆盖权限的提交者可以提供自己的值。",
+        "overridable_secret_hint": "包含密钥的变量永远不能被覆盖。",
+        "label_description": "描述",
+        "placeholder_description": "供应商请求签名",
+        "description_too_long": "描述最多 512 个字符",
+        "save_success": "变量已保存",
+        "save_error": "无法保存变量",
+        "delete_success": "变量已删除",
+        "delete_error": "无法删除变量",
+        "delete_confirm_title": "删除该变量？",
+        "delete_confirm_body": "引用 {{name}} 的请求将按字面发送该占位符。",
+        "reorder_error": "无法调整变量顺序"
+      },
+      "canOverrideVariables": "覆盖变量",
+      "canOverrideVariablesHint": "可为该连接器的可覆盖动态变量提供按请求的值。"
     },
     "editor": {
       "title": "API Editor",
@@ -3287,7 +3379,13 @@
       "searchOperation": "搜索操作…",
       "scheduleFor": "安排稍后执行",
       "scheduleHint": "留空则在批准后立即执行",
-      "scheduleInPast": "计划时间必须是将来的时间"
+      "scheduleInPast": "计划时间必须是将来的时间",
+      "tabVariables": "变量",
+      "variablesHint": "该连接器按请求计算值。可在任意位置以 {{name}} 引用。",
+      "variableOverrides": "覆盖值",
+      "variableOverridesHint": "为可覆盖的变量提供你自己的值",
+      "noOverridableVariables": "该连接器的变量均不可按请求覆盖。",
+      "availableVariables": "可用占位符"
     },
     "requests": {
       "title": "API Requests",
@@ -3339,7 +3437,11 @@
       "filterTraceId": "追踪 ID",
       "filterSpanId": "Span ID",
       "downloadResponse": "下载完整响应",
-      "downloadFailed": "无法下载响应"
+      "downloadFailed": "无法下载响应",
+      "variableOverrides": "变量覆盖值",
+      "variableOverridesHint": "提交者为该连接器可覆盖变量提供的值。这些是签名输入；签名、随机数等计算结果永不展示。",
+      "variableName": "变量",
+      "variableValue": "值"
     },
     "reviews": {
       "title": "API Reviews",
@@ -3353,7 +3455,9 @@
       "risk": "Risk",
       "subtitle": "批准或拒绝受治理的 API 调用",
       "searchPlaceholder": "按连接器、路径搜索",
-      "actions": "操作"
+      "actions": "操作",
+      "overrides": "覆盖",
+      "overridesHint": "该请求覆盖了连接器变量"
     },
     "error": "Something went wrong"
   },

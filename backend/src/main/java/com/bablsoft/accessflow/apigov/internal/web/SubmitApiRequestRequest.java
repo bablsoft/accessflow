@@ -27,6 +27,7 @@ public record SubmitApiRequestRequest(
         String requestBody,
         List<ApiFormField> formFields,
         String binaryFilename,
+        Map<String, String> variableOverrides,
         String justification,
         Instant scheduledFor,
         SubmissionReason submissionReason) {
@@ -35,6 +36,7 @@ public record SubmitApiRequestRequest(
                                       String userAgent) {
         return new SubmitApiRequestCommand(connectorId, organizationId, userId, admin, operationId, verb,
                 requestPath, requestHeaders, queryParams, bodyType, requestContentType, requestBody,
-                formFields, binaryFilename, justification, scheduledFor, submissionReason, ip, userAgent);
+                formFields, binaryFilename, variableOverrides, justification, scheduledFor,
+                submissionReason, ip, userAgent);
     }
 }

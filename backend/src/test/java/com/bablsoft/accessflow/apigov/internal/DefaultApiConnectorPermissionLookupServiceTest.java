@@ -33,7 +33,7 @@ class DefaultApiConnectorPermissionLookupServiceTest {
         var userId = UUID.randomUUID();
         var expiry = Instant.now();
         when(permissionResolver.resolve(connectorId, userId)).thenReturn(Optional.of(
-                new ResolvedApiConnectorPermission(connectorId, userId, true, false, true,
+                new ResolvedApiConnectorPermission(connectorId, userId, true, false, true, false,
                         List.of("listCharges"), List.of(), expiry)));
 
         var view = service.findFor(connectorId, userId).orElseThrow();

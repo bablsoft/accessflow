@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -35,6 +36,12 @@ public record ApiRequestView(
         Integer aiRiskScore,
         String aiSummary,
         ApiBodyType bodyType,
+        /**
+         * AF-613: the submitter-supplied variable overrides, so a reviewer approves exactly what
+         * will execute. These are the signing <em>inputs</em>; the resolved outputs (nonce,
+         * signature) are execution-time only and are never surfaced.
+         */
+        Map<String, String> variableOverrides,
         Instant scheduledFor,
         String traceId,
         String spanId,

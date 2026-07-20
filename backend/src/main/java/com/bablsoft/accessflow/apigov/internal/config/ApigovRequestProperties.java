@@ -11,10 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * (and therefore downloadable) API response body — the absolute backstop above any per-connector
  * {@code max_response_bytes}. {@code responsePreviewBytes} bounds how much of the stored snapshot is
  * embedded inline in the detail view; the full body is served by the download endpoint.
+ * {@code maxVariableValueBytes} caps a single resolved dynamic-variable value (AF-613) — a digest or
+ * nonce is tens of bytes, so a large value means a runaway expression or an abusive override.
  */
 @ConfigurationProperties("accessflow.apigov")
 public record ApigovRequestProperties(long maxRequestBodyBytes, long maxResponseBytes,
-                                      long responsePreviewBytes) {
+                                      long responsePreviewBytes, int maxVariableValueBytes) {
 
     public ApigovRequestProperties {
         if (maxRequestBodyBytes <= 0) {
@@ -25,6 +27,9 @@ public record ApigovRequestProperties(long maxRequestBodyBytes, long maxResponse
         }
         if (responsePreviewBytes <= 0) {
             responsePreviewBytes = 65_536L;
+        }
+        if (maxVariableValueBytes <= 0) {
+            maxVariableValueBytes = 8192;
         }
     }
 }

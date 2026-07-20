@@ -2580,6 +2580,27 @@
       "SMTP_CONFIGURE": "Configurer le SMTP",
       "LOCALIZATION_CONFIGURE": "Configurer la localisation",
       "SETUP_PROGRESS_VIEW": "Voir la progression de la configuration"
+    },
+    "api_variable_kind": {
+      "CONSTANT": "Constante",
+      "UUID": "UUID aléatoire",
+      "TIMESTAMP": "Horodatage",
+      "EPOCH_MILLIS": "Millisecondes epoch",
+      "RANDOM_HEX": "Octets aléatoires",
+      "HASH": "Hachage",
+      "HMAC": "Signature HMAC",
+      "ENCODE": "Encoder"
+    },
+    "api_variable_algorithm": {
+      "HMAC_SHA256": "HMAC-SHA256",
+      "HMAC_SHA512": "HMAC-SHA512",
+      "SHA256": "SHA-256",
+      "MD5": "MD5"
+    },
+    "api_variable_encoding": {
+      "HEX": "Hexadécimal",
+      "BASE64": "Base64",
+      "BASE64URL": "Base64 (URL, sans remplissage)"
     }
   },
   "access": {
@@ -3130,6 +3151,7 @@
       "schemaFileRequired": "Choisissez un fichier de schéma",
       "tabMasking": "Masquage",
       "tabClassification": "Classification",
+      "tabVariables": "Variables",
       "masking": {
         "title": "Masquage des réponses",
         "description": "Masquez des champs dans les réponses d'API de ce connecteur avant leur stockage. Un utilisateur figurant dans une liste de révélation voit la valeur non masquée.",
@@ -3241,7 +3263,77 @@
       "allowedOperationsPlaceholder": "Toutes les opérations (laisser vide)",
       "allOperations": "Toutes",
       "restrictedResponseFields": "Champs de réponse masqués",
-      "restrictedResponseFieldsPlaceholder": "Ajouter des chemins (ex. data.ssn)"
+      "restrictedResponseFieldsPlaceholder": "Ajouter des chemins (ex. data.ssn)",
+      "variables": {
+        "title": "Variables dynamiques",
+        "description": "Valeurs nommées calculées à chaque requête et substituées dans les en-têtes, le chemin, la query et le corps via des marqueurs {{name}} — signatures, nonces, horodatages, clés d'idempotence. Elles sont évaluées après l'authentification, si bien qu'une expression peut signer l'en-tête Authorization résolu.",
+        "add": "Ajouter une variable",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "move_up": "Déplacer avant",
+        "move_down": "Déplacer après",
+        "create_title": "Ajouter une variable",
+        "edit_title": "Modifier la variable",
+        "empty_title": "Aucune variable pour l'instant",
+        "empty_description": "Ajoutez une variable pour signer, horodater ou aléatoiriser une partie de chaque requête vers ce connecteur.",
+        "col_name": "Marqueur",
+        "col_kind": "Type",
+        "col_expression": "Expression",
+        "col_target": "Injectée dans",
+        "col_flags": "Indicateurs",
+        "col_actions": "Actions",
+        "target_none": "Marqueur uniquement",
+        "has_secret": "Un secret partagé est enregistré pour cette variable",
+        "secret_tag": "Secret",
+        "overridable_tag": "Substituable",
+        "label_name": "Nom",
+        "name_hint": "Référencez-la par {{name}} dans un en-tête, le chemin, une valeur de query ou le corps.",
+        "placeholder_name": "signature",
+        "name_required": "Un nom de variable est requis",
+        "name_invalid": "Commencez par une lettre ; lettres, chiffres et tirets bas uniquement (64 caractères max)",
+        "label_kind": "Type",
+        "kind_required": "Un type est requis",
+        "label_expression": "Expression",
+        "expression_required": "Une expression est requise",
+        "expression_too_long": "L'expression ne doit pas dépasser 8 192 caractères",
+        "placeholder_expression": "{{request.headers.Authorization}}{{request.body}}",
+        "expression_hint_constant": "Une valeur fixe. D'autres variables et champs de la requête peuvent être référencés.",
+        "expression_hint_timestamp": "Format de date optionnel (UTC). Laissez vide pour ISO-8601.",
+        "expression_hint_random_hex": "Nombre d'octets optionnel entre 1 et 256. 16 par défaut.",
+        "expression_hint_hash": "Le texte à hacher. Référencez {{request.body}}, {{request.path}} ou une autre variable.",
+        "expression_hint_hmac": "Le texte à signer. Les champs de la requête décrivent son état avant substitution, si bien qu'un corps signé contient encore son marqueur.",
+        "expression_hint_encode": "Le texte à réencoder.",
+        "label_algorithm": "Algorithme",
+        "algorithm_required": "Un algorithme est requis",
+        "md5_warning": "MD5 n'est pas résistant aux collisions. Ne l'utilisez que si un contrat fournisseur l'impose, jamais pour une signature.",
+        "label_encoding": "Encodage",
+        "encoding_required": "Un encodage est requis",
+        "encoding_default_hint": "Hexadécimal par défaut si laissé vide.",
+        "label_secret": "Secret partagé",
+        "secret_required": "Un secret partagé est requis",
+        "secret_too_long": "Le secret ne doit pas dépasser 4 096 caractères",
+        "secret_hint": "Chiffré au repos et jamais réaffiché.",
+        "secret_unchanged_hint": "Un secret est enregistré. Laissez vide pour le conserver, ou saisissez-en un nouveau pour le remplacer.",
+        "label_target": "Injecter dans (optionnel)",
+        "target_hint": "header:X-Signature ou query:signature — la valeur y est écrite automatiquement. Laissez vide pour utiliser un marqueur {{name}}.",
+        "placeholder_target": "header:X-Signature",
+        "target_invalid": "Utilisez header:Nom ou query:nom",
+        "label_overridable": "Autoriser la substitution par requête",
+        "overridable_hint": "Les demandeurs disposant de la permission de substitution sur ce connecteur pourront fournir leur propre valeur.",
+        "overridable_secret_hint": "Une variable contenant un secret ne peut jamais être substituée.",
+        "label_description": "Description",
+        "placeholder_description": "Signature de requête du fournisseur",
+        "description_too_long": "La description ne doit pas dépasser 512 caractères",
+        "save_success": "Variable enregistrée",
+        "save_error": "Impossible d'enregistrer la variable",
+        "delete_success": "Variable supprimée",
+        "delete_error": "Impossible de supprimer la variable",
+        "delete_confirm_title": "Supprimer cette variable ?",
+        "delete_confirm_body": "Les requêtes référençant {{name}} enverront le marqueur littéralement.",
+        "reorder_error": "Impossible de réordonner les variables"
+      },
+      "canOverrideVariables": "Substituer les variables",
+      "canOverrideVariablesHint": "Peut fournir des valeurs par requête pour les variables dynamiques substituables de ce connecteur."
     },
     "editor": {
       "title": "API Editor",
@@ -3287,7 +3379,13 @@
       "searchOperation": "Rechercher des opérations…",
       "scheduleFor": "Planifier pour plus tard",
       "scheduleHint": "Laisser vide pour exécuter juste après l'approbation",
-      "scheduleInPast": "L'heure planifiée doit être dans le futur"
+      "scheduleInPast": "L'heure planifiée doit être dans le futur",
+      "tabVariables": "Variables",
+      "variablesHint": "Ce connecteur calcule des valeurs à chaque requête. Référencez-en une par {{name}} n'importe où.",
+      "variableOverrides": "Substitutions",
+      "variableOverridesHint": "fournissez votre propre valeur pour une variable substituable",
+      "noOverridableVariables": "Aucune variable de ce connecteur ne peut être substituée par requête.",
+      "availableVariables": "Marqueurs disponibles"
     },
     "requests": {
       "title": "API Requests",
@@ -3339,7 +3437,11 @@
       "filterTraceId": "ID de trace",
       "filterSpanId": "ID de span",
       "downloadResponse": "Télécharger la réponse complète",
-      "downloadFailed": "Impossible de télécharger la réponse"
+      "downloadFailed": "Impossible de télécharger la réponse",
+      "variableOverrides": "Substitutions de variables",
+      "variableOverridesHint": "Valeurs fournies par le demandeur pour les variables substituables de ce connecteur. Ce sont les entrées de signature ; les valeurs calculées telles que signatures et nonces ne sont jamais affichées.",
+      "variableName": "Variable",
+      "variableValue": "Valeur"
     },
     "reviews": {
       "title": "API Reviews",
@@ -3353,7 +3455,9 @@
       "risk": "Risk",
       "subtitle": "Approuver ou rejeter les appels API gouvernés",
       "searchPlaceholder": "Rechercher par connecteur, chemin",
-      "actions": "Actions"
+      "actions": "Actions",
+      "overrides": "Substitutions",
+      "overridesHint": "Cette requête substitue des variables du connecteur"
     },
     "error": "Something went wrong"
   },

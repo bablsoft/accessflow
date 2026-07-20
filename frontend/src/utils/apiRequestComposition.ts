@@ -24,6 +24,8 @@ export interface ApiRequestComposition {
   formFields: FormFieldRow[];
   binaryFilename: string | null;
   binaryBase64: string | null;
+  /** AF-613: per-request overrides for connector variables marked overridable. */
+  variableOverrides: KeyValuePair[];
 }
 
 export const emptyComposition: ApiRequestComposition = {
@@ -35,11 +37,12 @@ export const emptyComposition: ApiRequestComposition = {
   formFields: [],
   binaryFilename: null,
   binaryBase64: null,
+  variableOverrides: [],
 };
 
 /** A fresh composition with unshared array instances (emptyComposition shares its arrays). */
 export function newComposition(): ApiRequestComposition {
-  return { ...emptyComposition, queryParams: [], headers: [], formFields: [] };
+  return { ...emptyComposition, queryParams: [], headers: [], formFields: [], variableOverrides: [] };
 }
 
 /** The composition fields as they come back on a saved item (group member, snake_case wire). */
@@ -51,6 +54,7 @@ export interface SavedComposition {
   request_body?: string | null;
   form_fields?: ApiFormField[] | null;
   binary_filename?: string | null;
+  variable_overrides?: Record<string, string> | null;
 }
 
 /** Rebuilds editor state from a saved item so `compositionToSubmit(compositionFromSaved(x)) ≈ x`. */
@@ -72,6 +76,7 @@ export function compositionFromSaved(saved: SavedComposition): ApiRequestComposi
     })),
     binaryFilename: bodyType === 'BINARY' ? (saved.binary_filename ?? null) : null,
     binaryBase64: bodyType === 'BINARY' ? (saved.request_body ?? null) : null,
+    variableOverrides: recordToPairs(saved.variable_overrides),
   };
 }
 
@@ -110,6 +115,7 @@ export function compositionToSubmit(c: ApiRequestComposition): {
   request_body: string | null;
   form_fields: ApiFormField[];
   binary_filename: string | null;
+  variable_overrides: Record<string, string>;
 } {
   const formFields: ApiFormField[] =
     c.bodyType === 'FORM_DATA' || c.bodyType === 'FORM_URLENCODED'
@@ -132,5 +138,6 @@ export function compositionToSubmit(c: ApiRequestComposition): {
       c.bodyType === 'RAW' ? c.rawBody || null : c.bodyType === 'BINARY' ? c.binaryBase64 : null,
     form_fields: formFields,
     binary_filename: c.bodyType === 'BINARY' ? c.binaryFilename : null,
+    variable_overrides: pairsToRecord(c.variableOverrides),
   };
 }

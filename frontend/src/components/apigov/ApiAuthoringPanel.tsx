@@ -3,7 +3,7 @@ import { App, Button, Card, Input, Select, Space, Tag } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { ApiRequestComposer } from '@/components/apigov/ApiRequestComposer';
 import { riskLevelLabel } from '@/utils/enumLabels';
-import type { ApiConnector } from '@/types/api';
+import type { ApiConnector, ApiConnectorVariableSummary } from '@/types/api';
 import type { ApiAuthoring, ApiAuthoringValue } from './useApiAuthoring';
 
 interface ApiAuthoringPanelProps {
@@ -17,6 +17,12 @@ interface ApiAuthoringPanelProps {
   header?: ReactNode;
   /** Rendered under the composer — the page puts schedule/justification/actions here. */
   footer?: ReactNode;
+  /**
+   * The connector's dynamic variables (AF-613). Drives the composer's Variables tab. Grouped
+   * request members deliberately pass nothing: the group-item wire shape carries no
+   * `variable_overrides`, so offering the input there would silently drop it.
+   */
+  connectorVariables?: ApiConnectorVariableSummary[];
 }
 
 /**
@@ -33,6 +39,7 @@ export function ApiAuthoringPanel({
   layout = 'page',
   header,
   footer,
+  connectorVariables,
 }: ApiAuthoringPanelProps) {
   const { t } = useTranslation();
   const { message } = App.useApp();
@@ -136,6 +143,7 @@ export function ApiAuthoringPanel({
           onChange={(composition) => onChange({ ...value, composition })}
           defaultHeaders={connector?.default_headers ?? {}}
           onTooLarge={() => message.error(t('apiGov.editor.fileTooLarge', { maxMb: 5 }))}
+          connectorVariables={connectorVariables}
         />
 
         {footer}

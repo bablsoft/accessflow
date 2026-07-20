@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Select, Skeleton, Table } from 'antd';
+import { App, Button, Input, Modal, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -104,6 +104,20 @@ export default function ApiReviewQueuePage() {
       dataIndex: 'request_path',
       ellipsis: true,
       render: (v: string) => <span className="mono" style={{ fontSize: 12 }}>{v}</span>,
+    },
+    {
+      title: t('apiGov.reviews.overrides'),
+      dataIndex: 'variable_override_count',
+      width: 110,
+      align: 'center' as const,
+      render: (count: number) =>
+        count > 0 ? (
+          <Tooltip title={t('apiGov.reviews.overridesHint')}>
+            <Tag color="blue">{count}</Tag>
+          </Tooltip>
+        ) : (
+          <span className="muted">—</span>
+        ),
     },
     {
       title: t('apiGov.reviews.risk'),

@@ -83,6 +83,11 @@ export function memberToBody(m: DraftMember): RequestGroupItemBody {
       transactional: m.transactional,
     };
   }
+  // AF-613: connector variables still resolve for a grouped member, but per-request *overrides*
+  // are out of scope here — the group-item wire shape carries no `variable_overrides`, so sending
+  // one would be silently dropped by the server. Drop it explicitly rather than let it ride along.
+  const submitted = compositionToSubmit(m.composition);
+  delete (submitted as Partial<typeof submitted>).variable_overrides;
   return {
     target_kind: 'API_CALL',
     transactional: false,
@@ -90,7 +95,7 @@ export function memberToBody(m: DraftMember): RequestGroupItemBody {
     operation_id: m.operationId,
     verb: m.verb,
     request_path: m.requestPath,
-    ...compositionToSubmit(m.composition),
+    ...submitted,
   };
 }
 

@@ -33,6 +33,7 @@ interface PermissionCapabilityValues {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at?: Dayjs | null;
   allowed_operations?: string[];
   restricted_response_fields?: string[];
@@ -50,6 +51,14 @@ function PermissionCapabilityFields({ operations }: { operations: ApiOperation[]
         <Switch size="small" />
       </Form.Item>
       <Form.Item name="can_break_glass" label={t('apiGov.settings.canBreakGlass')} valuePropName="checked">
+        <Switch size="small" />
+      </Form.Item>
+      <Form.Item
+        name="can_override_variables"
+        label={t('apiGov.settings.canOverrideVariables')}
+        tooltip={t('apiGov.settings.canOverrideVariablesHint')}
+        valuePropName="checked"
+      >
         <Switch size="small" />
       </Form.Item>
       <Form.Item name="expires_at" label={t('apiGov.settings.expiresAt')}>
@@ -106,6 +115,7 @@ function EditPermissionModal({
       can_read: permission.can_read,
       can_write: permission.can_write,
       can_break_glass: permission.can_break_glass,
+      can_override_variables: permission.can_override_variables,
       expires_at: permission.expires_at ? dayjs(permission.expires_at) : null,
       allowed_operations: permission.allowed_operations,
       restricted_response_fields: permission.restricted_response_fields,
@@ -122,6 +132,7 @@ function EditPermissionModal({
         can_read: values.can_read,
         can_write: values.can_write,
         can_break_glass: values.can_break_glass,
+        can_override_variables: values.can_override_variables,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
         allowed_operations: values.allowed_operations ?? [],
         restricted_response_fields: values.restricted_response_fields ?? [],
@@ -236,6 +247,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
         can_read: values.can_read,
         can_write: values.can_write,
         can_break_glass: values.can_break_glass,
+        can_override_variables: values.can_override_variables,
         expires_at: values.expires_at ? values.expires_at.toISOString() : null,
         allowed_operations: values.allowed_operations ?? [],
         restricted_response_fields: values.restricted_response_fields ?? [],
@@ -279,7 +291,13 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
       <Form
         form={form}
         layout="vertical"
-        initialValues={{ target: 'user', can_read: true, can_write: false, can_break_glass: false }}
+        initialValues={{
+          target: 'user',
+          can_read: true,
+          can_write: false,
+          can_break_glass: false,
+          can_override_variables: false,
+        }}
         onFinish={(values) => grantMutation.mutate(values)}
       >
         <Form.Item name="target" label={t('apiGov.settings.grantTarget')}>
@@ -351,6 +369,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
           { title: t('apiGov.settings.canRead'), dataIndex: 'can_read', render: (v: boolean) => (v ? '✓' : '—') },
           { title: t('apiGov.settings.canWrite'), dataIndex: 'can_write', render: (v: boolean) => (v ? '✓' : '—') },
           { title: t('apiGov.settings.canBreakGlass'), dataIndex: 'can_break_glass', render: (v: boolean) => (v ? '✓' : '—') },
+          { title: t('apiGov.settings.canOverrideVariables'), dataIndex: 'can_override_variables', render: (v: boolean) => (v ? '✓' : '—') },
           { title: t('apiGov.settings.expiresAt'), dataIndex: 'expires_at', render: (v: string | null) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—') },
           { title: t('apiGov.settings.allowedOperations'), dataIndex: 'allowed_operations', render: (v: string[]) => (v.length ? v.length : t('apiGov.settings.allOperations')) },
           { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },
@@ -393,6 +412,8 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
             { title: t('apiGov.settings.canRead'), dataIndex: 'can_read', render: (v: boolean) => (v ? '✓' : '—') },
             { title: t('apiGov.settings.canWrite'), dataIndex: 'can_write', render: (v: boolean) => (v ? '✓' : '—') },
             { title: t('apiGov.settings.canBreakGlass'), dataIndex: 'can_break_glass', render: (v: boolean) => (v ? '✓' : '—') },
+            { title: t('apiGov.settings.canOverrideVariables'), dataIndex: 'can_override_variables', render: (v: boolean) => (v ? '✓' : '—') },
+          { title: t('apiGov.settings.canOverrideVariables'), dataIndex: 'can_override_variables', render: (v: boolean) => (v ? '✓' : '—') },
             { title: t('apiGov.settings.expiresAt'), dataIndex: 'expires_at', render: (v: string | null) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '—') },
             { title: t('apiGov.settings.allowedOperations'), dataIndex: 'allowed_operations', render: (v: string[]) => (v.length ? v.length : t('apiGov.settings.allOperations')) },
             { title: t('apiGov.settings.restrictedResponseFields'), dataIndex: 'restricted_response_fields', render: (v: string[]) => (v.length ? v.length : '—') },

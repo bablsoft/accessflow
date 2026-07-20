@@ -13,12 +13,15 @@ public record GrantApiConnectorGroupPermissionRequest(
         boolean canRead,
         boolean canWrite,
         boolean canBreakGlass,
+        /** AF-613. Boxed so an existing client that omits it still works; null means false. */
+        Boolean canOverrideVariables,
         Instant expiresAt,
         List<String> allowedOperations,
         List<String> restrictedResponseFields) {
 
     GrantApiConnectorGroupPermissionCommand toCommand() {
         return new GrantApiConnectorGroupPermissionCommand(groupId, canRead, canWrite, canBreakGlass,
+                Boolean.TRUE.equals(canOverrideVariables),
                 expiresAt, allowedOperations, restrictedResponseFields);
     }
 }

@@ -11,13 +11,14 @@ import java.util.UUID;
 public record PendingApiReviewResponse(
         UUID apiRequestId, UUID connectorId, String connectorName, UUID submittedByUserId, String verb,
         String requestPath, boolean write, String justification, UUID aiAnalysisId, RiskLevel aiRiskLevel,
-        Integer aiRiskScore, String aiSummary, int currentStage, Instant createdAt) {
+        Integer aiRiskScore, String aiSummary, int currentStage, int variableOverrideCount,
+        Instant createdAt) {
 
     static PendingApiReviewResponse from(ApiReviewService.PendingApiReview p) {
         return new PendingApiReviewResponse(p.apiRequestId(), p.connectorId(), p.connectorName(),
                 p.submittedByUserId(), p.verb(), p.requestPath(), p.write(), p.justification(),
                 p.aiAnalysisId(), p.aiRiskLevel(), p.aiRiskScore(), p.aiSummary(), p.currentStage(),
-                p.createdAt());
+                p.variableOverrideCount(), p.createdAt());
     }
 
     record Page(List<PendingApiReviewResponse> content, int page, int size, long totalElements,
