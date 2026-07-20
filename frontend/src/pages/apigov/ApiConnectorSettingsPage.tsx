@@ -49,6 +49,7 @@ import { KeyValueEditor } from '@/components/apigov/KeyValueEditor';
 import { ApiConnectorMaskingTab } from '@/components/apigov/ApiConnectorMaskingTab';
 import { ApiConnectorClassificationTab } from '@/components/apigov/ApiConnectorClassificationTab';
 import { ApiConnectorPermissionsTab } from '@/components/apigov/ApiConnectorPermissionsTab';
+import { ApiConnectorVariablesTab } from '@/components/apigov/ApiConnectorVariablesTab';
 import {
   pairsToRecord,
   recordToPairs,
@@ -92,6 +93,7 @@ export default function ApiConnectorSettingsPage() {
             { key: 'schema', label: t('apiGov.settings.tabSchema'), children: <SchemaTab connectorId={id} /> },
             { key: 'operations', label: t('apiGov.settings.tabOperations'), children: <OperationsTab connectorId={id} /> },
             { key: 'permissions', label: t('apiGov.settings.tabPermissions'), children: <ApiConnectorPermissionsTab connectorId={id} /> },
+            { key: 'variables', label: t('apiGov.settings.tabVariables'), children: <ApiConnectorVariablesTab connectorId={id} /> },
             { key: 'masking', label: t('apiGov.settings.tabMasking'), children: <ApiConnectorMaskingTab connectorId={id} /> },
             { key: 'classification', label: t('apiGov.settings.tabClassification'), children: <ApiConnectorClassificationTab connectorId={id} /> },
           ]}

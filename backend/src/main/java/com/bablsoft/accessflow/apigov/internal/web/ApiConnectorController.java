@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
@@ -36,6 +37,7 @@ import java.util.UUID;
 class ApiConnectorController {
 
     private final ApiConnectorAdminService service;
+    private final ApiConnectorVariableLookupService variableLookupService;
     private final ApiGovAuditWriter auditWriter;
 
     @GetMapping
@@ -60,6 +62,31 @@ class ApiConnectorController {
                 ? service.getForAdmin(id, caller.organizationId())
                 : service.getForUser(id, caller.organizationId(), caller.userId());
         return ApiConnectorResponse.from(view);
+    }
+
+    @GetMapping("/{id}/variables/summary")
+    @Operation(summary = "List a connector's dynamic variables, projected to the submitter-safe fields",
+            description = "Lets the request composer show which {{name}} placeholders are available and "
+                    + "which may be overridden per request. Carries no expression, algorithm or "
+                    + "secret — a submitter may reference a signature variable but must never learn "
+                    + "how it is computed. Admin CRUD lives under /variables (AF-613).")
+    @ApiResponse(responseCode = "200", description = "Variable summaries, in evaluation order")
+    @ApiResponse(responseCode = "404", description = "Connector not found or not accessible")
+    ApiConnectorVariableSummaryListResponse variableSummaries(@PathVariable UUID id,
+                                                              Authentication authentication) {
+        var caller = claims(authentication);
+        // Reuses the same connector visibility check as GET /{id} — a caller who cannot see the
+        // connector must not learn its variable names either.
+        if (isAdmin(caller)) {
+            service.getForAdmin(id, caller.organizationId());
+        } else {
+            service.getForUser(id, caller.organizationId(), caller.userId());
+        }
+        var summaries = variableLookupService.summariesForConnector(id, caller.organizationId())
+                .stream()
+                .map(ApiConnectorVariableSummaryResponse::from)
+                .toList();
+        return new ApiConnectorVariableSummaryListResponse(summaries);
     }
 
     @PostMapping

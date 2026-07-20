@@ -3,11 +3,14 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.apigov.api.ApiAuthMethod;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingResolutionService;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableResolutionService;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiInlineExecutionService;
+import com.bablsoft.accessflow.apigov.api.ApiVariableRequestContext;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.ResolvedApiMask;
+import com.bablsoft.accessflow.apigov.api.ResolvedApiVariables;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallExecutor;
 import com.bablsoft.accessflow.apigov.internal.client.ApiCallRequest;
@@ -64,6 +67,7 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     private final ApiRequestStateService stateService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final ApiConnectorVariableResolutionService variableResolutionService;
     private final ApigovRequestProperties requestProperties;
 
     @Transactional
@@ -183,12 +187,49 @@ public class ApiExecutionService implements ApiInlineExecutionService {
     private ApiCallResult executeCall(ApiConnectorEntity connector, ApiRequestEntity request,
                                       Map<String, String> headers) {
         var responseCap = Math.min(connector.getMaxResponseBytes(), requestProperties.maxResponseBytes());
-        return executor.execute(new ApiCallRequest(connector.getProtocol(), connector.getBaseUrl(),
+        var raw = new ApiCallRequest(connector.getProtocol(), connector.getBaseUrl(),
                 request.getVerb(), request.getRequestPath(), headers, readMap(request.getQueryParams()),
                 request.getBodyType() == null ? ApiBodyType.RAW : request.getBodyType(),
                 request.getRequestBody(), request.getRequestContentType(), readFormFields(request.getFormFields()),
                 request.getBinaryFilename(), connector.getTimeoutMs(), responseCap,
-                request.getOperationId()));
+                request.getOperationId());
+
+        // AF-613. Variables resolve here rather than earlier because `headers` is already final at
+        // this point — connector defaults, per-request headers, trace headers and the auth header the
+        // applier just computed — so an expression may sign the finished Authorization value, which
+        // is what the motivating vendor scheme requires. The context deliberately describes the
+        // pre-substitution request: a body being signed must still contain its {{signature}}
+        // placeholder when the digest is taken.
+        var context = new ApiVariableRequestContext(raw.verb(), raw.path(),
+                ApiRequestVariableSubstitution.canonicalQuery(raw.queryParams()),
+                ApiRequestVariableSubstitution.bodyForContext(raw), raw.headers());
+        var resolved = variableResolutionService.resolve(connector.getOrganizationId(),
+                connector.getId(), context, readMap(request.getVariableOverrides()));
+        var substituted = ApiRequestVariableSubstitution.apply(raw, resolved);
+
+        try {
+            return executor.execute(substituted);
+        } catch (ApiExecutionException ex) {
+            // The upstream failure message can embed the substituted URI (the JDK's IOException does
+            // exactly that), and api_requests.error_message is persisted and shown to reviewers. Scrub
+            // every resolved value before it can escape — the resolver cannot tell a harmless
+            // signature from a CONSTANT holding a shared secret, so all of them are redacted.
+            throw new ApiExecutionException(redact(ex.getMessage(), resolved));
+        }
+    }
+
+    /** Replaces every resolved variable value in {@code message} with {@code ***}. */
+    static String redact(String message, ResolvedApiVariables resolved) {
+        if (message == null || resolved == null) {
+            return message;
+        }
+        var scrubbed = message;
+        for (var value : resolved.secretValues()) {
+            if (value != null && !value.isBlank()) {
+                scrubbed = scrubbed.replace(value, "***");
+            }
+        }
+        return scrubbed;
     }
 
     private List<ApiFormField> readFormFields(String json) {

@@ -34,6 +34,7 @@ public interface ApiConnectorPermissionLookupService {
             boolean canRead,
             boolean canWrite,
             boolean canBreakGlass,
+            boolean canOverrideVariables,
             List<String> allowedOperations,
             Instant expiresAt) {
     }

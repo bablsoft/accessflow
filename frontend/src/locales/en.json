@@ -2604,6 +2604,27 @@
       "SMTP_CONFIGURE": "Configure SMTP",
       "LOCALIZATION_CONFIGURE": "Configure localization",
       "SETUP_PROGRESS_VIEW": "View setup progress"
+    },
+    "api_variable_kind": {
+      "CONSTANT": "Constant",
+      "UUID": "Random UUID",
+      "TIMESTAMP": "Timestamp",
+      "EPOCH_MILLIS": "Epoch milliseconds",
+      "RANDOM_HEX": "Random bytes",
+      "HASH": "Hash",
+      "HMAC": "HMAC signature",
+      "ENCODE": "Encode"
+    },
+    "api_variable_algorithm": {
+      "HMAC_SHA256": "HMAC-SHA256",
+      "HMAC_SHA512": "HMAC-SHA512",
+      "SHA256": "SHA-256",
+      "MD5": "MD5"
+    },
+    "api_variable_encoding": {
+      "HEX": "Hexadecimal",
+      "BASE64": "Base64",
+      "BASE64URL": "Base64 (URL-safe, unpadded)"
     }
   },
   "access": {
@@ -3130,6 +3151,7 @@
       "schemaFileRequired": "Choose a schema file",
       "tabMasking": "Masking",
       "tabClassification": "Classification",
+      "tabVariables": "Variables",
       "masking": {
         "title": "Response masking",
         "description": "Mask fields in this connector's API responses before they are stored. A user in a reveal list sees the unmasked value.",
@@ -3241,7 +3263,77 @@
       "allowedOperationsPlaceholder": "All operations (leave empty)",
       "allOperations": "All",
       "restrictedResponseFields": "Masked response fields",
-      "restrictedResponseFieldsPlaceholder": "Add dot-paths (e.g. data.ssn)"
+      "restrictedResponseFieldsPlaceholder": "Add dot-paths (e.g. data.ssn)",
+      "variables": {
+        "title": "Dynamic variables",
+        "description": "Named values computed per request and substituted into headers, path, query and body via {{name}} placeholders — request signatures, nonces, timestamps, idempotency keys. Evaluated after authentication, so an expression can sign the resolved Authorization header.",
+        "add": "Add variable",
+        "edit": "Edit",
+        "delete": "Delete",
+        "move_up": "Move earlier",
+        "move_down": "Move later",
+        "create_title": "Add variable",
+        "edit_title": "Edit variable",
+        "empty_title": "No variables yet",
+        "empty_description": "Add a variable to sign, stamp or randomise part of every request to this connector.",
+        "col_name": "Placeholder",
+        "col_kind": "Kind",
+        "col_expression": "Expression",
+        "col_target": "Injects into",
+        "col_flags": "Flags",
+        "col_actions": "Actions",
+        "target_none": "Placeholder only",
+        "has_secret": "A shared secret is stored for this variable",
+        "secret_tag": "Secret",
+        "overridable_tag": "Overridable",
+        "label_name": "Name",
+        "name_hint": "Reference it as {{name}} in a header value, the path, a query value or the body.",
+        "placeholder_name": "signature",
+        "name_required": "A variable name is required",
+        "name_invalid": "Start with a letter; letters, digits and underscores only (max 64 characters)",
+        "label_kind": "Kind",
+        "kind_required": "A kind is required",
+        "label_expression": "Expression",
+        "expression_required": "An expression is required",
+        "expression_too_long": "The expression must be at most 8,192 characters",
+        "placeholder_expression": "{{request.headers.Authorization}}{{request.body}}",
+        "expression_hint_constant": "A fixed value. Other variables and request fields may be referenced.",
+        "expression_hint_timestamp": "Optional date format pattern (UTC). Leave blank for ISO-8601.",
+        "expression_hint_random_hex": "Optional byte count between 1 and 256. Defaults to 16.",
+        "expression_hint_hash": "The text to digest. Reference {{request.body}}, {{request.path}} or another variable.",
+        "expression_hint_hmac": "The text to sign. Request fields resolve to the request as it stands before substitution, so a body being signed still contains its placeholder.",
+        "expression_hint_encode": "The text to re-encode.",
+        "label_algorithm": "Algorithm",
+        "algorithm_required": "An algorithm is required",
+        "md5_warning": "MD5 is not collision-resistant. Use it only where a vendor contract requires it, never for a signature.",
+        "label_encoding": "Encoding",
+        "encoding_required": "An encoding is required",
+        "encoding_default_hint": "Defaults to hexadecimal when left blank.",
+        "label_secret": "Shared secret",
+        "secret_required": "A shared secret is required",
+        "secret_too_long": "The secret must be at most 4,096 characters",
+        "secret_hint": "Encrypted at rest and never shown again.",
+        "secret_unchanged_hint": "A secret is stored. Leave blank to keep it, or enter a new one to replace it.",
+        "label_target": "Inject into (optional)",
+        "target_hint": "header:X-Signature or query:signature — the value is written there automatically. Leave blank to use a {{name}} placeholder instead.",
+        "placeholder_target": "header:X-Signature",
+        "target_invalid": "Use header:Name or query:name",
+        "label_overridable": "Allow per-request override",
+        "overridable_hint": "Submitters holding the override permission on this connector may supply their own value for this variable.",
+        "overridable_secret_hint": "A variable that holds a secret can never be overridden.",
+        "label_description": "Description",
+        "placeholder_description": "Vendor request signature",
+        "description_too_long": "The description must be at most 512 characters",
+        "save_success": "Variable saved",
+        "save_error": "Could not save the variable",
+        "delete_success": "Variable deleted",
+        "delete_error": "Could not delete the variable",
+        "delete_confirm_title": "Delete this variable?",
+        "delete_confirm_body": "Requests that reference {{name}} will send the placeholder literally.",
+        "reorder_error": "Could not reorder the variables"
+      },
+      "canOverrideVariables": "Override variables",
+      "canOverrideVariablesHint": "May supply per-request values for this connector's overridable dynamic variables."
     },
     "editor": {
       "title": "API Editor",
@@ -3287,7 +3379,13 @@
       "searchOperation": "Search operations…",
       "scheduleFor": "Schedule for later",
       "scheduleHint": "Leave empty to run right after approval",
-      "scheduleInPast": "Scheduled time must be in the future"
+      "scheduleInPast": "Scheduled time must be in the future",
+      "tabVariables": "Variables",
+      "variablesHint": "This connector computes values per request. Reference one as {{name}} anywhere in the request.",
+      "variableOverrides": "Overrides",
+      "variableOverridesHint": "supply your own value for an overridable variable",
+      "noOverridableVariables": "None of this connector's variables may be overridden per request.",
+      "availableVariables": "Available placeholders"
     },
     "requests": {
       "title": "API Requests",
@@ -3339,7 +3437,11 @@
       "filterTraceId": "Trace ID",
       "filterSpanId": "Span ID",
       "downloadResponse": "Download full response",
-      "downloadFailed": "Could not download the response"
+      "downloadFailed": "Could not download the response",
+      "variableOverrides": "Variable overrides",
+      "variableOverridesHint": "Values the submitter supplied for this connector's overridable variables. These are the signing inputs; computed values such as signatures and nonces are never shown.",
+      "variableName": "Variable",
+      "variableValue": "Value"
     },
     "reviews": {
       "title": "API Reviews",
@@ -3353,7 +3455,9 @@
       "risk": "Risk",
       "subtitle": "Approve or reject governed API calls",
       "searchPlaceholder": "Search by connector, path",
-      "actions": "Actions"
+      "actions": "Actions",
+      "overrides": "Overrides",
+      "overridesHint": "This request overrides connector variables"
     },
     "error": "Something went wrong"
   },

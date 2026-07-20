@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiConnectorClassificationTagNotFoundE
 import com.bablsoft.accessflow.apigov.api.ApiConnectorMaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiExecutionException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorClassificationTagException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorMaskingPolicyException;
@@ -15,6 +16,7 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
+import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorVariableException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
 import com.bablsoft.accessflow.apigov.api.SelfApprovalNotAllowedException;
 import lombok.RequiredArgsConstructor;
@@ -151,6 +153,19 @@ class ApiGovExceptionHandler {
     ProblemDetail handleIllegalClassificationTag(IllegalApiConnectorClassificationTagException ex) {
         // Message resolved at the throw site via MessageSource — see DefaultApiConnectorClassificationService.
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_CLASSIFICATION_TAG");
+    }
+
+    @ExceptionHandler(ApiConnectorVariableNotFoundException.class)
+    ProblemDetail handleVariableNotFound(ApiConnectorVariableNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.api_connector_variable_not_found"),
+                "API_CONNECTOR_VARIABLE_NOT_FOUND");
+    }
+
+    @ExceptionHandler(IllegalApiConnectorVariableException.class)
+    ProblemDetail handleIllegalVariable(IllegalApiConnectorVariableException ex) {
+        // Message resolved at the throw site via MessageSource — see
+        // DefaultApiConnectorVariableAdminService. It names variables only, never values or secrets.
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_CONNECTOR_VARIABLE");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {

@@ -51,7 +51,8 @@ class DefaultApiReviewServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiReviewService(requestRepository, decisionRepository, connectorRepository,
-                stateService, aiAnalysisLookupService, eventPublisher);
+                stateService, aiAnalysisLookupService, eventPublisher,
+                tools.jackson.databind.json.JsonMapper.builder().build());
     }
 
     private ApiRequestEntity pending() {

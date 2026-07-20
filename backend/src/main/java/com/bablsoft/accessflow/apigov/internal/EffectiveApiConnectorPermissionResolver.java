@@ -80,12 +80,14 @@ class EffectiveApiConnectorPermissionResolver {
         boolean canRead = false;
         boolean canWrite = false;
         boolean canBreakGlass = false;
+        boolean canOverrideVariables = false;
         Instant expiresAt = parts.get(0).expiresAt();
         boolean anyNeverExpires = false;
         for (var p : parts) {
             canRead |= p.canRead();
             canWrite |= p.canWrite();
             canBreakGlass |= p.canBreakGlass();
+            canOverrideVariables |= p.canOverrideVariables();
             if (p.expiresAt() == null) {
                 anyNeverExpires = true;
             } else if (expiresAt != null && p.expiresAt().isAfter(expiresAt)) {
@@ -98,6 +100,7 @@ class EffectiveApiConnectorPermissionResolver {
                 canRead,
                 canWrite,
                 canBreakGlass,
+                canOverrideVariables,
                 unionAllowList(parts),
                 intersectRestriction(parts),
                 anyNeverExpires ? null : expiresAt);
@@ -146,22 +149,26 @@ class EffectiveApiConnectorPermissionResolver {
      */
     record ResolvedApiConnectorPermission(UUID connectorId, UUID userId, boolean canRead,
                                           boolean canWrite, boolean canBreakGlass,
+                                          boolean canOverrideVariables,
                                           List<String> allowedOperations,
                                           List<String> restrictedResponseFields, Instant expiresAt) {
     }
 
     private record Contribution(boolean canRead, boolean canWrite, boolean canBreakGlass,
-                                String[] allowedOperations, String[] restrictedResponseFields,
+                                boolean canOverrideVariables, String[] allowedOperations,
+                                String[] restrictedResponseFields,
                                 Instant expiresAt) {
 
         static Contribution from(ApiConnectorUserPermissionEntity e) {
             return new Contribution(e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(),
-                    e.getAllowedOperations(), e.getRestrictedResponseFields(), e.getExpiresAt());
+                    e.isCanOverrideVariables(), e.getAllowedOperations(),
+                    e.getRestrictedResponseFields(), e.getExpiresAt());
         }
 
         static Contribution from(ApiConnectorGroupPermissionEntity e) {
             return new Contribution(e.isCanRead(), e.isCanWrite(), e.isCanBreakGlass(),
-                    e.getAllowedOperations(), e.getRestrictedResponseFields(), e.getExpiresAt());
+                    e.isCanOverrideVariables(), e.getAllowedOperations(),
+                    e.getRestrictedResponseFields(), e.getExpiresAt());
         }
     }
 }

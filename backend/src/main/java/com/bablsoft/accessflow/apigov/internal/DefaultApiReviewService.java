@@ -17,6 +17,7 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class DefaultApiReviewService implements ApiReviewService {
     private final ApiRequestStateService stateService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -116,6 +118,19 @@ public class DefaultApiReviewService implements ApiReviewService {
                 .orElseThrow(() -> new ApiRequestNotFoundException(id));
     }
 
+    /** Counts the keys in the persisted overrides jsonb without materializing a map per row. */
+    private int variableOverrideCount(String json) {
+        if (json == null || json.isBlank() || "{}".equals(json.trim())) {
+            return 0;
+        }
+        try {
+            var node = objectMapper.readTree(json);
+            return node.isObject() ? node.size() : 0;
+        } catch (RuntimeException ex) {
+            return 0;
+        }
+    }
+
     private PendingApiReview toPending(ApiRequestEntity e) {
         var connectorName = connectorRepository.findById(e.getConnectorId())
                 .map(ApiConnectorEntity::getName).orElse(null);
@@ -125,6 +140,7 @@ public class DefaultApiReviewService implements ApiReviewService {
                 e.getVerb(), e.getRequestPath(), e.isWrite(), e.getJustification(), e.getAiAnalysisId(),
                 summary != null ? summary.riskLevel() : null,
                 summary != null ? summary.riskScore() : null,
-                summary != null ? summary.summary() : null, STAGE, e.getCreatedAt());
+                summary != null ? summary.summary() : null, STAGE,
+                variableOverrideCount(e.getVariableOverrides()), e.getCreatedAt());
     }
 }

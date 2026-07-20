@@ -78,6 +78,13 @@ public class ApiRequestEntity {
     @Column(name = "binary_filename", columnDefinition = "text")
     private String binaryFilename;
 
+    // AF-613: submitter-supplied values for connector variables marked overridable. Persisted rather
+    // than transient because a reviewer approves what is stored, and submit -> review -> execute is
+    // asynchronous — an unstored override would let the effective request change after approval.
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "variable_overrides", nullable = false, columnDefinition = "jsonb")
+    private String variableOverrides = "{}";
+
     @Column(name = "is_write", nullable = false)
     private boolean write = false;
 

@@ -2580,6 +2580,27 @@
       "SMTP_CONFIGURE": "SMTP konfigurieren",
       "LOCALIZATION_CONFIGURE": "Lokalisierung konfigurieren",
       "SETUP_PROGRESS_VIEW": "Einrichtungsfortschritt anzeigen"
+    },
+    "api_variable_kind": {
+      "CONSTANT": "Konstante",
+      "UUID": "Zufällige UUID",
+      "TIMESTAMP": "Zeitstempel",
+      "EPOCH_MILLIS": "Epoch-Millisekunden",
+      "RANDOM_HEX": "Zufällige Bytes",
+      "HASH": "Hash",
+      "HMAC": "HMAC-Signatur",
+      "ENCODE": "Kodieren"
+    },
+    "api_variable_algorithm": {
+      "HMAC_SHA256": "HMAC-SHA256",
+      "HMAC_SHA512": "HMAC-SHA512",
+      "SHA256": "SHA-256",
+      "MD5": "MD5"
+    },
+    "api_variable_encoding": {
+      "HEX": "Hexadezimal",
+      "BASE64": "Base64",
+      "BASE64URL": "Base64 (URL-sicher, ohne Padding)"
     }
   },
   "access": {
@@ -3130,6 +3151,7 @@
       "schemaFileRequired": "Wählen Sie eine Schema-Datei",
       "tabMasking": "Maskierung",
       "tabClassification": "Klassifizierung",
+      "tabVariables": "Variablen",
       "masking": {
         "title": "Antwortmaskierung",
         "description": "Maskiere Felder in den API-Antworten dieses Connectors, bevor sie gespeichert werden. Ein Benutzer in einer Freigabeliste sieht den unmaskierten Wert.",
@@ -3241,7 +3263,77 @@
       "allowedOperationsPlaceholder": "Alle Operationen (leer lassen)",
       "allOperations": "Alle",
       "restrictedResponseFields": "Maskierte Antwortfelder",
-      "restrictedResponseFieldsPlaceholder": "Punktpfade hinzufügen (z. B. data.ssn)"
+      "restrictedResponseFieldsPlaceholder": "Punktpfade hinzufügen (z. B. data.ssn)",
+      "variables": {
+        "title": "Dynamische Variablen",
+        "description": "Benannte Werte, die pro Anfrage berechnet und über {{name}}-Platzhalter in Header, Pfad, Query und Body eingesetzt werden — Signaturen, Nonces, Zeitstempel, Idempotenzschlüssel. Sie werden nach der Authentifizierung ausgewertet, sodass ein Ausdruck den aufgelösten Authorization-Header signieren kann.",
+        "add": "Variable hinzufügen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "move_up": "Nach vorne",
+        "move_down": "Nach hinten",
+        "create_title": "Variable hinzufügen",
+        "edit_title": "Variable bearbeiten",
+        "empty_title": "Noch keine Variablen",
+        "empty_description": "Fügen Sie eine Variable hinzu, um jede Anfrage an diesen Connector zu signieren, zu stempeln oder zu randomisieren.",
+        "col_name": "Platzhalter",
+        "col_kind": "Typ",
+        "col_expression": "Ausdruck",
+        "col_target": "Eingefügt in",
+        "col_flags": "Merkmale",
+        "col_actions": "Aktionen",
+        "target_none": "Nur Platzhalter",
+        "has_secret": "Für diese Variable ist ein gemeinsames Geheimnis hinterlegt",
+        "secret_tag": "Geheimnis",
+        "overridable_tag": "Überschreibbar",
+        "label_name": "Name",
+        "name_hint": "Verwenden Sie {{name}} in einem Header-Wert, im Pfad, in einem Query-Wert oder im Body.",
+        "placeholder_name": "signature",
+        "name_required": "Ein Variablenname ist erforderlich",
+        "name_invalid": "Mit einem Buchstaben beginnen; nur Buchstaben, Ziffern und Unterstriche (max. 64 Zeichen)",
+        "label_kind": "Typ",
+        "kind_required": "Ein Typ ist erforderlich",
+        "label_expression": "Ausdruck",
+        "expression_required": "Ein Ausdruck ist erforderlich",
+        "expression_too_long": "Der Ausdruck darf höchstens 8.192 Zeichen lang sein",
+        "placeholder_expression": "{{request.headers.Authorization}}{{request.body}}",
+        "expression_hint_constant": "Ein fester Wert. Andere Variablen und Anfragefelder können referenziert werden.",
+        "expression_hint_timestamp": "Optionales Datumsformat (UTC). Leer lassen für ISO-8601.",
+        "expression_hint_random_hex": "Optionale Byte-Anzahl zwischen 1 und 256. Standard ist 16.",
+        "expression_hint_hash": "Der zu hashende Text. Referenzieren Sie {{request.body}}, {{request.path}} oder eine andere Variable.",
+        "expression_hint_hmac": "Der zu signierende Text. Anfragefelder beziehen sich auf die Anfrage vor der Ersetzung, sodass ein signierter Body seinen Platzhalter noch enthält.",
+        "expression_hint_encode": "Der neu zu kodierende Text.",
+        "label_algorithm": "Algorithmus",
+        "algorithm_required": "Ein Algorithmus ist erforderlich",
+        "md5_warning": "MD5 ist nicht kollisionsresistent. Nur verwenden, wenn ein Anbietervertrag es verlangt — niemals für eine Signatur.",
+        "label_encoding": "Kodierung",
+        "encoding_required": "Eine Kodierung ist erforderlich",
+        "encoding_default_hint": "Standardmäßig hexadezimal, wenn leer gelassen.",
+        "label_secret": "Gemeinsames Geheimnis",
+        "secret_required": "Ein gemeinsames Geheimnis ist erforderlich",
+        "secret_too_long": "Das Geheimnis darf höchstens 4.096 Zeichen lang sein",
+        "secret_hint": "Verschlüsselt gespeichert und nie wieder angezeigt.",
+        "secret_unchanged_hint": "Ein Geheimnis ist hinterlegt. Leer lassen zum Beibehalten oder neues eingeben zum Ersetzen.",
+        "label_target": "Einfügen in (optional)",
+        "target_hint": "header:X-Signature oder query:signature — der Wert wird dort automatisch gesetzt. Leer lassen, um stattdessen einen {{name}}-Platzhalter zu verwenden.",
+        "placeholder_target": "header:X-Signature",
+        "target_invalid": "Verwenden Sie header:Name oder query:name",
+        "label_overridable": "Überschreiben pro Anfrage erlauben",
+        "overridable_hint": "Einreicher mit der Überschreibungsberechtigung für diesen Connector dürfen einen eigenen Wert angeben.",
+        "overridable_secret_hint": "Eine Variable mit einem Geheimnis kann nie überschrieben werden.",
+        "label_description": "Beschreibung",
+        "placeholder_description": "Signatur der Anbieter-Anfrage",
+        "description_too_long": "Die Beschreibung darf höchstens 512 Zeichen lang sein",
+        "save_success": "Variable gespeichert",
+        "save_error": "Variable konnte nicht gespeichert werden",
+        "delete_success": "Variable gelöscht",
+        "delete_error": "Variable konnte nicht gelöscht werden",
+        "delete_confirm_title": "Diese Variable löschen?",
+        "delete_confirm_body": "Anfragen, die {{name}} referenzieren, senden den Platzhalter wörtlich.",
+        "reorder_error": "Reihenfolge konnte nicht geändert werden"
+      },
+      "canOverrideVariables": "Variablen überschreiben",
+      "canOverrideVariablesHint": "Darf pro Anfrage Werte für die überschreibbaren dynamischen Variablen dieses Connectors angeben."
     },
     "editor": {
       "title": "API Editor",
@@ -3287,7 +3379,13 @@
       "searchOperation": "Operationen suchen…",
       "scheduleFor": "Für später planen",
       "scheduleHint": "Leer lassen, um direkt nach der Genehmigung auszuführen",
-      "scheduleInPast": "Die geplante Zeit muss in der Zukunft liegen"
+      "scheduleInPast": "Die geplante Zeit muss in der Zukunft liegen",
+      "tabVariables": "Variablen",
+      "variablesHint": "Dieser Connector berechnet Werte pro Anfrage. Referenzieren Sie einen als {{name}} an beliebiger Stelle.",
+      "variableOverrides": "Überschreibungen",
+      "variableOverridesHint": "eigenen Wert für eine überschreibbare Variable angeben",
+      "noOverridableVariables": "Keine Variable dieses Connectors darf pro Anfrage überschrieben werden.",
+      "availableVariables": "Verfügbare Platzhalter"
     },
     "requests": {
       "title": "API Requests",
@@ -3339,7 +3437,11 @@
       "filterTraceId": "Trace-ID",
       "filterSpanId": "Span-ID",
       "downloadResponse": "Vollständige Antwort herunterladen",
-      "downloadFailed": "Antwort konnte nicht heruntergeladen werden"
+      "downloadFailed": "Antwort konnte nicht heruntergeladen werden",
+      "variableOverrides": "Variablen-Überschreibungen",
+      "variableOverridesHint": "Werte, die der Einreicher für die überschreibbaren Variablen dieses Connectors angegeben hat. Dies sind die Signatur-Eingaben; berechnete Werte wie Signaturen und Nonces werden nie angezeigt.",
+      "variableName": "Variable",
+      "variableValue": "Wert"
     },
     "reviews": {
       "title": "API Reviews",
@@ -3353,7 +3455,9 @@
       "risk": "Risk",
       "subtitle": "Verwaltete API-Aufrufe genehmigen oder ablehnen",
       "searchPlaceholder": "Suche nach Connector, Pfad",
-      "actions": "Aktionen"
+      "actions": "Aktionen",
+      "overrides": "Überschreibungen",
+      "overridesHint": "Diese Anfrage überschreibt Connector-Variablen"
     },
     "error": "Something went wrong"
   },

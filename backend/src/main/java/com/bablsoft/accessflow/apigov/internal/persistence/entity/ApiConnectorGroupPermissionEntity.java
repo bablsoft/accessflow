@@ -42,6 +42,11 @@ public class ApiConnectorGroupPermissionEntity {
     @Column(name = "can_break_glass", nullable = false)
     private boolean canBreakGlass = false;
 
+    // AF-613: may this grantee supply per-request overrides for the connector's overridable dynamic
+    // variables? A distinct capability from submitting, gated exactly like can_break_glass.
+    @Column(name = "can_override_variables", nullable = false)
+    private boolean canOverrideVariables = false;
+
     @Column(name = "expires_at")
     private Instant expiresAt;
 

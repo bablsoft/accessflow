@@ -231,11 +231,71 @@ posture + masking suggestions (suggested, never auto-applied).
 
 ---
 
+## 6. Dynamic variables (AF-613)
+
+A connector may declare named variables — rows in `api_connector_variables` — evaluated per request
+and substituted into header values, the path, query values and the body via `{{name}}` placeholders.
+This is what makes vendor contracts requiring a computed value per call governable: request signing
+(HMAC), nonces, timestamps, correlation ids, idempotency keys, digests. A submitter cannot
+hand-compute a signature for a request a reviewer will approve hours later, and a timestamp would be
+stale by execution time.
+
+**Kinds.** `CONSTANT`, `UUID`, `TIMESTAMP` (ISO-8601 or a `DateTimeFormatter` pattern at UTC),
+`EPOCH_MILLIS`, `RANDOM_HEX` (1–256 secure-random bytes), `HASH` (SHA-256 / MD5), `HMAC`
+(HMAC-SHA256 / HMAC-SHA512 keyed with an encrypted shared secret), `ENCODE`. Encodings: `HEX`
+(lowercase), `BASE64`, `BASE64URL` (unpadded, the RFC 7515 shape vendors specify).
+
+**Evaluation context.** Inside an expression: `{{request.method}}`, `{{request.path}}`,
+`{{request.query}}` (canonical — keys sorted and percent-encoded, so a signature over it
+reproduces), `{{request.body}}`, `{{request.headers.<Name>}}` (case-insensitive), and `{{var.x}}` for
+another variable. **Every `request.*` value describes the request before substitution** — the
+motivating vendor scheme signs a body that still contains its own `{{signature}}` placeholder, and
+resolving post-substitution would compute a digest the vendor rejects.
+
+**Pipeline order.** Auth headers resolved (including a freshly minted OAuth2 token) → variables
+evaluated in dependency order → substitution → send. The seam sits in
+`ApiExecutionService.executeCall`, after `buildHeaders`, so an expression can sign the finished
+`Authorization` value. The OAuth2 401 retry re-resolves from scratch: a nonce must not be replayed
+and a signature over the stale token would only fail again.
+
+**Ordering and cycles.** References form a DAG; `ApiVariableGraph` topologically sorts it with the
+repository's `(sort_order, created_at, id)` order as a total tie-break, so independent variables
+evaluate in a stable, operator-controlled sequence. Cycles and dangling `{{var.x}}` references are
+**configuration errors caught at save time** (422), not runtime failures — the resolver re-runs the
+sort defensively but should never trip it.
+
+**The motivating example, in the model.** The submitter's body carries `"HMAC": "{{signature}}"`;
+`signature` is `kind=HMAC`, `algorithm=HMAC_SHA256`, `encoding=HEX`, with the shared key stored
+encrypted and `expression={{request.headers.Authorization}}{{request.body}}`. At resolution time
+`{{request.body}}` still contains the literal placeholder, exactly as the vendor's step 2 requires;
+the executor substitutes the digest back into the body and sends.
+
+**Targets.** A variable may instead carry `target: header:<Name>` or `query:<name>`, applied after
+substitution, for vendors that want the value in a fixed header. There is deliberately no whole-body
+target — replacing an entire body with one value is never what an operator means, and partial-body
+injection needs a JSON pointer.
+
+**Per-request overrides.** A variable marked `overridable` may be given a value per request. This
+needs `can_override_variables` on the connector grant; a secret-bearing variable can never be
+overridable (service check plus a database CHECK constraint); an override is an opaque literal that
+is never itself expanded as a template, so it cannot become a path into another variable's value.
+Dependents still recompute over the overridden value. Overrides are persisted and shown to reviewers,
+so an approval covers exactly what will execute. Grouped requests (AF-501) do not accept overrides.
+
+**Not a scripting engine.** Evaluation is template substitution plus this fixed function set only —
+no expression language, no `eval`, no user-supplied code — mirroring the engine plugins' rejection of
+server-side scripting. See [docs/07-security.md](07-security.md) for the full secret-handling,
+redaction and CRLF rules.
+
+---
+
 ## Audit & notifications
 
 Every connector/schema/permission/request action writes a tamper-evident `audit_log` row via
 `audit.api.AuditLogService`: `API_CONNECTOR_CREATED`/`_UPDATED`/`_DELETED`, `API_SCHEMA_UPLOADED`/
-`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED`,
+`_DELETED`, `API_PERMISSION_GRANTED`/`_REVOKED`, `API_CONNECTOR_VARIABLE_CREATED`/`_UPDATED`/
+`_DELETED`/`API_CONNECTOR_VARIABLES_REORDERED` (AF-613; metadata carries the variable name, kind and
+flags — never the expression or the secret),
 `API_CONNECTOR_MASKING_POLICY_CREATED`/`_UPDATED`/`_DELETED`,
 `API_CONNECTOR_CLASSIFICATION_TAG_ADDED`/`_REMOVED` (resource `API_CONNECTOR`), and
 `API_REQUEST_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_EXECUTED`/`_CANCELLED`/`_BREAK_GLASS_EXECUTED`

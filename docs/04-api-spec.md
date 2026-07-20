@@ -4725,11 +4725,43 @@ records the filter, `total_operation_count`, and `excluded_count` for both uploa
 | `DELETE` | `/api-connectors/{connectorId}/classification-tags/{tagId}` | **Admin.** Remove a classification tag (`204`; keeps the derived masking policy). |
 | `GET` | `/api-connectors/{connectorId}/classification-tags/derivation-preview` | **Admin.** Preview the aggregated review posture + masking suggestions implied by the connector's tags (suggested, never auto-applied). |
 
+### Connector variables (AF-613)
+
+Named per-connector expressions evaluated at execution time and substituted into headers, path, query
+and body via `{{name}}` placeholders — request signing, nonces, timestamps, idempotency keys. They
+resolve **after** connector auth (including a freshly minted OAuth2 token), so an expression may sign
+the finished `Authorization` header. Expression evaluation is template substitution plus a fixed
+function set only: no scripting engine, no user-supplied code.
+
+Reference forms inside an expression or at a substitution site: `{{name}}` (lenient — an unknown name
+stays literal, so unrelated `{{…}}` templating in a body survives), `{{var.name}}` (strict — an
+unknown name is an error), and, inside an expression only, `{{request.method}}`, `{{request.path}}`,
+`{{request.query}}`, `{{request.body}}` and `{{request.headers.<Name>}}`. Every `request.*` value
+describes the request **before** substitution — the motivating vendor scheme signs a body that still
+contains its own `{{signature}}` placeholder. Substitution is single-pass: a resolved value is never
+re-scanned.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api-connectors/{connectorId}/variables` | **Admin.** List the connector's variables in evaluation order. Returns `{ content: [...] }`. The stored secret is never returned — only `hasSecret`. |
+| `POST` | `/api-connectors/{connectorId}/variables` | **Admin.** Create a variable (`201`): `name` (`^[A-Za-z][A-Za-z0-9_]{0,63}$`, unique per connector), `kind` (`CONSTANT`/`UUID`/`TIMESTAMP`/`EPOCH_MILLIS`/`RANDOM_HEX`/`HASH`/`HMAC`/`ENCODE`), `expression?`, `algorithm?` (`HMAC_SHA256`/`HMAC_SHA512` for `HMAC`; `SHA256`/`MD5` for `HASH`), `encoding?` (`HEX`/`BASE64`/`BASE64URL` — unpadded), `secret?` (write-only, required for `HMAC`, AES-256-GCM at rest), `target?` (`header:<Name>` or `query:<name>`), `overridable?`, `description?`, `sortOrder?`. `422 ILLEGAL_API_CONNECTOR_VARIABLE` on a bad name, a field the kind forbids or requires, a malformed or duplicate target, a reference to an unknown variable, or a dependency cycle. |
+| `PUT` | `/api-connectors/{connectorId}/variables/{variableId}` | **Admin.** Update a variable. `secret` is tri-state: omit to keep the stored value, send a value to replace it, or send `clearSecret: true` to remove it. A rename is rejected while another variable references the old name. |
+| `DELETE` | `/api-connectors/{connectorId}/variables/{variableId}` | **Admin.** Delete a variable (`204`). `422` when another variable still references it. |
+| `PUT` | `/api-connectors/{connectorId}/variables/order` | **Admin.** Reassign evaluation order: `variableIds` must list the connector's complete set exactly once (`422` otherwise). Order is observable for the time- and randomness-dependent kinds. |
+| `GET` | `/api-connectors/{id}/variables/summary` | Submitter-visible projection — `name`, `kind`, `description`, `overridable` only. Carries no expression, algorithm or secret: a submitter may reference `{{signature}}` but must never learn how it is computed. Same visibility guard as `GET /api-connectors/{id}`. |
+
+**Per-request overrides.** A variable marked `overridable` may be given a value per request via
+`variableOverrides` on the submit endpoint. Supplying any override requires `canOverrideVariables` on
+the connector grant. A secret-bearing variable can never be overridable (enforced by the service
+*and* a database CHECK constraint), and an override value is inserted as an opaque literal that is
+never itself expanded as a template. Overrides are persisted and shown to reviewers, so an approval
+covers exactly what will execute.
+
 ### Governed API requests
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?` (#517), `bodyType?` (`NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY`, default `RAW`; #517), `requestContentType?` (for `RAW`), `requestBody?` (raw text or base64 for `BINARY`), `formFields?` (`[{key,type,value,filename,contentType}]` for form bodies; file parts base64), `binaryFilename?`, `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). The total encoded body is capped by `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (`422` when exceeded). A W3C `trace_id`/`span_id` is generated. Runs AI → routing → review. |
+| `POST` | `/api-requests` | Submit a governed API call (`202`): `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?` (#517), `bodyType?` (`NONE`/`RAW`/`FORM_DATA`/`FORM_URLENCODED`/`BINARY`, default `RAW`; #517), `requestContentType?` (for `RAW`), `requestBody?` (raw text or base64 for `BINARY`), `formFields?` (`[{key,type,value,filename,contentType}]` for form bodies; file parts base64), `binaryFilename?`, `variableOverrides?` (AF-613; per-request values for connector variables marked `overridable` — requires `canOverrideVariables` on the connector grant, max 32 entries, each bounded by `ACCESSFLOW_APIGOV_MAX_VARIABLE_VALUE_BYTES` and rejected if it contains CR/LF/NUL; a name outside the connector's overridable set is `422` with a uniform message so the set cannot be enumerated), `justification?`, `scheduledFor?`, `submissionReason?` (`EMERGENCY_ACCESS` = break-glass). The total encoded body is capped by `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` (`422` when exceeded). A W3C `trace_id`/`span_id` is generated. Runs AI → routing → review. |
 | `GET` | `/api-requests` | List requests (admins see all; others their own). Paginated. Optional filters: `status`, `connector_id`, `verb`, `submitted_by` (admin-only, #517), `trace_id`, `span_id` (#517), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). The response carries `submittedByEmail`, `bodyType`, `traceId`, `spanId`, and `responseContentType`. |
 | `GET` | `/api-requests/{id}` | Get a request with its (masked) response snapshot + review decisions. Readable by the **submitter, a REVIEWER, or an ADMIN** in the org (parity with query detail / "View all query history"); anyone else gets `404`. |
 | `GET` | `/api-requests/{id}/response` | Download the full stored (masked, size-capped) response snapshot as an attachment in its captured `Content-Type` (#517). Same access guard as the detail endpoint (submitter / REVIEWER / ADMIN); `409` if no response is stored. |
@@ -4759,7 +4791,7 @@ do not create `query_requests` / `api_requests` rows.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/request-groups` | Create a `DRAFT` group (`201`): `name` (3–255, required), `description?`, `continueOnError?` (default false), `items[]` (ordered members, ≥1). Each item: `targetKind` (`QUERY`/`API_CALL`); for `QUERY` → `datasourceId`, `sqlText`, `transactional?`; for `API_CALL` → `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?`, `bodyType?`, `requestContentType?`, `requestBody?`, `formFields?`, `binaryFilename?`. `formFields` items use the same shape as the `/api-requests` submit body (#559): `key`, `type` (`TEXT`/`FILE`), `value` (literal or base64 for `FILE`), `filename?`, `contentType?`. Each member is validated against the submitter's permission for its target — `403` when the submitter can't use a referenced datasource/connector. |
+| `POST` | `/request-groups` | Create a `DRAFT` group (`201`): `name` (3–255, required), `description?`, `continueOnError?` (default false), `items[]` (ordered members, ≥1). Each item: `targetKind` (`QUERY`/`API_CALL`); for `QUERY` → `datasourceId`, `sqlText`, `transactional?`; for `API_CALL` → `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?`, `bodyType?`, `requestContentType?`, `requestBody?`, `formFields?`, `binaryFilename?`. A grouped member does **not** accept `variableOverrides` — the connector's dynamic variables (AF-613) still resolve normally at execution, but per-request overrides are out of scope for grouped requests. `formFields` items use the same shape as the `/api-requests` submit body (#559): `key`, `type` (`TEXT`/`FILE`), `value` (literal or base64 for `FILE`), `filename?`, `contentType?`. Each member is validated against the submitter's permission for its target — `403` when the submitter can't use a referenced datasource/connector. |
 | `GET` | `/request-groups` | List the caller's groups (admins see all org groups). Paginated (`page`, `size`). Optional filter: `status`. |
 | `GET` | `/request-groups/{id}` | Get a group with its ordered items (per-member status, risk, and result snapshot) + group review decisions. Each item embeds its full **`aiAnalysis`** object (AF-531) when one was persisted — same shape as the query-detail `aiAnalysis`: `summary`, raw `issues`/`optimizations` JSON arrays, `missingIndexesDetected`, `affectsRowEstimate`, `aiProvider`/`aiModel`, token counts, `failed`/`errorMessage`. Both `QUERY` and `API_CALL` members are analyzed and persisted at submission. Each `API_CALL` item also embeds its full saved **request composition** (#559) — `requestHeaders`, `queryParams`, `bodyType`, `requestContentType`, `requestBody`, `formFields` (same `key`/`type` shape as create), `binaryFilename` — so a `DRAFT` can be re-opened for editing without losing the composed request. Note that `FILE`/`BINARY` payloads ride back as the originally uploaded base64. The **list** endpoint does *not* embed `aiAnalysis` or the composition (risk scalars + call shape only). |
 | `PUT` | `/request-groups/{id}` | **Submitter only.** Replace a `DRAFT` group's editable fields + items (same body as create). `409` when the group is no longer `DRAFT`. |

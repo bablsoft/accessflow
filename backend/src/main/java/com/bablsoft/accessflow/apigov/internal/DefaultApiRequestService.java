@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.apigov.api.ApiBodyType;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
@@ -44,6 +45,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
@@ -59,6 +61,11 @@ import java.util.UUID;
 public class DefaultApiRequestService implements ApiRequestService {
 
     private static final Set<String> MUTATING_VERBS = Set.of("POST", "PUT", "PATCH", "DELETE");
+    // A submitter overriding dozens of variables is not a real use case; the cap keeps the
+    // persisted jsonb bounded and the reviewer's view readable.
+    private static final int MAX_VARIABLE_OVERRIDES = 32;
+    private static final TypeReference<Map<String, String>> STRING_MAP_TYPE = new TypeReference<>() {
+    };
 
     private final ApiRequestRepository requestRepository;
     private final ApiConnectorRepository connectorRepository;
@@ -69,6 +76,7 @@ public class DefaultApiRequestService implements ApiRequestService {
     private final ApiExecutionService executionService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserQueryService userQueryService;
+    private final ApiConnectorVariableLookupService variableLookupService;
     private final ApigovRequestProperties requestProperties;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
@@ -88,6 +96,7 @@ public class DefaultApiRequestService implements ApiRequestService {
         validateAgainstSchema(connector, command);
         var bodyType = command.bodyType() == null ? ApiBodyType.RAW : command.bodyType();
         enforceBodySize(bodyType, command);
+        var variableOverrides = validateVariableOverrides(connector, command, permission);
 
         var entity = new ApiRequestEntity();
         entity.setId(UUID.randomUUID());
@@ -104,6 +113,7 @@ public class DefaultApiRequestService implements ApiRequestService {
         entity.setRequestBody(command.requestBody());
         entity.setFormFields(writeFormFields(command.formFields()));
         entity.setBinaryFilename(command.binaryFilename());
+        entity.setVariableOverrides(writeJson(variableOverrides));
         entity.setTraceId(TraceContext.newTraceId());
         entity.setSpanId(TraceContext.newSpanId());
         entity.setWrite(write);
@@ -119,8 +129,11 @@ public class DefaultApiRequestService implements ApiRequestService {
         if (breakGlass) {
             return breakGlassExecute(connector, entity, command, permission);
         }
+        // The override *count* only — audit rows are long-retention, and an override value is
+        // submitter-authored input that may be sensitive in its own right.
         audit(AuditAction.API_REQUEST_SUBMITTED, entity, command.submittedIp(), command.submittedUserAgent(),
-                Map.of("verb", command.verb(), "write", write));
+                Map.of("verb", command.verb(), "write", write,
+                        "variable_override_count", variableOverrides.size()));
         eventPublisher.publishEvent(new ApiRequestSubmittedEvent(entity.getId()));
         return new ApiRequestSubmissionResult(entity.getId(), entity.getStatus());
     }
@@ -318,7 +331,8 @@ public class DefaultApiRequestService implements ApiRequestService {
                 summary != null ? summary.riskLevel() : null,
                 summary != null ? summary.riskScore() : null,
                 summary != null ? summary.summary() : null,
-                e.getBodyType(), e.getScheduledFor(), e.getTraceId(), e.getSpanId(),
+                e.getBodyType(), readMap(e.getVariableOverrides()), e.getScheduledFor(),
+                e.getTraceId(), e.getSpanId(),
                 e.getResponseStatusCode(), e.getResponseDurationMs(),
                 e.getResponseBytes(), e.isResponseTruncated(), snapshotPreview, previewTruncated,
                 e.getResponseContentType(), e.getErrorMessage(), e.getCreatedAt(), decisions);
@@ -377,6 +391,55 @@ public class DefaultApiRequestService implements ApiRequestService {
         }
     }
 
+    /**
+     * Validates the submitter's per-request connector-variable overrides (AF-613) and returns the
+     * map to persist.
+     *
+     * <p>Enforced here rather than in the controller so break-glass — and any future submit path —
+     * inherits it. Three rules matter:
+     * <ul>
+     *   <li>Supplying overrides at all requires {@code can_override_variables} on the connector, a
+     *       capability distinct from being able to submit.</li>
+     *   <li>A name outside the connector's overridable set is rejected with a <em>single</em> message
+     *       shape, whether the variable is unknown, not overridable, or secret-bearing. Distinct
+     *       messages would let a submitter enumerate which variables hold secrets.</li>
+     *   <li>Values are bounded and must not carry CR / LF / NUL. Rejecting here gives an immediate
+     *       422 rather than a failed execution hours after a reviewer approved the request.</li>
+     * </ul>
+     */
+    private Map<String, String> validateVariableOverrides(
+            ApiConnectorEntity connector, SubmitApiRequestCommand command,
+            ResolvedApiConnectorPermission permission) {
+        var overrides = command.variableOverrides();
+        if (overrides == null || overrides.isEmpty()) {
+            return Map.of();
+        }
+        if (permission == null || !permission.canOverrideVariables()) {
+            throw new ApiRequestPermissionException(
+                    "Variable overrides are not permitted for this connector");
+        }
+        if (overrides.size() > MAX_VARIABLE_OVERRIDES) {
+            throw new ApiRequestValidationException(
+                    "At most " + MAX_VARIABLE_OVERRIDES + " variable overrides may be supplied");
+        }
+        var allowed = variableLookupService.overridableNames(connector.getId(),
+                command.organizationId());
+        for (var entry : overrides.entrySet()) {
+            if (!allowed.contains(entry.getKey())) {
+                throw new ApiRequestValidationException(
+                        "Connector variable override not permitted: " + entry.getKey());
+            }
+            var value = entry.getValue() == null ? "" : entry.getValue();
+            if (value.getBytes(StandardCharsets.UTF_8).length
+                            > requestProperties.maxVariableValueBytes()
+                    || DefaultApiConnectorVariableResolutionService.containsControlCharacters(value)) {
+                throw new ApiRequestValidationException(
+                        "Invalid override value for variable " + entry.getKey());
+            }
+        }
+        return Map.copyOf(overrides);
+    }
+
     private static long formFieldsSize(List<ApiFormField> fields) {
         if (fields == null) {
             return 0L;
@@ -412,6 +475,17 @@ public class DefaultApiRequestService implements ApiRequestService {
 
     private String writeJson(Map<String, String> map) {
         return objectMapper.writeValueAsString(map == null ? Map.of() : map);
+    }
+
+    private Map<String, String> readMap(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, STRING_MAP_TYPE);
+        } catch (RuntimeException ex) {
+            return Map.of();
+        }
     }
 
     private static Pageable toPageable(PageRequest pageRequest) {

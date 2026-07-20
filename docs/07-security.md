@@ -682,6 +682,38 @@ posture as the query proxy:
 - **Break-glass parity.** Emergency access requires a per-user/per-connector `can_break_glass` grant
   (required for everyone, including admins), executes immediately through all guards, writes a
   prominent `API_REQUEST_BREAK_GLASS_EXECUTED` audit row, and opens a mandatory retro-review.
+- **Dynamic-variable secrets (AF-613).** A connector variable of kind `HMAC` stores its shared key in
+  `api_connector_variables.secret_encrypted`, AES-256-GCM encrypted via `CredentialEncryptionService`
+  under the same rules as `auth_credentials_encrypted`: `@JsonIgnore`, never returned by a GET (the
+  view exposes only `has_secret`), never logged, decrypted only inside the resolver at call time.
+- **Resolved values are never persisted or logged.** The resolver cannot distinguish a signature
+  (harmless) from a `CONSTANT` holding a shared secret (not harmless), so every resolved value is
+  treated as sensitive: none reach `api_requests`, the response snapshot, or the logs. They are also
+  scrubbed out of any upstream failure message before it lands in the persisted, reviewer-visible
+  `error_message` — the JDK's `IOException` embeds the full URI, which may carry a `query:`-targeted
+  signature.
+- **No scripting.** Variable evaluation is template substitution plus a fixed function set only — no
+  expression language, no `eval`, no user-supplied code — deliberately mirroring the engine plugins'
+  rejection of server-side scripting (`$where`, Painless, CQL UDFs).
+- **Single-pass substitution.** A resolved value is never re-scanned for further placeholders. This
+  is the containment property behind per-request overrides: an override of `{{signingKey}}` stays
+  eleven literal characters and can never expand into that variable's value.
+- **CRLF rejection.** No resolved value — computed or submitter-supplied — may contain CR, LF or NUL.
+  Any of them landing in a header is request splitting, and an override on a `header:`-targeted
+  variable is the natural delivery mechanism. Rejected both at submit time (immediate 422) and in the
+  resolver.
+- **Overrides are deny-by-default.** Supplying a per-request override needs `can_override_variables`
+  on the connector grant, a capability distinct from submitting and never conferred by a JIT access
+  grant. A secret-bearing variable can never be marked overridable — enforced by the admin service
+  *and* a database CHECK constraint, so the rule survives a manual data fix. A name outside the
+  connector's overridable set is rejected with a single uniform message regardless of whether the
+  variable is unknown, not overridable, or secret-bearing, so the set cannot be enumerated. Overrides
+  are persisted and shown to reviewers, so an approval covers exactly what will execute; the resolved
+  *outputs* (nonce, signature) are never surfaced.
+- **Accepted gap: config TOCTOU.** A reviewer approves, an admin then edits the connector's
+  variables, and the scheduled run executes against the new config. The identical gap already exists
+  for `default_headers`, masking policies and auth credentials, so it is documented rather than fixed
+  here alone; `API_CONNECTOR_VARIABLE_UPDATED` audit rows make the change traceable.
 
 ---
 

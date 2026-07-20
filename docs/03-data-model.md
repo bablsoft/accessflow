@@ -1700,6 +1700,7 @@ Per-user, per-connector grants — how an admin shares governed connectivity wit
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. Unique with `user_id`. |
 | `user_id` | UUID | Bare UUID. |
 | `can_read` / `can_write` / `can_break_glass` | BOOLEAN | |
+| `can_override_variables` | BOOLEAN NOT NULL DEFAULT FALSE | AF-613. May supply per-request overrides for the connector's overridable dynamic variables. A capability distinct from submitting; never conferred by a JIT access grant. |
 | `expires_at` | TIMESTAMPTZ | JIT expiry (nullable). |
 | `allowed_operations` | TEXT[] | Operation-id subset the user may call (null = all). |
 | `restricted_response_fields` | TEXT[] | Dot-paths masked in responses for this user (legacy FULL masks; merged with `api_connector_masking_policy` since AF-518). |
@@ -1722,6 +1723,7 @@ permission check, response-field masking, text-to-API access, admin visibility) 
 | `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. Unique with `group_id`. |
 | `group_id` | UUID | FK → `user_groups` `ON DELETE CASCADE`. |
 | `can_read` / `can_write` / `can_break_glass` | BOOLEAN | |
+| `can_override_variables` | BOOLEAN NOT NULL DEFAULT FALSE | AF-613. OR-merged with the direct grant like the other flags. |
 | `expires_at` | TIMESTAMPTZ | JIT expiry (nullable), honoured per grant. |
 | `allowed_operations` | TEXT[] | Operation-id subset (null = all). |
 | `restricted_response_fields` | TEXT[] | Dot-paths masked in responses. |
@@ -1784,6 +1786,43 @@ COALESCE(operation_id,''), field_ref, classification)` (COALESCE collapses NULL 
 connector-level tags are rejected too). Tagging a field auto-derives a masking policy and raises the
 apigov AI analyzer's risk for calls to the operation.
 
+## api_connector_variables (AF-613)
+
+Per-connector **dynamic variables** (migration V121): named expressions evaluated at execution time
+and substituted into headers, path, query and body via `{{name}}` placeholders — request signing,
+nonces, timestamps, idempotency keys. Resolved after connector auth, so an expression may sign the
+finished `Authorization` header.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID. |
+| `connector_id` | UUID | FK → `api_connectors` `ON DELETE CASCADE`. |
+| `name` | TEXT | The placeholder key, referenced as `{{name}}`. `^[A-Za-z][A-Za-z0-9_]{0,63}$` — dot-free, so it can never shadow the `request.` / `var.` namespaces. |
+| `kind` | ENUM `api_variable_kind` | `CONSTANT`, `UUID`, `TIMESTAMP`, `EPOCH_MILLIS`, `RANDOM_HEX`, `HASH`, `HMAC`, `ENCODE`. |
+| `expression` | TEXT | The input template, itself placeholder-expanded. Required, optional or forbidden per kind. |
+| `algorithm` | ENUM `api_variable_algorithm` | `HMAC_SHA256`/`HMAC_SHA512` for `HMAC`; `SHA256`/`MD5` for `HASH`; null otherwise. |
+| `encoding` | ENUM `api_variable_encoding` | `HEX` / `BASE64` / `BASE64URL` (unpadded, RFC 7515 shape). |
+| `secret_encrypted` | TEXT | AES-256-GCM shared key for `HMAC`. `@JsonIgnore`; never returned in a GET, never logged. |
+| `target` | TEXT | Optional auto-injection site: `header:<Name>` or `query:<name>`, applied after substitution. No whole-body form. |
+| `overridable` | BOOLEAN NOT NULL DEFAULT false | Opts the variable into per-request overrides. Deny by default. |
+| `description` | TEXT | Shown to submitters alongside the placeholder. |
+| `sort_order` | INT NOT NULL DEFAULT 0 | Evaluation order tie-break. |
+| `version` | BIGINT | Optimistic lock. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+Unique index `uq_api_connector_variable_name (organization_id, connector_id, name)` — mandatory, or
+`{{name}}` would be ambiguous. Index on `(organization_id, connector_id, sort_order)` backs the
+per-execution scan already in evaluation order. `CONSTRAINT ck_acv_override_no_secret CHECK (NOT
+(overridable AND secret_encrypted IS NOT NULL))` — a secret-bearing variable must never be
+overridable, and that rule must survive a manual data fix, so it is belt-and-braces with the
+service-layer check.
+
+Ordering deliberately deviates from the AF-518 child-table idiom (`ORDER BY created_at`). Masking
+policies are order-insensitive — they all apply — whereas variable evaluation order is observable,
+and `created_at` defaults to `CURRENT_TIMESTAMP`, which is transaction-constant in Postgres, so two
+rows inserted in one transaction would tie exactly. `(sort_order, created_at, id)` is a total order.
+
 ## api_requests (AF-500)
 
 Governed API calls (migration V101), mirroring `query_requests`. Reuses the shared `query_status` /
@@ -1797,6 +1836,7 @@ Governed API calls (migration V101), mirroring `query_requests`. Reuses the shar
 | `verb` | VARCHAR(16) | HTTP method / GraphQL op / gRPC method. |
 | `request_path` | TEXT | |
 | `request_headers` | JSONB | Sanitized header set. |
+| `variable_overrides` | JSONB NOT NULL DEFAULT `'{}'` | AF-613. Submitter-supplied values for connector variables marked `overridable`. Persisted rather than transient because a reviewer approves what is stored and submit → review → execute is asynchronous. Immutable after submit. |
 | `request_body` | TEXT | Raw text, or the base64 of a binary/file body (#517). |
 | `body_type` | `api_body_type` | How the body is composed (#517, AF-517): `NONE` / `RAW` / `FORM_DATA` / `FORM_URLENCODED` / `BINARY`. Default `RAW`. |
 | `request_content_type` | TEXT | Content-Type for a `RAW` body (#517). |

@@ -59,6 +59,9 @@ class DefaultApiRequestServiceTest {
     @Mock private AuditLogService auditLogService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
+    @Mock private com.bablsoft.accessflow.apigov.api.ApiConnectorVariableLookupService
+            variableLookupService;
+
     private DefaultApiRequestService service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -69,8 +72,8 @@ class DefaultApiRequestServiceTest {
     void setUp() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
-                aiAnalysisLookupService, userQueryService,
-                new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L),
+                aiAnalysisLookupService, userQueryService, variableLookupService,
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 65_536L, 8192),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         lenient().when(userQueryService.findById(any())).thenReturn(Optional.empty());
@@ -87,13 +90,24 @@ class DefaultApiRequestServiceTest {
     }
 
     private ResolvedApiConnectorPermission permission(boolean read, boolean write, boolean breakGlass) {
-        return new ResolvedApiConnectorPermission(connectorId, userId, read, write, breakGlass,
+        return new ResolvedApiConnectorPermission(connectorId, userId, read, write, breakGlass, false,
                 List.of(), List.of(), null);
+    }
+
+    private ResolvedApiConnectorPermission permissionWithOverrides(boolean canOverride) {
+        return new ResolvedApiConnectorPermission(connectorId, userId, true, true, false, canOverride,
+                List.of(), List.of(), null);
+    }
+
+    private SubmitApiRequestCommand cmdWithOverrides(java.util.Map<String, String> overrides) {
+        return new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, "POST", "/charges",
+                null, null, ApiBodyType.RAW, "application/json", "{}", null, null, overrides, "need",
+                null, SubmissionReason.USER_SUBMITTED, "1.2.3.4", "ua");
     }
 
     private SubmitApiRequestCommand cmd(String verb, SubmissionReason reason) {
         return new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, verb, "/charges",
-                null, null, ApiBodyType.RAW, "application/json", "{}", null, null, "need", null, reason,
+                null, null, ApiBodyType.RAW, "application/json", "{}", null, null, java.util.Map.of(), "need", null, reason,
                 "1.2.3.4", "ua");
     }
 
@@ -270,8 +284,8 @@ class DefaultApiRequestServiceTest {
     void detailViewSlicesSnapshotToPreviewWhileDownloadKeepsFullBody() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
-                aiAnalysisLookupService, userQueryService,
-                new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L),
+                aiAnalysisLookupService, userQueryService, variableLookupService,
+                new ApigovRequestProperties(5_242_880L, 10_485_760L, 8L, 8192),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         var full = "0123456789ABCDEF"; // 16 chars, longer than the 8-char preview budget
@@ -338,15 +352,15 @@ class DefaultApiRequestServiceTest {
     void submitRejectsBodyOverSizeCap() {
         service = new DefaultApiRequestService(requestRepository, connectorRepository, permissionResolver,
                 decisionRepository, schemaService, stateService, executionService,
-                aiAnalysisLookupService, userQueryService,
-                new ApigovRequestProperties(4L, 10_485_760L, 65_536L),
+                aiAnalysisLookupService, userQueryService, variableLookupService,
+                new ApigovRequestProperties(4L, 10_485_760L, 65_536L, 8192),
                 auditLogService, eventPublisher, JsonMapper.builder().build());
         lenient().when(schemaService.listOperations(any(), any())).thenReturn(List.of());
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.of(connector()));
         when(permissionResolver.resolve(connectorId, userId))
                 .thenReturn(Optional.of(permission(true, true, false)));
         var command = new SubmitApiRequestCommand(connectorId, orgId, userId, false, null, "POST", "/charges",
-                null, null, ApiBodyType.RAW, "text/plain", "way too long", List.of(), null, "need", null,
+                null, null, ApiBodyType.RAW, "text/plain", "way too long", List.of(), null, java.util.Map.of(), "need", null,
                 SubmissionReason.USER_SUBMITTED, "1.2.3.4", "ua");
 
         assertThatThrownBy(() -> service.submit(command)).isInstanceOf(ApiRequestValidationException.class);
@@ -402,5 +416,134 @@ class DefaultApiRequestServiceTest {
 
         assertThatThrownBy(() -> service.downloadResponse(e.getId(), orgId, userId, SystemRolePermissions.of(UserRoleType.ANALYST)))
                 .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestNotFoundException.class);
+    }
+
+    // --- AF-613: per-request variable overrides -------------------------------------------------
+
+    @Test
+    void submitPersistsVariableOverridesWhenPermitted() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(true)));
+        when(variableLookupService.overridableNames(connectorId, orgId))
+                .thenReturn(java.util.Set.of("nonce"));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.submit(cmdWithOverrides(java.util.Map.of("nonce", "fixed")));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity.class);
+        verify(requestRepository).save(saved.capture());
+        assertThat(saved.getValue().getVariableOverrides()).contains("nonce").contains("fixed");
+    }
+
+    @Test
+    void submitStoresAnEmptyObjectWhenNoOverridesAreSupplied() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.submit(cmd("POST", SubmissionReason.USER_SUBMITTED));
+
+        var saved = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity.class);
+        verify(requestRepository).save(saved.capture());
+        assertThat(saved.getValue().getVariableOverrides()).isEqualTo("{}");
+    }
+
+    @Test
+    void submitRejectsOverridesWithoutTheOverridePermission() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(false)));
+
+        assertThatThrownBy(() -> service.submit(cmdWithOverrides(java.util.Map.of("nonce", "x"))))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestPermissionException.class);
+        verify(requestRepository, org.mockito.Mockito.never()).save(any());
+    }
+
+    /**
+     * Unknown, not-overridable and secret-bearing all produce the <em>same</em> message. Distinct
+     * ones would let a submitter enumerate which of a connector variables hold secrets.
+     */
+    @Test
+    void submitRejectsANameOutsideTheOverridableSetWithAUniformMessage() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(true)));
+        when(variableLookupService.overridableNames(connectorId, orgId))
+                .thenReturn(java.util.Set.of("nonce"));
+
+        assertThatThrownBy(() -> service.submit(cmdWithOverrides(java.util.Map.of("signingKey", "x"))))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestValidationException.class)
+                .hasMessageContaining("Connector variable override not permitted: signingKey");
+        assertThatThrownBy(() -> service.submit(cmdWithOverrides(java.util.Map.of("noSuchThing", "x"))))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestValidationException.class)
+                .hasMessageContaining("Connector variable override not permitted: noSuchThing");
+    }
+
+    /** CR / LF in an override bound for a header is request splitting — reject at submit, not at run. */
+    @Test
+    void submitRejectsAnOverrideCarryingControlCharacters() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(true)));
+        when(variableLookupService.overridableNames(connectorId, orgId))
+                .thenReturn(java.util.Set.of("nonce"));
+
+        assertThatThrownBy(() -> service.submit(
+                cmdWithOverrides(java.util.Map.of("nonce", "ok\r\nX-Evil: 1"))))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestValidationException.class)
+                .hasMessageContaining("Invalid override value for variable nonce");
+    }
+
+    @Test
+    void submitRejectsAnOversizedOverrideValue() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(true)));
+        when(variableLookupService.overridableNames(connectorId, orgId))
+                .thenReturn(java.util.Set.of("nonce"));
+
+        assertThatThrownBy(() -> service.submit(
+                cmdWithOverrides(java.util.Map.of("nonce", "x".repeat(8193)))))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestValidationException.class)
+                .hasMessageContaining("Invalid override value for variable nonce");
+    }
+
+    @Test
+    void submitRejectsTooManyOverrides() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permissionWithOverrides(true)));
+        var many = new java.util.HashMap<String, String>();
+        for (var i = 0; i < 33; i++) {
+            many.put("v" + i, "x");
+        }
+
+        assertThatThrownBy(() -> service.submit(cmdWithOverrides(many)))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiRequestValidationException.class)
+                .hasMessageContaining("variable overrides may be supplied");
+    }
+
+    @Test
+    void submitDoesNotConsultTheLookupServiceWhenThereAreNoOverrides() {
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId))
+                .thenReturn(Optional.of(connector()));
+        when(permissionResolver.resolve(connectorId, userId))
+                .thenReturn(Optional.of(permission(true, true, false)));
+        when(requestRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.submit(cmdWithOverrides(java.util.Map.of()));
+
+        verify(variableLookupService, org.mockito.Mockito.never()).overridableNames(any(), any());
     }
 }

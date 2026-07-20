@@ -33,6 +33,12 @@ public interface ApiReviewService {
             UUID apiRequestId, UUID connectorId, String connectorName, UUID submittedByUserId,
             String verb, String requestPath, boolean write, String justification, UUID aiAnalysisId,
             RiskLevel aiRiskLevel, Integer aiRiskScore, String aiSummary, int currentStage,
+            /**
+             * AF-613: how many connector variables this submitter overrode. A count rather than
+             * the values, so the queue can badge affected requests without joining the body; the
+             * values themselves are on the detail view.
+             */
+            int variableOverrideCount,
             Instant createdAt) {
     }
 

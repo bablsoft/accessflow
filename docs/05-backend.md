@@ -2092,8 +2092,8 @@ submit (`POST /api/v1/api-requests`) → async rate-limited AI risk scoring (`ai
 fail-safe) → routing (`api_routing_policies`) + human review (`ApiReviewService`, self-approval
 forbidden, via `ApiReviewStateMachine`) → guarded execution (`ApiExecutionService`: connector-auth
 injection, response cap = min(per-connector `max_response_bytes`, system `max-response-bytes`
-ceiling), recursive dot-path response masking via `ColumnMasker`, immutable masked snapshot stored in
-full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
+ceiling), **dynamic-variable resolution + substitution** (AF-613, below), recursive dot-path response
+masking via `ColumnMasker`, immutable masked snapshot stored in full for download). Break-glass (`EMERGENCY_ACCESS` + `can_break_glass`), scheduled execution
 (`ApiRequestRunJob`), review timeout (`ApiRequestTimeoutJob`), and text-to-API
 (`ApiCallAnalyzer.generateApiCall`, schema connectors only) all mirror the query path. gRPC call
 **execution** is the one piece not yet wired (REST/SOAP/GraphQL execute over the JDK HTTP client).
@@ -2159,6 +2159,64 @@ whole. **Schema URL fetch:** `DefaultApiSchemaService.upload` fetches `sourceUrl
 bounded size/timeout) when `rawContent` is blank — a third ingestion mode alongside paste and file
 upload — raising `ApiSchemaFetchException` (422 `API_SCHEMA_FETCH_ERROR`) on failure. The submitter's
 email is resolved via `core.api.UserQueryService` for the list/detail submitter column.
+
+**Dynamic variables (AF-613).** A connector may declare named variables — rows in
+`api_connector_variables` — that are evaluated per request and substituted into header values, the
+path, query values and the body via `{{name}}` placeholders. This is what makes vendor contracts
+requiring a computed value per call (HMAC request signing, nonces, timestamps, correlation ids,
+idempotency keys, digests) governable at all: a submitter cannot hand-compute a signature for a
+request a reviewer will approve minutes or hours later.
+
+*Where it runs.* Inside `ApiExecutionService.executeCall`, between composing the `ApiCallRequest` and
+handing it to the executor — deliberately **after** `buildHeaders`, so the evaluation context already
+carries the connector defaults, the per-request headers, the trace headers and the auth header the
+applier just computed (including a freshly minted OAuth2 bearer). An expression can therefore sign
+the finished `Authorization` value, which the motivating vendor scheme requires. The OAuth2 401
+retry rebuilds headers and re-resolves from scratch: a nonce must not be replayed, and a signature
+over the stale token would only fail again. `executeInline` (the admin "try it" path) and break-glass
+both route through the same seam.
+
+*The contract.* `DefaultApiConnectorVariableResolutionService` orders the variables topologically
+over their `{{var.x}}` references (`ApiVariableGraph`, Kahn's algorithm with the repository's
+`(sort_order, created_at, id)` order as a total tie-break, so evaluation order is deterministic and
+operator-controlled), renders each `expression` through `ApiVariableTemplate`, and feeds the result
+to `ApiVariableEvaluator` — a fixed function set over `CONSTANT` / `UUID` / `TIMESTAMP` /
+`EPOCH_MILLIS` / `RANDOM_HEX` / `HASH` / `HMAC` / `ENCODE`, with `HEX` / `BASE64` / `BASE64URL`
+(unpadded) encodings. There is no scripting engine and no expression language, deliberately mirroring
+the engine plugins' rejection of server-side scripting (`$where`, Painless, CQL UDFs).
+
+*Two properties worth stating explicitly.* First, every `{{request.*}}` value describes the request
+**before** substitution — the vendor scheme signs a body that still contains its own
+`{{signature}}` placeholder, and resolving post-substitution would silently produce a digest the
+vendor rejects. Second, rendering is **single-pass**: a substituted value is never re-scanned, which
+is what keeps a per-request override an opaque literal rather than a path into another variable's
+value.
+
+*What is and is not substituted.* Header **values**, the path, query **values**, `RAW` bodies and
+`TEXT` form parts are. Header **names** and query **keys** are not (a variable-named header could not
+be meaningfully reviewed); nor is `base_url` (a variable-controlled host is an SSRF pivot); nor are
+`BINARY` bodies and `FILE` form parts (base64 — substitution would corrupt rather than template
+them). A variable may also carry a `target` of `header:<Name>` or `query:<name>`, applied after
+substitution, for vendors that want the value in a fixed header rather than at a placeholder.
+
+*Secrecy.* A resolved value never leaves the call: it is not persisted onto `api_requests`, not
+written into the response snapshot, and not logged. The resolver cannot tell a harmless signature
+from a `CONSTANT` holding a shared secret, so all of them are treated as sensitive — including
+scrubbing them out of any upstream failure message before it reaches the persisted, reviewer-visible
+`error_message` (the JDK's `IOException` embeds the full URI, which may carry a `query:`-targeted
+signature). Save-time validation rejects cycles, dangling references and bad kind/field combinations
+as 422s while the operator is editing, rather than as a failed run after approval.
+
+*Per-request overrides.* A variable marked `overridable` may be given a value per request
+(`api_requests.variable_overrides`, persisted so a reviewer approves exactly what will execute).
+Supplying any override needs `can_override_variables` on the connector grant — a capability distinct
+from submitting, OR-merged across user and group grants like `can_break_glass`, and never conferred
+by a JIT access grant. A secret-bearing variable is never overridable (service check plus a database
+CHECK constraint). Names outside the connector's overridable set are rejected with a single uniform
+message, so a submitter cannot enumerate which variables hold secrets; values are bounded and
+rejected outright if they contain CR, LF or NUL (request splitting). Grouped requests (AF-501)
+deliberately do not accept overrides — connector variables still resolve for a grouped member, but
+the group-item shape carries no override field.
 
 ## Request chaining & grouping (AF-501)
 

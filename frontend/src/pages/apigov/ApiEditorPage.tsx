@@ -10,6 +10,10 @@ import { submitApiRequest } from '@/api/apiRequests';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { ApiAuthoringPanel } from '@/components/apigov/ApiAuthoringPanel';
+import {
+  apiConnectorVariableKeys,
+  listApiConnectorVariableSummaries,
+} from '@/api/apiConnectorVariables';
 import { useApiAuthoring, type ApiAuthoringValue } from '@/components/apigov/useApiAuthoring';
 import { compositionToSubmit, newComposition } from '@/utils/apiRequestComposition';
 
@@ -26,6 +30,13 @@ export default function ApiEditorPage() {
     verb: 'GET',
     requestPath: '',
     composition: newComposition(),
+  });
+
+  // AF-613: the submitter-safe projection, so the composer can offer per-request overrides.
+  const variablesQuery = useQuery({
+    queryKey: apiConnectorVariableKeys.summary(connectorId ?? ''),
+    queryFn: () => listApiConnectorVariableSummaries(connectorId as string),
+    enabled: !!connectorId,
   });
 
   const connectorsQuery = useQuery({
@@ -85,6 +96,7 @@ export default function ApiEditorPage() {
         connector={connector}
         value={value}
         onChange={setValue}
+        connectorVariables={variablesQuery.data ?? []}
         header={
           <label>
             <div className="muted" style={{ marginBottom: 4 }}>{t('apiGov.editor.connector')}</div>

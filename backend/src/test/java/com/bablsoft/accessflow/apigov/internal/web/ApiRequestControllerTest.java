@@ -55,7 +55,7 @@ class ApiRequestControllerTest {
     private ApiRequestView view() {
         return new ApiRequestView(requestId, connectorId, "Stripe", userId, "u@acme.test", null, "POST",
                 "/charges", true, QueryStatus.PENDING_AI, SubmissionReason.USER_SUBMITTED, "need", null, null,
-                null, null, com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, null, null, null, null, null,
+                null, null, com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, java.util.Map.of(), null, null, null, null, null,
                 null, false, null, false, null, null, Instant.now(), List.of());
     }
 
@@ -67,7 +67,7 @@ class ApiRequestControllerTest {
                 .thenReturn(view());
 
         var response = controller.submit(new SubmitApiRequestRequest(connectorId, null, "POST", "/charges",
-                null, null, null, null, "{}", null, null, "need", null, null),
+                null, null, null, null, "{}", null, null, java.util.Map.of(), "need", null, null),
                 auth(UserRoleType.ANALYST), auditContext);
 
         assertThat(response.id()).isEqualTo(requestId);

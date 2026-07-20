@@ -80,14 +80,14 @@ class DefaultDashboardServiceTest {
         return new ApiRequestView(UUID.randomUUID(), UUID.randomUUID(), "Conn", USER, "u@test.io", "GetThing",
                 "GET", "/v1/things", false, QueryStatus.PENDING_REVIEW, SubmissionReason.USER_SUBMITTED,
                 "why", UUID.randomUUID(), RiskLevel.LOW, 10, "ok",
-                com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, null, null, null, null, null, null, false,
+                com.bablsoft.accessflow.apigov.api.ApiBodyType.RAW, java.util.Map.of(), null, null, null, null, null, null, false,
                 null, false, null, null, NOW, List.of());
     }
 
     private PendingApiReview pendingApi() {
         return new PendingApiReview(UUID.randomUUID(), UUID.randomUUID(), "Conn", UUID.randomUUID(),
                 "POST", "/v1/things", true, "why", UUID.randomUUID(), RiskLevel.HIGH, 80, "summary",
-                1, NOW);
+                1, 0, NOW);
     }
 
     /** Default no-op stubs for the API-governance collaborators, overridden per test as needed. */

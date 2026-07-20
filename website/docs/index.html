@@ -1314,6 +1314,38 @@
             are recorded in the execution audit.
           </p>
           <p>
+            <strong>Dynamic variables (request signing).</strong> Some APIs — common in banking, payments
+            and telco — require a value computed <em>per request</em>: an HMAC signature, a nonce, a
+            timestamp, an idempotency key. A requester can't hand-compute those for a governed call,
+            because the signature covers a body a reviewer approves minutes or hours later and the
+            timestamp would already be stale. On the connector's <em>Variables</em> tab (admin) you
+            declare named values that AccessFlow computes at execution time and substitutes into
+            headers, the path, query parameters and the body wherever
+            <code>{{name}}</code> appears. Kinds cover a constant, a random UUID, a timestamp, epoch
+            milliseconds, random bytes, a hash (SHA-256/MD5), an HMAC signature (HMAC-SHA256/512 with an
+            encrypted shared secret), or a re-encoding — output as hex, base64 or URL-safe base64.
+            Expressions can reference the in-flight request (<code>{{request.method}}</code>,
+            <code>{{request.path}}</code>, <code>{{request.query}}</code>, <code>{{request.body}}</code>,
+            <code>{{request.headers.Authorization}}</code>) and each other; AccessFlow resolves them in
+            dependency order and rejects circular references while you're editing, not at run time.
+            Variables are evaluated <em>after</em> authentication, so a signature can cover the resolved
+            <code>Authorization</code> header — including a freshly minted OAuth2 token. Instead of a
+            placeholder, a variable can inject itself straight into a fixed header or query parameter.
+            Evaluation is template substitution over a fixed function set only: there is no scripting
+            engine and no user-supplied code. Shared secrets are encrypted at rest, never returned by
+            the API, and computed values are never stored, snapshotted or logged.
+          </p>
+          <p>
+            <strong>Per-request overrides.</strong> An admin can mark a variable <em>overridable</em>, and
+            grant selected teammates the <em>Override variables</em> permission on the connector. Those
+            requesters can then supply their own value for that variable from the API editor's
+            <em>Variables</em> tab — pinning a nonce for a replay test, say. Overrides are deny-by-default
+            and deliberately narrow: a variable holding a secret can never be made overridable, an
+            override is inserted literally and can never expand into another variable's value, and the
+            values are saved with the request and shown to the reviewer, so an approval covers exactly
+            what will be sent.
+          </p>
+          <p>
             <strong>Use it.</strong> In the <em>API editor</em> (<code>/api-editor</code>) a user picks a
             connector, searches the operation catalog (or writes a free-form method + path), and composes
             the call like Postman — query parameters, custom headers (over the connector's read-only

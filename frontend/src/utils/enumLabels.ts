@@ -4,6 +4,9 @@ import type {
   ApiAuthMethod,
   ApiBodyType,
   ApiMaskingMatcherType,
+  ApiVariableAlgorithm,
+  ApiVariableEncoding,
+  ApiVariableKind,
   ApiProtocol,
   ApiSchemaType,
   ErasureConditionOperator,
@@ -217,6 +220,41 @@ export const API_MASKING_MATCHER_TYPES: readonly ApiMaskingMatcherType[] = [
 
 export const apiMaskingMatcherTypeLabel = (t: TFunction, v: ApiMaskingMatcherType): string =>
   t(`enums.api_masking_matcher_type.${v}` as const);
+
+// ── API connector dynamic variables (AF-613) ─────────────────────────────────
+
+export const API_VARIABLE_KINDS: readonly ApiVariableKind[] = [
+  'CONSTANT',
+  'UUID',
+  'TIMESTAMP',
+  'EPOCH_MILLIS',
+  'RANDOM_HEX',
+  'HASH',
+  'HMAC',
+  'ENCODE',
+] as const;
+
+export const apiVariableKindLabel = (t: TFunction, v: ApiVariableKind): string =>
+  t(`enums.api_variable_kind.${v}` as const);
+
+export const API_VARIABLE_ALGORITHMS: readonly ApiVariableAlgorithm[] = [
+  'HMAC_SHA256',
+  'HMAC_SHA512',
+  'SHA256',
+  'MD5',
+] as const;
+
+export const apiVariableAlgorithmLabel = (t: TFunction, v: ApiVariableAlgorithm): string =>
+  t(`enums.api_variable_algorithm.${v}` as const);
+
+export const API_VARIABLE_ENCODINGS: readonly ApiVariableEncoding[] = [
+  'HEX',
+  'BASE64',
+  'BASE64URL',
+] as const;
+
+export const apiVariableEncodingLabel = (t: TFunction, v: ApiVariableEncoding): string =>
+  t(`enums.api_variable_encoding.${v}` as const);
 
 // ── Routing policies ──────────────────────────────────────────────────────────
 export const QUERY_TYPES: readonly QueryType[] = [

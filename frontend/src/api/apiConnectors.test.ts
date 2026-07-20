@@ -33,6 +33,7 @@ const permissionFixture = {
   can_read: true,
   can_write: false,
   can_break_glass: false,
+  can_override_variables: false,
   expires_at: null,
   allowed_operations: [],
   restricted_response_fields: [],
@@ -152,6 +153,7 @@ describe('api/apiConnectors', () => {
       can_read: true,
       can_write: false,
       can_break_glass: false,
+      can_override_variables: false,
       expires_at: null,
       allowed_operations: [],
       restricted_response_fields: [],
@@ -166,6 +168,7 @@ describe('api/apiConnectors', () => {
       can_read: false,
       can_write: true,
       can_break_glass: true,
+      can_override_variables: false,
       expires_at: '2030-01-01T00:00:00.000Z',
       allowed_operations: ['createPet'],
       restricted_response_fields: ['data.ssn'],
@@ -195,6 +198,7 @@ describe('api/apiConnectors', () => {
       can_read: true,
       can_write: false,
       can_break_glass: false,
+      can_override_variables: false,
     };
     await api.grantApiConnectorGroupPermission('c-1', input);
     expect(post).toHaveBeenCalledWith('/api/v1/api-connectors/c-1/permissions/groups', input);
@@ -206,6 +210,7 @@ describe('api/apiConnectors', () => {
       can_read: false,
       can_write: true,
       can_break_glass: true,
+      can_override_variables: false,
       expires_at: '2030-01-01T00:00:00.000Z',
       allowed_operations: ['listPets'],
       restricted_response_fields: ['data.ssn'],

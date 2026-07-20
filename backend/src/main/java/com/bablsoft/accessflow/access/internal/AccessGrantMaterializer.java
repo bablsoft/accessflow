@@ -73,11 +73,13 @@ class AccessGrantMaterializer {
                                            Instant expiresAt) {
         requireNoStandingConnectorPermission(entity);
         // grantPermission upserts on (connector_id, user_id), so an existing time-boxed row is
-        // replaced in place. Break-glass and response-field restrictions are never JIT-grantable.
+        // replaced in place. Break-glass, variable overrides (AF-613) and response-field
+        // restrictions are never JIT-grantable — each is an explicit admin decision per connector.
         var command = new GrantApiConnectorPermissionCommand(
                 entity.getRequesterId(),
                 entity.isCanRead(),
                 entity.isCanWrite(),
+                false,
                 false,
                 expiresAt,
                 toList(entity.getAllowedOperations()),

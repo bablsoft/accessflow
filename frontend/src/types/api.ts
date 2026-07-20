@@ -2539,6 +2539,7 @@ export interface ApiConnectorPermission {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at: string | null;
   allowed_operations: string[];
   restricted_response_fields: string[];
@@ -2550,6 +2551,7 @@ export interface GrantApiConnectorPermissionInput {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at?: string | null;
   allowed_operations?: string[];
   restricted_response_fields?: string[];
@@ -2559,6 +2561,7 @@ export interface UpdateApiConnectorPermissionInput {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at?: string | null;
   allowed_operations?: string[];
   restricted_response_fields?: string[];
@@ -2573,6 +2576,7 @@ export interface ApiConnectorGroupPermission {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at: string | null;
   allowed_operations: string[];
   restricted_response_fields: string[];
@@ -2584,6 +2588,7 @@ export interface GrantApiConnectorGroupPermissionInput {
   can_read: boolean;
   can_write: boolean;
   can_break_glass: boolean;
+  can_override_variables: boolean;
   expires_at?: string | null;
   allowed_operations?: string[];
   restricted_response_fields?: string[];
@@ -2706,6 +2711,67 @@ export interface ApiConnectorClassificationDerivation {
   masking_suggestions: ApiConnectorClassificationMaskingSuggestion[];
 }
 
+// --- AF-613: API connector dynamic variables ---
+
+export type ApiVariableKind =
+  | 'CONSTANT'
+  | 'UUID'
+  | 'TIMESTAMP'
+  | 'EPOCH_MILLIS'
+  | 'RANDOM_HEX'
+  | 'HASH'
+  | 'HMAC'
+  | 'ENCODE';
+
+export type ApiVariableAlgorithm = 'HMAC_SHA256' | 'HMAC_SHA512' | 'SHA256' | 'MD5';
+
+export type ApiVariableEncoding = 'HEX' | 'BASE64' | 'BASE64URL';
+
+/** Admin view. The stored secret is never returned — only `has_secret`. */
+export interface ApiConnectorVariable {
+  id: string;
+  connector_id: string;
+  name: string;
+  kind: ApiVariableKind;
+  expression: string | null;
+  algorithm: ApiVariableAlgorithm | null;
+  encoding: ApiVariableEncoding | null;
+  has_secret: boolean;
+  target: string | null;
+  overridable: boolean;
+  description: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateApiConnectorVariableInput {
+  name: string;
+  kind: ApiVariableKind;
+  expression?: string | null;
+  algorithm?: ApiVariableAlgorithm | null;
+  encoding?: ApiVariableEncoding | null;
+  /** Write-only. Omit on update to leave the stored secret unchanged. */
+  secret?: string | null;
+  target?: string | null;
+  overridable?: boolean;
+  description?: string | null;
+  sort_order?: number | null;
+}
+
+export interface UpdateApiConnectorVariableInput extends CreateApiConnectorVariableInput {
+  /** Explicitly removes the stored secret; `secret: undefined` alone leaves it in place. */
+  clear_secret?: boolean;
+}
+
+/** The submitter-visible projection: no expression, algorithm, encoding or secret. */
+export interface ApiConnectorVariableSummary {
+  name: string;
+  kind: ApiVariableKind;
+  description: string | null;
+  overridable: boolean;
+}
+
 export interface ApiReviewDecision {
   id: string;
   reviewer_id: string;
@@ -2732,6 +2798,8 @@ export interface ApiRequest {
   ai_risk_level: RiskLevel | null;
   ai_risk_score: number | null;
   ai_summary: string | null;
+  /** AF-613: the submitter-supplied variable overrides, so a reviewer sees what will execute. */
+  variable_overrides: Record<string, string>;
   body_type: ApiBodyType | null;
   scheduled_for: string | null;
   trace_id: string | null;
@@ -2768,6 +2836,8 @@ export interface SubmitApiRequestInput {
   request_body?: string | null;
   form_fields?: ApiFormField[];
   binary_filename?: string | null;
+  /** AF-613: per-request values for connector variables marked overridable. */
+  variable_overrides?: Record<string, string>;
   justification?: string | null;
   scheduled_for?: string | null;
   submission_reason?: SubmissionReason;
@@ -2798,6 +2868,8 @@ export interface PendingApiReview {
   ai_risk_score: number | null;
   ai_summary: string | null;
   current_stage: number;
+  /** AF-613: how many connector variables the submitter overrode. */
+  variable_override_count: number;
   created_at: string;
 }
 

@@ -146,7 +146,7 @@ class AccessGrantMaterializerTest {
 
     private ApiConnectorPermissionView connectorGranted() {
         return new ApiConnectorPermissionView(newPermissionId, connectorId, requesterId, "u@x.io",
-                "U", true, true, false, Instant.now().plusSeconds(3600), List.of("listCharges"),
+                "U", true, true, false, false, Instant.now().plusSeconds(3600), List.of("listCharges"),
                 null, Instant.now());
     }
 

@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public record ApiRequestResponse(
@@ -29,6 +30,7 @@ public record ApiRequestResponse(
         Integer aiRiskScore,
         String aiSummary,
         ApiBodyType bodyType,
+        Map<String, String> variableOverrides,
         Instant scheduledFor,
         String traceId,
         String spanId,
@@ -47,7 +49,8 @@ public record ApiRequestResponse(
         return new ApiRequestResponse(v.id(), v.connectorId(), v.connectorName(), v.submittedBy(),
                 v.submittedByEmail(), v.operationId(), v.verb(), v.requestPath(), v.write(), v.status(),
                 v.submissionReason(), v.justification(), v.aiAnalysisId(), v.aiRiskLevel(), v.aiRiskScore(),
-                v.aiSummary(), v.bodyType(), v.scheduledFor(), v.traceId(), v.spanId(),
+                v.aiSummary(), v.bodyType(), v.variableOverrides(), v.scheduledFor(), v.traceId(),
+                v.spanId(),
                 v.responseStatusCode(), v.responseDurationMs(), v.responseBytes(), v.responseTruncated(),
                 v.responseSnapshot(), v.responseSnapshotPreviewTruncated(), v.responseContentType(),
                 v.errorMessage(), v.createdAt(), v.decisions());

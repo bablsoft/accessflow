@@ -158,8 +158,37 @@ describe('compositionFromSaved', () => {
       request_body: '{"x":1}',
       form_fields: [],
       binary_filename: null,
+      variable_overrides: { nonce: 'fixed' },
     };
     expect(compositionToSubmit(compositionFromSaved(saved))).toEqual(saved);
+  });
+
+  // AF-613: per-request connector-variable overrides.
+  it('carries variable overrides onto the wire', () => {
+    const c = newComposition();
+    c.variableOverrides = [
+      { key: 'nonce', value: 'fixed' },
+      { key: '', value: 'dropped' },
+    ];
+
+    expect(compositionToSubmit(c).variable_overrides).toEqual({ nonce: 'fixed' });
+  });
+
+  it('submits an empty override map when none are set', () => {
+    expect(compositionToSubmit(newComposition()).variable_overrides).toEqual({});
+  });
+
+  it('rebuilds overrides from a saved item', () => {
+    expect(compositionFromSaved({ variable_overrides: { a: '1' } }).variableOverrides).toEqual([
+      { key: 'a', value: '1' },
+    ]);
+  });
+
+  it('gives each fresh composition its own overrides array', () => {
+    const first = newComposition();
+    first.variableOverrides.push({ key: 'a', value: '1' });
+
+    expect(newComposition().variableOverrides).toEqual([]);
   });
 });
 

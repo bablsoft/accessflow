@@ -28,6 +28,8 @@ public record SubmitApiRequestCommand(
         String requestBody,
         List<ApiFormField> formFields,
         String binaryFilename,
+        /** AF-613: per-request values for connector variables marked overridable. */
+        Map<String, String> variableOverrides,
         String justification,
         Instant scheduledFor,
         SubmissionReason submissionReason,

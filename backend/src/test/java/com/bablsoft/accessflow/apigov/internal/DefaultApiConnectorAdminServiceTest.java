@@ -163,7 +163,7 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void getForUserReturnsWhenPermissionGrantsRead() {
         var entity = persistedConnector();
-        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, true, false, false,
+        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, true, false, false, false,
                 List.of(), List.of(), null);
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
         when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.of(perm));
@@ -184,7 +184,7 @@ class DefaultApiConnectorAdminServiceTest {
     @Test
     void getForUserThrowsWhenPermissionGrantsNeitherReadNorWrite() {
         var entity = persistedConnector();
-        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, false, false, false,
+        var perm = new ResolvedApiConnectorPermission(entity.getId(), userId, false, false, false, false,
                 List.of(), List.of(), null);
         when(connectorRepository.findByIdAndOrganizationId(entity.getId(), orgId)).thenReturn(Optional.of(entity));
         when(permissionResolver.resolve(entity.getId(), userId)).thenReturn(Optional.of(perm));
@@ -452,7 +452,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(permissionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         var view = service.grantPermission(entity.getId(), orgId, UUID.randomUUID(),
-                new GrantApiConnectorPermissionCommand(userId, true, false, false, null,
+                new GrantApiConnectorPermissionCommand(userId, true, false, false, false, null,
                         List.of("listPets"), List.of("data.ssn")));
 
         assertThat(view.canRead()).isTrue();
@@ -468,7 +468,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(userQueryService.findById(userId)).thenReturn(Optional.of(userView(userId, UUID.randomUUID())));
 
         assertThatThrownBy(() -> service.grantPermission(entity.getId(), orgId, UUID.randomUUID(),
-                new GrantApiConnectorPermissionCommand(userId, true, false, false, null, null, null)))
+                new GrantApiConnectorPermissionCommand(userId, true, false, false, false, null, null, null)))
                 .isInstanceOf(UserNotFoundException.class);
     }
 
@@ -506,7 +506,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(permissionRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         var view = service.updatePermission(entity.getId(), orgId, permId,
-                new UpdateApiConnectorPermissionCommand(false, true, true, null,
+                new UpdateApiConnectorPermissionCommand(false, true, true, false, null,
                         List.of("createPet"), List.of("data.token")));
 
         assertThat(view.canRead()).isFalse();
@@ -530,7 +530,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(permissionRepository.findById(permId)).thenReturn(Optional.of(foreign));
 
         assertThatThrownBy(() -> service.updatePermission(entity.getId(), orgId, permId,
-                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                new UpdateApiConnectorPermissionCommand(true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
     }
 
@@ -542,7 +542,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(permissionRepository.findById(permId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updatePermission(entity.getId(), orgId, permId,
-                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                new UpdateApiConnectorPermissionCommand(true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
     }
 
@@ -552,7 +552,7 @@ class DefaultApiConnectorAdminServiceTest {
         when(connectorRepository.findByIdAndOrganizationId(connectorId, orgId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.updatePermission(connectorId, orgId, UUID.randomUUID(),
-                new UpdateApiConnectorPermissionCommand(true, false, false, null, null, null)))
+                new UpdateApiConnectorPermissionCommand(true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorNotFoundException.class);
     }
 
@@ -569,7 +569,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var view = service.grantGroupPermission(entity.getId(), orgId, UUID.randomUUID(),
                 new com.bablsoft.accessflow.apigov.api.GrantApiConnectorGroupPermissionCommand(
-                        groupId, true, false, false, null, List.of("listPets"), List.of("data.ssn")));
+                        groupId, true, false, false, false, null, List.of("listPets"), List.of("data.ssn")));
 
         assertThat(view.groupId()).isEqualTo(groupId);
         assertThat(view.groupName()).isEqualTo("Analysts");
@@ -589,7 +589,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThatThrownBy(() -> service.grantGroupPermission(entity.getId(), orgId, UUID.randomUUID(),
                 new com.bablsoft.accessflow.apigov.api.GrantApiConnectorGroupPermissionCommand(
-                        groupId, true, false, false, null, null, null)))
+                        groupId, true, false, false, false, null, null, null)))
                 .isInstanceOf(com.bablsoft.accessflow.core.api.UserGroupNotFoundException.class);
     }
 
@@ -616,7 +616,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         var view = service.updateGroupPermission(entity.getId(), orgId, permId,
                 new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
-                        false, true, true, null, List.of("createPet"), List.of("data.token")));
+                        false, true, true, false, null, List.of("createPet"), List.of("data.token")));
 
         assertThat(view.canRead()).isFalse();
         assertThat(view.canWrite()).isTrue();
@@ -642,7 +642,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateGroupPermission(entity.getId(), orgId, permId,
                 new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
-                        true, false, false, null, null, null)))
+                        true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
     }
 
@@ -655,7 +655,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateGroupPermission(entity.getId(), orgId, permId,
                 new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
-                        true, false, false, null, null, null)))
+                        true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorPermissionNotFoundException.class);
     }
 
@@ -666,7 +666,7 @@ class DefaultApiConnectorAdminServiceTest {
 
         assertThatThrownBy(() -> service.updateGroupPermission(connectorId, orgId, UUID.randomUUID(),
                 new com.bablsoft.accessflow.apigov.api.UpdateApiConnectorGroupPermissionCommand(
-                        true, false, false, null, null, null)))
+                        true, false, false, false, null, null, null)))
                 .isInstanceOf(ApiConnectorNotFoundException.class);
     }
 

@@ -252,6 +252,46 @@ export default function ApiRequestDetailPage() {
               </DetailCard>
             )}
 
+            {Object.keys(request.variable_overrides ?? {}).length > 0 && (
+              <DetailCard title={t('apiGov.requests.variableOverrides')}>
+                <div style={{ padding: 14 }}>
+                  {/* The signing *inputs* the submitter supplied. The resolved outputs (nonce,
+                      signature) are execution-time only and are deliberately never surfaced. */}
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                    {t('apiGov.requests.variableOverridesHint')}
+                  </div>
+                  <Table
+                    rowKey="name"
+                    size="small"
+                    pagination={false}
+                    dataSource={Object.entries(request.variable_overrides).map(([name, value]) => ({
+                      name,
+                      value,
+                    }))}
+                    columns={[
+                      {
+                        title: t('apiGov.requests.variableName'),
+                        dataIndex: 'name',
+                        width: 220,
+                        render: (v: string) => (
+                          <span className="mono" style={{ fontSize: 12 }}>{`{{${v}}}`}</span>
+                        ),
+                      },
+                      {
+                        title: t('apiGov.requests.variableValue'),
+                        dataIndex: 'value',
+                        render: (v: string) => (
+                          <span className="mono" style={{ fontSize: 12 }}>
+                            {v}
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
+                </div>
+              </DetailCard>
+            )}
+
             {request.ai_summary && (
               <DetailCard
                 title={t('apiGov.requests.aiSummary')}
