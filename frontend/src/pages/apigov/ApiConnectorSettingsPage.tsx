@@ -2,15 +2,20 @@ import { useEffect, useState } from 'react';
 import {
   App,
   Button,
+  Checkbox,
+  Collapse,
   Form,
   Input,
   InputNumber,
+  Modal,
   Segmented,
   Select,
+  Space,
   Switch,
   Table,
   Tabs,
   Tag,
+  Typography,
   Upload,
 } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
@@ -24,7 +29,9 @@ import {
   getApiConnector,
   listApiOperations,
   listApiSchemas,
+  previewApiSchemaFilter,
   updateApiConnector,
+  updateApiSchemaFilter,
   uploadApiSchema,
 } from '@/api/apiConnectors';
 import { aiConfigKeys, listAiConfigs } from '@/api/admin';
@@ -52,7 +59,9 @@ import { showApiError } from '@/utils/showApiError';
 import type {
   ApiAuthMethod,
   ApiOperation,
+  ApiOperationFilter,
   ApiSchema,
+  ApiSchemaFilterPreview,
   ApiSchemaType,
   Oauth2GrantType,
   UpdateApiConnectorInput,
@@ -260,6 +269,159 @@ function ConfigTab({ connectorId }: { connectorId: string }) {
   );
 }
 
+const HTTP_VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+const MAX_FILTER_LIST = 100;
+const MAX_FILTER_PATTERN = 200;
+
+const EMPTY_FILTER: ApiOperationFilter = {
+  includePaths: [],
+  excludePaths: [],
+  includeVerbs: [],
+  excludeVerbs: [],
+  includeOperationIds: [],
+  excludeOperationIds: [],
+  includeTags: [],
+  excludeTags: [],
+  excludeDeprecated: false,
+};
+
+function filterIsEmpty(f: ApiOperationFilter): boolean {
+  return (
+    !f.excludeDeprecated &&
+    !f.includePaths?.length &&
+    !f.excludePaths?.length &&
+    !f.includeVerbs?.length &&
+    !f.excludeVerbs?.length &&
+    !f.includeOperationIds?.length &&
+    !f.excludeOperationIds?.length &&
+    !f.includeTags?.length &&
+    !f.excludeTags?.length
+  );
+}
+
+/** Returns a validation-error i18n key when the filter breaks the size caps, else null. */
+function filterViolation(f: ApiOperationFilter): string | null {
+  const lists = [
+    f.includePaths,
+    f.excludePaths,
+    f.includeVerbs,
+    f.excludeVerbs,
+    f.includeOperationIds,
+    f.excludeOperationIds,
+    f.includeTags,
+    f.excludeTags,
+  ];
+  for (const list of lists) {
+    if ((list?.length ?? 0) > MAX_FILTER_LIST) return 'apiGov.settings.filterTooManyPatterns';
+    if (list?.some((v) => v.length > MAX_FILTER_PATTERN)) return 'apiGov.settings.filterPatternTooLong';
+  }
+  return null;
+}
+
+interface FilterFieldsProps {
+  value: ApiOperationFilter;
+  onChange: (next: ApiOperationFilter) => void;
+}
+
+function OperationFilterFields({ value, onChange }: FilterFieldsProps) {
+  const { t } = useTranslation();
+  const set = (patch: Partial<ApiOperationFilter>) => onChange({ ...value, ...patch });
+  const tagsInput = (
+    field: keyof ApiOperationFilter,
+    label: string,
+    placeholder?: string,
+  ) => (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span>{label}</span>
+      <Select<string[]>
+        mode="tags"
+        allowClear
+        tokenSeparators={[',', ' ']}
+        open={false}
+        suffixIcon={null}
+        value={(value[field] as string[] | undefined) ?? []}
+        onChange={(v) => set({ [field]: v } as Partial<ApiOperationFilter>)}
+        placeholder={placeholder}
+        aria-label={label}
+      />
+    </label>
+  );
+  return (
+    <Space orientation="vertical" style={{ width: '100%' }} size={12}>
+      {tagsInput('excludePaths', t('apiGov.settings.filterExcludePaths'), t('apiGov.settings.filterPathPlaceholder'))}
+      {tagsInput('includePaths', t('apiGov.settings.filterIncludePaths'), t('apiGov.settings.filterPathPlaceholder'))}
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span>{t('apiGov.settings.filterExcludeVerbs')}</span>
+        <Select<string[]>
+          mode="multiple"
+          allowClear
+          value={value.excludeVerbs ?? []}
+          onChange={(v) => set({ excludeVerbs: v })}
+          options={HTTP_VERBS.map((v) => ({ value: v, label: v }))}
+          aria-label={t('apiGov.settings.filterExcludeVerbs')}
+        />
+      </label>
+      {tagsInput('excludeOperationIds', t('apiGov.settings.filterExcludeOperationIds'), t('apiGov.settings.filterOperationIdPlaceholder'))}
+      {tagsInput('excludeTags', t('apiGov.settings.filterExcludeTags'), t('apiGov.settings.filterTagPlaceholder'))}
+      <Checkbox
+        checked={value.excludeDeprecated ?? false}
+        onChange={(e) => set({ excludeDeprecated: e.target.checked })}
+      >
+        {t('apiGov.settings.filterExcludeDeprecated')}
+      </Checkbox>
+    </Space>
+  );
+}
+
+function EditFilterModal({
+  connectorId,
+  schema,
+  onClose,
+}: {
+  connectorId: string;
+  schema: ApiSchema | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const { message } = App.useApp();
+  const queryClient = useQueryClient();
+  const [filter, setFilter] = useState<ApiOperationFilter>(EMPTY_FILTER);
+  useEffect(() => {
+    setFilter({ ...EMPTY_FILTER, ...(schema?.operation_filter ?? {}) });
+  }, [schema]);
+  const mutation = useMutation({
+    mutationFn: () => updateApiSchemaFilter(connectorId, schema!.id, filter),
+    onSuccess: () => {
+      message.success(t('apiGov.settings.filterUpdated'));
+      queryClient.invalidateQueries({ queryKey: apiConnectorKeys.schemas(connectorId) });
+      queryClient.invalidateQueries({ queryKey: apiConnectorKeys.operations(connectorId) });
+      onClose();
+    },
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+  });
+  const submit = () => {
+    const violation = filterViolation(filter);
+    if (violation) {
+      message.error(t(violation));
+      return;
+    }
+    mutation.mutate();
+  };
+  return (
+    <Modal
+      open={schema !== null}
+      title={t('apiGov.settings.filterEdit')}
+      onCancel={onClose}
+      onOk={submit}
+      confirmLoading={mutation.isPending}
+      okText={t('common.save')}
+      destroyOnHidden
+    >
+      <OperationFilterFields value={filter} onChange={setFilter} />
+    </Modal>
+  );
+}
+
 function SchemaTab({ connectorId }: { connectorId: string }) {
   const { t } = useTranslation();
   const { message } = App.useApp();
@@ -269,6 +431,10 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
   const [content, setContent] = useState('');
   const [fileName, setFileName] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
+  const [filter, setFilter] = useState<ApiOperationFilter>(EMPTY_FILTER);
+  const [preview, setPreview] = useState<ApiSchemaFilterPreview | null>(null);
+  const [imported, setImported] = useState<{ kept: number; total: number } | null>(null);
+  const [editing, setEditing] = useState<ApiSchema | null>(null);
   const schemasQuery = useQuery({
     queryKey: apiConnectorKeys.schemas(connectorId),
     queryFn: () => listApiSchemas(connectorId),
@@ -278,22 +444,46 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
     queryClient.invalidateQueries({ queryKey: apiConnectorKeys.operations(connectorId) });
     queryClient.invalidateQueries({ queryKey: apiConnectorKeys.detail(connectorId) });
   };
+  const payload = () => ({
+    schema_type: schemaType,
+    raw_content: source === 'url' ? '' : content,
+    source_url: source === 'url' ? sourceUrl.trim() : null,
+    filter: filterIsEmpty(filter) ? null : filter,
+  });
   const uploadMutation = useMutation({
-    mutationFn: () =>
-      uploadApiSchema(connectorId, {
-        schema_type: schemaType,
-        raw_content: source === 'url' ? '' : content,
-        source_url: source === 'url' ? sourceUrl.trim() : null,
-      }),
-    onSuccess: () => {
+    mutationFn: () => uploadApiSchema(connectorId, payload()),
+    onSuccess: (schema) => {
       message.success(t('apiGov.settings.uploaded'));
+      setImported({ kept: schema.operation_count, total: schema.total_operation_count });
       setContent('');
       setFileName('');
       setSourceUrl('');
+      setPreview(null);
       invalidate();
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });
+  const previewMutation = useMutation({
+    mutationFn: () => previewApiSchemaFilter(connectorId, payload()),
+    onSuccess: (result) => setPreview(result),
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
+  });
+  const runUpload = () => {
+    const violation = filterViolation(filter);
+    if (violation) {
+      message.error(t(violation));
+      return;
+    }
+    uploadMutation.mutate();
+  };
+  const runPreview = () => {
+    const violation = filterViolation(filter);
+    if (violation) {
+      message.error(t(violation));
+      return;
+    }
+    previewMutation.mutate();
+  };
   const canUpload =
     source === 'url' ? !!sourceUrl.trim() : source === 'upload' ? !!content : !!content.trim();
   const deleteMutation = useMutation({
@@ -353,15 +543,55 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
           aria-label={t('apiGov.settings.schemaUrl')}
         />
       )}
-      <Button
-        type="primary"
-        style={{ alignSelf: 'flex-start' }}
-        disabled={!canUpload}
-        loading={uploadMutation.isPending}
-        onClick={() => uploadMutation.mutate()}
-      >
-        {t('apiGov.settings.uploadSchema')}
-      </Button>
+      <Collapse
+        ghost
+        items={[
+          {
+            key: 'filter',
+            label: t('apiGov.settings.filterSection'),
+            children: <OperationFilterFields value={filter} onChange={setFilter} />,
+          },
+        ]}
+      />
+      {preview && (
+        <div style={{ borderLeft: '3px solid var(--af-color-primary, #1677ff)', paddingLeft: 12 }}>
+          <Typography.Text strong>
+            {t('apiGov.settings.filterKeepsOf', { kept: preview.kept_count, total: preview.total_count })}
+          </Typography.Text>
+          {preview.excluded.length > 0 && (
+            <Table<ApiOperation>
+              rowKey="operation_id"
+              size="small"
+              pagination={false}
+              style={{ marginTop: 8 }}
+              dataSource={preview.excluded}
+              columns={[
+                { title: t('apiGov.settings.operationId'), dataIndex: 'operation_id' },
+                { title: t('apiGov.settings.verb'), dataIndex: 'verb' },
+                { title: t('apiGov.settings.path'), dataIndex: 'path' },
+              ]}
+            />
+          )}
+        </div>
+      )}
+      {imported && (
+        <Typography.Text type="secondary">
+          {t('apiGov.settings.filterImportedOf', { kept: imported.kept, total: imported.total })}
+        </Typography.Text>
+      )}
+      <Space>
+        <Button
+          type="primary"
+          disabled={!canUpload}
+          loading={uploadMutation.isPending}
+          onClick={runUpload}
+        >
+          {t('apiGov.settings.uploadSchema')}
+        </Button>
+        <Button disabled={!canUpload} loading={previewMutation.isPending} onClick={runPreview}>
+          {t('apiGov.settings.filterPreview')}
+        </Button>
+      </Space>
       <Table<ApiSchema>
         rowKey="id"
         size="small"
@@ -370,14 +600,27 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         dataSource={schemasQuery.data ?? []}
         columns={[
           { title: t('apiGov.settings.schemaType'), dataIndex: 'schema_type', render: (s: ApiSchemaType) => apiSchemaTypeLabel(t, s) },
-          { title: t('apiGov.settings.operations'), dataIndex: 'operation_count' },
+          {
+            title: t('apiGov.settings.operations'),
+            key: 'ops',
+            render: (_: unknown, row: ApiSchema) =>
+              row.operation_filter
+                ? t('apiGov.settings.filterKeepsOf', { kept: row.operation_count, total: row.total_operation_count })
+                : row.operation_count,
+          },
           { title: '', key: 'a', render: (_: unknown, row: ApiSchema) => (
-            <Button size="small" danger loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(row.id)}>
-              {t('common.delete')}
-            </Button>
+            <Space>
+              <Button size="small" onClick={() => setEditing(row)}>
+                {t('apiGov.settings.filterEdit')}
+              </Button>
+              <Button size="small" danger loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(row.id)}>
+                {t('common.delete')}
+              </Button>
+            </Space>
           ) },
         ]}
       />
+      <EditFilterModal connectorId={connectorId} schema={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }

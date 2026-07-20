@@ -6,7 +6,9 @@ import type {
   ApiConnectorPage,
   ApiConnectorPermission,
   ApiOperation,
+  ApiOperationFilter,
   ApiSchema,
+  ApiSchemaFilterPreview,
   CreateApiConnectorInput,
   GrantApiConnectorGroupPermissionInput,
   GrantApiConnectorPermissionInput,
@@ -83,6 +85,29 @@ export async function uploadApiSchema(
   input: UploadApiSchemaInput,
 ): Promise<ApiSchema> {
   const { data } = await apiClient.post<ApiSchema>(`${BASE}/${connectorId}/schemas`, input);
+  return data;
+}
+
+export async function previewApiSchemaFilter(
+  connectorId: string,
+  input: UploadApiSchemaInput,
+): Promise<ApiSchemaFilterPreview> {
+  const { data } = await apiClient.post<ApiSchemaFilterPreview>(
+    `${BASE}/${connectorId}/schemas/preview`,
+    input,
+  );
+  return data;
+}
+
+export async function updateApiSchemaFilter(
+  connectorId: string,
+  schemaId: string,
+  filter: ApiOperationFilter,
+): Promise<ApiSchema> {
+  const { data } = await apiClient.put<ApiSchema>(
+    `${BASE}/${connectorId}/schemas/${schemaId}/filter`,
+    filter,
+  );
   return data;
 }
 

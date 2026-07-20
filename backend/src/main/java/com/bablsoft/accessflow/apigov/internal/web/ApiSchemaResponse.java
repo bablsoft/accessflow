@@ -11,10 +11,12 @@ public record ApiSchemaResponse(
         ApiSchemaType schemaType,
         String sourceUrl,
         int operationCount,
+        int totalOperationCount,
+        OperationFilterResponse operationFilter,
         Instant createdAt) {
 
     static ApiSchemaResponse from(ApiSchemaView v) {
         return new ApiSchemaResponse(v.id(), v.schemaType(), v.sourceUrl(), v.operationCount(),
-                v.createdAt());
+                v.totalOperationCount(), OperationFilterResponse.from(v.operationFilter()), v.createdAt());
     }
 }

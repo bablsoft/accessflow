@@ -1280,7 +1280,14 @@
             AccessFlow uses to propagate W3C <code>traceparent</code>. Optionally upload a schema
             (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>) by pasting it, uploading a file, or
             pointing at a URL to fetch; AccessFlow parses it into a normalized operation catalog with
-            read/write classification. Set the review plan, AI-analysis toggle + AI config, text-to-API
+            read/write classification. An optional <em>import filter</em> keeps the ungovernable parts
+            of a real-world spec out of that catalog: exclude (or restrict to) path globs such as
+            <code>/internal/**</code>, exclude HTTP verbs, operation-id globs, OpenAPI tags, and
+            deprecated operations. <em>Preview</em> shows exactly which operations a pattern drops
+            before you commit, the schema list reports "keeps N of M", and the filter stays editable
+            afterwards without re-uploading the document. Filtered-out operations are unreachable
+            everywhere — the API editor, text-to-API, and the per-user allowed-operations picker.
+            Set the review plan, AI-analysis toggle + AI config, text-to-API
             toggle, require-review-on-reads/writes, and the max response size (default 10&nbsp;MiB —
             the full response is stored and downloadable up to this cap, with only a bounded preview
             shown inline). A <em>Test connection</em>

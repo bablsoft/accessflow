@@ -7,9 +7,12 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaView;
+import com.bablsoft.accessflow.apigov.api.OperationFilter;
+import com.bablsoft.accessflow.apigov.api.OperationFilterPreview;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiSchemaEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiSchemaRepository;
+import com.bablsoft.accessflow.apigov.internal.schema.OperationFilterMatcher;
 import com.bablsoft.accessflow.apigov.internal.schema.SchemaParserRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,16 +41,19 @@ public class DefaultApiSchemaService implements ApiSchemaService {
     private final ApiConnectorRepository connectorRepository;
     private final ApiSchemaRepository schemaRepository;
     private final SchemaParserRegistry parserRegistry;
+    private final OperationFilterMatcher filterMatcher;
     private final ObjectMapper objectMapper;
 
     @Override
     @Transactional
     public ApiSchemaView upload(UUID connectorId, UUID organizationId, ApiSchemaType schemaType,
-                                String rawContent, String sourceUrl) {
+                                String rawContent, String sourceUrl, OperationFilter filter) {
         requireConnector(connectorId, organizationId);
         var content = (rawContent == null || rawContent.isBlank()) && sourceUrl != null && !sourceUrl.isBlank()
                 ? fetch(sourceUrl) : rawContent;
         var operations = parserRegistry.parse(schemaType, content);
+        var effectiveFilter = filter == null ? OperationFilter.EMPTY : filter;
+        var kept = filterMatcher.apply(operations, effectiveFilter);
         var entity = new ApiSchemaEntity();
         entity.setId(UUID.randomUUID());
         entity.setConnectorId(connectorId);
@@ -55,7 +61,8 @@ public class DefaultApiSchemaService implements ApiSchemaService {
         entity.setRawContent(content);
         entity.setSourceUrl(sourceUrl);
         entity.setParsedOperations(objectMapper.writeValueAsString(operations));
-        entity.setOperationCount(operations.size());
+        entity.setOperationFilter(effectiveFilter.isEmpty() ? null : objectMapper.writeValueAsString(effectiveFilter));
+        entity.setOperationCount(kept.size());
         return toView(schemaRepository.save(entity));
     }
 
@@ -78,12 +85,52 @@ public class DefaultApiSchemaService implements ApiSchemaService {
     }
 
     @Override
+    @Transactional
+    public ApiSchemaView updateFilter(UUID connectorId, UUID organizationId, UUID schemaId,
+                                      OperationFilter filter) {
+        requireConnector(connectorId, organizationId);
+        var entity = schemaRepository.findByIdAndConnectorId(schemaId, connectorId)
+                .orElseThrow(() -> new ApiSchemaNotFoundException(schemaId));
+        var effectiveFilter = filter == null ? OperationFilter.EMPTY : filter;
+        var operations = parsedOperations(entity);
+        entity.setOperationFilter(effectiveFilter.isEmpty() ? null : objectMapper.writeValueAsString(effectiveFilter));
+        entity.setOperationCount(filterMatcher.apply(operations, effectiveFilter).size());
+        return toView(schemaRepository.save(entity));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OperationFilterPreview previewFilter(UUID connectorId, UUID organizationId, ApiSchemaType schemaType,
+                                                String rawContent, String sourceUrl, OperationFilter filter) {
+        requireConnector(connectorId, organizationId);
+        var content = (rawContent == null || rawContent.isBlank()) && sourceUrl != null && !sourceUrl.isBlank()
+                ? fetch(sourceUrl) : rawContent;
+        var operations = parserRegistry.parse(schemaType, content);
+        var effectiveFilter = filter == null ? OperationFilter.EMPTY : filter;
+        var kept = filterMatcher.apply(operations, effectiveFilter);
+        var excluded = operations.stream().filter(op -> !kept.contains(op)).toList();
+        return new OperationFilterPreview(operations.size(), kept.size(), excluded);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ApiOperation> listOperations(UUID connectorId, UUID organizationId) {
         requireConnector(connectorId, organizationId);
         return schemaRepository.findFirstByConnectorIdOrderByCreatedAtDesc(connectorId)
-                .map(s -> objectMapper.<List<ApiOperation>>readValue(s.getParsedOperations(), OPS_TYPE))
+                .map(s -> filterMatcher.apply(parsedOperations(s), readFilter(s)))
                 .orElseGet(List::of);
+    }
+
+    private List<ApiOperation> parsedOperations(ApiSchemaEntity entity) {
+        return objectMapper.readValue(entity.getParsedOperations(), OPS_TYPE);
+    }
+
+    private OperationFilter readFilter(ApiSchemaEntity entity) {
+        var raw = entity.getOperationFilter();
+        if (raw == null || raw.isBlank()) {
+            return OperationFilter.EMPTY;
+        }
+        return objectMapper.readValue(raw, OperationFilter.class);
     }
 
     private String fetch(String sourceUrl) {
@@ -123,6 +170,12 @@ public class DefaultApiSchemaService implements ApiSchemaService {
 
     private ApiSchemaView toView(ApiSchemaEntity e) {
         return new ApiSchemaView(e.getId(), e.getConnectorId(), e.getSchemaType(), e.getSourceUrl(),
-                e.getOperationCount(), e.getCreatedAt());
+                e.getOperationCount(), totalOperationCount(e), readFilter(e), e.getCreatedAt());
+    }
+
+    /** Array length only — avoids materializing every {@link ApiOperation} just to count them. */
+    private int totalOperationCount(ApiSchemaEntity entity) {
+        var raw = entity.getParsedOperations();
+        return raw == null || raw.isBlank() ? 0 : objectMapper.readTree(raw).size();
     }
 }

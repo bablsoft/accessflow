@@ -49,6 +49,10 @@ public class ApiSchemaEntity {
     @Column(name = "operation_count", nullable = false)
     private int operationCount = 0;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "operation_filter", columnDefinition = "jsonb")
+    private String operationFilter;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

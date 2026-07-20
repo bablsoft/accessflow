@@ -4658,10 +4658,46 @@ secrets themselves are never returned.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. |
-| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). |
+| `POST` | `/api-connectors/{id}/schemas` | **Admin.** Upload + parse a schema (`schemaType` ∈ `OPENAPI`/`WSDL`/`GRAPHQL_SDL`/`GRPC_PROTO`). Three ingestion modes (#517): paste `rawContent`, upload a file (frontend reads it into `rawContent`), or set `sourceUrl` (server fetches it, http(s), bounded size/timeout — `422 API_SCHEMA_FETCH_ERROR` on failure). Parses immediately into a normalized operation catalog; `422 API_SCHEMA_PARSE_ERROR` on parse failure. Optional `filter` object (AF-614) narrows the governed catalog at import — see **Operation import filter** below. |
+| `POST` | `/api-connectors/{id}/schemas/preview` | **Admin** (AF-614). Dry-runs the same body's `filter` against the parsed document **without persisting**. Returns `{ totalCount, keptCount, excluded[] }` so the admin sees what a pattern drops before committing. |
+| `GET` | `/api-connectors/{id}/schemas` | List a connector's uploaded schemas (raw content not echoed). Each row carries `operationCount` (post-filter), `totalOperationCount` (pre-filter), and `operationFilter` (null when unset). |
+| `PUT` | `/api-connectors/{id}/schemas/{schemaId}/filter` | **Admin** (AF-614). Replaces a schema's operation filter **without re-uploading the document** and recomputes `operationCount` from the stored full catalog. Body is the filter object. |
 | `DELETE` | `/api-connectors/{id}/schemas/{schemaId}` | **Admin.** Delete a schema (`204`). |
-| `GET` | `/api-connectors/{id}/operations` | The normalized operation catalog from the connector's latest schema — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification). |
+| `GET` | `/api-connectors/{id}/operations` | The **governed** operation catalog from the connector's latest schema (post-filter) — `operationId`, `verb`, `path`, `summary`, `write` (read/write classification), plus `tags` / `deprecated` (OpenAPI-only, null elsewhere). Filtered-out operations are unreachable here, and therefore also from `/api-editor`, text-to-API, and the `allowedOperations` grant picker. |
+
+#### Operation import filter (AF-614)
+
+Real-world OpenAPI documents carry operations nobody should reach through AccessFlow
+(`/internal/**`, `/actuator/**`, deprecated endpoints). The filter is declared per schema and
+evaluated per operation as: **keep when every non-empty include dimension matches AND no exclude
+dimension matches — exclude wins.**
+
+```json
+{
+  "schemaType": "OPENAPI",
+  "rawContent": "openapi: 3.0.0\n...",
+  "filter": {
+    "excludePaths": ["/internal/**", "/actuator/**"],
+    "includePaths": [],
+    "excludeVerbs": ["DELETE"],
+    "excludeOperationIds": ["internal_*"],
+    "excludeTags": ["internal"],
+    "excludeDeprecated": true
+  }
+}
+```
+
+- `*Paths` / `*OperationIds` are **globs** (`*` matches any run of characters, including `/`).
+- `*Verbs` / `*Tags` are exact, case-insensitive matches.
+- `excludeDeprecated` honours the OpenAPI `deprecated: true` flag.
+- Tags and `deprecated` are OpenAPI-only; for GraphQL SDL / WSDL / gRPC proto the operation-id glob
+  is the load-bearing dimension (`path` is synthesized).
+- Each list is capped at 100 entries and each pattern at 200 characters (`400` otherwise).
+- An absent or empty filter is exactly the pre-AF-614 behaviour.
+
+The document itself is always stored complete in `parsed_operations`, so the filter is re-editable
+via `PUT .../filter` without re-fetching a remote `sourceUrl`. `API_SCHEMA_UPLOADED` audit metadata
+records the filter, `total_operation_count`, and `excluded_count` for both upload and filter edits.
 
 ### Permissions ("share with team")
 

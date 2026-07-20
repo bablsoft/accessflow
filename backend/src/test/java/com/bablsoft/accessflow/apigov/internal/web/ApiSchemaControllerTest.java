@@ -5,6 +5,8 @@ import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaService;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaType;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaView;
+import com.bablsoft.accessflow.apigov.api.OperationFilter;
+import com.bablsoft.accessflow.apigov.api.OperationFilterPreview;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -54,17 +56,49 @@ class ApiSchemaControllerTest {
     }
 
     private ApiSchemaView schemaView() {
-        return new ApiSchemaView(UUID.randomUUID(), connectorId, ApiSchemaType.OPENAPI, null, 3, Instant.now());
+        return new ApiSchemaView(UUID.randomUUID(), connectorId, ApiSchemaType.OPENAPI, null, 3, 5,
+                OperationFilter.EMPTY, Instant.now());
     }
 
     @Test
     void uploadReturnsResponseAndAudits() {
-        when(schemaService.upload(eq(connectorId), eq(orgId), eq(ApiSchemaType.OPENAPI), eq("spec"), any()))
+        when(schemaService.upload(eq(connectorId), eq(orgId), eq(ApiSchemaType.OPENAPI), eq("spec"), any(), any()))
                 .thenReturn(schemaView());
 
         var response = controller.upload(connectorId,
-                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null), auth(UserRoleType.ADMIN),
+                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null), auth(UserRoleType.ADMIN),
                 auditContext);
+
+        assertThat(response.operationCount()).isEqualTo(3);
+        assertThat(response.totalOperationCount()).isEqualTo(5);
+        verify(auditLogService).record(auditEntry(AuditAction.API_SCHEMA_UPLOADED));
+    }
+
+    @Test
+    void previewReturnsCountsWithoutAuditing() {
+        when(schemaService.previewFilter(eq(connectorId), eq(orgId), eq(ApiSchemaType.OPENAPI), eq("spec"),
+                any(), any()))
+                .thenReturn(new OperationFilterPreview(2, 1, List.of(
+                        new ApiOperation("internalSync", "POST", "/internal/sync", null, true, null, null))));
+
+        var response = controller.preview(connectorId,
+                new UploadApiSchemaRequest(ApiSchemaType.OPENAPI, "spec", null, null), auth(UserRoleType.ADMIN));
+
+        assertThat(response.totalCount()).isEqualTo(2);
+        assertThat(response.keptCount()).isEqualTo(1);
+        assertThat(response.excluded()).hasSize(1);
+        verifyNoInteractions(auditLogService);
+    }
+
+    @Test
+    void updateFilterAuditsAndReturnsResponse() {
+        var schemaId = UUID.randomUUID();
+        when(schemaService.updateFilter(eq(connectorId), eq(orgId), eq(schemaId), any()))
+                .thenReturn(schemaView());
+
+        var response = controller.updateFilter(connectorId, schemaId,
+                new OperationFilterRequest(null, List.of("/internal/**"), null, null, null, null, null, null, false),
+                auth(UserRoleType.ADMIN), auditContext);
 
         assertThat(response.operationCount()).isEqualTo(3);
         verify(auditLogService).record(auditEntry(AuditAction.API_SCHEMA_UPLOADED));

@@ -21,6 +21,7 @@ class OpenApiSchemaParserTest {
                 get:
                   operationId: listPets
                   summary: List pets
+                  tags: [pets, public]
                   responses:
                     '200': { description: ok }
                 post:
@@ -29,6 +30,7 @@ class OpenApiSchemaParserTest {
                     '201': { description: created }
               /pets/{id}:
                 delete:
+                  deprecated: true
                   responses:
                     '204': { description: gone }
             """;
@@ -53,6 +55,18 @@ class OpenApiSchemaParserTest {
         var del = ops.stream().filter(o -> o.verb().equals("DELETE")).findFirst().orElseThrow();
         assertThat(del.write()).isTrue();
         assertThat(del.operationId()).contains("/pets/{id}");
+    }
+
+    @Test
+    void capturesTagsAndDeprecatedForOpenApi() {
+        var ops = parser.parse(SPEC);
+
+        var get = ops.stream().filter(o -> o.operationId().equals("listPets")).findFirst().orElseThrow();
+        assertThat(get.tags()).containsExactlyInAnyOrder("pets", "public");
+        var del = ops.stream().filter(o -> o.verb().equals("DELETE")).findFirst().orElseThrow();
+        assertThat(del.deprecated()).isTrue();
+        var post = ops.stream().filter(o -> o.operationId().equals("createPet")).findFirst().orElseThrow();
+        assertThat(post.deprecated()).isNull();
     }
 
     @Test
