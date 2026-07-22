@@ -46,6 +46,9 @@ interface ConnectionFormValues {
   jdbc_url: string;
   dynamodb_endpoint: string;
   neo4j_bolt_uri: string;
+  snowflake_url_override: string;
+  bigquery_endpoint: string;
+  databricks_http_path: string;
   local_datacenter: string;
   auth_method: AuthMethod;
   api_key: string;
@@ -133,11 +136,15 @@ export default function DatasourceCreateWizardPage() {
         selectedType.code === 'CASSANDRA' || selectedType.code === 'SCYLLADB';
       const isDynamoDb = selectedType.code === 'DYNAMODB';
       const isNeo4j = selectedType.code === 'NEO4J';
+      const isSnowflake = selectedType.code === 'SNOWFLAKE';
+      const isBigQuery = selectedType.code === 'BIGQUERY';
+      const isDatabricks = selectedType.code === 'DATABRICKS';
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
       const useApiKey = isSearchEngine && values.auth_method === 'api_key';
       // API-key auth replaces basic creds; send blank username/password (the backend keeps the
-      // NOT NULL columns satisfied) and the encrypted-at-rest API key.
-      const username = useApiKey ? '' : values.username;
+      // NOT NULL columns satisfied) and the encrypted-at-rest API key. BigQuery (service-account
+      // JSON) and Databricks (PAT) have no username either.
+      const username = useApiKey || isBigQuery || isDatabricks ? '' : values.username;
       const password = useApiKey ? '' : values.password;
       if (createdDatasource) {
         const input: UpdateDatasourceInput = {
@@ -153,6 +160,18 @@ export default function DatasourceCreateWizardPage() {
           // (DynamoDB Local / VPC) rides on jdbc_url_override. Host/port are unused.
           input.database_name = values.database_name;
           input.jdbc_url_override = values.dynamodb_endpoint || '';
+        } else if (isBigQuery) {
+          // Cloud-credentials model: database_name is the GCP project (optionally project.dataset)
+          // and the optional emulator endpoint rides on jdbc_url_override. Host/port are unused.
+          input.database_name = values.database_name;
+          input.jdbc_url_override = values.bigquery_endpoint || '';
+        } else if (isSnowflake || isDatabricks) {
+          // Warehouse hosts are HTTPS endpoints — port is always 443 and never sent.
+          input.host = values.host;
+          input.database_name = values.database_name;
+          input.jdbc_url_override = isSnowflake
+            ? values.snowflake_url_override || ''
+            : values.databricks_http_path;
         } else {
           input.host = values.host;
           input.port = values.port;
@@ -189,6 +208,24 @@ export default function DatasourceCreateWizardPage() {
         input.database_name = values.database_name;
         if (values.dynamodb_endpoint) {
           input.jdbc_url_override = values.dynamodb_endpoint;
+        }
+      } else if (isBigQuery) {
+        // Cloud-credentials model: database_name is the GCP project (optionally project.dataset)
+        // and the optional emulator endpoint rides on jdbc_url_override. Host/port are unused.
+        input.database_name = values.database_name;
+        if (values.bigquery_endpoint) {
+          input.jdbc_url_override = values.bigquery_endpoint;
+        }
+      } else if (isSnowflake || isDatabricks) {
+        // Warehouse hosts are HTTPS endpoints — port is always 443 and never sent. Snowflake's
+        // override (warehouse/role/schema params) is optional; Databricks' warehouse HTTP path
+        // is required.
+        input.host = values.host;
+        input.database_name = values.database_name;
+        if (isDatabricks) {
+          input.jdbc_url_override = values.databricks_http_path;
+        } else if (values.snowflake_url_override) {
+          input.jdbc_url_override = values.snowflake_url_override;
         }
       } else {
         input.host = values.host;
@@ -350,6 +387,9 @@ export default function DatasourceCreateWizardPage() {
       const isSearchEngine = SEARCH_ENGINES.includes(selectedType.code);
       const isDynamoDb = selectedType.code === 'DYNAMODB';
       const isNeo4j = selectedType.code === 'NEO4J';
+      const isSnowflake = selectedType.code === 'SNOWFLAKE';
+      const isBigQuery = selectedType.code === 'BIGQUERY';
+      const isDatabricks = selectedType.code === 'DATABRICKS';
       // Neo4j may connect via host/port OR a full bolt URI override; host/port stop being required
       // once the operator supplies a URI (Aura / clustered routing has no separate host/port).
       const neo4jHasUri = isNeo4j && !!connectionValues?.neo4j_bolt_uri?.trim();
@@ -392,22 +432,39 @@ export default function DatasourceCreateWizardPage() {
             >
               <Input autoFocus placeholder={t('datasources.create.field_name_placeholder')} />
             </Form.Item>
-            {!dynamicMode && !isDynamoDb && (
+            {!dynamicMode && !isDynamoDb && !isBigQuery && (
               <>
                 <Form.Item
-                  label={t('datasources.create.field_host')}
+                  label={
+                    isSnowflake
+                      ? t('datasources.create.field_account_host')
+                      : isDatabricks
+                        ? t('datasources.create.field_workspace_host')
+                        : t('datasources.create.field_host')
+                  }
                   name="host"
                   rules={[{ required: hostPortRequired }, { max: 255 }]}
                 >
-                  <Input placeholder="db.internal" />
+                  <Input
+                    placeholder={
+                      isSnowflake
+                        ? 'xy12345.eu-central-1.snowflakecomputing.com'
+                        : isDatabricks
+                          ? 'adb-1234567890.1.azuredatabricks.net'
+                          : 'db.internal'
+                    }
+                  />
                 </Form.Item>
-                <Form.Item
-                  label={t('datasources.create.field_port')}
-                  name="port"
-                  rules={[{ required: hostPortRequired, type: 'number', min: 1, max: 65535 }]}
-                >
-                  <InputNumber style={{ width: '100%' }} />
-                </Form.Item>
+                {/* Warehouse hosts are HTTPS endpoints — port is always 443 and never asked. */}
+                {!isSnowflake && !isDatabricks && (
+                  <Form.Item
+                    label={t('datasources.create.field_port')}
+                    name="port"
+                    rules={[{ required: hostPortRequired, type: 'number', min: 1, max: 65535 }]}
+                  >
+                    <InputNumber style={{ width: '100%' }} />
+                  </Form.Item>
+                )}
               </>
             )}
             {!dynamicMode && (
@@ -415,13 +472,98 @@ export default function DatasourceCreateWizardPage() {
                 label={
                   isDynamoDb
                     ? t('datasources.create.field_region')
-                    : t('datasources.create.field_database')
+                    : isBigQuery
+                      ? t('datasources.create.field_gcp_project')
+                      : isDatabricks
+                        ? t('datasources.create.field_catalog')
+                        : t('datasources.create.field_database')
                 }
                 name="database_name"
-                extra={isDynamoDb ? t('datasources.create.field_region_help') : undefined}
-                rules={isSearchEngine ? [{ max: 255 }] : [{ required: true }, { max: 255 }]}
+                extra={
+                  isDynamoDb
+                    ? t('datasources.create.field_region_help')
+                    : isBigQuery
+                      ? t('datasources.create.field_gcp_project_help')
+                      : isDatabricks
+                        ? t('datasources.create.field_catalog_help')
+                        : undefined
+                }
+                rules={
+                  isSearchEngine || isDatabricks
+                    ? [{ max: 255 }]
+                    : isBigQuery
+                      ? [
+                          { required: true },
+                          { max: 255 },
+                          {
+                            pattern: /^[^.\s]+(\.[^.\s]+)?$/,
+                            message: t('datasources.create.field_gcp_project_help'),
+                          },
+                        ]
+                      : [{ required: true }, { max: 255 }]
+                }
               >
-                <Input placeholder={isDynamoDb ? 'us-east-1' : isSearchEngine ? 'logs-*' : 'appdb'} />
+                <Input
+                  placeholder={
+                    isDynamoDb
+                      ? 'us-east-1'
+                      : isSearchEngine
+                        ? 'logs-*'
+                        : isBigQuery
+                          ? 'my-project.analytics'
+                          : isDatabricks
+                            ? 'main'
+                            : isSnowflake
+                              ? 'ANALYTICS'
+                              : 'appdb'
+                  }
+                />
+              </Form.Item>
+            )}
+            {isSnowflake && (
+              <Form.Item
+                label={t('datasources.create.field_snowflake_url_override')}
+                name="snowflake_url_override"
+                extra={t('datasources.create.field_snowflake_url_override_help')}
+                rules={[
+                  { max: 2048 },
+                  {
+                    pattern: /^jdbc:snowflake:\/\/.+$/,
+                    message: t('datasources.create.field_snowflake_url_override_help'),
+                  },
+                ]}
+              >
+                <Input placeholder="jdbc:snowflake://…/?warehouse=WH&role=GOV" />
+              </Form.Item>
+            )}
+            {isBigQuery && (
+              <Form.Item
+                label={t('datasources.create.field_bigquery_endpoint')}
+                name="bigquery_endpoint"
+                extra={t('datasources.create.field_bigquery_endpoint_help')}
+                rules={[{ max: 2048 }]}
+              >
+                <Input placeholder="http://localhost:9050" />
+              </Form.Item>
+            )}
+            {isDatabricks && (
+              <Form.Item
+                label={t('datasources.create.field_databricks_http_path')}
+                name="databricks_http_path"
+                extra={t('datasources.create.field_databricks_http_path_help')}
+                rules={[
+                  {
+                    required: true,
+                    message: t('datasources.create.field_databricks_http_path_help'),
+                  },
+                  { max: 2048 },
+                  {
+                    pattern: /^(https?:\/\/[^/\s]+)?\/sql\/[^/\s]+\/warehouses\/[A-Za-z0-9-]+\/?$/,
+                    message: t('datasources.create.field_databricks_http_path_help'),
+                  },
+                ]}
+              >
+                <Input placeholder="/sql/1.0/warehouses/abc123def456" />
               </Form.Item>
             )}
             {isDynamoDb && (
@@ -473,28 +615,48 @@ export default function DatasourceCreateWizardPage() {
             )}
             {showBasicCreds && (
               <>
-                <Form.Item
-                  label={
-                    isDynamoDb
-                      ? t('datasources.create.field_access_key_id')
-                      : t('datasources.create.field_username')
-                  }
-                  name="username"
-                  rules={[{ required: true }, { max: 255 }]}
-                >
-                  <Input placeholder={isDynamoDb ? 'AKIA…' : 'accessflow_svc'} />
-                </Form.Item>
+                {/* BigQuery (service-account JSON) and Databricks (PAT) have no username. */}
+                {!isBigQuery && !isDatabricks && (
+                  <Form.Item
+                    label={
+                      isDynamoDb
+                        ? t('datasources.create.field_access_key_id')
+                        : t('datasources.create.field_username')
+                    }
+                    name="username"
+                    rules={[{ required: true }, { max: 255 }]}
+                  >
+                    <Input placeholder={isDynamoDb ? 'AKIA…' : 'accessflow_svc'} />
+                  </Form.Item>
+                )}
                 <Form.Item
                   label={
                     isDynamoDb
                       ? t('datasources.create.field_secret_access_key')
-                      : t('datasources.create.field_password')
+                      : isBigQuery
+                        ? t('datasources.create.field_service_account_json')
+                        : isDatabricks
+                          ? t('datasources.create.field_access_token')
+                          : isSnowflake
+                            ? t('datasources.create.field_password_or_key')
+                            : t('datasources.create.field_password')
                   }
                   name="password"
-                  extra={secretRefHelp}
+                  extra={
+                    isSnowflake
+                      ? secretRefHelp
+                        ? `${t('datasources.create.field_password_or_key_help')} ${secretRefHelp}`
+                        : t('datasources.create.field_password_or_key_help')
+                      : secretRefHelp
+                  }
                   rules={[{ required: true }, { max: 4096 }, secretRefRule]}
                 >
-                  <Input.Password />
+                  {/* A service-account JSON / PKCS#8 PEM is multi-line — a password box can't hold it. */}
+                  {isBigQuery || isSnowflake ? (
+                    <Input.TextArea rows={3} className="mono" />
+                  ) : (
+                    <Input.Password />
+                  )}
                 </Form.Item>
               </>
             )}

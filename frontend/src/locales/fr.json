@@ -824,6 +824,22 @@
       "field_dynamodb_endpoint_help": "Point de terminaison DynamoDB Local / VPC facultatif (p. ex. http://localhost:8000). Laisser vide pour AWS.",
       "field_neo4j_bolt_uri": "URI de connexion Bolt (avancé)",
       "field_neo4j_bolt_uri_help": "URI bolt:// / neo4j+s:// complète facultative pour Neo4j Aura ou le routage en cluster (p. ex. neo4j+s://xxxx.databases.neo4j.io). Si renseignée, elle remplace l'hôte/le port.",
+      "field_account_host": "Hôte du compte",
+      "field_workspace_host": "Hôte de l'espace de travail",
+      "field_gcp_project": "Projet GCP",
+      "field_gcp_project_help": "Id du projet, ou project.dataset pour fixer un dataset par défaut (p. ex. my-project.analytics).",
+      "field_catalog": "Catalogue (Unity Catalog)",
+      "field_catalog_help": "Catalogue Unity Catalog facultatif ; laissez vide pour le catalogue par défaut du warehouse.",
+      "field_snowflake_url_override": "URL JDBC de remplacement (avancé)",
+      "field_snowflake_url_override_help": "URL jdbc:snowflake:// complète facultative portant les paramètres warehouse, rôle et schéma. Si renseignée, elle remplace l'hôte du compte.",
+      "field_bigquery_endpoint": "Endpoint personnalisé",
+      "field_bigquery_endpoint_help": "Endpoint d'API personnalisé facultatif (émulateur BigQuery). Laissez vide pour Google Cloud.",
+      "field_databricks_http_path": "Chemin HTTP du warehouse",
+      "field_databricks_http_path_help": "Le chemin HTTP du SQL warehouse depuis ses détails de connexion (/sql/1.0/warehouses/<id>).",
+      "field_service_account_json": "Clé de compte de service (JSON)",
+      "field_access_token": "Jeton d'accès personnel",
+      "field_password_or_key": "Mot de passe ou clé privée (PEM)",
+      "field_password_or_key_help": "Un mot de passe, ou une clé privée PKCS#8 non chiffrée (BEGIN PRIVATE KEY) pour l'authentification par paire de clés.",
       "field_access_key_id": "ID de clé d'accès",
       "field_secret_access_key": "Clé d'accès secrète",
       "field_auth_method": "Authentification",
@@ -2248,7 +2264,10 @@
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
       "DYNAMODB": "Amazon DynamoDB",
-      "NEO4J": "Neo4j"
+      "NEO4J": "Neo4j",
+      "SNOWFLAKE": "Snowflake",
+      "BIGQUERY": "Google BigQuery",
+      "DATABRICKS": "Databricks SQL"
     },
     "ssl_mode": {
       "DISABLE": "Désactiver",
@@ -2704,7 +2723,8 @@
     "install_success": "{{name}} installé",
     "docs_link": "Documentation",
     "category_relational": "SQL",
-    "category_nosql": "NoSQL"
+    "category_nosql": "NoSQL",
+    "category_warehouse": "Entrepôts de données cloud"
   },
   "collab": {
     "present_one": "{{count}} personne en édition",

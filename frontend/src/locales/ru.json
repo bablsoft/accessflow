@@ -824,6 +824,22 @@
       "field_dynamodb_endpoint_help": "Необязательная конечная точка DynamoDB Local / VPC (например, http://localhost:8000). Оставьте пустым для AWS.",
       "field_neo4j_bolt_uri": "URI подключения Bolt (расширенно)",
       "field_neo4j_bolt_uri_help": "Необязательный полный URI bolt:// / neo4j+s:// для Neo4j Aura или кластерной маршрутизации (например, neo4j+s://xxxx.databases.neo4j.io). Если указан, переопределяет хост/порт.",
+      "field_account_host": "Хост аккаунта",
+      "field_workspace_host": "Хост workspace",
+      "field_gcp_project": "Проект GCP",
+      "field_gcp_project_help": "Id проекта или project.dataset, чтобы закрепить датасет по умолчанию (например, my-project.analytics).",
+      "field_catalog": "Каталог (Unity Catalog)",
+      "field_catalog_help": "Необязательный каталог Unity Catalog; оставьте пустым для каталога warehouse по умолчанию.",
+      "field_snowflake_url_override": "Переопределение JDBC URL (расширенно)",
+      "field_snowflake_url_override_help": "Необязательный полный URL jdbc:snowflake:// с параметрами warehouse, роли и схемы. Если указан, переопределяет хост аккаунта.",
+      "field_bigquery_endpoint": "Пользовательский endpoint",
+      "field_bigquery_endpoint_help": "Необязательный пользовательский API endpoint (эмулятор BigQuery). Оставьте пустым для Google Cloud.",
+      "field_databricks_http_path": "HTTP-путь warehouse",
+      "field_databricks_http_path_help": "HTTP-путь SQL warehouse из его параметров подключения (/sql/1.0/warehouses/<id>).",
+      "field_service_account_json": "Ключ сервисного аккаунта (JSON)",
+      "field_access_token": "Персональный токен доступа",
+      "field_password_or_key": "Пароль или закрытый ключ (PEM)",
+      "field_password_or_key_help": "Пароль или незашифрованный закрытый ключ PKCS#8 (BEGIN PRIVATE KEY) для аутентификации по паре ключей.",
       "field_access_key_id": "Идентификатор ключа доступа",
       "field_secret_access_key": "Секретный ключ доступа",
       "field_auth_method": "Аутентификация",
@@ -2248,7 +2264,10 @@
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
       "DYNAMODB": "Amazon DynamoDB",
-      "NEO4J": "Neo4j"
+      "NEO4J": "Neo4j",
+      "SNOWFLAKE": "Snowflake",
+      "BIGQUERY": "Google BigQuery",
+      "DATABRICKS": "Databricks SQL"
     },
     "ssl_mode": {
       "DISABLE": "Отключить",
@@ -2704,7 +2723,8 @@
     "install_success": "{{name}} установлен",
     "docs_link": "Документация",
     "category_relational": "SQL",
-    "category_nosql": "NoSQL"
+    "category_nosql": "NoSQL",
+    "category_warehouse": "Облачные хранилища данных"
   },
   "collab": {
     "present_one": "{{count}} человек редактирует",
