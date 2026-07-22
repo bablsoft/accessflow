@@ -25,12 +25,12 @@
     "name": { "type": "string", "minLength": 1, "maxLength": 60 },
     "dbType": {
       "type": "string",
-      "enum": ["POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM", "MONGODB", "COUCHBASE", "REDIS", "CASSANDRA", "SCYLLADB", "ELASTICSEARCH", "OPENSEARCH", "DYNAMODB"]
+      "enum": ["POSTGRESQL", "MYSQL", "MARIADB", "ORACLE", "MSSQL", "CUSTOM", "MONGODB", "COUCHBASE", "REDIS", "CASSANDRA", "SCYLLADB", "ELASTICSEARCH", "OPENSEARCH", "DYNAMODB", "NEO4J", "SNOWFLAKE", "BIGQUERY", "DATABRICKS"]
     },
     "category": {
       "type": "string",
-      "enum": ["RELATIONAL", "DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"],
-      "description": "Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value is part of the NoSQL umbrella — engine-managed connectors that are native (non-JDBC) and omit jdbcUrlTemplate/driverClassName. Defaults to RELATIONAL when absent."
+      "enum": ["RELATIONAL", "WAREHOUSE", "DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"],
+      "description": "Connector family. RELATIONAL is the SQL (JDBC) umbrella; WAREHOUSE is the cloud data-warehouse family (SQL-dialect but engine-managed — native auth models, non-JDBC); every other value is part of the NoSQL umbrella — engine-managed connectors that are native (non-JDBC) and omit jdbcUrlTemplate/driverClassName. Defaults to RELATIONAL when absent."
     },
     "vendor": { "type": "string", "maxLength": 100 },
     "description": { "type": "string", "maxLength": 300 },
@@ -86,10 +86,10 @@
       "then": { "required": ["driver"] }
     },
     {
-      "comment": "JDBC fields are required for relational (SQL) connectors and forbidden for engine-managed (non-RELATIONAL, NoSQL) ones, which connect through a native engine plugin.",
+      "comment": "JDBC fields are required for relational (SQL) connectors and forbidden for engine-managed (non-RELATIONAL: warehouse and NoSQL) ones, which connect through a native engine plugin.",
       "if": {
         "properties": {
-          "category": { "enum": ["DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"] }
+          "category": { "enum": ["WAREHOUSE", "DOCUMENT", "KEY_VALUE", "WIDE_COLUMN", "SEARCH", "GRAPH"] }
         },
         "required": ["category"]
       },

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "databricks",
+  "name": "Databricks SQL",
+  "dbType": "DATABRICKS",
+  "category": "WAREHOUSE",
+  "vendor": "Databricks",
+  "description": "Lakehouse SQL warehouse queried with Databricks SQL. The AccessFlow Databricks engine installs on demand; it talks to the SQL Statement Execution API with a personal access token against a workspace host + warehouse HTTP path, and splices row security into the WHERE clause (maintenance ops are rejected).",
+  "documentationUrl": "https://docs.databricks.com/en/sql/language-manual/index.html",
+  "logo": "logo.svg",
+  "defaultPort": 443,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-databricks-1.0.0-all.jar",
+    "fileName": "accessflow-engine-databricks-1.0.0-all.jar",
+    "sha256": "581d9cd1b1a32bb824cd0d18fad2be7c1054f314a5ad8982ce3c10a4f0979d83"
+  }
+}

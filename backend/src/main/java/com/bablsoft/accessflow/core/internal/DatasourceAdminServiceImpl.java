@@ -797,6 +797,39 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             if (!hasOverride) {
                 requireHostPort(dbType, host, port);
             }
+        } else if (dbType == DbType.SNOWFLAKE) {
+            // Snowflake's connection is the account host (<account>.snowflakecomputing.com) +
+            // database + user, with the credential column holding either a password or a PKCS#8
+            // private-key PEM (key-pair JWT auth). Port is unused (always 443), and
+            // jdbc_url_override is an OPTIONAL full jdbc:snowflake:// URL carrying
+            // warehouse / role / schema parameters (like Neo4j's Bolt-URI override).
+            if (hasConnector) {
+                throw new IllegalDatasourcePermissionException(
+                        "connector_id is only allowed when db_type is CUSTOM");
+            }
+            requireHost(dbType, host);
+            requireDatabaseName(dbType, databaseName);
+        } else if (dbType == DbType.BIGQUERY) {
+            // BigQuery's "connection" is cloud credentials, not host/port: database_name is the
+            // GCP project id, optionally "project.dataset" to pin a default dataset, and the
+            // credential column holds the service-account key JSON. Host/port are unused, and
+            // jdbc_url_override is an optional custom endpoint (emulator).
+            if (hasConnector) {
+                throw new IllegalDatasourcePermissionException(
+                        "connector_id is only allowed when db_type is CUSTOM");
+            }
+            requireProjectDataset(dbType, databaseName);
+        } else if (dbType == DbType.DATABRICKS) {
+            // Databricks SQL connects to a workspace host with a personal access token; the
+            // REQUIRED jdbc_url_override carries the SQL warehouse HTTP path
+            // (/sql/1.0/warehouses/<id>) because the Statement Execution API needs a warehouse id.
+            // database_name is an optional Unity Catalog catalog; port is unused (always 443).
+            if (hasConnector) {
+                throw new IllegalDatasourcePermissionException(
+                        "connector_id is only allowed when db_type is CUSTOM");
+            }
+            requireHost(dbType, host);
+            requireWarehousePath(dbType, jdbcUrlOverride);
         } else {
             if (hasConnector) {
                 throw new IllegalDatasourcePermissionException(
@@ -845,6 +878,47 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
     }
 
+    /**
+     * Snowflake and Databricks connect to an HTTPS endpoint derived from the host alone (the
+     * port is always 443), so unlike {@link #requireHostPort} only the host is mandatory.
+     */
+    private void requireHost(DbType dbType, String host) {
+        if (host == null || host.isBlank()) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource host is required for db_type " + dbType);
+        }
+    }
+
+    /**
+     * BigQuery carries the GCP project id — optionally {@code project.dataset} to pin a default
+     * dataset — in {@code database_name}. Project and dataset ids cannot themselves contain dots,
+     * so at most one dot is valid. This cross-field rule can't be expressed with a Bean
+     * Validation annotation (mirroring {@link #requireRegion}).
+     */
+    private void requireProjectDataset(DbType dbType, String databaseName) {
+        if (databaseName == null || databaseName.isBlank()
+                || !databaseName.matches("[^.\\s]+(\\.[^.\\s]+)?")) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource database_name (GCP project or project.dataset) is required for db_type "
+                            + dbType);
+        }
+    }
+
+    /**
+     * Databricks needs a SQL warehouse id, carried as the warehouse HTTP path
+     * ({@code /sql/1.0/warehouses/<id>} or a full {@code https://} URL ending in it) in
+     * {@code jdbc_url_override} — the one non-CUSTOM dialect where the override is required.
+     */
+    private void requireWarehousePath(DbType dbType, String jdbcUrlOverride) {
+        boolean valid = jdbcUrlOverride != null
+                && jdbcUrlOverride.matches("(https?://[^/\\s]+)?/sql/[^/\\s]+/warehouses/[A-Za-z0-9-]+/?");
+        if (!valid) {
+            throw new IllegalDatasourcePermissionException(
+                    "Datasource jdbc_url_override (SQL warehouse HTTP path /sql/1.0/warehouses/<id>) "
+                            + "is required for db_type " + dbType);
+        }
+    }
+
     private void requireHostPort(DbType dbType, String host, Integer port) {
         if (host == null || host.isBlank()) {
             throw new IllegalDatasourcePermissionException(
@@ -875,9 +949,11 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     /**
      * The search engines (Elasticsearch / OpenSearch) authenticate with either HTTP basic
-     * (username + password) or an API key. Every other dialect requires username + password and
-     * must not carry an API key. This cross-field rule can't be expressed with Bean Validation
-     * annotations, so it lives here (mirroring {@link #requireLocalDatacenterForEngine}).
+     * (username + password) or an API key. BigQuery (service-account key JSON) and Databricks
+     * (personal access token) are password-only — their credential has no username. Every other
+     * dialect requires username + password and must not carry an API key. This cross-field rule
+     * can't be expressed with Bean Validation annotations, so it lives here (mirroring
+     * {@link #requireLocalDatacenterForEngine}).
      */
     private void validateCredentials(DbType dbType, String username, String password,
                                      String apiKey) {
@@ -888,6 +964,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             if (!hasBasic && !hasApiKey) {
                 throw new IllegalDatasourcePermissionException(
                         "db_type " + dbType + " requires either username + password or an api_key");
+            }
+        } else if (isPasswordOnly(dbType)) {
+            if (hasApiKey) {
+                throw new IllegalDatasourcePermissionException(
+                        "api_key is only allowed for Elasticsearch / OpenSearch datasources");
+            }
+            if (password == null || password.isBlank()) {
+                throw new IllegalDatasourcePermissionException(
+                        "Datasource password is required for db_type " + dbType);
             }
         } else {
             if (hasApiKey) {
@@ -907,6 +992,14 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
 
     private static boolean isSearchEngine(DbType dbType) {
         return dbType == DbType.ELASTICSEARCH || dbType == DbType.OPENSEARCH;
+    }
+
+    /**
+     * BigQuery's credential is a service-account key JSON and Databricks' a personal access
+     * token — both live in the password column with no username counterpart.
+     */
+    private static boolean isPasswordOnly(DbType dbType) {
+        return dbType == DbType.BIGQUERY || dbType == DbType.DATABRICKS;
     }
 
     /**

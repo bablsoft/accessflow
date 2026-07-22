@@ -99,5 +99,48 @@ public enum DbType {
      * procedure calls outside a read-only allow-list and {@code LOAD CSV} are rejected. See
      * {@code docs/05-backend.md} → "Neo4j engine" and {@code docs/14-connectors.md}.
      */
-    NEO4J
+    NEO4J,
+    /**
+     * Snowflake — a cloud data warehouse queried with Snowflake SQL. Engine-managed (not pooled
+     * JDBC): the engine plugin bundles the Snowflake JDBC driver, opens a short-lived connection
+     * per request (warehouse sessions are billed while resumed), validates statements with a
+     * Snowflake SQL classifier rather than JSqlParser, and resolves the plugin on demand through
+     * the connector catalog. Connection mapping: {@code host} = account host
+     * ({@code <account>.snowflakecomputing.com}), {@code database_name} = database,
+     * {@code username} = user, {@code password_encrypted} = password <em>or</em> a PKCS#8
+     * private-key PEM (key-pair JWT auth, detected by the {@code -----BEGIN} prefix), and
+     * {@code jdbc_url_override} = an optional full {@code jdbc:snowflake://} URL carrying
+     * warehouse / role / schema parameters. Row security splices parameter-bound predicates into
+     * the WHERE clause (fail-closed on CTE / subquery / JOIN / set-op shapes). See
+     * {@code docs/05-backend.md} → "Snowflake engine" and {@code docs/14-connectors.md}.
+     */
+    SNOWFLAKE,
+    /**
+     * Google BigQuery — a cloud data warehouse queried with GoogleSQL. Engine-managed (not
+     * JDBC-backed): the engine plugin connects via the native {@code google-cloud-bigquery}
+     * HTTP/JSON client, validates statements with a GoogleSQL classifier rather than JSqlParser,
+     * and resolves the plugin on demand through the connector catalog. Its "connection" is cloud
+     * credentials, not host/port: {@code database_name} = GCP project id (optionally
+     * {@code project.dataset} to pin a default dataset), {@code password_encrypted} = the
+     * service-account key JSON, and {@code jdbc_url_override} = an optional custom endpoint
+     * (emulator). Row security splices positional-parameter predicates into the WHERE clause
+     * (fail-closed on unrewritable shapes); scripting ({@code BEGIN} / {@code DECLARE} /
+     * {@code CALL} / {@code EXECUTE IMMEDIATE}) is rejected. See {@code docs/05-backend.md} →
+     * "BigQuery engine" and {@code docs/14-connectors.md}.
+     */
+    BIGQUERY,
+    /**
+     * Databricks SQL — a lakehouse SQL warehouse queried with Databricks SQL. Engine-managed (not
+     * JDBC-backed): the engine plugin talks to the SQL Statement Execution REST API over the JDK
+     * HTTP client (submit / poll / cancel), validates statements with a Databricks SQL classifier
+     * rather than JSqlParser, and resolves the plugin on demand through the connector catalog.
+     * Connection mapping: {@code host} = workspace host, {@code password_encrypted} = personal
+     * access token, {@code jdbc_url_override} = the warehouse HTTP path
+     * ({@code /sql/1.0/warehouses/<id>}, required), and {@code database_name} = an optional Unity
+     * Catalog catalog. Row security splices named-parameter predicates into the WHERE clause
+     * (fail-closed on unrewritable shapes); maintenance ops ({@code OPTIMIZE} / {@code VACUUM})
+     * and {@code COPY INTO} are rejected. See {@code docs/05-backend.md} → "Databricks engine"
+     * and {@code docs/14-connectors.md}.
+     */
+    DATABRICKS
 }

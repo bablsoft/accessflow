@@ -53,6 +53,12 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "DYNAMODB is not JDBC-backed; connect via the dynamodb engine plugin, not here");
             case NEO4J -> throw new IllegalStateException(
                     "NEO4J is not JDBC-backed; connect via the neo4j engine plugin, not here");
+            case SNOWFLAKE -> throw new IllegalStateException(
+                    "SNOWFLAKE is not JDBC-pooled; connect via the snowflake engine plugin, not here");
+            case BIGQUERY -> throw new IllegalStateException(
+                    "BIGQUERY is not JDBC-backed; connect via the bigquery engine plugin, not here");
+            case DATABRICKS -> throw new IllegalStateException(
+                    "DATABRICKS is not JDBC-backed; connect via the databricks engine plugin, not here");
         };
     }
 
@@ -123,6 +129,12 @@ class DefaultJdbcCoordinatesFactory implements JdbcCoordinatesFactory {
                     "DYNAMODB is not JDBC-backed; it has no JDBC driver class");
             case NEO4J -> throw new IllegalStateException(
                     "NEO4J is not JDBC-backed; it has no JDBC driver class");
+            case SNOWFLAKE -> throw new IllegalStateException(
+                    "SNOWFLAKE is not JDBC-pooled; the snowflake engine plugin bundles its own driver");
+            case BIGQUERY -> throw new IllegalStateException(
+                    "BIGQUERY is not JDBC-backed; it has no JDBC driver class");
+            case DATABRICKS -> throw new IllegalStateException(
+                    "DATABRICKS is not JDBC-backed; it has no JDBC driver class");
         };
     }
 }
