@@ -317,6 +317,130 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void createSnowflakeWithoutDatabaseNameThrows() {
+        // Snowflake requires the database in database_name; the account host alone is not enough.
+        var command = new CreateDatasourceCommand(orgId, "Wh", DbType.SNOWFLAKE,
+                "xy1.eu-central-1.snowflakecomputing.com", null, null, "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, false, null,
+                null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createSnowflakeWithoutHostThrows() {
+        var command = new CreateDatasourceCommand(orgId, "Wh", DbType.SNOWFLAKE, null, null,
+                "ANALYTICS", "svc", "pw", SslMode.REQUIRE, null, null, null, null, null, false,
+                null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createSnowflakeWithHostDatabaseAndUrlOverrideSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(engineCatalog.isEngineManaged(DbType.SNOWFLAKE)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // Port is unused (always 443); the optional jdbc_url_override carries warehouse/role/schema
+        // params — allowed for Snowflake even though it is forbidden for most non-CUSTOM types.
+        var command = new CreateDatasourceCommand(orgId, "Wh", DbType.SNOWFLAKE,
+                "xy1.eu-central-1.snowflakecomputing.com", null, "ANALYTICS", "svc", "pw",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null,
+                "jdbc:snowflake://xy1.eu-central-1.snowflakecomputing.com/?warehouse=WH&role=GOV",
+                null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("ANALYTICS");
+        verify(engineCatalog).engineFor(DbType.SNOWFLAKE);
+    }
+
+    @Test
+    void createBigQueryWithInvalidProjectDatasetThrows() {
+        // database_name is "project" or "project.dataset" — more than one dot is invalid.
+        var command = new CreateDatasourceCommand(orgId, "Bq", DbType.BIGQUERY, null, null,
+                "proj.dataset.extra", null, "{\"type\":\"service_account\"}", SslMode.REQUIRE,
+                null, null, null, null, null, false, null, null, null, null, null, null, null,
+                null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createBigQueryWithProjectDatasetAndEndpointOverrideSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("{\"type\":\"service_account\"}"))
+                .thenReturn("ENC(sa)");
+        when(engineCatalog.isEngineManaged(DbType.BIGQUERY)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        // No host/port/username; project.dataset in database_name and the emulator endpoint in
+        // jdbc_url_override — allowed for BigQuery (like DynamoDB's custom endpoint).
+        var command = new CreateDatasourceCommand(orgId, "Bq", DbType.BIGQUERY, null, null,
+                "my-project.analytics", null, "{\"type\":\"service_account\"}", SslMode.REQUIRE,
+                null, null, null, null, null, false, null, null, null, null,
+                "http://localhost:9050", null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("my-project.analytics");
+        verify(engineCatalog).engineFor(DbType.BIGQUERY);
+    }
+
+    @Test
+    void createBigQueryWithoutCredentialThrows() {
+        // BigQuery is password-only: the service-account key JSON is mandatory.
+        var command = new CreateDatasourceCommand(orgId, "Bq", DbType.BIGQUERY, null, null,
+                "my-project", null, null, SslMode.REQUIRE, null, null, null, null, null, false,
+                null, null, null, null, null, null, null, null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createDatabricksWithoutWarehousePathThrows() {
+        // Databricks is the one non-CUSTOM dialect where jdbc_url_override is REQUIRED — it
+        // carries the SQL warehouse HTTP path the Statement Execution API needs.
+        var command = new CreateDatasourceCommand(orgId, "Lake", DbType.DATABRICKS,
+                "adb-123.azuredatabricks.net", null, null, null, "dapi-token", SslMode.REQUIRE,
+                null, null, null, null, null, false, null, null, null, null, null, null, null,
+                null, null);
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class);
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createDatabricksWithWarehousePathAndCatalogSucceeds() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("dapi-token")).thenReturn("ENC(pat)");
+        when(engineCatalog.isEngineManaged(DbType.DATABRICKS)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var command = new CreateDatasourceCommand(orgId, "Lake", DbType.DATABRICKS,
+                "adb-123.azuredatabricks.net", null, "main", null, "dapi-token", SslMode.REQUIRE,
+                null, null, null, null, null, false, null, null, null, null,
+                "/sql/1.0/warehouses/abc123def456", null, null, null, null);
+        var result = service.create(command);
+
+        assertThat(result.databaseName()).isEqualTo("main");
+        verify(engineCatalog).engineFor(DbType.DATABRICKS);
+    }
+
+    @Test
     void updateAppliesNonNullFieldsAndReencryptsPassword() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));

@@ -55,6 +55,23 @@ const clickhouse: Connector = {
   bundled: false,
 };
 
+const snowflake: Connector = {
+  id: 'snowflake',
+  db_type: 'SNOWFLAKE',
+  category: 'WAREHOUSE',
+  name: 'Snowflake',
+  icon_url: '/db-icons/snowflake.svg',
+  vendor: 'Snowflake Inc.',
+  description: 'Cloud data warehouse.',
+  documentation_url: 'https://docs.snowflake.com/en/sql-reference',
+  default_port: 443,
+  default_ssl_mode: 'REQUIRE',
+  jdbc_url_template: '',
+  driver_class: null,
+  driver_status: 'AVAILABLE',
+  bundled: false,
+};
+
 function renderPage(): void {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const ui: ReactNode = (
@@ -97,6 +114,16 @@ describe('ConnectorsPage', () => {
     await waitFor(() => expect(installConnector).toHaveBeenCalled());
     expect(installConnector.mock.calls[0]?.[0]).toBe('clickhouse');
     expect(await screen.findByText('Installed ClickHouse')).toBeInTheDocument();
+  });
+
+  it('groups warehouse connectors under their own section', async () => {
+    listConnectors.mockResolvedValue([postgres, snowflake]);
+    renderPage();
+
+    expect((await screen.findAllByText('Snowflake')).length).toBeGreaterThan(0);
+    expect(screen.getByText('SQL')).toBeInTheDocument();
+    expect(screen.getByText('Cloud data warehouses')).toBeInTheDocument();
+    expect(screen.queryByText('NoSQL')).not.toBeInTheDocument();
   });
 
   it('filters connectors by the search box', async () => {

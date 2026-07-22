@@ -339,6 +339,21 @@ class SystemPromptRendererTest {
     }
 
     @Test
+    void renderGenerationIsWarehouseDialectAware() {
+        var snowflake = renderer.renderGeneration("x", DbType.SNOWFLAKE, null, null, "en");
+        assertThat(snowflake).contains("Target query language: Snowflake SQL");
+        assertThat(snowflake).contains("EXECUTE IMMEDIATE");
+
+        var bigquery = renderer.renderGeneration("x", DbType.BIGQUERY, null, null, "en");
+        assertThat(bigquery).contains("Target query language: BigQuery GoogleSQL");
+        assertThat(bigquery).contains("default dataset");
+
+        var databricks = renderer.renderGeneration("x", DbType.DATABRICKS, null, null, "en");
+        assertThat(databricks).contains("Target query language: Databricks SQL");
+        assertThat(databricks).contains("OPTIMIZE");
+    }
+
+    @Test
     void syntaxForReturnsEngineSyntaxId() {
         assertThat(renderer.syntaxFor(DbType.POSTGRESQL, "SELECT 1")).isEqualTo("sql");
         assertThat(renderer.syntaxFor(DbType.COUCHBASE, "SELECT 1")).isEqualTo("sqlpp");
@@ -349,6 +364,9 @@ class SystemPromptRendererTest {
         assertThat(renderer.syntaxFor(DbType.ELASTICSEARCH, "{}")).isEqualTo("query_dsl");
         assertThat(renderer.syntaxFor(DbType.OPENSEARCH, "{}")).isEqualTo("query_dsl");
         assertThat(renderer.syntaxFor(DbType.NEO4J, "MATCH (n) RETURN n")).isEqualTo("cypher");
+        assertThat(renderer.syntaxFor(DbType.SNOWFLAKE, "SELECT 1")).isEqualTo("sql");
+        assertThat(renderer.syntaxFor(DbType.BIGQUERY, "SELECT 1")).isEqualTo("sql");
+        assertThat(renderer.syntaxFor(DbType.DATABRICKS, "SELECT 1")).isEqualTo("sql");
     }
 
     @Test

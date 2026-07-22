@@ -822,6 +822,22 @@
       "field_dynamodb_endpoint_help": "Optional DynamoDB Local / VPC endpoint (e.g. http://localhost:8000). Leave blank for AWS.",
       "field_neo4j_bolt_uri": "Bolt connection URI (advanced)",
       "field_neo4j_bolt_uri_help": "Optional full bolt:// / neo4j+s:// URI for Neo4j Aura or clustered routing (e.g. neo4j+s://xxxx.databases.neo4j.io). When set, it overrides host/port.",
+      "field_account_host": "Account host",
+      "field_workspace_host": "Workspace host",
+      "field_gcp_project": "GCP project",
+      "field_gcp_project_help": "Project id, or project.dataset to pin a default dataset (e.g. my-project.analytics).",
+      "field_catalog": "Catalog (Unity Catalog)",
+      "field_catalog_help": "Optional Unity Catalog catalog; leave blank for the warehouse default.",
+      "field_snowflake_url_override": "JDBC URL override (advanced)",
+      "field_snowflake_url_override_help": "Optional full jdbc:snowflake:// URL carrying warehouse, role, and schema parameters. When set, it overrides the account host.",
+      "field_bigquery_endpoint": "Custom endpoint",
+      "field_bigquery_endpoint_help": "Optional custom API endpoint (BigQuery emulator). Leave blank for Google Cloud.",
+      "field_databricks_http_path": "Warehouse HTTP path",
+      "field_databricks_http_path_help": "The SQL warehouse HTTP path from the warehouse's connection details (/sql/1.0/warehouses/<id>).",
+      "field_service_account_json": "Service account key (JSON)",
+      "field_access_token": "Personal access token",
+      "field_password_or_key": "Password or private key (PEM)",
+      "field_password_or_key_help": "A password, or an unencrypted PKCS#8 private key (BEGIN PRIVATE KEY) for key-pair authentication.",
       "field_access_key_id": "Access key ID",
       "field_secret_access_key": "Secret access key",
       "field_auth_method": "Authentication",
@@ -2272,7 +2288,10 @@
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
       "DYNAMODB": "Amazon DynamoDB",
-      "NEO4J": "Neo4j"
+      "NEO4J": "Neo4j",
+      "SNOWFLAKE": "Snowflake",
+      "BIGQUERY": "Google BigQuery",
+      "DATABRICKS": "Databricks SQL"
     },
     "ssl_mode": {
       "DISABLE": "Disable",
@@ -2728,7 +2747,8 @@
     "install_success": "Installed {{name}}",
     "docs_link": "Documentation",
     "category_relational": "SQL",
-    "category_nosql": "NoSQL"
+    "category_nosql": "NoSQL",
+    "category_warehouse": "Cloud data warehouses"
   },
   "anomalies": {
     "title": "Anomalies",

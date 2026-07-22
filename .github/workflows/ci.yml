@@ -406,7 +406,7 @@ jobs:
       # Adding a new engine means adding its id here (and to release.yml).
       fail-fast: false
       matrix:
-        engine: [mongodb, couchbase, redis, cassandra, elasticsearch, dynamodb, neo4j]
+        engine: [mongodb, couchbase, redis, cassandra, elasticsearch, dynamodb, neo4j, snowflake, bigquery, databricks]
 
     steps:
       - name: Checkout code

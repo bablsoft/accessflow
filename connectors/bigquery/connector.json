@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "bigquery",
+  "name": "Google BigQuery",
+  "dbType": "BIGQUERY",
+  "category": "WAREHOUSE",
+  "vendor": "Google Cloud",
+  "description": "Serverless cloud data warehouse queried with GoogleSQL. The AccessFlow BigQuery engine installs on demand; its connection is a service-account key JSON + GCP project (optionally project.dataset), and row security splices positional-parameter predicates into the WHERE clause (scripting is rejected).",
+  "documentationUrl": "https://cloud.google.com/bigquery/docs/reference/standard-sql",
+  "logo": "logo.svg",
+  "defaultPort": 443,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-bigquery-1.0.0-all.jar",
+    "fileName": "accessflow-engine-bigquery-1.0.0-all.jar",
+    "sha256": "eb176f77c9aec79487126cd1855e469e734818601031130542900f3ff230ea37"
+  }
+}

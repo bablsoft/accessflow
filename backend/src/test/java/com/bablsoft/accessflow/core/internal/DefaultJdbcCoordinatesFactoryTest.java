@@ -137,4 +137,28 @@ class DefaultJdbcCoordinatesFactoryTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("NEO4J");
     }
+
+    @Test
+    void snowflakeIsNotJdbcPooled() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.SNOWFLAKE, "h", 443, "db", "u", SslMode.REQUIRE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("SNOWFLAKE");
+    }
+
+    @Test
+    void bigQueryIsNotJdbcBacked() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.BIGQUERY, "h", 443, "project", "u", SslMode.REQUIRE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("BIGQUERY");
+    }
+
+    @Test
+    void databricksIsNotJdbcBacked() {
+        assertThatThrownBy(
+                () -> factory.from(DbType.DATABRICKS, "h", 443, "main", "u", SslMode.REQUIRE))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("DATABRICKS");
+    }
 }

@@ -10,8 +10,8 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 const ROOT = path.resolve(process.cwd(), 'connectors');
-const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB', 'COUCHBASE', 'REDIS', 'CASSANDRA', 'SCYLLADB', 'ELASTICSEARCH', 'OPENSEARCH', 'DYNAMODB', 'NEO4J'];
-const CATEGORIES = ['RELATIONAL', 'DOCUMENT', 'KEY_VALUE', 'WIDE_COLUMN', 'SEARCH', 'GRAPH'];
+const DB_TYPES = ['POSTGRESQL', 'MYSQL', 'MARIADB', 'ORACLE', 'MSSQL', 'CUSTOM', 'MONGODB', 'COUCHBASE', 'REDIS', 'CASSANDRA', 'SCYLLADB', 'ELASTICSEARCH', 'OPENSEARCH', 'DYNAMODB', 'NEO4J', 'SNOWFLAKE', 'BIGQUERY', 'DATABRICKS'];
+const CATEGORIES = ['RELATIONAL', 'WAREHOUSE', 'DOCUMENT', 'KEY_VALUE', 'WIDE_COLUMN', 'SEARCH', 'GRAPH'];
 const SSL_MODES = ['DISABLE', 'REQUIRE', 'VERIFY_CA', 'VERIFY_FULL'];
 const SHA256 = /^[0-9a-f]{64}$/;
 const ID = /^[a-z0-9][a-z0-9-]*$/;
@@ -49,7 +49,7 @@ for (const folder of entries) {
   if (m.category != null && !CATEGORIES.includes(m.category)) fail(folder, `category "${m.category}" is invalid`);
   if (!SSL_MODES.includes(m.defaultSslMode)) fail(folder, `defaultSslMode "${m.defaultSslMode}" is invalid`);
   if (typeof m.defaultPort !== 'number') fail(folder, 'defaultPort must be a number');
-  // Engine-managed (non-RELATIONAL, i.e. NoSQL) connectors are native, not JDBC —
+  // Engine-managed (non-RELATIONAL: warehouse and NoSQL) connectors are native, not JDBC —
   // jdbcUrlTemplate/driverClassName are required only for the default RELATIONAL category.
   const isEngineManaged = m.category != null && m.category !== 'RELATIONAL';
   if (!isEngineManaged && !m.jdbcUrlTemplate) fail(folder, 'jdbcUrlTemplate is required');

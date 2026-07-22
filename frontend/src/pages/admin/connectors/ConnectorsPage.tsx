@@ -50,8 +50,9 @@ export default function ConnectorsPage() {
     );
   }, [listQuery.data, search]);
 
-  // SQL vs NoSQL umbrellas: RELATIONAL is the SQL family; every other category
-  // (DOCUMENT, KEY_VALUE, WIDE_COLUMN, SEARCH, GRAPH) groups under NoSQL.
+  // Three umbrellas: RELATIONAL is the SQL family, WAREHOUSE the cloud data warehouses
+  // (SQL-dialect but engine-managed), and every other category (DOCUMENT, KEY_VALUE,
+  // WIDE_COLUMN, SEARCH, GRAPH) groups under NoSQL.
   const groups = useMemo(
     () =>
       [
@@ -61,9 +62,14 @@ export default function ConnectorsPage() {
           items: filtered.filter((c) => c.category === 'RELATIONAL'),
         },
         {
+          category: 'warehouse',
+          label: t('connectors.category_warehouse'),
+          items: filtered.filter((c) => c.category === 'WAREHOUSE'),
+        },
+        {
           category: 'nosql',
           label: t('connectors.category_nosql'),
-          items: filtered.filter((c) => c.category !== 'RELATIONAL'),
+          items: filtered.filter((c) => c.category !== 'RELATIONAL' && c.category !== 'WAREHOUSE'),
         },
       ].filter((g) => g.items.length > 0),
     [filtered, t],

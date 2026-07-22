@@ -103,6 +103,9 @@ for the authoring guide.
 | `opensearch` | OPENSEARCH | SEARCH | no | the **same** `accessflow-engine-elasticsearch-<v>-all.jar` (second `QueryEngine` provider) |
 | `dynamodb` | DYNAMODB | KEY_VALUE | no | `accessflow-engine-dynamodb-<v>-all.jar` engine plugin (native, not JDBC) |
 | `neo4j` | NEO4J | GRAPH | no | `accessflow-engine-neo4j-<v>-all.jar` engine plugin (native, not JDBC) |
+| `snowflake` | SNOWFLAKE | WAREHOUSE | no | `accessflow-engine-snowflake-<v>-all.jar` engine plugin (bundles the Snowflake JDBC driver, but not pooled JDBC) |
+| `bigquery` | BIGQUERY | WAREHOUSE | no | `accessflow-engine-bigquery-<v>-all.jar` engine plugin (native, not JDBC) |
+| `databricks` | DATABRICKS | WAREHOUSE | no | `accessflow-engine-databricks-<v>-all.jar` engine plugin (REST, not JDBC) |
 
 The first five map to first-class relational `DbType` dialects (dialect-aware SQL parsing, SSL
 handling). ClickHouse is a **new SQL engine** beyond the built-in five: it carries `dbType=CUSTOM`
@@ -193,6 +196,25 @@ read-only allow-list, and multi-statement input are rejected with 422. Connectio
 predicates are ANDed onto each `MATCH`'s `WHERE` (Cypher named parameters; node-label policies),
 failing closed on anonymous / write shapes; field masking applies post-fetch, label-aware and
 recursive. Default port 7687 (Bolt). See [05-backend.md → Neo4j engine](./05-backend.md#neo4j-engine).
+
+**Snowflake, Google BigQuery, and Databricks SQL** are the cloud data-warehouse connectors
+(AF-629, `category=WAREHOUSE` — a third family beside the SQL and NoSQL umbrellas: SQL-dialect
+engines that are nonetheless engine-managed because their auth models don't fit the pooled JDBC
+host/port/username/password lane). Each ships as its own shaded plugin JAR
+([`engines/snowflake/`](../engines/snowflake/), [`engines/bigquery/`](../engines/bigquery/),
+[`engines/databricks/`](../engines/databricks/), each with its own version line and SHA-256 pin).
+Snowflake authenticates with a password **or** a key-pair PKCS#8 private-key PEM in the encrypted
+credential column and opens a short-lived connection per request (warehouse sessions are billed
+while resumed); BigQuery's "connection" is a service-account key JSON + GCP project
+(`database_name` = `project` or `project.dataset`); Databricks talks to the SQL Statement
+Execution REST API with a personal access token against a workspace host + required warehouse
+HTTP path (`jdbc_url_override`). All three classify with keyword classifiers, splice row security
+into the WHERE clause with bound parameters (fail-closed on CTE / subquery / JOIN / set-op
+shapes), and apply the shared `ColumnMasker` post-fetch (BigQuery recursively by dot-path over
+RECORD fields). Default port 443 (unused — HTTPS endpoints). See
+[05-backend.md → Snowflake engine](./05-backend.md#snowflake-engine),
+[→ BigQuery engine](./05-backend.md#bigquery-engine), and
+[→ Databricks engine](./05-backend.md#databricks-engine).
 
 ## Resolution at query time
 

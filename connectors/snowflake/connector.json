@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "snowflake",
+  "name": "Snowflake",
+  "dbType": "SNOWFLAKE",
+  "category": "WAREHOUSE",
+  "vendor": "Snowflake Inc.",
+  "description": "Cloud data warehouse queried with Snowflake SQL. The AccessFlow Snowflake engine installs on demand; it authenticates with a password or key-pair JWT (PKCS#8 private key), opens billed warehouse sessions per request only, and splices row security into the WHERE clause.",
+  "documentationUrl": "https://docs.snowflake.com/en/sql-reference",
+  "logo": "logo.svg",
+  "defaultPort": 443,
+  "defaultSslMode": "REQUIRE",
+  "bundled": false,
+  "driver": {
+    "type": "url",
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-snowflake-1.0.0-all.jar",
+    "fileName": "accessflow-engine-snowflake-1.0.0-all.jar",
+    "sha256": "73e5e04b8db92d909ed343fc0a562ac7f608805302a052bc6a512da7b08d49ff"
+  }
+}

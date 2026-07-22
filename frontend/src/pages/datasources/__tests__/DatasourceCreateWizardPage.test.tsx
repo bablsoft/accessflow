@@ -102,6 +102,65 @@ const typesResponse: DatasourceTypesResponse = {
   ],
 };
 
+const warehouseTypesResponse: DatasourceTypesResponse = {
+  types: [
+    {
+      code: 'SNOWFLAKE',
+      category: 'WAREHOUSE',
+      display_name: 'Snowflake',
+      icon_url: '/db-icons/snowflake.svg',
+      default_port: 443,
+      default_ssl_mode: 'REQUIRE',
+      jdbc_url_template: '',
+      driver_status: 'AVAILABLE',
+      bundled: false,
+      source: 'bundled',
+      custom_driver_id: null,
+      connector_id: null,
+      description: null,
+      documentation_url: null,
+      vendor_name: null,
+      driver_class: null,
+    },
+    {
+      code: 'BIGQUERY',
+      category: 'WAREHOUSE',
+      display_name: 'Google BigQuery',
+      icon_url: '/db-icons/bigquery.svg',
+      default_port: 443,
+      default_ssl_mode: 'REQUIRE',
+      jdbc_url_template: '',
+      driver_status: 'AVAILABLE',
+      bundled: false,
+      source: 'bundled',
+      custom_driver_id: null,
+      connector_id: null,
+      description: null,
+      documentation_url: null,
+      vendor_name: null,
+      driver_class: null,
+    },
+    {
+      code: 'DATABRICKS',
+      category: 'WAREHOUSE',
+      display_name: 'Databricks SQL',
+      icon_url: '/db-icons/databricks.svg',
+      default_port: 443,
+      default_ssl_mode: 'REQUIRE',
+      jdbc_url_template: '',
+      driver_status: 'AVAILABLE',
+      bundled: false,
+      source: 'bundled',
+      custom_driver_id: null,
+      connector_id: null,
+      description: null,
+      documentation_url: null,
+      vendor_name: null,
+      driver_class: null,
+    },
+  ],
+};
+
 const baseDatasource: Datasource = {
   id: 'ds-1',
   organization_id: 'org-1',
@@ -214,6 +273,137 @@ describe('DatasourceCreateWizardPage', () => {
     expect(updateDatasource).not.toHaveBeenCalled();
 
     await screen.findByRole('button', { name: /Test connection/ });
+  });
+
+  it('renders the Snowflake connection form and sends host + database + optional URL override', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    createDatasource.mockResolvedValueOnce({
+      ...baseDatasource,
+      db_type: 'SNOWFLAKE',
+      port: null,
+    });
+
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    const cards = await screen.findAllByText('Snowflake');
+    fireEvent.click(cards[0]!);
+
+    // Account host replaces host; port is never asked for a warehouse.
+    await screen.findByLabelText('Account host');
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.getByLabelText('Password or private key (PEM)')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Wh' } });
+    fireEvent.change(screen.getByLabelText('Account host'), {
+      target: { value: 'xy1.eu-central-1.snowflakecomputing.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Database name'), {
+      target: { value: 'ANALYTICS' },
+    });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'svc' } });
+    fireEvent.change(screen.getByLabelText('Password or private key (PEM)'), {
+      target: { value: 'hunter2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+
+    await waitFor(() => expect(createDatasource).toHaveBeenCalledTimes(1));
+    expect(createDatasource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        db_type: 'SNOWFLAKE',
+        host: 'xy1.eu-central-1.snowflakecomputing.com',
+        database_name: 'ANALYTICS',
+        username: 'svc',
+      }),
+    );
+    expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('port');
+    expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('jdbc_url_override');
+  });
+
+  it('renders the BigQuery connection form and sends project + service-account JSON only', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    createDatasource.mockResolvedValueOnce({
+      ...baseDatasource,
+      db_type: 'BIGQUERY',
+    });
+
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    const cards = await screen.findAllByText('Google BigQuery');
+    fireEvent.click(cards[0]!);
+
+    // Cloud-credentials model: no host/port/username fields.
+    await screen.findByLabelText('GCP project');
+    expect(screen.queryByLabelText('Host')).toBeNull();
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.queryByLabelText('Username')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Bq' } });
+    fireEvent.change(screen.getByLabelText('GCP project'), {
+      target: { value: 'my-project.analytics' },
+    });
+    fireEvent.change(screen.getByLabelText('Service account key (JSON)'), {
+      target: { value: '{"type":"service_account"}' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+
+    await waitFor(() => expect(createDatasource).toHaveBeenCalledTimes(1));
+    expect(createDatasource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        db_type: 'BIGQUERY',
+        database_name: 'my-project.analytics',
+        username: '',
+        password: '{"type":"service_account"}',
+      }),
+    );
+    expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('host');
+  });
+
+  it('renders the Databricks connection form and requires the warehouse HTTP path', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    createDatasource.mockResolvedValueOnce({
+      ...baseDatasource,
+      db_type: 'DATABRICKS',
+    });
+
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    const cards = await screen.findAllByText('Databricks SQL');
+    fireEvent.click(cards[0]!);
+
+    await screen.findByLabelText('Workspace host');
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.queryByLabelText('Username')).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Lake' } });
+    fireEvent.change(screen.getByLabelText('Workspace host'), {
+      target: { value: 'adb-123.azuredatabricks.net' },
+    });
+    fireEvent.change(screen.getByLabelText('Personal access token'), {
+      target: { value: 'dapi-token' },
+    });
+    // Missing warehouse HTTP path blocks submission.
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+    await screen.findByText(
+      "The SQL warehouse HTTP path from the warehouse's connection details (/sql/1.0/warehouses/<id>).",
+      { selector: '.ant-form-item-explain-error' },
+    );
+    expect(createDatasource).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('Warehouse HTTP path'), {
+      target: { value: '/sql/1.0/warehouses/abc123def456' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+
+    await waitFor(() => expect(createDatasource).toHaveBeenCalledTimes(1));
+    expect(createDatasource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        db_type: 'DATABRICKS',
+        host: 'adb-123.azuredatabricks.net',
+        username: '',
+        password: 'dapi-token',
+        jdbc_url_override: '/sql/1.0/warehouses/abc123def456',
+      }),
+    );
   });
 
   it('hides the Back button once the datasource is persisted (test step)', async () => {

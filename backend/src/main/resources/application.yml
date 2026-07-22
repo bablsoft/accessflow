@@ -267,6 +267,16 @@ accessflow:
       neo4j:
         connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT:PT10S}
         max-connection-pool-size: ${ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE:100}
+      snowflake:
+        login-timeout: ${ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_LOGIN_TIMEOUT:PT30S}
+        network-timeout: ${ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_NETWORK_TIMEOUT:PT60S}
+      bigquery:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_BIGQUERY_CONNECT_TIMEOUT:PT10S}
+        read-timeout: ${ACCESSFLOW_PROXY_ENGINES_BIGQUERY_READ_TIMEOUT:PT30S}
+      databricks:
+        connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_CONNECT_TIMEOUT:PT10S}
+        wait-timeout: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_WAIT_TIMEOUT:PT10S}
+        poll-interval: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_POLL_INTERVAL:PT1S}
   drivers:
     cache-dir: ${ACCESSFLOW_DRIVER_CACHE:${user.home}/.accessflow/drivers}
     repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}

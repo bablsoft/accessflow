@@ -824,6 +824,22 @@
       "field_dynamodb_endpoint_help": "Կամընտիր DynamoDB Local / VPC վերջնակետ (օր.՝ http://localhost:8000)։ AWS-ի համար թողեք դատարկ։",
       "field_neo4j_bolt_uri": "Bolt կապի URI (առաջադեմ)",
       "field_neo4j_bolt_uri_help": "Ընտրովի ամբողջական bolt:// / neo4j+s:// URI Neo4j Aura-ի կամ կլաստերային երթուղավորման համար (օր.՝ neo4j+s://xxxx.databases.neo4j.io)։ Սահմանվելու դեպքում այն գերակայում է host/port-ին։",
+      "field_account_host": "Հաշվի հոսթ",
+      "field_workspace_host": "Workspace-ի հոսթ",
+      "field_gcp_project": "GCP նախագիծ",
+      "field_gcp_project_help": "Նախագծի id, կամ project.dataset՝ լռելյայն dataset սահմանելու համար (օր.՝ my-project.analytics)։",
+      "field_catalog": "Կատալոգ (Unity Catalog)",
+      "field_catalog_help": "Ընտրովի Unity Catalog կատալոգ. թողեք դատարկ warehouse-ի լռելյայնի համար։",
+      "field_snowflake_url_override": "JDBC URL փոխարինում (առաջադեմ)",
+      "field_snowflake_url_override_help": "Ընտրովի ամբողջական jdbc:snowflake:// URL՝ warehouse-ի, դերի և սխեմայի պարամետրերով։ Սահմանվելու դեպքում այն գերակայում է հաշվի հոսթին։",
+      "field_bigquery_endpoint": "Հատուկ endpoint",
+      "field_bigquery_endpoint_help": "Ընտրովի հատուկ API endpoint (BigQuery էմուլյատոր)։ Թողեք դատարկ Google Cloud-ի համար։",
+      "field_databricks_http_path": "Warehouse-ի HTTP ուղի",
+      "field_databricks_http_path_help": "SQL warehouse-ի HTTP ուղին նրա կապի մանրամասներից (/sql/1.0/warehouses/<id>)։",
+      "field_service_account_json": "Ծառայողական հաշվի բանալի (JSON)",
+      "field_access_token": "Անձնական մուտքի թոքեն",
+      "field_password_or_key": "Գաղտնաբառ կամ մասնավոր բանալի (PEM)",
+      "field_password_or_key_help": "Գաղտնաբառ, կամ չգաղտնագրված PKCS#8 մասնավոր բանալի (BEGIN PRIVATE KEY)՝ բանալիների զույգով նույնականացման համար։",
       "field_access_key_id": "Մուտքի բանալու ID",
       "field_secret_access_key": "Գաղտնի մուտքի բանալի",
       "field_auth_method": "Նույնականացում",
@@ -2248,7 +2264,10 @@
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
       "DYNAMODB": "Amazon DynamoDB",
-      "NEO4J": "Neo4j"
+      "NEO4J": "Neo4j",
+      "SNOWFLAKE": "Snowflake",
+      "BIGQUERY": "Google BigQuery",
+      "DATABRICKS": "Databricks SQL"
     },
     "ssl_mode": {
       "DISABLE": "Անջատել",
@@ -2704,7 +2723,8 @@
     "install_success": "{{name}} տեղադրվեց",
     "docs_link": "Փաստաթղթեր",
     "category_relational": "SQL",
-    "category_nosql": "NoSQL"
+    "category_nosql": "NoSQL",
+    "category_warehouse": "Ամպային տվյալների պահեստներ"
   },
   "collab": {
     "present_one": "{{count}} մարդ խմբագրում է",

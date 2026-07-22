@@ -1014,6 +1014,13 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_SOCKET_TIMEOUT` | Optional | `PT30S` | Socket-read timeout for OpenSearch requests |
 | `ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-Neo4j-datasource native Bolt driver |
 | `ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE` | Optional | `100` | Max connections in the native Neo4j driver's internal Bolt connection pool for a datasource |
+| `ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_LOGIN_TIMEOUT` | Optional | `PT30S` | Login timeout for the per-request Snowflake JDBC connection (warehouse sessions are opened per request, never pooled) |
+| `ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_NETWORK_TIMEOUT` | Optional | `PT60S` | Network (socket) timeout for Snowflake JDBC requests |
+| `ACCESSFLOW_PROXY_ENGINES_BIGQUERY_CONNECT_TIMEOUT` | Optional | `PT10S` | HTTP connect timeout for the per-BigQuery-datasource native client |
+| `ACCESSFLOW_PROXY_ENGINES_BIGQUERY_READ_TIMEOUT` | Optional | `PT30S` | HTTP read timeout for BigQuery API requests |
+| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_CONNECT_TIMEOUT` | Optional | `PT10S` | TCP connect timeout for the Databricks SQL Statement Execution API HTTP client |
+| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_WAIT_TIMEOUT` | Optional | `PT10S` | Server-side `wait_timeout` sent with each statement submission (clamped to the API's 5–50 s window) |
+| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_POLL_INTERVAL` | Optional | `PT1S` | Poll cadence while a submitted statement is PENDING/RUNNING (the host-computed statement timeout bounds the loop) |
 | `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | Optional | `PT30S` | Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll. MongoDB, Redis, Cassandra, and ScyllaDB datasources report query stats but no JDBC pool counters |
 
 > **Read-replica routing & load balancing** (multi-endpoint since v2.2/AF-457 — see [docs/05-backend.md → "Read-replica routing & load balancing"](05-backend.md#read-replica-routing--load-balancing-af-457)) reuses the same `ACCESSFLOW_PROXY_*` HikariCP tunables above for every replica pool; the `ACCESSFLOW_PROXY_REPLICA_*` vars tune only the health checks. Configure endpoints per-datasource via the settings UI or `PUT /api/v1/datasources/{id}` with the `read_replicas` array (the pre-2.2 flat `read_replica_*` fields were removed; migration `V115` auto-converts existing config).

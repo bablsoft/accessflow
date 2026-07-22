@@ -824,6 +824,22 @@
       "field_dynamodb_endpoint_help": "可选的 DynamoDB Local / VPC 端点（例如 http://localhost:8000）。AWS 留空。",
       "field_neo4j_bolt_uri": "Bolt 连接 URI（高级）",
       "field_neo4j_bolt_uri_help": "用于 Neo4j Aura 或集群路由的可选完整 bolt:// / neo4j+s:// URI（例如 neo4j+s://xxxx.databases.neo4j.io）。设置后将覆盖主机/端口。",
+      "field_account_host": "账户主机",
+      "field_workspace_host": "工作区主机",
+      "field_gcp_project": "GCP 项目",
+      "field_gcp_project_help": "项目 id，或使用 project.dataset 固定默认数据集（例如 my-project.analytics）。",
+      "field_catalog": "目录（Unity Catalog）",
+      "field_catalog_help": "可选的 Unity Catalog 目录；留空则使用 warehouse 默认目录。",
+      "field_snowflake_url_override": "JDBC URL 覆盖（高级）",
+      "field_snowflake_url_override_help": "可选的完整 jdbc:snowflake:// URL，携带 warehouse、角色和 schema 参数。设置后将覆盖账户主机。",
+      "field_bigquery_endpoint": "自定义端点",
+      "field_bigquery_endpoint_help": "可选的自定义 API 端点（BigQuery 模拟器）。留空则使用 Google Cloud。",
+      "field_databricks_http_path": "Warehouse HTTP 路径",
+      "field_databricks_http_path_help": "SQL warehouse 连接详情中的 HTTP 路径（/sql/1.0/warehouses/<id>）。",
+      "field_service_account_json": "服务账号密钥（JSON）",
+      "field_access_token": "个人访问令牌",
+      "field_password_or_key": "密码或私钥（PEM）",
+      "field_password_or_key_help": "密码，或用于密钥对认证的未加密 PKCS#8 私钥（BEGIN PRIVATE KEY）。",
       "field_access_key_id": "访问密钥 ID",
       "field_secret_access_key": "私有访问密钥",
       "field_auth_method": "身份验证",
@@ -2248,7 +2264,10 @@
       "ELASTICSEARCH": "Elasticsearch",
       "OPENSEARCH": "OpenSearch",
       "DYNAMODB": "Amazon DynamoDB",
-      "NEO4J": "Neo4j"
+      "NEO4J": "Neo4j",
+      "SNOWFLAKE": "Snowflake",
+      "BIGQUERY": "Google BigQuery",
+      "DATABRICKS": "Databricks SQL"
     },
     "ssl_mode": {
       "DISABLE": "禁用",
@@ -2704,7 +2723,8 @@
     "install_success": "已安装 {{name}}",
     "docs_link": "文档",
     "category_relational": "SQL",
-    "category_nosql": "NoSQL"
+    "category_nosql": "NoSQL",
+    "category_warehouse": "云数据仓库"
   },
   "collab": {
     "present_one": "{{count}} 人正在编辑",

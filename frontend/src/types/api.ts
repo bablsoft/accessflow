@@ -23,13 +23,18 @@ export type DbType =
   | 'ELASTICSEARCH'
   | 'OPENSEARCH'
   | 'DYNAMODB'
-  | 'NEO4J';
+  | 'NEO4J'
+  | 'SNOWFLAKE'
+  | 'BIGQUERY'
+  | 'DATABRICKS';
 /**
- * Connector family. RELATIONAL is the SQL (JDBC) umbrella; every other value belongs to the
- * NoSQL umbrella of engine-managed (native, non-JDBC) connectors.
+ * Connector family. RELATIONAL is the SQL (JDBC) umbrella; WAREHOUSE is the cloud data-warehouse
+ * family (SQL-dialect but engine-managed); every other value belongs to the NoSQL umbrella of
+ * engine-managed (native, non-JDBC) connectors.
  */
 export type ConnectorCategory =
   | 'RELATIONAL'
+  | 'WAREHOUSE'
   | 'DOCUMENT'
   | 'KEY_VALUE'
   | 'WIDE_COLUMN'

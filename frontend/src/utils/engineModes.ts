@@ -47,6 +47,9 @@ export const DB_TYPE_COLOR: Record<DbType, string> = {
   OPENSEARCH: 'cyan',
   DYNAMODB: 'gold',
   NEO4J: 'geekblue',
+  SNOWFLAKE: 'cyan',
+  BIGQUERY: 'blue',
+  DATABRICKS: 'volcano',
 };
 
 const SQL_SYNTAX: EditorSyntaxOption = {

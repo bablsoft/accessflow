@@ -169,7 +169,21 @@ class SystemPromptRenderer {
                     "Cypher", "cypher",
                     "- Use Cypher: MATCH … WHERE … RETURN with named $params for values. Never use LOAD"
                             + " CSV or CALL outside the read-only procedure allow-list (db.labels,"
-                            + " db.schema.*, …).")));
+                            + " db.schema.*, …).")),
+            Map.entry(DbType.SNOWFLAKE, new QueryLanguageProfile(
+                    "Snowflake SQL", "sql",
+                    "- Use Snowflake SQL, one statement only. Never use CALL, EXECUTE IMMEDIATE,"
+                            + " scripting blocks (BEGIN/DECLARE), COPY INTO, PUT/GET, USE, or SHOW.")),
+            Map.entry(DbType.BIGQUERY, new QueryLanguageProfile(
+                    "BigQuery GoogleSQL", "sql",
+                    "- Use BigQuery GoogleSQL (standard SQL), one statement only. Fully qualify tables"
+                            + " as dataset.table unless a default dataset is configured. Never use"
+                            + " scripting (BEGIN/DECLARE/CALL/EXECUTE IMMEDIATE), EXPORT DATA, or"
+                            + " LOAD DATA.")),
+            Map.entry(DbType.DATABRICKS, new QueryLanguageProfile(
+                    "Databricks SQL", "sql",
+                    "- Use Databricks SQL, one statement only. Never use USE, SET, COPY INTO, CALL,"
+                            + " OPTIMIZE, VACUUM, ANALYZE, or SHOW.")));
 
     private static QueryLanguageProfile cqlProfile() {
         return new QueryLanguageProfile(
