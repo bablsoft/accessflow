@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.bablsoft.accessflow</groupId>
+    <artifactId>accessflow-engine-snowflake</artifactId>
+    <!--
+      The plugin has its OWN version line, independent of the application release version
+      (release.yml never runs versions:set here). The connector manifest
+      (connectors/snowflake/connector.json) pins this version + the SHA-256 of the shaded JAR; bump
+      them together whenever the engine (or a core.api type it compiles against) changes.
+    -->
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>AccessFlow Snowflake Query Engine</name>
+    <description>
+        On-demand Snowflake engine plugin for AccessFlow (issue AF-629). Implements the
+        core.api.QueryEngine SPI for Snowflake SQL and ships as a self-contained shaded JAR
+        (bundling the Snowflake JDBC driver, itself a fat jar with internally relocated
+        dependencies) resolved through the connector catalog and discovered via ServiceLoader.
+        Connections are short-lived (one per request) — warehouse sessions are billed while
+        resumed, and governance traffic is sparse.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Reproducible build: the shaded JAR's SHA-256 is pinned in the connector manifest. -->
+        <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
+        <!-- The backend version whose core.api SPI this plugin compiles against. -->
+        <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
+        <snowflake-jdbc.version>4.3.2</snowflake-jdbc.version>
+        <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Test-stack version alignment only (JUnit/AssertJ/Mockito/slf4j) -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!--
+          The host SPI + engine-neutral DTOs (core.api). Provided: at runtime these classes come
+          from the application classloader (the plugin's URLClassLoader parent), so they must NOT
+          be shaded into the plugin JAR. Build the backend first: mvn -f ../../backend/pom.xml
+          install -DskipTests (the backend installs its plain JAR; the boot JAR is *-exec.jar).
+        -->
+        <dependency>
+            <groupId>com.bablsoft.accessflow</groupId>
+            <artifactId>accessflow</artifactId>
+            <version>${accessflow.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Shaded into the plugin JAR. The Snowflake JDBC driver is a self-contained fat jar that
+             already relocates its own third-party dependencies under
+             net.snowflake.client.jdbc.internal.*, so the shade needs no relocations of its own. -->
+        <dependency>
+            <groupId>net.snowflake</groupId>
+            <artifactId>snowflake-jdbc</artifactId>
+            <version>${snowflake-jdbc.version}</version>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.6</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.5.6</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.2</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>all</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <!-- Whitelist exactly what the engine needs at runtime: the Snowflake
+                                 JDBC driver, which is itself a self-contained fat jar with its
+                                 third-party dependencies already relocated under
+                                 net.snowflake.client.jdbc.internal.* — so no relocations here.
+                                 The whitelist also prevents the host's provided Spring tree
+                                 (dragged transitively through the provided accessflow dep, where a
+                                 few leaves resolve to runtime scope) from leaking into the JAR; at
+                                 runtime those come from the host classloader. The two provided deps
+                                 (accessflow core.api + slf4j-api) resolve from the host too. -->
+                            <artifactSet>
+                                <includes>
+                                    <include>net.snowflake:snowflake-jdbc</include>
+                                </includes>
+                            </artifactSet>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>META-INF/LICENSE*</exclude>
+                                        <exclude>META-INF/NOTICE*</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>coverage</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>0.8.14</version>
+                        <executions>
+                            <execution>
+                                <id>jacoco-prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>jacoco-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
