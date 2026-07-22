@@ -32,7 +32,7 @@
         <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
         <mongodb-driver.version>5.8.0</mongodb-driver.version>
         <micrometer.version>1.17.0</micrometer.version>
-        <jackson.version>3.2.0</jackson.version>
+        <jackson.version>3.2.1</jackson.version>
         <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     </properties>
 
