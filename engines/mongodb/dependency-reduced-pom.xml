@@ -4,7 +4,7 @@
   <groupId>com.bablsoft.accessflow</groupId>
   <artifactId>accessflow-engine-mongodb</artifactId>
   <name>AccessFlow MongoDB Query Engine</name>
-  <version>1.0.5</version>
+  <version>1.0.6</version>
   <description>On-demand MongoDB engine plugin for AccessFlow (issue AF-414). Implements the
         core.api.QueryEngine SPI and ships as a self-contained shaded JAR (bundling
         mongodb-driver-sync and a relocated Jackson) resolved through the connector catalog and
@@ -217,7 +217,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.outputTimestamp>2026-01-01T00:00:00Z</project.build.outputTimestamp>
     <accessflow.version>1.0.0-SNAPSHOT</accessflow.version>
-    <jackson.version>3.2.0</jackson.version>
+    <jackson.version>3.2.1</jackson.version>
     <spring-boot-dependencies.version>4.1.0</spring-boot-dependencies.version>
     <micrometer.version>1.17.0</micrometer.version>
   </properties>
