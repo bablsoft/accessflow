@@ -1,7 +1,8 @@
 # 15 — Engine-Plugin SDK
 
 How to author a **query-engine plugin**: a native (non-JDBC) database engine — MongoDB, Couchbase,
-Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, Amazon DynamoDB, and Neo4j today — that plugs into AccessFlow as
+Redis, Cassandra/ScyllaDB, Elasticsearch/OpenSearch, Amazon DynamoDB, Neo4j, and the cloud data
+warehouses Snowflake, Google BigQuery, and Databricks SQL today — that plugs into AccessFlow as
 *plugin project + manifest entry*, with **no changes** to `DefaultQueryEngineCatalog`, the proxy
 dispatchers, CI workflows, or the release workflow (AF-414 / AF-418). The reference implementation
 is [`engines/mongodb/`](../engines/mongodb/); [`engines/couchbase/`](../engines/couchbase/)
@@ -25,6 +26,18 @@ row-level security is **not** a SQL-style WHERE-after-FROM but a predicate ANDed
 `MATCH`'s `WHERE` (scoped by the bound node variable of the policied label; fail-closed on anonymous
 or write shapes) — and the example of an engine that accepts **either** host/port **or** a full
 `bolt://` / `neo4j+s://` URI override.
+The three `WAREHOUSE` engines (AF-629) round out the reference set:
+[`engines/snowflake/`](../engines/snowflake/) shows a **JDBC driver bundled inside a plugin**
+(shaded `snowflake-jdbc`, direct driver instantiation — never `DriverManager` in an isolated
+classloader — per-request connections because warehouse sessions are billed, and key-pair
+PKCS#8-PEM auth detected in the credential column);
+[`engines/bigquery/`](../engines/bigquery/) shows a **vendor cloud SDK** engine
+(`google-cloud-bigquery` HTTP/JSON client, service-account JSON credential,
+`database_name`=`project[.dataset]`, fully relocated shade tree); and
+[`engines/databricks/`](../engines/databricks/) shows a **hand-rolled REST** engine — no vendor
+SDK at all, just the JDK `java.net.http` client against the SQL Statement Execution API
+(submit / poll / cancel bounded by the host-computed timeout) with only a relocated Jackson in
+the shade.
 
 Related chapters: [05-backend.md → MongoDB engine](./05-backend.md#mongodb-engine) (how the host
 dispatches to engines), [14-connectors.md](./14-connectors.md) (the connector catalog the plugin is
@@ -110,7 +123,7 @@ JavaScript, write-exfiltration operators), and read-replica routing where the en
 
 The plugin is delivered through the connector catalog ([14-connectors.md](./14-connectors.md)):
 `connectors/<id>/connector.json` declares a non-RELATIONAL `category` (pick the accurate one:
-`DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, `GRAPH`), omits the JDBC fields, and pins the
+`WAREHOUSE`, `DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, `GRAPH`), omits the JDBC fields, and pins the
 plugin JAR as a `url` driver artifact (`url` / `fileName` / `sha256`). The host downloads,
 SHA-256-verifies, and caches it exactly like a JDBC driver (`ACCESSFLOW_DRIVER_CACHE`,
 `ACCESSFLOW_DRIVERS_OFFLINE` honoured — pre-seed the cache for air-gapped installs).
@@ -181,9 +194,11 @@ Docs / website (same PR — CLAUDE.md sync rules):
 11. Website connector grid (`website/index.html`) and the connectors section of
     `website/docs/index.html`; root `README.md` supported-databases copy.
 12. An e2e spec when the engine adds a user-visible flow worth covering (default is "add a spec").
+13. Add the engine id to the `engines` job matrix in `.github/workflows/ci.yml` (the release
+    workflow is discovery-based over `engines/*` and needs nothing).
 
 No changes required to: `DefaultQueryEngineCatalog`, `DefaultQueryParser`, `DefaultQueryExecutor`,
-`.github/workflows/ci.yml`, or `.github/workflows/release.yml`. `DatasourceAdminServiceImpl` needs a
+or `.github/workflows/release.yml`. `DatasourceAdminServiceImpl` needs a
 small `validateDriverChoice` branch **only** when the engine's connection model deviates from the
 standard host/port/database/username/password shape — e.g. DynamoDB (cloud credentials + region) and
 Neo4j (host/port **or** a `bolt://` / `neo4j+s://` URI override); a standard host/port engine adds
