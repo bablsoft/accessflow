@@ -4,7 +4,7 @@
   <groupId>com.bablsoft.accessflow</groupId>
   <artifactId>accessflow-engine-couchbase</artifactId>
   <name>AccessFlow Couchbase Query Engine</name>
-  <version>1.0.4</version>
+  <version>1.0.5</version>
   <description>On-demand Couchbase engine plugin for AccessFlow (issue AF-412). Implements the
         core.api.QueryEngine SPI for SQL++ (N1QL) and ships as a self-contained shaded JAR
         (bundling the Couchbase Java SDK with a relocated Reactor and Jackson) resolved through

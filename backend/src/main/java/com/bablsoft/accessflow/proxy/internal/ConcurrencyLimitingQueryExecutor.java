@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -52,6 +53,13 @@ class ConcurrencyLimitingQueryExecutor implements QueryExecutor {
     @Override
     public QueryDryRunResult dryRun(QueryExecutionRequest request) {
         return delegate.dryRun(request);
+    }
+
+    // Like dryRun: a COUNT(*) materializes a single row, so the heap-protecting permit budget
+    // does not apply; per-datasource concurrency stays HikariCP's job.
+    @Override
+    public QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request) {
+        return delegate.countAffectedRows(request);
     }
 
     @Override

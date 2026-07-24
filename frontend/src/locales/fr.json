@@ -523,6 +523,15 @@
     "no_plan": "Le moteur n'a renvoyé aucun plan pour cette requête.",
     "rerun_button": "Relancer"
   },
+  "cost_estimate_panel": {
+    "pending": "Calcul de l’estimation du coût…",
+    "unavailable": "Aucune estimation de coût n’est disponible pour cette requête.",
+    "failed": "Échec de l’estimation du coût",
+    "affected_rows_label": "Lignes affectées (exact)",
+    "est_rows_label": "Lignes estimées",
+    "scan_type_label": "Type de scan",
+    "cost_label": "Coût estimé"
+  },
   "ai_panel": {
     "title": "Analyse IA",
     "disabled_badge": "désactivée",
@@ -577,6 +586,7 @@
       "card_justification": "Justification",
       "no_justification": "Le demandeur n'a pas fourni de justification.",
       "card_ai": "Analyse IA",
+      "card_cost_estimate": "Estimation du coût",
       "ai_awaiting": "En attente d'analyse…",
       "ai_failed_banner_title": "Échec de l'analyse IA",
       "ai_failed_banner_detail": "La revue se poursuit sans recommandation de l'IA. Raison : {{reason}}",
@@ -1952,7 +1962,8 @@
       "cidr_invalid": "Bloc CIDR non valide : {{value}}",
       "user_agent_placeholder": "p. ex. *curl*, *GitHubActions*",
       "minutes_suffix": "min",
-      "cicd_present_label": "Provenance CI/CD"
+      "cicd_present_label": "Provenance CI/CD",
+      "scan_type_placeholder": "p. ex. Seq Scan, COLLSCAN, Index*"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2365,7 +2376,9 @@
       "source_ip": "IP source / CIDR",
       "user_agent": "Agent utilisateur",
       "time_since_last_approval": "Temps depuis la dernière approbation",
-      "cicd_origin": "Provenance CI/CD"
+      "cicd_origin": "Provenance CI/CD",
+      "estimated_rows": "Lignes estimées",
+      "scan_type": "Type de scan"
     },
     "row_security_operator": {
       "EQUALS": "=",

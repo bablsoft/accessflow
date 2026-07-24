@@ -64,6 +64,7 @@ class QueryReviewStateMachineTest {
     @Mock RoutingDecisionService routingDecisionService;
     @Mock com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     @Mock AccessGrantLookupService accessGrantLookupService;
+    @Mock com.bablsoft.accessflow.core.api.QueryEstimateLookupService queryEstimateLookupService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks QueryReviewStateMachine stateMachine;

@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
@@ -349,6 +350,50 @@ class CouchbaseQueryEngineIntegrationTest {
         var result = dryRun("SELECT name FROM _default", List.of(directive));
         assertThat(result.supported()).isTrue();
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void countAffectedRowsCountsDeleteMatchesWithoutMutating() {
+        var result = countAffected("DELETE FROM _default WHERE team = 'eng'", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("couchbase");
+        assertThat(result.affectedRows()).isEqualTo(2);
+        assertThat(result.duration()).isNotNull();
+        // The count is a read-only probe — all three documents survive.
+        assertThat(((SelectExecutionResult) run("SELECT * FROM _default")).rowCount()).isEqualTo(3);
+    }
+
+    @Test
+    void countAffectedRowsCountsUpdateWithoutWhereAsWholeCollection() {
+        var result = countAffected("UPDATE _default SET bonus = 1", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(3);
+    }
+
+    @Test
+    void countAffectedRowsAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "_default", "team",
+                RowSecurityOperator.EQUALS, List.of("eng"));
+        // Cy (sales, 80) is shielded by the eng-only predicate; only Bo (eng, 90) matches.
+        var result = countAffected("DELETE FROM _default WHERE salary < 95", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(1);
+    }
+
+    @Test
+    void countAffectedRowsFailsClosedOnUnsupportedShapes() {
+        assertThat(countAffected("DELETE FROM _default USE KEYS ['p1']", List.of()).supported())
+                .isFalse();
+        assertThat(countAffected("SELECT * FROM _default", List.of()).supported()).isFalse();
+    }
+
+    private static QueryAffectedRowsResult countAffected(String query,
+                                                         List<RowSecurityDirective> rls) {
+        var request = new QueryExecutionRequest(descriptor.id(), query,
+                engine.parse(query).type(), null, null, List.of(), List.of(), rls, false,
+                List.of(query));
+        return engine.countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
     }
 
     private static QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {

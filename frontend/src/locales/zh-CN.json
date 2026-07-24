@@ -523,6 +523,15 @@
     "no_plan": "引擎未返回此查询的计划。",
     "rerun_button": "重新运行"
   },
+  "cost_estimate_panel": {
+    "pending": "正在计算成本预估…",
+    "unavailable": "此查询没有可用的成本预估。",
+    "failed": "成本预估失败",
+    "affected_rows_label": "受影响行数（精确）",
+    "est_rows_label": "预估行数",
+    "scan_type_label": "扫描类型",
+    "cost_label": "预估成本"
+  },
   "ai_panel": {
     "title": "AI 分析",
     "disabled_badge": "已禁用",
@@ -577,6 +586,7 @@
       "card_justification": "理由",
       "no_justification": "申请人未提供说明。",
       "card_ai": "AI 分析",
+      "card_cost_estimate": "成本预估",
       "ai_awaiting": "正在等待分析…",
       "ai_failed_banner_title": "AI 分析失败",
       "ai_failed_banner_detail": "审核将继续，但没有 AI 建议。原因：{{reason}}",
@@ -1952,7 +1962,8 @@
       "cidr_invalid": "无效的 CIDR 网段：{{value}}",
       "user_agent_placeholder": "例如 *curl*、*GitHubActions*",
       "minutes_suffix": "分钟",
-      "cicd_present_label": "来自 CI/CD"
+      "cicd_present_label": "来自 CI/CD",
+      "scan_type_placeholder": "例如 Seq Scan、COLLSCAN、Index*"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2365,7 +2376,9 @@
       "source_ip": "来源 IP / CIDR",
       "user_agent": "用户代理",
       "time_since_last_approval": "距上次批准时长",
-      "cicd_origin": "CI/CD 来源"
+      "cicd_origin": "CI/CD 来源",
+      "estimated_rows": "预估行数",
+      "scan_type": "扫描类型"
     },
     "row_security_operator": {
       "EQUALS": "=",

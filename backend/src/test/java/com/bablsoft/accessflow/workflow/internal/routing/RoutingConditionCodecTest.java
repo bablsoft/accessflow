@@ -49,12 +49,24 @@ class RoutingConditionCodecTest {
                 new ConditionNode.SourceIpMatches(List.of("203.0.113.0/24", "2001:db8::/32")),
                 new ConditionNode.UserAgentMatches(List.of("*curl*", "*GitHubActions*")),
                 new ConditionNode.TimeSinceLastApproval(ComparisonOperator.GT, 1440),
-                new ConditionNode.CiCdOrigin(true)));
+                new ConditionNode.CiCdOrigin(true),
+                new ConditionNode.EstimatedRows(ComparisonOperator.GT, 100_000L),
+                new ConditionNode.ScanTypeMatches(List.of("Seq*", "COLLSCAN"))));
 
         var json = codec.encode(tree);
         var decoded = codec.decode(json);
 
         assertThat(decoded).isEqualTo(tree);
+    }
+
+    @Test
+    void estimatedRowsAndScanTypeUseSnakeCaseDiscriminators() {
+        var json = codec.encode(new ConditionNode.And(List.of(
+                new ConditionNode.EstimatedRows(ComparisonOperator.GTE, 500_000L),
+                new ConditionNode.ScanTypeMatches(List.of("Seq Scan")))));
+
+        assertThat(json).contains("\"type\":\"estimated_rows\"")
+                .contains("\"type\":\"scan_type\"");
     }
 
     @Test

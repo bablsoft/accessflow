@@ -124,6 +124,14 @@ test.describe.serial('query submission from /editor', () => {
     // (statusColors.ts:22), so we assert on the visible text.
     await expect(page.getByRole('heading', { level: 1 }).getByText('Pending review'))
       .toBeVisible({ timeout: 15_000 });
+
+    // AF-624: the pre-flight cost estimate is computed asynchronously right after
+    // submission and lands on the detail page via the query.estimate_complete WS
+    // invalidation (or is already present on first load — EXPLAIN is fast). For
+    // SELECT 1 on the real Postgres the plan is supported, so the estimate card
+    // shows the "Estimated rows" stat instead of a pending/unavailable fallback.
+    await expect(page.getByText('Cost estimate')).toBeVisible();
+    await expect(page.getByText('Estimated rows')).toBeVisible({ timeout: 20_000 });
   });
 
   // ── 2. Empty SQL — Submit is disabled until at least one char is typed ───────────

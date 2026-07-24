@@ -116,6 +116,7 @@ function failedQuery(): QueryDetail {
       failed: true,
       error_message: 'provider unavailable',
     },
+    cost_estimate: null,
     rows_affected: null,
     duration_ms: null,
     error_message: null,

@@ -189,6 +189,7 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['queries', 'list'] });
         break;
       case 'ai.analysis_complete':
+      case 'query.estimate_complete':
         if (queryId) this.queryClient.invalidateQueries({ queryKey: ['queries', 'detail', queryId] });
         break;
       case 'review.new_request':

@@ -313,6 +313,8 @@ export const CONDITION_OPERANDS: readonly RoutingConditionOperand[] = [
   'user_agent',
   'time_since_last_approval',
   'cicd_origin',
+  'estimated_rows',
+  'scan_type',
 ] as const;
 
 export const routingActionLabel = (t: TFunction, v: RoutingAction): string =>

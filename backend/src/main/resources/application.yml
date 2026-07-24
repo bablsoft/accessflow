@@ -219,6 +219,9 @@ accessflow:
     max-lifetime: ${ACCESSFLOW_PROXY_MAX_LIFETIME:30m}
     leak-detection-threshold: ${ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD:0s}
     pool-name-prefix: accessflow-ds-
+    # Tight bound on the async pre-flight cost estimate (AF-624): EXPLAIN + affected-row COUNT
+    # each run under this statement timeout instead of the full execution statement-timeout.
+    estimate-timeout: ${ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT:PT5S}
     execution:
       max-rows: ${ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS:10000}
       statement-timeout: ${ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT:30s}

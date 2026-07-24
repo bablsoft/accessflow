@@ -1,12 +1,15 @@
 package com.bablsoft.accessflow.engine.couchbase;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.bablsoft.accessflow.engine.couchbase.CouchbaseRowSecurityApplier.Applied;
 import com.couchbase.client.core.error.CouchbaseException;
@@ -21,6 +24,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Executes a SQL++ statement for a {@code COUCHBASE} datasource — the document-engine analogue of
@@ -104,6 +108,61 @@ class CouchbaseQueryExecutor {
         } catch (CouchbaseException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
+    }
+
+    /**
+     * Governed affected-row count (issue AF-624): the submitted UPDATE / DELETE is rewritten by
+     * {@link CouchbaseCountRewriter} into a {@code SELECT COUNT(*)} over the same keyspace and
+     * WHERE clause, the request's row-security directives are spliced into the count statement
+     * exactly as {@link #execute} would splice them, and the count runs read-only through the
+     * bucket's default-scope query context with the same scan consistency and timeout as a normal
+     * read. Shape reasons never throw — non-UPDATE/DELETE types, parse failures, and every shape
+     * the rewriter or the row-security splicer rejects degrade to {@code unsupported}; genuine
+     * server errors propagate through the usual exception translation, like {@link #dryRun}.
+     */
+    QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request,
+                                              DatasourceConnectionDescriptor descriptor,
+                                              Duration timeout) {
+        var start = clock.instant();
+        if (request.queryType() != QueryType.UPDATE && request.queryType() != QueryType.DELETE) {
+            return QueryAffectedRowsResult.unsupported(CouchbaseQueryEngine.ENGINE_ID);
+        }
+        Applied applied;
+        try {
+            var countSql = CouchbaseCountRewriter.toCountStatement(
+                    parser.parseStatement(request.sql()));
+            if (countSql == null) {
+                return QueryAffectedRowsResult.unsupported(CouchbaseQueryEngine.ENGINE_ID);
+            }
+            applied = rowSecurityApplier.apply(parser.parseStatement(countSql),
+                    request.rowSecurityPredicates());
+        } catch (InvalidSqlException | UnrewritableRowSecurityException ex) {
+            return QueryAffectedRowsResult.unsupported(CouchbaseQueryEngine.ENGINE_ID);
+        }
+        var scope = clusterManager.defaultScope(descriptor);
+        try {
+            var result = scope.query(applied.sql(), options(applied, timeout).readonly(true));
+            var count = extractCount(result.rowsAs(byte[].class));
+            if (count == null) {
+                return QueryAffectedRowsResult.unsupported(CouchbaseQueryEngine.ENGINE_ID);
+            }
+            return QueryAffectedRowsResult.of(CouchbaseQueryEngine.ENGINE_ID, count,
+                    durationSince(start));
+        } catch (CouchbaseException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    /** The {@code af_count} value of the single COUNT(*) row, or {@code null} when malformed. */
+    private static Long extractCount(List<byte[]> rows) {
+        if (rows.isEmpty()) {
+            return null;
+        }
+        if (CouchbaseJson.parseRow(rows.get(0)) instanceof Map<?, ?> row
+                && row.get(CouchbaseCountRewriter.COUNT_ALIAS) instanceof Number count) {
+            return count.longValue();
+        }
+        return null;
     }
 
     SelectExecutionResult sampleTable(SampleTableRequest request,

@@ -11,7 +11,8 @@ record ProxyPoolProperties(
         Duration maxLifetime,
         Duration leakDetectionThreshold,
         String poolNamePrefix,
-        Execution execution) {
+        Execution execution,
+        Duration estimateTimeout) {
 
     ProxyPoolProperties {
         if (connectionTimeout == null) {
@@ -31,6 +32,9 @@ record ProxyPoolProperties(
         }
         if (execution == null) {
             execution = new Execution(null, null, null, null, null, null, null);
+        }
+        if (estimateTimeout == null) {
+            estimateTimeout = Duration.ofSeconds(5);
         }
     }
 

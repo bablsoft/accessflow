@@ -477,6 +477,8 @@ The condition is a polymorphic, `"type"`-discriminated tree (snake_case, no exte
 | `time_since_last_approval` (AF-446) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `minutes` | minutes since the requester's last APPROVED/EXECUTED query **on the same datasource** satisfy the comparison. **Fails closed**: false when the requester has no prior approval there |
 | `cicd_origin` (AF-446) | `expected: bool` | whether the request came from a CI/CD pipeline (submitted via an API key or with the `X-AccessFlow-CI` header) equals `expected`. Deterministic — the flag defaults to `false` |
 | `anomaly_detected` (AF-383) | `expected: bool` | whether the submitter currently has an `OPEN` `behavior_anomaly` on the target datasource equals `expected`. The UBA detector is a periodic batch over **past** data, so this signal escalates the flagged user's **next** query — pair it with `ESCALATE`. Deterministic — false when the user has no open anomaly there |
+| `estimated_rows` (AF-624) | `operator` (`LT`/`LTE`/`GT`/`GTE`/`EQ`), `value` | the query's pre-flight estimated row impact (the exact affected-row count for UPDATE/DELETE when available, else the EXPLAIN estimate) satisfies the comparison. Read live from `query_estimates` at routing time. **Fails closed**: false when no estimate signal exists (not yet computed, unsupported engine, or failed) |
+| `scan_type` (AF-624) | `patterns: [string]` | the pre-flight plan's root operation (e.g. `Seq Scan`, `COLLSCAN`) matches any glob (`*` wildcard, case-insensitive). **Fails closed**: false when no plan was captured |
 
 On the AI-skipped path (`datasource.ai_analysis_enabled=false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal. Routing is **not** run on the AI-failure path.
 
@@ -648,6 +650,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
+| `query_estimate_id` | FK → `query_estimates` nullable (AF-624, Flyway `V128`) — the query's persisted pre-flight cost estimate; bare-UUID back-pointer mirroring `ai_analysis_id` (the real NOT NULL FK lives on `query_estimates.query_request_id`) |
 | `execution_started_at` | TIMESTAMPTZ nullable |
 | `execution_completed_at` | TIMESTAMPTZ nullable |
 | `rows_affected` | BIGINT nullable |
@@ -742,6 +745,31 @@ Stores the result of an AI analysis run for a query request.
   }
 ]
 ```
+
+---
+
+## query_estimates
+
+Persisted pre-flight cost / blast-radius estimate for a submitted query (AF-624, Flyway `V127`/`V128`). Computed asynchronously right after submission by the proxy's `QueryCostEstimateService` — the AF-445 dry-run machinery (relational dialect `EXPLAIN`, engine `dryRun` overrides) plus, for UPDATE/DELETE, a governed non-mutating affected-row count (relational `SELECT COUNT(*)` rewrite; MongoDB `countDocuments`, SQL++ `SELECT COUNT(*)`, Cypher `MATCH … RETURN count(*)`, Elasticsearch `_count` via the engines' `countAffectedRows` SPI overrides). One row per query request; every computation path persists a row (success, unsupported-engine degrade, or `failed=true` sentinel), mirroring `ai_analyses`. Read by reviewers (`GET /queries/{id}` → `cost_estimate`), by the routing-policy engine (`estimated_rows` / `scan_type` conditions), and folded into the AI analyzer's prompt (`{{cost_estimate}}`).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | FK → `query_requests` NOT NULL **UNIQUE** ON DELETE CASCADE (one estimate per query; deleted with its query) |
+| `engine_id` | VARCHAR(64) nullable — connector id (e.g. `postgresql`, `mongodb`); null on the failed-sentinel path |
+| `query_type` | ENUM `query_type` nullable |
+| `supported` | BOOLEAN NOT NULL DEFAULT false — false when the engine has no plan concept or the statement shape isn't explainable |
+| `estimated_rows` | BIGINT nullable — the plan's root row estimate |
+| `affected_row_count` | BIGINT nullable — exact governed count for UPDATE/DELETE; null when the shape can't be provably counted (joins, `USING`, MERGE, …) or the engine doesn't support counting |
+| `scan_type` | VARCHAR(128) nullable — the plan's root operation (e.g. `Seq Scan`, `COLLSCAN`) |
+| `estimated_cost` | DOUBLE PRECISION nullable — the plan's root cost when the engine exposes one |
+| `plan` | JSONB nullable — the snake_case plan-node tree (same shape as the dry-run endpoint's `plan`) |
+| `raw_plan` | TEXT nullable — the engine's raw plan output |
+| `unsupported_reason` | VARCHAR(500) nullable — localized reason when `supported=false` |
+| `failed` | BOOLEAN NOT NULL DEFAULT false — true when the computation hit an unexpected error (sentinel row) |
+| `error_message` | VARCHAR(500) nullable — failure reason when `failed=true` |
+| `duration_ms` | INTEGER nullable |
+| `created_at` | TIMESTAMPTZ |
 
 ---
 

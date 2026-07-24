@@ -983,6 +983,7 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD` | Optional | `0s` | HikariCP leak-detection threshold (`0s` disables) |
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Optional | `10000` | Hard cap on rows returned by a single query execution |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Optional | `30s` | Statement-level timeout applied to customer-DB JDBC statements |
+| `ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT` | Optional | `PT5S` | Statement timeout for the automatic pre-flight cost estimate (AF-624) — the async EXPLAIN + affected-row COUNT run after each submission use this tighter bound instead of the full execution statement timeout |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Optional | `1000` | Default JDBC fetch size |
 | `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Optional | `1000` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457) |
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` | Optional | `52428800` | Per-result byte cap enforced while materializing SELECT rows (#49); when exceeded the result is truncated with `truncated_reason=BYTE_LIMIT`. Relational JDBC path only |

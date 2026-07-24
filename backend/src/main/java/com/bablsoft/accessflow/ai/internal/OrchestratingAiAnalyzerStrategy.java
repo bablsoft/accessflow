@@ -54,9 +54,9 @@ class OrchestratingAiAnalyzerStrategy implements AiAnalyzerStrategy {
     }
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID aiConfigId) {
-        var outcomes = invokeAll(sql, dbType, schemaContext, language, aiConfigId);
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                    String costEstimateContext, String language, UUID aiConfigId) {
+        var outcomes = invokeAll(sql, dbType, schemaContext, costEstimateContext, language, aiConfigId);
 
         var successes = new ArrayList<WeightedResult>();
         var breakdown = new ArrayList<AiModelResult>(outcomes.size());
@@ -104,15 +104,17 @@ class OrchestratingAiAnalyzerStrategy implements AiAnalyzerStrategy {
     }
 
     private List<MemberOutcome> invokeAll(String sql, DbType dbType, String schemaContext,
-                                          String language, UUID aiConfigId) {
+                                          String costEstimateContext, String language, UUID aiConfigId) {
         if (members.size() == 1) {
-            return List.of(runMember(members.get(0), sql, dbType, schemaContext, language, aiConfigId));
+            return List.of(runMember(members.get(0), sql, dbType, schemaContext, costEstimateContext,
+                    language, aiConfigId));
         }
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             var futures = new ArrayList<Future<MemberOutcome>>(members.size());
             for (var member : members) {
                 Callable<MemberOutcome> task =
-                        () -> runMember(member, sql, dbType, schemaContext, language, aiConfigId);
+                        () -> runMember(member, sql, dbType, schemaContext, costEstimateContext,
+                                language, aiConfigId);
                 futures.add(executor.submit(task));
             }
             var outcomes = new ArrayList<MemberOutcome>(members.size());
@@ -124,10 +126,11 @@ class OrchestratingAiAnalyzerStrategy implements AiAnalyzerStrategy {
     }
 
     private MemberOutcome runMember(Member member, String sql, DbType dbType, String schemaContext,
-                                    String language, UUID aiConfigId) {
+                                    String costEstimateContext, String language, UUID aiConfigId) {
         var start = clock.instant();
         try {
-            var result = member.strategy().analyze(sql, dbType, schemaContext, language, aiConfigId);
+            var result = member.strategy().analyze(sql, dbType, schemaContext, costEstimateContext,
+                    language, aiConfigId);
             return MemberOutcome.success(member, result, elapsedMs(start));
         } catch (RuntimeException e) {
             log.warn("Orchestration member {}/{} failed: {}", member.provider(), member.model(),

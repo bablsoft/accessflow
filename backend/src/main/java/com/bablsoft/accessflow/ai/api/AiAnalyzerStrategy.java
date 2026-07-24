@@ -16,7 +16,9 @@ public interface AiAnalyzerStrategy {
     /**
      * Analyze {@code sql} for risks, returning a structured result. The {@code schemaContext}
      * argument is an opaque, provider-renderable description of the target schema (or
-     * {@code null}/empty if introspection is unavailable).
+     * {@code null}/empty if introspection is unavailable). {@code costEstimateContext} (AF-624)
+     * carries the same contract for the pre-flight cost / blast-radius estimate — an opaque,
+     * provider-renderable summary (or {@code null}/empty when no estimate is available).
      *
      * <p>{@code language} is a BCP-47 code (e.g. {@code "en"}, {@code "es"}, {@code "zh-CN"}) that
      * tells the AI which language to use for free-form fields. When {@code null} or unrecognised
@@ -30,8 +32,14 @@ public interface AiAnalyzerStrategy {
      * @throws com.bablsoft.accessflow.ai.api.AiAnalysisParseException provider response did not
      *                                                                match the expected schema
      */
-    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                             UUID aiConfigId);
+    AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                             String costEstimateContext, String language, UUID aiConfigId);
+
+    /** Convenience overload for callers with no cost-estimate context. */
+    default AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                     String language, UUID aiConfigId) {
+        return analyze(sql, dbType, schemaContext, null, language, aiConfigId);
+    }
 
     /**
      * Translate the natural-language {@code prompt} into a single SQL statement for the target

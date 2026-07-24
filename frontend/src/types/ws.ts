@@ -12,6 +12,7 @@ export type WsEventName =
   | 'review.decision_made'
   | 'query.executed'
   | 'ai.analysis_complete'
+  | 'query.estimate_complete'
   | 'notification.created'
   | 'anomaly.detected'
   | 'collab.joined'
@@ -62,6 +63,10 @@ export interface WsEventPayloadMap {
     query_id: string;
     risk_level: RiskLevel | null;
     risk_score: number | null;
+  };
+  'query.estimate_complete': {
+    query_id: string;
+    supported: boolean;
   };
   'notification.created': {
     notification_id: string;
@@ -152,6 +157,7 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'review.decision_made',
   'query.executed',
   'ai.analysis_complete',
+  'query.estimate_complete',
   'notification.created',
   'anomaly.detected',
   'collab.joined',

@@ -76,7 +76,7 @@ class DefaultQueryExecutorTest {
     private final ProxyPoolProperties properties = new ProxyPoolProperties(
             null, null, null, null, null,
             new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, null,
-                    null, null, null));
+                    null, null, null), null);
     private final AtomicLong nanos = new AtomicLong();
     private final Clock clock = Clock.fixed(Instant.parse("2026-05-05T12:00:00Z"), ZoneOffset.UTC);
 
@@ -358,7 +358,7 @@ class DefaultQueryExecutorTest {
         var chunkedProperties = new ProxyPoolProperties(
                 null, null, null, null, null,
                 new ProxyPoolProperties.Execution(10_000, Duration.ofSeconds(30), 1_000, 2,
-                        null, null, null));
+                        null, null, null), null);
         var healthRegistry = new ReplicaHealthRegistry(clock,
                 new ProxyReplicaProperties(null, null, null));
         var router = new RoutingDataSourceResolver(poolManager, healthRegistry, lookupService,
@@ -676,6 +676,68 @@ class DefaultQueryExecutorTest {
         return new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
                 DbType.POSTGRESQL, "h", 5432, "db", "u", "ENC", SslMode.DISABLE, 10, maxRows,
                 false, null, false, null, null, null, null, null, null, true);
+    }
+
+    @Test
+    void countAffectedRowsRelationalRewritesDeleteIntoGovernedCount() throws SQLException {
+        var rs = mock(ResultSet.class);
+        var metadata = mock(ResultSetMetaData.class);
+        when(metadata.getColumnCount()).thenReturn(1);
+        when(metadata.getColumnLabel(1)).thenReturn("count");
+        when(metadata.getColumnType(1)).thenReturn(Types.BIGINT);
+        when(metadata.getColumnTypeName(1)).thenReturn("int8");
+        when(rs.getMetaData()).thenReturn(metadata);
+        when(rs.getObject(1)).thenReturn(90L);
+        when(rs.getLong(1)).thenReturn(90L);
+        when(rs.next()).thenReturn(true, false);
+        when(statement.executeQuery()).thenReturn(rs);
+        when(engineCatalog.isEngineManaged(DbType.POSTGRESQL)).thenReturn(false);
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "DELETE FROM users WHERE active = false", QueryType.DELETE, null, null);
+
+        var result = executor.countAffectedRows(request);
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(90L);
+        verify(connection).prepareStatement(
+                "SELECT COUNT(*) FROM users WHERE active = false");
+        verify(statement, never()).executeLargeUpdate();
+    }
+
+    @Test
+    void countAffectedRowsUnsupportedForJoinShapes() {
+        when(engineCatalog.isEngineManaged(DbType.POSTGRESQL)).thenReturn(false);
+
+        var result = executor.countAffectedRows(new QueryExecutionRequest(datasourceId,
+                "DELETE FROM orders USING users WHERE orders.user_id = users.id",
+                QueryType.DELETE, null, null));
+
+        assertThat(result.supported()).isFalse();
+    }
+
+    @Test
+    void countAffectedRowsEngineManagedDispatchesToEngine() {
+        var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
+        var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(engineCatalog.isEngineManaged(DbType.MONGODB)).thenReturn(true);
+        when(engineCatalog.engineFor(DbType.MONGODB)).thenReturn(engine);
+        var expected = com.bablsoft.accessflow.core.api.QueryAffectedRowsResult.of(
+                "mongodb", 42L, Duration.ZERO);
+        when(engine.countAffectedRows(org.mockito.ArgumentMatchers.any())).thenReturn(expected);
+
+        var result = executor.countAffectedRows(new QueryExecutionRequest(datasourceId,
+                "db.users.deleteMany({})", QueryType.DELETE, null, null));
+
+        assertThat(result).isSameAs(expected);
+        var captor = org.mockito.ArgumentCaptor.forClass(
+                com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest.class);
+        verify(engine).countAffectedRows(captor.capture());
+        assertThat(captor.getValue().descriptor()).isSameAs(mongoDescriptor);
+        assertThat(captor.getValue().effectiveTimeout()).isEqualTo(Duration.ofSeconds(30));
     }
 
     private static ResultSet emptyResultSet() throws SQLException {

@@ -66,6 +66,11 @@ public class QueryRequestEntity {
     @Column(name = "ai_analysis_id")
     private UUID aiAnalysisId;
 
+    // FK to query_estimates (AF-624) — bare UUID for the same circular-reference reason;
+    // the DB constraint is added in V128 after query_estimates is created.
+    @Column(name = "query_estimate_id")
+    private UUID queryEstimateId;
+
     // Bare UUID to access_grant_request (#582) — the grant row's lifecycle (expiry, revocation)
     // is independent of this query's audit trail, so no FK.
     @Column(name = "approved_by_grant_id")

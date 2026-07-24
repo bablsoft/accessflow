@@ -48,7 +48,18 @@ public class RoutingConditionEvaluator {
                             && c.operator().test(ctx.minutesSinceLastApproval(), c.minutes());
             case ConditionNode.CiCdOrigin c -> ctx.ciCdOrigin() == c.expected();
             case ConditionNode.AnomalyDetected c -> ctx.anomalyActive() == c.expected();
+            case ConditionNode.EstimatedRows c ->
+                    ctx.hasEstimateSignal() && c.operator().test(ctx.estimatedRows(), c.value());
+            case ConditionNode.ScanTypeMatches c -> matchesScanType(c, ctx);
         };
+    }
+
+    private static boolean matchesScanType(ConditionNode.ScanTypeMatches c, ConditionContext ctx) {
+        String scanType = ctx.scanType();
+        if (scanType == null) {
+            return false;
+        }
+        return c.patterns().stream().anyMatch(pattern -> GlobMatcher.matches(pattern, scanType));
     }
 
     private static boolean matchesUserAgent(ConditionNode.UserAgentMatches c, ConditionContext ctx) {

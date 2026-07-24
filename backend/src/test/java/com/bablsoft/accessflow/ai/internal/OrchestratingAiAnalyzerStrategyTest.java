@@ -48,9 +48,9 @@ class OrchestratingAiAnalyzerStrategyTest {
 
     @Test
     void aggregatesAllSuccessfulMembersAndSumsTokens() {
-        when(primaryStrategy.analyze(any(), any(), any(), any(), any()))
+        when(primaryStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenReturn(result(AiProviderType.ANTHROPIC, "claude", 40, RiskLevel.MEDIUM, 100, 20));
-        when(memberStrategy.analyze(any(), any(), any(), any(), any()))
+        when(memberStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenReturn(result(AiProviderType.OLLAMA, "llama", 80, RiskLevel.CRITICAL, 50, 10));
 
         var orchestrator = orchestrator(VotingStrategy.MAX_RISK,
@@ -75,9 +75,9 @@ class OrchestratingAiAnalyzerStrategyTest {
 
     @Test
     void partialFailureAggregatesSurvivorsAndRecordsFailedMember() {
-        when(primaryStrategy.analyze(any(), any(), any(), any(), any()))
+        when(primaryStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenReturn(result(AiProviderType.ANTHROPIC, "claude", 55, RiskLevel.HIGH, 100, 20));
-        when(memberStrategy.analyze(any(), any(), any(), any(), any()))
+        when(memberStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("provider down"));
 
         var orchestrator = orchestrator(VotingStrategy.WEIGHTED_AVERAGE,
@@ -97,9 +97,9 @@ class OrchestratingAiAnalyzerStrategyTest {
 
     @Test
     void rethrowsWhenEveryMemberFails() {
-        when(primaryStrategy.analyze(any(), any(), any(), any(), any()))
+        when(primaryStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("p1 down"));
-        when(memberStrategy.analyze(any(), any(), any(), any(), any()))
+        when(memberStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("p2 down"));
 
         var orchestrator = orchestrator(VotingStrategy.WEIGHTED_AVERAGE,
@@ -112,7 +112,7 @@ class OrchestratingAiAnalyzerStrategyTest {
 
     @Test
     void singleMemberDegeneratesToThatMemberWithOneBreakdownRow() {
-        when(primaryStrategy.analyze(any(), any(), any(), any(), any()))
+        when(primaryStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenReturn(result(AiProviderType.OPENAI, "gpt", 30, RiskLevel.MEDIUM, 10, 5));
 
         var orchestrator = orchestrator(VotingStrategy.WEIGHTED_AVERAGE,
@@ -149,7 +149,7 @@ class OrchestratingAiAnalyzerStrategyTest {
         when(steppingClock.instant()).thenReturn(
                 Instant.parse("2026-01-01T00:00:00Z"),
                 Instant.parse("2026-01-01T00:00:00.250Z"));
-        when(primaryStrategy.analyze(any(), any(), any(), any(), any()))
+        when(primaryStrategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenReturn(result(AiProviderType.OPENAI, "gpt", 30, RiskLevel.MEDIUM, 10, 5));
 
         var orchestrator = new OrchestratingAiAnalyzerStrategy(

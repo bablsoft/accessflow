@@ -46,7 +46,7 @@ class TracingAiAnalyzerStrategyTest {
     @Test
     void returnsResultAndFiresSuccessTrace() {
         var result = result();
-        when(delegate.analyze("SELECT 1", DbType.POSTGRESQL, "schema", "en", AI_CONFIG_ID)).thenReturn(result);
+        when(delegate.analyze("SELECT 1", DbType.POSTGRESQL, "schema", null, "en", AI_CONFIG_ID)).thenReturn(result);
 
         var returned = strategy().analyze("SELECT 1", DbType.POSTGRESQL, "schema", "en", AI_CONFIG_ID);
 
@@ -60,7 +60,7 @@ class TracingAiAnalyzerStrategyTest {
 
     @Test
     void firesErrorTraceAndRethrowsOnFailure() {
-        when(delegate.analyze(any(), any(), any(), any(), any()))
+        when(delegate.analyze(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new AiAnalysisException("boom"));
 
         assertThatThrownBy(() -> strategy().analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID))
@@ -76,7 +76,7 @@ class TracingAiAnalyzerStrategyTest {
     @Test
     void tracerFailureDoesNotBreakAnalysis() {
         var result = result();
-        when(delegate.analyze(any(), any(), any(), any(), any())).thenReturn(result);
+        when(delegate.analyze(any(), any(), any(), any(), any(), any())).thenReturn(result);
         org.mockito.Mockito.doThrow(new RuntimeException("tracer down")).when(tracer).trace(any());
 
         var returned = strategy().analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
@@ -86,9 +86,9 @@ class TracingAiAnalyzerStrategyTest {
 
     @Test
     void delegateInvokedExactlyOnce() {
-        when(delegate.analyze(any(), any(), any(), any(), any())).thenReturn(result());
+        when(delegate.analyze(any(), any(), any(), any(), any(), any())).thenReturn(result());
         strategy().analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID);
-        verify(delegate).analyze(any(), any(), any(), any(), any());
+        verify(delegate).analyze(any(), any(), any(), any(), any(), any());
     }
 
     @Test

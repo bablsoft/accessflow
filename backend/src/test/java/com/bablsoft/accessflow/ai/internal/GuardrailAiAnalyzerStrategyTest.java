@@ -72,23 +72,23 @@ class GuardrailAiAnalyzerStrategyTest {
 
     @Test
     void allowsAnalyzeWhenNoPatternMatches() {
-        when(delegate.analyze(any(), any(), any(), any(), any())).thenReturn(result());
+        when(delegate.analyze(any(), any(), any(), any(), any(), any())).thenReturn(result());
 
         var returned = guardrail("drop\\s+table")
                 .analyze("SELECT 1", DbType.POSTGRESQL, null, "en", CONFIG_ID);
 
         assertThat(returned).isNotNull();
-        verify(delegate).analyze(any(), any(), any(), any(), any());
+        verify(delegate).analyze(any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void emptyPatternsPassThrough() {
-        when(delegate.analyze(any(), any(), any(), any(), any())).thenReturn(result());
+        when(delegate.analyze(any(), any(), any(), any(), any(), any())).thenReturn(result());
 
         var returned = guardrail().analyze("DROP TABLE t", DbType.POSTGRESQL, null, "en", CONFIG_ID);
 
         assertThat(returned).isNotNull();
-        verify(delegate).analyze(any(), any(), any(), any(), any());
+        verify(delegate).analyze(any(), any(), any(), any(), any(), any());
     }
 
     @Test

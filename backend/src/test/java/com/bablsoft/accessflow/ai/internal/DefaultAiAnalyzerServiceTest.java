@@ -75,6 +75,7 @@ class DefaultAiAnalyzerServiceTest {
     @Mock SqlParserService sqlParserService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock AiRateLimiter aiRateLimiter;
+    @Mock com.bablsoft.accessflow.proxy.api.QueryCostEstimateService queryCostEstimateService;
 
     private final SystemPromptRenderer promptRenderer = new SystemPromptRenderer();
     private final AiResponseParser responseParser = new AiResponseParser(JsonMapper.builder().build());
@@ -97,7 +98,7 @@ class DefaultAiAnalyzerServiceTest {
                 datasourceLookupService, datasourceAdminService, queryRequestLookupService,
                 permissionLookupService, aiAnalysisPersistenceService, localizationConfigService,
                 dataClassificationQueryService, sqlParserService, eventPublisher, aiRateLimiter,
-                observationRegistry, meterRegistry);
+                observationRegistry, queryCostEstimateService, meterRegistry);
         org.mockito.Mockito.lenient().when(localizationConfigService.getOrDefault(any()))
                 .thenReturn(new LocalizationConfigView(organizationId, List.of("en"), "en", "en"));
         org.mockito.Mockito.lenient().when(aiConfigRepository.findById(aiConfigId))
@@ -216,7 +217,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.MYSQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), any(), eq(aiConfigId)))
                 .thenReturn(sampleResult());
         var newAnalysisId = UUID.randomUUID();
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(newAnalysisId);
@@ -265,7 +266,7 @@ class DefaultAiAnalyzerServiceTest {
                                 100, 40, 900L, false, null),
                         new AiModelResult(AiProviderType.OLLAMA, "llama3", 50, RiskLevel.MEDIUM, 2.0,
                                 50, 20, 200L, false, null)));
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.MYSQL), any(), any(), any(), eq(aiConfigId)))
                 .thenReturn(multiModel);
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
@@ -295,7 +296,7 @@ class DefaultAiAnalyzerServiceTest {
                 .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT * FROM users"),
                         Set.of("users")));
         // LLM verdict is MEDIUM/60; PCI adds +30 → 90 → CRITICAL.
-        when(strategy.analyze(any(), any(), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(any(), any(), any(), any(), any(), eq(aiConfigId)))
                 .thenReturn(new AiAnalysisResult(60, RiskLevel.MEDIUM, "s", List.of(), false, null,
                         AiProviderType.ANTHROPIC, "model-x", 1, 1, List.of()));
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
@@ -328,7 +329,7 @@ class DefaultAiAnalyzerServiceTest {
                 .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT id FROM users"),
                         Set.of("users")));
         ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        when(strategy.analyze(eq("SELECT id FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(),
+        when(strategy.analyze(eq("SELECT id FROM users"), eq(DbType.POSTGRESQL), contextCaptor.capture(), any(),
                 any(), eq(aiConfigId))).thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
@@ -378,7 +379,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(any(), any(), any(), any(), any(), eq(aiConfigId)))
                 .thenThrow(new AiAnalysisException("provider down"));
 
         service.analyzeSubmittedQuery(queryRequestId);
@@ -401,7 +402,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(any(), any(), any(), any(), any(), eq(aiConfigId)))
                 .thenThrow(new AiAnalysisParseException("bad json"));
 
         service.analyzeSubmittedQuery(queryRequestId);
@@ -417,13 +418,13 @@ class DefaultAiAnalyzerServiceTest {
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId))
                 .thenThrow(new RuntimeException("connection refused"));
-        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), eq(aiConfigId)))
+        when(strategy.analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), any(), eq(aiConfigId)))
                 .thenReturn(sampleResult());
         when(aiAnalysisPersistenceService.persist(eq(queryRequestId), any())).thenReturn(UUID.randomUUID());
 
         service.analyzeSubmittedQuery(queryRequestId);
 
-        verify(strategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), eq(aiConfigId));
+        verify(strategy).analyze(eq("SELECT 1"), eq(DbType.POSTGRESQL), eq(null), any(), any(), eq(aiConfigId));
         verify(eventPublisher).publishEvent(any(AiAnalysisCompletedEvent.class));
     }
 
@@ -459,7 +460,7 @@ class DefaultAiAnalyzerServiceTest {
         when(queryRequestLookupService.findById(queryRequestId)).thenReturn(Optional.of(snapshot));
         when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.of(descriptor(DbType.POSTGRESQL)));
         when(datasourceAdminService.introspectSchemaForSystem(datasourceId, organizationId)).thenReturn(schemaView());
-        when(strategy.analyze(any(), any(), any(), any(), eq(aiConfigId)))
+        when(strategy.analyze(any(), any(), any(), any(), any(), eq(aiConfigId)))
                 .thenThrow(new AiAnalysisException("provider down"));
         when(aiConfigRepository.findById(aiConfigId)).thenThrow(new RuntimeException("db unreachable"));
 
@@ -483,6 +484,7 @@ class DefaultAiAnalyzerServiceTest {
         assertThatThrownBy(() -> service.analyzePreview(datasourceId, "SELECT 1", userId, organizationId, false))
                 .isInstanceOf(AiRateLimitExceededException.class);
         verify(strategy, never()).analyze(any(), any(), any(), any(), any());
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -505,6 +507,7 @@ class DefaultAiAnalyzerServiceTest {
         assertThat(cmd.failed()).isTrue();
         verify(eventPublisher).publishEvent(any(AiAnalysisFailedEvent.class));
         verify(strategy, never()).analyze(any(), any(), any(), any(), any());
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -525,5 +528,6 @@ class DefaultAiAnalyzerServiceTest {
         assertThat(captor.getValue().riskLevel()).isEqualTo(RiskLevel.CRITICAL);
         verify(eventPublisher).publishEvent(any(AiAnalysisFailedEvent.class));
         verify(strategy, never()).analyze(any(), any(), any(), any(), any());
+        verify(strategy, never()).analyze(any(), any(), any(), any(), any(), any());
     }
 }

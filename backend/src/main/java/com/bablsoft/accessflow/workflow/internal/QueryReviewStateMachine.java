@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
+import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
@@ -73,6 +74,7 @@ class QueryReviewStateMachine {
     private final RoutingDecisionService routingDecisionService;
     private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final AccessGrantLookupService accessGrantLookupService;
+    private final QueryEstimateLookupService queryEstimateLookupService;
     private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -294,10 +296,22 @@ class QueryReviewStateMachine {
                 .orElse(null);
         boolean anomalyActive = behaviorAnomalyLookupService.hasActiveAnomaly(
                 query.organizationId(), query.submittedByUserId(), query.datasourceId());
+        // AF-624: live, fail-closed lookup of the pre-flight estimate — the estimate pipeline runs
+        // independently of AI analysis, so whatever is persisted right now is the signal; absent /
+        // unsupported / failed rows leave both fields null and the matching conditions false.
+        Long estimatedRows = null;
+        String scanType = null;
+        var estimate = queryEstimateLookupService.findByQueryRequestId(query.id()).orElse(null);
+        if (estimate != null && !estimate.failed()) {
+            estimatedRows = estimate.affectedRowCount() != null
+                    ? estimate.affectedRowCount()
+                    : estimate.estimatedRows();
+            scanType = estimate.scanType();
+        }
         return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, roleName,
                 groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional,
                 query.submittedIp(), query.submittedUserAgent(), query.ciCdOrigin(),
-                minutesSinceLastApproval, anomalyActive);
+                minutesSinceLastApproval, anomalyActive, estimatedRows, scanType);
     }
 
     private QueryStatus decideNextStatus(ReviewPlanSnapshot plan, QueryRequestSnapshot query,

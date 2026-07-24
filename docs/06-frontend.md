@@ -240,6 +240,7 @@ Full detail view for any query:
 - When `status === 'TIMED_OUT'`, a warning callout above the SQL block names the review plan, the configured `approval_timeout_hours`, and how long ago the timeout fired. The metadata sidebar surfaces `plan` / `timeout.hours` for any query whose datasource has a review plan, regardless of status. Status-pill colour and label come from `statusColors.ts` (`TIMED_OUT` → warn-amber palette, label "TIMED OUT").
 - When `ai_analysis.failed === true` (AF-249), a warning `Alert` at the top of the main column tells the reviewer that AI analysis didn't complete and that review is proceeding without an AI recommendation; the analyzer's reason is shown both in the banner detail and in a dedicated failure variant of the AI accordion. The `RiskPill` in the accordion header switches to a neutral grey "AI N/A" variant (`failed` prop on `RiskPill`). For `REVIEWER` / `ADMIN` callers a primary "Re-analyze" button (in both the banner and the accordion) calls `POST /queries/{id}/reanalyze`; the page invalidates its TanStack Query entries on success and picks up the new analysis via the existing `ai.analysis_complete` WebSocket event. The list page (`QueryListPage`) renders the same "AI N/A" pill in the risk column when `ai_failed=true` on the list row, so a CRITICAL-looking sentinel is never mistaken for a real risk verdict.
 - When the latest entry in `review_decisions[]` has `decision: REQUESTED_CHANGES` AND the query is still `PENDING_REVIEW` (AF-269), an info `Alert` at the top of the main column tells the submitter that the reviewer asked for changes — body interpolates `{{reviewer}}`, `{{when}}`, and `{{comment}}`. The reviewer decision panel itself requires a non-empty comment for both **Reject** (disabled until typed) and **Request changes** (already disabled); approving still allows an empty comment. The rejected stage of `ApprovalTimeline` carries the last `REJECTED` decision's comment (wrapped in `"…"` so the existing italic style in [ApprovalTimeline.tsx](../frontend/src/components/review/ApprovalTimeline.tsx) applies).
+- **Cost-estimate card** (AF-624) — a "Cost estimate" `DetailCard` (`components/review/CostEstimatePanel.tsx`) renders the query's persisted pre-flight blast-radius estimate from `cost_estimate` on `GET /queries/{id}`: the exact affected-row count for UPDATE/DELETE ("Affected rows (exact)"), the plan's estimated rows / scan type / cost, and the execution-plan tree (reusing the editor's `PlanTree` + `utils/queryPlan.ts`), falling back to the raw plan text. State machine mirrors the AI card: while `status === 'PENDING_AI'` and `cost_estimate` is null it shows "Computing the cost estimate…"; a null estimate past that shows "No cost estimate is available for this query."; `supported=false` renders the localized `unsupported_reason` (still showing the exact count when one was computed); `failed=true` renders a warning with `error_message`. The `query.estimate_complete` WebSocket event invalidates `['queries','detail',id]` so the panel fills in without polling.
 - When `ai_analysis === null` and the query has already advanced out of `PENDING_AI` (AF-307), the AI step is rendered as **bypassed** rather than waiting. The card title becomes "AI analysis (skipped)" with a muted body — "AI analysis was skipped — this datasource has AI analysis disabled." — and the `ApprovalTimeline` shows a gray stage labeled "AI analysis skipped" (dot uses `--fg-muted`). The skipped state is derived on the frontend (`!ai_analysis && status !== 'PENDING_AI'`); the backend persists no `ai_analyses` row on the skip path. While the query is still in `PENDING_AI`, the original "Awaiting analysis…" fallback continues to render.
 
 ### DatasourceCreateWizardPage *(ADMIN)*
@@ -651,6 +652,7 @@ useEffect(() =>
 | `query.status_changed` | `['queries','detail',query_id]` and `['queries','list']`                    |
 | `query.executed`       | `['queries','detail',query_id]` and `['queries','list']`                    |
 | `ai.analysis_complete` | `['queries','detail',query_id]`                                             |
+| `query.estimate_complete` | `['queries','detail',query_id]`                                          |
 | `review.new_request`   | `['reviews','pending']`                                                     |
 | `review.decision_made` | `['reviews','pending']` and `['queries','detail',query_id]`                 |
 | `notification.created` | `['notifications','list']` and `['notifications','unread-count']`           |
@@ -834,8 +836,10 @@ conditions, each optionally negated (NOT); there is no raw-JSON editor. API acce
 [frontend/src/api/routingPolicies.ts](../frontend/src/api/routingPolicies.ts); the form↔wire mapping
 helper is [frontend/src/pages/admin/routingPolicyForm.ts](../frontend/src/pages/admin/routingPolicyForm.ts);
 types (`RoutingPolicy`, `RoutingCondition`, `RoutingAction`, …) live in `src/types/api.ts`.
-`QueryDetailPage` shows a **matched-policy** alert when `GET /queries/{id}` returns a non-null
-`matched_policy`.
+The builder covers the `estimated_rows` (comparison operator + row count) and `scan_type`
+(glob tags, e.g. `Seq*`, `COLLSCAN`) pre-flight-estimate operands (AF-624) alongside the
+original leaf set. `QueryDetailPage` shows a **matched-policy** alert when `GET /queries/{id}`
+returns a non-null `matched_policy`.
 
 ### OAuth 2.0 sign-in
 

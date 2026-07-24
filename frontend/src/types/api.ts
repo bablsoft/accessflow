@@ -75,7 +75,9 @@ export type RoutingConditionOperand =
   | 'source_ip'
   | 'user_agent'
   | 'time_since_last_approval'
-  | 'cicd_origin';
+  | 'cicd_origin'
+  | 'estimated_rows'
+  | 'scan_type';
 export type Weekday =
   | 'MONDAY'
   | 'TUESDAY'
@@ -1145,6 +1147,24 @@ export interface AiAnalysisDetail {
   error_message: string | null;
 }
 
+/** Persisted pre-flight cost / blast-radius estimate on a submitted query (AF-624). */
+export interface CostEstimateDetail {
+  id: string;
+  engine_id: string | null;
+  query_type: QueryType | null;
+  supported: boolean;
+  estimated_rows: number | null;
+  affected_row_count: number | null;
+  scan_type: string | null;
+  estimated_cost: number | null;
+  plan: QueryPlanNode | null;
+  raw_plan: string | null;
+  unsupported_reason: string | null;
+  failed: boolean;
+  error_message: string | null;
+  duration_ms: number | null;
+}
+
 export interface ReviewDecisionDetail {
   id: string;
   reviewer: UserRef;
@@ -1164,6 +1184,7 @@ export interface QueryDetail {
   status: QueryStatus;
   justification: string;
   ai_analysis: AiAnalysisDetail | null;
+  cost_estimate: CostEstimateDetail | null;
   rows_affected: number | null;
   duration_ms: number | null;
   error_message: string | null;
@@ -1231,7 +1252,9 @@ export type RoutingCondition =
   | { type: 'source_ip'; cidrs: string[] }
   | { type: 'user_agent'; patterns: string[] }
   | { type: 'time_since_last_approval'; operator: ComparisonOperator; minutes: number }
-  | { type: 'cicd_origin'; expected: boolean };
+  | { type: 'cicd_origin'; expected: boolean }
+  | { type: 'estimated_rows'; operator: ComparisonOperator; value: number }
+  | { type: 'scan_type'; patterns: string[] };
 
 export interface RoutingPolicy {
   id: string;

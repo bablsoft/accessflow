@@ -28,6 +28,7 @@ public record QueryDetailResponse(
         QueryStatus status,
         String justification,
         AiAnalysisDetail aiAnalysis,
+        CostEstimateDetail costEstimate,
         Long rowsAffected,
         Integer durationMs,
         String errorMessage,
@@ -68,6 +69,7 @@ public record QueryDetailResponse(
                 view.status(),
                 view.justification(),
                 AiAnalysisDetail.from(view.aiAnalysis()),
+                CostEstimateDetail.from(view.costEstimate()),
                 view.rowsAffected(),
                 view.durationMs(),
                 view.errorMessage(),
@@ -185,6 +187,48 @@ public record QueryDetailResponse(
                     src.completionTokens(),
                     src.failed(),
                     src.errorMessage());
+        }
+    }
+
+    /**
+     * The persisted pre-flight cost / blast-radius estimate (AF-624). {@code plan} embeds the
+     * stored snake_case plan-tree JSON raw (same shape as the dry-run endpoint's {@code plan}).
+     */
+    public record CostEstimateDetail(
+            UUID id,
+            String engineId,
+            QueryType queryType,
+            boolean supported,
+            Long estimatedRows,
+            Long affectedRowCount,
+            String scanType,
+            Double estimatedCost,
+            @JsonRawValue String plan,
+            String rawPlan,
+            String unsupportedReason,
+            boolean failed,
+            String errorMessage,
+            Integer durationMs) {
+
+        static CostEstimateDetail from(QueryDetailView.CostEstimateDetail src) {
+            if (src == null) {
+                return null;
+            }
+            return new CostEstimateDetail(
+                    src.id(),
+                    src.engineId(),
+                    src.queryType(),
+                    src.supported(),
+                    src.estimatedRows(),
+                    src.affectedRowCount(),
+                    src.scanType(),
+                    src.estimatedCost(),
+                    src.planJson(),
+                    src.rawPlan(),
+                    src.unsupportedReason(),
+                    src.failed(),
+                    src.errorMessage(),
+                    src.durationMs());
         }
     }
 

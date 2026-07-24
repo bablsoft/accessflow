@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
@@ -273,6 +274,51 @@ class Neo4jQueryEngineIntegrationTest {
         var result = dryRun("MATCH (u:User) RETURN u", List.of(directive));
         assertThat(result.supported()).isTrue();
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void countAffectedRowsForUpdateCountsMatchedNodesWithoutMutating() {
+        var result = countAffected("MATCH (u:User) WHERE u.id > 10 SET u.flag = true", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(2);
+        assertThat(result.engineId()).isEqualTo("neo4j");
+        var flagged = (SelectExecutionResult) run("MATCH (u:User) WHERE u.flag = true RETURN u");
+        assertThat(flagged.rowCount()).isZero();
+    }
+
+    @Test
+    void countAffectedRowsAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "User", "region",
+                RowSecurityOperator.EQUALS, List.of("EU"));
+        var result = countAffected("MATCH (u:User) DETACH DELETE u", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(2);
+        assertThat(((SelectExecutionResult) run("MATCH (u:User) RETURN u")).rowCount()).isEqualTo(3);
+    }
+
+    @Test
+    void countAffectedRowsFailsClosedOnMerge() {
+        var result = countAffected("MERGE (u:User {id: 10}) SET u.seen = true", List.of());
+        assertThat(result.supported()).isFalse();
+        assertThat(result.affectedRows()).isNull();
+    }
+
+    @Test
+    void countAffectedRowsFailsClosedOnUnrewritableRowSecurityShape() {
+        run("MATCH (u:User {id: 10}) CREATE (u)-[:PLACED]->(:Order {id: 1})");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "Order", "id",
+                RowSecurityOperator.EQUALS, List.of(1));
+        var result = countAffected("MATCH (u:User)-[:PLACED]->(:Order) DELETE u", List.of(directive));
+        assertThat(result.supported()).isFalse();
+    }
+
+    private static QueryAffectedRowsResult countAffected(String query,
+                                                         List<RowSecurityDirective> rls) {
+        var type = engine.parse(query).type();
+        var request = new QueryExecutionRequest(descriptor.id(), query, type, null, null,
+                List.of(), List.of(), rls, false, List.of(query));
+        return engine.countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
     }
 
     private static QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {

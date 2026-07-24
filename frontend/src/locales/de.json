@@ -523,6 +523,15 @@
     "no_plan": "Die Engine hat keinen Plan für diese Abfrage zurückgegeben.",
     "rerun_button": "Erneut ausführen"
   },
+  "cost_estimate_panel": {
+    "pending": "Kostenschätzung wird berechnet…",
+    "unavailable": "Für diese Abfrage ist keine Kostenschätzung verfügbar.",
+    "failed": "Kostenschätzung fehlgeschlagen",
+    "affected_rows_label": "Betroffene Zeilen (exakt)",
+    "est_rows_label": "Geschätzte Zeilen",
+    "scan_type_label": "Scan-Typ",
+    "cost_label": "Geschätzte Kosten"
+  },
   "ai_panel": {
     "title": "KI-Analyse",
     "disabled_badge": "deaktiviert",
@@ -577,6 +586,7 @@
       "card_justification": "Begründung",
       "no_justification": "Der Antragsteller hat keine Begründung angegeben.",
       "card_ai": "KI-Analyse",
+      "card_cost_estimate": "Kostenschätzung",
       "ai_awaiting": "Warten auf Analyse…",
       "ai_failed_banner_title": "KI-Analyse fehlgeschlagen",
       "ai_failed_banner_detail": "Die Prüfung läuft ohne KI-Empfehlung weiter. Grund: {{reason}}",
@@ -1952,7 +1962,8 @@
       "cidr_invalid": "Kein gültiger CIDR-Block: {{value}}",
       "user_agent_placeholder": "z. B. *curl*, *GitHubActions*",
       "minutes_suffix": "Min.",
-      "cicd_present_label": "Ist CI/CD-Herkunft"
+      "cicd_present_label": "Ist CI/CD-Herkunft",
+      "scan_type_placeholder": "z. B. Seq Scan, COLLSCAN, Index*"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2365,7 +2376,9 @@
       "source_ip": "Quell-IP / CIDR",
       "user_agent": "User-Agent",
       "time_since_last_approval": "Zeit seit letzter Genehmigung",
-      "cicd_origin": "CI/CD-Herkunft"
+      "cicd_origin": "CI/CD-Herkunft",
+      "estimated_rows": "Geschätzte Zeilen",
+      "scan_type": "Scan-Typ"
     },
     "row_security_operator": {
       "EQUALS": "=",

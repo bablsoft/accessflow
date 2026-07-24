@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-neo4j-1.0.2-all.jar",
-    "fileName": "accessflow-engine-neo4j-1.0.2-all.jar",
-    "sha256": "9cf3f86e833e2556b2d07fd52fc0d3cb65cdec64c3e8bc61d1f039ae9afaed02"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-neo4j-1.0.3-all.jar",
+    "fileName": "accessflow-engine-neo4j-1.0.3-all.jar",
+    "sha256": "be6078ffff601e4e4d45a2c03177874345dafb1153da3521536411ad7e0f9870"
   }
 }

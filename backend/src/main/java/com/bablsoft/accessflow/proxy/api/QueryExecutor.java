@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.api;
 
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -9,6 +10,16 @@ import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 public interface QueryExecutor {
 
     QueryExecutionResult execute(QueryExecutionRequest request);
+
+    /**
+     * Count the rows the request's UPDATE/DELETE would affect (issue AF-624) <em>without</em>
+     * mutating data, applying the request's row-security directives. For relational datasources
+     * the executor rewrites the statement into a governed {@code SELECT COUNT(*)}; for
+     * engine-managed datasources it delegates to {@code QueryEngine.countAffectedRows}. Statement
+     * shapes that cannot be provably counted (joins, {@code USING} lists) and engines with no
+     * count concept return a {@link QueryAffectedRowsResult} with {@code supported=false}.
+     */
+    QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request);
 
     /**
      * Produce a non-committing execution plan + best-effort estimated row impact for the request's

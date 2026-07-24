@@ -85,18 +85,19 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             what a reviewer should check. Do not use markdown, headings, or bullet points.""";
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID aiConfigId) {
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                    String costEstimateContext, String language, UUID aiConfigId) {
         if (aiConfigId == null) {
             throw notConfigured();
         }
         try {
-            return delegateFor(aiConfigId).analyze(sql, dbType, schemaContext, language, aiConfigId);
+            return delegateFor(aiConfigId).analyze(sql, dbType, schemaContext, costEstimateContext,
+                    language, aiConfigId);
         } catch (AiAnalysisException | AiAnalysisParseException primary) {
             rethrowIfNotFallbackEligible(primary);
             return failover(aiConfigId, primary, fallback ->
-                    delegateFor(fallback.getId()).analyze(sql, dbType, schemaContext, language,
-                            fallback.getId()));
+                    delegateFor(fallback.getId()).analyze(sql, dbType, schemaContext,
+                            costEstimateContext, language, fallback.getId()));
         }
     }
 

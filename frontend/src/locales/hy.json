@@ -523,6 +523,15 @@
     "no_plan": "Շարժիչը այս հարցման համար պլան չվերադարձրեց։",
     "rerun_button": "Կրկին գործարկել"
   },
+  "cost_estimate_panel": {
+    "pending": "Հաշվարկվում է արժեքի գնահատումը…",
+    "unavailable": "Այս հարցման համար արժեքի գնահատում հասանելի չէ։",
+    "failed": "Արժեքի գնահատումը ձախողվեց",
+    "affected_rows_label": "Ազդված տողեր (ճշգրիտ)",
+    "est_rows_label": "Գնահատված տողեր",
+    "scan_type_label": "Սկանավորման տեսակ",
+    "cost_label": "Գնահատված արժեք"
+  },
   "ai_panel": {
     "title": "AI վերլուծություն",
     "disabled_badge": "անջատված",
@@ -577,6 +586,7 @@
       "card_justification": "Հիմնավորում",
       "no_justification": "Հայցողը հիմնավորում չի տրամադրել։",
       "card_ai": "AI վերլուծություն",
+      "card_cost_estimate": "Արժեքի գնահատում",
       "ai_awaiting": "Սպասում է վերլուծության…",
       "ai_failed_banner_title": "AI վերլուծությունը ձախողվեց",
       "ai_failed_banner_detail": "Վերանայումը շարունակվում է առանց AI առաջարկության։ Պատճառ՝ {{reason}}",
@@ -1952,7 +1962,8 @@
       "cidr_invalid": "Անվավեր CIDR բլոկ՝ {{value}}",
       "user_agent_placeholder": "օր. *curl*, *GitHubActions*",
       "minutes_suffix": "ր",
-      "cicd_present_label": "CI/CD ծագում"
+      "cicd_present_label": "CI/CD ծագում",
+      "scan_type_placeholder": "օր.՝ Seq Scan, COLLSCAN, Index*"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2365,7 +2376,9 @@
       "source_ip": "Աղբյուրի IP / CIDR",
       "user_agent": "User-Agent",
       "time_since_last_approval": "Ժամանակ վերջին հաստատումից",
-      "cicd_origin": "CI/CD ծագում"
+      "cicd_origin": "CI/CD ծագում",
+      "estimated_rows": "Գնահատված տողեր",
+      "scan_type": "Սկանավորման տեսակ"
     },
     "row_security_operator": {
       "EQUALS": "=",

@@ -1,12 +1,14 @@
 package com.bablsoft.accessflow.engine.neo4j;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Result;
@@ -103,6 +105,42 @@ class Neo4jQueryExecutor {
             Long estimatedRows = estimate != null ? Math.round(estimate) : null;
             return QueryDryRunResult.of(Neo4jQueryEngine.ENGINE_ID, statement.kind().queryType(),
                     estimatedRows, plan, null, applied.appliedPolicyIds(), durationSince(start));
+        } catch (Neo4jException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    /**
+     * Governed affected-row count for an UPDATE / DELETE (issue AF-624): derives the statement's
+     * non-mutating {@code MATCH … RETURN count(*)} read prefix via {@link CypherAffectedCountDeriver},
+     * applies the request's row-security directives to it exactly as {@link #execute} does (any shape
+     * the applier rejects degrades to unsupported), and runs it in a read transaction bounded by the
+     * host-computed timeout. Genuine server / connection errors translate like every other path.
+     */
+    QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request,
+                                              DatasourceConnectionDescriptor descriptor,
+                                              Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        var countCypher = CypherAffectedCountDeriver.derive(statement);
+        if (countCypher == null) {
+            return QueryAffectedRowsResult.unsupported(Neo4jQueryEngine.ENGINE_ID);
+        }
+        Neo4jRowSecurityApplier.Applied applied;
+        try {
+            applied = rowSecurityApplier.apply(parser.parseStatement(countCypher),
+                    request.rowSecurityPredicates());
+        } catch (UnrewritableRowSecurityException ex) {
+            // Fail closed: a shape the execute path would reject must never yield a count.
+            return QueryAffectedRowsResult.unsupported(Neo4jQueryEngine.ENGINE_ID);
+        }
+        var driver = driverManager.driver(descriptor);
+        var txConfig = TransactionConfig.builder().withTimeout(timeout).build();
+        var query = new Query(applied.cypher(), applied.parameters());
+        try (Session session = driver.session(Neo4jConnectionProbe.sessionConfig(descriptor))) {
+            long count = session.executeRead(tx -> tx.run(query).single().get(0).asLong(), txConfig);
+            return QueryAffectedRowsResult.of(Neo4jQueryEngine.ENGINE_ID, count,
+                    durationSince(start));
         } catch (Neo4jException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

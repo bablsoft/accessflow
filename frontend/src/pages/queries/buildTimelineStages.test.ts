@@ -39,6 +39,7 @@ function makeQuery(overrides: Partial<QueryDetail>): QueryDetail {
     status: 'PENDING_AI' as QueryStatus,
     justification: '',
     ai_analysis: null,
+    cost_estimate: null,
     rows_affected: null,
     duration_ms: null,
     error_message: null,

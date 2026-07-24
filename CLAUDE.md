@@ -286,6 +286,7 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | HikariCP `idleTimeout` (default `10m`). |
 | `ACCESSFLOW_PROXY_MAX_LIFETIME` | HikariCP `maxLifetime` (default `30m`). |
 | `ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD` | HikariCP leak-detection threshold (default `0s` = disabled). |
+| `ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT` | ISO-8601 duration. Statement timeout for the automatic pre-flight cost estimate (AF-624) — the async EXPLAIN + affected-row COUNT run after each submission use this tighter bound instead of the full execution statement timeout (default `PT5S`). |
 | `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
 | `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
 | `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
@@ -861,18 +862,20 @@ The `AiAnalyzerStrategy` interface must be implemented by all three adapters:
 ```java
 public interface AiAnalyzerStrategy {
     AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
-                             String language, UUID organizationId);
+                             String costEstimateContext, String language, UUID aiConfigId);
 }
 ```
 
 `schemaContext` may be `null` or empty when introspection is unavailable; the prompt template
-substitutes `(no schema introspection available)` in that case.
+substitutes `(no schema introspection available)` in that case. `costEstimateContext` (AF-624)
+carries the same contract for the pre-flight cost estimate — `null`/empty substitutes
+`(no cost estimate available)`.
 
 - Adapters route their HTTP calls through **Spring AI 2.0** (`spring-ai-bom:2.0.0`). The autowired `AiAnalyzerStrategy` is `AiAnalyzerStrategyHolder` — it builds `AnthropicChatModel` / `OpenAiChatModel` / `OllamaChatModel` per-org from the `ai_config` row, caches the delegate, and evicts on `AiConfigUpdatedEvent` (no Spring context refresh, no restart).
 - The same Spring AI BOM also pins `spring-ai-starter-mcp-server-webmvc` (`2.0.0`) — the stateless MCP server starter used by the `mcp` module. The starter ships with `spring-ai-autoconfigure-mcp-server-common` as an explicit dependency in `backend/pom.xml` to work around a missing transitive in the starter POM (`McpServerStdioDisabledCondition` lives in the common artifact). See `docs/13-mcp.md` and `docs/05-backend.md` → "MCP server and user API keys".
 - Active provider per org is the `ai_config.provider` column. There is no `accessflow.ai.provider` property and no `@ConditionalOnProperty` on the strategy classes — they are plain classes, not Spring beans.
 - Connection settings (API key, base URL, model, max-tokens, timeout) come from `ai_config`, not from `spring.ai.*` properties. `application.yml` sets `spring.ai.model.{chat,embedding,image,audio.speech,audio.transcription,moderation}=none` so no `ChatModel` is auto-built at startup.
-- The default system prompt template (`SystemPromptRenderer.DEFAULT_TEMPLATE`) is in `docs/05-backend.md` — use it verbatim; do not invent a different prompt. It uses named placeholders `{{db_type}}`, `{{schema_context}}`, `{{sql}}`, `{{language}}` (substituted at render time; `{{sql}}` replaced last). Admins may override the prompt **per `ai_config` row** via the nullable `system_prompt_template` column (blank ⇒ default); a custom template **must contain `{{sql}}`** or the service throws `AiConfigInvalidPromptException` (HTTP 400 `AI_CONFIG_INVALID_PROMPT`). The default is served to the admin UI via `GET /admin/ai-configs/prompt-default`.
+- The default system prompt template (`SystemPromptRenderer.DEFAULT_TEMPLATE`) is in `docs/05-backend.md` — use it verbatim; do not invent a different prompt. It uses named placeholders `{{db_type}}`, `{{schema_context}}`, `{{rag_context}}`, `{{cost_estimate}}` (AF-624 — the pre-flight estimate summary), `{{sql}}`, `{{language}}` (substituted at render time; `{{sql}}` replaced last). Admins may override the prompt **per `ai_config` row** via the nullable `system_prompt_template` column (blank ⇒ default); a custom template **must contain `{{sql}}`** or the service throws `AiConfigInvalidPromptException` (HTTP 400 `AI_CONFIG_INVALID_PROMPT`). The default is served to the admin UI via `GET /admin/ai-configs/prompt-default`.
 - AI calls are asynchronous — publish a `QuerySubmittedEvent` and handle in the strategy asynchronously using virtual threads.
 - The response must be parsed strictly as JSON matching the `AiAnalysisResult` schema. If the AI returns non-JSON or an unexpected schema, log and mark the analysis as failed; do not propagate the exception to the query request.
 - For Anthropic: use `claude-sonnet-4-20250514` as the default model.

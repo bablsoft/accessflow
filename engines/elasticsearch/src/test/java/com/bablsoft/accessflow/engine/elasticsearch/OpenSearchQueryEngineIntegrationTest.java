@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -107,8 +108,17 @@ class OpenSearchQueryEngineIntegrationTest {
         var user = (Map<String, Object>) filtered.rows().get(0).get(userCol);
         assertThat((String) user.get("email")).contains("***@");
 
-        var delete = (UpdateExecutionResult) exec(
-                "{\"delete_by_query\":\"events\",\"query\":{\"term\":{\"tenant\":\"globex\"}}}",
+        // AF-624 preflight: the governed _count of the delete's pre-image, without mutating.
+        var deleteSql = "{\"delete_by_query\":\"events\",\"query\":{\"term\":{\"tenant\":\"globex\"}}}";
+        var preflight = engine.countAffectedRows(new QueryEngineDryRunRequest(
+                new QueryExecutionRequest(DS_ID, deleteSql, QueryType.DELETE, null, null, List.of(),
+                        List.of(), List.of(), false, null),
+                descriptor, Duration.ofSeconds(30)));
+        assertThat(preflight.supported()).isTrue();
+        assertThat(preflight.engineId()).isEqualTo("opensearch");
+        assertThat(preflight.affectedRows()).isEqualTo(1L);
+
+        var delete = (UpdateExecutionResult) exec(deleteSql,
                 QueryType.DELETE, List.of(), List.of());
         assertThat(delete.rowsAffected()).isEqualTo(1);
 

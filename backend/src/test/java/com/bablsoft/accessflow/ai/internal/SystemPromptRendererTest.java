@@ -201,6 +201,32 @@ class SystemPromptRendererTest {
     }
 
     @Test
+    void costEstimateContextIsSubstitutedIntoDefaultTemplate() {
+        var prompt = renderer.render(null, "DELETE FROM users", DbType.POSTGRESQL, null, null,
+                "Exact affected-row count for this DELETE: 90 rows.", "en");
+
+        assertThat(prompt).contains("Exact affected-row count for this DELETE: 90 rows.");
+        assertThat(prompt).doesNotContain("{{cost_estimate}}");
+    }
+
+    @Test
+    void costEstimateFallsBackWhenAbsent() {
+        var fromNull = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, null, null, "en");
+        var fromBlank = renderer.render(null, "SELECT 1", DbType.POSTGRESQL, null, null, "  ", "en");
+
+        assertThat(fromNull).contains("(no cost estimate available)");
+        assertThat(fromBlank).contains("(no cost estimate available)");
+    }
+
+    @Test
+    void customTemplateSubstitutesCostEstimatePlaceholder() {
+        var prompt = renderer.render("estimate={{cost_estimate}} sql={{sql}}", "SELECT 1",
+                DbType.POSTGRESQL, null, null, "~120 rows via Seq Scan", "en");
+
+        assertThat(prompt).isEqualTo("estimate=~120 rows via Seq Scan sql=SELECT 1");
+    }
+
+    @Test
     void sqlIsSubstitutedLastSoTokenStringInSqlIsNotReSubstituted() {
         // The SQL value itself contains a "{{language}}" token. Because {{sql}} is replaced last,
         // that literal must survive verbatim and must NOT be turned into the language name.
