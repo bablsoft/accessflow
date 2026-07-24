@@ -44,6 +44,9 @@ export interface RoutingConditionRow {
   ua_patterns?: string[];
   tsla_operator?: ComparisonOperator;
   tsla_minutes?: number;
+  est_operator?: ComparisonOperator;
+  est_value?: number;
+  scan_patterns?: string[];
 }
 
 export interface RoutingPolicyFormValues {
@@ -91,6 +94,10 @@ export function defaultRow(operand: RoutingConditionOperand): RoutingConditionRo
       return { ...base, tsla_operator: 'GT', tsla_minutes: 1440 };
     case 'cicd_origin':
       return { ...base, bool_value: true };
+    case 'estimated_rows':
+      return { ...base, est_operator: 'GT', est_value: 100000 };
+    case 'scan_type':
+      return { ...base, scan_patterns: [] };
     default:
       return base;
   }
@@ -166,6 +173,14 @@ function rowToLeaf(row: RoutingConditionRow): RoutingCondition {
       };
     case 'cicd_origin':
       return { type: 'cicd_origin', expected: row.bool_value ?? false };
+    case 'estimated_rows':
+      return {
+        type: 'estimated_rows',
+        operator: row.est_operator ?? 'GT',
+        value: row.est_value ?? 0,
+      };
+    case 'scan_type':
+      return { type: 'scan_type', patterns: row.scan_patterns ?? [] };
   }
 }
 
@@ -227,6 +242,15 @@ function leafToRow(node: RoutingCondition, negate: boolean): RoutingConditionRow
       };
     case 'cicd_origin':
       return { operand: 'cicd_origin', negate, bool_value: node.expected };
+    case 'estimated_rows':
+      return {
+        operand: 'estimated_rows',
+        negate,
+        est_operator: node.operator,
+        est_value: node.value,
+      };
+    case 'scan_type':
+      return { operand: 'scan_type', negate, scan_patterns: node.patterns };
     default:
       // Nested and/or/not (other than not-of-leaf) cannot be represented by the flat builder.
       return null;
@@ -342,6 +366,12 @@ function rowSummary(t: TFunction, row: RoutingConditionRow): string {
     case 'time_since_last_approval':
       value = `${comparisonOperatorLabel(t, row.tsla_operator ?? 'GT')} ${row.tsla_minutes ?? 0} `
         + t('admin.routing_policies.minutes_suffix');
+      break;
+    case 'estimated_rows':
+      value = `${comparisonOperatorLabel(t, row.est_operator ?? 'GT')} ${row.est_value ?? 0}`;
+      break;
+    case 'scan_type':
+      value = (row.scan_patterns ?? []).join(', ');
       break;
   }
   return `${prefix}${label}: ${value}`;

@@ -14,6 +14,13 @@ public enum ComparisonOperator {
      * @return {@code true} if {@code left <op> right} holds.
      */
     public boolean test(int left, int right) {
+        return test((long) left, (long) right);
+    }
+
+    /**
+     * @return {@code true} if {@code left <op> right} holds.
+     */
+    public boolean test(long left, long right) {
         return switch (this) {
             case LT -> left < right;
             case LTE -> left <= right;

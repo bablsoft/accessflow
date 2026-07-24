@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
@@ -114,6 +115,47 @@ class ElasticsearchQueryEngineIntegrationTest {
         var result = dryRun("{\"index\":\"logs-dryrun\",\"id\":\"9\",\"document\":{\"tenant\":\"x\"}}",
                 List.of());
         assertThat(result.supported()).isFalse();
+    }
+
+    private static QueryAffectedRowsResult countAffected(String sql,
+                                                         List<RowSecurityDirective> rls) {
+        var type = engine.parse(sql).type();
+        var request = new QueryExecutionRequest(DS_ID, sql, type, null, null, List.of(), List.of(),
+                rls, false, null);
+        return engine.countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
+    }
+
+    @Test
+    void countAffectedRowsCountsDeleteByQueryWithoutMutating() {
+        seed("logs-preflight");
+        var result = countAffected(
+                "{\"delete_by_query\":\"logs-preflight\",\"query\":{\"term\":{\"tenant\":\"acme\"}}}",
+                List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("elasticsearch");
+        assertThat(result.affectedRows()).isEqualTo(2L);
+        // Non-mutating preflight: all three seeded documents survive.
+        var count = (SelectExecutionResult) exec("{\"count\":\"logs-preflight\"}", QueryType.SELECT);
+        assertThat(count.rows().get(0).get(0)).isEqualTo(3L);
+    }
+
+    @Test
+    void countAffectedRowsAppliesRowSecurityToTheGovernedCount() {
+        seed("logs-preflight");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "logs-preflight", "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+        var result = countAffected("{\"update_by_query\":\"logs-preflight\"}", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(2L);
+    }
+
+    @Test
+    void countAffectedRowsIsUnsupportedForReads() {
+        seed("logs-preflight");
+        var result = countAffected("{\"search\":\"logs-preflight\"}", List.of());
+        assertThat(result.supported()).isFalse();
+        assertThat(result.engineId()).isEqualTo("elasticsearch");
     }
 
     @Test

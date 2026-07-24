@@ -586,7 +586,7 @@ class AiAnalyzerStrategyHolderTest {
 
         @Override
         public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
-                String language, UUID aiConfigId) {
+                String costEstimateContext, String language, UUID aiConfigId) {
             calls++;
             throw failure;
         }
@@ -605,7 +605,7 @@ class AiAnalyzerStrategyHolderTest {
 
         @Override
         public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
-                String language, UUID aiConfigId) {
+                String costEstimateContext, String language, UUID aiConfigId) {
             calls++;
             return new AiAnalysisResult(10, com.bablsoft.accessflow.core.api.RiskLevel.LOW, "ok",
                     List.of(), false, null, AiProviderType.OLLAMA, "test-model", 10, 5, List.of());
@@ -685,8 +685,8 @@ class AiAnalyzerStrategyHolderTest {
         int calls = 0;
 
         @Override
-        public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                        UUID aiConfigId) {
+        public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                        String costEstimateContext, String language, UUID aiConfigId) {
             calls++;
             return null;
         }

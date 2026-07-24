@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineCatalog;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
@@ -14,6 +15,7 @@ import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.proxy.internal.dryrun.AffectedRowCounter;
 import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanRequest;
 import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlanner;
 import com.bablsoft.accessflow.proxy.internal.dryrun.DryRunPlannerRegistry;
@@ -229,6 +231,41 @@ class DefaultQueryExecutor implements QueryExecutor {
             throw sqlExceptionTranslator.translate(ex, effectiveTimeout,
                     LocaleContextHolder.getLocale());
         }
+    }
+
+    @Override
+    public QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request) {
+        var descriptor = datasourceLookupService.findById(request.datasourceId())
+                .orElseThrow(() -> new DatasourceUnavailableException(
+                        msg("error.datasource_unavailable_not_found")));
+        Duration effectiveTimeout = request.statementTimeoutOverride() != null
+                ? request.statementTimeoutOverride()
+                : properties.execution().statementTimeout();
+        String engineId = descriptor.connectorId() != null
+                ? descriptor.connectorId()
+                : descriptor.dbType().name().toLowerCase(java.util.Locale.ROOT);
+
+        if (engineCatalog.isEngineManaged(descriptor.dbType())) {
+            return engineCatalog.engineFor(descriptor.dbType())
+                    .countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
+                            effectiveTimeout));
+        }
+
+        var countSql = AffectedRowCounter.toCountSql(request.sql());
+        if (countSql.isEmpty()) {
+            return QueryAffectedRowsResult.unsupported(engineId);
+        }
+        Instant start = clock.instant();
+        var result = execute(new QueryExecutionRequest(request.datasourceId(), countSql.get(),
+                QueryType.SELECT, null, effectiveTimeout, List.of(), List.of(),
+                request.rowSecurityPredicates(), false, null, List.of()));
+        if (result instanceof SelectExecutionResult select
+                && !select.rows().isEmpty()
+                && !select.rows().get(0).isEmpty()
+                && select.rows().get(0).get(0) instanceof Number count) {
+            return QueryAffectedRowsResult.of(engineId, count.longValue(), durationSince(start));
+        }
+        return QueryAffectedRowsResult.unsupported(engineId);
     }
 
     private QueryExecutionResult executeTransactional(QueryExecutionRequest request, DbType dbType,

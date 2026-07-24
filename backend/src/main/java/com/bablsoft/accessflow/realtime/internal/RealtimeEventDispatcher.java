@@ -15,6 +15,8 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.core.events.QueryEstimateCompletedEvent;
+import com.bablsoft.accessflow.core.events.QueryEstimateFailedEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
@@ -177,6 +179,29 @@ class RealtimeEventDispatcher {
                 data.putNull("risk_score");
             }
             sendTo(snapshot.submittedByUserId(), "ai.analysis_complete", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onQueryEstimateCompleted(QueryEstimateCompletedEvent event) {
+        sendEstimateComplete(event.queryRequestId(), event.supported());
+    }
+
+    @ApplicationModuleListener
+    void onQueryEstimateFailed(QueryEstimateFailedEvent event) {
+        sendEstimateComplete(event.queryRequestId(), false);
+    }
+
+    private void sendEstimateComplete(java.util.UUID queryRequestId, boolean supported) {
+        safe("query.estimate_complete", queryRequestId, () -> {
+            var snapshot = queryRequestLookupService.findById(queryRequestId).orElse(null);
+            if (snapshot == null) {
+                return;
+            }
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("query_id", queryRequestId.toString());
+            data.put("supported", supported);
+            sendTo(snapshot.submittedByUserId(), "query.estimate_complete", data);
         });
     }
 

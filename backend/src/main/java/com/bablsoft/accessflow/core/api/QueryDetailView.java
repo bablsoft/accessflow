@@ -22,6 +22,7 @@ public record QueryDetailView(
         QueryStatus status,
         String justification,
         AiAnalysisDetail aiAnalysis,
+        CostEstimateDetail costEstimate,
         Long rowsAffected,
         Integer durationMs,
         String errorMessage,
@@ -33,6 +34,22 @@ public record QueryDetailView(
         Instant scheduledFor,
         Instant createdAt,
         Instant updatedAt) {
+
+    /** Backward-compatible constructor without the AF-624 cost estimate (defaults to absent). */
+    public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
+                           UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                           String submittedByDisplayName, String sqlText, QueryType queryType,
+                           QueryStatus status, String justification, AiAnalysisDetail aiAnalysis,
+                           Long rowsAffected, Integer durationMs, String errorMessage,
+                           UUID previousRunId, UUID approvedByGrantId, String reviewPlanName,
+                           Integer approvalTimeoutHours, List<ReviewDecisionView> reviewDecisions,
+                           Instant scheduledFor, Instant createdAt, Instant updatedAt) {
+        this(id, datasourceId, datasourceName, dbType, organizationId, submittedByUserId,
+                submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
+                aiAnalysis, null, rowsAffected, durationMs, errorMessage, previousRunId,
+                approvedByGrantId, reviewPlanName, approvalTimeoutHours, reviewDecisions,
+                scheduledFor, createdAt, updatedAt);
+    }
 
     public record AiAnalysisDetail(
             UUID id,
@@ -49,6 +66,24 @@ public record QueryDetailView(
             int completionTokens,
             boolean failed,
             String errorMessage) {
+    }
+
+    /** The persisted pre-flight cost / blast-radius estimate (AF-624), when computed. */
+    public record CostEstimateDetail(
+            UUID id,
+            String engineId,
+            QueryType queryType,
+            boolean supported,
+            Long estimatedRows,
+            Long affectedRowCount,
+            String scanType,
+            Double estimatedCost,
+            String planJson,
+            String rawPlan,
+            String unsupportedReason,
+            boolean failed,
+            String errorMessage,
+            Integer durationMs) {
     }
 
     public record ReviewDecisionView(

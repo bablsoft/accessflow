@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.engine.neo4j;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
@@ -80,6 +81,12 @@ public final class Neo4jQueryEngine implements QueryEngine {
     @Override
     public QueryDryRunResult dryRun(QueryEngineDryRunRequest request) {
         return initialized(executor).dryRun(request.request(), request.descriptor(),
+                request.effectiveTimeout());
+    }
+
+    @Override
+    public QueryAffectedRowsResult countAffectedRows(QueryEngineDryRunRequest request) {
+        return initialized(executor).countAffectedRows(request.request(), request.descriptor(),
                 request.effectiveTimeout());
     }
 

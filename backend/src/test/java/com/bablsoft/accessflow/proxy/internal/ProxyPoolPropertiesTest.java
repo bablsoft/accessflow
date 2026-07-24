@@ -14,7 +14,7 @@ class ProxyPoolPropertiesTest {
 
     @Test
     void allNullArgumentsYieldDocumentedDefaults() {
-        var props = new ProxyPoolProperties(null, null, null, null, null, null);
+        var props = new ProxyPoolProperties(null, null, null, null, null, null, null);
 
         assertThat(props.connectionTimeout()).isEqualTo(Duration.ofSeconds(30));
         assertThat(props.idleTimeout()).isEqualTo(Duration.ofMinutes(10));
@@ -60,7 +60,8 @@ class ProxyPoolPropertiesTest {
                 Duration.ofSeconds(5), Duration.ofSeconds(60), Duration.ofMinutes(15),
                 Duration.ofSeconds(2), "custom-",
                 new Execution(500, Duration.ofSeconds(7), 250, 100, 1_048_576L, 8,
-                        Duration.ofSeconds(2)));
+                        Duration.ofSeconds(2)),
+                Duration.ofSeconds(3));
 
         assertThat(props.connectionTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(props.idleTimeout()).isEqualTo(Duration.ofSeconds(60));

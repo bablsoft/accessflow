@@ -74,6 +74,8 @@ describe('routingPolicyForm', () => {
         tsla_minutes: 1440,
       },
       { operand: 'cicd_origin', negate: false, bool_value: true },
+      { operand: 'estimated_rows', negate: false, est_operator: 'GT', est_value: 100000 },
+      { operand: 'scan_type', negate: true, scan_patterns: ['Seq*'] },
     ];
     const condition = rowsToCondition('ALL', rows);
     const parsed = conditionToForm(condition);
@@ -187,5 +189,28 @@ describe('routingPolicyForm', () => {
       { operand: 'has_where', negate: false, bool_value: true },
     ]);
     expect(conditionSummary(t, condition)).toContain('22:00');
+  });
+
+  it('defaultRow and conditionSummary cover estimated_rows and scan_type (AF-624)', () => {
+    expect(defaultRow('estimated_rows')).toEqual({
+      operand: 'estimated_rows',
+      negate: false,
+      est_operator: 'GT',
+      est_value: 100000,
+    });
+    expect(defaultRow('scan_type')).toEqual({
+      operand: 'scan_type',
+      negate: false,
+      scan_patterns: [],
+    });
+    const summary = conditionSummary(
+      t,
+      rowsToCondition('ALL', [
+        { operand: 'estimated_rows', negate: false, est_operator: 'GT', est_value: 100000 },
+        { operand: 'scan_type', negate: false, scan_patterns: ['Seq Scan', 'COLLSCAN'] },
+      ]),
+    );
+    expect(summary).toContain('100000');
+    expect(summary).toContain('Seq Scan, COLLSCAN');
   });
 });

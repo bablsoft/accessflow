@@ -1,12 +1,15 @@
 package com.bablsoft.accessflow.engine.elasticsearch;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -114,6 +117,38 @@ class EsQueryExecutor {
             var response = EsJson.parse(raw);
             return QueryDryRunResult.of(engineId, cmd.operation().queryType(), null,
                     EsPlanMapper.toPlan(response, cmd.index()), raw, applied.appliedPolicyIds(),
+                    durationSince(start));
+        } catch (SearchTransportException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    QueryAffectedRowsResult countAffectedRows(String engineId, QueryExecutionRequest request,
+                                              DatasourceConnectionDescriptor descriptor,
+                                              Duration timeout) {
+        var start = clock.instant();
+        EsCommand cmd;
+        try {
+            var command = parser.parseCommand(request.sql());
+            // Only the by-query mutations have a countable pre-image; everything else degrades.
+            if (command.operation() != EsOperation.UPDATE_BY_QUERY
+                    && command.operation() != EsOperation.DELETE_BY_QUERY) {
+                return QueryAffectedRowsResult.unsupported(engineId);
+            }
+            cmd = rowSecurityApplier.apply(command, request.rowSecurityPredicates()).command();
+        } catch (InvalidSqlException | UnrewritableRowSecurityException ex) {
+            // A preflight count never throws for shape reasons — fail closed to "unsupported".
+            return QueryAffectedRowsResult.unsupported(engineId, ex.getMessage());
+        }
+        var transport = clientManager.transport(descriptor);
+        try {
+            var body = EsJson.object();
+            body.set("query", cmd.query() != null ? cmd.query() : EsJson.matchAll());
+            // Non-mutating _count of the governed (bool.filter-wrapped) query — the same endpoint
+            // the COUNT read uses; _count does not accept a ?timeout= query parameter.
+            var response = EsJson.parse(transport.perform("POST", path(cmd.index(), "_count"),
+                    Map.of(), EsJson.write(body), JSON));
+            return QueryAffectedRowsResult.of(engineId, longField(response, "count"),
                     durationSince(start));
         } catch (SearchTransportException ex) {
             throw exceptionTranslator.translate(ex, timeout);

@@ -523,6 +523,15 @@
     "no_plan": "Движок не вернул план для этого запроса.",
     "rerun_button": "Запустить снова"
   },
+  "cost_estimate_panel": {
+    "pending": "Вычисляется оценка стоимости…",
+    "unavailable": "Оценка стоимости для этого запроса недоступна.",
+    "failed": "Оценка стоимости не удалась",
+    "affected_rows_label": "Затронутые строки (точно)",
+    "est_rows_label": "Оценка строк",
+    "scan_type_label": "Тип сканирования",
+    "cost_label": "Оценочная стоимость"
+  },
   "ai_panel": {
     "title": "ИИ-анализ",
     "disabled_badge": "отключено",
@@ -577,6 +586,7 @@
       "card_justification": "Обоснование",
       "no_justification": "Заявитель не указал обоснование.",
       "card_ai": "ИИ-анализ",
+      "card_cost_estimate": "Оценка стоимости",
       "ai_awaiting": "Ожидание анализа…",
       "ai_failed_banner_title": "ИИ-анализ не удался",
       "ai_failed_banner_detail": "Проверка продолжается без рекомендации ИИ. Причина: {{reason}}",
@@ -1952,7 +1962,8 @@
       "cidr_invalid": "Недопустимый блок CIDR: {{value}}",
       "user_agent_placeholder": "напр. *curl*, *GitHubActions*",
       "minutes_suffix": "мин",
-      "cicd_present_label": "Источник CI/CD"
+      "cicd_present_label": "Источник CI/CD",
+      "scan_type_placeholder": "напр. Seq Scan, COLLSCAN, Index*"
     },
     "langfuse": {
       "title": "Langfuse",
@@ -2365,7 +2376,9 @@
       "source_ip": "IP-адрес источника / CIDR",
       "user_agent": "User-Agent",
       "time_since_last_approval": "Время с последнего одобрения",
-      "cicd_origin": "Источник CI/CD"
+      "cicd_origin": "Источник CI/CD",
+      "estimated_rows": "Оценка строк",
+      "scan_type": "Тип сканирования"
     },
     "row_security_operator": {
       "EQUALS": "=",

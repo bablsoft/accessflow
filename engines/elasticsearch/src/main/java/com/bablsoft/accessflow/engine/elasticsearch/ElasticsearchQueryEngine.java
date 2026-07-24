@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
@@ -91,6 +92,13 @@ public class ElasticsearchQueryEngine implements QueryEngine {
         // result is stamped with the right engine for the shared executor.
         return initialized(executor).dryRun(engineId(), request.request(), request.descriptor(),
                 request.effectiveTimeout());
+    }
+
+    @Override
+    public QueryAffectedRowsResult countAffectedRows(QueryEngineDryRunRequest request) {
+        // Shared with OpenSearchQueryEngine: engineId() stamps the right provider on the result.
+        return initialized(executor).countAffectedRows(engineId(), request.request(),
+                request.descriptor(), request.effectiveTimeout());
     }
 
     @Override

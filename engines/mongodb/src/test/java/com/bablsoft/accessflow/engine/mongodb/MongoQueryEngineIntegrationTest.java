@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
@@ -303,6 +304,58 @@ class MongoQueryEngineIntegrationTest {
         var result = dryRun("db.people.find({})", List.of(directive));
         assertThat(result.supported()).isTrue();
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void countAffectedRowsForDeleteManyCountsWithoutMutating() {
+        var result = countAffectedRows("db.people.deleteMany({ team: 'eng' })", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("mongodb");
+        assertThat(result.affectedRows()).isEqualTo(2L);
+        // No mutation occurred: all three documents survive.
+        assertThat(((SelectExecutionResult) run("db.people.find({})")).rowCount()).isEqualTo(3);
+    }
+
+    @Test
+    void countAffectedRowsForUpdateManyCountsMatchingDocuments() {
+        var result = countAffectedRows(
+                "db.people.updateMany({ salary: { $gte: 90 } }, { $set: { bonus: 1 } })", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(2L);
+        assertThat(((SelectExecutionResult) run("db.people.find({ bonus: 1 })")).rowCount())
+                .isZero();
+    }
+
+    @Test
+    void countAffectedRowsCapsSingleDocumentOperationsAtOne() {
+        var result = countAffectedRows("db.people.deleteOne({ team: 'eng' })", List.of());
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(1L);
+    }
+
+    @Test
+    void countAffectedRowsAppliesRowSecurity() {
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "people", "team",
+                RowSecurityOperator.EQUALS, List.of("sales"));
+        var result = countAffectedRows("db.people.deleteMany({})", List.of(directive));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.affectedRows()).isEqualTo(1L);
+    }
+
+    @Test
+    void countAffectedRowsIsUnsupportedForReads() {
+        var result = countAffectedRows("db.people.find({})", List.of());
+        assertThat(result.supported()).isFalse();
+        assertThat(result.affectedRows()).isNull();
+    }
+
+    private QueryAffectedRowsResult countAffectedRows(String query,
+                                                      List<RowSecurityDirective> rls) {
+        var type = engine.parse(query).type();
+        var request = new QueryExecutionRequest(descriptor.id(), query, type, null, null,
+                List.of(), List.of(), rls, false, List.of(query));
+        return engine.countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(10)));
     }
 
     private QueryDryRunResult dryRun(String query, List<RowSecurityDirective> rls) {

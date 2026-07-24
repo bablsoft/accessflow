@@ -37,10 +37,11 @@ class GuardrailAiAnalyzerStrategy implements AiAnalyzerStrategy {
     }
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID aiConfigId) {
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                    String costEstimateContext, String language, UUID aiConfigId) {
         guard(sql);
-        return delegate.analyze(sql, dbType, schemaContext, language, aiConfigId);
+        return delegate.analyze(sql, dbType, schemaContext, costEstimateContext, language,
+                aiConfigId);
     }
 
     @Override

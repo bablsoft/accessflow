@@ -42,11 +42,11 @@ class OllamaAnalyzerStrategy implements AiAnalyzerStrategy {
     private final RagRetriever ragRetriever;
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID aiConfigId) {
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                    String costEstimateContext, String language, UUID aiConfigId) {
         var ragContext = ragRetriever.retrieve(sql);
         var userPrompt = promptRenderer.render(promptSource.template(), sql, dbType, schemaContext,
-                ragContext, language);
+                ragContext, costEstimateContext, language);
         var prompt = new Prompt(List.of(
                 new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
                 new UserMessage(userPrompt)));

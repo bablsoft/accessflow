@@ -57,6 +57,8 @@ class SystemPromptRenderer {
 
             Database type: {{db_type}}
             Schema context: {{schema_context}}
+            Pre-flight cost estimate (from the database engine's own EXPLAIN / affected-row count — treat it as the authoritative blast radius and factor it into risk_score and risk_level):
+            {{cost_estimate}}
             Knowledge base context (authoritative organization-specific guidance retrieved for this query — prefer it over general assumptions when it applies):
             {{rag_context}}
             SQL to analyze:
@@ -74,6 +76,11 @@ class SystemPromptRenderer {
     static final String RAG_CONTEXT_PLACEHOLDER = "{{rag_context}}";
 
     private static final String NO_RAG_CONTEXT = "(no knowledge base context available)";
+
+    /** The pre-flight cost-estimate token (AF-624); substituted with the summary or a fallback. */
+    static final String COST_ESTIMATE_PLACEHOLDER = "{{cost_estimate}}";
+
+    private static final String NO_COST_ESTIMATE = "(no cost estimate available)";
 
     /** The token naming the engine's target query language (e.g. SQL, Cypher, CQL). */
     static final String TARGET_LANGUAGE_PLACEHOLDER = "{{target_language}}";
@@ -211,11 +218,16 @@ class SystemPromptRenderer {
     }
 
     String render(String sql, DbType dbType, String schemaContext, String language) {
-        return render(null, sql, dbType, schemaContext, null, language);
+        return render(null, sql, dbType, schemaContext, null, null, language);
+    }
+
+    String render(String template, String sql, DbType dbType, String schemaContext,
+                  String ragContext, String language) {
+        return render(template, sql, dbType, schemaContext, ragContext, null, language);
     }
 
     String render(String template, String sql, DbType dbType, String schemaContext, String ragContext,
-                  String language) {
+                  String costEstimateContext, String language) {
         var effective = (template == null || template.isBlank()) ? DEFAULT_TEMPLATE : template;
         var schemaText = (schemaContext == null || schemaContext.isBlank())
                 ? "(no schema introspection available)"
@@ -229,6 +241,7 @@ class SystemPromptRenderer {
                 .replace("{{db_type}}", dbType.name())
                 .replace("{{schema_context}}", schemaText)
                 .replace(RAG_CONTEXT_PLACEHOLDER, ragText(ragContext))
+                .replace(COST_ESTIMATE_PLACEHOLDER, costEstimateText(costEstimateContext))
                 .replace("{{language}}", displayName)
                 .replace(SQL_PLACEHOLDER, sql);
     }
@@ -276,6 +289,12 @@ class SystemPromptRenderer {
 
     private static String ragText(String ragContext) {
         return (ragContext == null || ragContext.isBlank()) ? NO_RAG_CONTEXT : ragContext;
+    }
+
+    private static String costEstimateText(String costEstimateContext) {
+        return (costEstimateContext == null || costEstimateContext.isBlank())
+                ? NO_COST_ESTIMATE
+                : costEstimateContext;
     }
 
     String describeSchema(DatabaseSchemaView schema) {

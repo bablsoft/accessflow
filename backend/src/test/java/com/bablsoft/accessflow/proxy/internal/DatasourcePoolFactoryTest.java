@@ -60,7 +60,7 @@ class DatasourcePoolFactoryTest {
         customJdbcDriverService = mock(com.bablsoft.accessflow.core.api.CustomJdbcDriverService.class);
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
-                Duration.ZERO, "accessflow-ds-", null);
+                Duration.ZERO, "accessflow-ds-", null, null);
         when(coordinatesFactory.from(any(), anyString(), anyInt(), anyString(), anyString(), any()))
                 .thenReturn(new JdbcCoordinates(
                         "jdbc:postgresql://h:5432/appdb?sslmode=disable",
@@ -128,7 +128,7 @@ class DatasourcePoolFactoryTest {
     void createPoolSetsLeakDetectionWhenPositive() {
         properties = new ProxyPoolProperties(
                 Duration.ofSeconds(30), Duration.ofMinutes(10), Duration.ofMinutes(30),
-                Duration.ofSeconds(2), "accessflow-ds-", null);
+                Duration.ofSeconds(2), "accessflow-ds-", null, null);
         factory = new DatasourcePoolFactory(secretResolutionService, coordinatesFactory, properties,
                 driverCatalog, customJdbcDriverService);
 

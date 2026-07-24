@@ -40,11 +40,12 @@ class TracingAiAnalyzerStrategy implements AiAnalyzerStrategy {
     }
 
     @Override
-    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext, String language,
-                                    UUID aiConfigId) {
+    public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
+                                    String costEstimateContext, String language, UUID aiConfigId) {
         var start = clock.instant();
         try {
-            var result = delegate.analyze(sql, dbType, schemaContext, language, aiConfigId);
+            var result = delegate.analyze(sql, dbType, schemaContext, costEstimateContext,
+                    language, aiConfigId);
             safeTrace(() -> tracer.trace(LangfuseTraceContext.success(
                     organizationId, aiConfigId, provider, model, sql, dbType, schemaContext, language,
                     result, start, clock.instant())));

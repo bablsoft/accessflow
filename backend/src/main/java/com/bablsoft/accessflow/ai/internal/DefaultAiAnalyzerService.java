@@ -27,6 +27,8 @@ import com.bablsoft.accessflow.core.api.SupportedLanguage;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
+import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
+import com.bablsoft.accessflow.proxy.api.QueryCostEstimateService;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.observation.Observation;
@@ -69,6 +71,7 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
     private final ApplicationEventPublisher eventPublisher;
     private final AiRateLimiter aiRateLimiter;
     private final ObservationRegistry observationRegistry;
+    private final QueryCostEstimateService queryCostEstimateService;
     private final MeterRegistry meterRegistry;
 
     @Override
@@ -143,9 +146,14 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
         } catch (RuntimeException e) {
             log.warn("Schema introspection failed for query {}: {}", queryRequestId, e.getMessage());
         }
+        // AF-624: ensure the pre-flight cost estimate exists (idempotent — the proxy listener may
+        // already have computed it) and fold it into the prompt so risk scoring sees the actual
+        // blast radius. Best-effort: an estimate failure never blocks analysis.
+        String costEstimateContext = buildCostEstimateContext(queryRequestId);
         try {
             aiRateLimiter.enforce(snapshot.organizationId());
-            var analysis = analyzeWithObservation(snapshot, descriptor, schemaContext);
+            var analysis = analyzeWithObservation(snapshot, descriptor, schemaContext,
+                    costEstimateContext);
             var result = ClassificationRiskBooster.boost(analysis, ClassificationRiskBooster.bumpFor(
                     referencedClassifications(snapshot.sqlText(), classificationTags)));
             var issuesJson = responseParser.issuesAsJson(result.issues());
@@ -180,13 +188,15 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
      */
     private AiAnalysisResult analyzeWithObservation(QueryRequestSnapshot snapshot,
                                                     DatasourceConnectionDescriptor descriptor,
-                                                    String schemaContext) {
+                                                    String schemaContext,
+                                                    String costEstimateContext) {
         // Each tag is set exactly once per branch (no re-add) so the meter series carry the right
         // provider/risk on success and consistent keys on failure.
         Observation observation = Observation.start("accessflow.ai.analyze", observationRegistry);
         try (Observation.Scope ignored = observation.openScope()) {
             var analysis = strategy.analyze(snapshot.sqlText(), descriptor.dbType(), schemaContext,
-                    resolveLanguage(snapshot.organizationId()), descriptor.aiConfigId());
+                    costEstimateContext, resolveLanguage(snapshot.organizationId()),
+                    descriptor.aiConfigId());
             observation.lowCardinalityKeyValue("provider", providerTag(analysis.aiProvider()))
                     .lowCardinalityKeyValue("risk_level",
                             analysis.riskLevel() != null ? analysis.riskLevel().name() : "none")
@@ -241,6 +251,52 @@ class DefaultAiAnalyzerService implements AiAnalyzerService {
             throw new AiAnalysisException("No AI configuration bound to this datasource");
         }
         return aiConfigId;
+    }
+
+    /**
+     * Best-effort AF-624 prompt context: triggers/reads the persisted estimate and renders it as a
+     * short plain-text summary. Null (→ the template's "(no cost estimate available)" fallback)
+     * when the estimate is absent, unsupported, or failed.
+     */
+    private String buildCostEstimateContext(UUID queryRequestId) {
+        QueryEstimateSnapshot estimate;
+        try {
+            estimate = queryCostEstimateService.estimateSubmittedQuery(queryRequestId).orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("Cost estimate unavailable for query {}: {}", queryRequestId, e.getMessage());
+            return null;
+        }
+        if (estimate == null || estimate.failed() || !estimate.supported()) {
+            return null;
+        }
+        var sb = new StringBuilder();
+        if (estimate.affectedRowCount() != null) {
+            sb.append("Exact affected-row count for this ").append(estimate.queryType())
+                    .append(" (governed SELECT COUNT(*)): ")
+                    .append(String.format(Locale.ROOT, "%,d", estimate.affectedRowCount()))
+                    .append(" rows.");
+        }
+        if (estimate.estimatedRows() != null) {
+            if (!sb.isEmpty()) {
+                sb.append(' ');
+            }
+            sb.append("The engine's execution plan estimates ~")
+                    .append(String.format(Locale.ROOT, "%,d", estimate.estimatedRows()))
+                    .append(" rows");
+            if (estimate.scanType() != null) {
+                sb.append(" via ").append(estimate.scanType());
+            }
+            if (estimate.estimatedCost() != null) {
+                sb.append(" (cost ").append(estimate.estimatedCost()).append(')');
+            }
+            sb.append('.');
+        } else if (estimate.scanType() != null) {
+            if (!sb.isEmpty()) {
+                sb.append(' ');
+            }
+            sb.append("Plan root operation: ").append(estimate.scanType()).append('.');
+        }
+        return sb.isEmpty() ? null : sb.toString();
     }
 
     private String resolveLanguage(UUID organizationId) {

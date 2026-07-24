@@ -37,7 +37,7 @@ class ConcurrencyLimitingQueryExecutorTest {
                 .thenReturn("concurrency limit reached");
         var properties = new ProxyPoolProperties(null, null, null, null, null,
                 new ProxyPoolProperties.Execution(null, null, null, null, null, maxConcurrent,
-                        acquireTimeout));
+                        acquireTimeout), null);
         return new ConcurrencyLimitingQueryExecutor(delegate, properties, messageSource);
     }
 

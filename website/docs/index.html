@@ -1534,7 +1534,7 @@ APPROVED → FAILED (execution error)</pre>
           <ol>
             <li><strong>Open <code>/admin/routing-policies</code></strong> (the <em>Routing policies</em> entry in the <em>Security</em> nav group, next to <em>Review plans</em>) and click <em>Add policy</em>.</li>
             <li><strong>Name the policy</strong> and optionally scope it to one datasource — leave the datasource blank for an org-wide rule. Set its <em>priority</em> (unique per organisation; lower runs first) and the <em>enabled</em> toggle.</li>
-            <li><strong>Build the condition</strong> with the guided builder: pick <em>match ALL</em> (AND) or <em>match ANY</em> (OR), then add leaf conditions — each can be negated (NOT). Operands include query type, referenced tables (glob, e.g. <code>payroll.*</code>), AI risk level, AI risk score (with a comparison operator), requester role, requester group, time-of-day window, day-of-week, presence of a <code>WHERE</code> clause, presence of a <code>LIMIT</code> clause, and the transactional (<code>BEGIN…COMMIT</code>) flag.</li>
+            <li><strong>Build the condition</strong> with the guided builder: pick <em>match ALL</em> (AND) or <em>match ANY</em> (OR), then add leaf conditions — each can be negated (NOT). Operands include query type, referenced tables (glob, e.g. <code>payroll.*</code>), AI risk level, AI risk score (with a comparison operator), requester role, requester group, time-of-day window, day-of-week, presence of a <code>WHERE</code> clause, presence of a <code>LIMIT</code> clause, the transactional (<code>BEGIN…COMMIT</code>) flag, and the pre-flight cost estimate — <em>estimated rows</em> (comparison against the engine's own EXPLAIN estimate, or the exact affected-row count for UPDATE/DELETE) and <em>scan type</em> (glob match on the plan's root operation, e.g. <code>Seq*</code>) — so a policy can route a 10-million-row sequential-scan DELETE differently from a 10-row indexed one.</li>
             <li><strong>Choose the action.</strong> <em>Auto-approve</em> (skip human review), <em>Auto-reject</em> (block the query), <em>Require approvals</em> (force human review with an absolute minimum number of approvers), or <em>Escalate</em> (force human review, adding a delta on top of the review plan's minimum). The approver count applies only to the last two actions.</li>
             <li><strong>Reorder</strong> policies any time with the per-row up/down controls — the order is the evaluation order.</li>
           </ol>
@@ -1542,7 +1542,9 @@ APPROVED → FAILED (execution error)</pre>
             <strong>How it routes.</strong> Time-of-day and day-of-week conditions are evaluated in the
             <em>server's local timezone</em> (overnight windows wrap around midnight). On datasources with
             AI analysis disabled, risk-based conditions never match (there's no AI signal); routing does not
-            run when AI analysis fails — the query goes to a human instead. Every automated decision is
+            run when AI analysis fails — the query goes to a human instead. The cost-estimate conditions
+            likewise never match while no estimate exists (engine without a plan concept, or the estimate
+            failed) — they fail closed rather than auto-approving blind. Every automated decision is
             recorded in the <a href="#cfg-audit-log">audit log</a> (<code>QUERY_APPROVED</code> /
             <code>QUERY_REJECTED</code> with <code>source: "ROUTING_POLICY"</code>), and the query detail page
             shows which policy matched. Routing policies are managed via the ADMIN-only

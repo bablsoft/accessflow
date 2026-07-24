@@ -1313,6 +1313,22 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "failed": false,
     "error_message": null
   },
+  "cost_estimate": {
+    "id": "uuid",
+    "engine_id": "postgresql",
+    "query_type": "UPDATE",
+    "supported": true,
+    "estimated_rows": 1,
+    "affected_row_count": 1,
+    "scan_type": "Index Scan",
+    "estimated_cost": 8.29,
+    "plan": { "operation": "Index Scan", "target": "orders", "estimated_rows": 1, "estimated_cost": 8.29, "detail": "(id = 123)", "children": [] },
+    "raw_plan": "[...]",
+    "unsupported_reason": null,
+    "failed": false,
+    "error_message": null,
+    "duration_ms": 12
+  },
   "review_decisions": [
     {
       "id": "uuid",
@@ -1363,6 +1379,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 ```
 
 `matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
+
+`cost_estimate` is the query's persisted pre-flight cost / blast-radius estimate (AF-624), computed automatically and asynchronously right after submission — `null` while it is still being computed (typically only during `PENDING_AI`). `supported=false` with a localized `unsupported_reason` marks engines/statement shapes with no plan concept; `failed=true` with `error_message` marks a computation error. `affected_row_count` is the exact governed row count for UPDATE/DELETE (relational `SELECT COUNT(*)` rewrite, or the engine's native non-mutating count) and is `null` when the shape cannot be provably counted; `estimated_rows`/`scan_type`/`estimated_cost` come from the plan root, and `plan` reuses the dry-run endpoint's plan-node shape — see [POST /queries/dry-run](#post-queriesdry-run--response-200) and [docs/05-backend.md → "Automatic pre-flight cost estimate"](05-backend.md#automatic-pre-flight-cost-estimate-af-624). The `query.estimate_complete` WebSocket event signals completion.
 
 `approved_by_grant` is the provenance of a grant-covered auto-approval (#582); `null` for every query that was not auto-approved by a pre-approving JIT access grant. `grant_id` always reflects the query's persisted `approved_by_grant_id`; the approver fields (`approver_id`, `approver_email`, `approved_at` — the grant's final-stage approval) and `expires_at` are resolved from the grant row at read time and are `null` when the grant row or its approver is no longer resolvable. The frontend renders an "auto-approved under an access grant" alert on the detail page when this object is present. See [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582).
 
@@ -4536,6 +4554,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `review.decision_made` | Reviewer approved/rejected submitter's query | `query_id`, `decision`, `reviewer`, `comment` |
 | `query.executed` | Execution completed | `query_id`, `rows_affected`, `duration_ms` |
 | `ai.analysis_complete` | AI analysis finished | `query_id`, `risk_level`, `risk_score` |
+| `query.estimate_complete` | The automatic pre-flight cost estimate finished (AF-624) — detail views refetch to render the cost-estimate panel | `query_id`, `supported` |
 | `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
 | `access_request.created` | New JIT access request needs a reviewer's decision | `access_request_id`, `requester_id` |
 | `access_request.status_changed` | Access request changed status (approved/rejected/expired/revoked/cancelled) — pushed to the requester | `access_request_id`, `old_status`, `new_status` |

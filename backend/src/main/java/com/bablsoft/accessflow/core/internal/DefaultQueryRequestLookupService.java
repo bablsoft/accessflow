@@ -10,9 +10,11 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.QueryEstimateEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.QueryEstimateRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     private final QueryRequestRepository queryRequestRepository;
     private final AiAnalysisRepository aiAnalysisRepository;
     private final ReviewDecisionRepository reviewDecisionRepository;
+    private final QueryEstimateRepository queryEstimateRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -211,6 +214,9 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getStatus(),
                 entity.getJustification(),
                 toAnalysisDetail(aiAnalysis),
+                toCostEstimateDetail(entity.getQueryEstimateId() != null
+                        ? queryEstimateRepository.findById(entity.getQueryEstimateId()).orElse(null)
+                        : null),
                 entity.getRowsAffected(),
                 entity.getExecutionDurationMs(),
                 entity.getErrorMessage(),
@@ -257,6 +263,28 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getCompletionTokens(),
                 entity.isFailed(),
                 entity.getErrorMessage());
+    }
+
+    private static QueryDetailView.CostEstimateDetail toCostEstimateDetail(
+            QueryEstimateEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return new QueryDetailView.CostEstimateDetail(
+                entity.getId(),
+                entity.getEngineId(),
+                entity.getQueryType(),
+                entity.isSupported(),
+                entity.getEstimatedRows(),
+                entity.getAffectedRowCount(),
+                entity.getScanType(),
+                entity.getEstimatedCost(),
+                entity.getPlan(),
+                entity.getRawPlan(),
+                entity.getUnsupportedReason(),
+                entity.isFailed(),
+                entity.getErrorMessage(),
+                entity.getDurationMs());
     }
 
     private static QueryRequestSnapshot toSnapshot(QueryRequestEntity entity) {

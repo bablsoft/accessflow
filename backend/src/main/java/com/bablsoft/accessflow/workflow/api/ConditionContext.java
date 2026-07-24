@@ -28,6 +28,12 @@ import java.util.UUID;
  * anomaly (UBA, AF-383) on this datasource at submission time. Because anomaly detection is a
  * periodic batch over past audit data, it cannot mutate an already-executed query — instead it
  * raises this signal so a routing policy can ESCALATE the requester's <em>next</em> query.
+ *
+ * <p>{@code estimatedRows} and {@code scanType} carry the pre-flight cost estimate (AF-624), read
+ * live at routing time from the persisted {@code query_estimates} row: {@code estimatedRows} is
+ * the exact affected-row count for UPDATE/DELETE when available, otherwise the EXPLAIN estimate;
+ * {@code scanType} is the plan's root operation (e.g. {@code Seq Scan}). Both are {@code null}
+ * when the estimate is absent, unsupported, or failed — the matching conditions fail closed.
  */
 public record ConditionContext(
         QueryType queryType,
@@ -44,15 +50,36 @@ public record ConditionContext(
         String requesterUserAgent,
         boolean ciCdOrigin,
         Integer minutesSinceLastApproval,
-        boolean anomalyActive) {
+        boolean anomalyActive,
+        Long estimatedRows,
+        String scanType) {
 
     public ConditionContext {
         referencedTables = Set.copyOf(referencedTables == null ? Set.of() : referencedTables);
         requesterGroupIds = Set.copyOf(requesterGroupIds == null ? Set.of() : requesterGroupIds);
     }
 
+    /** Backward-compatible constructor without the AF-624 estimate signals (defaults to absent). */
+    public ConditionContext(QueryType queryType, Set<String> referencedTables, RiskLevel riskLevel,
+                            int riskScore, String requesterRoleName, Set<UUID> requesterGroupIds,
+                            LocalDateTime evaluatedAt, boolean hasWhereClause,
+                            boolean hasLimitClause, boolean transactional,
+                            String requesterIpAddress, String requesterUserAgent,
+                            boolean ciCdOrigin, Integer minutesSinceLastApproval,
+                            boolean anomalyActive) {
+        this(queryType, referencedTables, riskLevel, riskScore, requesterRoleName,
+                requesterGroupIds, evaluatedAt, hasWhereClause, hasLimitClause, transactional,
+                requesterIpAddress, requesterUserAgent, ciCdOrigin, minutesSinceLastApproval,
+                anomalyActive, null, null);
+    }
+
     /** @return {@code true} when an AI risk level / score signal is present. */
     public boolean hasRiskSignal() {
         return riskLevel != null && riskScore >= 0;
+    }
+
+    /** @return {@code true} when a pre-flight estimated-row signal is present (AF-624). */
+    public boolean hasEstimateSignal() {
+        return estimatedRows != null;
     }
 }

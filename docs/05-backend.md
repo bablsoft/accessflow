@@ -817,6 +817,16 @@ The result is a `SelectExecutionResult` mapped to `SampleRowsResponse` for `GET 
 
 The statement-timeout cap reuses `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT`; there is no row cap (a dry-run returns no rows). The result is mapped to `QueryDryRunResponse` by the controller in the `security` module (which already depends on `proxy`, so it can host the `/queries/dry-run` endpoint and use `JwtClaims` without a module cycle — the same arrangement as the sample-rows endpoint).
 
+### Automatic pre-flight cost estimate (AF-624)
+
+`proxy.api.QueryCostEstimateService` (`DefaultQueryCostEstimateService`) turns the AF-445 dry-run machinery into an **automatic, persisted, per-submission blast-radius estimate**: right after a query is submitted, the engine's non-committing plan (estimated rows, root scan type, cost, plan tree) plus — for UPDATE/DELETE — a governed, non-mutating **exact affected-row count** are computed and stored as the query's single `query_estimates` row (see [docs/03-data-model.md → query_estimates](03-data-model.md#query_estimates)).
+
+- **Two independent triggers, safe by idempotency.** `proxy.internal.QueryCostEstimateListener` consumes `QuerySubmittedEvent` (mirroring the AI module's `AiAnalysisListener`) and runs unconditionally — reviewers and routing want the estimate regardless of `ai_analysis_enabled`. Independently, `DefaultAiAnalyzerService.analyzeSubmittedQuery` calls `estimateSubmittedQuery(id)` itself before building its prompt, so the estimate is deterministically available for `{{cost_estimate}}` no matter which trigger wins the race. The service fast-paths on an existing row and `DefaultQueryEstimateService.persist` is insert-once, so the race is harmless.
+- **Computation.** The submitter's row-security directives are resolved (`RowSecurityResolutionService`) so the plan and count reflect the *governed* statement, then `QueryExecutor.dryRun` runs the existing per-dialect EXPLAIN / engine `dryRun` path. For UPDATE/DELETE, `QueryExecutor.countAffectedRows` additionally computes the exact count: **relational** datasources rewrite the parsed single-table statement into `SELECT COUNT(*) FROM <target> [WHERE …]` (`proxy.internal.dryrun.AffectedRowCounter` — join / `UPDATE … FROM` / `DELETE … USING` shapes degrade to null) and run it through the normal SELECT path (so `RowSecurityRewriter` applies); **engine-managed** datasources delegate to the `QueryEngine.countAffectedRows` SPI default method (overridden by MongoDB `countDocuments`, Couchbase SQL++ `SELECT COUNT(*)` splice, Neo4j `MATCH … RETURN count(*)`, Elasticsearch/OpenSearch `_count` — each applying its native row security and failing closed on uncountable shapes; Redis, Cassandra/ScyllaDB, DynamoDB, and the warehouse engines inherit the unsupported default).
+- **Bounded.** Both calls run under the dedicated `accessflow.proxy.estimate-timeout` (`ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT`, default `PT5S`) instead of the full execution statement timeout — an estimate is a best-effort signal, never worth a long lock.
+- **Every path persists a row.** Success stores the full estimate; engines with no plan concept store `supported=false` + a localized `unsupported_reason` (a transactional `BEGIN…COMMIT` envelope short-circuits the same way); an unexpected error stores a `failed=true` sentinel with the message — mirroring the AI module's sentinel convention, so the frontend can always render a definitive state. Completion publishes `QueryEstimateCompletedEvent` (or `QueryEstimateFailedEvent`), which the realtime module fans out as the `query.estimate_complete` WebSocket event.
+- **Consumers.** `GET /queries/{id}` embeds the row as `cost_estimate`; `QueryReviewStateMachine.buildContext` reads it live (fail-closed) for the `estimated_rows` / `scan_type` routing conditions; `DefaultAiAnalyzerService` renders it into the `{{cost_estimate}}` prompt placeholder.
+
 ### Data classification & derivation (AF-447)
 
 `data_classification_tag` rows (see [docs/03-data-model.md](03-data-model.md)) tag tables/columns with
@@ -978,7 +988,7 @@ Decision rules:
 
 Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:
 
-1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, transactional flag, and the client context captured at submission — source IP / CIDR, user-agent, time-since-last-approval, CI/CD origin) via `RoutingConditionEvaluator`.
+1. `RoutingPolicyEngine` loads the org's enabled policies (org-wide + this datasource) in ascending `priority` and evaluates each `condition` against the query context (query type, referenced tables, AI risk level / score, requester role + group memberships, time-of-day / day-of-week, WHERE / LIMIT presence, transactional flag, the pre-flight cost estimate — estimated/affected rows and root scan type, read live from `query_estimates` and fail-closed when absent (AF-624) — and the client context captured at submission — source IP / CIDR, user-agent, time-since-last-approval, CI/CD origin) via `RoutingConditionEvaluator`.
 2. **First match wins.** The first enabled policy whose condition matches decides the action; evaluation stops there. On **no match** the grant-covered auto-approval fast-path (#582, see the [JIT section](#grant-covered-query-auto-approval-582)) is consulted next, and only then does the query fall through to the datasource's review plan exactly as before — so **any** matching policy (AUTO_REJECT, REQUIRE_APPROVALS, ESCALATE — including anomaly-driven ones) always wins over the grant fast-path.
 3. The outcome (matched policy id, action, resolved `effective_min_approvals`, reason) is persisted as a single `routing_decision` row (`RoutingDecisionService`), and surfaced on `GET /queries/{id}` as `matched_policy`.
 
@@ -1498,9 +1508,10 @@ Spring context refresh.
 ### Editable system prompt
 
 `SystemPromptRenderer` holds the built-in analyzer prompt (`DEFAULT_TEMPLATE`) and renders it
-with four named placeholders substituted at call time: `{{db_type}}`, `{{schema_context}}`,
-`{{sql}}` and `{{language}}`. `{{sql}}` is replaced last so SQL text that happens to contain
-another token string is never re-substituted.
+with named placeholders substituted at call time: `{{db_type}}`, `{{schema_context}}`,
+`{{rag_context}}`, `{{cost_estimate}}` (AF-624 — the pre-flight estimate summary, falling back to
+`(no cost estimate available)`), `{{sql}}` and `{{language}}`. `{{sql}}` is replaced last so SQL
+text that happens to contain another token string is never re-substituted.
 
 Admins may override the prompt per `ai_config` row via the `system_prompt_template` column
 (`NULL`/blank ⇒ use `DEFAULT_TEMPLATE`). `DefaultAiConfigService` validates that a custom template
@@ -1641,6 +1652,8 @@ Optimization suggestions: when the query would benefit from an index or a rewrit
 
 Database type: {db_type}
 Schema context: {schema_context}
+Pre-flight cost estimate (from the database engine's own EXPLAIN / affected-row count — treat it as the authoritative blast radius and factor it into risk_score and risk_level):
+{cost_estimate}
 SQL to analyze:
 {sql}
 ```
@@ -1649,7 +1662,7 @@ SQL to analyze:
 
 ### Response language
 
-`AiAnalyzerStrategy.analyze(sql, dbType, schemaContext, language)` takes a BCP-47 code (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`). The renderer appends one line at the end of the user prompt: `Respond in: <DisplayName>. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.`
+`AiAnalyzerStrategy.analyze(sql, dbType, schemaContext, costEstimateContext, language, aiConfigId)` takes a BCP-47 `language` code (`en`, `es`, `de`, `fr`, `zh-CN`, `ru`, `hy`). The renderer appends one line at the end of the user prompt: `Respond in: <DisplayName>. Translate the free-form fields (summary, issues[].message, issues[].suggestion) into that language. Keep risk_level and issues[].category as their original English enum values.`
 
 `DefaultAiAnalyzerService` resolves the language per call by reading the org's `localization_config.ai_review_language` via `LocalizationConfigService.getOrDefault(organizationId)`. If the lookup fails or returns an unknown code the service silently falls back to English so prompt construction never blocks AI analysis. The `/admin/ai-config/test` smoke endpoint always passes `"en"` since it is a synthetic, language-agnostic call.
 
@@ -2029,6 +2042,7 @@ Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so t
 | `query.status_changed`  | `QueryStatusChangedEvent` (in `core/events/`)             | submitter            |
 | `query.executed`        | `QueryExecutedEvent` (in `workflow/events/`)              | submitter            |
 | `ai.analysis_complete`  | `AiAnalysisCompletedEvent` (in `core/events/`)            | submitter            |
+| `query.estimate_complete` | `QueryEstimateCompletedEvent` / `QueryEstimateFailedEvent` (in `core/events/`, AF-624) | submitter          |
 | `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
 | `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
 | `notification.created`  | `UserNotificationCreatedEvent` (in `notifications/events/`) | the recipient user |

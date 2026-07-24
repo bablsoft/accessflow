@@ -79,6 +79,18 @@ public interface QueryEngine {
     }
 
     /**
+     * Count the rows the request's UPDATE/DELETE would affect (issue AF-624), applying the
+     * request's row-security directives, <em>without</em> executing or mutating data — the
+     * engine's native non-mutating count (e.g. MongoDB {@code countDocuments}, SQL++
+     * {@code SELECT COUNT(*)}, Cypher {@code MATCH … RETURN count(*)}, Elasticsearch
+     * {@code _count}). Engines with no count concept inherit the default, which returns
+     * {@link QueryAffectedRowsResult#unsupported(String)} so the host degrades gracefully.
+     */
+    default QueryAffectedRowsResult countAffectedRows(QueryEngineDryRunRequest request) {
+        return QueryAffectedRowsResult.unsupported(engineId());
+    }
+
+    /**
      * Short-lived connectivity probe (the engine analogue of the JDBC {@code SELECT 1}).
      *
      * @throws DatasourceConnectionTestException when the target is unreachable or misconfigured.

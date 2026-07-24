@@ -160,7 +160,7 @@ class AiAnalysisListenerIntegrationTest {
                 List.of(new AiIssue(RiskLevel.HIGH, "DELETE_WITHOUT_WHERE", "msg", "fix")),
                 false, 1000L, AiProviderType.ANTHROPIC, "claude-sonnet-4-20250514", 100, 50,
                 List.of());
-        when(strategy.analyze(any(), any(), any(), any(), any())).thenReturn(result);
+        when(strategy.analyze(any(), any(), any(), any(), any(), any())).thenReturn(result);
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->
                 eventPublisher.publishEvent(new QuerySubmittedEvent(queryRequestId)));
@@ -209,7 +209,7 @@ class AiAnalysisListenerIntegrationTest {
 
     @Test
     void onSubmittedPersistsSentinelOnStrategyFailure() {
-        when(strategy.analyze(any(), any(), any(), any(), any()))
+        when(strategy.analyze(any(), any(), any(), any(), any(), any()))
                 .thenThrow(new com.bablsoft.accessflow.ai.api.AiAnalysisException("provider down"));
 
         new TransactionTemplate(transactionManager).executeWithoutResult(status ->

@@ -815,6 +815,31 @@ function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionV
           <Switch />
         </Form.Item>
       );
+    case 'estimated_rows':
+      return (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <Form.Item name={[name, 'est_operator']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+            <Select options={enumOptions(COMPARISON_OPERATORS, comparisonOperatorLabel, t)} />
+          </Form.Item>
+          <Form.Item
+            name={[name, 'est_value']}
+            rules={[{ required: true, type: 'number', min: 0 }]}
+            style={{ marginBottom: 0 }}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+        </div>
+      );
+    case 'scan_type':
+      return (
+        <Form.Item name={[name, 'scan_patterns']} rules={[{ required: true }]} style={{ marginBottom: 0 }}>
+          <Select
+            mode="tags"
+            tokenSeparators={[',']}
+            placeholder={t('admin.routing_policies.scan_type_placeholder')}
+          />
+        </Form.Item>
+      );
     default:
       return null;
   }

@@ -1,17 +1,22 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
+import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
+import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import com.mongodb.MongoException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.MongoIterable;
+import com.mongodb.client.model.CountOptions;
 import com.mongodb.client.model.IndexOptions;
 import org.bson.Document;
 
@@ -116,6 +121,45 @@ class MongoQueryExecutor {
             var plan = MongoPlanMapper.toPlan(response, command.collection());
             return QueryDryRunResult.of(MongoQueryEngine.ENGINE_ID, command.operation().queryType(),
                     null, plan, response.toJson(), applied.appliedPolicyIds(), durationSince(start));
+        } catch (MongoException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+    }
+
+    QueryAffectedRowsResult countAffectedRows(QueryExecutionRequest request,
+                                              DatasourceConnectionDescriptor descriptor,
+                                              Duration timeout) {
+        if (request.queryType() != QueryType.UPDATE && request.queryType() != QueryType.DELETE) {
+            return QueryAffectedRowsResult.unsupported(MongoQueryEngine.ENGINE_ID);
+        }
+        var start = clock.instant();
+        MongoCommand command;
+        try {
+            var applied = rowSecurityApplier.apply(parser.parseCommand(request.sql()),
+                    request.rowSecurityPredicates());
+            command = applied.command();
+        } catch (InvalidSqlException | UnrewritableRowSecurityException ex) {
+            // Fail closed: a shape we cannot parse or securely filter is never counted unfiltered.
+            return QueryAffectedRowsResult.unsupported(MongoQueryEngine.ENGINE_ID, ex.getMessage());
+        }
+        var operation = command.operation();
+        if (operation.queryType() != QueryType.UPDATE && operation.queryType() != QueryType.DELETE) {
+            return QueryAffectedRowsResult.unsupported(MongoQueryEngine.ENGINE_ID);
+        }
+        var database = clientManager.database(descriptor, true);
+        try {
+            var collection = database.getCollection(command.collection());
+            var options = new CountOptions().maxTime(Math.max(1, timeout.toMillis()),
+                    TimeUnit.MILLISECONDS);
+            long matched = collection.countDocuments(filterOrEmpty(command.filter()), options);
+            // *_ONE (and findOneAndUpdate/replaceOne) statements touch at most one document.
+            long affected = switch (operation) {
+                case UPDATE_ONE, REPLACE_ONE, FIND_ONE_AND_UPDATE, DELETE_ONE ->
+                        Math.min(matched, 1);
+                default -> matched;
+            };
+            return QueryAffectedRowsResult.of(MongoQueryEngine.ENGINE_ID, affected,
+                    durationSince(start));
         } catch (MongoException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

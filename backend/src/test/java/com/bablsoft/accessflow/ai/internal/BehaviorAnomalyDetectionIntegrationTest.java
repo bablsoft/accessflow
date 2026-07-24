@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.TestSystemRoleSeeder;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyDetectionService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyStatus;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.BehaviorAnomalyRepository;
@@ -134,6 +135,7 @@ class BehaviorAnomalyDetectionIntegrationTest {
     @AfterEach
     void cleanup() {
         jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
+        TestSystemRoleSeeder.reseedSystemRoles(jdbcTemplate);
         jdbcTemplate.execute("TRUNCATE TABLE audit_log CASCADE");
     }
 

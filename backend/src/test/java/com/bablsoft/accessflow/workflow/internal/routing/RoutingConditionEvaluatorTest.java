@@ -292,4 +292,47 @@ class RoutingConditionEvaluatorTest {
         assertThat(evaluator.matches(new ConditionNode.CiCdOrigin(false),
                 clientContext("203.0.113.7", null, false, null))).isTrue();
     }
+
+    @Test
+    void estimatedRows() {
+        var ctx = estimateContext(2_400_000L, "Seq Scan");
+        assertThat(evaluator.matches(
+                new ConditionNode.EstimatedRows(ComparisonOperator.GT, 100_000), ctx)).isTrue();
+        assertThat(evaluator.matches(
+                new ConditionNode.EstimatedRows(ComparisonOperator.LT, 100_000), ctx)).isFalse();
+        assertThat(evaluator.matches(
+                new ConditionNode.EstimatedRows(ComparisonOperator.EQ, 2_400_000), ctx)).isTrue();
+    }
+
+    @Test
+    void estimatedRowsFailsClosedWhenNoEstimate() {
+        var ctx = estimateContext(null, null);
+        assertThat(evaluator.matches(
+                new ConditionNode.EstimatedRows(ComparisonOperator.GTE, 0), ctx)).isFalse();
+    }
+
+    @Test
+    void scanType() {
+        var ctx = estimateContext(500L, "Seq Scan");
+        assertThat(evaluator.matches(
+                new ConditionNode.ScanTypeMatches(List.of("Seq*")), ctx)).isTrue();
+        assertThat(evaluator.matches(
+                new ConditionNode.ScanTypeMatches(List.of("seq scan")), ctx)).isTrue();
+        assertThat(evaluator.matches(
+                new ConditionNode.ScanTypeMatches(List.of("Index*")), ctx)).isFalse();
+    }
+
+    @Test
+    void scanTypeFailsClosedWhenNoPlan() {
+        var ctx = estimateContext(500L, null);
+        assertThat(evaluator.matches(
+                new ConditionNode.ScanTypeMatches(List.of("*")), ctx)).isFalse();
+    }
+
+    private ConditionContext estimateContext(Long estimatedRows, String scanType) {
+        return new ConditionContext(QueryType.DELETE, Set.of("payroll.salaries"), RiskLevel.HIGH, 82,
+                "ANALYST", Set.of(groupId), LocalDateTime.of(2026, 6, 3, 14, 30),
+                false, false, false, "203.0.113.7", "Mozilla/5.0 (Macintosh)", false, 120,
+                false, estimatedRows, scanType);
+    }
 }

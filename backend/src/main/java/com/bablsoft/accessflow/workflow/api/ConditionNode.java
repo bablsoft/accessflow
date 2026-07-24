@@ -186,6 +186,36 @@ public sealed interface ConditionNode {
     }
 
     /**
+     * Compares the pre-flight estimated row impact (AF-624 — for UPDATE/DELETE the exact
+     * affected-row count when available, otherwise the EXPLAIN estimate) with {@code value}.
+     * <strong>Fails closed</strong>: evaluates to {@code false} when no estimate signal exists —
+     * the estimate has not been computed yet, the engine has no plan concept, or the computation
+     * failed — so a permissive policy keyed on a small estimate never fires on missing context.
+     */
+    record EstimatedRows(ComparisonOperator operator, long value) implements ConditionNode {
+        public EstimatedRows {
+            if (operator == null) {
+                throw new IllegalArgumentException("EstimatedRows condition requires an operator");
+            }
+            if (value < 0) {
+                throw new IllegalArgumentException("EstimatedRows value must be >= 0");
+            }
+        }
+    }
+
+    /**
+     * Matches when the pre-flight plan's root scan/operation type (AF-624 — e.g. {@code Seq Scan},
+     * {@code Index Scan}, {@code COLLSCAN}) matches any glob in {@code patterns} ({@code *} = any
+     * run of characters, case-insensitive — same matcher as referenced tables).
+     * <strong>Fails closed</strong>: evaluates to {@code false} when no plan was captured.
+     */
+    record ScanTypeMatches(List<String> patterns) implements ConditionNode {
+        public ScanTypeMatches {
+            patterns = List.copyOf(patterns == null ? List.of() : patterns);
+        }
+    }
+
+    /**
      * Matches when the requester has an active (OPEN) behavioural anomaly on this datasource
      * (UBA, AF-383) equal to {@code expected}. Pair {@code AnomalyDetected(true)} with an
      * {@code ESCALATE} action to force extra approvals on a flagged user's next query. Deterministic
