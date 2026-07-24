@@ -29,8 +29,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (enums, jsonb columns), and the native scheduled-due scan executes against real Postgres — booting
  * the full application context (so the new {@code requestgroups} beans wire cleanly).
  */
-@SpringBootTest(
-        properties = "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+@SpringBootTest(properties = {
+        "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        // Pin the scheduled jobs far out so the live ScheduledGroupRunJob cannot fire mid-test and
+        // flip the just-inserted APPROVED group to EXECUTING before the findScheduledDueIds assertion.
+        "accessflow.requestgroups.run-poll-interval=PT24H",
+        "accessflow.requestgroups.timeout-poll-interval=PT24H"})
 @ImportTestcontainers(TestcontainersConfig.class)
 class RequestGroupPersistenceIntegrationTest {
 
