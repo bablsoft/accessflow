@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.audit.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.TestSystemRoleSeeder;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -90,6 +91,7 @@ class AdminAuditLogControllerIntegrationTest {
         // A plain DELETE FROM organizations chain would FK-fail whenever a prior test class left
         // datasources or other dependents behind — that exact flake bit this class in CI.
         jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
+        TestSystemRoleSeeder.reseedSystemRoles(jdbcTemplate);
     }
 
     @Test

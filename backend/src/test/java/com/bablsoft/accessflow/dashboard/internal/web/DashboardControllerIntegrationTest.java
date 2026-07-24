@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.dashboard.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.TestSystemRoleSeeder;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyStatus;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.BehaviorAnomalyEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.BehaviorAnomalyRepository;
@@ -107,6 +108,7 @@ class DashboardControllerIntegrationTest {
         // organizations cascade — truncate it explicitly (CASCADE clears the ai_analyses back-refs).
         jdbcTemplate.execute("TRUNCATE TABLE api_requests CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
+        TestSystemRoleSeeder.reseedSystemRoles(jdbcTemplate);
     }
 
     @Test

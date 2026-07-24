@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.compliance.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.TestSystemRoleSeeder;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateDataClassificationTagCommand;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
@@ -116,6 +117,7 @@ class ComplianceReportControllerIntegrationTest {
     @AfterEach
     void cleanup() {
         jdbcTemplate.execute("TRUNCATE TABLE organizations CASCADE");
+        TestSystemRoleSeeder.reseedSystemRoles(jdbcTemplate);
     }
 
     @Test
