@@ -6,6 +6,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogisticRegressionTrainerTest {
@@ -106,5 +107,38 @@ class LogisticRegressionTrainerTest {
         
         assertEquals(5.0, model.means().get("const"), 1e-6);
         assertEquals(1.0, model.stddevs().get("const"), 1e-6); // exactly 1.0 because stddev ~ 0
+    }
+
+    @Test
+    void trainThrowsOnLabelsLengthShorterThanFeatures() {
+        var trainer = new LogisticRegressionTrainer();
+        double[][] X = {{1.0, 2.0}, {3.0, 4.0}, {5.0, 6.0}};
+        boolean[] y = {true, false}; // only 2 labels for 3 samples
+        assertThrows(IllegalArgumentException.class,
+            () -> trainer.train(X, y, List.of("x1", "x2"), 0.0, 10));
+    }
+
+    @Test
+    void trainThrowsOnLabelsLengthLongerThanFeatures() {
+        var trainer = new LogisticRegressionTrainer();
+        double[][] X = {{1.0, 2.0}, {3.0, 4.0}};
+        boolean[] y = {true, false, true}; // 3 labels for 2 samples
+        assertThrows(IllegalArgumentException.class,
+            () -> trainer.train(X, y, List.of("x1", "x2"), 0.0, 10));
+    }
+
+    @Test
+    void trainThrowsOnRaggedFeatureRow() {
+        var trainer = new LogisticRegressionTrainer();
+        double[][] X = {{1.0, 2.0}, {3.0}}; // second row has only 1 feature
+        boolean[] y = {true, false};
+        assertThrows(IllegalArgumentException.class,
+            () -> trainer.train(X, y, List.of("x1", "x2"), 0.0, 10));
+    }
+    @Test
+    void trainThrowsOnEmptyFeatures() {
+        var trainer = new LogisticRegressionTrainer();
+        assertThrows(IllegalArgumentException.class,
+            () -> trainer.train(new double[0][0], new boolean[0], List.of("x1"), 0.0, 10));
     }
 }

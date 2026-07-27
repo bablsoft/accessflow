@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ModelEvaluatorTest {
 
@@ -46,5 +47,38 @@ class ModelEvaluatorTest {
         // 0.6 -> true (Incorrect)
         // 0.9 -> true (Correct)
         assertEquals(0.5, eval.calculateAccuracy(probs, labels, 0.5), 1e-6);
+    }
+
+    @Test
+    void calculateAucThrowsOnLengthMismatch() {
+        var eval = new ModelEvaluator();
+        assertThrows(IllegalArgumentException.class,
+            () -> eval.calculateAuc(new double[]{0.1, 0.9}, new boolean[]{true}));
+    }
+
+    @Test
+    void calculateAucThrowsWhenLabelsLonger() {
+        var eval = new ModelEvaluator();
+        assertThrows(IllegalArgumentException.class,
+            () -> eval.calculateAuc(new double[]{0.5}, new boolean[]{true, false}));
+    }
+
+    @Test
+    void calculateAccuracyThrowsOnLengthMismatch() {
+        var eval = new ModelEvaluator();
+        assertThrows(IllegalArgumentException.class,
+            () -> eval.calculateAccuracy(new double[]{0.1, 0.9}, new boolean[]{true}, 0.5));
+    }
+
+    @Test
+    void calculateAucEmptyInput() {
+        var eval = new ModelEvaluator();
+        assertEquals(0.5, eval.calculateAuc(new double[0], new boolean[0]), 1e-6);
+    }
+
+    @Test
+    void calculateAccuracyEmptyInput() {
+        var eval = new ModelEvaluator();
+        assertEquals(1.0, eval.calculateAccuracy(new double[0], new boolean[0], 0.5), 1e-6);
     }
 }

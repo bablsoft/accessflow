@@ -12,9 +12,20 @@ public class LogisticRegressionTrainer {
     public TrainedApprovalModel train(double[][] features, boolean[] labels, List<String> featureNames, double lambda, int maxIterations) {
         int n = features.length;
         if (n == 0) {
-            throw new IllegalArgumentException("No features");
+            throw new IllegalArgumentException("No training samples");
         }
         int m = featureNames.size();
+        if (labels.length != n) {
+            throw new IllegalArgumentException(
+                    "labels.length (" + labels.length + ") must equal features.length (" + n + ")");
+        }
+        for (int i = 0; i < n; i++) {
+            if (features[i].length != m) {
+                throw new IllegalArgumentException(
+                        "features[" + i + "].length (" + features[i].length
+                        + ") must equal featureNames.size() (" + m + ")");
+            }
+        }
         
         double[] means = new double[m];
         double[] stddevs = new double[m];

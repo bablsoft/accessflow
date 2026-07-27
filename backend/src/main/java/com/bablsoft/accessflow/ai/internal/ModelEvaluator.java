@@ -11,6 +11,10 @@ public class ModelEvaluator {
 
     public double calculateAuc(double[] probabilities, boolean[] labels) {
         int n = probabilities.length;
+        if (labels.length != n) {
+            throw new IllegalArgumentException(
+                    "labels.length (" + labels.length + ") must equal probabilities.length (" + n + ")");
+        }
         if (n == 0) {
             return 0.5;
         }
@@ -54,6 +58,11 @@ public class ModelEvaluator {
     }
 
     public double calculateAccuracy(double[] probabilities, boolean[] labels, double threshold) {
+        if (labels.length != probabilities.length) {
+            throw new IllegalArgumentException(
+                    "labels.length (" + labels.length + ") must equal probabilities.length ("
+                    + probabilities.length + ")");
+        }
         if (probabilities.length == 0) {
             return 1.0;
         }
