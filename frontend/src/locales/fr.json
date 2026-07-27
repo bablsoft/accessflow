@@ -1080,6 +1080,7 @@
       },
       "tab_row_security": "Sécurité des lignes · {{count}}",
       "tab_classification": "Classification · {{count}}",
+      "tab_discovery": "Découverte · {{count}}",
       "row_security": {
         "title": "Politiques de sécurité au niveau des lignes",
         "description": "Filtre les lignes qu’un utilisateur peut voir (SELECT) ou modifier (UPDATE/DELETE) dans une table. Chaque politique compare une colonne à une valeur par utilisateur ; les utilisateurs concernés ne voient que les lignes autorisées.",
@@ -1202,7 +1203,50 @@
       "cache_enabled_help": "Servir les SELECT identiques répétés depuis un cache Redis. Les entrées sont invalidées à chaque écriture sur une table référencée ; le masquage et la sécurité des lignes s’appliquent toujours.",
       "label_cache_ttl": "TTL du cache (secondes)",
       "cache_ttl_help": "Durée de validité d’un résultat en cache (1–86 400 secondes). Laisser vide pour la valeur par défaut du déploiement.",
-      "cache_ttl_placeholder": "Valeur par défaut du déploiement"
+      "cache_ttl_placeholder": "Valeur par défaut du déploiement",
+      "discovery": {
+        "settings_title": "Paramètres de découverte",
+        "settings_description": "Échantillonne périodiquement les données des colonnes via le chemin d'échantillonnage gouverné, détecte les valeurs sensibles avec des détecteurs de motifs locaux (et éventuellement votre analyseur IA) et propose des étiquettes de classification à examiner. Les valeurs brutes échantillonnées ne sont jamais stockées ni envoyées au fournisseur d'IA.",
+        "label_enabled": "Analyses planifiées",
+        "label_sample_size": "Taille de l'échantillon",
+        "label_scan_interval": "Intervalle (heures)",
+        "label_ai": "Classification par IA",
+        "ai_hint": "Demande en plus à l'analyseur IA de l'organisation de classifier les colonnes en utilisant uniquement les noms, les types et des échantillons expurgés.",
+        "sample_size_range": "La taille de l'échantillon doit être comprise entre 10 et 1000",
+        "scan_interval_range": "L'intervalle d'analyse doit être compris entre 1 et 720 heures",
+        "scan_now": "Analyser maintenant",
+        "scan_started": "Analyse de découverte démarrée",
+        "scan_error": "Impossible de démarrer l'analyse de découverte",
+        "config_save_success": "Paramètres de découverte enregistrés",
+        "config_save_error": "Impossible d'enregistrer les paramètres de découverte",
+        "last_scan": "Dernière analyse : {{time}}",
+        "last_scan_error": "Problème lors de la dernière analyse : {{error}}",
+        "findings_title": "Découvertes",
+        "findings_description": "Classifications proposées de colonnes sensibles. Confirmer applique l'étiquette et dérive une politique de masquage ; rejeter supprime définitivement la proposition.",
+        "filter_all": "Toutes",
+        "col_column": "Colonne",
+        "col_classification": "Classification",
+        "col_detector": "Détecteur",
+        "col_confidence": "Confiance",
+        "confidence_value": "{{confidence}} %",
+        "col_sample": "Échantillon (expurgé)",
+        "col_detected": "Détecté",
+        "col_status": "Statut",
+        "empty_title": "Aucune découverte",
+        "empty_description": "Activez la découverte ou lancez une analyse pour proposer des classifications de colonnes sensibles.",
+        "confirm_selected": "Confirmer la sélection",
+        "dismiss_selected": "Rejeter la sélection",
+        "clear_selection": "Effacer la sélection",
+        "bulk_toast_partial": "{{success}} décidées · {{failure}} en échec",
+        "bulk_error": "La décision groupée a échoué",
+        "row_status_invalid_state": "Déjà décidé",
+        "row_status_not_found": "Introuvable",
+        "row_status_error": "Échec",
+        "bulk_action_bar_count_one": "{{count}} sélectionné",
+        "bulk_action_bar_count_other": "{{count}} sélectionnés",
+        "bulk_toast_summary_one": "{{count}} découverte décidée",
+        "bulk_toast_summary_other": "{{count}} découvertes décidées"
+      }
     }
   },
   "admin": {
@@ -2634,6 +2678,19 @@
       "HEX": "Hexadécimal",
       "BASE64": "Base64",
       "BASE64URL": "Base64 (URL, sans remplissage)"
+    },
+    "discovery_detector": {
+      "EMAIL": "E-mail",
+      "CREDIT_CARD": "Carte bancaire",
+      "SSN": "SSN",
+      "IBAN": "IBAN",
+      "PHONE": "Téléphone",
+      "AI": "IA"
+    },
+    "discovery_finding_status": {
+      "PENDING": "En attente",
+      "CONFIRMED": "Confirmée",
+      "DISMISSED": "Rejetée"
     }
   },
   "access": {

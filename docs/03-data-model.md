@@ -379,6 +379,67 @@ delete the derived masking policy.** Tag changes are audited via `DATA_CLASSIFIC
 
 ---
 
+## discovery_scan_config
+
+Per-datasource settings for automated sensitive-data discovery (AF-623). One row per datasource;
+absence means discovery is disabled with defaults. The `DiscoveryScanJob` drains enabled rows whose
+`last_scan_at` is older than their own `scan_interval_hours`. Created by
+`V129__create_discovery.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` (`ON DELETE CASCADE`) |
+| `datasource_id` | FK → `datasources` (`ON DELETE CASCADE`), UNIQUE |
+| `enabled` | BOOLEAN NOT NULL DEFAULT FALSE — opt-in for scheduled scans |
+| `sample_size` | INT NOT NULL DEFAULT 100 — rows sampled per table (10–1000) |
+| `scan_interval_hours` | INT NOT NULL DEFAULT 24 — per-datasource cadence (1–720) |
+| `ai_classification_enabled` | BOOLEAN NOT NULL DEFAULT FALSE — opt-in AI pass (redacted samples only) |
+| `last_scan_at` | TIMESTAMPTZ nullable — stamped after every scan (scheduled or on-demand) |
+| `last_scan_error` | TEXT nullable — failure summary / partial-run note of the most recent scan |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id)`.
+
+---
+
+## discovery_finding
+
+Proposed sensitive-column classification worklist (AF-623). One row per
+`(column, classification, detector)`; rescans refresh `PENDING` rows in place and never touch
+`CONFIRMED`/`DISMISSED` rows — a dismissal is a permanent suppression. `sample_redacted` only ever
+holds a redacted value (raw sampled data never persists). Confirming a finding applies the tag
+through the AF-447 service (deriving masking); enums `discovery_detector`
+(`EMAIL` | `CREDIT_CARD` | `SSN` | `IBAN` | `PHONE` | `AI`) and `discovery_finding_status`
+(`PENDING` | `CONFIRMED` | `DISMISSED`). Created by `V129__create_discovery.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` (`ON DELETE CASCADE`) |
+| `datasource_id` | FK → `datasources` (`ON DELETE CASCADE`) |
+| `schema_name` | TEXT nullable — NULL for engines without a schema concept |
+| `table_name` / `column_name` | TEXT NOT NULL |
+| `classification` | ENUM `data_classification` — the proposed classification |
+| `detector` | ENUM `discovery_detector` — which detector produced the proposal |
+| `confidence` | INT (0–100) — match ratio for regex detectors, model confidence for `AI` |
+| `sample_redacted` | TEXT nullable — redacted evidence sample |
+| `rationale` | TEXT nullable — `AI` findings only |
+| `match_count` / `sample_count` | INT — matched / examined values (`match_count` 0 for AI rows) |
+| `status` | ENUM `discovery_finding_status` DEFAULT `'PENDING'` |
+| `decided_by` | FK → `users` (`ON DELETE SET NULL`) nullable |
+| `decided_at` | TIMESTAMPTZ nullable |
+| `first_detected_at` / `last_detected_at` | TIMESTAMPTZ NOT NULL |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Unique expression index `(organization_id, datasource_id, COALESCE(schema_name, ''), table_name,
+column_name, classification, detector)` (the V90 COALESCE pattern) is the rescan upsert key;
+`(datasource_id, status)` serves the worklist scan.
+
+---
+
 ## review_plans
 
 Defines an approval policy. Assigned to datasources.
@@ -1271,6 +1332,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
+| `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
+| `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED` | Admin confirms (tag applied via the AF-447 service, masking derived) or dismisses (permanently suppressed) a discovery finding via `/datasources/{id}/discovery/findings/bulk-decision`. Resource: `discovery_finding`. Metadata: table, column, classification, detector, confidence, and `tagConflict` when the tag already existed. |
 | `COMPLIANCE_REPORT_EXPORTED` | AUDITOR/ADMIN exported a signed compliance report via `GET /admin/compliance/reports/export` (AF-459). Resource: `compliance_report`, no resource id. Metadata captures `report_type`, `format`, `period_from`, `period_to`, optional `datasource_id`, `row_count`, `truncated`, and the export's `content_sha256` + `signature` + `signature_algorithm` — chaining the export's hash into the tamper-evident log. |
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 | `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |

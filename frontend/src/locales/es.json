@@ -1080,6 +1080,7 @@
       },
       "tab_row_security": "Seguridad de filas · {{count}}",
       "tab_classification": "Clasificación · {{count}}",
+      "tab_discovery": "Descubrimiento · {{count}}",
       "row_security": {
         "title": "Políticas de seguridad de filas",
         "description": "Filtra las filas que un usuario puede ver (SELECT) o modificar (UPDATE/DELETE) en una tabla. Cada política compara una columna con un valor por usuario; los usuarios en alcance solo ven las filas autorizadas.",
@@ -1202,7 +1203,50 @@
       "cache_enabled_help": "Servir SELECTs idénticos repetidos desde una caché Redis. Las entradas se invalidan con cada escritura en una tabla referenciada; el enmascaramiento y la seguridad de filas siguen aplicándose.",
       "label_cache_ttl": "TTL de caché (segundos)",
       "cache_ttl_help": "Cuánto tiempo permanece válido un resultado en caché (1–86.400 segundos). Déjelo en blanco para el valor por defecto del despliegue.",
-      "cache_ttl_placeholder": "Valor por defecto del despliegue"
+      "cache_ttl_placeholder": "Valor por defecto del despliegue",
+      "discovery": {
+        "settings_title": "Configuración de descubrimiento",
+        "settings_description": "Muestrea periódicamente los datos de columnas a través de la ruta de muestreo gobernada, detecta valores sensibles con detectores de patrones locales (y opcionalmente su analizador de IA) y propone etiquetas de clasificación para revisión. Los valores muestreados sin procesar nunca se almacenan ni se envían al proveedor de IA.",
+        "label_enabled": "Escaneos programados",
+        "label_sample_size": "Tamaño de muestra",
+        "label_scan_interval": "Intervalo (horas)",
+        "label_ai": "Clasificación por IA",
+        "ai_hint": "Además pide al analizador de IA de la organización que clasifique columnas usando solo nombres, tipos y muestras redactadas.",
+        "sample_size_range": "El tamaño de la muestra debe estar entre 10 y 1000",
+        "scan_interval_range": "El intervalo de escaneo debe estar entre 1 y 720 horas",
+        "scan_now": "Escanear ahora",
+        "scan_started": "Escaneo de descubrimiento iniciado",
+        "scan_error": "No se pudo iniciar el escaneo de descubrimiento",
+        "config_save_success": "Configuración de descubrimiento guardada",
+        "config_save_error": "No se pudo guardar la configuración de descubrimiento",
+        "last_scan": "Último escaneo: {{time}}",
+        "last_scan_error": "Problema en el último escaneo: {{error}}",
+        "findings_title": "Hallazgos",
+        "findings_description": "Clasificaciones propuestas de columnas sensibles. Confirmar aplica la etiqueta y deriva una política de enmascaramiento; descartar suprime la propuesta permanentemente.",
+        "filter_all": "Todos",
+        "col_column": "Columna",
+        "col_classification": "Clasificación",
+        "col_detector": "Detector",
+        "col_confidence": "Confianza",
+        "confidence_value": "{{confidence}}%",
+        "col_sample": "Muestra (redactada)",
+        "col_detected": "Detectado",
+        "col_status": "Estado",
+        "empty_title": "Sin hallazgos",
+        "empty_description": "Active el descubrimiento o ejecute un escaneo para proponer clasificaciones de columnas sensibles.",
+        "confirm_selected": "Confirmar seleccionados",
+        "dismiss_selected": "Descartar seleccionados",
+        "clear_selection": "Borrar selección",
+        "bulk_toast_partial": "{{success}} decididos · {{failure}} fallidos",
+        "bulk_error": "La decisión masiva falló",
+        "row_status_invalid_state": "Ya decidido",
+        "row_status_not_found": "No encontrado",
+        "row_status_error": "Fallido",
+        "bulk_action_bar_count_one": "{{count}} seleccionado",
+        "bulk_action_bar_count_other": "{{count}} seleccionados",
+        "bulk_toast_summary_one": "{{count}} hallazgo decidido",
+        "bulk_toast_summary_other": "{{count}} hallazgos decididos"
+      }
     }
   },
   "admin": {
@@ -2634,6 +2678,19 @@
       "HEX": "Hexadecimal",
       "BASE64": "Base64",
       "BASE64URL": "Base64 (seguro para URL, sin relleno)"
+    },
+    "discovery_detector": {
+      "EMAIL": "Correo electrónico",
+      "CREDIT_CARD": "Tarjeta de crédito",
+      "SSN": "SSN",
+      "IBAN": "IBAN",
+      "PHONE": "Teléfono",
+      "AI": "IA"
+    },
+    "discovery_finding_status": {
+      "PENDING": "Pendiente",
+      "CONFIRMED": "Confirmado",
+      "DISMISSED": "Descartado"
     }
   },
   "access": {

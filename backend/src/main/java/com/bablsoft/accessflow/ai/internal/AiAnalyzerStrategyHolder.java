@@ -84,6 +84,18 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             database-access pattern looks anomalous relative to the user's historical baseline, and \
             what a reviewer should check. Do not use markdown, headings, or bullet points.""";
 
+    // AF-623: sensitive-data discovery AI pass. Sample values are redacted (format-preserving)
+    // before they reach this prompt — the model judges by column name, type, and value shape.
+    private static final String DISCOVERY_CLASSIFY_PREAMBLE = """
+            You are a data-classification analyst. Given a database table with its column names, \
+            types, and redacted sample values (digits replaced by *, letters by x — only the shape \
+            is preserved), identify columns likely to contain sensitive data. Respond with ONLY a \
+            JSON object of the form \
+            {"columns":[{"column":"<name>","classification":"PII|PCI|PHI|GDPR|FINANCIAL|SENSITIVE",\
+            "confidence":<0-100>,"rationale":"<one short sentence>"}]}. \
+            Propose only columns you genuinely believe are sensitive; when none are, respond \
+            {"columns":[]}. No markdown, no code fences, no prose outside the JSON.""";
+
     @Override
     public AiAnalysisResult analyze(String sql, DbType dbType, String schemaContext,
                                     String costEstimateContext, String language, UUID aiConfigId) {
@@ -184,22 +196,38 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
      * config exists or any provider/parse error occurs — it never throws and never blocks detection.
      */
     Optional<String> summarizeFreeform(UUID organizationId, String userPrompt) {
+        return completeFreeform(organizationId, ANOMALY_SUMMARY_PREAMBLE, userPrompt,
+                "anomaly summary");
+    }
+
+    /**
+     * Freeform call for the sensitive-data discovery AI pass (AF-623). Same fail-safe contract as
+     * {@link #summarizeFreeform}; the preamble demands strict JSON, which the discovery service
+     * parses leniently and drops on any mismatch.
+     */
+    Optional<String> classifyDiscoveryColumns(UUID organizationId, String userPrompt) {
+        return completeFreeform(organizationId, DISCOVERY_CLASSIFY_PREAMBLE, userPrompt,
+                "discovery classification");
+    }
+
+    private Optional<String> completeFreeform(UUID organizationId, String systemPreamble,
+                                              String userPrompt, String logContext) {
         if (organizationId == null || userPrompt == null || userPrompt.isBlank()) {
             return Optional.empty();
         }
         try {
             var entity = resolveUsableConfig(organizationId).orElse(null);
             if (entity == null) {
-                log.debug("No usable ai_config for org {}; skipping anomaly summary", organizationId);
+                log.debug("No usable ai_config for org {}; skipping {}", organizationId, logContext);
                 return Optional.empty();
             }
             var chatModel = chatModelCache.computeIfAbsent(entity.getId(), key -> buildChatModel(entity));
-            var invocation = ChatModelInvoker.invoke(chatModel, ANOMALY_SUMMARY_PREAMBLE, userPrompt,
+            var invocation = ChatModelInvoker.invoke(chatModel, systemPreamble, userPrompt,
                     entity.getProvider().name());
             var text = invocation.text();
             return text == null || text.isBlank() ? Optional.empty() : Optional.of(text.strip());
         } catch (RuntimeException ex) {
-            log.warn("Anomaly AI summary failed for org {}: {}", organizationId, ex.getMessage());
+            log.warn("AI {} failed for org {}: {}", logContext, organizationId, ex.getMessage());
             return Optional.empty();
         }
     }

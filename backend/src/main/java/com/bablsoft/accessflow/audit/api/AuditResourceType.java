@@ -46,7 +46,8 @@ public enum AuditResourceType {
     RETENTION_POLICY("retention_policy"),
     DELETION_REQUEST("deletion_request"),
     REQUEST_GROUP("request_group"),
-    QUERY_TICKET("query_ticket");
+    QUERY_TICKET("query_ticket"),
+    DISCOVERY_FINDING("discovery_finding");
 
     private final String dbValue;
 

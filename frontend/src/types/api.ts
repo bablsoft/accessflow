@@ -3235,3 +3235,69 @@ export interface PermissionCatalogGroup {
 export interface PermissionCatalog {
   groups: PermissionCatalogGroup[];
 }
+
+// --- AF-623: sensitive-data discovery ---
+
+export type DiscoveryDetector = 'EMAIL' | 'CREDIT_CARD' | 'SSN' | 'IBAN' | 'PHONE' | 'AI';
+export type DiscoveryFindingStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED';
+export type DiscoveryDecision = 'CONFIRM' | 'DISMISS';
+export type DiscoveryRowStatus =
+  | 'SUCCESS'
+  | 'NOT_FOUND'
+  | 'INVALID_STATE'
+  | 'TAG_CONFLICT'
+  | 'ERROR';
+
+export interface DiscoveryScanConfig {
+  datasource_id: string;
+  enabled: boolean;
+  sample_size: number;
+  scan_interval_hours: number;
+  ai_classification_enabled: boolean;
+  last_scan_at: string | null;
+  last_scan_error: string | null;
+}
+
+/** Partial update — omitted fields keep their current value. */
+export interface UpdateDiscoveryConfigInput {
+  enabled?: boolean;
+  sample_size?: number;
+  scan_interval_hours?: number;
+  ai_classification_enabled?: boolean;
+}
+
+export interface DiscoveryFinding {
+  id: string;
+  schema_name: string | null;
+  table_name: string;
+  column_name: string;
+  classification: DataClassification;
+  detector: DiscoveryDetector;
+  confidence: number;
+  sample_redacted: string | null;
+  rationale: string | null;
+  match_count: number;
+  sample_count: number;
+  status: DiscoveryFindingStatus;
+  first_detected_at: string;
+  last_detected_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+}
+
+export type DiscoveryFindingPage = PageEnvelope<DiscoveryFinding>;
+
+export interface BulkDiscoveryDecisionInput {
+  finding_ids: string[];
+  decision: DiscoveryDecision;
+}
+
+export interface BulkDiscoveryDecisionRow {
+  finding_id: string;
+  status: DiscoveryRowStatus;
+  new_status: DiscoveryFindingStatus | null;
+}
+
+export interface BulkDiscoveryDecisionResult {
+  results: BulkDiscoveryDecisionRow[];
+}

@@ -179,6 +179,11 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `DELETE` | `/datasources/{id}/classification-tags/{tagId}` | ADMIN | Remove a classification tag (keeps the derived masking policy) |
 | `GET` | `/datasources/{id}/classification-tags/derivation-preview` | ADMIN | Preview the masking + review handling implied by a datasource's tags |
 | `GET` | `/admin/data-classifications` | ADMIN | List every classification tag in the organization (compliance reporting) |
+| `GET` | `/datasources/{id}/discovery/config` | ADMIN | Get the datasource's sensitive-data discovery settings (AF-623) |
+| `PUT` | `/datasources/{id}/discovery/config` | ADMIN | Create or update the discovery settings |
+| `GET` | `/datasources/{id}/discovery/findings` | ADMIN | Page the discovery-findings worklist (`status`, `page`, `size`) |
+| `POST` | `/datasources/{id}/discovery/findings/bulk-decision` | ADMIN | Confirm or dismiss a batch of findings (partial success) |
+| `POST` | `/datasources/{id}/discovery/scan` | ADMIN | Trigger an immediate discovery scan (202) |
 | `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
 | `GET` | `/datasources/drivers` | ADMIN | List the organization's uploaded JDBC drivers |
 | `GET` | `/datasources/drivers/{id}` | ADMIN | Get details of one uploaded driver |
@@ -907,6 +912,120 @@ Read-only. The posture is the strictest aggregate over the datasource's tags (`r
 `{ "content": [ { id, datasource_id, datasource_name, table_name, column_name, classification, note,
 created_at, updated_at }, … ] }` — every classification tag in the organization across all
 datasources, the evidence base for compliance reporting.
+
+---
+
+### Sensitive-data discovery (AF-623)
+
+A scheduled scanner samples column data through the same governance-aware sampling path as
+`GET /datasources/{id}/sample-rows`, detects sensitive data with local regex + checksum detectors
+(email, credit-card PAN with Luhn, US SSN, IBAN with mod-97, phone) and optionally the org's bound
+AI analyzer, then **proposes** classification tags an admin confirms or dismisses. All endpoints
+require the `DATA_CLASSIFICATION_MANAGE` permission (same as manual classification tags).
+
+#### GET /datasources/{id}/discovery/config — Response 200
+
+```json
+{
+  "datasource_id": "9f7c…",
+  "enabled": false,
+  "sample_size": 100,
+  "scan_interval_hours": 24,
+  "ai_classification_enabled": false,
+  "last_scan_at": "2026-07-27T02:00:00Z",
+  "last_scan_error": null
+}
+```
+
+When the datasource has no persisted config, the defaults above are synthesized
+(`last_scan_at: null`). `last_scan_error` carries the failure summary of the most recent scan
+(`null` on success; a "partial" note when the table cap or time budget truncated the run).
+
+#### PUT /datasources/{id}/discovery/config — Request Body
+
+```json
+{
+  "enabled": true,
+  "sample_size": 100,
+  "scan_interval_hours": 24,
+  "ai_classification_enabled": false
+}
+```
+
+Upserts the config row; omitted (`null`) fields keep their current value. Validation:
+`sample_size` 10–1000, `scan_interval_hours` 1–720. Response 200 mirrors the GET shape. The
+optional AI pass sends **only column names, types, and redacted samples** (format-preserving
+masking) to the org's first usable `ai_config` — raw sampled values never leave the platform.
+
+#### GET /datasources/{id}/discovery/findings — Response 200
+
+Query params: `status` (`PENDING` | `CONFIRMED` | `DISMISSED`, omitted = all), `page`, `size`.
+Sorted by `last_detected_at` descending.
+
+```json
+{
+  "content": [
+    {
+      "id": "3d2a…",
+      "schema_name": "public",
+      "table_name": "customers",
+      "column_name": "email",
+      "classification": "PII",
+      "detector": "EMAIL",
+      "confidence": 96,
+      "sample_redacted": "*************.com",
+      "rationale": null,
+      "match_count": 48,
+      "sample_count": 50,
+      "status": "PENDING",
+      "first_detected_at": "2026-07-20T02:00:00Z",
+      "last_detected_at": "2026-07-27T02:00:00Z",
+      "decided_by": null,
+      "decided_at": null
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`detector` is `EMAIL | CREDIT_CARD | SSN | IBAN | PHONE | AI`; `rationale` is populated for `AI`
+findings only. `sample_redacted` is always a redacted value — raw sampled data is never stored.
+
+#### POST /datasources/{id}/discovery/findings/bulk-decision — Request Body
+
+```json
+{ "finding_ids": ["3d2a…", "77b1…"], "decision": "CONFIRM" }
+```
+
+`decision` is `CONFIRM` | `DISMISS`; 1–100 ids per call. Each finding is decided independently
+(partial success). Confirming applies the classification tag through the AF-447 service — which
+auto-derives a masking policy for the column — and marks the finding `CONFIRMED`; dismissing marks
+it `DISMISSED`, permanently suppressing the proposal on future scans. Response 200:
+
+```json
+{
+  "results": [
+    { "finding_id": "3d2a…", "status": "SUCCESS", "new_status": "CONFIRMED" },
+    { "finding_id": "77b1…", "status": "TAG_CONFLICT", "new_status": "CONFIRMED" }
+  ]
+}
+```
+
+Row `status` values: `SUCCESS`, `NOT_FOUND` (unknown id in this datasource/org),
+`INVALID_STATE` (finding already decided), `TAG_CONFLICT` (the tag already existed — e.g. added
+manually since the scan; the finding is still marked `CONFIRMED` so the worklist clears, but no
+new tag or masking is derived), `ERROR` (unexpected failure; the finding stays `PENDING`).
+
+#### POST /datasources/{id}/discovery/scan — Response 202
+
+Triggers an immediate scan on a background virtual thread — allowed even when `enabled` is false
+(ad-hoc preview before opting into the schedule). `409 DISCOVERY_SCAN_ALREADY_RUNNING` when a scan
+for the datasource is already in flight; `404` for an unknown datasource. Scan runs are audited as
+`DISCOVERY_SCAN_COMPLETED`; confirmations/dismissals as `DISCOVERY_FINDING_CONFIRMED` /
+`DISCOVERY_FINDING_DISMISSED`.
 
 ---
 

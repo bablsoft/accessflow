@@ -1205,6 +1205,26 @@
             datasources as the evidence base for compliance reporting.
           </p>
           <p>
+            <strong>Automated discovery.</strong> Instead of tagging hundreds of tables by hand, the
+            datasource <em>Discovery</em> tab opts a datasource into a scheduled scanner that samples
+            column data through the same governed sampling path, detects sensitive values with local
+            regex + checksum detectors (emails, credit-card numbers with Luhn, US SSNs, IBANs, phone
+            numbers) and — optionally — your bound AI analyzer, then <strong>proposes</strong> the
+            classification tags in a review worklist. Confirming a finding applies the tag (deriving
+            masking exactly like a manual tag); dismissing suppresses the proposal permanently. Raw
+            sampled values never persist (findings store a redacted sample only), and the AI pass
+            only ever sees column names, types, and redacted samples. Configure the per-datasource
+            sample size (10–1000 rows) and cadence (1–720 hours), or hit <em>Scan now</em> for an
+            immediate run; scans and decisions land in the audit log
+            (<code>DISCOVERY_SCAN_COMPLETED</code>, <code>DISCOVERY_FINDING_CONFIRMED</code> /
+            <code>_DISMISSED</code>). Operator knobs:
+            <code>ACCESSFLOW_DISCOVERY_SCAN_POLL_INTERVAL</code> (<code>PT15M</code>),
+            <code>ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET</code> (<code>PT10M</code>),
+            <code>ACCESSFLOW_DISCOVERY_SAMPLE_STATEMENT_TIMEOUT</code> (<code>PT10S</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_TABLES_PER_SCAN</code> (<code>200</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN</code> (<code>25</code>).
+          </p>
+          <p>
             <strong>Tune it.</strong> Per-datasource fields above set row caps and review behaviour;
             these environment variables set the engine-level connection and execution ceilings
             (defaults shown):
