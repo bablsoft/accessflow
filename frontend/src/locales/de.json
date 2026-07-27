@@ -1080,6 +1080,7 @@
       },
       "tab_row_security": "Zeilensicherheit · {{count}}",
       "tab_classification": "Klassifizierung · {{count}}",
+      "tab_discovery": "Discovery · {{count}}",
       "row_security": {
         "title": "Zeilensicherheitsrichtlinien",
         "description": "Filtert die Zeilen, die ein Benutzer in einer Tabelle sehen (SELECT) oder ändern (UPDATE/DELETE) darf. Jede Richtlinie vergleicht eine Spalte mit einem benutzerspezifischen Wert; Benutzer im Geltungsbereich sehen nur autorisierte Zeilen.",
@@ -1202,7 +1203,50 @@
       "cache_enabled_help": "Wiederholte identische SELECTs aus einem Redis-Cache bedienen. Einträge werden bei jedem Schreibzugriff auf eine referenzierte Tabelle invalidiert; Maskierung und Zeilensicherheit gelten weiterhin.",
       "label_cache_ttl": "Cache-TTL (Sekunden)",
       "cache_ttl_help": "Wie lange ein zwischengespeichertes Ergebnis gültig bleibt (1–86.400 Sekunden). Leer lassen für den Bereitstellungsstandard.",
-      "cache_ttl_placeholder": "Bereitstellungsstandard"
+      "cache_ttl_placeholder": "Bereitstellungsstandard",
+      "discovery": {
+        "settings_title": "Discovery-Einstellungen",
+        "settings_description": "Tastet Spaltendaten regelmäßig über den kontrollierten Sampling-Pfad ab, erkennt sensible Werte mit lokalen Mustererkennern (und optional Ihrem KI-Analyzer) und schlägt Klassifizierungs-Tags zur Prüfung vor. Rohe Stichprobenwerte werden nie gespeichert und nie an den KI-Anbieter gesendet.",
+        "label_enabled": "Geplante Scans",
+        "label_sample_size": "Stichprobengröße",
+        "label_scan_interval": "Intervall (Stunden)",
+        "label_ai": "KI-Klassifizierung",
+        "ai_hint": "Bittet zusätzlich den KI-Analyzer der Organisation, Spalten nur anhand von Namen, Typen und geschwärzten Stichproben zu klassifizieren.",
+        "sample_size_range": "Die Stichprobengröße muss zwischen 10 und 1000 liegen",
+        "scan_interval_range": "Das Scan-Intervall muss zwischen 1 und 720 Stunden liegen",
+        "scan_now": "Jetzt scannen",
+        "scan_started": "Discovery-Scan gestartet",
+        "scan_error": "Discovery-Scan konnte nicht gestartet werden",
+        "config_save_success": "Discovery-Einstellungen gespeichert",
+        "config_save_error": "Discovery-Einstellungen konnten nicht gespeichert werden",
+        "last_scan": "Letzter Scan: {{time}}",
+        "last_scan_error": "Problem beim letzten Scan: {{error}}",
+        "findings_title": "Funde",
+        "findings_description": "Vorgeschlagene Klassifizierungen sensibler Spalten. Bestätigen wendet das Tag an und leitet eine Maskierungsrichtlinie ab; Verwerfen unterdrückt den Vorschlag dauerhaft.",
+        "filter_all": "Alle",
+        "col_column": "Spalte",
+        "col_classification": "Klassifizierung",
+        "col_detector": "Detektor",
+        "col_confidence": "Konfidenz",
+        "confidence_value": "{{confidence}}%",
+        "col_sample": "Stichprobe (geschwärzt)",
+        "col_detected": "Erkannt",
+        "col_status": "Status",
+        "empty_title": "Keine Funde",
+        "empty_description": "Aktivieren Sie Discovery oder starten Sie einen Scan, um Klassifizierungen für sensible Spalten vorzuschlagen.",
+        "confirm_selected": "Auswahl bestätigen",
+        "dismiss_selected": "Auswahl verwerfen",
+        "clear_selection": "Auswahl aufheben",
+        "bulk_toast_partial": "{{success}} entschieden · {{failure}} fehlgeschlagen",
+        "bulk_error": "Massenentscheidung fehlgeschlagen",
+        "row_status_invalid_state": "Bereits entschieden",
+        "row_status_not_found": "Nicht gefunden",
+        "row_status_error": "Fehlgeschlagen",
+        "bulk_action_bar_count_one": "{{count}} ausgewählt",
+        "bulk_action_bar_count_other": "{{count}} ausgewählt",
+        "bulk_toast_summary_one": "{{count}} Fund entschieden",
+        "bulk_toast_summary_other": "{{count}} Funde entschieden"
+      }
     }
   },
   "admin": {
@@ -2634,6 +2678,19 @@
       "HEX": "Hexadezimal",
       "BASE64": "Base64",
       "BASE64URL": "Base64 (URL-sicher, ohne Padding)"
+    },
+    "discovery_detector": {
+      "EMAIL": "E-Mail",
+      "CREDIT_CARD": "Kreditkarte",
+      "SSN": "SSN",
+      "IBAN": "IBAN",
+      "PHONE": "Telefon",
+      "AI": "KI"
+    },
+    "discovery_finding_status": {
+      "PENDING": "Ausstehend",
+      "CONFIRMED": "Bestätigt",
+      "DISMISSED": "Verworfen"
     }
   },
   "access": {

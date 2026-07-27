@@ -45,6 +45,8 @@ import type {
   RoutingConditionOperand,
   RowSecurityOperator,
   RowSecurityValueType,
+  DiscoveryDetector,
+  DiscoveryFindingStatus,
   CommentStatus,
   SslMode,
   SubmissionReason,
@@ -540,3 +542,26 @@ export const REQUEST_GROUP_TARGET_KINDS: readonly RequestGroupTargetKind[] = [
 
 export const targetKindLabel = (t: TFunction, v: RequestGroupTargetKind): string =>
   t(`enums.request_group_target_kind.${v}` as const);
+
+// ── Sensitive-data discovery (AF-623) ───────────────────────────────────────
+
+export const DISCOVERY_DETECTORS: readonly DiscoveryDetector[] = [
+  'EMAIL',
+  'CREDIT_CARD',
+  'SSN',
+  'IBAN',
+  'PHONE',
+  'AI',
+] as const;
+
+export const discoveryDetectorLabel = (t: TFunction, v: DiscoveryDetector): string =>
+  t(`enums.discovery_detector.${v}` as const);
+
+export const DISCOVERY_FINDING_STATUSES: readonly DiscoveryFindingStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'DISMISSED',
+] as const;
+
+export const discoveryFindingStatusLabel = (t: TFunction, v: DiscoveryFindingStatus): string =>
+  t(`enums.discovery_finding_status.${v}` as const);

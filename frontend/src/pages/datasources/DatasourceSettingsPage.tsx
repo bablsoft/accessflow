@@ -76,6 +76,8 @@ import {
   rowSecurityPolicyKeys,
 } from '@/api/rowSecurityPolicies';
 import { ClassificationTab } from '@/components/datasources/ClassificationTab';
+import { DiscoveryTab } from '@/components/datasources/DiscoveryTab';
+import { discoveryKeys, fetchDiscoveryFindings } from '@/api/discovery';
 import {
   dataClassificationKeys,
   listClassificationTags,
@@ -128,6 +130,14 @@ export function DatasourceSettingsPage() {
   const classificationTagsQuery = useQuery({
     queryKey: id ? dataClassificationKeys.list(id) : ['data-classifications', 'list', 'idle'],
     queryFn: () => listClassificationTags(id!),
+    enabled: !!id,
+  });
+
+  const discoveryPendingQuery = useQuery({
+    queryKey: id
+      ? discoveryKeys.findings(id, { status: 'PENDING', page: 0, size: 1 })
+      : ['discovery', 'findings', 'idle'],
+    queryFn: () => fetchDiscoveryFindings(id!, { status: 'PENDING', page: 0, size: 1 }),
     enabled: !!id,
   });
 
@@ -201,6 +211,7 @@ export function DatasourceSettingsPage() {
   const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
   const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
   const classificationCount = classificationTagsQuery.data?.length ?? 0;
+  const discoveryPendingCount = discoveryPendingQuery.data?.total_elements ?? 0;
   const testIcon =
     testMutation.isPending ? (
       <LoadingOutlined />
@@ -258,6 +269,10 @@ export function DatasourceSettingsPage() {
             key: 'classification',
             label: t('datasources.settings.tab_classification', { count: classificationCount }),
           },
+          {
+            key: 'discovery',
+            label: t('datasources.settings.tab_discovery', { count: discoveryPendingCount }),
+          },
           { key: 'er-diagram', label: t('datasources.settings.tab_er_diagram') },
           { key: 'activity', label: t('datasources.settings.tab_activity') },
         ]}
@@ -269,6 +284,7 @@ export function DatasourceSettingsPage() {
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
         {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
+        {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}
         {tab === 'activity' && <ActivityTab dsId={ds.id} />}
       </div>

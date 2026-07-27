@@ -861,6 +861,46 @@ REST surface lives in the `security` module (`DataClassificationTagController`,
   the level can only rise, never drop below the LLM's verdict. The boosted score/level is what persists
   and drives the workflow router.
 
+### Automated sensitive-data discovery (AF-623)
+
+The `discovery` module closes the AF-447 loop: instead of waiting for an admin to know a column is
+sensitive, a scanner **finds** the sensitive columns and proposes the classification tags. It
+depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
+
+- **Scan pipeline** (`DiscoveryScanService.scan`, driven by `DiscoveryScanJob` per due
+  `discovery_scan_config` row or by the on-demand `POST /datasources/{id}/discovery/scan`): enumerate
+  tables via `DatasourceAdminService.introspectSchemaForSystem`, read a bounded raw sample per table
+  through `QueryExecutor.sampleTable` (the AF-443 path, so every engine — JDBC and plugin — is
+  covered; the per-table statement timeout is the tighter `accessflow.discovery.sample-statement-timeout`),
+  run the detector pipeline over each column's string values, and upsert findings. Raw sampled values
+  live only on the scan method's stack — findings persist a **redacted** sample only
+  (`ColumnMasker` `PARTIAL`, `visible_suffix=4`). Guards: `max-tables-per-scan` (default 200), a
+  wall-clock `scan-time-budget` (default `PT10M`; exceeding either flags the run `partial`), per-table
+  failures swallowed, a per-node in-flight set (cluster races are harmless — upserts are idempotent
+  against the natural-key unique index), and columns already covered by an enabled masking policy or
+  an existing tag are skipped.
+- **Detectors** (`discovery.internal.detect`, pure classes): `EMAIL`→PII, `CREDIT_CARD` (13–19
+  digits + Luhn)→PCI, `SSN` (US, never-issued ranges rejected)→PII, `IBAN` (per-country length +
+  mod-97)→FINANCIAL, `PHONE`→PII. First-match-wins per value in that order (checksum detectors
+  first, so a PAN never double-counts as a phone). A column needs ≥ 5 non-null string samples and a
+  ≥ 30 % match ratio to produce a proposal; `confidence` is the match percentage.
+- **AI pass (opt-in, fail-safe).** When `ai_classification_enabled`, columns with no regex proposal
+  are sent — capped at `max-ai-tables-per-scan` (default 25) — to `ai.api.DataDiscoveryAiService`,
+  which calls the org's first usable `ai_config` through the analyzer holder's freeform lane with a
+  strict-JSON preamble and parses leniently (unknown columns/classifications dropped, any failure →
+  empty). **Only column names, types, and `FORMAT_PRESERVING`-redacted samples reach the provider**
+  — never raw values. Same fail-safe posture as the UBA anomaly summary: the AI pass can never block
+  or fail a scan.
+- **Worklist.** Findings land as `PENDING` rows keyed by `(column, classification, detector)`;
+  rescans refresh `PENDING` rows in place and never touch decided ones. Confirming (bulk, per-row
+  independent transactions like the attestation bulk path) applies the tag through
+  `DataClassificationAdminService.create(..., applyMasking=true)` — deriving masking exactly like a
+  manual tag — and marks the finding `CONFIRMED` (a pre-existing tag reports `TAG_CONFLICT` but
+  still clears the worklist). Dismissing marks `DISMISSED`, permanently suppressing the proposal.
+  Audited as `DISCOVERY_SCAN_COMPLETED` / `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED`.
+- **Limitations (v1).** Detectors examine scalar string cells only (nested NoSQL documents/maps are
+  skipped); stale `PENDING` findings whose data disappeared are kept for the admin to dismiss.
+
 ### Compliance reporting (AF-459)
 
 The `compliance` module produces pre-built compliance reports and signed exports. It is a thin,
@@ -1131,6 +1171,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ErasureReviewTimeoutJob` | lifecycle | `erasureReviewTimeoutJob` | `accessflow.lifecycle.review-timeout-poll-interval` | `PT5M` |
 | `ScheduledGroupRunJob` | requestgroups | `scheduledGroupRunJob` | `accessflow.requestgroups.run-poll-interval` | `PT1M` |
 | `GroupTimeoutJob` | requestgroups | `groupTimeoutJob` | `accessflow.requestgroups.timeout-poll-interval` | `PT5M` |
+| `DiscoveryScanJob` | discovery | `discoveryScanJob` | `accessflow.discovery.scan-poll-interval` | `PT15M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 

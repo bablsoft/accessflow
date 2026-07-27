@@ -117,6 +117,9 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/   # persistence, scheduled (run + timeout jobs), web
+├── discovery/      # Automated sensitive-data discovery (AF-623): DiscoveryScanJob samples column data via the engine sampling path, regex+checksum detectors (email, PAN+Luhn, SSN, IBAN, phone) + optional fail-safe AI pass propose classification tags an admin confirms (AF-447 derivation) or dismisses
+│   ├── api/
+│   └── internal/   # config, persistence, detect (pure detectors), scheduled, web
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/
@@ -270,6 +273,11 @@ com.bablsoft.accessflow/
 | `ACCESSFLOW_LIFECYCLE_REVIEW_TIMEOUT` | ISO-8601 duration. How long an erasure request may sit in `PENDING_REVIEW` before `ErasureReviewTimeoutJob` auto-rejects it (default `PT168H`, AF-519). Binds `accessflow.lifecycle.review-timeout`. |
 | `ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledGroupRunJob` (the `requestgroups` module, AF-501) scans for `APPROVED` grouped requests whose `scheduled_for ≤ now()` and executes their ordered member sequence (default `PT1M`). Binds `accessflow.requestgroups.run-poll-interval`. |
 | `ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `GroupTimeoutJob` (the `requestgroups` module, AF-501) scans for grouped requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). Binds `accessflow.requestgroups.timeout-poll-interval`. |
+| `ACCESSFLOW_DISCOVERY_SCAN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `DiscoveryScanJob` (the `discovery` module, AF-623) checks for datasources whose sensitive-data discovery scan is due — enabled `discovery_scan_config` rows past their own `scan_interval_hours` (default `PT15M`). Binds `accessflow.discovery.scan-poll-interval`. |
+| `ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET` | ISO-8601 duration. Wall-clock budget for one discovery scan; tables past the deadline are skipped and the run is flagged partial (default `PT10M`). Binds `accessflow.discovery.scan-time-budget`. |
+| `ACCESSFLOW_DISCOVERY_SAMPLE_STATEMENT_TIMEOUT` | ISO-8601 duration. Per-table statement timeout for the discovery scan's bounded sample read (default `PT10S`). Binds `accessflow.discovery.sample-statement-timeout`. |
+| `ACCESSFLOW_DISCOVERY_MAX_TABLES_PER_SCAN` | Hard cap on tables sampled in one discovery scan (default `200`). Binds `accessflow.discovery.max-tables-per-scan`. |
+| `ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN` | Hard cap on tables sent through the optional discovery AI pass per scan, bounding provider spend (default `25`). Binds `accessflow.discovery.max-ai-tables-per-scan`. |
 | `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | ISO-8601 duration. How long an API request may sit in `PENDING_REVIEW` before `ApiRequestTimeoutJob` auto-rejects it (default `PT24H`). |
 | `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` | Cap on the total encoded size of a submitted API request body (#517) — raw text, x-www-form-urlencoded, or the base64-decoded size of form-data / binary file parts (files ride inline as bounded base64 since AccessFlow has no object storage). Exceeding it rejects the submission with HTTP 422. Default `5242880` (5 MiB). Binds `accessflow.apigov.max-request-body-bytes`. |
 | `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` | System-wide hard ceiling (#521) on a stored — and therefore downloadable — API response body; the absolute backstop above any per-connector `max_response_bytes` (effective cap is the **min** of the two). The body lives in a Postgres `text` column and is read fully into JVM memory during the call. Default `10485760` (10 MiB). Binds `accessflow.apigov.max-response-bytes`. |

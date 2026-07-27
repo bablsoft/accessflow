@@ -1080,6 +1080,7 @@
       "back_to_list": "Back to list",
       "tab_row_security": "Row security · {{count}}",
       "tab_classification": "Classification · {{count}}",
+      "tab_discovery": "Discovery · {{count}}",
       "row_security": {
         "title": "Row security policies",
         "description": "Filter the rows a user can see (SELECT) or change (UPDATE/DELETE) on a table. Each policy compares a column against a per-user value; users in scope only see authorised rows.",
@@ -1202,7 +1203,50 @@
       "cache_enabled_help": "Serve repeated identical SELECTs from a Redis cache. Entries are invalidated on any write to a referenced table; masking and row-security still apply.",
       "label_cache_ttl": "Cache TTL (seconds)",
       "cache_ttl_help": "How long a cached result stays valid (1–86,400 seconds). Leave blank for the deployment default.",
-      "cache_ttl_placeholder": "Deployment default"
+      "cache_ttl_placeholder": "Deployment default",
+      "discovery": {
+        "settings_title": "Discovery settings",
+        "settings_description": "Periodically samples column data through the governed sampling path, detects sensitive values with local pattern detectors (and optionally your AI analyzer), and proposes classification tags for review. Raw sampled values are never stored and never sent to the AI provider.",
+        "label_enabled": "Scheduled scans",
+        "label_sample_size": "Sample size",
+        "label_scan_interval": "Interval (hours)",
+        "label_ai": "AI classification",
+        "ai_hint": "Additionally asks the organization's AI analyzer to classify columns using names, types, and redacted samples only.",
+        "sample_size_range": "Sample size must be between 10 and 1000",
+        "scan_interval_range": "Scan interval must be between 1 and 720 hours",
+        "scan_now": "Scan now",
+        "scan_started": "Discovery scan started",
+        "scan_error": "Failed to start discovery scan",
+        "config_save_success": "Discovery settings saved",
+        "config_save_error": "Failed to save discovery settings",
+        "last_scan": "Last scan: {{time}}",
+        "last_scan_error": "Last scan issue: {{error}}",
+        "findings_title": "Findings",
+        "findings_description": "Proposed sensitive-column classifications. Confirming applies the tag and derives a masking policy; dismissing suppresses the proposal permanently.",
+        "filter_all": "All",
+        "col_column": "Column",
+        "col_classification": "Classification",
+        "col_detector": "Detector",
+        "col_confidence": "Confidence",
+        "confidence_value": "{{confidence}}%",
+        "col_sample": "Sample (redacted)",
+        "col_detected": "Detected",
+        "col_status": "Status",
+        "empty_title": "No findings",
+        "empty_description": "Enable discovery or run a scan to propose classifications for sensitive columns.",
+        "confirm_selected": "Confirm selected",
+        "dismiss_selected": "Dismiss selected",
+        "clear_selection": "Clear selection",
+        "bulk_toast_partial": "{{success}} decided · {{failure}} failed",
+        "bulk_error": "Bulk decision failed",
+        "row_status_invalid_state": "Already decided",
+        "row_status_not_found": "Not found",
+        "row_status_error": "Failed",
+        "bulk_action_bar_count_one": "{{count}} selected",
+        "bulk_action_bar_count_other": "{{count}} selected",
+        "bulk_toast_summary_one": "{{count}} finding decided",
+        "bulk_toast_summary_other": "{{count}} findings decided"
+      }
     }
   },
   "admin": {
@@ -2658,6 +2702,19 @@
       "HEX": "Hexadecimal",
       "BASE64": "Base64",
       "BASE64URL": "Base64 (URL-safe, unpadded)"
+    },
+    "discovery_detector": {
+      "EMAIL": "Email",
+      "CREDIT_CARD": "Credit card",
+      "SSN": "SSN",
+      "IBAN": "IBAN",
+      "PHONE": "Phone",
+      "AI": "AI"
+    },
+    "discovery_finding_status": {
+      "PENDING": "Pending",
+      "CONFIRMED": "Confirmed",
+      "DISMISSED": "Dismissed"
     }
   },
   "access": {

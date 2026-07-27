@@ -1080,6 +1080,7 @@
       },
       "tab_row_security": "行级安全 · {{count}}",
       "tab_classification": "分类 · {{count}}",
+      "tab_discovery": "发现 · {{count}}",
       "row_security": {
         "title": "行级安全策略",
         "description": "过滤用户在表上可以查看（SELECT）或修改（UPDATE/DELETE）的行。每个策略将一列与每用户值进行比较；范围内的用户只能看到被授权的行。",
@@ -1202,7 +1203,50 @@
       "cache_enabled_help": "从 Redis 缓存中响应重复的相同 SELECT。对被引用表的任何写入都会使条目失效；脱敏和行级安全仍然生效。",
       "label_cache_ttl": "缓存 TTL（秒）",
       "cache_ttl_help": "缓存结果的有效时长（1–86,400 秒）。留空则使用部署默认值。",
-      "cache_ttl_placeholder": "部署默认值"
+      "cache_ttl_placeholder": "部署默认值",
+      "discovery": {
+        "settings_title": "发现设置",
+        "settings_description": "定期通过受治理的采样路径对列数据进行采样,使用本地模式检测器(以及可选的 AI 分析器)检测敏感值,并提出分类标签供审核。原始采样值绝不会被存储,也绝不会发送给 AI 提供商。",
+        "label_enabled": "计划扫描",
+        "label_sample_size": "采样大小",
+        "label_scan_interval": "间隔(小时)",
+        "label_ai": "AI 分类",
+        "ai_hint": "另外请求组织的 AI 分析器仅使用列名、类型和脱敏样本对列进行分类。",
+        "sample_size_range": "采样大小必须介于 10 到 1000 之间",
+        "scan_interval_range": "扫描间隔必须介于 1 到 720 小时之间",
+        "scan_now": "立即扫描",
+        "scan_started": "发现扫描已启动",
+        "scan_error": "无法启动发现扫描",
+        "config_save_success": "发现设置已保存",
+        "config_save_error": "无法保存发现设置",
+        "last_scan": "上次扫描:{{time}}",
+        "last_scan_error": "上次扫描问题:{{error}}",
+        "findings_title": "发现项",
+        "findings_description": "建议的敏感列分类。确认将应用标签并派生脱敏策略;忽略将永久抑制该建议。",
+        "filter_all": "全部",
+        "col_column": "列",
+        "col_classification": "分类",
+        "col_detector": "检测器",
+        "col_confidence": "置信度",
+        "confidence_value": "{{confidence}}%",
+        "col_sample": "样本(已脱敏)",
+        "col_detected": "检测时间",
+        "col_status": "状态",
+        "empty_title": "暂无发现项",
+        "empty_description": "启用发现或运行扫描,以获取敏感列的分类建议。",
+        "confirm_selected": "确认所选",
+        "dismiss_selected": "忽略所选",
+        "clear_selection": "清除选择",
+        "bulk_toast_partial": "{{success}} 个已决定 · {{failure}} 个失败",
+        "bulk_error": "批量决定失败",
+        "row_status_invalid_state": "已决定",
+        "row_status_not_found": "未找到",
+        "row_status_error": "失败",
+        "bulk_action_bar_count_one": "已选择 {{count}} 项",
+        "bulk_action_bar_count_other": "已选择 {{count}} 项",
+        "bulk_toast_summary_one": "已决定 {{count}} 个发现项",
+        "bulk_toast_summary_other": "已决定 {{count}} 个发现项"
+      }
     }
   },
   "admin": {
@@ -2634,6 +2678,19 @@
       "HEX": "十六进制",
       "BASE64": "Base64",
       "BASE64URL": "Base64（URL 安全、无填充）"
+    },
+    "discovery_detector": {
+      "EMAIL": "电子邮件",
+      "CREDIT_CARD": "信用卡",
+      "SSN": "SSN",
+      "IBAN": "IBAN",
+      "PHONE": "电话",
+      "AI": "AI"
+    },
+    "discovery_finding_status": {
+      "PENDING": "待处理",
+      "CONFIRMED": "已确认",
+      "DISMISSED": "已忽略"
     }
   },
   "access": {
