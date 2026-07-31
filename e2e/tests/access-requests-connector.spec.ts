@@ -16,6 +16,7 @@ import {
   uploadApiSchemaViaApi,
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
+import { activeTabPanel } from '../helpers/ui';
 
 // AF-567 — "Request access" for API connectors. End-to-end: an analyst requests
 // time-boxed access to an API connector (scoped to one operation) → an admin
@@ -120,8 +121,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     // 3. The grant materialised as a time-boxed row on the connector's permissions tab.
     await page.goto(`/api-connectors/${connector!.id}/settings`);
     await page.getByRole('tab', { name: 'Permissions' }).click();
-    const permissionRow = page
-      .locator('.ant-tabs-tabpane-active')
+    const permissionRow = activeTabPanel(page)
       .getByRole('row')
       .filter({ hasText: requesterEmail });
     await expect(permissionRow).toBeVisible({ timeout: 15_000 });
@@ -157,7 +157,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     await page.goto(`/api-connectors/${connector!.id}/settings`);
     await page.getByRole('tab', { name: 'Permissions' }).click();
     await expect(
-      page.locator('.ant-tabs-tabpane-active').getByRole('row').filter({ hasText: requesterEmail }),
+      activeTabPanel(page).getByRole('row').filter({ hasText: requesterEmail }),
     ).toHaveCount(0, { timeout: 15_000 });
   });
 });

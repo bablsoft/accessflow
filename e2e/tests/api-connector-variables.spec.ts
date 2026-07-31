@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { activeTabPanel } from '../helpers/ui';
 
 // AF-613: dynamic variables for API connectors — an admin creates a connector, declares an
 // HMAC signing variable and an overridable nonce on the Variables tab, reorders them, and deletes
@@ -41,7 +42,7 @@ test('admin configures connector dynamic variables', async ({ page }) => {
 
   // Ant Design keeps inactive tab panels mounted (display:none), so scope content assertions to the
   // active panel or a bare getByText can match a hidden duplicate.
-  const activePanel = page.locator('.ant-tabs-tabpane-active');
+  const activePanel = activeTabPanel(page);
 
   await page.getByRole('tab', { name: 'Variables' }).click();
   await expect(activePanel.getByText(/No variables yet/i)).toBeVisible();

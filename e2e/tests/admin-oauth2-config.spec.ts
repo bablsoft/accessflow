@@ -6,6 +6,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { activeTabPanel } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -132,7 +133,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     // Google tab is the initial active tab — the Active switch should reflect
     // the unseeded "disabled" default, and both credentials fields should be
     // empty.
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await expect(activeTab.getByRole('switch')).not.toBeChecked();
     await expect(activeTab.getByLabel('Client ID')).toHaveValue('');
     await expect(activeTab.getByLabel('Client secret')).toHaveValue('');
@@ -149,7 +150,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await activeTab.getByLabel('Client ID').fill(GOOGLE_CLIENT_ID);
     await activeTab.getByLabel('Client secret').fill(GOOGLE_CLIENT_SECRET);
     await activeTab.getByRole('switch').click();
@@ -191,7 +192,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await expect(activeTab.getByLabel('Client ID')).toHaveValue(GOOGLE_CLIENT_ID);
     await expect(activeTab.getByLabel('Client secret')).toHaveValue('********');
     await expect(activeTab.getByRole('switch')).toBeChecked();
@@ -236,7 +237,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await activeTab.getByRole('button', { name: 'Copy redirect URI' }).click();
 
     await expect(
@@ -257,7 +258,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     // The previous tests left active=true.
     await expect(activeTab.getByRole('switch')).toBeChecked();
     await activeTab.getByRole('switch').click();
@@ -300,7 +301,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
 
     await page.getByRole('tab', { name: 'GitHub Enterprise' }).click();
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await expect(activeTab.getByLabel('Server base URL')).toBeVisible();
     await activeTab.getByLabel('Client ID').fill('ghe-id');
     await activeTab.getByLabel('Client secret').fill('ghe-secret');
@@ -356,7 +357,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
-    const activeTab = page.locator('.ant-tabs-tabpane-active');
+    const activeTab = activeTabPanel(page);
     await expect(activeTab.getByLabel('Client ID')).toHaveValue('');
     await expect(activeTab.getByLabel('Client secret')).toHaveValue('');
 

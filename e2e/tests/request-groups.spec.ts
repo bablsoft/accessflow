@@ -19,6 +19,7 @@ import {
   deleteApiConnectorViaApi,
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
+import { activeTabPanel } from '../helpers/ui';
 
 // AF-501: Request chaining & grouping. An analyst bundles two ordered database-query steps into one
 // request group, submits it as a single element, an independent reviewer approves the bundle, and it
@@ -307,7 +308,7 @@ test.describe('request groups (AF-501)', () => {
     await drawer.getByLabel('Path').fill('/api/v1/echo');
 
     // AntD keeps inactive tab panes mounted (hidden), so scope every interaction to the active pane.
-    const activePane = drawer.locator('.ant-tabs-tabpane-active');
+    const activePane = activeTabPanel(drawer);
     await activePane.getByRole('button', { name: 'Add' }).click();
     await activePane.getByLabel('Key').fill('dryRun');
     await activePane.getByLabel('Value').fill('true');

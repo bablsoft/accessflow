@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { activeTabPanel } from '../helpers/ui';
 
 // AF-518: API connector masking & classification — an admin creates an API connector, configures a
 // response-masking policy on the Masking tab, and a data-classification tag on the Classification
@@ -42,7 +43,7 @@ test('admin configures connector masking policy and classification tag', async (
   // Ant Design keeps prior tab panels mounted (display:none), and tagging a field auto-derives a
   // masking policy that repeats the field text — so a bare getByText('user.ssn') would match hidden
   // occurrences in inactive panels. Scope every content assertion to the active (visible) tab panel.
-  const activePanel = page.locator('.ant-tabs-tabpane-active');
+  const activePanel = activeTabPanel(page);
 
   // Masking tab → add a JSON-path masking policy.
   await page.getByRole('tab', { name: 'Masking' }).click();
