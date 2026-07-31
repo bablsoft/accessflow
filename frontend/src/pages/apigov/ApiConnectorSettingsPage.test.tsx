@@ -338,7 +338,9 @@ describe('ApiConnectorSettingsPage — Postman collection import (AF-612)', () =
   async function openSchemaTabWithType(label: string) {
     render(wrap(<ApiConnectorSettingsPage />));
     fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
-    const panel = document.querySelector('.ant-tabs-tabpane-active') as HTMLElement;
+    // AntD keeps inactive panes mounted (aria-hidden), so scope to the active one. Matching by
+    // role rather than AntD's internal class survives rc-tabs DOM renames.
+    const panel = await screen.findByRole('tabpanel');
     fireEvent.mouseDown(within(panel).getByRole('combobox', { name: 'Schema type' }));
     fireEvent.click(await screen.findByTitle(label));
     return panel;

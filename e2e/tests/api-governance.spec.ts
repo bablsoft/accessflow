@@ -8,6 +8,7 @@ import {
   waitForInviteToken,
 } from '../helpers/datasources';
 import { createApiConnectorViaApi } from '../helpers/apiConnectors';
+import { activeTabPanel } from '../helpers/ui';
 
 // AF-500: API Access Governance — admin creates an API connector via the UI, uploads an OpenAPI
 // schema, and sees the parsed operation catalog. Seeded admin comes from the bootstrap module.
@@ -127,7 +128,7 @@ test('admin imports a Postman collection as a connector schema (#612)', async ({
   await page.getByRole('tab', { name: 'Schema' }).click();
 
   // Pick the Postman schema type; the caveat banner must appear before upload.
-  const panel = page.locator('.ant-tabs-tabpane-active');
+  const panel = activeTabPanel(page);
   await panel.getByRole('combobox', { name: 'Schema type' }).click();
   await page.getByTitle('Postman Collection').click();
   await expect(page.getByText(/inferred from the saved example bodies/)).toBeVisible();
