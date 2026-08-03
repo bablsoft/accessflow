@@ -133,15 +133,23 @@
     }
 
     function swapDocsImages(theme) {
-      // Browser <picture><source media="(prefers-color-scheme: light)"> doesn't
-      // re-evaluate when JS toggles data-theme — swap the <img src> directly.
-      var pics = document.querySelectorAll(
-        'picture > img[src*="-dark.png"], picture > img[src*="-light.png"]'
-      );
-      pics.forEach(function (img) {
-        var want  = theme === 'light' ? '-light.png' : '-dark.png';
-        var other = theme === 'light' ? '-dark.png'  : '-light.png';
-        if (img.src.indexOf(other) !== -1) {
+      // <picture><source media="(prefers-color-scheme: light)"> tracks the OS, not
+      // our data-theme attribute, so an explicit toggle has to rewrite the markup.
+      //
+      // Rewriting <img src> alone is NOT enough: whenever a <source> media query
+      // matches, it wins over img.src and the image never changes. That left the
+      // toggle silently broken for anyone on a light-themed OS. Rewrite both.
+      var want  = theme === 'light' ? '-light.webp' : '-dark.webp';
+      var other = theme === 'light' ? '-dark.webp'  : '-light.webp';
+
+      document.querySelectorAll('picture').forEach(function (pic) {
+        pic.querySelectorAll('source[srcset]').forEach(function (src) {
+          if (src.srcset.indexOf(other) !== -1) {
+            src.srcset = src.srcset.replace(other, want);
+          }
+        });
+        var img = pic.querySelector('img[src]');
+        if (img && img.src.indexOf(other) !== -1) {
           img.src = img.src.replace(other, want);
         }
       });

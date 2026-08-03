@@ -104,7 +104,7 @@ website/
 ├── docs/
 │   └── index.html   # Public user documentation — run + configure (sidebar TOC)
 ├── images/
-│   └── docs/        # PNG screenshots of admin SPA pages, light + dark per screen
+│   └── docs/        # Lossless WebP screenshots of admin SPA pages, light + dark per screen
 └── README.md        # this file
 ```
 
@@ -205,6 +205,30 @@ non-JavaScript MIME types, so `script-src` does not apply to them. `style-src` s
 to `'self'`.
 
 Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` — see below.
+
+### Docs screenshots
+
+`images/docs/` holds **lossless WebP**, not PNG — pixel-identical to a PNG screenshot but
+~70% smaller (8.1 MB → 2.4 MB across 69 files). They are written by
+[`e2e/screenshots/capture.ts`](../e2e/screenshots/capture.ts), which encodes through `sharp`
+because Playwright can only emit PNG/JPEG. **That script is the only writer** — do not add
+PNGs alongside, or the two formats will drift and the site will serve stale screenshots.
+
+Each screen has a `-light` and `-dark` variant wrapped in a `<picture>`:
+
+```html
+<picture>
+  <source srcset="../images/docs/foo-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="../images/docs/foo-dark.webp" alt="…" loading="lazy" width="1440" height="900" />
+</picture>
+```
+
+`prefers-color-scheme` covers the default case; the site's own theme toggle is handled by
+`swapDocsImages()` in `app.js`. That function must rewrite **both** the `<source srcset>`
+and the `<img src>` — when a `<source>` media query matches, it wins over `img.src`, so
+rewriting `img.src` alone leaves the toggle silently broken for visitors on a light-themed
+OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
+swap will not find it.
 
 ---
 

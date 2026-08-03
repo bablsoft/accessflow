@@ -42,19 +42,19 @@ AccessFlow provides the missing middle: governed, self-service access where ever
 
 A glance at the day-to-day flows engineers and approvers actually use.
 
-![SQL editor](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/editor-light.png)
+![SQL editor](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/editor-light.webp)
 
 *Submit a query — CodeMirror 6 with dialect-aware highlighting, live schema autocomplete, and an inline review-plan preview that shows exactly which approvals the submission will trigger.*
 
-![Review queue](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/reviews-queue-light.png)
+![Review queue](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/reviews-queue-light.webp)
 
 *Approve or reject pending writes from one place — the queue is scoped to queries assigned to you, with risk score, query type, and submitter at a glance. A user can never approve their own query.*
 
-![Query history](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/queries-list-light.png)
+![Query history](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/queries-list-light.webp)
 
 *Searchable, filterable history of every query — by status, type, risk, datasource, submitter, or date range — with CSV export. Each row links to the full request, AI analysis, approval timeline, and result set.*
 
-![Configure a governed datasource](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/datasources-create-light.png)
+![Configure a governed datasource](https://raw.githubusercontent.com/bablsoft/accessflow/main/website/images/docs/datasources-create-light.webp)
 
 *Connect a database in the admin UI — credentials are AES-256-GCM encrypted at rest, the proxy holds them, and end users never see them.*
 
