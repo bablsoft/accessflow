@@ -116,8 +116,24 @@ The marketing site at the root targets visitors evaluating AccessFlow. The
 `docs/index.html` page targets operators and admins who need step-by-step instructions
 for running and configuring a deployment. Both reuse `styles.css` and `app.js`.
 
-No frameworks, no bundlers, no CDN runtime. The Geist + Geist Mono fonts load from
-Google Fonts; everything else is local.
+No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
+at runtime.**
+
+Geist and Geist Mono (SIL OFL 1.1) are vendored in `fonts/` rather than loaded from Google
+Fonts, which removes two DNS+TLS handshakes from the critical path before first paint and
+lets the CSP stay `default-src 'self'`. Both are *variable* fonts, so one file covers the
+whole weight range — hence four files, not one per weight:
+
+| File | Subset |
+|---|---|
+| `geist-latin.woff2`, `geist-latin-ext.woff2` | Geist, weights 300–700 |
+| `geist-mono-latin.woff2`, `geist-mono-latin-ext.woff2` | Geist Mono, weights 400–600 |
+
+Cyrillic, Vietnamese, and symbol subsets are deliberately not shipped (this site is
+English-only). `@font-face` rules with matching `unicode-range` values live at the top of
+`styles.css`; `index.html` and `docs/index.html` preload `geist-latin.woff2` only. To
+refresh or add a subset, pull the CSS from `fonts.googleapis.com/css2?family=Geist:...`
+with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 
 ---
 
@@ -161,9 +177,34 @@ every navigation. `_headers` overrides that:
 | `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
 
 `_headers` also sets HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
-and `Permissions-Policy` on `/*`. The file is parsed as config by the assets runtime and is
-never served — **do not add it to `.assetsignore`**, which would stop it uploading and
-silently disable every rule.
+`Permissions-Policy`, and a `Content-Security-Policy` on `/*`. The file is parsed as config
+by the assets runtime and is never served — **do not add it to `.assetsignore`**, which
+would stop it uploading and silently disable every rule.
+
+### Regenerating the CSP script hash
+
+`script-src` carries a `sha256-` hash of the inline theme-bootstrap script (the one that
+reads `localStorage` before first paint so the page doesn't flash the wrong theme). It is
+byte-identical in both HTML files, so one hash covers both. **Editing that script by even
+one character invalidates the hash — the browser then blocks it and the theme flash comes
+back, with no build step to catch it.** Regenerate and paste into `_headers`:
+
+```bash
+cd website
+python3 -c "
+import re, hashlib, base64
+body = re.search(r'<script>(.*?)</script>', open('index.html').read(), re.S).group(1)
+print('sha256-' + base64.b64encode(hashlib.sha256(body.encode()).digest()).decode())
+"
+```
+
+`<script type=\"application/ld+json\">` blocks need no hash — browsers never execute
+non-JavaScript MIME types, so `script-src` does not apply to them. `style-src` still needs
+`'unsafe-inline'` because 83 inline `style=\"\"` attributes remain across the two pages
+(there are no inline `<style>` blocks); moving those into `styles.css` would let it tighten
+to `'self'`.
+
+Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` — see below.
 
 ---
 

@@ -1,6 +1,18 @@
 # Cloudflare Workers static-assets header rules.
 # Consumed as config by the assets runtime — never served as a file.
 # Rules cascade: /* applies everywhere, more specific paths add to it.
+#
+# CSP notes:
+#  - The script-src sha256 is the inline theme-bootstrap script that runs before
+#    first paint to prevent a flash of the wrong theme. It is byte-identical in
+#    index.html and docs/index.html, so one hash covers both. EDITING THAT SCRIPT
+#    INVALIDATES THE HASH and the theme flash returns — regenerate with the
+#    command in README.md ("Response headers") and update this line.
+#  - <script type="application/ld+json"> blocks need no hash: browsers never
+#    execute non-JS MIME types, so script-src does not apply to them.
+#  - style-src keeps 'unsafe-inline' only because 83 inline style="" attributes
+#    remain in the two HTML files. There are no inline <style> blocks. Move those
+#    83 into styles.css and this can tighten to 'self'.
 
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -8,6 +20,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-m1EaAXpDarTf/8ASCyWPa6/ZDODIJgodhhLFdCZAbT0='; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Vendor connector logos and the favicon: effectively static, safe to pin hard.
 /db-icons/*
