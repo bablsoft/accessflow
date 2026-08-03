@@ -248,12 +248,16 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
 
     // ── Datasource filter → datasource A. ────────────────────────────────
     // Fourth combobox in the strip (status, type, risk, datasource).
+    // beforeAll assigns datasourceA, but it is declared module-level as
+    // nullable for cleanup, so narrow it explicitly rather than asserting.
+    expect(datasourceA).not.toBeNull();
+    const dsAName = datasourceA!.name;
     const datasourceSelect = page.getByRole('combobox').nth(3);
     await datasourceSelect.click();
     await waitForListReady(page, () =>
       page
         .locator('.ant-select-item-option')
-        .filter({ hasText: datasourceA.name })
+        .filter({ hasText: dsAName })
         .click(),
     );
 
