@@ -60,6 +60,8 @@
       "name": "Notification channels & SMTP \u2014 AccessFlow docs",
       "description": "Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP.",
       "inLanguage": "en",
+      "articleSection": "Configuration",
+      "datePublished": "2026-04-01",
       "dateModified": "2026-08-03",
       "url": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
@@ -105,7 +107,13 @@
       "@id": "https://github.com/bablsoft#org",
       "name": "bablsoft",
       "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+      "logo": "https://accessflow.bablsoft.com/favicon.svg",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "foundingDate": "2026-04",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
     }
   ]
 }
@@ -132,8 +140,9 @@
         <a href="/#how">How it works</a>
         <a href="/#use-cases">Use cases</a>
         <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
         <a href="/#roadmap">Roadmap</a>
-        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
         <summary aria-label="Open navigation menu">
@@ -147,8 +156,9 @@
           <a href="/#how">How it works</a>
           <a href="/#use-cases">Use cases</a>
           <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
           <a href="/#roadmap">Roadmap</a>
-          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
@@ -219,6 +229,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Notifications.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -228,6 +239,10 @@
             submitted, approved, rejected, times out, or scores <code>CRITICAL</code> on AI risk. Wire
             up the channels your team already lives in so reviewers act fast. Configure as many as you
             like per organization (e.g. one Slack channel per team).
+          </p>
+          <h3>Where can AccessFlow send review notifications?</h3>
+          <p>
+            Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, Jira, and signed HTTP webhooks. Configure as many channels as you need per organization and pick which events each one receives — query submitted, approved, rejected, timed out, or scored CRITICAL by AI risk analysis.
           </p>
           <p>
             <strong>Configure it.</strong> Manage channels at <code>/admin/notifications</code>:
@@ -387,13 +402,14 @@
             <li><a href="/#how">How it works</a></li>
             <li><a href="/#use-cases">Use cases</a></li>
             <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
             <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
-            <li><a href="index.html">User documentation</a></li>
+            <li><a href="/docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>

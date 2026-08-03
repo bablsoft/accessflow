@@ -42,8 +42,14 @@ jobs:
               - 'backend/**'
               - 'connectors/**'
               - '.github/workflows/ci.yml'
+            # website/** is included because the guards that protect website/ live in the
+            # frontend suite (src/config/__tests__/website*.test.ts + docs.test.ts): the CSP
+            # script hash, cross-chapter nav/footer consistency, security.txt expiry, and the
+            # docs anchor contract. Without it a website-only PR skips the frontend job and
+            # ships past every one of them.
             frontend:
               - 'frontend/**'
+              - 'website/**'
               - '.github/workflows/ci.yml'
             helm:
               - 'charts/**'
