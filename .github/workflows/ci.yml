@@ -308,6 +308,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # e2e/ has always had this script, but nothing ran it — so specs and the
+      # screenshots/capture.ts tooling could stop compiling unnoticed. Runs
+      # before the browser install so a type error fails in seconds, not after
+      # a full stack boot. Gated to one matrix variant: all three check the
+      # same tree, so running it thrice only burns runner minutes.
+      - name: Typecheck
+        if: matrix.variant.name == 'main'
+        run: npm run typecheck
+
       - name: Resolve Playwright version
         id: pw
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"

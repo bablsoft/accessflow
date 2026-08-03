@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Audit log, compliance reports &amp; data lifecycle — AccessFlow docs</title>
+  <meta name="description" content="Read the AccessFlow tamper-evident audit log, generate signed compliance exports, and run data-retention and right-to-erasure policies." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/audit-compliance/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Audit log, compliance reports &amp; data lifecycle — AccessFlow docs" />
+  <meta property="og:description" content="Read the AccessFlow tamper-evident audit log, generate signed compliance exports, and run data-retention and right-to-erasure policies." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/audit-compliance/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Audit log, compliance reports &amp; data lifecycle — AccessFlow docs" />
+  <meta name="twitter:description" content="Read the AccessFlow tamper-evident audit log, generate signed compliance exports, and run data-retention and right-to-erasure policies." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/#article",
+      "headline": "Audit & compliance",
+      "name": "Audit log, compliance reports & data lifecycle \u2014 AccessFlow docs",
+      "description": "Read the AccessFlow tamper-evident audit log, generate signed compliance exports, and run data-retention and right-to-erasure policies.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Audit & compliance",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/" class="docs-toc-current" aria-current="page">Audit & compliance</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-audit-log">Audit log</a>
+            <a href="#compliance-reports">Compliance reports & signed exports</a>
+            <a href="#cfg-lifecycle">Data lifecycle & right-to-erasure</a>
+            <a href="#cfg-dashboard">Personalized dashboard & weekly digest</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Audit & compliance.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-audit-log">Audit log</h2>
+          <p>
+            <strong>What it is.</strong> A complete, tamper-evident record of everything that happens —
+            logins, query submissions and decisions, datasource changes, channel edits. It's your
+            answer to "who did what, when" for security reviews and compliance. Records are
+            append-only and cryptographically chained, so a deleted or altered entry is detectable
+            after the fact (query result data is never stored).
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to switch on — it captures automatically. Review it
+            at <code>/admin/audit-log</code>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/audit-log-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/audit-log-dark.webp"
+                   alt="Audit log admin page with action and resource filters, an actor / resource ID search, an Export CSV button, a Verify chain button, and a chronological list of recent USER_LOGIN events with actor avatars and IP addresses."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/audit-log</code> — filter, paginate, verify the HMAC chain, and export to CSV.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Filter and search.</strong> Narrow by action, resource type, actor user id, or resource id; an optional start/end date pair scopes the window.</li>
+            <li><strong>Verify chain.</strong> The <em>Verify chain</em> button re-walks every row's HMAC link in order and surfaces the first mismatch — useful as a recurring auditor check.</li>
+            <li><strong>Export CSV.</strong> Streams the current filter as RFC 4180 CSV with the same columns shown in the UI. Long-running exports respect the same query budget as the table view (use date filters to keep them bounded).</li>
+          </ol>
+          <p>
+            <strong>Tune it.</strong> The chain-signing key defaults to a per-deployment value derived
+            from <code>ENCRYPTION_KEY</code>; set <code>AUDIT_HMAC_KEY</code> (hex, ≥ 32 bytes)
+            explicitly when you want to manage or rotate it yourself. Inserts run through a dedicated
+            <code>AUDIT_DB_USER</code> / <code>AUDIT_DB_PASSWORD</code> role that has no UPDATE / DELETE
+            rights on the log.
+          </p>
+        </section>
+
+<section class="docs-section">
+<h2 id="compliance-reports">Compliance reports &amp; signed exports</h2>
+          <p>
+            <strong>What it is.</strong> Ready-made compliance reporting with audit-grade exports. Two
+            pre-built reports answer common auditor questions over a chosen period:
+            <strong>classified-data access</strong> (which executed queries touched PII / PCI / PHI /
+            GDPR / FINANCIAL / SENSITIVE data, joined to your data-classification tags) and a
+            <strong>regulatory audit trail</strong> of DDL / DELETE operations with the approvers'
+            names. Use it to hand a regulator or internal auditor evidence they can verify themselves.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Build and export reports from the compliance dashboard at
+            <code>/admin/auditor</code> — open to the read-only <code>AUDITOR</code> role and to
+            admins. Each report exports as a <strong>digitally signed</strong> PDF or CSV that an
+            auditor can verify offline against the public key at
+            <code>/api/v1/admin/compliance/signing-certificate</code>; every export is itself recorded
+            in the <a href="#cfg-audit-log">audit log</a> with its content hash, so it's tamper-evident
+            end to end.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD</code> (largest
+            window, default <code>P366D</code>) and <code>ACCESSFLOW_COMPLIANCE_MAX_ROWS</code> (row
+            cap before a report is marked truncated, default <code>50000</code>). Signing reuses
+            <code>JWT_PRIVATE_KEY</code> — no extra secret required.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/auditor-dashboard-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/auditor-dashboard-dark.webp"
+                   alt="The read-only AccessFlow Auditor dashboard with the compliance report builder for classified-data-access and regulatory audit-trail reports over a chosen period."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/auditor</code> — the read-only Auditor role builds and signs compliance reports over the immutable query snapshots.</figcaption>
+          </figure>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-lifecycle">Data lifecycle &amp; right-to-erasure</h2>
+          <p>
+            <strong>Admin.</strong> Define <strong>retention/erasure rules</strong> at
+            <code>/admin/lifecycle/policies</code> — per datasource, target a table / column set /
+            classification tag with a retention window (ISO-8601, e.g. <code>P30D</code> or
+            <code>P7Y</code>) plus <strong>arbitrary conditions</strong> (a structured, parameter-bound
+            predicate builder and a JSqlParser-validated raw-<code>WHERE</code> escape hatch — SQL
+            datasources only) and an action: <strong>hard-delete</strong>, <strong>soft-delete</strong>,
+            or <strong>pseudonymize</strong> (salted SHA-256 / format-preserving / tokenization), with an
+            optional <strong>cron schedule</strong>. A <strong>dry-run preview</strong> reports impact
+            without executing. The scan job stages eligible work (honouring the cron); tune it with
+            <code>ACCESSFLOW_LIFECYCLE_POLICY_SCAN_INTERVAL</code> (default <code>PT1H</code>). Staged
+            runs now <strong>execute automatically</strong> through the proxy —
+            <code>ACCESSFLOW_LIFECYCLE_POLICY_EXECUTION_INTERVAL</code> (default <code>PT5M</code>).
+          </p>
+          <p>
+            Any user can file a <strong>right-to-erasure</strong> request at
+            <code>/lifecycle/erasure</code> using the <em>same</em> rich configuration (subject
+            identifier and/or target table + conditions). It flows through AI-assisted scope detection
+            and <strong>review-plan-based peer review</strong>: any eligible <strong>REVIEWER</strong> or
+            admin reviews it at <code>/lifecycle/erasure-reviews</code> (per the datasource review plan,
+            multi-stage; the submitter can never approve their own), and stale reviews auto-reject via
+            <code>ACCESSFLOW_LIFECYCLE_REVIEW_TIMEOUT</code> (default <code>PT168H</code>). Approved
+            requests are executed through the proxy — soft-deleted rows vanish from reads,
+            <code>DELETE</code>s become marker updates, aged PII resolves to an irreversible salted hash
+            at read time — with tamper-evident <strong>proof-of-deletion</strong> audit records and a
+            retention-adherence compliance export. Tune the executor with
+            <code>ACCESSFLOW_LIFECYCLE_ERASURE_EXECUTION_INTERVAL</code> (default <code>PT1M</code>).
+          </p>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-dashboard">Personalized dashboard &amp; weekly digest</h2>
+          <p>
+            The default post-login home (<code>/dashboard</code>) is self-scoped — every user sees
+            only their own data, no admin role required: pending approvals as a reviewer, their recent
+            queries with status/risk trend sparklines, an AI optimization-suggestion backlog they can
+            dismiss or open in the editor, and their own behavioural-anomaly alerts. Widgets are
+            customizable (show/hide, collapse, drag-and-drop reorder) and persist per browser. Users can
+            export the week's summary as a <strong>digitally signed</strong> PDF/CSV on demand, and opt
+            in to a <strong>weekly email digest</strong> delivered to their email and any configured chat
+            channels. The digest job is clustered-safe; tune it with
+            <code>ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL</code> (how often the job wakes,
+            default <code>P1D</code>) and <code>ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD</code> (minimum
+            gap between digests per user, default <code>P7D</code>).
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

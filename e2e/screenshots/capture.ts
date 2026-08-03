@@ -1,8 +1,9 @@
 // Screenshot capture script for AccessFlow website docs.
 //
 // Drives the running e2e stack (http://localhost:5173 frontend,
-// http://localhost:8080 backend) and writes the website docs PNGs into
-// ../website/images/docs/ — every existing screen (re-captured against the
+// http://localhost:8080 backend) and writes the website docs screenshots as
+// lossless WebP into ../website/images/docs/ — every existing screen
+// (re-captured against the
 // current build) plus the v1.4 captures: the Langfuse config page (AF-333,
 // light + dark), the AI-config RAG knowledge-base section (AF-336, light +
 // dark), and the editor text-to-SQL bar (AF-335, light only).
@@ -35,6 +36,7 @@ import { createApiConnectorViaApi } from '../helpers/apiConnectors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
+import sharp from 'sharp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -364,9 +366,15 @@ async function loginUi(page: Page, email = ADMIN_EMAIL, password = ADMIN_PASSWOR
   });
 }
 
+// The website serves lossless WebP, not PNG — 70% smaller at identical pixels
+// (see website/README.md → "Docs screenshots"). Playwright can only emit PNG or
+// JPEG, so encode the buffer through sharp instead of writing a file directly.
+// Keep this as the ONLY writer: a PNG left behind here would be referenced by
+// nothing and a stale WebP would be served forever.
 async function shoot(page: Page, file: string) {
-  const target = path.join(OUT_DIR, file);
-  await page.screenshot({ path: target, fullPage: false });
+  if (!file.endsWith('.webp')) throw new Error(`shoot() expects a .webp name, got ${file}`);
+  const png = await page.screenshot({ fullPage: false });
+  await sharp(png).webp({ lossless: true, effort: 6 }).toFile(path.join(OUT_DIR, file));
   console.log(`  -> ${file}`);
 }
 
@@ -381,11 +389,11 @@ async function capture(
   const { darkToo = true } = opts;
   await setTheme(page, 'light');
   await prep(page);
-  await shoot(page, `${baseName}-light.png`);
+  await shoot(page, `${baseName}-light.webp`);
   if (darkToo) {
     await setTheme(page, 'dark');
     await prep(page);
-    await shoot(page, `${baseName}-dark.png`);
+    await shoot(page, `${baseName}-dark.webp`);
   }
 }
 

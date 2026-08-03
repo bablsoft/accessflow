@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Datasources, masking &amp; row security — AccessFlow docs</title>
+  <meta name="description" content="Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/datasources/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Datasources, masking &amp; row security — AccessFlow docs" />
+  <meta property="og:description" content="Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/datasources/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Datasources, masking &amp; row security — AccessFlow docs" />
+  <meta name="twitter:description" content="Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/datasources/#article",
+      "headline": "Datasources",
+      "name": "Datasources, masking & row security \u2014 AccessFlow docs",
+      "description": "Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Datasources",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/datasources/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/" class="docs-toc-current" aria-current="page">Datasources</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-datasources">Datasources</a>
+            <a href="#cfg-drivers">Custom JDBC drivers</a>
+            <a href="#cfg-datasource-health">Datasource health</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Datasources.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-datasources">Datasources</h2>
+          <p>
+            <strong>What it is.</strong> A governed connection to one of your databases. Every query a
+            user runs against it passes through AccessFlow's review, masking, and row-security guards
+            instead of hitting the database directly — so a datasource is where you decide <em>who</em>
+            may run <em>what</em> against <em>which</em> data. PostgreSQL, MySQL, MariaDB, Oracle, and
+            MS SQL Server are built in; MongoDB, Couchbase, Redis, Cassandra / ScyllaDB,
+            Elasticsearch / OpenSearch, DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks install
+            from the <a href="/docs/configuration/connectors/#cfg-connectors">connector catalog</a>; any other JDBC engine works by uploading
+            its <a href="#cfg-drivers">driver</a> and choosing <em>Custom</em>.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Create one with the four-step wizard at
+            <code>/datasources/new</code>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-create-dark.webp"
+                   alt="Add datasource wizard, step one (Database type), showing a grid of bundled drivers — PostgreSQL marked Bundled and MySQL, MariaDB, Oracle, MS SQL Server marked Unavailable until their driver is downloaded."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/new</code> — four-step wizard: <em>Database type → Connection details → Connection test → Configuration</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships built-in; other drivers download on first use and are verified against a pinned SHA-256 checksum). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
+            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. For <strong>Snowflake</strong> the wizard asks for the <em>account host</em> (<code>&lt;account&gt;.snowflakecomputing.com</code>; the port field is hidden — always 443), the database, the user, a credential that is either a <em>password or an unencrypted PKCS#8 private key (PEM)</em> for key-pair authentication, and an optional <em>JDBC URL override</em> — a full <code>jdbc:snowflake://</code> URL carrying warehouse / role / schema parameters. For <strong>Google BigQuery</strong> the connection is cloud credentials: the wizard hides host/port/username and asks for the <em>GCP project</em> (optionally <code>project.dataset</code> to pin a default dataset) and the <em>service-account key JSON</em>, plus an optional <em>custom endpoint</em> (BigQuery emulator). For <strong>Databricks SQL</strong> the wizard asks for the <em>workspace host</em>, the required <em>warehouse HTTP path</em> (<code>/sql/1.0/warehouses/&lt;id&gt;</code> from the warehouse's connection details), an optional <em>Unity Catalog catalog</em>, and a <em>personal access token</em>. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response. When an external secrets manager is enabled (see <a href="/docs/install/#run-docker-compose">Run &amp; deploy</a>), any credential field also accepts a <em>secret reference</em> — <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>, <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or <code>azure:&lt;secret-name&gt;</code> — stored as-is and resolved through the store at connection time; the form shows the syntax hints for whichever providers are enabled.</li>
+            <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
+            <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-query</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-query on, users can draft a query from a natural-language prompt in the editor — in the engine's native query language (SQL or a NoSQL query) — and the draft still flows through the normal review pipeline. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
+          </ol>
+          <p>
+            <strong>Read replicas &amp; load balancing (optional).</strong> On the datasource
+            settings page, the <em>Read replicas</em> card takes any number of replica endpoints
+            (JDBC URL plus optional username and password per endpoint — blank credentials reuse
+            the primary's). AccessFlow opens one connection pool per endpoint and load-balances
+            every query classified as <code>SELECT</code> round-robin across the healthy replicas;
+            INSERT / UPDATE / DELETE / DDL and transactional <code>BEGIN … COMMIT</code> batches
+            always hit the primary. Replicas must use the same database engine as the primary
+            (they reuse the primary's JDBC driver), and credentials are AES-256-GCM encrypted with
+            the same <code>ENCRYPTION_KEY</code>. Per-node health checks (a background prober plus
+            a circuit breaker) take a failed endpoint out of rotation for a cooldown
+            (<code>ACCESSFLOW_PROXY_REPLICA_COOLDOWN</code>, default 30s) and its health shows on
+            the <em>Datasource health</em> dashboard; only when every replica is down does the
+            read fall back to the primary, with one <code>DATASOURCE_REPLICA_FALLBACK</code> audit
+            row visible at <code>/admin/audit-log</code>. Click <em>Test replica</em> on any row
+            to validate its URL + credentials live without persisting; leaving the password blank
+            reuses that endpoint's saved password. Remove every endpoint to disable replica
+            routing. Replica pools reuse the same <code>ACCESSFLOW_PROXY_*</code> connection-pool
+            tuning as the primary; the health checks are tuned by the
+            <code>ACCESSFLOW_PROXY_REPLICA_*</code> variables.
+          </p>
+          <p>
+            <strong>SELECT result caching (optional).</strong> The settings page's
+            <em>Performance</em> card opts a datasource into a Redis-backed result cache for
+            repeated identical <code>SELECT</code>s, with a per-datasource TTL (1–86,400 seconds;
+            blank uses <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code>, default 60s). Caching is
+            security-safe by construction — entries are keyed over the row-security-rewritten
+            query and the caller's masking scope, so masking and row-level security always apply —
+            and any write executed through AccessFlow to a referenced table (including GDPR
+            erasure and retention deletes) immediately invalidates the affected entries. Note that
+            writes made <em>outside</em> AccessFlow are invisible to the cache and are served
+            stale until the TTL expires, so pick a TTL that matches how the datasource is written.
+            <code>ACCESSFLOW_PROXY_CACHE_ENABLED=false</code> switches the feature off
+            deployment-wide.
+          </p>
+          <p>
+            <strong>Grant a user access.</strong> Open the datasource → <em>Permissions</em> tab and add a row per user — <em>can read / can write / can DDL</em>, allowed schemas, allowed tables, and restricted columns (masked as <code>***</code> in <code>SELECT</code> results). Without a permission row, a user can't see or query the datasource at all. The <em>allowed schemas</em> / <em>allowed tables</em> lists are enforced when a query is submitted: every table it references — across joins, subqueries, CTEs, and <code>BEGIN; …; COMMIT;</code> batches — must appear in <em>allowed tables</em> or live in an <em>allowed schema</em>, or the query is rejected before it runs. Matching is case-insensitive, and an unqualified table name (<code>FROM users</code>) only matches an unqualified entry in <em>allowed tables</em>. Leave both fields empty to allow every table.
+          </p>
+          <p>
+            <strong>Schema explorer &amp; ER diagram.</strong> Each datasource also carries
+            <em>Schema</em> and <em>ER diagram</em> tabs alongside <em>Configuration</em> /
+            <em>Permissions</em>. The schema view introspects the live database (cached and
+            refreshable from the UI) and renders a <strong>searchable object tree</strong> — one
+            filter matches across schema, table, and column names. Click any table to open a
+            <strong>sample-data preview</strong>: a small, read-only set of rows fetched through the
+            same governance path as a real query, so row-level security filters the rows and column
+            masking redacts sensitive values (masked columns show <code>***</code>, never the raw
+            value). The same searchable tree and preview are available in the query editor sidebar.
+            The ER tab lays those tables out as a node-and-edge graph with PK/FK badges and column
+            types so reviewers and operators can sanity-check what a query is touching without
+            leaving AccessFlow.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-er-diagram-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-er-diagram-dark.webp"
+                   alt="Datasource settings page with the ER diagram tab active, showing entity boxes for users, datasources, query_requests, audit_log and related tables connected by relationship edges."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>ER diagram</em>. Auto-laid-out via dagre; node positions persist after manual edits.</figcaption>
+          </figure>
+          <p>
+            <strong>Masking policies.</strong> The datasource <em>Masking</em> tab adds per-column
+            <em>dynamic data masking</em> on top of the static restricted-columns masking above. Each
+            policy targets a <code>schema.table.column</code> and picks a strategy —
+            <em>full</em> (<code>***</code>), <em>partial</em> (keep the last N characters),
+            <em>hash</em> (stable SHA-256), <em>email</em> (<code>j***@domain</code>), or
+            <em>format-preserving</em> — with an optional <em>reveal-to</em> condition. A query
+            submitter whose role, group, or user id is listed in <em>reveal to</em> sees the unmasked
+            value; everyone else sees the strategy output. A live preview shows how a sample value will
+            render. Masking is applied at result-read time before results are serialized or stored, so
+            unmasked values never persist, and the ids of the policies that applied are recorded in the
+            execution's audit metadata. Reveal is explicit — there is no implicit admin bypass.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-masking-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-masking-dark.webp"
+                   alt="The datasource Masking tab listing a per-column masking policy — column reference, strategy (email), and reveal-to roles."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Masking</em>. Per-column dynamic masking with role / group / user reveal conditions.</figcaption>
+          </figure>
+          <p>
+            <strong>Row security policies.</strong> The datasource <em>Row security</em> tab adds
+            <em>row-level security</em>: per-table predicates the proxy injects into the parsed SQL so a
+            scoped user only sees (SELECT) or affects (UPDATE/DELETE) the rows they are authorised for.
+            Each policy is a structured <code>column operator value</code> predicate where the value is a
+            fixed <em>literal</em> or a <code>:user.*</code> <em>variable</em> — the built-in
+            <code>:user.id</code> / <code>:user.email</code> / <code>:user.role</code> /
+            <code>:user.groups</code>, or an admin-set per-user attribute (the <em>Attributes</em>
+            key/value editor on <em>Admin → Users</em>). The <em>applies to</em> roles / groups / users
+            scope it (empty = everyone, no implicit admin bypass — the inverse of masking's
+            <em>reveal to</em>). Values are bound as parameters, never concatenated; an unresolved
+            variable filters out every row (fail-closed); and a query the engine can't safely rewrite
+            (a policied table inside a UNION, CTE, sub-select, or join-onto-another-policied-table) is
+            rejected rather than run unfiltered. Applied policy ids are recorded in the execution's audit
+            metadata.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-row-security-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-row-security-dark.webp"
+                   alt="The datasource Row security tab listing a per-table predicate — table, column, operator, and a :user.id variable value, scoped by applies-to roles."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
+          </figure>
+          <h3 id="cfg-data-classifications">Data classification</h3>
+          <p>
+            The datasource <em>Classification</em> tab tags
+            tables and columns with one or more data classifications — <em>PII</em>, <em>PCI</em>,
+            <em>PHI</em>, <em>GDPR</em>, <em>FINANCIAL</em>, or <em>SENSITIVE</em> — and
+            <strong>derives stricter handling automatically</strong>. Tagging a <em>column</em>
+            auto-applies a masking policy from the classification's default strategy
+            (PII / GDPR / FINANCIAL → partial, PCI / PHI → full, SENSITIVE → hash), so you don't
+            hand-configure masking for every sensitive field; a table-level tag (no column) is
+            informational. A query that references a tagged table gets an automatic AI risk-score
+            bump, and a <em>derivation preview</em> suggests a stricter review posture (AI review,
+            human approval, minimum approvals) aggregated across the datasource's tags — a suggestion
+            you apply on the datasource's review plan, never auto-changed. Tags are immutable
+            (create / delete) and audited; deleting a tag keeps the masking policy it derived. The
+            classifications appear as badges in the schema explorer, and <em>Admin → Data
+            classifications</em> (<code>/admin/data-classifications</code>) lists every tag across all
+            datasources as the evidence base for compliance reporting.
+          </p>
+          <p>
+            <strong>Automated discovery.</strong> Instead of tagging hundreds of tables by hand, the
+            datasource <em>Discovery</em> tab opts a datasource into a scheduled scanner that samples
+            column data through the same governed sampling path, detects sensitive values with local
+            regex + checksum detectors (emails, credit-card numbers with Luhn, US SSNs, IBANs, phone
+            numbers) and — optionally — your bound AI analyzer, then <strong>proposes</strong> the
+            classification tags in a review worklist. Confirming a finding applies the tag (deriving
+            masking exactly like a manual tag); dismissing suppresses the proposal permanently. Raw
+            sampled values never persist (findings store a redacted sample only), and the AI pass
+            only ever sees column names, types, and redacted samples. Configure the per-datasource
+            sample size (10–1000 rows) and cadence (1–720 hours), or hit <em>Scan now</em> for an
+            immediate run; scans and decisions land in the audit log
+            (<code>DISCOVERY_SCAN_COMPLETED</code>, <code>DISCOVERY_FINDING_CONFIRMED</code> /
+            <code>_DISMISSED</code>). Operator knobs:
+            <code>ACCESSFLOW_DISCOVERY_SCAN_POLL_INTERVAL</code> (<code>PT15M</code>),
+            <code>ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET</code> (<code>PT10M</code>),
+            <code>ACCESSFLOW_DISCOVERY_SAMPLE_STATEMENT_TIMEOUT</code> (<code>PT10S</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_TABLES_PER_SCAN</code> (<code>200</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN</code> (<code>25</code>).
+          </p>
+          <p>
+            <strong>Tune it.</strong> Per-datasource fields above set row caps and review behaviour;
+            these environment variables set the engine-level connection and execution ceilings
+            (defaults shown):
+          </p>
+          <ul>
+            <li><strong>Connection pools (all JDBC engines):</strong>
+              <code>ACCESSFLOW_PROXY_CONNECTION_TIMEOUT</code> (<code>30s</code>),
+              <code>ACCESSFLOW_PROXY_IDLE_TIMEOUT</code> (<code>10m</code>),
+              <code>ACCESSFLOW_PROXY_MAX_LIFETIME</code> (<code>30m</code>),
+              <code>ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD</code> (<code>0s</code> = off).</li>
+            <li><strong>Statement execution (all engines):</strong>
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS</code> (<code>10000</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT</code> (<code>30s</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE</code> (<code>1000</code>),
+              <code>ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE</code> (<code>1000</code>).</li>
+            <li><strong>Heap protection (relational engines):</strong>
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES</code> (<code>52428800</code> —
+              per-result byte cap; larger SELECT results are truncated),
+              <code>ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT</code> (<code>32</code> —
+              global in-flight execution budget across all datasources),
+              <code>ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT</code> (<code>5s</code> —
+              wait before overflow executions are rejected with HTTP 503).</li>
+            <li><strong>SELECT result cache:</strong>
+              <code>ACCESSFLOW_PROXY_CACHE_ENABLED</code> (<code>true</code>),
+              <code>ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL</code> (<code>PT60S</code>),
+              <code>ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES</code> (<code>1000000</code>).</li>
+            <li><strong>Read-replica health checks:</strong>
+              <code>ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL</code> (<code>PT30S</code>),
+              <code>ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT</code> (<code>PT5S</code>),
+              <code>ACCESSFLOW_PROXY_REPLICA_COOLDOWN</code> (<code>PT30S</code>).</li>
+            <li><strong>MongoDB:</strong> <code>ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_SERVER_SELECTION_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_MAX_POOL_SIZE</code> (<code>10</code>).</li>
+            <li><strong>Couchbase:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_COUCHBASE_CONNECT_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_WAIT_UNTIL_READY_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_SCAN_CONSISTENCY</code> (<code>request-plus</code>).</li>
+            <li><strong>Redis:</strong> <code>ACCESSFLOW_PROXY_ENGINES_REDIS_CONNECT_TIMEOUT</code>
+              (<code>PT5S</code>), <code>…_SOCKET_TIMEOUT</code> (<code>PT5S</code>),
+              <code>…_MAX_POOL_SIZE</code> (<code>10</code>).</li>
+            <li><strong>Cassandra / ScyllaDB:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_CASSANDRA_CONNECT_TIMEOUT</code> /
+              <code>…_SCYLLADB_CONNECT_TIMEOUT</code> (<code>PT10S</code>) and the matching
+              <code>…_REQUEST_TIMEOUT</code> (<code>PT10S</code>).</li>
+            <li><strong>Elasticsearch / OpenSearch:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_CONNECT_TIMEOUT</code> /
+              <code>…_OPENSEARCH_CONNECT_TIMEOUT</code> (<code>PT10S</code>) and
+              <code>…_SOCKET_TIMEOUT</code> (<code>PT30S</code>).</li>
+            <li><strong>DynamoDB:</strong>
+              <code>ACCESSFLOW_PROXY_ENGINES_DYNAMODB_CONNECT_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_API_CALL_TIMEOUT</code> (<code>PT30S</code>).</li>
+            <li><strong>Neo4j:</strong> <code>ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_MAX_CONNECTION_POOL_SIZE</code> (<code>100</code>).</li>
+            <li><strong>Snowflake:</strong> <code>ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_LOGIN_TIMEOUT</code>
+              (<code>PT30S</code>), <code>…_NETWORK_TIMEOUT</code> (<code>PT60S</code>).</li>
+            <li><strong>BigQuery:</strong> <code>ACCESSFLOW_PROXY_ENGINES_BIGQUERY_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_READ_TIMEOUT</code> (<code>PT30S</code>).</li>
+            <li><strong>Databricks:</strong> <code>ACCESSFLOW_PROXY_ENGINES_DATABRICKS_CONNECT_TIMEOUT</code>
+              (<code>PT10S</code>), <code>…_WAIT_TIMEOUT</code> (<code>PT10S</code>),
+              <code>…_POLL_INTERVAL</code> (<code>PT1S</code>).</li>
+          </ul>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-drivers">Custom JDBC drivers</h2>
+          <p>
+            <strong>What it is.</strong> The escape hatch for any JDBC database not in the
+            <a href="/docs/configuration/connectors/#cfg-connectors">connector catalog</a>. Upload its driver JAR and datasources can
+            bind to it by choosing <em>Database type → Custom</em> in the create wizard.
+          </p>
+          <p><strong>Configure it.</strong> Manage uploads at <code>/admin/drivers</code>:</p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/drivers-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/drivers-list-dark.webp"
+                   alt="Custom JDBC drivers admin page with an Upload driver call-to-action and an empty-state explaining that uploaded drivers extend support beyond the bundled five."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/drivers</code> — manages the per-org JDBC driver registry.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Upload driver.</strong> Click <em>Upload driver</em>, attach the JAR, and supply the vendor name, target database type, the driver class identifier shown in the vendor's documentation, and the expected SHA-256 checksum.</li>
+            <li><strong>Verification.</strong> The checksum is re-verified every time a pool initializes; uploaded drivers are loaded in isolated runtimes to keep providers from interfering with each other.</li>
+            <li><strong>On-disk cache.</strong> JARs cache to <code>ACCESSFLOW_DRIVER_CACHE</code> (default <code>~/.accessflow/drivers</code>). Mount it as a persistent volume in Kubernetes so pods don't re-download on restart, and set <code>ACCESSFLOW_DRIVERS_OFFLINE=true</code> for air-gapped installs.</li>
+          </ol>
+
+          <!-- Review plans -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-datasource-health">Datasource health</h2>
+          <p>
+            <strong>What it is.</strong> An operational dashboard for spotting a datasource in trouble
+            — pool exhaustion, a database that has turned slow, or a sudden volume spike. Use it as the
+            first place to look when queries start failing or hanging.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to set up. <code>/admin/datasource-health</code>
+            (admin-only, read-only) auto-refreshes every 30 seconds; each card shows live
+            connection-pool utilisation (active / idle / free against the configured maximum) plus a
+            trailing 24-hour summary of query volume, p50 / p95 execution latency, and error count.
+            Pool gauges read "pool not initialised" until the datasource's first query runs (pools are
+            created on demand).
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_PROXY_HEALTH_CACHE_TTL</code> caches each
+            snapshot so the auto-refresh stays cheap (default <code>PT30S</code>).
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasource-health-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasource-health-dark.webp"
+                   alt="Datasource health dashboard at /admin/datasource-health showing per-datasource cards with connection-pool status and a 24-hour summary of query volume, p50/p95 execution latency, and error count, plus a Refresh button."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/datasource-health</code> — one card per datasource, auto-refreshing every 30 s.</figcaption>
+          </figure>
+
+          <!-- Notification channels -->
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

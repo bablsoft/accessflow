@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Review plans, routing policies &amp; recertification — AccessFlow docs</title>
+  <meta name="description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/review-workflows/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Review plans, routing policies &amp; recertification — AccessFlow docs" />
+  <meta property="og:description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/review-workflows/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Review plans, routing policies &amp; recertification — AccessFlow docs" />
+  <meta name="twitter:description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/#article",
+      "headline": "Review workflows",
+      "name": "Review plans, routing policies & recertification \u2014 AccessFlow docs",
+      "description": "Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Review workflows",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/" class="docs-toc-current" aria-current="page">Review workflows</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-review-plans">Review plans</a>
+            <a href="#cfg-routing-policies">Routing policies</a>
+            <a href="#cfg-attestation">Access recertification campaigns</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Review workflows.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-review-plans">Review plans</h2>
+          <p>
+            <strong>What it is.</strong> The approval policy attached to a datasource — it decides how
+            a submitted query gets from "submitted" to "executed". Use it to require AI scoring, one or
+            more human sign-offs, or both, and to auto-approve low-risk reads. Each plan is a sequence
+            of stages; each stage names approvers (by role or specific user) and a minimum number of
+            approvals before the query advances.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Build plans at <code>/admin/review-plans</code> — start
+            from a built-in template or from scratch:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/review-plans-templates-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/review-plans-templates-dark.webp"
+                   alt="Review plans admin page with the create-from-template dropdown open, listing four templates — Strict (writes need 2 approvals), Lenient (reads auto-approved), AI-only (no human approval), and Standard (AI plus one reviewer)."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> → caret next to <em>Add review plan</em> exposes four built-in templates that prefill the create modal.</figcaption>
+          </figure>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/review-plans-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/review-plans-create-dark.webp"
+                   alt="Add review plan modal with name and description fields, AI-review and human-approval toggles enabled, minimum approvals set to 1, approval timeout 24 hours, and an approver row defaulting to the REVIEWER role at stage 1."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> → <em>Add review plan</em>. Stack approver rows to build multi-stage chains.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/review-plans</code></strong> and click <em>Add review plan</em>, or pick a built-in template from the dropdown caret next to it (<em>Strict — writes need 2 approvals</em>, <em>Lenient — reads auto-approved</em>, <em>AI-only — no human approval</em>, <em>Standard — AI + 1 reviewer</em>) to prefill the modal with sensible defaults.</li>
+            <li><strong>Name and describe</strong> the policy — e.g. "Production writes — two reviewers".</li>
+            <li><strong>Pick the gates.</strong> Toggle <em>Require AI review</em> to score every query before it queues for humans; toggle <em>Require human approval</em> to demand at least one reviewer sign-off. <em>Auto-approve LOW-risk reads</em> lets <code>SELECT</code>s skip humans entirely when AI risk is below the threshold.</li>
+            <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when AccessFlow auto-rejects an idle <code>PENDING_REVIEW</code> query (it scans on a cadence set by <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>
+            <li><strong>Build the approver chain.</strong> Click <em>Add approver</em> for each stage; each row names a role (or a specific user) and a stage number. Stages advance sequentially, and a single <em>REJECTED</em> decision at any stage terminates the query.</li>
+          </ol>
+          <p>
+            <strong>Reviewer decisions.</strong> Reviewers can <em>Approve</em>, <em>Reject</em>, or
+            <em>Request changes</em>. <em>Reject</em> and <em>Request changes</em> both require a
+            non-empty comment — the server enforces this (<code>HTTP 400 VALIDATION_ERROR</code>),
+            and the UI disables the confirm button until the textarea is populated. The comment is
+            persisted on the decision row, rendered on the rejected stage of the timeline on
+            <code>/queries/&lt;id&gt;</code>, and surfaced to the submitter as a "Changes requested"
+            alert whenever the latest decision is <code>REQUESTED_CHANGES</code> and the query is
+            still <code>PENDING_REVIEW</code>. <em>Approve</em> still treats the comment as
+            optional.
+          </p>
+          <p>
+            <strong>Query status transitions.</strong> A query moves through these states:
+          </p>
+<pre class="docs-pre-plain">PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
+                           ↘ REJECTED   (manual reviewer rejection)
+                           ↘ TIMED_OUT  (approval-timeout auto-reject)
+PENDING_REVIEW → CANCELLED (submitter only)
+APPROVED → FAILED (execution error)</pre>
+          <p>
+            A single <code>REJECTED</code> decision at any stage terminates the query. If a query
+            sits in <code>PENDING_REVIEW</code> past the plan's <em>approval timeout</em>, AccessFlow
+            auto-rejects it (it scans on a cadence set by
+            <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).
+            <em>Auto-approve reads</em> lets <code>SELECT</code>s skip human approval entirely;
+            <em>Require AI review</em> still scores the read but won't block on a human.
+          </p>
+
+          <!-- Routing policies -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-routing-policies">Routing policies</h2>
+          <p>
+            <strong>What it is.</strong> Policy-as-code that decides a query's path automatically,
+            <em>after</em> AI analysis and <em>before</em> reviewers see it. Use it to auto-approve
+            routine reads, hard-block dangerous patterns, or escalate sensitive ones — instead of
+            sending everything through the same review plan. Policies run in ascending priority and the
+            <strong>first enabled one whose condition matches wins</strong>; anything unmatched falls
+            through to the datasource's <a href="#cfg-review-plans">review plan</a> exactly as before.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage them at <code>/admin/routing-policies</code> (the
+            <em>Routing policies</em> entry in the <em>Security</em> nav group):
+          </p>
+          <ol>
+            <li><strong>Open <code>/admin/routing-policies</code></strong> (the <em>Routing policies</em> entry in the <em>Security</em> nav group, next to <em>Review plans</em>) and click <em>Add policy</em>.</li>
+            <li><strong>Name the policy</strong> and optionally scope it to one datasource — leave the datasource blank for an org-wide rule. Set its <em>priority</em> (unique per organisation; lower runs first) and the <em>enabled</em> toggle.</li>
+            <li><strong>Build the condition</strong> with the guided builder: pick <em>match ALL</em> (AND) or <em>match ANY</em> (OR), then add leaf conditions — each can be negated (NOT). Operands include query type, referenced tables (glob, e.g. <code>payroll.*</code>), AI risk level, AI risk score (with a comparison operator), requester role, requester group, time-of-day window, day-of-week, presence of a <code>WHERE</code> clause, presence of a <code>LIMIT</code> clause, the transactional (<code>BEGIN…COMMIT</code>) flag, and the pre-flight cost estimate — <em>estimated rows</em> (comparison against the engine's own EXPLAIN estimate, or the exact affected-row count for UPDATE/DELETE) and <em>scan type</em> (glob match on the plan's root operation, e.g. <code>Seq*</code>) — so a policy can route a 10-million-row sequential-scan DELETE differently from a 10-row indexed one.</li>
+            <li><strong>Choose the action.</strong> <em>Auto-approve</em> (skip human review), <em>Auto-reject</em> (block the query), <em>Require approvals</em> (force human review with an absolute minimum number of approvers), or <em>Escalate</em> (force human review, adding a delta on top of the review plan's minimum). The approver count applies only to the last two actions.</li>
+            <li><strong>Reorder</strong> policies any time with the per-row up/down controls — the order is the evaluation order.</li>
+          </ol>
+          <div class="docs-callout info">
+            <strong>How it routes.</strong> Time-of-day and day-of-week conditions are evaluated in the
+            <em>server's local timezone</em> (overnight windows wrap around midnight). On datasources with
+            AI analysis disabled, risk-based conditions never match (there's no AI signal); routing does not
+            run when AI analysis fails — the query goes to a human instead. The cost-estimate conditions
+            likewise never match while no estimate exists (engine without a plan concept, or the estimate
+            failed) — they fail closed rather than auto-approving blind. Every automated decision is
+            recorded in the <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a> (<code>QUERY_APPROVED</code> /
+            <code>QUERY_REJECTED</code> with <code>source: "ROUTING_POLICY"</code>), and the query detail page
+            shows which policy matched. Routing policies are managed via the ADMIN-only
+            <code>/api/v1/admin/routing-policies</code> CRUD and <code>/reorder</code> endpoints.
+          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/routing-policies-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/routing-policies-dark.webp"
+                   alt="The /admin/routing-policies page listing ordered routing policies by priority — name, scope, condition summary, action (auto-approve / escalate), and per-row reorder controls."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/routing-policies</code> — ordered, attribute-based auto-decision rules; first match by priority wins, unmatched falls through to the review plan.</figcaption>
+          </figure>
+
+          <!-- AI -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-attestation">Access recertification campaigns</h2>
+          <p>
+            <strong>What it is.</strong> Recurring attestation campaigns that make someone periodically
+            re-confirm who still needs standing datasource access — the review control SOC 2 and
+            ISO 27001 auditors ask for. An admin schedules an org- or datasource-scoped campaign;
+            when it opens it <strong>snapshots</strong> the current standing grants into one item per
+            grant and notifies the eligible reviewers (multi-channel, plus an
+            <code>attestation.campaign_opened</code> WebSocket event). Reviewers work a
+            <strong>certify / revoke</strong> worklist that reuses the review-queue patterns
+            (self-review blocked, bulk-certify); a <strong>revoke</strong> routes through the normal
+            permission-revoke path, so access is actually removed.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage campaigns from <code>/admin/attestation</code> and
+            certify items from the reviewer worklist at <code>/reviews/attestations</code>. Two
+            clustered-safe jobs run the lifecycle: one opens <code>SCHEDULED</code> campaigns at their
+            <code>scheduled_open_at</code>, the other closes <code>OPEN</code> campaigns at their
+            <code>due_at</code> and applies each campaign's pending-default (<code>KEEP</code> or
+            <code>REVOKE</code>) to anything a reviewer never got to. A completed campaign exports as a
+            CSV <strong>evidence</strong> file (who reviewed what, decisions, timestamps), and every
+            transition — <code>ATTESTATION_CAMPAIGN_OPENED/CLOSED</code>,
+            <code>ATTESTATION_ITEM_CERTIFIED/REVOKED</code> — lands in the tamper-evident
+            <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_ATTESTATION_OPEN_POLL_INTERVAL</code> and
+            <code>ACCESSFLOW_ATTESTATION_CLOSE_POLL_INTERVAL</code> (open / close scan cadence, both
+            default <code>PT5M</code>) and <code>ACCESSFLOW_ATTESTATION_MAX_EVIDENCE_ROWS</code> (row
+            cap before an evidence CSV is marked truncated, default <code>50000</code>).
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/attestation-campaigns-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/attestation-campaigns-dark.webp"
+                   alt="The AccessFlow access-recertification campaign list at /admin/attestation, showing scheduled and open attestation campaigns with their due dates and pending-item counts."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/attestation</code> — admins schedule recurring access-recertification campaigns; reviewers certify or revoke each snapshotted grant.</figcaption>
+          </figure>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

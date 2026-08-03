@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terraform / OpenTofu provider &amp; CI Actions — AccessFlow docs</title>
+  <meta name="description" content="Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/iac/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Terraform / OpenTofu provider &amp; CI Actions — AccessFlow docs" />
+  <meta property="og:description" content="Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/iac/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Terraform / OpenTofu provider &amp; CI Actions — AccessFlow docs" />
+  <meta name="twitter:description" content="Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/iac/#article",
+      "headline": "Infrastructure as Code",
+      "name": "Terraform / OpenTofu provider & CI Actions \u2014 AccessFlow docs",
+      "description": "Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/iac/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/iac/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Infrastructure as Code",
+          "item": "https://accessflow.bablsoft.com/docs/iac/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/" class="docs-toc-current" aria-current="page">Infrastructure as Code</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#iac">Infrastructure as Code (Terraform / OpenTofu & CI Actions)</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Infrastructure as Code.</h1>
+        </header>
+
+<section id="iac" class="docs-section">
+          <h2>Infrastructure as Code (Terraform / OpenTofu &amp; CI Actions)</h2>
+          <p>
+            Beyond the env-driven GitOps bootstrap, AccessFlow ships an official
+            <strong>Terraform / OpenTofu provider</strong> (<code>bablsoft/accessflow</code>) and
+            reusable <strong>GitHub Actions</strong> + a <strong>GitLab CI template</strong> for
+            managing governance resources declaratively over the REST API. Both authenticate with an
+            API key — the provider manages datasources, review plans, routing / row-security /
+            masking policies, AI configs, and notification channels with the same authoritative-upsert
+            semantics as the bootstrap reconciler.
+          </p>
+
+          <h3 id="iac-service-account">Service-account API keys</h3>
+          <p>
+            A pipeline needs credentials without an interactive login. Bootstrap can seed a
+            <strong>service account</strong> — an API-key-only user (password login disabled) whose
+            raw key you supply from a Secret (only its hash is stored, rotated in place when it
+            changes). Set these operator env vars (or the equivalent Helm
+            <code>bootstrap.serviceAccounts[]</code> with an <code>apiKeySecretRef</code>):
+          </p>
+          <ul>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE</code> — default <code>ADMIN</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME</code></li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY</code> — the raw <code>af_</code>-prefixed token</li>
+            <li><code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_EXPIRES_AT</code> — optional ISO-8601</li>
+          </ul>
+          <p>You can also mint a key interactively at <code>POST /api/v1/me/api-keys</code>.</p>
+
+          <h3 id="iac-provider">Terraform / OpenTofu provider</h3>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">main.tf</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>terraform {
+  required_providers {
+    accessflow = { source = <span class="c-str">"bablsoft/accessflow"</span> }
+  }
+}
+
+provider <span class="c-str">"accessflow"</span> {
+  endpoint = <span class="c-str">"https://accessflow.example.com"</span> <span class="c-com"># or ACCESSFLOW_ENDPOINT</span>
+  api_key  = var.accessflow_api_key            <span class="c-com"># or ACCESSFLOW_API_KEY</span>
+}
+
+resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">"prod"</span> {
+  name     = <span class="c-str">"prod-postgres"</span>
+  db_type  = <span class="c-str">"POSTGRESQL"</span>
+  host     = <span class="c-str">"postgres.prod.internal"</span>
+  port     = 5432
+  ssl_mode = <span class="c-str">"REQUIRE"</span>
+}
+</pre>
+          </div>
+          <p>
+            Works with both <code>tofu</code> and <code>terraform</code>, and is published at
+            <a href="https://registry.terraform.io/providers/bablsoft/accessflow/latest" target="_blank" rel="noopener noreferrer">registry.terraform.io/providers/bablsoft/accessflow</a>
+            (and the OpenTofu registry as <code>bablsoft/accessflow</code>). Write-only secrets
+            (<code>password</code>, <code>api_key</code>, notification <code>config</code> values) are
+            never returned by the API, so the provider applies changes to them but can't detect
+            drift — treat the HCL as the source of truth.
+          </p>
+
+          <h4 id="iac-resources">Resources &amp; data sources</h4>
+          <p>
+            The provider drives the <strong>existing</strong> REST endpoints —
+            <code>/datasources</code>, <code>/review-plans</code>, <code>/admin/routing-policies</code>,
+            <code>/admin/ai-configs</code>, <code>/admin/notification-channels</code>, and the nested
+            <code>/datasources/{id}/{row-security,masking}-policies</code>. No AccessFlow-specific
+            endpoints were added for it. Idempotency comes from Terraform state (create → store UUID →
+            read / update / delete by id), matching the bootstrap reconciler's authoritative-upsert
+            intent.
+          </p>
+          <table class="docs-table">
+            <thead>
+              <tr><th>Resource</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>accessflow_datasource</code></td><td>Create / read / update / delete, plus import by UUID</td></tr>
+              <tr><td><code>accessflow_review_plan</code></td><td>Nested <code>approvers</code> and <code>notify_channels</code></td></tr>
+              <tr><td><code>accessflow_routing_policy</code></td><td><code>condition</code> is the typed tree as a JSON string</td></tr>
+              <tr><td><code>accessflow_row_security_policy</code></td><td>Nested under a datasource; import as <code>datasource_id/policy_id</code></td></tr>
+              <tr><td><code>accessflow_masking_policy</code></td><td>Nested under a datasource; import as <code>datasource_id/policy_id</code></td></tr>
+              <tr><td><code>accessflow_ai_config</code></td><td><code>api_key</code> is write-only</td></tr>
+              <tr><td><code>accessflow_notification_channel</code></td><td><code>config</code> map; <code>channel_type</code> is immutable and forces replacement</td></tr>
+            </tbody>
+          </table>
+          <p>
+            Two data sources — <code>accessflow_datasource</code> and
+            <code>accessflow_review_plan</code> — look an existing resource up by <code>id</code>.
+          </p>
+
+          <h4 id="iac-local-dev">Local development</h4>
+          <p>
+            From <code>terraform-provider/</code>: <code>make build</code> compiles it,
+            <code>make test</code> runs the unit tests with no live stack, <code>make testacc</code>
+            runs acceptance tests against a real backend (needs <code>ACCESSFLOW_ENDPOINT</code> and
+            <code>ACCESSFLOW_API_KEY</code>), and <code>make docs</code> regenerates the provider docs
+            via <code>tfplugindocs</code>. To try an unreleased build, point a CLI dev override for
+            <code>bablsoft/accessflow</code> at the <code>go install</code>-ed binary.
+          </p>
+
+          <h3 id="iac-ci">CI Actions</h3>
+          <p>
+            The <code>provision-datasource</code> and <code>run-query</code> GitHub composite actions
+            (referenced as <code>bablsoft/accessflow/.github/actions/&lt;name&gt;@v1</code>) and the
+            <code>include</code>-able GitLab template wrap provisioning a datasource and submitting a
+            governed query from a pipeline. <code>run-query</code> waits for a terminal status and
+            sends an <code>X-AccessFlow-CI</code> header so context-aware routing policies recognise
+            the CI origin.
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.github/workflows/migrate.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com">- id: ds</span>
+  uses: bablsoft/accessflow/.github/actions/provision-datasource@v1
+  with:
+    endpoint: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    name: prod-postgres
+    db-type: POSTGRESQL
+    host: postgres.prod.internal
+    port: <span class="c-str">"5432"</span>
+    database-name: app
+    username: af_reader
+    password: ${{ secrets.PROD_DB_PASSWORD }}
+    ssl-mode: REQUIRE
+
+- uses: bablsoft/accessflow/.github/actions/run-query@v1
+  with:
+    endpoint: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    datasource-id: ${{ steps.ds.outputs.id }}
+    sql: <span class="c-str">"SELECT count(*) FROM orders"</span>
+</pre>
+          </div>
+          <p>
+            <code>provision-datasource</code> is idempotent — it looks the datasource up by name, then
+            creates or updates it — so re-running a pipeline is safe. <code>run-query</code> fails the
+            step on any terminal status other than <code>EXECUTED</code>, so a rejected or timed-out
+            query breaks the build rather than passing silently. For unattended execution, pair it
+            with an <code>AUTO_APPROVE</code>
+            <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing policy</a>
+            scoped to the CI origin.
+          </p>
+          <p>
+            On GitLab, <code>include:</code> the
+            <code>ci-templates/gitlab/accessflow.gitlab-ci.yml</code> template and then
+            <code>extends:</code> <code>.accessflow_provision_datasource</code> or
+            <code>.accessflow_run_query</code>, passing the same values as <code>AF_*</code> variables.
+          </p>
+          <p>
+            Full provider reference, all resources, and the registry-publishing runbook (the provider
+            is released to a dedicated <code>terraform-provider-accessflow</code> repo that
+            opentofu.org and registry.terraform.io ingest) are in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md">docs/16-iac.md</a>.
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

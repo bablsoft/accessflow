@@ -88,62 +88,273 @@ the right.
 
 ```
 website/
-├── index.html      # Marketing site — single-page, all sections inline
-├── styles.css      # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
-├── app.js          # Vanilla JS: install tabs, copy buttons, how-it-works stepper
-├── favicon.svg     # Brand mark (shared with frontend/public/favicon.svg)
-├── og-image.png    # 1200×630 social-share image (Open Graph / Twitter Card)
-├── robots.txt      # Crawler directives + sitemap pointer
-├── sitemap.xml     # XML sitemap (homepage + docs page)
-├── llms.txt        # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
-├── docs/
-│   └── index.html  # Public user documentation — run + configure (sidebar TOC)
+├── index.html       # Marketing site — single-page, all sections inline
+├── styles.css       # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
+├── app.js           # Vanilla JS: install tabs, copy buttons, how-it-works stepper
+├── favicon.svg      # Brand mark (shared with frontend/public/favicon.svg)
+├── og-image.png     # 1200×630 social-share image (Open Graph / Twitter Card)
+├── robots.txt       # Crawler directives + sitemap pointer
+├── sitemap.xml      # XML sitemap (homepage + docs page)
+├── llms.txt         # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
+├── _headers         # Cloudflare asset headers — Cache-Control + security headers (see SEO)
+├── .assetsignore    # Files in this folder that must NOT be published
+├── wrangler.jsonc   # Cloudflare Workers static-assets deploy config
+├── googlef4908e4bf779aae8.html  # Google Search Console site-verification token
+├── db-icons/        # Connector logos, copied from connectors/<id>/logo.svg
+├── docs/            # Public user documentation — one page per chapter
+│   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
+│   ├── install/     #   Docker Compose / Helm / from source + first-run setup
+│   ├── configuration/  # users-roles, datasources, connectors, review-workflows,
+│   │                   # ai, auth, notifications, audit-compliance
+│   ├── workflows/   #   end-user: submit, track, review, approve
+│   └── iac/         #   Terraform / OpenTofu provider + CI Actions
 ├── images/
-│   └── docs/       # PNG screenshots of admin SPA pages, light + dark per screen
-└── README.md       # this file
+│   └── docs/        # Lossless WebP screenshots of admin SPA pages, light + dark per screen
+└── README.md        # this file
 ```
 
-The marketing site at the root targets visitors evaluating AccessFlow. The
-`docs/index.html` page targets operators and admins who need step-by-step instructions
-for running and configuring a deployment. Both reuse `styles.css` and `app.js`.
+`assets.directory` in `wrangler.jsonc` is `"."`, so **everything in this folder is served
+publicly unless listed in `.assetsignore`.** `README.md` and `wrangler.jsonc` are excluded
+there; add any future maintainer-only file to that list when you create it.
 
-No frameworks, no bundlers, no CDN runtime. The Geist + Geist Mono fonts load from
-Google Fonts; everything else is local.
+The marketing site at the root targets visitors evaluating AccessFlow. The `docs/` pages
+target operators and admins who need step-by-step instructions for running and configuring
+a deployment. Everything reuses `styles.css` and `app.js`.
+
+### The docs are one page per chapter
+
+They used to be a single 17,000-word `docs/index.html`. Google ranks URLs, not fragments, so
+that one page could only ever compete for one query — and AI engines citing a source cite a
+URL. Each chapter is now its own indexable page, with the cross-chapter sidebar built into
+every file.
+
+**Two rules when editing them:**
+
+1. **Every in-app deep link is a contract.** `frontend/src/config/docs.ts` maps each anchor
+   to the chapter that owns it, and `frontend/src/config/__tests__/docs.test.ts` fails if an
+   anchor is missing from the chapter that claims it. Moving a section between chapters means
+   updating that map in the same commit.
+2. **`app.js` holds a PERMANENT legacy-anchor forwarder.** AccessFlow is self-hosted, so every
+   already-released frontend links to the old `/docs/#cfg-<x>` form forever; those installs
+   never update. `LEGACY_DOCS_ANCHORS` forwards all 50 old anchors to their new chapter, and
+   the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
+
+Because there is no build step, the nav, `<head>`, and footer are duplicated across the
+chapter files — a nav change is a 13-file edit (~98 KB of duplicated shell). That is the
+deliberate trade for keeping this folder buildless.
+
+Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
+12 files and missing the 13th — is guarded:
+[`frontend/src/config/__tests__/websiteDocs.test.ts`](../frontend/src/config/__tests__/websiteDocs.test.ts)
+fails CI unless every chapter shares a byte-identical nav and footer, links every other
+chapter, carries a correct self-referencing canonical, keeps one `<h1>` with no skipped
+levels, holds its description under 160 characters, has no duplicate ids, has no dead
+same-page or cross-chapter links, and appears in `sitemap.xml`.
+
+So: editing all 13 files is on you; forgetting one is on CI.
+
+No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
+at runtime.**
+
+Geist and Geist Mono (SIL OFL 1.1) are vendored in `fonts/` rather than loaded from Google
+Fonts, which removes two DNS+TLS handshakes from the critical path before first paint and
+lets the CSP stay `default-src 'self'`. Both are *variable* fonts, so one file covers the
+whole weight range — hence four files, not one per weight:
+
+| File | Subset |
+|---|---|
+| `geist-latin.woff2`, `geist-latin-ext.woff2` | Geist, weights 300–700 |
+| `geist-mono-latin.woff2`, `geist-mono-latin-ext.woff2` | Geist Mono, weights 400–600 |
+
+Cyrillic, Vietnamese, and symbol subsets are deliberately not shipped (this site is
+English-only). `@font-face` rules with matching `unicode-range` values live at the top of
+`styles.css`; `index.html` and `docs/index.html` preload `geist-latin.woff2` only. To
+refresh or add a subset, pull the CSS from `fonts.googleapis.com/css2?family=Geist:...`
+with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 
 ---
 
 ## SEO
 
-Both HTML pages ship a full SEO meta block — canonical URL, Open Graph, Twitter Card,
-`theme-color`, and a single JSON-LD `@graph` (`SoftwareApplication` + `Organization` +
-`WebSite` on the homepage; `TechArticle` + `BreadcrumbList` on the docs page). The
-`og:image` / `twitter:image` is `og-image.png` (1200×630, PNG, ~143 KB), regenerable from
-a one-off HTML template via headless Chrome — re-create the template and run
+Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
+`theme-color`, and a JSON-LD `@graph` (`SoftwareApplication` + `Organization` + `WebSite`
+on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter).
+
+### Regenerating og-image.png
+
+`og:image` / `twitter:image` is `og-image.png` (1200×630, PNG, ~72 KB). **It is a
+hand-built card, not a screenshot of the site, so nothing regenerates it automatically —
+it will silently go stale.** It sat at "v1.0 · Open-source SQL proxy" long after the
+product covered NoSQL, warehouses and API governance. Re-cut it whenever the version
+badge, the hero headline, or the supported-engine list changes.
+
+Build a throwaway `_og-template.html` in this folder (dark `#0A0D11` background, the
+`@font-face` rules pointing at `/fonts/`, the wordmark + version pill + hero headline +
+subtitle + a single non-wrapping row of connector chips), serve the folder so `/fonts/`
+resolves, then:
 
 ```bash
+python3 -m http.server 4173 &
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless --disable-gpu --hide-scrollbars --window-size=1200,630 \
-  --screenshot=og-image.png http://localhost:4173/<template>.html
+  --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+  --window-size=1200,630 --screenshot=/tmp/og-raw.png \
+  http://localhost:4173/_og-template.html
+pngquant --quality=90-100 --speed 1 --force --output og-image.png /tmp/og-raw.png
+rm _og-template.html
 ```
 
-(then delete the template). All canonical / `og:url` values are hard-coded to
-`https://accessflow.bablsoft.com` — if the deployed origin ever changes, search both
-HTML files plus `sitemap.xml` and `robots.txt` and update in lockstep.
+`pngquant` roughly halves the file at an RMSE of ~0.25 (imperceptible on flat design art)
+and keeps it PNG — do not switch the card to WebP or JPEG, since social crawlers are least
+surprising with PNG and JPEG rings around the headline text. Keep the output exactly
+1200×630: the `og:image:width` / `og:image:height` meta tags assert those numbers.
+
+All canonical / `og:url` values are hard-coded to `https://accessflow.bablsoft.com` — if
+the deployed origin ever changes, search every HTML file plus `sitemap.xml` and
+`robots.txt` and update in lockstep.
+
+### Provenance strip
+
+The `#provenance` section above the footer is the site's E-E-A-T Trust signal: it answers
+"who builds this and can we trust it" with facts a prospect can check, each linked to the
+GitHub page that proves it.
+
+**The counts are deliberately floors — keep them that way.** `900+ commits` and
+`20+ tagged releases` stay true as the repo grows, so they cannot rot into a false claim
+the way a hardcoded exact number would. Raise a floor only when it is comfortably passed.
+
+`20+` counts **GA releases only** — at the time of writing 22 of the 36 `v*` tags were
+pre-releases (`-beta.N`, `-rc.N`). Do not quote the raw tag count; it overstates by ~60%:
+
+```bash
+git tag --list 'v*' | grep -v '\-' | wc -l   # GA releases
+```
+
+No personal names are published here by choice. If that changes, an `About` with a named
+maintainer is the strongest version of this signal — security reviewers look for a human.
+
+### security.txt
+
+`.well-known/security.txt` (RFC 9116) points researchers at GitHub private vulnerability
+reporting. Two things about it need a human:
+
+1. **`Expires` is mandatory and self-destructs.** It is set to `2027-08-03`. Past that date
+   the file is *invalid*, not merely old — a stale security.txt is a worse signal than none.
+   Push the date out (and re-check the contact URL still works) at least annually.
+2. **Confirm it actually deploys.** `.well-known` is a dot-directory, and static hosts vary
+   in whether they upload hidden paths. Cloudflare's docs do not state their behaviour
+   either way, so after the next deploy verify:
+
+   ```bash
+   curl -sSI https://accessflow.bablsoft.com/.well-known/security.txt
+   ```
+
+   If that 404s, the file is being skipped at upload and needs a non-hidden workaround
+   (or an explicit include) — it is not doing anything until that returns 200.
 
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
 two HTML pages (`/` and `/docs/`).
+
+Meta descriptions must stay **≤ 160 rendered characters** — past that Google truncates the
+tag and usually substitutes its own snippet. Bump `<lastmod>` in `sitemap.xml` and
+`dateModified` in each touched page's JSON-LD whenever you edit content; both are
+hand-maintained because this folder has no build step. Do not add `HowTo` schema
+(deprecated 2023) or `FAQPage` (Google retired FAQ rich results for all sites in May 2026).
+
+### Response headers
+
+Cloudflare's default for static assets is `Cache-Control: public, max-age=0,
+must-revalidate` on *everything*, which makes repeat visitors revalidate every asset on
+every navigation. `_headers` overrides that:
+
+| Path | Cache-Control | Why |
+|---|---|---|
+| `/db-icons/*`, `/favicon.svg` | 1 year, `immutable` | Vendor logos — effectively static |
+| `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
+| `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
+
+`_headers` also sets HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+`Permissions-Policy`, and a `Content-Security-Policy` on `/*`. The file is parsed as config
+by the assets runtime and is never served — **do not add it to `.assetsignore`**, which
+would stop it uploading and silently disable every rule.
+
+### Regenerating the CSP script hash
+
+`script-src` carries a `sha256-` hash of the inline theme-bootstrap script (the one that
+reads `localStorage` before first paint so the page doesn't flash the wrong theme). It is
+byte-identical across every page, so one hash covers them all. Editing that script by even
+one character invalidates the hash, and the browser then silently blocks it.
+
+**You do not have to remember this.**
+[`frontend/src/config/__tests__/websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts)
+hashes every inline script in this folder and fails if `_headers` does not allow it — so
+CI catches the drift even though `website/` has no build step or test runner of its own.
+The failure message prints the replacement hash; paste it into the
+`Content-Security-Policy` line in `_headers`.
+
+That test also asserts the policy never regains `'unsafe-inline'` / `'unsafe-eval'` on
+`script-src` and never reintroduces a third-party font origin.
+
+`<script type=\"application/ld+json\">` blocks need no hash — browsers never execute
+non-JavaScript MIME types, so `script-src` does not apply to them.
+
+#### Why style-src keeps 'unsafe-inline'
+
+39 multi-declaration inline `style=""` attributes remain (the single-declaration colour and
+`margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities). Dropping the
+directive is **all-or-nothing** — one leftover inline style and it has to stay — so the
+partial cleanup bought readability, not a tighter policy.
+
+Leaving it is a considered call, not an oversight. CSS injection needs an injection vector,
+and this site has no forms, no query-param rendering, no user content and no CMS: it is
+static HTML served from git. Anyone able to inject markup here already has repo or deploy
+access, at which point CSP is not the control that matters.
+
+**Revisit if that stops being true** — if the site ever renders user input, a URL parameter,
+or third-party content, finish the sweep and tighten to `style-src 'self'`. The other reason
+to finish it is cosmetic-but-real: scanners such as Mozilla Observatory dock points for
+`'unsafe-inline'`, and this is a security product's own site.
+
+Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` — see below.
+
+### Docs screenshots
+
+`images/docs/` holds **lossless WebP**, not PNG — pixel-identical to a PNG screenshot but
+~70% smaller (8.1 MB → 2.4 MB across 69 files). They are written by
+[`e2e/screenshots/capture.ts`](../e2e/screenshots/capture.ts), which encodes through `sharp`
+because Playwright can only emit PNG/JPEG. **That script is the only writer** — do not add
+PNGs alongside, or the two formats will drift and the site will serve stale screenshots.
+
+Each screen has a `-light` and `-dark` variant wrapped in a `<picture>`:
+
+```html
+<picture>
+  <source srcset="../images/docs/foo-light.webp" media="(prefers-color-scheme: light)" />
+  <img src="../images/docs/foo-dark.webp" alt="…" loading="lazy" width="1440" height="900" />
+</picture>
+```
+
+`prefers-color-scheme` covers the default case; the site's own theme toggle is handled by
+`swapDocsImages()` in `app.js`. That function must rewrite **both** the `<source srcset>`
+and the `<img src>` — when a `<source>` media query matches, it wins over `img.src`, so
+rewriting `img.src` alone leaves the toggle silently broken for visitors on a light-themed
+OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
+swap will not find it.
 
 ---
 
 ## Deployment
 
-Out of scope for this folder — the repo's existing `gh-pages` branch is reserved for the
-Helm chart index. When you're ready to publish:
+Live at <https://accessflow.bablsoft.com/>, served as **Cloudflare Workers static assets**
+per `wrangler.jsonc` (`assets.directory: "."`, no Worker `main` — pure static). Deploy with
+`wrangler deploy` from this folder. The repo's `gh-pages` branch is unrelated and stays
+reserved for the Helm chart index.
 
-- **GitHub Pages** — add a workflow that uploads `website/` to a separate Pages
-  environment, or to a path that does not collide with `index.yaml`.
-- **Netlify / Vercel / Cloudflare Pages** — point a site at this folder, no build command.
-- **S3 + CloudFront** — sync the folder, set `index.html` as the index document.
+Because there is no Worker script, `_headers` governs every response header; if a Worker
+`main` is ever added, note that Cloudflare does **not** apply `_headers` to Worker-generated
+responses — those must set headers in code.
+
+Any other static host works too (Netlify, Vercel, S3 + CloudFront — no build command), but
+`_headers` and `.assetsignore` are Cloudflare-specific and would need porting.
 - **Nginx / Caddy** — serve the directory directly.
 
 Whichever target you pick, the only runtime requirement is a static-file server.

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AccessFlow — Open-source database &amp; API access governance</title>
-  <meta name="description" content="AccessFlow is an open-source access proxy for SQL and NoSQL databases and cloud data warehouses — PostgreSQL, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, Snowflake, BigQuery, Databricks, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, and a tamper-evident audit log — self-hosted under Apache 2.0." />
+  <meta name="description" content="Open-source database &amp; API access governance. Every query and API call goes through AI review, approval workflows, and a tamper-evident audit log. Apache 2.0." />
 
   <link rel="canonical" href="https://accessflow.bablsoft.com/" />
   <meta name="robots" content="index, follow" />
@@ -43,9 +43,7 @@
   <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
   <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
 
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/favicon.svg" />
@@ -65,7 +63,8 @@
         "applicationCategory": "DeveloperApplication",
         "applicationSubCategory": "Database & API access governance",
         "operatingSystem": "Linux, macOS, Windows (Docker)",
-        "softwareVersion": "2.1",
+        "softwareVersion": "2.1.1",
+        "dateModified": "2026-08-03",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "offers": {
@@ -80,7 +79,8 @@
         "@type": "Organization",
         "@id": "https://github.com/bablsoft#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft"
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.bablsoft.com/favicon.svg"
       },
       {
         "@type": "WebSite",
@@ -576,35 +576,35 @@
             <div class="flow-step active" role="tab" aria-selected="true">
               <div class="flow-num">01</div>
               <div>
-                <h4>Submit a query</h4>
+                <h3>Submit a query</h3>
                 <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
               <div class="flow-num">02</div>
               <div>
-                <h4>AI reviews it</h4>
+                <h3>AI reviews it</h3>
                 <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
               <div class="flow-num">03</div>
               <div>
-                <h4>Humans approve</h4>
+                <h3>Humans approve</h3>
                 <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook — and ServiceNow / Jira tickets open automatically with bi-directional status sync. Multi-stage approval chains run as a state machine.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
               <div class="flow-num">04</div>
               <div>
-                <h4>Proxy executes</h4>
+                <h3>Proxy executes</h3>
                 <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-selected="false">
               <div class="flow-num">05</div>
               <div>
-                <h4>Audit forever</h4>
+                <h3>Audit forever</h3>
                 <p>Append-only metadata audit row. WebSocket pushes result to the submitter. Status becomes <span class="mono">EXECUTED</span>.</p>
               </div>
             </div>
@@ -619,7 +619,7 @@
                   <span class="seg on">SQL Editor</span>
                   <span class="seg">History</span>
                   <span class="seg">Saved</span>
-                  <span style="margin-left: auto;" class="mono">datasource: <span style="color: var(--info);">prod-orders ⌄</span></span>
+                  <span class="mono ml-auto">datasource: <span class="t-info">prod-orders ⌄</span></span>
                 </div>
                 <div class="sql-editor">
                   <div class="sql-line"><span class="ln">1</span><span><span class="sql-com">-- backfill missing region codes</span></span></div>
@@ -629,7 +629,7 @@
                   <div class="sql-line"><span class="ln">5</span><span>   <span class="sql-kw">AND</span> created_at <span class="sql-op">&gt;</span> <span class="sql-str">'2026-01-01'</span><span class="sql-op">;</span></span></div>
                 </div>
                 <div style="padding: 12px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
-                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span style="color: var(--warn);">DML detected</span> · review required</span>
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span class="t-warn">DML detected</span> · review required</span>
                   <span class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Submit for review</span>
                 </div>
               </div>
@@ -681,7 +681,7 @@
                   <span class="seg on">Review queue</span>
                   <span class="seg">All queries</span>
                   <span class="seg">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">5 results</span>
+                  <span class="mono ml-auto">5 results</span>
                 </div>
                 <div>
                   <div class="review-row">
@@ -732,25 +732,25 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Execution · q_42081</span>
-                  <span style="margin-left: auto;" class="mono"><span style="color: var(--accent);">● live</span> · streaming via /ws</span>
+                  <span class="mono ml-auto"><span class="t-accent">● live</span> · streaming via /ws</span>
                 </div>
                 <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
-                  <div style="color: var(--fg-mute);">↳ proxy → <span style="color: var(--fg);">postgresql://prod-orders.db.internal:5432</span></div>
-                  <div style="color: var(--fg-mute);">↳ pool <span style="color: var(--info);">pool-prod-orders</span> · borrowed conn #7 of 20</div>
-                  <div style="color: var(--fg-mute);">↳ setMaxRows = 10000 (datasource cap)</div>
+                  <div class="t-mute">↳ proxy → <span class="t-fg">postgresql://prod-orders.db.internal:5432</span></div>
+                  <div class="t-mute">↳ pool <span class="t-info">pool-prod-orders</span> · borrowed conn #7 of 20</div>
+                  <div class="t-mute">↳ setMaxRows = 10000 (datasource cap)</div>
                   <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
                   <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">rows_affected</span>
-                      <span style="color: var(--fg);">238,420</span>
+                      <span class="t-mute">rows_affected</span>
+                      <span class="t-fg">238,420</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">duration_ms</span>
-                      <span style="color: var(--fg);">4,182</span>
+                      <span class="t-mute">duration_ms</span>
+                      <span class="t-fg">4,182</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">conn_returned</span>
-                      <span style="color: var(--accent);">ok</span>
+                      <span class="t-mute">conn_returned</span>
+                      <span class="t-accent">ok</span>
                     </div>
                   </div>
                   <div style="margin-top: 12px; color: var(--accent);">✓ status → EXECUTED · ws event pushed to submitter</div>
@@ -763,37 +763,37 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">append-only · HMAC-SHA256 chained</span>
+                  <span class="mono ml-auto">append-only · HMAC-SHA256 chained</span>
                 </div>
                 <div style="padding: 0; font-family: var(--mono); font-size: 12px;">
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:51</span>
-                    <span style="color: var(--accent);">QUERY_SUBMITTED</span>
-                    <span style="color: var(--fg-dim);">alice@co</span>
+                    <span class="t-faint">14:02:51</span>
+                    <span class="t-accent">QUERY_SUBMITTED</span>
+                    <span class="t-dim">alice@co</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">q_42081 · datasource=prod-orders</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:52</span>
-                    <span style="color: var(--accent);">AI_REVIEW_STARTED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:02:52</span>
+                    <span class="t-accent">AI_REVIEW_STARTED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">provider=anthropic</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:53</span>
-                    <span style="color: var(--accent);">AI_REVIEW_COMPLETED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:02:53</span>
+                    <span class="t-accent">AI_REVIEW_COMPLETED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">risk=62 MEDIUM · 3 findings</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:04:11</span>
-                    <span style="color: var(--accent);">QUERY_APPROVED</span>
-                    <span style="color: var(--fg-dim);">eve@co</span>
+                    <span class="t-faint">14:04:11</span>
+                    <span class="t-accent">QUERY_APPROVED</span>
+                    <span class="t-dim">eve@co</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">stage=1/1 · note="add index first"</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:04:12</span>
-                    <span style="color: var(--accent);">QUERY_EXECUTED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:04:12</span>
+                    <span class="t-accent">QUERY_EXECUTED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">rows=238420 · duration=4182ms</span>
                   </div>
                 </div>
@@ -832,12 +832,12 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Datasource · prod-orders</span>
-                  <span style="margin-left: auto;" class="mono">connection brokered</span>
+                  <span class="mono ml-auto">connection brokered</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">user</span><span class="v">alice@co · ANALYST · SSO</span></div>
                   <div class="uc-mock-line"><span class="k">database</span><span class="v">postgresql://prod-orders.internal:5432</span></div>
-                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span style="color: var(--accent);">held by proxy — never disclosed</span></span></div>
+                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span class="t-accent">held by proxy — never disclosed</span></span></div>
                   <div class="uc-mock-line"><span class="k">access</span><span><span class="pill approved">GOVERNED</span></span></div>
                 </div>
                 <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
@@ -862,14 +862,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Access grants</span>
-                  <span style="margin-left: auto;" class="mono">auto-expiry on</span>
+                  <span class="mono ml-auto">auto-expiry on</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
                   <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
                   <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
                 </div>
-                <div class="uc-mock-foot"><span style="color: var(--warn);">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
+                <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
               </div>
             </div>
           </article>
@@ -890,7 +890,7 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">AI triage</span>
-                  <span style="margin-left: auto;" class="mono">routing policies active</span>
+                  <span class="mono ml-auto">routing policies active</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="v">SELECT … FROM events LIMIT 100</span><span class="k">risk 8</span><span class="pill approved">AUTO-APPROVED</span></div>
@@ -918,14 +918,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">HMAC-SHA256 chained</span>
+                  <span class="mono ml-auto">HMAC-SHA256 chained</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">14:02:51</span><span class="v">QUERY_SUBMITTED · alice@co</span><span class="k">#a81f→</span></div>
                   <div class="uc-mock-line"><span class="k">14:04:11</span><span class="v">QUERY_APPROVED · eve@co</span><span class="k">#c290→</span></div>
                   <div class="uc-mock-line"><span class="k">14:04:12</span><span class="v">QUERY_EXECUTED · system</span><span class="k">#f11d→</span></div>
                 </div>
-                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span style="color: var(--accent);">signed ✓</span></div>
+                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span class="t-accent">signed ✓</span></div>
               </div>
             </div>
           </article>
@@ -946,14 +946,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Query result · masked</span>
-                  <span style="margin-left: auto;" class="mono">3 columns tagged</span>
+                  <span class="mono ml-auto">3 columns tagged</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">email</span><span class="v">a•••@example.com</span><span class="uc-tag">PII</span></div>
                   <div class="uc-mock-line"><span class="k">card_number</span><span class="v">•••• •••• •••• 4242</span><span class="uc-tag">PCI</span></div>
                   <div class="uc-mock-line"><span class="k">diagnosis</span><span class="v">▓▓ redacted</span><span class="uc-tag">PHI</span></div>
                 </div>
-                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span style="color: var(--accent);">EXECUTED</span></div>
+                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span class="t-accent">EXECUTED</span></div>
               </div>
             </div>
           </article>
@@ -974,7 +974,7 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">API requests</span>
-                  <span style="margin-left: auto;" class="mono">REST · SOAP · GraphQL · gRPC</span>
+                  <span class="mono ml-auto">REST · SOAP · GraphQL · gRPC</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
@@ -1132,18 +1132,18 @@
           </div>
 
           <div class="install-meta">
-            <h4>System requirements</h4>
+            <h3>System requirements</h3>
 
-            <h5 class="install-meta-sub">Stack</h5>
+            <h4 class="install-meta-sub">Stack</h4>
             <dl>
               <dt>Internal DB</dt><dd>PostgreSQL 18</dd>
               <dt>Cache</dt><dd>Redis 8</dd>
               <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · connector catalog</dd>
               <dt>AI backends</dt><dd>Anthropic · OpenAI · Ollama · OpenAI-compat. · Hugging Face</dd>
-              <dt>License</dt><dd style="color: var(--accent);">Apache 2.0</dd>
+              <dt>License</dt><dd class="t-accent">Apache 2.0</dd>
             </dl>
 
-            <h5 class="install-meta-sub">Sizing</h5>
+            <h4 class="install-meta-sub">Sizing</h4>
             <dl>
               <dt>Evaluation</dt><dd>2 vCPU · 4 GB RAM · 10 GB SSD<br /><span class="install-meta-note">single-node Docker Compose</span></dd>
               <dt>Production</dt><dd>Backend ≥ 2× (2 vCPU · 2 GB) · Postgres (2 vCPU · 4 GB · 50 GB) · Redis (1 vCPU · 1 GB)<br /><span class="install-meta-note">scale backend replicas behind any L7 load balancer</span></dd>
@@ -1176,9 +1176,9 @@
         <div class="roadmap-track">
           <div class="milestone" data-status="published">
             <span class="ver">v1</span>
-            <h4>Core platform</h4>
+            <h3>Core platform</h3>
             <div class="rm-group">
-              <h5 class="rm-cat">Proxy &amp; data access</h5>
+              <h4 class="rm-cat">Proxy &amp; data access</h4>
               <ul>
                 <li>SQL proxy · 5 DBs + custom drivers</li>
                 <li>Read-replica routing · result diffing</li>
@@ -1187,7 +1187,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">AI analysis</h5>
+              <h4 class="rm-cat">AI analysis</h4>
               <ul>
                 <li>Risk scoring + index hints · analytics</li>
                 <li>OpenAI-compatible &amp; Hugging Face providers</li>
@@ -1195,7 +1195,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Review &amp; access</h5>
+              <h4 class="rm-cat">Review &amp; access</h4>
               <ul>
                 <li>Multi-stage approvals · auto-approve reads</li>
                 <li>Bulk decisions · scheduling · plan templates</li>
@@ -1204,14 +1204,14 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Auth &amp; audit</h5>
+              <h4 class="rm-cat">Auth &amp; audit</h4>
               <ul>
                 <li>JWT · SAML · OAuth/OIDC · TOTP · RBAC with custom roles</li>
                 <li>HMAC-chained audit log + CSV export</li>
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Deploy</h5>
+              <h4 class="rm-cat">Deploy</h4>
               <ul>
                 <li>Docker Compose · Helm 3 · HPA · health probes</li>
               </ul>
@@ -1219,9 +1219,9 @@
           </div>
           <div class="milestone" data-status="published">
             <span class="ver">v2</span>
-            <h4>Beyond SQL &amp; advanced governance</h4>
+            <h3>Beyond SQL &amp; advanced governance</h3>
             <div class="rm-group">
-              <h5 class="rm-cat">Connectors &amp; NoSQL engines</h5>
+              <h4 class="rm-cat">Connectors &amp; NoSQL engines</h4>
               <ul>
                 <li>Declarative connector catalog</li>
                 <li>MongoDB · Couchbase (SQL++) · Redis</li>
@@ -1232,7 +1232,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">AI &amp; monitoring</h5>
+              <h4 class="rm-cat">AI &amp; monitoring</h4>
               <ul>
                 <li>Behavioral anomaly detection (UBA)</li>
                 <li>AI optimization &amp; index recommendations</li>
@@ -1240,7 +1240,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Review &amp; access</h5>
+              <h4 class="rm-cat">Review &amp; access</h4>
               <ul>
                 <li>Break-glass emergency access</li>
                 <li>Multi-tenant orgs &amp; per-org quotas</li>
@@ -1253,14 +1253,14 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">API governance</h5>
+              <h4 class="rm-cat">API governance</h4>
               <ul>
                 <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
                 <li>Operation catalog · response masking · text-to-API</li>
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Compliance</h5>
+              <h4 class="rm-cat">Compliance</h4>
               <ul>
                 <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
                 <li>Compliance reports &amp; signed exports · Auditor role</li>
@@ -1269,7 +1269,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Automation &amp; IaC</h5>
+              <h4 class="rm-cat">Automation &amp; IaC</h4>
               <ul>
                 <li>Terraform / OpenTofu provider</li>
                 <li>Reusable GitHub Actions &amp; GitLab CI template</li>
@@ -1278,9 +1278,9 @@
           </div>
           <div class="milestone" data-status="planned">
             <span class="ver">upcoming</span>
-            <h4>Planned</h4>
+            <h3>Planned</h3>
             <div class="rm-group">
-              <h5 class="rm-cat">Connectors &amp; access</h5>
+              <h4 class="rm-cat">Connectors &amp; access</h4>
               <ul>
                 <li>Native wire-protocol gateway</li>
                 <li>Result caching · multi-replica load balancing</li>
@@ -1288,7 +1288,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">Security &amp; ops</h5>
+              <h4 class="rm-cat">Security &amp; ops</h4>
               <ul>
                 <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
                 <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
@@ -1297,7 +1297,7 @@
               </ul>
             </div>
             <div class="rm-group">
-              <h5 class="rm-cat">AI</h5>
+              <h4 class="rm-cat">AI</h4>
               <ul>
                 <li>Offline AI fallback — provider fallback pool with local Ollama</li>
                 <li>Custom analyzer plugins (SPI / HTTP)</li>
@@ -1320,87 +1320,87 @@
         <div class="docs-grid">
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/01-overview.md" class="doc-card">
             <span class="doc-num">01</span>
-            <h4>Overview</h4>
+            <h3>Overview</h3>
             <p>Problem statement, goals, non-goals, value proposition.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md" class="doc-card">
             <span class="doc-num">02</span>
-            <h4>Architecture</h4>
+            <h3>Architecture</h3>
             <p>Subsystems, technology stack, request flow.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/03-data-model.md" class="doc-card">
             <span class="doc-num">03</span>
-            <h4>Data model</h4>
+            <h3>Data model</h3>
             <p>Internal entities, audit log schema, retention.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md" class="doc-card">
             <span class="doc-num">04</span>
-            <h4>REST API</h4>
+            <h3>REST API</h3>
             <p>Endpoints, payloads, WebSocket events.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md" class="doc-card">
             <span class="doc-num">05</span>
-            <h4>Backend</h4>
+            <h3>Backend</h3>
             <p>Modular backend, proxy engine, workflow state machine.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md" class="doc-card">
             <span class="doc-num">06</span>
-            <h4>Frontend</h4>
+            <h3>Frontend</h3>
             <p>React/Vite layout, SQL editor, TanStack &amp; Zustand.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md" class="doc-card">
             <span class="doc-num">07</span>
-            <h4>Security</h4>
+            <h3>Security</h3>
             <p>JWT, SAML, OAuth, encryption, audit integrity.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md" class="doc-card">
             <span class="doc-num">08</span>
-            <h4>Notifications</h4>
+            <h3>Notifications</h3>
             <p>Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow &amp; Jira ticketing, signed webhook delivery.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="doc-card">
             <span class="doc-num">09</span>
-            <h4>Deployment</h4>
+            <h3>Deployment</h3>
             <p>Docker Compose, Helm, env-var reference.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md" class="doc-card">
             <span class="doc-num">11</span>
-            <h4>Development</h4>
+            <h3>Development</h3>
             <p>Repo layout, tests, coding standards, Git workflow.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" class="doc-card">
             <span class="doc-num">12</span>
-            <h4>Roadmap</h4>
+            <h3>Roadmap</h3>
             <p>Milestones, contribution path.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md" class="doc-card">
             <span class="doc-num">13</span>
-            <h4>MCP server</h4>
+            <h3>MCP server</h3>
             <p>Stateless tool surface for AI agents — discover, validate, sample, submit; API keys.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md" class="doc-card">
             <span class="doc-num">14</span>
-            <h4>Connectors</h4>
+            <h3>Connectors</h3>
             <p>Declarative connector catalog, manifests, install lifecycle.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md" class="doc-card">
             <span class="doc-num">15</span>
-            <h4>Engine-plugin SDK</h4>
+            <h3>Engine-plugin SDK</h3>
             <p>Authoring guide for native NoSQL engine plugins.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md" class="doc-card">
             <span class="doc-num">16</span>
-            <h4>Infrastructure as Code</h4>
+            <h3>Infrastructure as Code</h3>
             <p>Terraform/OpenTofu provider, CI Actions, service-account keys, registry publishing.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md" class="doc-card">
             <span class="doc-num">17</span>
-            <h4>API Access Governance</h4>
+            <h3>API Access Governance</h3>
             <p>Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md" class="doc-card">
             <span class="doc-num">★</span>
-            <h4>Agent rulebook</h4>
+            <h3>Agent rulebook</h3>
             <p>CLAUDE.md — module boundaries, conventions, gates.</p>
           </a>
         </div>
@@ -1427,6 +1427,41 @@
       </div>
     </section>
 
+    <!-- Provenance: answers "who builds this and can we trust it" with linked,
+         checkable facts. Counts are deliberately floors ("900+") so they stay
+         true as the repo grows — see website/README.md before editing. -->
+    <section class="provenance" id="provenance" aria-labelledby="provenance-title">
+      <div class="wrap">
+        <h2 id="provenance-title">Built in the open since April 2026.</h2>
+        <p>
+          AccessFlow sits in front of production data, so how it is built should be as
+          checkable as what it does. Every claim below links to the evidence.
+        </p>
+        <dl class="provenance-grid">
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/commits/main">900+ commits</a></dt>
+            <dd>Full history, public from the first commit.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/releases">20+ tagged releases</a></dt>
+            <dd>Semver, published to GHCR and a Helm repo — not a rolling snapshot.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/graphs/contributors">Open to contributors</a></dt>
+            <dd>Issues, discussions and PRs in the open.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0</a></dt>
+            <dd>Self-host it, fork it, audit it. No open-core tier.</dd>
+          </div>
+        </dl>
+        <p class="provenance-security">
+          Found a vulnerability? Report it privately through
+          <a href="https://github.com/bablsoft/accessflow/security">GitHub security advisories</a>.
+        </p>
+      </div>
+    </section>
+
   </main>
 
   <footer>
@@ -1447,7 +1482,7 @@
           <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
         </div>
         <div class="footer-col">
-          <h5>Product</h5>
+          <h3>Product</h3>
           <ul>
             <li><a href="#features">Features</a></li>
             <li><a href="#how">How it works</a></li>
@@ -1457,7 +1492,7 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Docs</h5>
+          <h3>Docs</h3>
           <ul>
             <li><a href="docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
@@ -1467,7 +1502,7 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Community</h5>
+          <h3>Community</h3>
           <ul>
             <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
@@ -1476,7 +1511,7 @@
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Legal</h5>
+          <h3>Legal</h3>
           <ul>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>

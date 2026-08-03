@@ -53,6 +53,11 @@ test.describe.serial('AF-362 — Slack integration', () => {
 
   // Asserts attributes rather than clicking: the link targets the live public docs site,
   // and following it would make this suite depend on the network.
+  //
+  // The public docs are one page per chapter, so this URL carries the owning
+  // chapter path as well as the anchor. The mapping lives in
+  // frontend/src/config/docs.ts (DOCS_ANCHOR_PAGES) — if that moves cfg-slack to
+  // a different chapter, update this string too.
   test('0) the page header deep-links to the matching section of the public docs', async ({
     page,
   }) => {
@@ -64,7 +69,7 @@ test.describe.serial('AF-362 — Slack integration', () => {
     await expect(docsLink).toBeVisible();
     await expect(docsLink).toHaveAttribute(
       'href',
-      'https://accessflow.bablsoft.com/docs/#cfg-slack',
+      'https://accessflow.bablsoft.com/docs/configuration/notifications/#cfg-slack',
     );
     await expect(docsLink).toHaveAttribute('target', '_blank');
     await expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');

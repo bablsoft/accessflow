@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI analysis, RAG &amp; anomaly detection — AccessFlow docs</title>
+  <meta name="description" content="Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/ai/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="AI analysis, RAG &amp; anomaly detection — AccessFlow docs" />
+  <meta property="og:description" content="Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/ai/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AI analysis, RAG &amp; anomaly detection — AccessFlow docs" />
+  <meta name="twitter:description" content="Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/ai/#article",
+      "headline": "AI configuration",
+      "name": "AI analysis, RAG & anomaly detection \u2014 AccessFlow docs",
+      "description": "Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/ai/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/ai/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "AI",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/ai/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/" class="docs-toc-current" aria-current="page">AI</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-ai">AI configurations</a>
+            <a href="#cfg-ai-analyses">AI analyses dashboard</a>
+            <a href="#cfg-anomalies">Behavioural anomaly detection (UBA)</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>AI configuration.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-ai">AI configurations</h2>
+          <p>
+            <strong>What it is.</strong> The AI brain behind query risk analysis and natural-language
+            "text-to-query". Configure it per organization and point it at the provider that fits your
+            data-egress policy; AccessFlow then scores every submitted query and, where enabled, drafts
+            queries from plain-language prompts. It ships adapters for five providers — pick one:
+          </p>
+          <ul>
+            <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
+            <li><strong>OpenAI</strong> — default model <code>gpt-4o</code>.</li>
+            <li><strong>Ollama</strong> — self-hosted, set <em>Endpoint</em> to the Ollama server URL.</li>
+            <li><strong>Custom (OpenAI-compatible)</strong> — any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …). Set <em>Endpoint</em> to the server's base URL (required); the API key is optional for keyless self-hosted servers.</li>
+            <li><strong>Hugging Face</strong> — default model <code>meta-llama/Llama-3.3-70B-Instruct</code>. <em>Endpoint</em> defaults to the hosted Inference Providers router (<code>https://router.huggingface.co/v1</code>, authenticated with a HF token) and can point at a local / self-hosted <strong>Text Generation Inference (TGI)</strong> server or a Dedicated Inference Endpoint. Keyless-capable, so local TGI runs without a token.</li>
+          </ul>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/ai-configs-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/ai-configs-create-dark.webp"
+                   alt="New AI configuration wizard, Connection step, with the model pre-filled as claude-sonnet-4-20250514, an empty API key field, and timeout / max prompt tokens / max completion tokens at their defaults."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-configs/new</code> — three-step wizard: <em>Provider → Connection → Test</em>.</figcaption>
+          </figure>
+          <p><strong>Configure it.</strong> Create a configuration with the three-step wizard at
+            <code>/admin/ai-configs</code>:</p>
+          <ol>
+            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible / Hugging Face). The wizard pre-fills the default model for the provider you chose.</li>
+            <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama, Custom OpenAI-compatible, and Hugging Face providers supply an <em>Endpoint</em> URL instead — required for the custom provider, pre-filled with the router URL for Hugging Face and editable to a local TGI / Dedicated Endpoint). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
+            <li><strong>Test.</strong> The wizard sends a synthetic SQL snippet to the provider and shows the score, risk level, and any issues so you can confirm the credentials and model are working before you save.</li>
+          </ol>
+          <p>
+            Provider switches take effect immediately — no restart is required. Once saved, link
+            the configuration to a datasource (<a href="/docs/configuration/datasources/#cfg-datasources">Datasources</a> → <em>Configuration</em> step) or to a review plan, and AccessFlow scores every matching submission against it.
+          </p>
+          <p>
+            <strong>Editable system prompt.</strong> Each configuration has an optional
+            <em>System prompt</em> field (on both the create wizard's <em>Connection</em> step and the
+            edit page). Leave it blank to use AccessFlow's built-in analyzer prompt, or paste your own
+            to add house rules, change tone, or steer the analysis. A custom prompt must contain the
+            <code>{{sql}}</code> placeholder (the query under review is substituted there); the
+            optional <code>{{schema_context}}</code>, <code>{{db_type}}</code>, and
+            <code>{{language}}</code> placeholders are substituted too. Click <em>Load / reset to
+            default</em> to pull the built-in template into the editor as a starting point — saving it
+            blank again reverts to the default. Prompt changes take effect immediately, just like
+            provider switches.
+          </p>
+          <p>
+            <strong>Multi-model orchestration &amp; voting.</strong> On the configuration's edit page,
+            enable <em>Multi-model orchestration</em> to run several models in parallel against the same
+            query. The primary model above votes alongside the <em>Additional models</em> you add (each
+            with its own provider, model, optional endpoint / API key, and weight). Pick a
+            <em>Voting strategy</em> — <em>Weighted average</em> (default), <em>Highest risk</em>, or
+            <em>Majority vote</em> — to combine their risk verdicts; issues and optimization
+            suggestions from all models are merged. A common setup pairs a fast, cheap local model with
+            a deeper cloud model. Per-model token cost and latency are recorded for every analysis and
+            charted on the <a href="#cfg-ai-analyses">AI analyses dashboard</a>.
+          </p>
+          <p>
+            <strong>Guardrails.</strong> Add one or more <em>Guardrail patterns</em> (case-insensitive
+            regular expressions) to block queries whose text matches a pattern <em>before</em> any model
+            is called — useful for prompt-injection strings or content you never want sent to a
+            provider. A blocked editor preview returns an error inline; a blocked submitted query is
+            recorded as a failed (critical) analysis. Each pattern is validated as a regex when you save.
+          </p>
+          <p>
+            <strong>Fallback pool.</strong> Give any configuration a <em>Fallback priority</em>
+            (0–100, on the wizard's <em>Connection</em> step or the edit page) to mark it as an
+            organization-wide fallback: when the configuration handling a request fails — provider
+            unreachable, timeout, bad credentials — AccessFlow retries the request once against each
+            fallback in ascending priority order (lower = tried first) before giving up with the
+            original error. Fallback configurations show a <em>Fallback #N</em> tag in the list;
+            clear the field to remove one from the pool. The typical setup marks a keyless local
+            <strong>Ollama</strong> configuration as priority 0, so query analysis keeps working —
+            air-gap friendly — when the cloud provider is down. Guardrail blocks and rate-limit /
+            budget rejections never trigger the fallback pool.
+          </p>
+          <h3 id="cfg-langfuse">Langfuse integration</h3>
+          <p>
+            AccessFlow optionally connects to
+            <a href="https://langfuse.com" target="_blank" rel="noopener noreferrer">Langfuse</a> for
+            LLM observability and prompt management, configured per organization at
+            <code>/admin/langfuse</code> (enable the integration, set the host — defaults to
+            <code>https://cloud.langfuse.com</code> — plus the public/secret key, which is stored
+            encrypted and never shown again). Two independent toggles: <em>Send analysis traces</em>
+            emits a trace of every AI analysis (input SQL, structured output, model, token usage,
+            latency) to Langfuse; <em>Use Langfuse-managed prompts</em> lets each AI configuration
+            point at a Langfuse prompt by name + label (the <em>Langfuse prompt name</em> /
+            <em>Langfuse prompt label</em> fields on the AI config pages) so you can iterate on prompts
+            in Langfuse without redeploying. Both are best-effort and non-blocking — a Langfuse outage
+            never affects query workflow. Use the <em>Test connection</em> button to verify your
+            credentials.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/langfuse-config-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/langfuse-config-dark.webp"
+                   alt="The /admin/langfuse configuration page with the Connection section (Enabled toggle, Host URL, public and secret keys) and the Features section (Send analysis traces, Use Langfuse-managed prompts), plus Save and Test connection buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/langfuse</code> — per-org tracing + managed prompts; keys are stored encrypted, <em>Test connection</em> verifies them.</figcaption>
+          </figure>
+          <p>
+            <strong>RAG knowledge base.</strong> Each AI configuration can carry a
+            retrieval-augmented-generation knowledge base. Toggle <em>Enable RAG</em> on the create
+            wizard's <em>Connection</em> step or the edit page, pick a <em>Vector store</em> —
+            <strong>In-app (pgvector)</strong>, which stores vectors in AccessFlow's own PostgreSQL,
+            or <strong>Qdrant</strong> (supply the endpoint, collection, and optional API key) — and
+            configure a dedicated <em>Embedding provider</em> + <em>model</em> (OpenAI, Ollama,
+            OpenAI-compatible, or Hugging Face; Anthropic has no embeddings API). Then add
+            <em>Knowledge documents</em> (data-governance policies, naming conventions, schema notes)
+            on the edit page; each is chunked, embedded, and stored. At analysis and text-to-query time
+            the most relevant chunks are retrieved (tune <em>Top-K</em> and <em>Similarity
+            threshold</em>) and injected into the prompt, so the AI follows your house rules. Use
+            <em>Test RAG connection</em> to verify the embedding model and vector store are reachable.
+            Retrieval is best-effort — a store outage never blocks analysis.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/ai-configs-rag-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/ai-configs-rag-dark.webp"
+                   alt="The AI configuration wizard Connection step with Enable RAG toggled on, revealing the vector store select (In-app pgvector), Top-K and similarity-threshold inputs, and the embedding provider and model fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-configs/new</code> → <em>Enable RAG</em>. Pick a vector store + embedding model; add knowledge documents on the edit page.</figcaption>
+          </figure>
+          <div class="docs-callout info">
+            <strong>pgvector requirement.</strong> The in-app store needs the PostgreSQL
+            <code>vector</code> extension. The bundled Docker Compose / Helm deployments provision it
+            automatically (a superuser init step); for external / managed PostgreSQL, install the
+            <code>vector</code> extension on the AccessFlow database before starting the backend, and
+            set <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (default 1536) to match your embedding
+            model's output dimension <em>before the first migration</em>. If the extension is missing,
+            AccessFlow still starts — the in-app store is disabled (a banner appears on the RAG
+            settings) and external Qdrant remains available. Set
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED=false</code> to opt out explicitly, or
+            <code>ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION=false</code> to disable the best-effort
+            <code>CREATE EXTENSION</code> attempt at startup.
+          </div>
+          <div class="docs-callout info">
+            <strong>What the AI returns.</strong> A 0–100 risk score, a risk level
+            (<code>LOW</code> / <code>MEDIUM</code> / <code>HIGH</code> / <code>CRITICAL</code>),
+            and a list of issues categorised as anti-patterns, missing indexes, restricted-column
+            access, etc. The score is informational — only human reviewers can finalize approval
+            unless the plan opts in to <em>auto-approve reads</em>.
+          </div>
+          <p>
+            <strong>Tune it.</strong> Langfuse observability:
+            <code>ACCESSFLOW_LANGFUSE_DEFAULT_HOST</code> (<code>https://cloud.langfuse.com</code>),
+            <code>ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL</code> (<code>PT60S</code>),
+            <code>ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT</code> (<code>PT5S</code>),
+            <code>ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT</code> (<code>PT10S</code>). RAG:
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED</code> (<code>true</code>),
+            <code>ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION</code> (<code>true</code>),
+            <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (<code>1536</code>),
+            <code>ACCESSFLOW_RAG_CHUNK_SIZE</code> (<code>800</code>),
+            <code>ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS</code> (<code>100000</code>). Per-org guardrails:
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> (<code>30</code>; <code>&lt;= 0</code>
+            disables) and <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> (<code>0</code> =
+            unlimited).
+          </p>
+
+          <!-- AI analyses dashboard -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-ai-analyses">AI analyses dashboard</h2>
+          <p>
+            <strong>What it is.</strong> An org-wide trend view of every AI analysis. Use it to spot
+            risk-pattern drift, see which queries the AI consistently flags, compare each model's cost
+            and latency, and decide whether a stricter review plan or schema-level guardrails are
+            warranted. <code>/admin/ai-analyses</code> charts the average risk score over a
+            configurable window, the most frequent issue categories, the most active submitters, and —
+            per model — <em>token cost</em> and <em>average latency</em>.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to set up — the dashboard fills in automatically
+            once a datasource has <a href="#cfg-ai">AI analysis</a> enabled.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/ai-analyses-dashboard-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/ai-analyses-dashboard-dark.webp"
+                   alt="AI analyses dashboard with a configurable date range and datasource filter, a Risk score over time line chart, and a Top issue categories panel."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-analyses</code> — risk trends, hottest issue categories, and top submitters across every analyzed query.</figcaption>
+          </figure>
+
+          <!-- Datasource health -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-anomalies">Behavioural anomaly detection (UBA)</h2>
+          <p>
+            <strong>What it is.</strong> Spots when a user's database activity drifts from their own
+            normal pattern — a spike in query volume, access at odd hours, reaching for tables they've
+            never touched, unusual query types or row counts, or a jump in errors — and flags it for an
+            admin. Use it to catch compromised accounts, insider misuse, or credential sharing that
+            static rules would miss. It learns each user's baseline from audit-log metadata only —
+            never query result data.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to switch on — it runs automatically once a user has
+            built up enough history (until then they're left alone). Flagged anomalies appear on
+            <code>/admin/anomalies</code> and fire a notification across every active channel (including
+            PagerDuty), and a flagged user's <strong>next query is escalated to stricter review</strong>.
+            <code>ADMIN</code> and the read-only <code>AUDITOR</code> role can review anomalies; only
+            <code>ADMIN</code> can <em>acknowledge</em> (triaged) or <em>dismiss</em> (false positive)
+            one. Each anomaly can also carry an optional AI natural-language explanation.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/anomalies-dashboard-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/anomalies-dashboard-dark.webp"
+                   alt="The AccessFlow Behavioural anomaly detection dashboard listing flagged out-of-pattern user activity with z-score detail, ready to acknowledge or dismiss."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/anomalies</code> — UBA flags out-of-pattern activity from audit-log baselines; admins acknowledge or dismiss each one.</figcaption>
+          </figure>
+          <p>
+            <strong>Tune it.</strong> Sensitivity and cadence via the
+            <code>ACCESSFLOW_AI_ANOMALY_*</code> environment variables:
+            <code>ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL</code> (how often it runs, default
+            <code>PT15M</code>), <code>…_LOOKBACK_WINDOW</code> (aggregation window, <code>PT1H</code>),
+            <code>…_Z_SCORE_THRESHOLD</code> (how far from normal counts as anomalous, <code>3.0</code>),
+            <code>…_IQR_MULTIPLIER</code> (<code>1.5</code>),
+            <code>…_MIN_SAMPLE_SIZE</code> (history required before a user is scored, <code>7</code>),
+            <code>…_MAX_BASELINE_SAMPLES</code> (<code>90</code>),
+            <code>…_OFF_HOURS_THRESHOLD</code> (<code>0.02</code>), and
+            <code>…_SUMMARY_ENABLED</code> (AI explanations on/off, <code>true</code>).
+          </p>
+          <p>
+            <strong>AI rate limit &amp; cost budget.</strong> Two per-organization guardrails protect the
+            provider API key from a runaway editor or compromised account, enforced before every AI
+            analysis call (editor preview, text-to-SQL, and the async analysis on query submit).
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> (default <code>30</code>; <code>&lt;= 0</code>
+            disables) caps requests per minute via a Redis counter, and
+            <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> (default <code>0</code> = unlimited /
+            opt-in) caps the summed prompt + completion tokens of the org's analyses in the current
+            calendar month. When a limit is hit, the synchronous editor paths return
+            <code>HTTP 429</code> and the async path records a <code>CRITICAL</code> "AI budget exhausted" /
+            "AI rate limit exceeded" analysis row so human review still proceeds.
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -35,7 +35,12 @@ describe('PageHeader', () => {
   it('links to the matching docs section when docsAnchor is given', () => {
     render(<PageHeader title="Users" docsAnchor="cfg-users" />);
     const link = screen.getByRole('link', { name: /view docs/i });
-    expect(link).toHaveAttribute('href', 'https://accessflow.bablsoft.com/docs/#cfg-users');
+    // The docs are one page per chapter, so the link carries the owning chapter
+    // path as well as the anchor — see config/docs.ts DOCS_ANCHOR_PAGES.
+    expect(link).toHaveAttribute(
+      'href',
+      'https://accessflow.bablsoft.com/docs/configuration/users-roles/#cfg-users',
+    );
   });
 
   it('opens the docs in a new tab without leaking the opener', () => {
