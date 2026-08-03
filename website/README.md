@@ -202,6 +202,25 @@ All canonical / `og:url` values are hard-coded to `https://accessflow.bablsoft.c
 the deployed origin ever changes, search every HTML file plus `sitemap.xml` and
 `robots.txt` and update in lockstep.
 
+### security.txt
+
+`.well-known/security.txt` (RFC 9116) points researchers at GitHub private vulnerability
+reporting. Two things about it need a human:
+
+1. **`Expires` is mandatory and self-destructs.** It is set to `2027-08-03`. Past that date
+   the file is *invalid*, not merely old — a stale security.txt is a worse signal than none.
+   Push the date out (and re-check the contact URL still works) at least annually.
+2. **Confirm it actually deploys.** `.well-known` is a dot-directory, and static hosts vary
+   in whether they upload hidden paths. Cloudflare's docs do not state their behaviour
+   either way, so after the next deploy verify:
+
+   ```bash
+   curl -sSI https://accessflow.bablsoft.com/.well-known/security.txt
+   ```
+
+   If that 404s, the file is being skipped at upload and needs a non-hidden workaround
+   (or an explicit include) — it is not doing anything until that returns 200.
+
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
 two HTML pages (`/` and `/docs/`).
 
