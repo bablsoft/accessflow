@@ -1894,3 +1894,77 @@ img, table, pre { max-width: 100%; }
   .arch-canvas { padding: 16px; }
   .code-block pre { padding: 14px; font-size: 12px; }
 }
+
+/* ---- Provenance strip -------------------------------------------------- */
+/* Trust signal near the footer: linked, checkable facts about how the project
+   is built. Counts in the markup are floors ("900+") so they cannot go stale
+   into a false claim as the repo grows. */
+
+.provenance {
+  padding: 100px 0;
+  border-top: 1px solid var(--line);
+}
+
+.provenance h2 {
+  font-size: clamp(26px, 3vw, 38px);
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+
+.provenance > .wrap > p {
+  color: var(--fg-dim);
+  max-width: 62ch;
+  margin-bottom: 40px;
+}
+
+.provenance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin: 0 0 32px;
+}
+
+.provenance-grid > div {
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--tint-1);
+}
+
+.provenance-grid dt {
+  font-family: var(--mono);
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+
+.provenance-grid dt a {
+  color: var(--accent);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s;
+}
+
+.provenance-grid dt a:hover { border-bottom-color: var(--accent); }
+
+.provenance-grid dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--fg-mute);
+}
+
+.provenance-security {
+  font-size: 14px;
+  color: var(--fg-mute);
+}
+
+.provenance-security a {
+  color: var(--fg-dim);
+  border-bottom: 1px dotted var(--line-strong);
+}
+
+.provenance-security a:hover { color: var(--fg); }
+
+@media (max-width: 640px) {
+  .provenance { padding: 72px 0; }
+  .provenance-grid { grid-template-columns: 1fr; }
+}

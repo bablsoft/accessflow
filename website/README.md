@@ -202,6 +202,26 @@ All canonical / `og:url` values are hard-coded to `https://accessflow.bablsoft.c
 the deployed origin ever changes, search every HTML file plus `sitemap.xml` and
 `robots.txt` and update in lockstep.
 
+### Provenance strip
+
+The `#provenance` section above the footer is the site's E-E-A-T Trust signal: it answers
+"who builds this and can we trust it" with facts a prospect can check, each linked to the
+GitHub page that proves it.
+
+**The counts are deliberately floors — keep them that way.** `900+ commits` and
+`20+ tagged releases` stay true as the repo grows, so they cannot rot into a false claim
+the way a hardcoded exact number would. Raise a floor only when it is comfortably passed.
+
+`20+` counts **GA releases only** — at the time of writing 22 of the 36 `v*` tags were
+pre-releases (`-beta.N`, `-rc.N`). Do not quote the raw tag count; it overstates by ~60%:
+
+```bash
+git tag --list 'v*' | grep -v '\-' | wc -l   # GA releases
+```
+
+No personal names are published here by choice. If that changes, an `About` with a named
+maintainer is the strongest version of this signal — security reviewers look for a human.
+
 ### security.txt
 
 `.well-known/security.txt` (RFC 9116) points researchers at GitHub private vulnerability

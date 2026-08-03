@@ -1427,6 +1427,41 @@
       </div>
     </section>
 
+    <!-- Provenance: answers "who builds this and can we trust it" with linked,
+         checkable facts. Counts are deliberately floors ("900+") so they stay
+         true as the repo grows — see website/README.md before editing. -->
+    <section class="provenance" id="provenance" aria-labelledby="provenance-title">
+      <div class="wrap">
+        <h2 id="provenance-title">Built in the open since April 2026.</h2>
+        <p>
+          AccessFlow sits in front of production data, so how it is built should be as
+          checkable as what it does. Every claim below links to the evidence.
+        </p>
+        <dl class="provenance-grid">
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/commits/main">900+ commits</a></dt>
+            <dd>Full history, public from the first commit.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/releases">20+ tagged releases</a></dt>
+            <dd>Semver, published to GHCR and a Helm repo — not a rolling snapshot.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/graphs/contributors">Open to contributors</a></dt>
+            <dd>Issues, discussions and PRs in the open.</dd>
+          </div>
+          <div>
+            <dt><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0</a></dt>
+            <dd>Self-host it, fork it, audit it. No open-core tier.</dd>
+          </div>
+        </dl>
+        <p class="provenance-security">
+          Found a vulnerability? Report it privately through
+          <a href="https://github.com/bablsoft/accessflow/security">GitHub security advisories</a>.
+        </p>
+      </div>
+    </section>
+
   </main>
 
   <footer>
