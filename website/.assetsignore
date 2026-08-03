@@ -1,0 +1,5 @@
+# Files under website/ that must NOT be published as static assets.
+# `assets.directory` in wrangler.jsonc is "." — without this list, everything
+# in this folder is served, including maintainer-only files.
+README.md
+wrangler.jsonc

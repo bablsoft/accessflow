@@ -88,20 +88,29 @@ the right.
 
 ```
 website/
-├── index.html      # Marketing site — single-page, all sections inline
-├── styles.css      # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
-├── app.js          # Vanilla JS: install tabs, copy buttons, how-it-works stepper
-├── favicon.svg     # Brand mark (shared with frontend/public/favicon.svg)
-├── og-image.png    # 1200×630 social-share image (Open Graph / Twitter Card)
-├── robots.txt      # Crawler directives + sitemap pointer
-├── sitemap.xml     # XML sitemap (homepage + docs page)
-├── llms.txt        # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
+├── index.html       # Marketing site — single-page, all sections inline
+├── styles.css       # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
+├── app.js           # Vanilla JS: install tabs, copy buttons, how-it-works stepper
+├── favicon.svg      # Brand mark (shared with frontend/public/favicon.svg)
+├── og-image.png     # 1200×630 social-share image (Open Graph / Twitter Card)
+├── robots.txt       # Crawler directives + sitemap pointer
+├── sitemap.xml      # XML sitemap (homepage + docs page)
+├── llms.txt         # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
+├── _headers         # Cloudflare asset headers — Cache-Control + security headers (see SEO)
+├── .assetsignore    # Files in this folder that must NOT be published
+├── wrangler.jsonc   # Cloudflare Workers static-assets deploy config
+├── googlef4908e4bf779aae8.html  # Google Search Console site-verification token
+├── db-icons/        # Connector logos, copied from connectors/<id>/logo.svg
 ├── docs/
-│   └── index.html  # Public user documentation — run + configure (sidebar TOC)
+│   └── index.html   # Public user documentation — run + configure (sidebar TOC)
 ├── images/
-│   └── docs/       # PNG screenshots of admin SPA pages, light + dark per screen
-└── README.md       # this file
+│   └── docs/        # PNG screenshots of admin SPA pages, light + dark per screen
+└── README.md        # this file
 ```
+
+`assets.directory` in `wrangler.jsonc` is `"."`, so **everything in this folder is served
+publicly unless listed in `.assetsignore`.** `README.md` and `wrangler.jsonc` are excluded
+there; add any future maintainer-only file to that list when you create it.
 
 The marketing site at the root targets visitors evaluating AccessFlow. The
 `docs/index.html` page targets operators and admins who need step-by-step instructions
@@ -133,17 +142,44 @@ HTML files plus `sitemap.xml` and `robots.txt` and update in lockstep.
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
 two HTML pages (`/` and `/docs/`).
 
+Meta descriptions must stay **≤ 160 rendered characters** — past that Google truncates the
+tag and usually substitutes its own snippet. Bump `<lastmod>` in `sitemap.xml` and
+`dateModified` in each touched page's JSON-LD whenever you edit content; both are
+hand-maintained because this folder has no build step. Do not add `HowTo` schema
+(deprecated 2023) or `FAQPage` (Google retired FAQ rich results for all sites in May 2026).
+
+### Response headers
+
+Cloudflare's default for static assets is `Cache-Control: public, max-age=0,
+must-revalidate` on *everything*, which makes repeat visitors revalidate every asset on
+every navigation. `_headers` overrides that:
+
+| Path | Cache-Control | Why |
+|---|---|---|
+| `/db-icons/*`, `/favicon.svg` | 1 year, `immutable` | Vendor logos — effectively static |
+| `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
+| `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
+
+`_headers` also sets HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`,
+and `Permissions-Policy` on `/*`. The file is parsed as config by the assets runtime and is
+never served — **do not add it to `.assetsignore`**, which would stop it uploading and
+silently disable every rule.
+
 ---
 
 ## Deployment
 
-Out of scope for this folder — the repo's existing `gh-pages` branch is reserved for the
-Helm chart index. When you're ready to publish:
+Live at <https://accessflow.bablsoft.com/>, served as **Cloudflare Workers static assets**
+per `wrangler.jsonc` (`assets.directory: "."`, no Worker `main` — pure static). Deploy with
+`wrangler deploy` from this folder. The repo's `gh-pages` branch is unrelated and stays
+reserved for the Helm chart index.
 
-- **GitHub Pages** — add a workflow that uploads `website/` to a separate Pages
-  environment, or to a path that does not collide with `index.yaml`.
-- **Netlify / Vercel / Cloudflare Pages** — point a site at this folder, no build command.
-- **S3 + CloudFront** — sync the folder, set `index.html` as the index document.
+Because there is no Worker script, `_headers` governs every response header; if a Worker
+`main` is ever added, note that Cloudflare does **not** apply `_headers` to Worker-generated
+responses — those must set headers in code.
+
+Any other static host works too (Netlify, Vercel, S3 + CloudFront — no build command), but
+`_headers` and `.assetsignore` are Cloudflare-specific and would need porting.
 - **Nginx / Caddy** — serve the directory directly.
 
 Whichever target you pick, the only runtime requirement is a static-file server.
