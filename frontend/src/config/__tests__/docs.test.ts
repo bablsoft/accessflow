@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -51,5 +51,25 @@ describe('docs config', () => {
     for (const anchor of DOCS_ANCHORS) {
       expect(appJs).toContain(`'${anchor}': '/docs/${DOCS_ANCHOR_PAGES[anchor]}'`);
     }
+  });
+
+  // e2e specs assert the rendered href as a literal string (deliberately — following
+  // the link would make that suite depend on the network). Those literals are a
+  // third copy of this mapping, and they drift silently: moving a section between
+  // chapters turns them stale and only surfaces after a full e2e run in CI.
+  it('every docs URL hardcoded in e2e/ matches this map', () => {
+    const e2eTests = path.resolve(here, '../../../../e2e/tests');
+    const stale: string[] = [];
+    for (const file of readdirSync(e2eTests).filter((f) => f.endsWith('.spec.ts'))) {
+      const src = readFileSync(path.join(e2eTests, file), 'utf8');
+      for (const m of src.matchAll(/'(https:\/\/accessflow\.bablsoft\.com\/docs\/[^']*)'/g)) {
+        const url = m[1]!;
+        const anchor = url.split('#')[1];
+        if (!anchor) continue;
+        const expected = docsUrl(anchor as (typeof DOCS_ANCHORS)[number]);
+        if (url !== expected) stale.push(`${file}: ${url} should be ${expected}`);
+      }
+    }
+    expect(stale).toEqual([]);
   });
 });
