@@ -140,8 +140,18 @@ every file.
    the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
 
 Because there is no build step, the nav, `<head>`, and footer are duplicated across the
-chapter files — a nav change is a 13-file edit. That is the deliberate trade for keeping this
-folder buildless; revisit it if the duplication starts causing drift.
+chapter files — a nav change is a 13-file edit (~98 KB of duplicated shell). That is the
+deliberate trade for keeping this folder buildless.
+
+Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
+12 files and missing the 13th — is guarded:
+[`frontend/src/config/__tests__/websiteDocs.test.ts`](../frontend/src/config/__tests__/websiteDocs.test.ts)
+fails CI unless every chapter shares a byte-identical nav and footer, links every other
+chapter, carries a correct self-referencing canonical, keeps one `<h1>` with no skipped
+levels, holds its description under 160 characters, has no duplicate ids, has no dead
+same-page or cross-chapter links, and appears in `sitemap.xml`.
+
+So: editing all 13 files is on you; forgetting one is on CI.
 
 No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
 at runtime.**
