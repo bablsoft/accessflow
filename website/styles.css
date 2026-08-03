@@ -765,7 +765,7 @@ section + section { border-top: 1px solid var(--line); }
 }
 .flow-step.active .flow-num { color: var(--accent); }
 
-.flow-step h4 {
+.flow-step h3 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
@@ -1158,7 +1158,7 @@ section + section { border-top: 1px solid var(--line); }
   padding: 24px;
   background: var(--bg-1);
 }
-.install-meta h4 {
+.install-meta h3 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 16px;
@@ -1230,7 +1230,7 @@ section + section { border-top: 1px solid var(--line); }
 }
 .milestone[data-status="in-progress"] .ver { color: var(--accent); }
 
-.milestone h4 {
+.milestone h3 {
   font-size: 16px;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -1298,7 +1298,7 @@ section + section { border-top: 1px solid var(--line); }
   font-size: 11px;
   color: var(--fg-faint);
 }
-.doc-card h4 {
+.doc-card h3 {
   font-size: 15px;
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -1363,7 +1363,7 @@ footer {
   margin-bottom: 64px;
 }
 
-.footer-col h5 {
+.footer-col h3 {
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.1em;

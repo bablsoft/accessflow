@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AccessFlow Documentation — Run and configure the proxy</title>
-  <meta name="description" content="Operator and admin documentation for AccessFlow — how to run it (Docker Compose, Helm, from source), how to start it for the first time, and how to configure users, roles, datasources, review plans, AI, OAuth, SMTP, and notification channels." />
+  <meta name="description" content="Install AccessFlow with Docker Compose, Helm, or from source, then configure users, datasources, review plans, AI, SSO, and notification channels." />
 
   <link rel="canonical" href="https://accessflow.bablsoft.com/docs/" />
   <meta name="robots" content="index, follow" />
@@ -63,6 +63,7 @@
         "name": "AccessFlow Documentation",
         "description": "Operator and admin documentation for AccessFlow — Docker Compose, Helm, and manual installs; first-time setup; configuring users, datasources, review plans, AI, OAuth, SAML, SMTP, and notification channels.",
         "inLanguage": "en",
+        "dateModified": "2026-08-03",
         "url": "https://accessflow.bablsoft.com/docs/",
         "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/",
         "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -92,7 +93,8 @@
         "@type": "Organization",
         "@id": "https://github.com/bablsoft#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft"
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.bablsoft.com/favicon.svg"
       }
     ]
   }
@@ -102,7 +104,7 @@
 
   <header class="nav">
     <div class="wrap nav-inner">
-      <a href="../index.html#top" class="logo">
+      <a href="/#top" class="logo">
         <span class="logo-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none">
             <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
@@ -114,12 +116,12 @@
         accessflow
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a href="../index.html#features">Features</a>
-        <a href="../index.html#connectors">Connectors</a>
-        <a href="../index.html#how">How it works</a>
-        <a href="../index.html#use-cases">Use cases</a>
-        <a href="../index.html#install">Install</a>
-        <a href="../index.html#roadmap">Roadmap</a>
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
         <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
@@ -129,12 +131,12 @@
           </svg>
         </summary>
         <nav class="nav-mobile-panel" aria-label="Mobile primary">
-          <a href="../index.html#features">Features</a>
-          <a href="../index.html#connectors">Connectors</a>
-          <a href="../index.html#how">How it works</a>
-          <a href="../index.html#use-cases">Use cases</a>
-          <a href="../index.html#install">Install</a>
-          <a href="../index.html#roadmap">Roadmap</a>
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
           <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
@@ -165,8 +167,8 @@
           </svg>
           bablsoft/accessflow
         </a>
-        <a href="../index.html#install" class="btn btn-ghost">Quick start</a>
-        <a href="../index.html#install" class="btn btn-primary">
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
           Get AccessFlow
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </a>
@@ -280,7 +282,7 @@
             <strong>Versions referenced.</strong> Internal store is PostgreSQL 18; cache is
             Redis 8 (used for token revocation and scheduler locks). The backend service and
             the React-based admin SPA are both shipped as container images — see
-            <a href="../index.html#install">the Install section</a> on the homepage for the
+            <a href="/#install">the Install section</a> on the homepage for the
             canonical pinned versions, and the <a href="#run-manual">Manual / from source</a>
             section below for build-time toolchain requirements.
           </div>
@@ -2591,7 +2593,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
     <div class="wrap">
       <div class="footer-grid">
         <div class="footer-col">
-          <a href="../index.html#top" class="logo">
+          <a href="/#top" class="logo">
             <span class="logo-mark" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none">
                 <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
@@ -2605,17 +2607,17 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
         </div>
         <div class="footer-col">
-          <h5>Product</h5>
+          <h3>Product</h3>
           <ul>
-            <li><a href="../index.html#features">Features</a></li>
-            <li><a href="../index.html#how">How it works</a></li>
-            <li><a href="../index.html#use-cases">Use cases</a></li>
-            <li><a href="../index.html#install">Quick start</a></li>
-            <li><a href="../index.html#roadmap">Roadmap</a></li>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Docs</h5>
+          <h3>Docs</h3>
           <ul>
             <li><a href="index.html">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
@@ -2625,7 +2627,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Community</h5>
+          <h3>Community</h3>
           <ul>
             <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
@@ -2634,7 +2636,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           </ul>
         </div>
         <div class="footer-col">
-          <h5>Legal</h5>
+          <h3>Legal</h3>
           <ul>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
