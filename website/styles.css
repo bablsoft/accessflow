@@ -1968,3 +1968,21 @@ img, table, pre { max-width: 100%; }
   .provenance { padding: 72px 0; }
   .provenance-grid { grid-template-columns: 1fr; }
 }
+
+/* ---- Text-colour utilities --------------------------------------------- */
+/* Replaces the single-declaration `style="color: var(--x)"` attributes that
+   were scattered through the markup. `.c-*` is already taken by the code-block
+   syntax colours, hence `.t-*` for text.
+   NOTE: this does NOT let the CSP drop style-src 'unsafe-inline' — multi-
+   declaration inline styles remain in the layout blocks, and that directive is
+   all-or-nothing. See README → "Response headers". */
+
+.t-accent { color: var(--accent); }
+.t-fg     { color: var(--fg); }
+.t-dim    { color: var(--fg-dim); }
+.t-mute   { color: var(--fg-mute); }
+.t-faint  { color: var(--fg-faint); }
+.t-warn   { color: var(--warn); }
+.t-info   { color: var(--info); }
+
+.ml-auto  { margin-left: auto; }

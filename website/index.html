@@ -619,7 +619,7 @@
                   <span class="seg on">SQL Editor</span>
                   <span class="seg">History</span>
                   <span class="seg">Saved</span>
-                  <span style="margin-left: auto;" class="mono">datasource: <span style="color: var(--info);">prod-orders ⌄</span></span>
+                  <span class="mono ml-auto">datasource: <span class="t-info">prod-orders ⌄</span></span>
                 </div>
                 <div class="sql-editor">
                   <div class="sql-line"><span class="ln">1</span><span><span class="sql-com">-- backfill missing region codes</span></span></div>
@@ -629,7 +629,7 @@
                   <div class="sql-line"><span class="ln">5</span><span>   <span class="sql-kw">AND</span> created_at <span class="sql-op">&gt;</span> <span class="sql-str">'2026-01-01'</span><span class="sql-op">;</span></span></div>
                 </div>
                 <div style="padding: 12px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
-                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span style="color: var(--warn);">DML detected</span> · review required</span>
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span class="t-warn">DML detected</span> · review required</span>
                   <span class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Submit for review</span>
                 </div>
               </div>
@@ -681,7 +681,7 @@
                   <span class="seg on">Review queue</span>
                   <span class="seg">All queries</span>
                   <span class="seg">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">5 results</span>
+                  <span class="mono ml-auto">5 results</span>
                 </div>
                 <div>
                   <div class="review-row">
@@ -732,25 +732,25 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Execution · q_42081</span>
-                  <span style="margin-left: auto;" class="mono"><span style="color: var(--accent);">● live</span> · streaming via /ws</span>
+                  <span class="mono ml-auto"><span class="t-accent">● live</span> · streaming via /ws</span>
                 </div>
                 <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
-                  <div style="color: var(--fg-mute);">↳ proxy → <span style="color: var(--fg);">postgresql://prod-orders.db.internal:5432</span></div>
-                  <div style="color: var(--fg-mute);">↳ pool <span style="color: var(--info);">pool-prod-orders</span> · borrowed conn #7 of 20</div>
-                  <div style="color: var(--fg-mute);">↳ setMaxRows = 10000 (datasource cap)</div>
+                  <div class="t-mute">↳ proxy → <span class="t-fg">postgresql://prod-orders.db.internal:5432</span></div>
+                  <div class="t-mute">↳ pool <span class="t-info">pool-prod-orders</span> · borrowed conn #7 of 20</div>
+                  <div class="t-mute">↳ setMaxRows = 10000 (datasource cap)</div>
                   <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
                   <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">rows_affected</span>
-                      <span style="color: var(--fg);">238,420</span>
+                      <span class="t-mute">rows_affected</span>
+                      <span class="t-fg">238,420</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">duration_ms</span>
-                      <span style="color: var(--fg);">4,182</span>
+                      <span class="t-mute">duration_ms</span>
+                      <span class="t-fg">4,182</span>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
-                      <span style="color: var(--fg-mute);">conn_returned</span>
-                      <span style="color: var(--accent);">ok</span>
+                      <span class="t-mute">conn_returned</span>
+                      <span class="t-accent">ok</span>
                     </div>
                   </div>
                   <div style="margin-top: 12px; color: var(--accent);">✓ status → EXECUTED · ws event pushed to submitter</div>
@@ -763,37 +763,37 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">append-only · HMAC-SHA256 chained</span>
+                  <span class="mono ml-auto">append-only · HMAC-SHA256 chained</span>
                 </div>
                 <div style="padding: 0; font-family: var(--mono); font-size: 12px;">
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:51</span>
-                    <span style="color: var(--accent);">QUERY_SUBMITTED</span>
-                    <span style="color: var(--fg-dim);">alice@co</span>
+                    <span class="t-faint">14:02:51</span>
+                    <span class="t-accent">QUERY_SUBMITTED</span>
+                    <span class="t-dim">alice@co</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">q_42081 · datasource=prod-orders</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:52</span>
-                    <span style="color: var(--accent);">AI_REVIEW_STARTED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:02:52</span>
+                    <span class="t-accent">AI_REVIEW_STARTED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">provider=anthropic</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:02:53</span>
-                    <span style="color: var(--accent);">AI_REVIEW_COMPLETED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:02:53</span>
+                    <span class="t-accent">AI_REVIEW_COMPLETED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">risk=62 MEDIUM · 3 findings</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:04:11</span>
-                    <span style="color: var(--accent);">QUERY_APPROVED</span>
-                    <span style="color: var(--fg-dim);">eve@co</span>
+                    <span class="t-faint">14:04:11</span>
+                    <span class="t-accent">QUERY_APPROVED</span>
+                    <span class="t-dim">eve@co</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">stage=1/1 · note="add index first"</span>
                   </div>
                   <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; font-size: 11px;">
-                    <span style="color: var(--fg-faint);">14:04:12</span>
-                    <span style="color: var(--accent);">QUERY_EXECUTED</span>
-                    <span style="color: var(--fg-dim);">system</span>
+                    <span class="t-faint">14:04:12</span>
+                    <span class="t-accent">QUERY_EXECUTED</span>
+                    <span class="t-dim">system</span>
                     <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">rows=238420 · duration=4182ms</span>
                   </div>
                 </div>
@@ -832,12 +832,12 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Datasource · prod-orders</span>
-                  <span style="margin-left: auto;" class="mono">connection brokered</span>
+                  <span class="mono ml-auto">connection brokered</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">user</span><span class="v">alice@co · ANALYST · SSO</span></div>
                   <div class="uc-mock-line"><span class="k">database</span><span class="v">postgresql://prod-orders.internal:5432</span></div>
-                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span style="color: var(--accent);">held by proxy — never disclosed</span></span></div>
+                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span class="t-accent">held by proxy — never disclosed</span></span></div>
                   <div class="uc-mock-line"><span class="k">access</span><span><span class="pill approved">GOVERNED</span></span></div>
                 </div>
                 <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
@@ -862,14 +862,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Access grants</span>
-                  <span style="margin-left: auto;" class="mono">auto-expiry on</span>
+                  <span class="mono ml-auto">auto-expiry on</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
                   <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
                   <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
                 </div>
-                <div class="uc-mock-foot"><span style="color: var(--warn);">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
+                <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
               </div>
             </div>
           </article>
@@ -890,7 +890,7 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">AI triage</span>
-                  <span style="margin-left: auto;" class="mono">routing policies active</span>
+                  <span class="mono ml-auto">routing policies active</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="v">SELECT … FROM events LIMIT 100</span><span class="k">risk 8</span><span class="pill approved">AUTO-APPROVED</span></div>
@@ -918,14 +918,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Audit log</span>
-                  <span style="margin-left: auto;" class="mono">HMAC-SHA256 chained</span>
+                  <span class="mono ml-auto">HMAC-SHA256 chained</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">14:02:51</span><span class="v">QUERY_SUBMITTED · alice@co</span><span class="k">#a81f→</span></div>
                   <div class="uc-mock-line"><span class="k">14:04:11</span><span class="v">QUERY_APPROVED · eve@co</span><span class="k">#c290→</span></div>
                   <div class="uc-mock-line"><span class="k">14:04:12</span><span class="v">QUERY_EXECUTED · system</span><span class="k">#f11d→</span></div>
                 </div>
-                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span style="color: var(--accent);">signed ✓</span></div>
+                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span class="t-accent">signed ✓</span></div>
               </div>
             </div>
           </article>
@@ -946,14 +946,14 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">Query result · masked</span>
-                  <span style="margin-left: auto;" class="mono">3 columns tagged</span>
+                  <span class="mono ml-auto">3 columns tagged</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">email</span><span class="v">a•••@example.com</span><span class="uc-tag">PII</span></div>
                   <div class="uc-mock-line"><span class="k">card_number</span><span class="v">•••• •••• •••• 4242</span><span class="uc-tag">PCI</span></div>
                   <div class="uc-mock-line"><span class="k">diagnosis</span><span class="v">▓▓ redacted</span><span class="uc-tag">PHI</span></div>
                 </div>
-                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span style="color: var(--accent);">EXECUTED</span></div>
+                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span class="t-accent">EXECUTED</span></div>
               </div>
             </div>
           </article>
@@ -974,7 +974,7 @@
               <div class="mock">
                 <div class="mock-bar">
                   <span class="seg on">API requests</span>
-                  <span style="margin-left: auto;" class="mono">REST · SOAP · GraphQL · gRPC</span>
+                  <span class="mono ml-auto">REST · SOAP · GraphQL · gRPC</span>
                 </div>
                 <div class="uc-mock-body">
                   <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
@@ -1140,7 +1140,7 @@
               <dt>Cache</dt><dd>Redis 8</dd>
               <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · connector catalog</dd>
               <dt>AI backends</dt><dd>Anthropic · OpenAI · Ollama · OpenAI-compat. · Hugging Face</dd>
-              <dt>License</dt><dd style="color: var(--accent);">Apache 2.0</dd>
+              <dt>License</dt><dd class="t-accent">Apache 2.0</dd>
             </dl>
 
             <h4 class="install-meta-sub">Sizing</h4>

@@ -285,10 +285,24 @@ That test also asserts the policy never regains `'unsafe-inline'` / `'unsafe-eva
 `script-src` and never reintroduces a third-party font origin.
 
 `<script type=\"application/ld+json\">` blocks need no hash — browsers never execute
-non-JavaScript MIME types, so `script-src` does not apply to them. `style-src` still needs
-`'unsafe-inline'` because 83 inline `style=\"\"` attributes remain across the two pages
-(there are no inline `<style>` blocks); moving those into `styles.css` would let it tighten
-to `'self'`.
+non-JavaScript MIME types, so `script-src` does not apply to them.
+
+#### Why style-src keeps 'unsafe-inline'
+
+39 multi-declaration inline `style=""` attributes remain (the single-declaration colour and
+`margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities). Dropping the
+directive is **all-or-nothing** — one leftover inline style and it has to stay — so the
+partial cleanup bought readability, not a tighter policy.
+
+Leaving it is a considered call, not an oversight. CSS injection needs an injection vector,
+and this site has no forms, no query-param rendering, no user content and no CMS: it is
+static HTML served from git. Anyone able to inject markup here already has repo or deploy
+access, at which point CSP is not the control that matters.
+
+**Revisit if that stops being true** — if the site ever renders user input, a URL parameter,
+or third-party content, finish the sweep and tighten to `style-src 'self'`. The other reason
+to finish it is cosmetic-but-real: scanners such as Mozilla Observatory dock points for
+`'unsafe-inline'`, and this is a security product's own site.
 
 Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` — see below.
 
