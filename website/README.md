@@ -166,21 +166,41 @@ with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 
 ## SEO
 
-Both HTML pages ship a full SEO meta block — canonical URL, Open Graph, Twitter Card,
-`theme-color`, and a single JSON-LD `@graph` (`SoftwareApplication` + `Organization` +
-`WebSite` on the homepage; `TechArticle` + `BreadcrumbList` on the docs page). The
-`og:image` / `twitter:image` is `og-image.png` (1200×630, PNG, ~143 KB), regenerable from
-a one-off HTML template via headless Chrome — re-create the template and run
+Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
+`theme-color`, and a JSON-LD `@graph` (`SoftwareApplication` + `Organization` + `WebSite`
+on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter).
+
+### Regenerating og-image.png
+
+`og:image` / `twitter:image` is `og-image.png` (1200×630, PNG, ~72 KB). **It is a
+hand-built card, not a screenshot of the site, so nothing regenerates it automatically —
+it will silently go stale.** It sat at "v1.0 · Open-source SQL proxy" long after the
+product covered NoSQL, warehouses and API governance. Re-cut it whenever the version
+badge, the hero headline, or the supported-engine list changes.
+
+Build a throwaway `_og-template.html` in this folder (dark `#0A0D11` background, the
+`@font-face` rules pointing at `/fonts/`, the wordmark + version pill + hero headline +
+subtitle + a single non-wrapping row of connector chips), serve the folder so `/fonts/`
+resolves, then:
 
 ```bash
+python3 -m http.server 4173 &
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --headless --disable-gpu --hide-scrollbars --window-size=1200,630 \
-  --screenshot=og-image.png http://localhost:4173/<template>.html
+  --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+  --window-size=1200,630 --screenshot=/tmp/og-raw.png \
+  http://localhost:4173/_og-template.html
+pngquant --quality=90-100 --speed 1 --force --output og-image.png /tmp/og-raw.png
+rm _og-template.html
 ```
 
-(then delete the template). All canonical / `og:url` values are hard-coded to
-`https://accessflow.bablsoft.com` — if the deployed origin ever changes, search both
-HTML files plus `sitemap.xml` and `robots.txt` and update in lockstep.
+`pngquant` roughly halves the file at an RMSE of ~0.25 (imperceptible on flat design art)
+and keeps it PNG — do not switch the card to WebP or JPEG, since social crawlers are least
+surprising with PNG and JPEG rings around the headline text. Keep the output exactly
+1200×630: the `og:image:width` / `og:image:height` meta tags assert those numbers.
+
+All canonical / `og:url` values are hard-coded to `https://accessflow.bablsoft.com` — if
+the deployed origin ever changes, search every HTML file plus `sitemap.xml` and
+`robots.txt` and update in lockstep.
 
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
 two HTML pages (`/` and `/docs/`).
