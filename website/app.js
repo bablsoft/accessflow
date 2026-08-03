@@ -186,7 +186,78 @@
     syncButtons();
   }
 
+
+  // Docs used to be one page at /docs/ with ~50 in-page anchors. It is now split
+  // into per-chapter URLs, but AccessFlow is self-hosted: every already-released
+  // frontend links to /docs/#cfg-<x> from its in-app "View docs" buttons, and
+  // those installs never update. This forwarder is therefore PERMANENT, not a
+  // migration aid. Keep it in sync with frontend/src/config/docs.ts.
+  // NOTE: '#configuration' is deliberately absent. It used to head one giant
+  // section that is now eight chapters, so there is no single right destination
+  // — leaving it unmapped keeps the visitor on this hub, which lists them all.
+  var LEGACY_DOCS_ANCHORS = {
+      'cfg-ai': '/docs/configuration/ai/',
+      'cfg-ai-analyses': '/docs/configuration/ai/',
+      'cfg-anomalies': '/docs/configuration/ai/',
+      'cfg-langfuse': '/docs/configuration/ai/',
+      'cfg-audit-log': '/docs/configuration/audit-compliance/',
+      'cfg-dashboard': '/docs/configuration/audit-compliance/',
+      'cfg-lifecycle': '/docs/configuration/audit-compliance/',
+      'compliance-reports': '/docs/configuration/audit-compliance/',
+      'cfg-oauth': '/docs/configuration/auth/',
+      'cfg-saml': '/docs/configuration/auth/',
+      'cfg-api-connectors': '/docs/configuration/connectors/',
+      'cfg-connectors': '/docs/configuration/connectors/',
+      'cfg-data-classifications': '/docs/configuration/datasources/',
+      'cfg-datasource-health': '/docs/configuration/datasources/',
+      'cfg-datasources': '/docs/configuration/datasources/',
+      'cfg-drivers': '/docs/configuration/datasources/',
+      'cfg-notification-channels': '/docs/configuration/notifications/',
+      'cfg-slack': '/docs/configuration/notifications/',
+      'cfg-smtp': '/docs/configuration/notifications/',
+      'cfg-attestation': '/docs/configuration/review-workflows/',
+      'cfg-review-plans': '/docs/configuration/review-workflows/',
+      'cfg-routing-policies': '/docs/configuration/review-workflows/',
+      'cfg-access-requests': '/docs/configuration/users-roles/',
+      'cfg-break-glass': '/docs/configuration/users-roles/',
+      'cfg-groups': '/docs/configuration/users-roles/',
+      'cfg-languages': '/docs/configuration/users-roles/',
+      'cfg-organizations': '/docs/configuration/users-roles/',
+      'cfg-roles': '/docs/configuration/users-roles/',
+      'cfg-users': '/docs/configuration/users-roles/',
+      'iac': '/docs/iac/',
+      'iac-ci': '/docs/iac/',
+      'iac-provider': '/docs/iac/',
+      'iac-service-account': '/docs/iac/',
+      'first-run': '/docs/install/',
+      'run-beta': '/docs/install/',
+      'run-docker-compose': '/docs/install/',
+      'run-helm': '/docs/install/',
+      'run-manual': '/docs/install/',
+      'running': '/docs/install/',
+      'end-user': '/docs/workflows/',
+      'flow-diff': '/docs/workflows/',
+      'flow-failure': '/docs/workflows/',
+      'flow-history': '/docs/workflows/',
+      'flow-mobile': '/docs/workflows/',
+      'flow-request-groups': '/docs/workflows/',
+      'flow-review': '/docs/workflows/',
+      'flow-schedule': '/docs/workflows/',
+      'flow-submit': '/docs/workflows/',
+      'flow-templates': '/docs/workflows/',
+      'flow-text-to-sql': '/docs/workflows/',
+  };
+
+  function forwardLegacyDocsAnchor() {
+    if (window.location.pathname !== '/docs/' && window.location.pathname !== '/docs/index.html') return;
+    var hash = window.location.hash.replace(/^#/, '');
+    if (!hash) return;
+    var dest = LEGACY_DOCS_ANCHORS[hash];
+    if (dest) window.location.replace(dest + '#' + hash);
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
+    forwardLegacyDocsAnchor();
     initInstallTabs();
     initCopyButtons();
     initFlowStepper();

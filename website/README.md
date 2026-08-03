@@ -101,8 +101,13 @@ website/
 ├── wrangler.jsonc   # Cloudflare Workers static-assets deploy config
 ├── googlef4908e4bf779aae8.html  # Google Search Console site-verification token
 ├── db-icons/        # Connector logos, copied from connectors/<id>/logo.svg
-├── docs/
-│   └── index.html   # Public user documentation — run + configure (sidebar TOC)
+├── docs/            # Public user documentation — one page per chapter
+│   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
+│   ├── install/     #   Docker Compose / Helm / from source + first-run setup
+│   ├── configuration/  # users-roles, datasources, connectors, review-workflows,
+│   │                   # ai, auth, notifications, audit-compliance
+│   ├── workflows/   #   end-user: submit, track, review, approve
+│   └── iac/         #   Terraform / OpenTofu provider + CI Actions
 ├── images/
 │   └── docs/        # Lossless WebP screenshots of admin SPA pages, light + dark per screen
 └── README.md        # this file
@@ -112,9 +117,31 @@ website/
 publicly unless listed in `.assetsignore`.** `README.md` and `wrangler.jsonc` are excluded
 there; add any future maintainer-only file to that list when you create it.
 
-The marketing site at the root targets visitors evaluating AccessFlow. The
-`docs/index.html` page targets operators and admins who need step-by-step instructions
-for running and configuring a deployment. Both reuse `styles.css` and `app.js`.
+The marketing site at the root targets visitors evaluating AccessFlow. The `docs/` pages
+target operators and admins who need step-by-step instructions for running and configuring
+a deployment. Everything reuses `styles.css` and `app.js`.
+
+### The docs are one page per chapter
+
+They used to be a single 17,000-word `docs/index.html`. Google ranks URLs, not fragments, so
+that one page could only ever compete for one query — and AI engines citing a source cite a
+URL. Each chapter is now its own indexable page, with the cross-chapter sidebar built into
+every file.
+
+**Two rules when editing them:**
+
+1. **Every in-app deep link is a contract.** `frontend/src/config/docs.ts` maps each anchor
+   to the chapter that owns it, and `frontend/src/config/__tests__/docs.test.ts` fails if an
+   anchor is missing from the chapter that claims it. Moving a section between chapters means
+   updating that map in the same commit.
+2. **`app.js` holds a PERMANENT legacy-anchor forwarder.** AccessFlow is self-hosted, so every
+   already-released frontend links to the old `/docs/#cfg-<x>` form forever; those installs
+   never update. `LEGACY_DOCS_ANCHORS` forwards all 50 old anchors to their new chapter, and
+   the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
+
+Because there is no build step, the nav, `<head>`, and footer are duplicated across the
+chapter files — a nav change is a 13-file edit. That is the deliberate trade for keeping this
+folder buildless; revisit it if the duplication starts causing drift.
 
 No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
 at runtime.**

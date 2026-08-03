@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Installing AccessFlow — Docker Compose, Helm, from source</title>
+  <meta name="description" content="Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/install/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Installing AccessFlow — Docker Compose, Helm, from source" />
+  <meta property="og:description" content="Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/install/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Installing AccessFlow — Docker Compose, Helm, from source" />
+  <meta name="twitter:description" content="Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/install/#article",
+      "headline": "Install AccessFlow",
+      "name": "Installing AccessFlow \u2014 Docker Compose, Helm, from source",
+      "description": "Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/install/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/install/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Install & first run",
+          "item": "https://accessflow.bablsoft.com/docs/install/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/" class="docs-toc-current" aria-current="page">Install & first run</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#running">Running AccessFlow</a>
+            <a href="#first-run">First-time setup</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Install AccessFlow.</h1>
+        </header>
+
+<section id="running" class="docs-section">
+          <h2>Running AccessFlow</h2>
+          <p>
+            Pick one of three modes. Docker Compose is the fastest path to a running instance.
+            Helm is the production-recommended path on Kubernetes. The manual / from-source path
+            is for contributors and for environments where containers aren't available.
+          </p>
+
+          <h3 id="run-docker-compose">Docker Compose</h3>
+          <p>
+            The repo root ships a <strong>zero-config demo stack</strong> — it pulls the published
+            images from GHCR and starts Postgres + Redis + backend + frontend with insecure demo
+            keys baked in so a fresh clone runs with one command:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell — demo</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+<span class="c-kw">docker</span> compose up -d
+<span class="c-com"># open http://localhost:5173 — the in-app setup wizard creates the first admin</span>
+</pre>
+          </div>
+          <div class="docs-callout warn">
+            <strong>Demo only.</strong> The root <code>docker-compose.yml</code> embeds insecure
+            <code>JWT_PRIVATE_KEY</code> and <code>ENCRYPTION_KEY</code> defaults inline so it
+            works on a fresh clone. <strong>Do not deploy this to anything but a sandbox.</strong>
+            For real environments, use the production-style compose below or the Helm chart.
+          </div>
+
+          <p>
+            For a <strong>production-style compose</strong>, generate real keys and supply them via
+            <code>.env</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.env — production</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com"># 32-byte hex — AES-256-GCM for datasource credential encryption</span>
+<span class="c-kw">ENCRYPTION_KEY</span>=<span class="c-str">$(openssl rand -hex 32)</span>
+
+<span class="c-com"># RSA-2048 PEM — JWT RS256 signing key</span>
+<span class="c-kw">JWT_PRIVATE_KEY</span>=<span class="c-str">"$(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 2&gt;/dev/null)"</span>
+
+<span class="c-kw">DB_PASSWORD</span>=<span class="c-str">change-me</span>
+<span class="c-com"># Password for the dedicated audit-writer role (issue #67). Provisioned by</span>
+<span class="c-com"># deploy/postgres-init/01-audit-role.sql — see "audit_log role separation".</span>
+<span class="c-kw">AUDIT_DB_PASSWORD</span>=<span class="c-str">change-me-audit</span>
+<span class="c-kw">CORS_ALLOWED_ORIGIN</span>=<span class="c-str">https://accessflow.company.com</span>
+<span class="c-kw">ACCESSFLOW_PUBLIC_BASE_URL</span>=<span class="c-str">https://accessflow.company.com</span>
+</pre>
+          </div>
+          <p>
+            See <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#docker-compose">docs/09-deployment.md
+            → Docker Compose</a> for the full production-style compose (including the optional
+            <code>ollama</code> profile for self-hosted AI).
+          </p>
+          <p>
+            <strong>Structured logs for ELK / OpenSearch.</strong> Set
+            <code>ACCESSFLOW_LOGGING_STRUCTURED_FORMAT=logstash</code> (or <code>ecs</code> /
+            <code>gelf</code>) on the backend container and every log line becomes a single JSON
+            object — `traceId` and `spanId` from the Micrometer tracing bridge are top-level
+            fields, so correlation works out of the box. The Spring Boot ASCII banner is hidden by
+            default; set <code>SPRING_MAIN_BANNER_MODE=console</code> to restore it.
+          </p>
+          <p>
+            <strong>Tracing &amp; metrics.</strong> Set
+            <code>OTEL_EXPORTER_OTLP_ENDPOINT</code> to your collector's full OTLP/HTTP traces URL
+            (e.g. <code>http://tempo:4318/v1/traces</code>) and AccessFlow exports the proxy-pipeline
+            spans — parse → AI analyze → pool acquire → execute — to Tempo / Jaeger / Honeycomb
+            (sampling via <code>ACCESSFLOW_TRACING_SAMPLING_PROBABILITY</code>; export is off until an
+            endpoint is set). Prometheus metrics are exposed at <code>/actuator/prometheus</code>
+            (unauthenticated for in-cluster scraping — keep <code>/actuator</code> off the public
+            ingress). The Helm chart ships two pre-built Grafana dashboards behind
+            <code>dashboards.enabled=true</code> covering query volume, approval SLAs, AI usage/cost,
+            rejection rates, and connection-pool stats — see
+            <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-observability.yaml">examples/values-observability.yaml</a>.
+          </p>
+          <p>
+            <strong>External secrets managers.</strong> Datasource credentials can live in
+            <strong>HashiCorp Vault</strong>, <strong>AWS Secrets Manager</strong>, or
+            <strong>Azure Key Vault</strong> instead of the built-in AES layer: enable a provider
+            (<code>ACCESSFLOW_SECRETS_VAULT_ENABLED=true</code> +
+            <code>ACCESSFLOW_SECRETS_VAULT_URI</code>/<code>_TOKEN</code> (or AppRole /
+            Kubernetes auth), <code>ACCESSFLOW_SECRETS_AWS_ENABLED=true</code> (region and
+            credentials from the SDK default chain — env vars, IRSA, instance profile — or
+            explicit <code>_REGION</code>/<code>_ACCESS_KEY_ID</code>/<code>_SECRET_ACCESS_KEY</code>),
+            or <code>ACCESSFLOW_SECRETS_AZURE_ENABLED=true</code> +
+            <code>ACCESSFLOW_SECRETS_AZURE_VAULT_URL</code> (workload/managed identity or an
+            explicit client-secret credential)) and enter a <em>secret reference</em> in a
+            datasource's password field instead of the raw value:
+            <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>,
+            <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or
+            <code>azure:&lt;secret-name&gt;</code>. AccessFlow resolves the reference through the
+            store at connection time (never caching the value), audits every resolve, and keeps
+            local AES-256-GCM encryption as the default for plain passwords. Full variable
+            reference:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">docs/09-deployment.md
+            → Secrets Manager</a>.
+          </p>
+
+          <h3 id="run-helm">Kubernetes &amp; Helm</h3>
+          <p>
+            The Helm chart ships at <code>charts/accessflow/</code> and is published to
+            <code>https://bablsoft.github.io/accessflow</code>. With defaults, no Secrets need
+            to be pre-created — the chart auto-generates the encryption key, the JWT private
+            key, and the PostgreSQL password on first install, and preserves them across
+            <code>helm upgrade</code>:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com"># 1. add the chart repo</span>
+<span class="c-kw">helm</span> repo add accessflow https://bablsoft.github.io/accessflow
+<span class="c-kw">helm</span> repo update
+
+<span class="c-com"># 2. install — chart auto-generates secrets on first run</span>
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f values.yaml
+</pre>
+          </div>
+          <p>
+            Prefer to manage the secrets yourself (sealed-secrets, External Secrets, Vault, …)?
+            Pre-create them and point <code>config.encryptionKey.existingSecret</code>,
+            <code>config.jwtPrivateKey.existingSecret</code>, and
+            <code>postgresql.auth.existingSecret</code> at your own resources:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-encryption-key \
+  --from-literal=value=<span class="c-str">"$(openssl rand -hex 32)"</span>
+
+<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-jwt-key \
+  --from-file=value=<span class="c-str">&lt;(openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048)</span>
+
+<span class="c-com"># Postgres Secret needs BOTH keys: `password` (AccessFlow user) + `postgres-password` (admin)</span>
+<span class="c-kw">kubectl</span> -n accessflow create secret generic accessflow-pg-secret \
+  --from-literal=password=<span class="c-str">"$(openssl rand -base64 24)"</span> \
+  --from-literal=postgres-password=<span class="c-str">"$(openssl rand -base64 24)"</span>
+</pre>
+          </div>
+          <p>
+            The chart bundles Bitnami subcharts for Postgres and Redis (toggle off with
+            <code>postgresql.enabled=false</code> / <code>redis.enabled=false</code> to point at
+            external instances). TLS on the Ingress is <strong>off by default</strong>; set
+            <code>ingress.tls.enabled=true</code> with a <code>secretName</code> and (optionally)
+            a cert-manager annotation to terminate HTTPS. Full values reference:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#kubernetes--helm">docs/09-deployment.md
+            → Kubernetes &amp; Helm</a> and
+            <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md">charts/accessflow/README.md</a>.
+          </p>
+          <p>
+            Ready-made starting points live under
+            <a href="https://github.com/bablsoft/accessflow/tree/main/charts/accessflow/examples">charts/accessflow/examples/</a> —
+            each file is a minimal override on top of the chart's <code>values.yaml</code>.
+            They split into <strong>deployment shapes</strong> (cluster-level: replicas,
+            ingress, secrets model) and <strong>bootstrap slices</strong> (declarative
+            admin config). The intended pattern is one of each, plus your own
+            site-specific overrides.
+          </p>
+          <p><strong>Deployment shapes:</strong></p>
+          <ul>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-minimal.yaml"><code>values-minimal.yaml</code></a>
+              — single-replica demo over plain HTTP.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-production.yaml"><code>values-production.yaml</code></a>
+              — HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent JDBC driver cache.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-external-services.yaml"><code>values-external-services.yaml</code></a>
+              — managed Postgres + Redis (RDS / ElastiCache / …) with every secret managed outside the chart.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-airgapped.yaml"><code>values-airgapped.yaml</code></a>
+              — air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-backup.yaml"><code>values-backup.yaml</code></a>
+              — nightly <code>pg_dump</code> backups to a PVC with retention pruning, optional rclone upload (S3/GCS/…), and the one-shot restore Job.
+            </li>
+          </ul>
+          <p>
+            <strong>Backup, restore &amp; disaster recovery.</strong> Set
+            <code>backup.enabled=true</code> to run a nightly <code>pg_dump</code> CronJob of the
+            AccessFlow database onto a dedicated backups volume (kept across
+            <code>helm uninstall</code>), pruned to <code>backup.retention.keepLast</code> dumps,
+            with an optional rclone step shipping the directory to S3 / GCS / Azure / SFTP. To
+            restore: scale the backend to zero, run
+            <code>helm upgrade --reuse-values --set restore.enabled=true --set restore.dumpFile=&lt;name&gt;.dump</code>
+            (the hook Job re-provisions the audit-writer role and replays the dump with ownership
+            and grants intact), then boot the backend once with
+            <code>ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP=true</code> — every organization's
+            tamper-evident audit chain is re-verified and the outcome logged per organization.
+            Verification needs the same <code>AUDIT_HMAC_KEY</code> / <code>ENCRYPTION_KEY</code>
+            as when the rows were written, so back those Secrets up alongside the dumps. Full
+            runbook (including external-database failover):
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#disaster-recovery">docs/09-deployment.md → Disaster Recovery</a>.
+          </p>
+          <p>
+            <strong>Bootstrap slices</strong> (each declares organization + first admin
+            user and is meant to layer on a deployment shape):
+          </p>
+          <ul>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap-minimal.yaml"><code>values-bootstrap-minimal.yaml</code></a>
+              — just the organization + first admin user, nothing else.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml"><code>values-bootstrap-oauth2-sso.yaml</code></a>
+              — adds OAuth2 providers (Google, Microsoft Entra ID, GitHub).
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap-saml-sso.yaml"><code>values-bootstrap-saml-sso.yaml</code></a>
+              — adds SAML 2.0 SP wired to a corporate IdP (Okta, Azure AD, JumpCloud, Auth0, ADFS).
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap-datasources.yaml"><code>values-bootstrap-datasources.yaml</code></a>
+              — AI provider + tiered review plans + multi-dialect datasources (Postgres, MySQL, MSSQL).
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap-notifications.yaml"><code>values-bootstrap-notifications.yaml</code></a>
+              — system SMTP relay + Slack / email / webhook channels + a fan-out review plan.
+            </li>
+            <li>
+              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-bootstrap.yaml"><code>values-bootstrap.yaml</code></a>
+              — kitchen-sink reference covering every <code>bootstrap.*</code> field at once.
+            </li>
+          </ul>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --namespace accessflow --create-namespace \
+  -f charts/accessflow/examples/values-production.yaml \
+  -f charts/accessflow/examples/values-bootstrap-oauth2-sso.yaml \
+  -f my-site-overrides.yaml
+</pre>
+          </div>
+
+          <h3 id="run-manual">Manual / from source</h3>
+          <p>
+            For contributors and air-gapped builds. Requires JDK 25 and Node.js 24 on the host:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+
+<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8 + Mailcrab (dev-only compose)</span>
+<span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
+
+<span class="c-com"># 2. backend</span>
+<span class="c-kw">cd</span> backend
+<span class="c-kw">./mvnw</span> spring-boot:run
+
+<span class="c-com"># 3. frontend (in another shell)</span>
+<span class="c-kw">cd</span> frontend
+<span class="c-kw">npm</span> install
+<span class="c-kw">npm</span> run dev
+
+<span class="c-com"># open http://localhost:5173</span>
+</pre>
+          </div>
+          <p>
+            For full coding standards, test commands, and the dev loop, see
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md">docs/11-development.md</a>.
+          </p>
+
+          <h3 id="run-beta">Beta / pre-release channel</h3>
+          <p>
+            Pre-release builds are cut for internal testing ahead of a stable release. They are
+            published with a <code>-beta.N</code> / <code>-rc.N</code> version tag and a moving
+            <code>:beta</code> Docker tag — <strong>never</strong> <code>:latest</code> — so a beta
+            never disturbs production: a plain <code>docker compose up</code> or
+            <code>helm install</code> stays on the last stable release until you opt in.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Internal testing only.</strong> Betas carry no upgrade-path guarantees toward
+            the GA they precede. Treat their databases as disposable.
+          </div>
+          <p><strong>Docker Compose</strong> — drop a <code>docker-compose.override.yml</code> next
+            to the demo file (Compose merges it automatically), then
+            <code>docker compose pull &amp;&amp; docker compose up -d</code>:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">docker-compose.override.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">services</span>:
+  backend:
+    image: ghcr.io/bablsoft/accessflow-backend:beta    <span class="c-com"># or :1.2.0-beta.1</span>
+  frontend:
+    image: ghcr.io/bablsoft/accessflow-frontend:beta   <span class="c-com"># or :1.2.0-beta.1</span>
+</pre>
+          </div>
+          <p><strong>Helm</strong> — pre-release chart versions are hidden from default resolution,
+            so opt in with <code>--devel</code> and pin the exact version:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">helm</span> repo update
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow \
+  --version 1.2.0-beta.1 --devel \
+  --namespace accessflow --create-namespace
+</pre>
+          </div>
+          <p>
+            See <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#installing-a-pre-release--beta-build">docs/09-deployment.md
+            → Installing a pre-release / beta build</a> for the full consumer guide.
+          </p>
+        </section>
+
+<section id="first-run" class="docs-section">
+          <h2>First-time setup</h2>
+          <p>
+            There are two ways to bring up a brand-new AccessFlow deployment.
+          </p>
+
+          <h3>Option A — Browser setup wizard</h3>
+          <p>
+            The default. Open the frontend (<code>http://localhost:5173</code> for the demo
+            stack, or whatever URL serves the SPA in your environment). When no organization
+            exists yet, the app routes to <code>/setup</code> and walks you through:
+          </p>
+          <ol>
+            <li>Create the organization.</li>
+            <li>Create the first admin user (email + password).</li>
+            <li>Optional: configure system SMTP so invitation emails work.</li>
+            <li>Optional: add a first datasource and a default review plan.</li>
+          </ol>
+          <p>
+            After the wizard finishes, log in as the admin and finish configuring the system from
+            the admin pages — see <a href="/docs/configuration/users-roles/">Configuration</a> below.
+          </p>
+
+          <h3>Option B — Bootstrap via env vars (GitOps)</h3>
+          <p>
+            Set <code>ACCESSFLOW_BOOTSTRAP_ENABLED=true</code> and supply
+            <code>ACCESSFLOW_BOOTSTRAP_*</code> properties for the organization, admin user,
+            review plans, AI configs, datasources, SAML, OAuth2, Langfuse, notification channels, and
+            system SMTP. On every startup the bootstrap module reconciles the declared
+            configuration into the database — declared rows are upserted, omitted rows are left
+            alone.
+          </p>
+          <div class="docs-callout info">
+            <strong>Reconciliation order.</strong> Organization → admin user → notification
+            channels → AI configs → review plans → datasources → SAML → OAuth2 → Langfuse → SMTP. Secret
+            fields (passwords, API keys, webhook secrets) are read from Kubernetes Secrets, never
+            from a ConfigMap. Full property tree:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#bootstrap-configuration">docs/09-deployment.md
+            → Bootstrap configuration</a>.
+          </div>
+          <div class="docs-callout info">
+            <strong>Multi-replica safety.</strong> Bootstrap is safe under
+            <code>replicaCount.backend &gt; 1</code>: every pod races for a Redis-backed
+            <code>bootstrapReconcile</code> lock (the same Redis instance that powers ShedLock
+            and JWT refresh tokens), so exactly one replica performs the upserts per startup
+            wave. The other replicas log an INFO line and keep serving traffic. No additional
+            env vars to configure.
+          </div>
+          <div class="docs-callout info">
+            <strong>Auditability.</strong> Bootstrap upserts are recorded in
+            <code>audit_log</code> with <code>actor_id = NULL</code> and
+            <code>metadata.source = "BOOTSTRAP"</code>, so operators can answer "who changed
+            this — me, or a helm upgrade?" from a single source of truth. Restarting with
+            unchanged env vars writes zero new rows (the reconciler caches a SHA-256
+            fingerprint of each declared spec in <code>bootstrap_state</code> and short-circuits
+            on a match).
+          </div>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connectors &amp; API connectors — AccessFlow docs</title>
+  <meta name="description" content="Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/connectors/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Connectors &amp; API connectors — AccessFlow docs" />
+  <meta property="og:description" content="Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/connectors/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Connectors &amp; API connectors — AccessFlow docs" />
+  <meta name="twitter:description" content="Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/connectors/#article",
+      "headline": "Connectors",
+      "name": "Connectors & API connectors \u2014 AccessFlow docs",
+      "description": "Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/connectors/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/connectors/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Connectors",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/connectors/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/" class="docs-toc-current" aria-current="page">Connectors</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-connectors">Connectors</a>
+            <a href="#cfg-api-connectors">API connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Connectors.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-connectors">Connectors</h2>
+          <p>
+            <strong>What it is.</strong> The catalog of databases AccessFlow can talk to, and the
+            one-click way to enable them. Use it to turn on support for an engine before you add a
+            datasource for it — so the image doesn't have to ship every database driver. The
+            <em>Admin → Connectors</em> marketplace (<code>/admin/connectors</code>) groups the
+            <strong>SQL</strong> (relational) family separately from the <strong>NoSQL</strong> family.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Click <em>Install</em> on a connector card; AccessFlow
+            downloads its driver, verifies it against a pinned checksum, and caches it. PostgreSQL
+            ships <em>Installed</em>; everything else — MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
+            Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, Snowflake, BigQuery, Databricks, and the other SQL drivers — shows an
+            <em>Install</em> action.
+          </p>
+          <p><strong>Built-in connectors — SQL:</strong></p>
+          <ul>
+            <li><strong>PostgreSQL</strong> — bundled (ships in the image, no download).</li>
+            <li><strong>MySQL</strong> — <code>com.mysql:mysql-connector-j</code> · 1-click install.</li>
+            <li><strong>MariaDB</strong> — <code>org.mariadb.jdbc:mariadb-java-client</code> · 1-click install.</li>
+            <li><strong>Oracle Database</strong> — <code>com.oracle.database.jdbc:ojdbc11</code> · 1-click install.</li>
+            <li><strong>Microsoft SQL Server</strong> — <code>com.microsoft.sqlserver:mssql-jdbc</code> · 1-click install.</li>
+            <li><strong>ClickHouse</strong> — <code>com.clickhouse:clickhouse-jdbc</code> · 1-click install (a CUSTOM-dialect connector, the first engine beyond the built-in five).</li>
+          </ul>
+          <p><strong>Built-in connectors — NoSQL:</strong></p>
+          <ul>
+            <li><strong>MongoDB</strong> — native engine plugin (not JDBC) · 1-click install; the engine downloads on demand like a JDBC driver and is cached in the same driver-cache directory (pre-seed it for air-gapped installs). Users write queries in the mongo shell form (<code>db.users.find({ … })</code>) or a JSON command document, chosen in the editor; results show in both a JSON document view and a flattened table. AI risk analysis, human approval, row-level security (<code>$match</code> injection), and field masking all apply. Configure it with the standard host/port/database/username/password/SSL fields.</li>
+          <li><strong>Couchbase</strong> — native engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users write <strong>SQL++ (N1QL)</strong> statements with SQL-style highlighting and formatting in the editor; results show in both a table and a JSON document view. AI risk analysis, human approval, row-level security (predicates ANDed into the WHERE clause with parameter binding; unrewritable shapes rejected), and field masking all apply; <code>CURL()</code>, JavaScript UDFs, and <code>system:*</code> keyspaces are rejected up front. The <em>database</em> field holds the <strong>bucket</strong>; plain connections bootstrap on port 11210 (<code>couchbase://</code>), TLS on 11207 (<code>couchbases://</code>) — pick the matching port or use a connection-string override.</li>
+          <li><strong>Redis</strong> — native key-value engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users submit redis-cli commands (<code>GET user:42</code>, <code>HGETALL session:abc</code>, <code>SCAN 0 MATCH orders:* COUNT 100</code>, <code>SET</code>, <code>DEL</code>) classified onto the same approval workflow; server-side scripting and blast-radius commands (<code>EVAL</code>, <code>CONFIG</code>, <code>FLUSHALL</code>, <code>SHUTDOWN</code>) are rejected at submission. Field masking applies to returned hash fields / values; row-security policies on a Redis datasource <strong>fail closed</strong> (row predicates have no key-value meaning). The <em>database</em> field holds the numeric DB index (default <code>0</code>); plain connections use port 6379 (<code>redis://</code>), TLS uses <code>rediss://</code>.</li>
+          <li><strong>Apache Cassandra</strong> — native wide-column engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users write <strong>CQL</strong> statements classified onto the same approval workflow (SELECT / INSERT / UPDATE / DELETE plus <code>CREATE</code>/<code>ALTER</code>/<code>DROP</code> of table/keyspace/index/type/materialized-view and <code>TRUNCATE</code>); server-side code (<code>BEGIN … BATCH</code>, <code>CREATE</code>/<code>DROP FUNCTION</code>/<code>AGGREGATE</code>) is rejected up front. Row-level security is <strong>key-aware and fails closed</strong> — predicates splice into the WHERE clause only on partition/clustering key columns with CQL-filterable operators (<code>=, IN, &lt;, &lt;=, &gt;, &gt;=</code>); a non-key column, <code>!=</code>/<code>NOT IN</code>, or INSERT into a policied table is rejected rather than injecting <code>ALLOW FILTERING</code>. Field masking applies to returned columns. The <em>database</em> field holds the <strong>keyspace</strong>; the per-datasource <em>local datacenter</em> field is <strong>required</strong> (the driver's load-balancing datacenter). Default port 9042.</li>
+          <li><strong>ScyllaDB</strong> — native wide-column engine plugin (not JDBC) · 1-click install; CQL-compatible and served by the <strong>same engine plugin as Apache Cassandra</strong>. Identical governance: CQL classification, key-aware fail-closed row-level security, field masking, and rejected server-side code. The <em>database</em> field holds the <strong>keyspace</strong>; the per-datasource <em>local datacenter</em> field is <strong>required</strong>. Default port 9042.</li>
+          <li><strong>Elasticsearch</strong> — native search engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB. Users write a <strong>JSON query envelope</strong> (<code>{"search":"logs-*","query":{…}}</code>, plus <code>count</code>, <code>get</code>/<code>mget</code>, <code>index</code>/<code>bulk</code>, <code>update_by_query</code>/<code>delete_by_query</code>, and index management) classified onto the same approval workflow; server-side scripting (<code>script</code>, <code>runtime_mappings</code>, Painless) and cluster/system-index APIs are rejected up front. Row-level security injects <code>bool.filter</code> clauses on <strong>keyword</strong> fields (fail-closed on writes into a policied index), and field masking applies recursively to <code>_source</code> fields including nested dot-paths. Authenticate with <strong>basic auth</strong> (username + password) <strong>or</strong> an <strong>API key</strong> — pick the method in the connection wizard. The <em>database</em> field is optional (it only scopes introspection — the index is named in the query). Default port 9200, SSL <code>REQUIRE</code>.</li>
+          <li><strong>OpenSearch</strong> — native search engine plugin (not JDBC) · 1-click install; wire-compatible and served by the <strong>same engine plugin as Elasticsearch</strong>. Identical governance: JSON query envelope classification, <code>bool.filter</code> row-level security on keyword fields, nested field masking, rejected scripting/cluster APIs, and basic-or-API-key auth. The <em>database</em> field is optional. Default port 9200.</li>
+          <li><strong>Amazon DynamoDB</strong> — native key-value engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB (AWS SDK for Java v2 over the url-connection HTTP client — no Netty). Users write <strong>PartiQL</strong> (<code>SELECT</code> / <code>INSERT</code> / <code>UPDATE</code> / <code>DELETE</code>), and table management arrives as a JSON command document (<code>{"CreateTable": {…}}</code>, <code>DeleteTable</code>, <code>UpdateTable</code>); transaction/batch statements are rejected. Row-level security splices predicates into the PartiQL WHERE clause with parameter binding on <strong>any</strong> attribute (DynamoDB filters via Scan), failing closed on INSERT-into-policied and deny-all; field masking applies recursively by dot-path including nested maps/lists. Its connection is <strong>cloud credentials + region, not host/port</strong>: the <em>database</em> field holds the AWS <strong>region</strong>, the username/password hold the access key id / secret access key, and an optional <em>custom endpoint</em> targets DynamoDB Local / VPC. Default port 8000 (DynamoDB Local; AWS uses the SDK regional endpoint).</li>
+          <li><strong>Neo4j</strong> — native graph engine plugin (not JDBC) · 1-click install; same on-demand download/verify/cache model as MongoDB (native Neo4j Java driver over the Bolt protocol). Users write <strong>Cypher</strong>; the query type is the strongest write clause present (<code>DELETE</code>/<code>REMOVE</code> → DELETE, <code>CREATE</code>/<code>MERGE</code> → INSERT, <code>SET</code> → UPDATE, else a <code>MATCH … RETURN</code> / <code>SHOW</code> read → SELECT), with index / constraint / database / role schema commands as DDL. <code>LOAD CSV</code>, procedure calls outside a read-only allow-list, and multi-statement input are rejected. Row-level security ANDs property predicates onto each <code>MATCH</code>'s <code>WHERE</code> with parameter binding (node-label policies), failing closed on anonymous or write-creates-policied-label shapes; field masking is label-aware and recursive. Connection is host/port + <em>database</em> (the Neo4j database, required) with the SSL mode encoded in the Bolt scheme, <strong>or</strong> a full <code>bolt://</code> / <code>neo4j+s://</code> URI in the optional <em>Bolt connection URI</em> field (Neo4j Aura / clustered routing). Default port 7687 (Bolt).</li>
+          </ul>
+          <p><strong>Built-in connectors — Cloud data warehouses:</strong></p>
+          <ul>
+          <li><strong>Snowflake</strong> — native warehouse engine plugin · 1-click install; same on-demand download/verify/cache model as MongoDB (the plugin bundles the Snowflake JDBC driver but opens a short-lived connection per request — warehouse sessions are billed while resumed, so nothing is pooled). Users write <strong>Snowflake SQL</strong> classified onto the same approval workflow; <code>CALL</code>, <code>EXECUTE IMMEDIATE</code>, scripting blocks, <code>COPY INTO</code>, <code>PUT</code>/<code>GET</code>, <code>USE</code>, and <code>SHOW</code> are rejected up front. Row-level security splices predicates into the WHERE clause with parameter binding (fail-closed on CTE / subquery / JOIN / set-operation shapes), and field masking applies to returned columns. Connection is the <em>account host</em> + database + user, with a credential that is a password <strong>or</strong> an unencrypted PKCS#8 private key (key-pair authentication), plus an optional full <code>jdbc:snowflake://</code> URL for warehouse / role / schema parameters. Port is unused (HTTPS 443).</li>
+          <li><strong>Google BigQuery</strong> — native warehouse engine plugin (not JDBC) · 1-click install; same on-demand model (Google Cloud HTTP/JSON client). Users write <strong>GoogleSQL</strong>; scripting (<code>BEGIN</code>/<code>DECLARE</code>/<code>CALL</code>/<code>EXECUTE IMMEDIATE</code>), <code>EXPORT DATA</code>, and <code>LOAD DATA</code> are rejected up front. Row-level security splices positional-parameter predicates into the WHERE clause (same fail-closed shapes), and field masking applies recursively by dot-path across nested RECORD fields. Its connection is <strong>cloud credentials, not host/port</strong>: the <em>database</em> field holds the GCP project (optionally <code>project.dataset</code> to pin a default dataset) and the credential is the service-account key JSON; an optional custom endpoint targets the BigQuery emulator.</li>
+          <li><strong>Databricks SQL</strong> — native warehouse engine plugin (not JDBC, no vendor SDK) · 1-click install; the engine talks to the SQL Statement Execution REST API. Users write <strong>Databricks SQL</strong>; <code>USE</code>, <code>SET</code>, <code>COPY INTO</code>, <code>CALL</code>, and maintenance commands (<code>OPTIMIZE</code>, <code>VACUUM</code>, <code>ANALYZE</code>) are rejected up front. Row-level security splices named-parameter predicates into the WHERE clause (same fail-closed shapes), and field masking applies to returned columns. Connection is the <em>workspace host</em> + a <strong>required</strong> <em>warehouse HTTP path</em> (<code>/sql/1.0/warehouses/&lt;id&gt;</code>) + a personal access token, with an optional Unity Catalog catalog in the <em>database</em> field. Port is unused (HTTPS 443).</li>
+          </ul>
+          <p>
+            Adding a new database to the catalog is a data change, not a code change — see the
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md">connectors design doc</a>
+            if you want to contribute one.
+          </p>
+          <ol>
+            <li><strong>Install.</strong> Click <em>Install</em> on a connector card. The driver is fetched from the configured Maven repository (<code>ACCESSFLOW_DRIVERS_REPOSITORY_URL</code>), SHA-256-verified, and cached to <code>ACCESSFLOW_DRIVER_CACHE</code>.</li>
+            <li><strong>Use it.</strong> Installed connectors appear in the datasource create wizard. The five core engines are first-class database types; additional engines (e.g. ClickHouse) are created as a <em>Custom</em> datasource backed by the connector — you fill in host / port / database and AccessFlow builds the JDBC URL from the connector's template.</li>
+            <li><strong>Air-gapped.</strong> Pre-seed the driver cache and set <code>ACCESSFLOW_DRIVERS_OFFLINE=true</code>; connectors whose JAR isn't cached then report <em>Unavailable</em>.</li>
+          </ol>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-api-connectors">API connectors</h2>
+          <p>
+            <strong>What it is.</strong> API Access Governance lets you govern outbound <strong>API</strong>
+            calls — REST, SOAP, GraphQL, and gRPC — with the same review, approval, and audit machinery
+            as a database query. An <em>API connector</em> (<code>/api-connectors</code>) is a registered
+            API target: a base URL, a protocol, and an authentication method.
+          </p>
+          <p>
+            <strong>Configure it (admin).</strong> Create a connector with a base URL, protocol, and an
+            auth method — <em>None</em>, <em>API key</em>, <em>Bearer token</em>, <em>Basic</em>,
+            <em>OAuth2 client-credentials</em>, <em>Custom header</em>, or <em>mTLS</em>. Secrets are
+            AES-256-GCM encrypted at rest and never returned. For <em>OAuth2 client-credentials</em>,
+            AccessFlow fetches, caches, and refreshes the upstream access token itself — configure the
+            token endpoint, client ID/secret, scopes, audience, grant type (client-credentials,
+            refresh-token, or resource-owner password), and client-auth method (Basic header or POST
+            body); the token is reused across calls and refreshed on expiry or a 401, so no token needs
+            to be pasted by hand. Define <em>default headers</em> sent on every governed call (users see
+            them but cannot change them) and, optionally, rename the <em>trace-context header</em> keys
+            AccessFlow uses to propagate W3C <code>traceparent</code>. Optionally upload a schema
+            (OpenAPI / WSDL / GraphQL SDL / gRPC <code>.proto</code>, or a <em>Postman Collection v2.1</em>
+            export) by pasting it, dragging a file in, or
+            pointing at a URL to fetch; AccessFlow parses it into a normalized operation catalog with
+            read/write classification. A Postman collection is handy when a team has no OpenAPI
+            document — folders flatten into operation ids and <code>{{variables}}</code> become path
+            templates. Two caveats it states at upload time: Postman stores <em>examples, not
+            schemas</em>, so request/response shapes are inferred and less precise; and any
+            credentials in your export are ignored and never stored — re-enter them in the
+            connector's authentication settings above. Pre-request and test scripts in the export are
+            dropped entirely. An optional <em>import filter</em> keeps the ungovernable parts
+            of a real-world spec out of that catalog: exclude (or restrict to) path globs such as
+            <code>/internal/**</code>, exclude HTTP verbs, operation-id globs, OpenAPI tags, and
+            deprecated operations. <em>Preview</em> shows exactly which operations a pattern drops
+            before you commit, the schema list reports "keeps N of M", and the filter stays editable
+            afterwards without re-uploading the document. Filtered-out operations are unreachable
+            everywhere — the API editor, text-to-API, and the per-user allowed-operations picker.
+            Set the review plan, AI-analysis toggle + AI config, text-to-API
+            toggle, require-review-on-reads/writes, and the max response size (default 10&nbsp;MiB —
+            the full response is stored and downloadable up to this cap, with only a bounded preview
+            shown inline). A <em>Test connection</em>
+            button probes reachability (and, for OAuth2 connectors, exercises the token fetch).
+          </p>
+          <p>
+            <strong>Share with the team.</strong> Grant per-user access on a connector
+            (<em>can read</em> / <em>can write</em> / <em>can break-glass</em>, an optional expiry, an
+            allowed-operations subset, and response fields to mask). Users see only the connectors they
+            are granted.
+          </p>
+          <p>
+            <strong>Mask &amp; classify responses.</strong> On the connector's <em>Masking</em> and
+            <em>Classification</em> tabs (admin), define connector-level <em>masking policies</em> that
+            redact response fields before the snapshot is stored. Because API responses aren't columnar,
+            a policy targets a field four ways — a <em>schema field</em> (operation + field from the
+            parsed catalog), a <em>JSON path</em>, an <em>XML path</em> (XPath), or a <em>regex</em> —
+            each with a masking strategy (full, partial, hash, email, format-preserving) and
+            role / group / user <em>reveal</em> scoping (a requester in a reveal list sees the unmasked
+            value; no implicit admin bypass). <em>Data-classification tags</em> (PII, PCI, PHI, GDPR,
+            FINANCIAL, SENSITIVE) on a field auto-derive a masking policy and raise the AI risk score for
+            calls to the operation, with a derivation preview of the suggested handling. Masking is
+            applied once, before storage, so raw values never persist, and the policy ids that applied
+            are recorded in the execution audit.
+          </p>
+          <p>
+            <strong>Dynamic variables (request signing).</strong> Some APIs — common in banking, payments
+            and telco — require a value computed <em>per request</em>: an HMAC signature, a nonce, a
+            timestamp, an idempotency key. A requester can't hand-compute those for a governed call,
+            because the signature covers a body a reviewer approves minutes or hours later and the
+            timestamp would already be stale. On the connector's <em>Variables</em> tab (admin) you
+            declare named values that AccessFlow computes at execution time and substitutes into
+            headers, the path, query parameters and the body wherever
+            <code>{{name}}</code> appears. Kinds cover a constant, a random UUID, a timestamp, epoch
+            milliseconds, random bytes, a hash (SHA-256/MD5), an HMAC signature (HMAC-SHA256/512 with an
+            encrypted shared secret), or a re-encoding — output as hex, base64 or URL-safe base64.
+            Expressions can reference the in-flight request (<code>{{request.method}}</code>,
+            <code>{{request.path}}</code>, <code>{{request.query}}</code>, <code>{{request.body}}</code>,
+            <code>{{request.headers.Authorization}}</code>) and each other; AccessFlow resolves them in
+            dependency order and rejects circular references while you're editing, not at run time.
+            Variables are evaluated <em>after</em> authentication, so a signature can cover the resolved
+            <code>Authorization</code> header — including a freshly minted OAuth2 token. Instead of a
+            placeholder, a variable can inject itself straight into a fixed header or query parameter.
+            Evaluation is template substitution over a fixed function set only: there is no scripting
+            engine and no user-supplied code. Shared secrets are encrypted at rest, never returned by
+            the API, and computed values are never stored, snapshotted or logged.
+          </p>
+          <p>
+            <strong>Per-request overrides.</strong> An admin can mark a variable <em>overridable</em>, and
+            grant selected teammates the <em>Override variables</em> permission on the connector. Those
+            requesters can then supply their own value for that variable from the API editor's
+            <em>Variables</em> tab — pinning a nonce for a replay test, say. Overrides are deny-by-default
+            and deliberately narrow: a variable holding a secret can never be made overridable, an
+            override is inserted literally and can never expand into another variable's value, and the
+            values are saved with the request and shown to the reviewer, so an approval covers exactly
+            what will be sent.
+          </p>
+          <p>
+            <strong>Use it.</strong> In the <em>API editor</em> (<code>/api-editor</code>) a user picks a
+            connector, searches the operation catalog (or writes a free-form method + path), and composes
+            the call like Postman — query parameters, custom headers (over the connector's read-only
+            default headers), and a body that can be raw, <code>x-www-form-urlencoded</code>, multipart
+            form-data, or a binary file upload. A user can schedule the call for later, sees a debounced
+            AI risk preview, and submits. Plain-English <em>text-to-API</em> drafts a call for
+            schema-backed connectors. Every call flows through AI risk scoring → routing → human review
+            (no self-approval) → guarded execution that injects the connector's auth and a W3C
+            <code>traceparent</code>, caps and field-masks the response, and stores an immutable response
+            snapshot. The full stored response can be downloaded in its original format, and the request
+            list is filterable by submitter, trace id, and span id. Break-glass and scheduled execution
+            mirror the query path. <em>Note: gRPC connectors register and review today; gRPC call
+            execution is a follow-up — REST/SOAP/GraphQL execute fully.</em>
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

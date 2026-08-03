@@ -1575,7 +1575,10 @@ img, table, pre { max-width: 100%; }
   font-family: var(--mono);
 }
 
-.docs-toc h5 {
+/* Sidebar group labels are deliberately NOT headings. They sit above the page
+   <h1> inside <main>, so as <h5> they put stray headings ahead of the h1 in the
+   document outline. */
+.docs-toc-label {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -1584,7 +1587,14 @@ img, table, pre { max-width: 100%; }
   font-weight: 500;
 }
 
-.docs-toc h5:first-child { margin-top: 0; }
+.docs-toc-label:first-child { margin-top: 0; }
+
+/* Current chapter in the cross-chapter sidebar. */
+.docs-toc a.docs-toc-current {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: var(--accent-bg);
+}
 
 .docs-toc a {
   display: block;

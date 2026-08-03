@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AccessFlow Documentation</title>
-  <meta name="description" content="Operator and admin documentation for AccessFlow — install it, complete first-run setup, and configure every entity in the review pipeline." />
+  <title>OAuth 2.0 / OIDC &amp; SAML 2.0 SSO — AccessFlow docs</title>
+  <meta name="description" content="Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more." />
 
-  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/" />
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/auth/" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="bablsoft" />
   <meta name="theme-color" content="#0A0D11" />
@@ -27,9 +27,9 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="AccessFlow Documentation" />
-  <meta property="og:description" content="Operator and admin documentation for AccessFlow — install it, complete first-run setup, and configure every entity in the review pipeline." />
-  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/" />
+  <meta property="og:title" content="OAuth 2.0 / OIDC &amp; SAML 2.0 SSO — AccessFlow docs" />
+  <meta property="og:description" content="Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/auth/" />
   <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
@@ -37,8 +37,8 @@
   <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="AccessFlow Documentation" />
-  <meta name="twitter:description" content="Operator and admin documentation for AccessFlow — install it, complete first-run setup, and configure every entity in the review pipeline." />
+  <meta name="twitter:title" content="OAuth 2.0 / OIDC &amp; SAML 2.0 SSO — AccessFlow docs" />
+  <meta name="twitter:description" content="Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more." />
   <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
   <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
 
@@ -55,14 +55,14 @@
   "@graph": [
     {
       "@type": "TechArticle",
-      "@id": "https://accessflow.bablsoft.com/docs/#article",
-      "headline": "Run and configure AccessFlow",
-      "name": "AccessFlow Documentation",
-      "description": "Operator and admin documentation for AccessFlow \u2014 install it, complete first-run setup, and configure every entity in the review pipeline.",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/auth/#article",
+      "headline": "Authentication & SSO",
+      "name": "OAuth 2.0 / OIDC & SAML 2.0 SSO \u2014 AccessFlow docs",
+      "description": "Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on \u2014 Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more.",
       "inLanguage": "en",
       "dateModified": "2026-08-03",
-      "url": "https://accessflow.bablsoft.com/docs/",
-      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/auth/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/auth/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
       "isPartOf": {
         "@id": "https://accessflow.bablsoft.com/#website"
@@ -91,6 +91,12 @@
           "position": 2,
           "name": "Documentation",
           "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Auth & SSO",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/auth/"
         }
       ]
     },
@@ -189,18 +195,17 @@
           <summary>On this page</summary>
           <nav class="docs-toc">
             <p class="docs-toc-label">Documentation</p>
-            <a href="/docs/" class="docs-toc-current" aria-current="page">Overview</a>
-            <p class="docs-toc-label">On this page</p>
-            <a href="#getting-started">Read this first</a>
-            <a href="#chapters">Every chapter</a>
-            <a href="#further-reading">Further reading</a>
+            <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
             <a href="/docs/configuration/review-workflows/">Review workflows</a>
             <a href="/docs/configuration/ai/">AI</a>
-            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/auth/" class="docs-toc-current" aria-current="page">Auth & SSO</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
+            <a href="#cfg-saml">SAML 2.0 SSO</a>
             <a href="/docs/configuration/notifications/">Notifications</a>
             <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
             <a href="/docs/workflows/">End-user workflows</a>
@@ -213,128 +218,108 @@
 
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
-          <h1>Run and configure AccessFlow.</h1>
+          <h1>Authentication & SSO.</h1>
         </header>
 
-<section id="getting-started" class="docs-section">
-          <h2>Read this first</h2>
+<section class="docs-section">
+<h2 id="cfg-oauth">OAuth 2.0 / OIDC</h2>
           <p>
-            AccessFlow is a self-hosted query proxy. Your team connects to AccessFlow instead of
-            directly to PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server (or any other
-            JDBC-compatible engine, via an admin-uploaded driver), the NoSQL document engines
-            MongoDB and Couchbase, the NoSQL key-value engines Redis and Amazon DynamoDB, the NoSQL
-            wide-column engines Apache Cassandra and ScyllaDB, the NoSQL search engines
-            Elasticsearch and OpenSearch, the NoSQL graph engine Neo4j, or the cloud data warehouses
-            Snowflake, Google BigQuery, and Databricks SQL. Every statement is parsed,
-            classified, optionally AI-reviewed, and routed through a configurable human-approval
-            workflow before it touches the database. Customer-database credentials never leave the
-            proxy.
+            <strong>What it is.</strong> Single sign-on through an external identity provider, so
+            people log in with accounts they already have instead of an AccessFlow password. Google,
+            GitHub, Microsoft, and GitLab are built in; two more tabs cover self-hosted <em>GitHub
+            Enterprise</em> and <em>GitLab (self-managed)</em> (you provide the instance base URL, e.g.
+            <code>https://github.acme.corp</code>, and AccessFlow appends the well-known sub-paths); and
+            a generic <em>OpenID Connect</em> tab integrates any other OIDC provider (Keycloak, Auth0,
+            Okta, Authentik, Zitadel). It all lives in the database, so adding a provider needs no
+            restart.
           </p>
           <p>
-            This guide is split into three parts: <a href="/docs/install/#running">running</a> AccessFlow (pick
-            one of three deployment modes), <a href="/docs/install/#first-run">first-time setup</a> (browser
-            wizard or GitOps env vars), and <a href="/docs/configuration/users-roles/">configuration</a> (every
-            entity an admin manages through the UI or REST API).
+            <strong>Configure it.</strong> Manage providers at <code>/admin/oauth2</code>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/oauth2-google-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/oauth2-google-dark.webp"
+                   alt="OAuth providers admin page with the Google tab selected. An info callout shows the redirect URI to register at the provider with a copy button, followed by Client ID and Client secret fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/oauth2</code> — one tab per built-in provider (Google / GitHub / Microsoft / GitLab), two self-hosted tabs (GitHub Enterprise / GitLab self-managed), plus a generic OpenID Connect tab. Each tab carries its own redirect URI and provider-specific guidance.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The format is <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth2/callback/{provider}</code>.</li>
+            <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims. For <strong>GitHub Enterprise</strong> and <strong>GitLab (self-managed)</strong>, also enter the <em>Server base URL</em> of your self-hosted instance (origin only — no path, no query; <code>https://</code> only). AccessFlow appends <code>/login/oauth/authorize</code>, <code>/login/oauth/access_token</code>, and <code>/api/v3/*</code> for GitHub Enterprise, and <code>/oauth/authorize</code>, <code>/oauth/token</code>, <code>/oauth/userinfo</code>, <code>/oauth/discovery/keys</code> for self-managed GitLab. For the <strong>OpenID Connect</strong> tab, also enter the IdP's <em>Display name</em> (rendered on the login button as "Continue with …"), <em>Authorization endpoint URL</em>, <em>Token endpoint URL</em>, <em>UserInfo endpoint URL</em>, <em>JWK set URL</em>, and <em>Issuer URL</em> — most IdPs publish all five at <code>/.well-known/openid-configuration</code>. Optional attribute-claim fields (<em>User-name claim</em>, <em>Email claim</em>, <em>Email-verified claim</em>, <em>Display-name claim</em>) default to the standard OIDC names (<code>sub</code>, <code>email</code>, <code>email_verified</code>, <code>name</code>) and only need to be set if your IdP uses non-standard claims.</li>
+            <li><strong>(Optional) Restrict who may sign in.</strong> Use <em>Allowed organizations</em> and <em>Allowed email domains</em> on the same tab:
+              <ul>
+                <li><strong>Google</strong> — populate <em>Allowed email domains</em> with your Workspace domain(s); the organization list is ignored.</li>
+                <li><strong>GitHub</strong> — list the org logins users must belong to (e.g. <code>bablsoft</code>) in <em>Allowed organizations</em>. AccessFlow calls <code>GET /user/orgs</code>, so the <em>Scopes override</em> must include <code>read:org</code> — saving an active config without it returns a 422 with a clear message.</li>
+                <li><strong>Microsoft</strong> — list AAD group object IDs in <em>Allowed organizations</em>. The Entra app registration must be configured (Token configuration → groups) to emit the <code>groups</code> claim.</li>
+                <li><strong>GitLab</strong> — list full group paths from the OIDC <code>groups</code> claim (e.g. <code>acme/team</code>).</li>
+                <li><strong>GitHub Enterprise</strong> — same as GitHub but the orgs call hits <code>{base_url}/api/v3/user/orgs</code>; <code>read:org</code> scope is still required.</li>
+                <li><strong>GitLab (self-managed)</strong> — same as GitLab (OIDC <code>groups</code> claim) but resolved against your self-hosted instance.</li>
+                <li><strong>OpenID Connect</strong> — set the <em>Groups claim</em> field to the claim name your IdP uses (often <code>groups</code> or <code>roles</code>), then list the group identifiers users must belong to in <em>Allowed organizations</em>. Leave the claim field blank to disable group enforcement and rely on <em>Allowed email domains</em> instead.</li>
+              </ul>
+              Empty lists mean no restriction. Users who fail the check are redirected to the login page with <code>OAUTH2_ORG_NOT_ALLOWED</code> or <code>OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED</code>.
+            </li>
+            <li><strong>Pick a default role</strong> for first-time sign-ins (defaults to <code>READONLY</code>) and flip <em>Active</em> on to enable the provider's button on the login page.</li>
+            <li><strong>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code></strong> if the frontend lives at a different origin than the backend's CORS origin (default <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
+          </ol>
+          <p>
+            Email verification is required before an OAuth account is linked, and account-linking
+            is conservative — a provider-supplied email will not silently take over an existing
+            local user. Implementation details:
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md
+            → Authentication</a>.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code> (where the
+            provider round-trip lands, default <code>${CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>)
+            and <code>ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL</code> (one-time exchange-code lifetime,
+            default <code>PT1M</code>).
           </p>
 
-          <div class="docs-callout info">
-            <strong>Versions referenced.</strong> Internal store is PostgreSQL 18; cache is
-            Redis 8 (used for token revocation and scheduler locks). The backend service and
-            the React-based admin SPA are both shipped as container images — see
-            <a href="/#install">the Install section</a> on the homepage for the
-            canonical pinned versions, and the <a href="/docs/install/#run-manual">Manual / from source</a>
-            section below for build-time toolchain requirements.
-          </div>
-          <div class="docs-callout">
-            <strong>Sizing.</strong> Two reference points:
-            <ul>
-              <li><strong>Evaluation</strong> — 2 vCPU · 4 GB RAM · 10 GB SSD on a single host. Fits the Docker Compose demo (backend + frontend + Postgres + Redis) with headroom.</li>
-              <li><strong>Production</strong> — backend is stateless: run two or more replicas of (2 vCPU · 2 GB RAM) behind any L7 load balancer. Internal Postgres needs roughly 2 vCPU · 4 GB RAM · 50 GB SSD (audit log dominates disk growth — provision higher IOPS for high-volume orgs). Redis needs ~1 vCPU · 1 GB RAM. Frontend is static — front it with a CDN or any nginx pod.</li>
-            </ul>
-            Numbers are starting points for an org of roughly fifty reviewers and a few hundred daily queries. Scale backend replicas first when you outgrow them.
-          </div>
+          <!-- SAML -->
         </section>
 
-        <section id="chapters" class="docs-section">
-          <h2>Every chapter</h2>
-          <p>Read them in any order — each one stands alone.</p>
-          <div class="docs-grid">
-            <a href="/docs/install/" class="doc-card">
-              <span class="doc-num">01</span>
-              <h3>Install & first run</h3>
-              <p>Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap.</p>
-            </a>
-            <a href="/docs/configuration/users-roles/" class="doc-card">
-              <span class="doc-num">02</span>
-              <h3>Users & roles</h3>
-              <p>Configure AccessFlow organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access.</p>
-            </a>
-            <a href="/docs/configuration/datasources/" class="doc-card">
-              <span class="doc-num">03</span>
-              <h3>Datasources</h3>
-              <p>Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health.</p>
-            </a>
-            <a href="/docs/configuration/connectors/" class="doc-card">
-              <span class="doc-num">04</span>
-              <h3>Connectors</h3>
-              <p>Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors.</p>
-            </a>
-            <a href="/docs/configuration/review-workflows/" class="doc-card">
-              <span class="doc-num">05</span>
-              <h3>Review workflows</h3>
-              <p>Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns.</p>
-            </a>
-            <a href="/docs/configuration/ai/" class="doc-card">
-              <span class="doc-num">06</span>
-              <h3>AI</h3>
-              <p>Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection.</p>
-            </a>
-            <a href="/docs/configuration/auth/" class="doc-card">
-              <span class="doc-num">07</span>
-              <h3>Auth & SSO</h3>
-              <p>Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more.</p>
-            </a>
-            <a href="/docs/configuration/notifications/" class="doc-card">
-              <span class="doc-num">08</span>
-              <h3>Notifications</h3>
-              <p>Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP.</p>
-            </a>
-            <a href="/docs/configuration/audit-compliance/" class="doc-card">
-              <span class="doc-num">09</span>
-              <h3>Audit & compliance</h3>
-              <p>Read the AccessFlow tamper-evident audit log, generate signed compliance exports, run retention and right-to-erasure policies, and use the personalized dashboard.</p>
-            </a>
-            <a href="/docs/workflows/" class="doc-card">
-              <span class="doc-num">10</span>
-              <h3>End-user workflows</h3>
-              <p>How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them.</p>
-            </a>
-            <a href="/docs/iac/" class="doc-card">
-              <span class="doc-num">11</span>
-              <h3>Infrastructure as Code</h3>
-              <p>Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates.</p>
-            </a>
-          </div>
-        </section>
-
-<section id="further-reading" class="docs-section">
-          <h2>Further reading</h2>
+<section class="docs-section">
+<h2 id="cfg-saml">SAML 2.0 SSO</h2>
           <p>
-            This page covers what an operator needs to run and configure AccessFlow. For deeper
-            internals — module boundaries, the proxy engine, the audit log's HMAC chain, the full
-            REST + WebSocket spec — see the engineering chapters in
-            <a href="https://github.com/bablsoft/accessflow/tree/main/docs">the docs/ folder on
-            GitHub</a>:
+            <strong>What it is.</strong> Single sign-on via a SAML 2.0 identity provider (Okta, Azure
+            AD, OneLogin, …) — the enterprise-SSO alternative to OAuth / OIDC. Configure one record per
+            organization; both SP-initiated and IdP-initiated logins work.
           </p>
-          <ul class="docs-link-list">
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">02 · Architecture</a> — subsystems, technology stack, request flow.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">04 · REST API</a> — every endpoint, request body, and WebSocket event.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md">05 · Backend</a> — proxy engine, workflow state machine, AI analyzer internals.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">07 · Security</a> — auth, authorization matrix, encryption, audit integrity.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md">08 · Notifications</a> — event types, channel configs, signed webhook payloads.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">09 · Deployment</a> — full env-var reference, Helm values, Bootstrap GitOps tree.</li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md">16 · Infrastructure as Code</a> — Terraform/OpenTofu provider, CI Actions, registry publishing.</li>
-          </ul>
+          <p>
+            <strong>Configure it.</strong> Fill the single form at <code>/admin/saml</code>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/saml-config-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/saml-config-dark.webp"
+                   alt="SAML / SSO admin page with three sections — Identity provider (IdP metadata URL, IdP entity ID, signing certificate PEM textarea), Service provider, and Attributes — each with empty form fields ready to fill."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/saml</code> — a single config form covering IdP metadata, SP entity, and attribute mapping.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/saml</code></strong>.</li>
+            <li><strong>Identity provider.</strong> Paste the <em>IdP metadata URL</em> (preferred — AccessFlow refreshes it periodically), or fall back to <em>IdP entity ID</em> + <em>Signing certificate (PEM)</em> when the IdP doesn't publish metadata over HTTP.</li>
+            <li><strong>Service provider.</strong> Set <em>SP entity ID</em>, <em>ACS URL</em>, and <em>SLO URL</em> — register these with your IdP.</li>
+            <li><strong>Attributes.</strong> Map the IdP assertion attributes that carry <em>email</em>, <em>display name</em>, and <em>role</em>. Pick a default role for users whose assertion doesn't include one, then flip <em>Active</em> on to enable the SAML button on the login page.</li>
+          </ol>
+          <p>
+            SAML users rely on the IdP's MFA rather than AccessFlow's TOTP. Full SP metadata,
+            signing-cert rotation, and assertion validation rules live in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">docs/07-security.md</a>.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL</code>
+            (default <code>${CORS_ALLOWED_ORIGIN}/auth/saml/callback</code>) and
+            <code>ACCESSFLOW_SAML_EXCHANGE_CODE_TTL</code> (default <code>PT1M</code>). To pin the
+            service-provider signing keypair instead of the auto-generated one, set
+            <code>ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM</code> and
+            <code>ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM</code>.
+          </p>
+
+          <!-- Audit log -->
         </section>
 
       </article>

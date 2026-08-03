@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>End-user workflows — submit, review &amp; approve queries</title>
+  <meta name="description" content="How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/workflows/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="End-user workflows — submit, review &amp; approve queries" />
+  <meta property="og:description" content="How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/workflows/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="End-user workflows — submit, review &amp; approve queries" />
+  <meta name="twitter:description" content="How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/workflows/#article",
+      "headline": "End-user workflows",
+      "name": "End-user workflows \u2014 submit, review & approve queries",
+      "description": "How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/workflows/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/workflows/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "End-user workflows",
+          "item": "https://accessflow.bablsoft.com/docs/workflows/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/" class="docs-toc-current" aria-current="page">End-user workflows</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#end-user">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>End-user workflows.</h1>
+        </header>
+
+<section id="end-user" class="docs-section">
+          <h2>End-user workflows</h2>
+          <p>
+            The pages above configure the system. This section is the operator's view of how
+            analysts and reviewers actually use it day-to-day — the editor, scheduled queries,
+            and the bulk-approval review queue that landed in v1.1.
+          </p>
+
+          <h3 id="flow-submit">Submitting a query</h3>
+          <p>
+            <code>/editor</code> hosts the SQL editor: dialect-aware syntax highlighting, schema
+            autocomplete fed by <code>/datasources/&lt;id&gt;/schema</code>, a debounced AI
+            analyze pass, and an in-pane review-plan summary. The submitter picks a datasource,
+            writes SQL, fills in a justification, and submits — at which point the workflow
+            takes over.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/editor-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/editor-light.webp"
+                   alt="SQL editor at /editor with a schema browser on the left, CodeMirror SQL pane with a SELECT example, a Justification textarea, a Scheduled execution row, and an AI analysis side panel."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> — schema browser, SQL pane, justification, scheduled-execution row, and AI analysis side panel.</figcaption>
+          </figure>
+
+          <h3 id="flow-text-to-sql">Drafting queries from natural language</h3>
+          <p>
+            When a datasource has <em>text-to-query</em> enabled and an AI configuration bound (see
+            <a href="/docs/configuration/datasources/#cfg-datasources">Datasources</a> → <em>Configuration</em>), the editor shows a
+            <strong>Describe your query</strong> bar above the query pane. Type a plain-language request
+            (e.g. "order numbers for the last 5 days"), click <em>Generate query</em>, and the draft is
+            written into the editor for you to review and edit — in the datasource engine's native query
+            language (SQL for relational engines, plus MongoDB shell/JSON, Cypher, CQL, the Elasticsearch
+            Query DSL, redis-cli, SQL++, and PartiQL for the NoSQL engines; the editor mounts the matching
+            syntax automatically). The generated query is never executed directly — it still flows through
+            the full AI analysis and review pipeline like any hand-written submission.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/editor-text-to-sql-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/editor-text-to-sql-light.webp"
+                   alt="The /editor page with the text-to-query bar above the query pane: a Describe your query textarea with a natural-language prompt and a Generate query button, and the generated SELECT statement rendered in the CodeMirror editor below."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Describe your query</em>. AI drafts the query; the draft still goes through the normal review pipeline.</figcaption>
+          </figure>
+
+          <h3 id="flow-templates">Query templates library</h3>
+          <p>
+            The editor's toolbar has a <strong>Templates</strong> drawer button and a
+            <strong>Save as template</strong> shortcut. Saved templates are scoped to your
+            organisation and have two visibilities: <em>Private</em> (only you can see and load
+            them) or <em>Team</em> (every user in the org can read; only the owner can edit
+            or delete). Templates can optionally be pinned to a datasource so they surface
+            with a "pinned to current datasource" badge when that datasource is selected.
+            Template bodies can include <code>:placeholder</code> tokens — when you load a
+            template, AccessFlow prompts you for each placeholder value and substitutes
+            them client-side. Submission still flows through the standard AI analysis and
+            review pipeline; templates are a pure save / load surface, never a bypass.
+          </p>
+          <p>
+            Every save records an immutable <strong>version</strong>. Open a template's
+            <strong>History</strong> tab to see how it evolved — pick any two revisions for a
+            side-by-side Git-style diff, and <strong>restore</strong> a prior version when an
+            edit went wrong. Restoring creates a new version rather than discarding history, so
+            the full trail is always preserved.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/editor-query-templates-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/editor-query-templates-light.webp"
+                   alt="SQL editor with the Query templates drawer open, listing saved templates with Private and Team visibility badges, tags, owner, a search box, All/Mine/Team filter tabs, and Open / Delete actions per row."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Templates</em> — load a saved query (Private or Team), with <code>:placeholder</code> prompts on open.</figcaption>
+          </figure>
+
+          <h3 id="flow-history">Tracking submitted queries</h3>
+          <p>
+            <code>/queries</code> (labelled <em>Query history</em> in the sidebar) lists every
+            query the current user has submitted or has read access to. Filter by status, risk,
+            datasource, or date range, and export the visible rows as CSV. Click a row to open
+            <code>/queries/&lt;id&gt;</code> for the full timeline, AI analysis, decisions, and
+            (when executed) the result preview.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/queries-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/queries-list-light.webp"
+                   alt="Query history list at /queries with status, type, risk, datasource, and date filters, an Export CSV button, and rows showing a mix of PENDING REVIEW and APPROVED queries."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/queries</code> — submitter view of every query, with Export CSV.</figcaption>
+          </figure>
+
+          <h3 id="flow-schedule">Scheduling a query</h3>
+          <p>
+            Submitters can pick a <em>Scheduled execution</em> datetime instead of running
+            immediately. The query still goes through review; once approved, it stays in
+            <code>APPROVED</code> until <code>scheduled_for</code> arrives, at which point
+            <code>ScheduledQueryRunJob</code> (cadence
+            <code>ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL</code>, default
+            <code>PT1M</code>) triggers execution. The submitter can cancel an
+            <code>APPROVED</code> scheduled run any time before it fires.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/editor-schedule-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/editor-schedule-light.webp"
+                   alt="SQL editor with the scheduled execution date picker open showing a month-view calendar; the help text reads 'If approved, the query runs automatically at that time.'"
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/editor</code> → <em>Scheduled execution</em> row → date picker. Leave blank for immediate execution.</figcaption>
+          </figure>
+
+          <h3 id="flow-request-groups">Request chaining &amp; grouping</h3>
+          <p>
+            A single real task often spans several steps across systems — a schema change on
+            PostgreSQL, a follow-up update on MongoDB, then a REST call downstream. The
+            <strong>group builder</strong> at <code>/request-groups/new</code> bundles those steps
+            into one <strong>grouped request</strong> that is reviewed and approved as a single
+            element, then executed as an <strong>ordered sequence</strong>. Add steps — each a
+            <em>query</em> against a datasource <strong>or</strong> an <em>API call</em> against a
+            governed connector — drag-reorder them, and watch a per-step AI risk preview plus an
+            aggregate risk badge. You can only add a member targeting a datasource / connector you're
+            permitted to use; a break-glass group requires <code>can_break_glass</code> on
+            <strong>every</strong> member target.
+          </p>
+          <p>
+            The group is reviewed as one element: the required approvers are the <strong>union</strong>
+            across all member plans, and the group reaches <code>APPROVED</code> only when
+            <strong>every</strong> member plan's per-stage approval requirement is satisfied — no
+            member's policy is weakened by bundling, and you can never approve your own group.
+            Reviewers see it as one expandable element in their queue. On execute, members run in
+            <code>sequence_order</code>; on the first failure (with <em>continue-on-error</em> off) the
+            run stops, the remaining members are <code>SKIPPED</code>, and the group becomes
+            <code>PARTIALLY_EXECUTED</code> (or <code>FAILED</code> if the first member fails). With
+            <em>continue-on-error</em> on, all members run and the group is <code>EXECUTED</code> with
+            mixed per-member outcomes.
+          </p>
+          <p>
+            <strong>There is no distributed rollback.</strong> An approved group is <em>not</em>
+            atomic — already-applied members stay (you cannot roll back a committed Postgres DDL
+            because a later Mongo write failed). The detail page at <code>/request-groups/:id</code>
+            shows ordered step-by-step progress (running / done / failed / skipped) live over the
+            WebSocket, and each member records its own snapshot + audit row alongside the group-level
+            audit.
+          </p>
+          <p>
+            <strong>Operator env vars.</strong> A scheduled group runs at its
+            <code>scheduled_for</code> time via <code>ScheduledGroupRunJob</code> (cadence
+            <code>ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL</code>, default <code>PT1M</code>); a
+            group left awaiting review past the review timeout is auto-rejected to
+            <code>TIMED_OUT</code> by <code>GroupTimeoutJob</code> (cadence
+            <code>ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).
+            Both are clustered-safe (ShedLock).
+          </p>
+
+          <h3 id="flow-review">Reviewing &amp; bulk approval</h3>
+          <p>
+            Reviewers land on <code>/reviews</code> for the queue assigned to them. Each row
+            shows the query id, classification, AI risk, datasource, submitter, and elapsed
+            time. Three tabs scope the view: <em>Assigned to you</em>, <em>All pending</em>
+            (visible to anyone the plan grants approver eligibility), and <em>Recently decided</em>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/reviews-queue-light.webp"
+                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and tabs for Assigned to you, All pending, and Recently decided."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/reviews</code> — reviewer queue, no rows selected.</figcaption>
+          </figure>
+          <p>
+            Selecting one or more rows surfaces a bulk-action bar with <em>Approve selected</em>,
+            <em>Reject selected</em>, and <em>Request changes</em> — the same decisions available
+            per row, but applied to every selected query in one round-trip. <em>Reject</em> and
+            <em>Request changes</em> still require a comment for every query in the batch (the
+            server enforces this; the UI prompts for each one inline before submitting).
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/reviews-queue-bulk-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/reviews-queue-bulk-light.webp"
+                   alt="Review queue at /reviews with four rows selected and a bulk-action bar showing Request changes, Reject selected, Approve selected, and Clear selection buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/reviews</code> — bulk-action bar appears the moment a row is checked.</figcaption>
+          </figure>
+          <p>
+            Reviewers can never approve their own queries; the backend enforces this regardless
+            of plan configuration, and self-submissions are filtered out of the queue before the
+            page renders.
+          </p>
+
+          <h3 id="flow-mobile">Mobile approvals &amp; one-tap push</h3>
+          <p>
+            <strong>What it is.</strong> Approve or reject from your phone. Reviewers get a push
+            notification the moment a query needs them and can act on it in one tap — without keeping a
+            browser tab open. Install AccessFlow to your home screen and the review queue even works
+            offline.
+          </p>
+          <p>
+            <strong>Configure it.</strong> A reviewer taps <em>Enable push approvals</em> on
+            <code>/reviews</code> and grants the browser notification permission. From then on each
+            review request arrives as a push notification with <em>Approve</em> and <em>Reject</em>
+            actions; tapping one opens a focused page showing the query and asks for a quick
+            re-verification — your password, or a TOTP code when 2FA is enrolled — before the decision
+            commits. A single tap never approves a query, and the "can't approve your own query" guard
+            is enforced server-side on every channel.
+          </p>
+          <p>
+            <strong>Tune it.</strong> Push works out of the box — a signing keypair is generated and
+            stored on first use (encrypted with <code>ENCRYPTION_KEY</code>). To pin your own, set
+            <code>ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY</code> /
+            <code>ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY</code> (raw base64url, e.g. from
+            <code>web-push generate-vapid-keys</code>) and a <code>ACCESSFLOW_PUSH_VAPID_SUBJECT</code>
+            contact URL. The re-verification token lifetime is
+            <code>ACCESSFLOW_SECURITY_STEP_UP_TTL</code> (default <code>PT5M</code>).
+          </p>
+
+          <h3 id="flow-diff">Comparing repeated runs</h3>
+          <p>
+            When the same submitter re-runs the same query against the same datasource,
+            AccessFlow links the new execution to its previous one. On the query detail page a
+            <em>diff</em> panel shows the change in <code>rows_affected</code>, returned row
+            count, and execution time versus the prior run — so reviewers and submitters can spot
+            when a query that used to touch a handful of rows suddenly affects thousands, or when
+            latency drifts. Matching uses a canonical form of the SQL (comments stripped,
+            whitespace collapsed, keywords upper-cased), so cosmetic reformatting still pairs the
+            runs. The first execution of a query simply shows no prior run to compare against.
+          </p>
+
+          <h3 id="flow-failure">Seeing why a query failed</h3>
+          <p>
+            When an approved query fails at execution, the detail page no longer shows only a red
+            <em>Failed</em> badge. An execution-result card surfaces the verbatim database error —
+            for example <code>ERROR: invalid input value for enum query_status: "PENDING"</code> —
+            alongside how long the attempt ran, and the same cause is echoed in the approval
+            timeline. The submitter, reviewers, and admins who can read the query see the real
+            reason, so a failed run can be debugged without digging through server logs.
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

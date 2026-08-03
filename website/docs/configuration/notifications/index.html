@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Notification channels &amp; SMTP — AccessFlow docs</title>
+  <meta name="description" content="Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/docs/configuration/notifications/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Notification channels &amp; SMTP — AccessFlow docs" />
+  <meta property="og:description" content="Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/docs/configuration/notifications/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Notification channels &amp; SMTP — AccessFlow docs" />
+  <meta name="twitter:description" content="Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.bablsoft.com/docs/configuration/notifications/#article",
+      "headline": "Notifications",
+      "name": "Notification channels & SMTP \u2014 AccessFlow docs",
+      "description": "Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP.",
+      "inLanguage": "en",
+      "dateModified": "2026-08-03",
+      "url": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
+      "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
+      "image": "https://accessflow.bablsoft.com/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.bablsoft.com/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.bablsoft.com/#software"
+      },
+      "author": {
+        "@id": "https://github.com/bablsoft#org"
+      },
+      "publisher": {
+        "@id": "https://github.com/bablsoft#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.bablsoft.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.bablsoft.com/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Notifications",
+          "item": "https://accessflow.bablsoft.com/docs/configuration/notifications/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://github.com/bablsoft#org",
+      "name": "bablsoft",
+      "url": "https://github.com/bablsoft",
+      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/" class="docs-toc-current" aria-current="page">Notifications</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#cfg-notification-channels">Notification channels</a>
+            <a href="#cfg-smtp">System SMTP</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Documentation</span>
+          <h1>Notifications.</h1>
+        </header>
+
+<section class="docs-section">
+<h2 id="cfg-notification-channels">Notification channels</h2>
+          <p>
+            <strong>What it is.</strong> Where AccessFlow sends review notifications — when a query is
+            submitted, approved, rejected, times out, or scores <code>CRITICAL</code> on AI risk. Wire
+            up the channels your team already lives in so reviewers act fast. Configure as many as you
+            like per organization (e.g. one Slack channel per team).
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage channels at <code>/admin/notifications</code>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/notification-channels-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/notification-channels-create-dark.webp"
+                   alt="Add notification channel modal with name, channel type selected as EMAIL, active toggle on, and conditional SMTP fields revealed — host, port, user, password, TLS toggle, from address, and from name."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/notifications</code> → <em>Add channel</em>. The form swaps its lower half between Email, Slack, Webhook, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, and Jira fields when you change <em>Type</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/notifications</code></strong> and click <em>Add channel</em>.</li>
+            <li><strong>Pick a type:</strong>
+              <ul>
+                <li><strong>Email</strong> — supply SMTP host, port, optional user / password, TLS, and the <em>From</em> address / display name. Leave the SMTP fields blank to fall back on the <a href="#cfg-smtp">system SMTP</a>.</li>
+                <li><strong>Slack</strong> — paste an incoming-webhook URL for one-way Block Kit messages (header, SQL preview, and a <em>View in AccessFlow</em> link). For interactive <strong>Approve / Reject</strong> buttons, configure a Slack <strong>app</strong> instead (see below).</li>
+                <li><strong>Webhook</strong> — supply a target URL and a signing secret. Every POST carries <code>X-AccessFlow-Signature: sha256=...</code> computed from the body and the secret.</li>
+                <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
+                <li><strong>Telegram</strong> — create a bot via <a href="https://core.telegram.org/bots/tutorial">@BotFather</a>, add it to the target group/channel, and configure the <em>bot token</em> plus numeric <em>chat ID</em>. Messages use MarkdownV2 formatting.</li>
+                <li><strong>Microsoft Teams</strong> — paste the channel's Incoming Webhook (or Power Automate webhook) URL. Messages render as an Adaptive Card with a <em>View in AccessFlow</em> action button.</li>
+                <li><strong>PagerDuty</strong> — paste an Events API v2 <em>integration routing key</em>, pick a default <em>severity</em> (critical / error / warning / info), and choose which <em>triggers</em> page the channel: <em>AI critical-risk query</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Other events never fire it. AccessFlow sends a <code>trigger</code> event with a query-stable dedup key so repeat events fold into one incident.</li>
+                <li><strong>ServiceNow</strong> — supply the <em>instance URL</em> plus a <em>username / password</em> allowed to create incidents via the Table API, optionally an <em>assignment group</em> and <em>urgency</em> (1–3), and choose which <em>triggers</em> open an incident: <em>query rejected</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Created incidents link back onto the query detail page.</li>
+                <li><strong>Jira</strong> — supply the <em>site URL</em>, an <em>account email + API token</em>, the target <em>project key</em>, and optionally an <em>issue type</em> (default <em>Task</em>); pick the same trigger set. Issues are created via REST v2 with an <code>accessflow</code> label and link back onto the query detail page.</li>
+              </ul>
+            </li>
+            <li><strong>Bi-directional status sync (ServiceNow / Jira).</strong> Toggle <em>Bi-directional status sync</em> on the channel and set a <em>webhook secret</em>; then point a ServiceNow Business Rule / Jira Automation rule at <code>POST /api/v1/integrations/servicenow/webhook/&#123;channelId&#125;</code> (or <code>…/jira/webhook/&#123;channelId&#125;</code>) sending <code>{"external_id", "status", "resolution", "actor"}</code> signed with <code>X-AccessFlow-Timestamp</code> + <code>X-AccessFlow-Signature: sha256=HMAC-SHA256(secret, "v1:&#123;timestamp&#125;:&#123;body&#125;")</code>. Ticket status updates flow onto the query detail page, and a resolution matching the channel's <em>approve</em> / <em>reject</em> status lists decides a query still awaiting review — attributed to the ticketing system in the audit log.
+            </li>
+            <li><strong>Send a test event.</strong> After saving, each channel card has a <em>Test</em> button — the dispatcher fires a synthetic event and reports delivery success.</li>
+            <li><strong>Edit or remove.</strong> Each card also has <em>Edit</em> and <em>Delete</em> buttons. Deleting a channel is immediate (hard delete) — there is no soft-delete, but webhook retries already scheduled before the delete still complete.</li>
+          </ol>
+          <p>
+            Sensitive config fields (<em>SMTP password</em>, <em>webhook secret</em>,
+            <em>Telegram bot token</em>, <em>PagerDuty routing key</em>, <em>ServiceNow password</em>,
+            <em>Jira API token</em>, <em>ticketing webhook secret</em>) are AES-256-GCM encrypted at
+            rest and are never shown in plaintext after the channel is saved.
+          </p>
+          <div class="docs-callout info">
+            <strong>Webhook retry policy.</strong> One immediate attempt plus three scheduled
+            retries at <code>+30s</code>, <code>+2 min</code>, <code>+10 min</code>. Tune the
+            delays via <code>ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST</code> /
+            <code>_SECOND</code> / <code>_THIRD</code>. Failed deliveries log <code>ERROR</code>
+            but never affect query workflow state.
+          </div>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_PUBLIC_BASE_URL</code> sets the link embedded in
+            messages (default <code>http://localhost:5173</code>); retry delays are
+            <code>ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST</code> / <code>_SECOND</code> / <code>_THIRD</code>
+            (<code>PT30S</code> / <code>PT2M</code> / <code>PT10M</code>). For air-gapped installs that
+            route through an internal proxy, override
+            <code>ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL</code>
+            (<code>https://api.telegram.org/</code>) and
+            <code>ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL</code>
+            (<code>https://events.pagerduty.com/</code>). The inbound ticketing-webhook signature
+            window is <code>ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE</code>
+            (<code>PT5M</code>).
+          </p>
+
+          <h3 id="cfg-slack">Slack app — Approve / Reject from Slack</h3>
+          <p>
+            Beyond the one-way Slack webhook channel, an admin can connect a Slack <strong>app</strong>
+            at <code>/admin/slack</code> so reviewers act on requests without leaving Slack. Create the app
+            in Slack's console, then paste its <em>App ID</em>, <em>Bot token</em>, <em>Signing secret</em>,
+            and a <em>default channel ID</em>. When an app is active, review-request messages are posted via
+            the bot token and carry <strong>Approve</strong> and <strong>Reject</strong> buttons.
+          </p>
+          <ol>
+            <li><strong>Each reviewer links their Slack identity once.</strong> On <code>/profile</code> →
+              <em>Slack account</em>, click <em>Generate link code</em>, then run
+              <code>/accessflow link &lt;code&gt;</code> in Slack. The code is single-use and short-lived
+              (<code>ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL</code>, default 10 min).</li>
+            <li><strong>Clicking Approve / Reject</strong> runs through the same review service as the UI —
+              a reviewer can never approve their own query, and role / stage checks apply identically.
+              The original Slack message updates in place with the decision.</li>
+          </ol>
+          <p>
+            Inbound clicks are verified by the Slack <em>signing secret</em> (HMAC over the raw body, with a
+            timestamp/replay window set by <code>ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE</code>,
+            default 5 min). The bot token and signing secret are AES-256-GCM encrypted at rest and never
+            returned by the API. Point your Slack app's <em>Interactivity</em> request URL at
+            <code>/api/v1/integrations/slack/actions</code> and its <em>slash command</em> at
+            <code>/api/v1/integrations/slack/commands</code>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/slack-config-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/slack-config-dark.webp"
+                   alt="Slack app configuration at /admin/slack with fields for App ID, default channel ID, masked bot token and signing secret, an Active toggle, and Save / Send test message buttons."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/slack</code> — connect the interactive Slack app (bot token + signing secret).</figcaption>
+          </figure>
+
+          <!-- SMTP -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-smtp">System SMTP</h2>
+          <p>
+            <strong>What it is.</strong> The fallback mail server for transactional email — password
+            resets, user invitations, and any email notification channel that doesn't carry its own
+            SMTP settings. Set it once per org so those emails can go out.
+          </p>
+          <p>
+            <strong>Configure it.</strong> On <code>/admin/notifications</code>, the first card is
+            <em>System SMTP</em>:
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/system-smtp-edit-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/system-smtp-edit-dark.webp"
+                   alt="System SMTP configuration modal with host, port (587), optional username, password, STARTTLS toggle, from-address, and optional display-name fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/notifications</code> → <em>System SMTP</em> card → <em>Configure</em>.</figcaption>
+          </figure>
+          <ol>
+            <li><strong>Open <code>/admin/notifications</code></strong>. The first card is <em>System SMTP</em> — click <em>Configure</em> (or <em>Edit</em> if it's already set).</li>
+            <li><strong>Fill the form.</strong> Host, port (587 for STARTTLS, 465 for implicit TLS), optional username and password, STARTTLS toggle, and the <em>From</em> address — required and validated as an email. The password field shows <em>"Leave blank to keep the existing password"</em> when editing, so secrets aren't echoed back.</li>
+            <li><strong>Send a test email.</strong> After saving, the card exposes a sink-address input + <em>Send test</em> button so you can verify deliverability without firing a real workflow event.</li>
+          </ol>
+          <p>
+            The password is AES-256-GCM encrypted at rest. Delete the row from the same card if
+            you'd rather rely solely on per-channel email overrides.
+          </p>
+
+          <!-- OAuth -->
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="index.html">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
