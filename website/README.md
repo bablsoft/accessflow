@@ -235,21 +235,38 @@ maintainer is the strongest version of this signal — security reviewers look f
 ### security.txt
 
 `.well-known/security.txt` (RFC 9116) points researchers at GitHub private vulnerability
-reporting. Two things about it need a human:
+reporting.
 
-1. **`Expires` is mandatory and self-destructs.** It is set to `2027-08-03`. Past that date
-   the file is *invalid*, not merely old — a stale security.txt is a worse signal than none.
-   Push the date out (and re-check the contact URL still works) at least annually.
-2. **Confirm it actually deploys.** `.well-known` is a dot-directory, and static hosts vary
-   in whether they upload hidden paths. Cloudflare's docs do not state their behaviour
-   either way, so after the next deploy verify:
+Cloudflare Workers assets **does** upload dot-directories — verified in production, the file
+returns 200 with `content-type: text/plain`. No workaround needed.
 
-   ```bash
-   curl -sSI https://accessflow.bablsoft.com/.well-known/security.txt
-   ```
+### Renewing it
 
-   If that 404s, the file is being skipped at upload and needs a non-hidden workaround
-   (or an explicit include) — it is not doing anything until that returns 200.
+`Expires` is mandatory under RFC 9116, and once that date passes the file is *invalid*, not
+merely old: it keeps serving 200 while scanners and researcher tooling treat it as unusable.
+That failure is completely silent, which makes an expired security.txt a worse signal than
+none at all.
+
+Nothing here renews it automatically, so
+[`frontend/src/config/__tests__/websiteSecurityTxt.test.ts`](../frontend/src/config/__tests__/websiteSecurityTxt.test.ts)
+is the alarm:
+
+| Time to expiry | Behaviour |
+|---|---|
+| > 90 days | passes silently |
+| 90 → 30 days | passes, prints a renewal warning in CI output |
+| < 30 days | **fails CI** with the file path and what to change |
+| expired | **fails CI**, reporting how many days ago |
+| set > 1 year out | **fails CI** — RFC 9116 §2.5.5 recommends under a year, and this blocks "fixing" it by setting a date in 2099 |
+
+To renew: set `Expires` to one year from today **and** confirm the `Contact` URL still
+accepts reports — the date is a claim that the contact information is current, so bumping it
+without checking is the thing this guard exists to discourage.
+
+**Residual gap:** the guard only fires when CI runs. That is often enough for an active
+repo, but if development goes quiet for months the date could pass unnoticed. A scheduled
+workflow that opens an issue would close that gap; the repo has no cron workflows today, so
+this was left as a deliberate trade rather than new machinery.
 
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists the
 two HTML pages (`/` and `/docs/`).
