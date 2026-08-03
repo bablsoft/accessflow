@@ -60,6 +60,8 @@
       "name": "Review plans, routing policies & recertification \u2014 AccessFlow docs",
       "description": "Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns.",
       "inLanguage": "en",
+      "articleSection": "Configuration",
+      "datePublished": "2026-04-01",
       "dateModified": "2026-08-03",
       "url": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
@@ -105,7 +107,13 @@
       "@id": "https://github.com/bablsoft#org",
       "name": "bablsoft",
       "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+      "logo": "https://accessflow.bablsoft.com/favicon.svg",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "foundingDate": "2026-04",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
     }
   ]
 }
@@ -132,8 +140,9 @@
         <a href="/#how">How it works</a>
         <a href="/#use-cases">Use cases</a>
         <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
         <a href="/#roadmap">Roadmap</a>
-        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
         <summary aria-label="Open navigation menu">
@@ -147,8 +156,9 @@
           <a href="/#how">How it works</a>
           <a href="/#use-cases">Use cases</a>
           <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
           <a href="/#roadmap">Roadmap</a>
-          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
@@ -220,6 +230,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -260,6 +271,60 @@
             <li><strong>Set thresholds.</strong> <em>Minimum approvals</em> is the number of distinct reviewers needed before the query advances; <em>Approval timeout (hours)</em> is when AccessFlow auto-rejects an idle <code>PENDING_REVIEW</code> query (it scans on a cadence set by <code>ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).</li>
             <li><strong>Build the approver chain.</strong> Click <em>Add approver</em> for each stage; each row names a role (or a specific user) and a stage number. Stages advance sequentially, and a single <em>REJECTED</em> decision at any stage terminates the query.</li>
           </ol>
+          <h3 id="cfg-review-plan-settings">What can a review plan control?</h3>
+          <p>
+            A review plan is six settings plus an approver chain. Together they decide whether a
+            query needs AI scoring, how many humans must sign off, which of them, and what happens
+            if nobody does. Every setting below is per-plan, and a plan attaches to a datasource.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table" aria-label="Review plan settings, what each one does, and the effect when it is disabled">
+              <thead>
+                <tr>
+                  <th>Setting</th>
+                  <th>What it does</th>
+                  <th>When disabled / unset</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Require AI review</td>
+                  <td>Every query is scored for risk before it queues for humans.</td>
+                  <td>The query skips <code>PENDING_AI</code> and goes straight to review.</td>
+                </tr>
+                <tr>
+                  <td>Require human approval</td>
+                  <td>At least one reviewer must sign off before execution.</td>
+                  <td>The query is approved without a human — AI-only gating.</td>
+                </tr>
+                <tr>
+                  <td>Auto-approve LOW-risk reads</td>
+                  <td><code>SELECT</code>s below the AI risk threshold skip human approval.</td>
+                  <td>Reads queue for review like any other statement.</td>
+                </tr>
+                <tr>
+                  <td>Minimum approvals</td>
+                  <td>How many distinct reviewers must approve before the query advances.</td>
+                  <td>Defaults to one approval per stage.</td>
+                </tr>
+                <tr>
+                  <td>Approval timeout (hours)</td>
+                  <td>How long an idle <code>PENDING_REVIEW</code> query waits before auto-rejection.</td>
+                  <td>The query waits indefinitely for a decision.</td>
+                </tr>
+                <tr>
+                  <td>Approver chain</td>
+                  <td>Ordered stages, each naming a role or a specific user as approver.</td>
+                  <td>No chain means no staged escalation — one flat approval step.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Stages advance sequentially and a single <em>Reject</em> at any stage terminates the
+            query. A user can never approve their own query, whatever their role.
+          </p>
+
           <p>
             <strong>Reviewer decisions.</strong> Reviewers can <em>Approve</em>, <em>Reject</em>, or
             <em>Request changes</em>. <em>Reject</em> and <em>Request changes</em> both require a
@@ -407,13 +472,14 @@ APPROVED → FAILED (execution error)</pre>
             <li><a href="/#how">How it works</a></li>
             <li><a href="/#use-cases">Use cases</a></li>
             <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
             <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
-            <li><a href="index.html">User documentation</a></li>
+            <li><a href="/docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>

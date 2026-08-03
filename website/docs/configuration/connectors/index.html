@@ -60,6 +60,8 @@
       "name": "Connectors & API connectors \u2014 AccessFlow docs",
       "description": "Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors.",
       "inLanguage": "en",
+      "articleSection": "Configuration",
+      "datePublished": "2026-04-01",
       "dateModified": "2026-08-03",
       "url": "https://accessflow.bablsoft.com/docs/configuration/connectors/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/connectors/",
@@ -105,7 +107,13 @@
       "@id": "https://github.com/bablsoft#org",
       "name": "bablsoft",
       "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+      "logo": "https://accessflow.bablsoft.com/favicon.svg",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "foundingDate": "2026-04",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
     }
   ]
 }
@@ -132,8 +140,9 @@
         <a href="/#how">How it works</a>
         <a href="/#use-cases">Use cases</a>
         <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
         <a href="/#roadmap">Roadmap</a>
-        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
         <summary aria-label="Open navigation menu">
@@ -147,8 +156,9 @@
           <a href="/#how">How it works</a>
           <a href="/#use-cases">Use cases</a>
           <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
           <a href="/#roadmap">Roadmap</a>
-          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
@@ -219,6 +229,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Connectors.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -237,6 +248,53 @@
             Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, Snowflake, BigQuery, Databricks, and the other SQL drivers — shows an
             <em>Install</em> action.
           </p>
+          <h3 id="cfg-connectors-matrix">Which databases does AccessFlow support?</h3>
+          <p>
+            AccessFlow ships connectors for 18 engines across three families. Relational engines run
+            over pooled JDBC; data-warehouse and NoSQL engines run through native plugins that are
+            downloaded on demand, SHA-256-verified, and cached. Every engine gets the same review
+            pipeline, masking, and audit log — only the query language and the row-security
+            mechanics differ.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table" aria-label="Supported database engines by family, query language, row-level security mechanism, and install method">
+              <thead>
+                <tr>
+                  <th>Engine</th>
+                  <th>Family</th>
+                  <th>Query language</th>
+                  <th>Row-level security</th>
+                  <th>Install</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>PostgreSQL</td><td>Relational</td><td>SQL</td><td>WHERE-clause splice</td><td>Bundled</td></tr>
+                <tr><td>MySQL</td><td>Relational</td><td>SQL</td><td>WHERE-clause splice</td><td>1-click</td></tr>
+                <tr><td>MariaDB</td><td>Relational</td><td>SQL</td><td>WHERE-clause splice</td><td>1-click</td></tr>
+                <tr><td>Oracle Database</td><td>Relational</td><td>SQL</td><td>WHERE-clause splice</td><td>1-click</td></tr>
+                <tr><td>Microsoft SQL Server</td><td>Relational</td><td>SQL</td><td>WHERE-clause splice</td><td>1-click</td></tr>
+                <tr><td>ClickHouse</td><td>Relational (<code>CUSTOM</code>)</td><td>SQL</td><td>WHERE-clause splice</td><td>1-click</td></tr>
+                <tr><td>Snowflake</td><td>Data warehouse</td><td>Snowflake SQL</td><td>WHERE splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>Google BigQuery</td><td>Data warehouse</td><td>GoogleSQL</td><td>WHERE splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>Databricks SQL</td><td>Data warehouse</td><td>Databricks SQL</td><td>WHERE splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>MongoDB</td><td>Document</td><td>Mongo shell / JSON command</td><td><code>$match</code> injection</td><td>1-click</td></tr>
+                <tr><td>Couchbase</td><td>Document</td><td>SQL++ (N1QL)</td><td>WHERE splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>Redis</td><td>Key-value</td><td>redis-cli commands</td><td>Fails closed — no row concept</td><td>1-click</td></tr>
+                <tr><td>Amazon DynamoDB</td><td>Key-value</td><td>PartiQL</td><td>WHERE splice, any attribute</td><td>1-click</td></tr>
+                <tr><td>Apache Cassandra</td><td>Wide-column</td><td>CQL</td><td>Key-aware splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>ScyllaDB</td><td>Wide-column</td><td>CQL</td><td>Key-aware splice, fail-closed</td><td>1-click</td></tr>
+                <tr><td>Elasticsearch</td><td>Search</td><td>JSON Query DSL</td><td><code>bool.filter</code> on keyword fields</td><td>1-click</td></tr>
+                <tr><td>OpenSearch</td><td>Search</td><td>JSON Query DSL</td><td><code>bool.filter</code> on keyword fields</td><td>1-click</td></tr>
+                <tr><td>Neo4j</td><td>Graph</td><td>Cypher</td><td><code>MATCH</code> WHERE splice, fail-closed</td><td>1-click</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Any other JDBC-compatible engine can be added by uploading its driver JAR and creating a
+            <em>Custom</em> datasource. The per-engine detail — ports, credential shapes, and what
+            each engine rejects up front — follows below.
+          </p>
+
           <p><strong>Built-in connectors — SQL:</strong></p>
           <ul>
             <li><strong>PostgreSQL</strong> — bundled (ships in the image, no download).</li>
@@ -415,13 +473,14 @@
             <li><a href="/#how">How it works</a></li>
             <li><a href="/#use-cases">Use cases</a></li>
             <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
             <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
-            <li><a href="index.html">User documentation</a></li>
+            <li><a href="/docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>

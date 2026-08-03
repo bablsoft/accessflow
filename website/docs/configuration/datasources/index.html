@@ -60,6 +60,8 @@
       "name": "Datasources, masking & row security \u2014 AccessFlow docs",
       "description": "Add governed datasources to AccessFlow, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health.",
       "inLanguage": "en",
+      "articleSection": "Configuration",
+      "datePublished": "2026-04-01",
       "dateModified": "2026-08-03",
       "url": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
@@ -105,7 +107,13 @@
       "@id": "https://github.com/bablsoft#org",
       "name": "bablsoft",
       "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+      "logo": "https://accessflow.bablsoft.com/favicon.svg",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "foundingDate": "2026-04",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
     }
   ]
 }
@@ -132,8 +140,9 @@
         <a href="/#how">How it works</a>
         <a href="/#use-cases">Use cases</a>
         <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
         <a href="/#roadmap">Roadmap</a>
-        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
         <summary aria-label="Open navigation menu">
@@ -147,8 +156,9 @@
           <a href="/#how">How it works</a>
           <a href="/#use-cases">Use cases</a>
           <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
           <a href="/#roadmap">Roadmap</a>
-          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
@@ -220,6 +230,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -233,6 +244,10 @@
             Elasticsearch / OpenSearch, DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks install
             from the <a href="/docs/configuration/connectors/#cfg-connectors">connector catalog</a>; any other JDBC engine works by uploading
             its <a href="#cfg-drivers">driver</a> and choosing <em>Custom</em>.
+          </p>
+          <h3>What is a datasource in AccessFlow?</h3>
+          <p>
+            A datasource is a governed connection to one of your databases. Users never receive its credentials — they submit queries to AccessFlow, which reviews them and then executes them over the pooled connection on their behalf. Masking, row-level security, schema allow-lists, and row caps are all configured per datasource.
           </p>
           <p>
             <strong>Configure it.</strong> Create one with the four-step wizard at
@@ -549,13 +564,14 @@
             <li><a href="/#how">How it works</a></li>
             <li><a href="/#use-cases">Use cases</a></li>
             <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
             <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
-            <li><a href="index.html">User documentation</a></li>
+            <li><a href="/docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>

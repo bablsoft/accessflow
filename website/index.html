@@ -64,9 +64,28 @@
         "applicationSubCategory": "Database & API access governance",
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.1.1",
+        "datePublished": "2026-04-01",
         "dateModified": "2026-08-03",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
+        "isAccessibleForFree": true,
+        "softwareRequirements": "Docker and Docker Compose, or Kubernetes with Helm 3. From source: JDK 25 and Node.js 24. Requires PostgreSQL 18 and Redis 8.",
+        "downloadUrl": "https://github.com/bablsoft/accessflow",
+        "installUrl": "https://accessflow.bablsoft.com/#install",
+        "softwareHelp": "https://accessflow.bablsoft.com/docs/",
+        "featureList": [
+          "Full query proxy for SQL, NoSQL and cloud data-warehouse engines",
+          "AI query risk analysis with configurable providers",
+          "Configurable multi-stage review and approval workflows",
+          "Workforce-ready auth — JWT, SAML 2.0, OAuth 2.0 / OIDC, TOTP",
+          "Tamper-evident audit log and signed compliance reports",
+          "Personalized dashboard and weekly digest",
+          "Cloud-native deploy via Docker Compose and Helm",
+          "Infrastructure as Code with a Terraform / OpenTofu provider",
+          "API access governance for REST, SOAP, GraphQL and gRPC",
+          "Data lifecycle — retention, right-to-erasure and pseudonymization",
+          "Request chaining and grouping"
+        ],
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -80,7 +99,13 @@
         "@id": "https://github.com/bablsoft#org",
         "name": "bablsoft",
         "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.bablsoft.com/favicon.svg"
+        "logo": "https://accessflow.bablsoft.com/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
       },
       {
         "@type": "WebSite",
@@ -89,6 +114,18 @@
         "name": "AccessFlow",
         "publisher": { "@id": "https://github.com/bablsoft#org" },
         "inLanguage": "en"
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.bablsoft.com/#webpage",
+        "url": "https://accessflow.bablsoft.com/",
+        "name": "AccessFlow — Open-source database & API access governance",
+        "isPartOf": { "@id": "https://accessflow.bablsoft.com/#website" },
+        "about": { "@id": "https://accessflow.bablsoft.com/#software" },
+        "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
+        "inLanguage": "en",
+        "datePublished": "2026-04-01",
+        "dateModified": "2026-08-03"
       }
     ]
   }
@@ -115,6 +152,7 @@
         <a href="#how">How it works</a>
         <a href="#use-cases">Use cases</a>
         <a href="#install">Install</a>
+        <a href="#questions">Questions</a>
         <a href="#roadmap">Roadmap</a>
         <a href="docs/">Docs</a>
       </nav>
@@ -130,6 +168,7 @@
           <a href="#how">How it works</a>
           <a href="#use-cases">Use cases</a>
           <a href="#install">Install</a>
+          <a href="#questions">Questions</a>
           <a href="#roadmap">Roadmap</a>
           <a href="docs/">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
@@ -1165,6 +1204,74 @@
       </div>
     </section>
 
+    <!-- Common questions -->
+    <section class="questions scroll-pad" id="questions">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Common questions</span>
+          <h2>What people ask before they install it.</h2>
+          <p>Short answers. Each one links onward to the chapter that covers it properly.</p>
+        </div>
+        <div class="qa-grid">
+          <div class="qa-item">
+            <h3>What is a database access proxy?</h3>
+            <p>
+              A database access proxy sits between users and a database and brokers every
+              connection, so nobody holds production credentials directly. Queries arrive at the
+              proxy, which authenticates the person, applies policy, and only then talks to the
+              database on their behalf. AccessFlow adds review and approval to that path.
+            </p>
+          </div>
+          <div class="qa-item">
+            <h3>Which databases does AccessFlow support?</h3>
+            <p>
+              PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server over JDBC, plus any
+              other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
+              BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
+              Elasticsearch, OpenSearch, DynamoDB, and Neo4j. See
+              <a href="/docs/configuration/connectors/">Connectors</a>.
+            </p>
+          </div>
+          <div class="qa-item">
+            <h3>Does AccessFlow store or copy my data?</h3>
+            <p>
+              No. AccessFlow proxies queries and streams results back without persisting them.
+              Its own database stores the query text, the approval decisions, and audit metadata —
+              row counts and timings, not rows. Datasource credentials are AES-256-GCM encrypted,
+              or held in Vault, AWS Secrets Manager, or Azure Key Vault.
+            </p>
+          </div>
+          <div class="qa-item">
+            <h3>How is AccessFlow different from a VPN or a bastion host?</h3>
+            <p>
+              A VPN or bastion controls who reaches the database; neither reads the query. Once
+              you are through, you hold real credentials and can run anything. AccessFlow governs
+              the statement itself — parsing it, scoring its risk, routing it for approval, and
+              masking columns at execution time.
+            </p>
+          </div>
+          <div class="qa-item">
+            <h3>Is AccessFlow free, and what licence is it under?</h3>
+            <p>
+              AccessFlow is free and open source under the Apache 2.0 licence. There is no
+              open-core tier, no paid edition, and no feature held back for a commercial version.
+              You self-host it, and you can fork, audit, and modify it. The full source is on
+              <a href="https://github.com/bablsoft/accessflow">GitHub</a>.
+            </p>
+          </div>
+          <div class="qa-item">
+            <h3>Can AI agents use AccessFlow?</h3>
+            <p>
+              Yes. AccessFlow ships a built-in MCP server, so an AI agent can discover schemas,
+              validate a query, and submit it through the same governance pipeline a human uses.
+              Agents authenticate with scoped API keys and their queries land in the same review
+              queue and the same audit log.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Roadmap -->
     <section class="roadmap scroll-pad" id="roadmap">
       <div class="wrap">
@@ -1488,6 +1595,7 @@
             <li><a href="#how">How it works</a></li>
             <li><a href="#use-cases">Use cases</a></li>
             <li><a href="#install">Quick start</a></li>
+            <li><a href="#questions">Questions</a></li>
             <li><a href="#roadmap">Roadmap</a></li>
           </ul>
         </div>

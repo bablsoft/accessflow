@@ -60,6 +60,8 @@
       "name": "End-user workflows \u2014 submit, review & approve queries",
       "description": "How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule runs, and how reviewers approve or reject them.",
       "inLanguage": "en",
+      "articleSection": "Workflows",
+      "datePublished": "2026-04-01",
       "dateModified": "2026-08-03",
       "url": "https://accessflow.bablsoft.com/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/workflows/",
@@ -105,7 +107,13 @@
       "@id": "https://github.com/bablsoft#org",
       "name": "bablsoft",
       "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.bablsoft.com/favicon.svg"
+      "logo": "https://accessflow.bablsoft.com/favicon.svg",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "foundingDate": "2026-04",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
     }
   ]
 }
@@ -132,8 +140,9 @@
         <a href="/#how">How it works</a>
         <a href="/#use-cases">Use cases</a>
         <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
         <a href="/#roadmap">Roadmap</a>
-        <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
         <summary aria-label="Open navigation menu">
@@ -147,8 +156,9 @@
           <a href="/#how">How it works</a>
           <a href="/#use-cases">Use cases</a>
           <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
           <a href="/#roadmap">Roadmap</a>
-          <a href="index.html" aria-current="page" class="nav-link-active">Docs</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
@@ -218,6 +228,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>End-user workflows.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
         </header>
 
 <section id="end-user" class="docs-section">
@@ -226,6 +237,11 @@
             The pages above configure the system. This section is the operator's view of how
             analysts and reviewers actually use it day-to-day — the editor, scheduled queries,
             and the bulk-approval review queue that landed in v1.1.
+          </p>
+
+          <h3>How does a query get from submitted to executed?</h3>
+          <p>
+            An analyst writes a query in the editor and submits it. AccessFlow parses it, scores its risk with the configured AI provider, and queues it for the reviewers named by the datasource’s review plan. Once approved, AccessFlow executes it over its own pooled connection, applies masking, and returns the rows.
           </p>
 
           <h3 id="flow-submit">Submitting a query</h3>
@@ -494,13 +510,14 @@
             <li><a href="/#how">How it works</a></li>
             <li><a href="/#use-cases">Use cases</a></li>
             <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
             <li><a href="/#roadmap">Roadmap</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
-            <li><a href="index.html">User documentation</a></li>
+            <li><a href="/docs/">User documentation</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>

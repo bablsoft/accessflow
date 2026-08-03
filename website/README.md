@@ -33,6 +33,8 @@ the right.
 | Source of truth | Website section |
 |---|---|
 | [`README.md`](../README.md) (pitch, quick start) | Hero, Install tabs, terminal preview |
+| [`README.md`](../README.md), [`docs/01-overview.md`](../docs/01-overview.md), [`docs/13-mcp.md`](../docs/13-mcp.md), [`LICENSE.md`](../LICENSE.md) — plus the same engine list as the Connectors section | **"Common questions" section** (homepage, `#questions`) — six question-form headings with short, self-contained answers (what a database access proxy is, supported engines, data handling, VPN/bastion contrast, licence, AI-agent/MCP access). Question-form headings and standalone answers are what AI-search surfaces extract, so keep each answer readable with **no surrounding context**. Deliberately **no `FAQPage` schema** — Google retired FAQ rich results for all sites in May 2026. Also linked from [`llms.txt`](llms.txt) |
+| (no upstream — derived from the chapter it opens) | The question-form `<h3>` + answer block at the top of each [`docs/`](docs/) chapter, and the `Last updated <time>` line under every docs `<h1>`. The `datetime` attribute must stay equal to that page's JSON-LD `dateModified` **and** its [`sitemap.xml`](sitemap.xml) `<lastmod>` — move all three together |
 | [`docs/02-architecture.md`](../docs/02-architecture.md) | Architecture diagram |
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
