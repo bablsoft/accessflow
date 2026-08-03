@@ -271,18 +271,18 @@ would stop it uploading and silently disable every rule.
 
 `script-src` carries a `sha256-` hash of the inline theme-bootstrap script (the one that
 reads `localStorage` before first paint so the page doesn't flash the wrong theme). It is
-byte-identical in both HTML files, so one hash covers both. **Editing that script by even
-one character invalidates the hash — the browser then blocks it and the theme flash comes
-back, with no build step to catch it.** Regenerate and paste into `_headers`:
+byte-identical across every page, so one hash covers them all. Editing that script by even
+one character invalidates the hash, and the browser then silently blocks it.
 
-```bash
-cd website
-python3 -c "
-import re, hashlib, base64
-body = re.search(r'<script>(.*?)</script>', open('index.html').read(), re.S).group(1)
-print('sha256-' + base64.b64encode(hashlib.sha256(body.encode()).digest()).decode())
-"
-```
+**You do not have to remember this.**
+[`frontend/src/config/__tests__/websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts)
+hashes every inline script in this folder and fails if `_headers` does not allow it — so
+CI catches the drift even though `website/` has no build step or test runner of its own.
+The failure message prints the replacement hash; paste it into the
+`Content-Security-Policy` line in `_headers`.
+
+That test also asserts the policy never regains `'unsafe-inline'` / `'unsafe-eval'` on
+`script-src` and never reintroduces a third-party font origin.
 
 `<script type=\"application/ld+json\">` blocks need no hash — browsers never execute
 non-JavaScript MIME types, so `script-src` does not apply to them. `style-src` still needs
