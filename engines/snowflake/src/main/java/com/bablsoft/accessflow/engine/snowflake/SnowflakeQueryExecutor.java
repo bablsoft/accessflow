@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.snowflake;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -26,7 +27,9 @@ import java.util.List;
  * {@link SnowflakeResultMapper} (which applies column masking). A deny-all row-security result
  * short-circuits to an empty result without touching Snowflake. DML returns the driver's affected
  * row count; DDL returns 0. Connections are per-request by design — see
- * {@link SnowflakeConnectionFactory}.
+ * {@link SnowflakeConnectionFactory}. Dry-run (AF-445/AF-634) plans the governed statement via
+ * {@code EXPLAIN USING TABULAR} — non-executing — and reports the GlobalStats
+ * {@code bytesAssigned} (post-pruning) as the scan estimate.
  */
 class SnowflakeQueryExecutor {
 
@@ -88,6 +91,42 @@ class SnowflakeQueryExecutor {
             long affected = prepared.executeUpdate();
             return new UpdateExecutionResult(affected, durationSince(start),
                     applied.appliedPolicyIds());
+        } catch (SQLException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        } catch (SnowflakeConfigException ex) {
+            var message = messages.get(ex.messageKey(), ex.args());
+            throw new QueryExecutionFailedException(message, message, null, 0, ex);
+        }
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        // DDL has no plan — degrade gracefully (host localizes the reason).
+        if (statement.kind() == SnowflakeStatementKind.DDL) {
+            return QueryDryRunResult.unsupported(SnowflakeQueryEngine.ENGINE_ID);
+        }
+        var applied = rowSecurityApplier.apply(statement, request.rowSecurityPredicates());
+        if (applied.denyAll()) {
+            return QueryDryRunResult.of(SnowflakeQueryEngine.ENGINE_ID,
+                    statement.kind().queryType(), 0L, null, null, applied.appliedPolicyIds(),
+                    durationSince(start)).withEstimatedBytesScanned(0L);
+        }
+        // The parser rejects user-supplied EXPLAIN, so the prefix is engine-synthesized after
+        // parse + row security — EXPLAIN compiles the statement but never executes it.
+        try (var connection = connectionFactory.open(descriptor);
+             var prepared = connection.prepareStatement(
+                     "EXPLAIN USING TABULAR " + applied.statement())) {
+            bindParameters(prepared, applied.parameters());
+            prepared.setQueryTimeout((int) Math.max(1, timeout.toSeconds()));
+            try (var resultSet = prepared.executeQuery()) {
+                var explained = SnowflakeExplainPlanMapper.map(resultSet);
+                return QueryDryRunResult.of(SnowflakeQueryEngine.ENGINE_ID,
+                        statement.kind().queryType(), null, explained.plan(),
+                        explained.rawPlan(), applied.appliedPolicyIds(), durationSince(start))
+                        .withEstimatedBytesScanned(explained.bytesAssigned());
+            }
         } catch (SQLException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         } catch (SnowflakeConfigException ex) {

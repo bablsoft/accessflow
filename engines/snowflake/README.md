@@ -135,6 +135,15 @@ Snowflake specifics:
   the timeout exception; other failures carry the driver message, SQLSTATE, and vendor code
   verbatim. Table samples (AF-443) run `SELECT * FROM "schema"."table"` through the same governed
   pipeline.
+- **Dry-run (AF-445 / AF-634)** — `dryRun` plans the governed statement (row security spliced,
+  positional binds) via an engine-synthesized `EXPLAIN USING TABULAR` prefix — Snowflake compiles
+  the statement but never executes it — over the same per-request connection path.
+  `SnowflakeExplainPlanMapper` reads the tabular output defensively by column label (output drift
+  across releases degrades to a sparser plan, never an error): the aggregate `GlobalStats` row's
+  post-pruning `bytesAssigned` becomes `QueryDryRunResult.estimatedBytesScanned` (the scan-size
+  cost signal), and the operator rows (partitions assigned/total, bytes, expressions) become the
+  plan tree. DDL degrades to *unsupported*; a deny-all row-security result short-circuits to a
+  0-row/0-byte estimate with zero Snowflake calls.
 - **Connection test & introspection** — `SELECT 1` probe; `DatabaseMetaData`-driven introspection
   (tables + views of every schema in the database except `INFORMATION_SCHEMA`, columns with
   type/nullability, `getPrimaryKeys` flags).
