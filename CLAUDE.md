@@ -127,12 +127,12 @@ com.bablsoft.accessflow/
 
 #### Key Rules
 
-- **Module boundaries are enforced.** `ApplicationModulesTest` must exist and pass in CI. Run it after every change: `./mvnw test -Dtest=ApplicationModulesTest`.
+- **Module boundaries are enforced.** `ApplicationModulesTest` must exist and pass in CI. Run it after every change: `mvn -f backend/pom.xml test -Dtest=ApplicationModulesTest`.
 - **No cyclic dependencies between modules.** If two modules need each other, extract a shared interface or communicate through events.
 - **`internal` sub-packages are module-private.** Only types in `api` (or the module root package) are accessible to other modules.
 - **Spring configuration placement:** all `@Configuration` classes belong in the owning module's `internal` package.
 - **Cross-module communication** uses `ApplicationEventPublisher` (fire-and-forget) or `@ApplicationModuleListener` (transactional event listeners). Direct injection of another module's internal beans is forbidden.
-- **Module API purity.** Types in `com.bablsoft.accessflow.<module>.api` packages may import **only** `java.*`, `javax.*` (JDK), and other `com.bablsoft.accessflow.*` project types. No Spring, no Spring Data, no Spring Security, no Jackson, no Jakarta Servlet, no Hibernate, no JSqlParser, no Lombok, no third-party library at all — including in Javadoc references. The sole allowed third-party reference is `org.springframework.modulith.NamedInterface` on `package-info.java` (it's a meta-marker that designates the package as the module's exposed named interface — not a runtime contract type). For paginated reads, services accept `core.api.PageRequest` and return `core.api.PageResponse<T>` and adapt to Spring Data inside the service implementation (`core.internal.PageAdapter` for `core` itself; an `internal/web/SpringPageableAdapter` in each module's web layer for the controller side). Enforced by `ApiPackageDependencyTest` (ArchUnit) — the build fails when a new external import appears in any `api/` package. Run it after every change touching an api package: `./mvnw test -Dtest=ApiPackageDependencyTest`.
+- **Module API purity.** Types in `com.bablsoft.accessflow.<module>.api` packages may import **only** `java.*`, `javax.*` (JDK), and other `com.bablsoft.accessflow.*` project types. No Spring, no Spring Data, no Spring Security, no Jackson, no Jakarta Servlet, no Hibernate, no JSqlParser, no Lombok, no third-party library at all — including in Javadoc references. The sole allowed third-party reference is `org.springframework.modulith.NamedInterface` on `package-info.java` (it's a meta-marker that designates the package as the module's exposed named interface — not a runtime contract type). For paginated reads, services accept `core.api.PageRequest` and return `core.api.PageResponse<T>` and adapt to Spring Data inside the service implementation (`core.internal.PageAdapter` for `core` itself; an `internal/web/SpringPageableAdapter` in each module's web layer for the controller side). Enforced by `ApiPackageDependencyTest` (ArchUnit) — the build fails when a new external import appears in any `api/` package. The rule matches `com.bablsoft.accessflow.*.api..` by wildcard, so a new module is covered automatically with no registration step. Run it after every change touching an api package: `mvn -f backend/pom.xml test -Dtest=ApiPackageDependencyTest`.
 
 #### Layering Within a Module
 
@@ -553,12 +553,21 @@ When adding a new dependency to `backend/pom.xml` (or `frontend/package.json`), 
 
 ### Build Commands
 
+There is **no Maven wrapper** in this repo — use plain `mvn`, as CI does.
+
 ```bash
 cd backend
-./mvnw verify                    # full build + tests
-./mvnw verify -Pcoverage         # with JaCoCo coverage report
-./mvnw spring-boot:run           # run locally (requires env vars set)
-./mvnw test -Dtest=ApplicationModulesTest  # module boundary check
+mvn verify                       # full build + tests
+mvn verify -Pcoverage            # with JaCoCo coverage report
+mvn spring-boot:run              # run locally (requires env vars set)
+mvn -q test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest'  # architecture gates
+```
+
+Engine plugins build separately against the backend's installed plain jar:
+
+```bash
+mvn -f backend/pom.xml install -DskipTests   # publish the plain (non-exec) jar
+mvn -f engines/<id>/pom.xml clean verify     # one plugin
 ```
 
 ---
@@ -906,15 +915,24 @@ carries the same contract for the pre-flight cost estimate — `null`/empty subs
 
 ## Git Workflow
 
+Trunk-based: **`main` is the only long-lived branch.** There is no `develop`. Every
+branch is cut from `main` and merged back into `main` by PR.
+
 ```
-main           → production-ready, tagged releases
-develop        → integration branch
-feature/AF-{n}-description  → from develop
-fix/AF-{n}-description      → from develop
-hotfix/AF-{n}-description   → from main, merge to both main and develop
+main                          → the trunk; production-ready, tagged releases
+feature/AF-{n}-description    → from main   (new capability, tied to issue #n)
+fix/AF-{n}-description        → from main   (bug fix, tied to issue #n)
+chore/AF-{n}-description      → from main   (tooling, docs, release prep)
 ```
 
-**PR requirements:** passing CI (build + tests + lint), ≥ 1 approval, Checkstyle + Spotless green, PR description references the issue number.
+`gh-pages` is release output only (Helm index, connector bundle, engine jars) — never
+hand-edited. `dependabot/*` branches are machine-generated and exempt from the naming rule.
+
+Where no issue exists, a descriptive slug replaces the number
+(`fix/AF-security-txt-expiry-guard`) — but the numbered form is strongly preferred, and
+`impl-gh-issue` always produces it.
+
+**PR requirements:** passing CI (the single required check is `CI / CI Gate`), ≥ 1 approval, PR description references the issue number. Checkstyle and Spotless run in Maven's `validate` phase, so any `mvn verify` already enforces them — see [docs/11-development.md](docs/11-development.md) → Coding Standards. There is no auto-formatter profile; match the surrounding file's style.
 
 Branch names must match the pattern above. Commit messages should be imperative mood, ≤ 72 chars subject line.
 

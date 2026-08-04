@@ -14,7 +14,7 @@
 #
 # Developing AccessFlow from source? Use backend/docker-compose-dev.yml instead
 # — it boots Postgres + Redis + Mailcrab without the application containers, so
-# you can run `./mvnw spring-boot:run` and `npm run dev` against them.
+# you can run `mvn spring-boot:run` and `npm run dev` against them.
 
 services:
   postgres:
