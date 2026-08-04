@@ -4,30 +4,40 @@
 
 ```
 accessflow/                         # Monorepo root
-├── backend/                        # Java / Spring Boot (Maven multi-module)
-│   ├── accessflow-parent/
-│   ├── accessflow-api/
-│   ├── accessflow-core/
-│   ├── accessflow-proxy/
-│   ├── accessflow-workflow/
-│   ├── accessflow-ai/
-│   ├── accessflow-security/
-│   ├── accessflow-notifications/
-│   ├── accessflow-audit/
-│   └── accessflow-app/
+├── backend/                        # Java / Spring Boot — a SINGLE Maven module.
+│   │                               # Boundaries are enforced by Spring Modulith
+│   │                               # package conventions, not by Maven modules.
+│   ├── pom.xml
+│   ├── docker-compose-dev.yml      # Postgres + Redis + Mailcrab (infra only)
+│   └── src/main/java/com/bablsoft/accessflow/{core,proxy,workflow,ai,security,
+│       notifications,audit,compliance,dashboard,attestation,apigov,
+│       requestgroups,discovery,lifecycle,access,scheduling,mcp,realtime,
+│       bootstrap}/
+├── engines/                        # Engine plugins — standalone Maven projects
+│   └── {mongodb,couchbase,redis,cassandra,elasticsearch,dynamodb,neo4j,
+│        snowflake,bigquery,databricks}/
+├── connectors/                     # Connector catalog (manifest + logo per engine)
 ├── frontend/                       # React / Vite / TypeScript
+├── e2e/                            # Playwright suite + the three compose stacks
+├── terraform-provider/             # Terraform/OpenTofu provider (Go module)
 ├── charts/accessflow/              # Helm chart
-├── docker/                         # Dockerfiles, docker-compose.yml
+├── ci-templates/                   # Reusable GitLab CI template + examples
+├── deploy/                         # Postgres init scripts
 ├── docs/                           # Markdown documentation (this folder)
-├── scripts/
-│   ├── generate-dev-secrets.sh     # Generates .env with dev-safe keys
-│   └── seed-dev-data.sh            # Seeds demo data into local DB
+├── website/                        # Public marketing site (static, no build step)
+├── docker-compose.yml              # Zero-config demo stack (root, not docker/)
 ├── .github/
+│   ├── actions/                    # Composite actions (provision-datasource, run-query)
+│   ├── scripts/                    # check-engine-pins.mjs, validate-connectors.mjs
 │   └── workflows/
-│       ├── ci.yml                  # Build + test on every PR
-│       └── release.yml             # Build + push Docker images on tag push
+│       ├── ci.yml                  # Build + test on every PR (one required check: CI Gate)
+│       ├── release.yml             # Manual workflow_dispatch, semver input
+│       └── release-terraform-provider.yml
 └── README.md
 ```
+
+There is no root `scripts/` or `docker/` directory, and no Maven wrapper — see
+**Build Commands** below.
 
 ---
 
@@ -37,8 +47,8 @@ accessflow/                         # Monorepo root
 
 | Tool | Version | Install |
 |------|---------|---------|
-| Java JDK | 21 | `sdk install java 21-tem` (SDKMAN) |
-| Maven | 3.9+ | Bundled via `./mvnw` wrapper |
+| Java JDK | 25 | `sdk install java 25-tem` (SDKMAN) |
+| Maven | 3.9+ | `sdk install maven` — there is no `mvnw` wrapper in this repo |
 | Node.js | 20 LTS | `nvm install 20` |
 | Docker Desktop | Latest | docker.com |
 
@@ -49,17 +59,17 @@ accessflow/                         # Monorepo root
 git clone https://github.com/accessflow/accessflow.git
 cd accessflow
 
-# 2. Start infrastructure (Postgres + Redis only)
-cd docker
-docker compose up postgres redis -d
-cd ..
+# 2. Start infrastructure only (Postgres + Redis + Mailcrab on :1080)
+docker compose -f backend/docker-compose-dev.yml up -d
 
-# 3. Generate dev secrets (creates .env in project root)
-./scripts/generate-dev-secrets.sh
+# 3. Export the required env vars (DB_PASSWORD, ENCRYPTION_KEY, JWT_PRIVATE_KEY, …).
+#    There is no secret-generation script — the full reference is docs/09-deployment.md.
+#    For a zero-config look at the product instead, `docker compose up` at the repo
+#    root boots the whole demo stack with deliberately insecure committed keys.
 
 # 4. Start backend
 cd backend
-./mvnw spring-boot:run -pl accessflow-app
+mvn spring-boot:run
 # API available at http://localhost:8080
 
 # 5. Start frontend (new terminal)
@@ -67,15 +77,12 @@ cd frontend
 npm install
 npm run dev
 # UI available at http://localhost:5173
-
-# 6. Seed demo data (optional)
-./scripts/seed-dev-data.sh
-# Creates: admin@local / changeme
-#          analyst@local / changeme
-#          reviewer@local / changeme
-#          1 sample datasource (points to local Postgres)
-#          2 sample review plans
 ```
+
+Demo users are not seeded by a script. Seed them declaratively with the `bootstrap`
+module (`ACCESSFLOW_BOOTSTRAP_ENABLED=true` plus the `accessflow.bootstrap.*` tree —
+see [09-deployment.md](09-deployment.md#bootstrap-configuration)), which is the same
+mechanism the e2e stacks use.
 
 ---
 
@@ -90,15 +97,15 @@ npm run dev
 | API | RestAssured + Spring Boot Test | All REST endpoints, auth enforcement, permission checks, error responses |
 | Security | Custom tests | JWT forgery, permission boundary violations, SQL injection attempts |
 
-**Coverage target:** ≥80% line coverage on `accessflow-core`, `accessflow-proxy`, `accessflow-workflow`.
+**Coverage target:** ≥90% line coverage (≥80% branches), enforced by JaCoCo across the single backend module. See CLAUDE.md → Testing for the coverage-parity rule.
 
 ```bash
 # Run all backend tests
-cd backend && ./mvnw verify
+cd backend && mvn verify
 
 # Run with coverage report
-cd backend && ./mvnw verify -Pcoverage
-# Report: backend/accessflow-app/target/site/jacoco/index.html
+cd backend && mvn verify -Pcoverage
+# Report: backend/target/site/jacoco/index.html
 ```
 
 ### Frontend
@@ -244,12 +251,23 @@ class QueryProxyServiceTest {
 
 ### Java
 
-- **Style guide:** Google Java Style Guide
-- **Enforcement:** Checkstyle plugin in Maven build (`./mvnw checkstyle:check`)
-- **Formatting:** Spotless with Google Java Format (`./mvnw spotless:apply`)
+- **Style guide:** the codebase is hand-formatted — 4-space indent, no hard column limit.
+  There is deliberately **no** auto-formatter profile: google-java-format's default (2-space)
+  and its 4-space AOSP profile both rewrite ~2,350 of the ~2,650 backend sources, because
+  they also reorder imports and re-wrap lines. Match the surrounding file.
+- **Formatting hygiene:** Spotless (`mvn spotless:apply`) — style-neutral steps only:
+  remove unused imports, trim trailing whitespace, end with a newline.
+- **Rule enforcement:** Checkstyle (`mvn checkstyle:check`) against `src/main/java`, using
+  [`backend/checkstyle.xml`](../backend/checkstyle.xml). It encodes the CLAUDE.md rules with
+  real consequences — no `@Autowired` field injection, no `System.out`/`printStackTrace`,
+  no legacy `com.fasterxml.jackson.databind` imports, no unused/redundant imports — not
+  formatting. Tests are excluded (`@Autowired` fields are idiomatic in Spring tests).
+- Both run automatically in the `validate` phase, so any `mvn compile`/`test`/`verify` enforces
+  them. Adding a Checkstyle rule: verify it has **zero** existing violations first, or it is a
+  warning rather than a gate.
 - **No** `@Autowired` field injection — use constructor injection only
 - **No** `@Transactional` on controllers — only on service methods
-- Service interfaces in `accessflow-core`; implementations in their respective modules
+- Service interfaces in each module's `api/` package; implementations under that module's `internal/`
 - All API responses use explicit DTO classes — never return JPA entities directly
 
 ### TypeScript / Frontend
@@ -416,4 +434,4 @@ The companion [`frontend/nginx.conf`](../frontend/nginx.conf) sets `Cache-Contro
 - Import as Maven project (root `pom.xml`)
 - Enable annotation processing (for Lombok if used)
 - Install `google-java-format` plugin and enable auto-format on save
-- Run configuration: `accessflow-app` main class with env vars from `.env`
+- Run configuration: `AccessFlowApplication` main class with env vars from `.env`

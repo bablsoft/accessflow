@@ -15,19 +15,13 @@ class ApiPackageDependencyTest {
     @ArchTest
     static final ArchRule api_packages_depend_only_on_jdk_and_project_classes =
             noClasses().that()
-                    .resideInAnyPackage(
-                            "com.bablsoft.accessflow.access.api..",
-                            "com.bablsoft.accessflow.ai.api..",
-                            "com.bablsoft.accessflow.apigov.api..",
-                            "com.bablsoft.accessflow.audit.api..",
-                            "com.bablsoft.accessflow.compliance.api..",
-                            "com.bablsoft.accessflow.core.api..",
-                            "com.bablsoft.accessflow.mcp.api..",
-                            "com.bablsoft.accessflow.notifications.api..",
-                            "com.bablsoft.accessflow.proxy.api..",
-                            "com.bablsoft.accessflow.scheduling.api..",
-                            "com.bablsoft.accessflow.security.api..",
-                            "com.bablsoft.accessflow.workflow.api..")
+                    // Wildcard, not an enumerated list: `*` matches exactly one package
+                    // component, so this covers every current and future
+                    // com.bablsoft.accessflow.<module>.api package automatically. A
+                    // hand-maintained list silently under-covers — five modules
+                    // (attestation, dashboard, discovery, lifecycle, requestgroups) went
+                    // unchecked that way.
+                    .resideInAnyPackage("com.bablsoft.accessflow.*.api..")
                     .should()
                     .dependOnClassesThat()
                     .resideOutsideOfPackages(

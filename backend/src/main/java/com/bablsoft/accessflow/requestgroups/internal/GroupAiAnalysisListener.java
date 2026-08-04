@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Drives async, fail-safe per-member AI risk scoring of a submitted group, then routes the group to

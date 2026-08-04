@@ -9,7 +9,6 @@ import com.bablsoft.accessflow.apigov.events.ApiAnalysisFailedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestSubmittedEvent;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
-import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiConnectorRepository;
 import com.bablsoft.accessflow.apigov.internal.persistence.repo.ApiRequestRepository;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;

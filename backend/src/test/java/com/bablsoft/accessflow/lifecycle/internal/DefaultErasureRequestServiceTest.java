@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.lifecycle.internal;
 
-import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestInvalidStateException;
 import com.bablsoft.accessflow.lifecycle.api.DeletionRequestNotFoundException;
 import com.bablsoft.accessflow.lifecycle.api.ErasureRequestService.SubmitErasureCommand;

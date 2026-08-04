@@ -275,7 +275,7 @@ class SystemPromptRenderer {
     /**
      * The editor {@code syntax} id (matching the frontend {@code engineModes} ids) for a draft
      * generated against {@code dbType}. Deterministic per engine, except MongoDB which has two
-     * editor syntaxes — a draft starting with {@code {} is the JSON command form ({@code json}),
+     * editor syntaxes — a draft starting with <code>{</code> is the JSON command form ({@code json}),
      * otherwise the shell form ({@code shell}).
      */
     String syntaxFor(DbType dbType, String generatedQuery) {

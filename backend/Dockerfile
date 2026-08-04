@@ -13,7 +13,13 @@ COPY backend/pom.xml ./
 RUN mvn -B -q $MAVEN_RESOLVER_TIMEOUTS -DskipTests -Dmaven.test.skip=true dependency:go-offline
 COPY backend/src src
 COPY connectors /workspace/connectors
-RUN mvn -B $MAVEN_RESOLVER_TIMEOUTS -DskipTests -Dmaven.test.skip=true -Dconnectors.dir=/workspace/connectors package && \
+# Spotless and Checkstyle are bound to the `validate` phase, so they would otherwise run on every
+# image build — including the three e2e stacks, the Terraform acceptance stack and the Actions
+# smoke test. This is a packaging step for code CI has already gated in the `backend` job, and
+# checkstyle.xml is not part of this build context, so skip both here.
+RUN mvn -B $MAVEN_RESOLVER_TIMEOUTS -DskipTests -Dmaven.test.skip=true \
+        -Dcheckstyle.skip=true -Dspotless.check.skip=true \
+        -Dconnectors.dir=/workspace/connectors package && \
     mv target/*-exec.jar target/app.jar
 
 FROM eclipse-temurin:25-jre-alpine

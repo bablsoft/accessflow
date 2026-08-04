@@ -30,7 +30,7 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/10-editions.md` — Community vs Enterprise feature matrix
   - `docs/11-development.md` — coding standards, testing strategy, Git workflow
   - `docs/12-roadmap.md` — milestone scope
-- **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.bablsoft.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `./mvnw verify`.
+- **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.bablsoft.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `mvn verify` (run from `backend/` — there is no Maven wrapper).
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **End-to-end** at `e2e/` — Playwright suite with its own `docker-compose.e2e.yml` that builds backend + frontend from the working tree and seeds a deterministic admin via the `bootstrap` module. Owns auth and (over time) all critical user flows. Run: `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test`.
 - **Website** at `website/` — public marketing site, static HTML/CSS/JS, no build step. Edits land directly in HTML.
@@ -95,7 +95,7 @@ Non-negotiable. The PR is incomplete until the matching `docs/*.md`, `README.md`
 The website has no build step — edits land directly in HTML. If you're unsure whether a change is user-visible, default to updating the website rather than skipping; a stale marketing site is a project-level rule violation (per CLAUDE.md → "Do not let `website/` drift").
 
 ### 5. Verify locally
-- Backend: `cd backend && ./mvnw verify -Pcoverage` and `./mvnw test -Dtest=ApplicationModulesTest`.
+- Backend: `cd backend && mvn verify -Pcoverage` and `mvn -q test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest'`.
 - Frontend: `cd frontend && npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **E2E (when frontend or auth/setup/proxy backend code changed):** `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test && npm run stack:down`. The CI `e2e` job runs the same steps — fail-locally-first to keep PR turnaround tight.
 - For UI changes that render in a browser, use the `preview_*` tools (per the harness instructions) — don't ask the user to check manually.
@@ -113,7 +113,7 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 - [ ] `website/index.html` updated if the change affects the pitch, supported databases, AI providers, auth methods, features, roadmap, quick-start, docs chapter list, tech stack, or top-level URLs.
 - [ ] `website/docs/index.html` updated if the change affects deployment instructions, configuration entities, the RBAC role matrix, or operator-facing env vars.
 - [ ] `website/README.md` content-source map updated if new website sections were added.
-- [ ] Backend: `./mvnw verify` green, including `ApplicationModulesTest` and JaCoCo gate.
+- [ ] Backend: `mvn verify` green, including `ApplicationModulesTest` and JaCoCo gate.
 - [ ] Frontend: lint + typecheck + `test:coverage` + build all green.
 - [ ] `e2e/tests/` updated to match: existing specs still pass against the change, and new user-facing flows (route, auth path, user-driven mutation) have a new spec — or the PR description states explicitly why one wasn't added. Specs ran locally via `npm run stack:up && npm test` when the change touched frontend or auth/setup/proxy backend code.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).

@@ -8,7 +8,6 @@ import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.workflow.api.QueryReplayService;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotNotFoundException;
 import com.bablsoft.accessflow.workflow.api.QuerySnapshotService;
-import com.bablsoft.accessflow.workflow.api.QuerySnapshotView;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
 import com.bablsoft.accessflow.workflow.api.ReplaySchemaIncompatibleException;
@@ -18,7 +17,6 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor

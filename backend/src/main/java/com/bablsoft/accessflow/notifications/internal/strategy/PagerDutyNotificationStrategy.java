@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
-import com.bablsoft.accessflow.notifications.internal.codec.PagerDutyChannelConfig;
 import com.bablsoft.accessflow.notifications.internal.codec.PagerDutyTrigger;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;

@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.security.internal.saml;
 
-import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;

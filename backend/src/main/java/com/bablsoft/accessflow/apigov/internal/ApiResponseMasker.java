@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.apigov.internal;
 
-import com.bablsoft.accessflow.apigov.api.ApiMaskingMatcherType;
 import com.bablsoft.accessflow.apigov.api.ResolvedApiMask;
 import com.bablsoft.accessflow.core.api.ColumnMasker;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;

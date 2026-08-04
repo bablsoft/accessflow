@@ -2,11 +2,34 @@
 
 This file is the authoritative guide for AI agents implementing AccessFlow. Read it entirely before writing any code. When in doubt, prefer the rules here over general best-practice intuition.
 
+**Before writing code in an area, open [`.claude/patterns/README.md`](.claude/patterns/README.md)
+and read the matching pattern.** This file holds the rules that are always true; the patterns hold
+the per-area detail — canonical examples with `file:line`, acceptance checklists, and the
+anti-patterns whose failure mode is silent. `docs/` remains the design reference for *what* to
+build; the patterns describe *how*.
+
 ---
 
 ## Project at a Glance
 
-AccessFlow is an open-source **database access governance platform**. It acts as a full query proxy between users and customer databases — the relational engines PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server are supported out of the box (any other JDBC-compatible engine can be added by uploading its driver JAR, `db_type=CUSTOM`), plus the NoSQL document engines **MongoDB** (`db_type=MONGODB`, AF-414) and **Couchbase** (`db_type=COUCHBASE`, SQL++/N1QL, AF-412), the NoSQL key-value engine **Redis** (`db_type=REDIS`, AF-419), the NoSQL wide-column engine **Apache Cassandra** (`db_type=CASSANDRA`, CQL, AF-421) plus CQL-compatible **ScyllaDB** (`db_type=SCYLLADB`, served by the same Cassandra plugin JAR), and the NoSQL **search** engine **Elasticsearch** (`db_type=ELASTICSEARCH`, JSON Query DSL, AF-420) plus wire-compatible **OpenSearch** (`db_type=OPENSEARCH`, served by the same Elasticsearch plugin JAR), and the NoSQL key-value engine **Amazon DynamoDB** (`db_type=DYNAMODB`, PartiQL, AF-422), and the NoSQL **graph** engine **Neo4j** (`db_type=NEO4J`, Cypher over Bolt, AF-423), and the cloud **data-warehouse** engines **Snowflake** (`db_type=SNOWFLAKE`, AF-629), **Google BigQuery** (`db_type=BIGQUERY`, GoogleSQL, AF-629), and **Databricks SQL** (`db_type=DATABRICKS`, AF-629) — native, not JDBC, connectors whose engine plugins are resolved on demand through the connector catalog — enforcing configurable review and approval workflows before any query executes. The connector catalog separates the **SQL** (`RELATIONAL`) family, the cloud **data-warehouse** family (`WAREHOUSE` — SQL-dialect but engine-managed, since warehouse auth models don't fit pooled JDBC), and the **NoSQL** umbrella (`DOCUMENT`, `KEY_VALUE`, `WIDE_COLUMN`, `SEARCH`, `GRAPH` — all engine-managed, non-JDBC) via a `category` field (AF-418, AF-629). Core capabilities: AI-powered query analysis, multi-stage human approval chains, role-based access control, tamper-evident audit log, and real-time notifications. **MongoDB engine** (see `docs/05-backend.md` → "MongoDB engine"): shipped as the `engines/mongodb/` **engine plugin** — a separate Maven project producing a shaded JAR (bundling `mongodb-driver-sync`) that implements the `core.api.QueryEngine` SPI, is downloaded + SHA-256-verified through the connector catalog like a JDBC driver, and is discovered via `ServiceLoader`. It provides a MongoDB query parser (shell `db.coll.find({…})` and JSON-command forms) dispatched via `proxy.api.QueryParser` instead of JSqlParser, `$match`-injection row-level security + post-fetch field masking at parity with the SQL path, and collection-sampling schema introspection. The plugin has its own version line pinned (URL + sha256) in `connectors/mongodb/connector.json`; its build is reproducible and CI fails on pin drift — bump the plugin version and re-pin in the same PR when the engine (or a `core.api` type it compiles against) changes (`engines/mongodb/README.md`). **Couchbase engine** (see `docs/05-backend.md` → "Couchbase engine"): the second engine plugin, `engines/couchbase/` (`accessflow-engine-couchbase`, own version line pinned in `connectors/couchbase/connector.json`, bundling the Couchbase Java SDK with a relocated Reactor/Jackson) — a SQL++ keyword classifier (SELECT / INSERT / UPSERT / UPDATE / MERGE / DELETE / index-scope-collection DDL; `CURL()`, JS UDFs, `system:*`, and multi-statement input rejected with 422), WHERE-splice row-level security with named parameters (fail-closed on CTE / subquery / JOIN / NEST / UNNEST / USE KEYS / set-op / MERGE shapes; INSERT/UPSERT into a policied keyspace rejected), the shared `ColumnMasker` post-fetch, scope/collection introspection (`meta().id` as PK), and queries run through the bucket's default-scope query context (`database_name` = bucket). **Redis engine** (see `docs/05-backend.md` → "Redis engine"): the third engine plugin and first `KEY_VALUE` one, `engines/redis/` (`accessflow-engine-redis`, own version line pinned in `connectors/redis/connector.json`, bundling the Jedis driver with a relocated commons-pool2/gson/org.json) — a redis-cli command allow-list classified onto `QueryType` (reads→SELECT, conditional-create→INSERT, modifies→UPDATE, removals→DELETE, `FLUSHDB`→DDL), with server-side scripting / blast-radius / blocking / pub-sub / multi-command / connection-state commands rejected up front with 422; `referencedTables` carries the key **prefix** (text before the first `:`); **row security fails closed** (row predicates have no key-value meaning) and field masking applies to returned hash fields / values via the shared `ColumnMasker`; SCAN-sampling introspection groups keys by prefix into pseudo-tables; `database_name` = numeric DB index. **Cassandra engine** (see `docs/05-backend.md` → "Cassandra engine"): the fourth engine plugin and first `WIDE_COLUMN` one, `engines/cassandra/` (`accessflow-engine-cassandra`, own version line pinned in `connectors/cassandra/connector.json`, bundling the DataStax Java driver with a **relocated Netty / Typesafe Config / HdrHistogram** and a merged `reference.conf`) — CQL being SQL-shaped, it follows the Couchbase pattern: a keyword classifier (SELECT / INSERT / UPDATE / DELETE / table-keyspace-index-type-MV DDL + TRUNCATE; `BEGIN … BATCH` and `CREATE`/`DROP FUNCTION`/`AGGREGATE` rejected with distinct 422s), **key-aware** WHERE-splice row security with named parameters that splices **only** partition/clustering-key predicates with CQL-filterable operators (`=, IN, <, <=, >, >=`) and **fails closed** otherwise (no `ALLOW FILTERING`; `!=`/`NOT IN` and INSERT-into-policied rejected), the shared `ColumnMasker` post-fetch, driver-metadata introspection (partition+clustering columns flagged PK), and a per-datasource **`local_datacenter`** wizard field (the driver's load-balancing DC, required); `database_name` = keyspace. The **same JAR** registers a second `QueryEngine` provider (`engineId="scylladb"`) so the `scylladb` connector / `db_type=SCYLLADB` reuse it unchanged. **Elasticsearch engine** (see `docs/05-backend.md` → "Elasticsearch engine"): the fifth engine plugin and first `SEARCH` one, `engines/elasticsearch/` (`accessflow-engine-elasticsearch`, own version line pinned in `connectors/elasticsearch/connector.json`, operating at the **low-level REST client** so it controls every header — no Elastic product check — and bundling **both** HttpComponents stacks behind a `SearchTransport` abstraction: ES 9.x on HttpComponents 4 `org.apache.http`, OpenSearch 3.x on HttpComponents 5 `org.apache.hc`, each relocated separately, plus a relocated Jackson) — a JSON query envelope whose first command key names the operation (search/count/get/mget→SELECT, index/bulk→INSERT, update_by_query→UPDATE, delete_by_query→DELETE, create_index/put_mapping/delete_index→DDL; get/mget lowered to a search over an `ids` query), with `script`/`script_fields`/`runtime_mappings`/Painless and cluster/system-index targets rejected with 422 (the JSON-tree analogue of the `$where` ban), `bool.filter` row security wrapping the user query (keyword fields only — `term` on analysed `text` fails closed) where INSERT-into-policied is rejected, the shared `ColumnMasker` post-fetch applied **recursively by dot-path** (a `user.email` mask redacts the nested leaf), `_mapping` introspection (indices→tables, flattened fields→columns, synthetic `_id` keyword PK), basic **or** API-key auth (the encrypted `api_key` column), and `database_name` optional (it only scopes introspection). The **same JAR** registers a second `QueryEngine` provider (`engineId="opensearch"`) so the `opensearch` connector / `db_type=OPENSEARCH` reuse it unchanged. **DynamoDB engine** (see `docs/05-backend.md` → "DynamoDB engine"): the sixth engine plugin and second `KEY_VALUE` one, `engines/dynamodb/` (`accessflow-engine-dynamodb`, own version line pinned in `connectors/dynamodb/connector.json`, bundling the AWS SDK for Java v2 `dynamodb` client over the **url-connection HTTP client — no Netty**; the SDK's default sync/async clients and the host's Spring/Netty tree are excluded from the shade, with `org.reactivestreams` relocated, keeping the JAR ~7 MB) — the **first engine whose connection is cloud credentials + region, not host/port**: `database_name`=AWS region, `username`=access key id, `password_encrypted`=secret access key, `jdbc_url_override`=optional custom endpoint (DynamoDB Local / VPC), enforced by a dedicated DynamoDB branch in `DatasourceAdminServiceImpl.validateDriverChoice`. PartiQL being SQL-shaped, it follows the Cassandra pattern: a keyword classifier (SELECT / INSERT / UPDATE / DELETE; a leading-`{` JSON command → table-management DDL `CreateTable`/`DeleteTable`/`UpdateTable`; `EXECUTE TRANSACTION`/batch rejected with 422), WHERE-splice row security with **positional `?` parameters** on **any** attribute (DynamoDB filters via Scan, unlike CQL's key-only) where INSERT-into-policied is rejected and an empty value list is a fail-closed deny-all (the executor returns nothing without executing), the shared `ColumnMasker` post-fetch applied **recursively by dot-path** (a `profile.ssn` mask redacts the nested leaf), `ExecuteStatement` reads paged via `NextToken` capped at `maxRows+1`, and `ListTables`+`DescribeTable`+bounded-`Scan` introspection (partition/sort key flagged PK). Session tokens / STS assumed roles are out of scope for v1. **Neo4j engine** (see `docs/05-backend.md` → "Neo4j engine"): the seventh engine plugin and first `GRAPH` one, `engines/neo4j/` (`accessflow-engine-neo4j`, own version line pinned in `connectors/neo4j/connector.json`, bundling the Neo4j Java driver and its Bolt-connection stack with a **relocated Netty / Project Reactor / reactive-streams**) — Cypher being clause-based (not verb-prefixed), the classifier keys off the strongest write clause present (DELETE/DETACH DELETE/REMOVE→DELETE, CREATE/MERGE→INSERT, SET→UPDATE, else `MATCH … RETURN`/`SHOW`→SELECT; index/constraint/database/alias/user/role DDL told apart from data `CREATE (n:Label)` by the token after the verb), with `LOAD CSV`, `CALL` outside a read-only allow-list (`db.labels`/`db.schema.*`…), and multi-statement input rejected with 422 (the Cypher `$where` analogue). Row security is the one genuinely new shape — Cypher has no SQL WHERE-after-FROM, so each node-label `RowSecurityDirective` is ANDed (Cypher **named parameters**) onto the `WHERE` scoped to each `MATCH`/`OPTIONAL MATCH` clause that binds a variable of that label, **failing closed** on anonymous `(:Label)` / WHERE-only / write-creates-policied-label shapes; the shared `ColumnMasker` post-fetch is **label-aware** (a `Label.prop` directive redacts that property of any returned node whose labels include `Label`, recursively by dot-path). `referencedTables` carries node labels + relationship types; connection is host/port + `database_name` (the Neo4j database) with SSL encoded in the Bolt scheme, **or** a full `bolt://`/`neo4j+s://` URI via `jdbc_url_override` (Aura / clustered routing), enforced by a dedicated NEO4J branch in `DatasourceAdminServiceImpl.validateDriverChoice`; introspection uses the server's `db.schema.nodeTypeProperties()`/`relTypeProperties()` (labels→tables, sampled keys→columns, synthetic `_elementId` PK). **Snowflake engine** (see `docs/05-backend.md` → "Snowflake engine"): the eighth engine plugin and first `WAREHOUSE` one, `engines/snowflake/` (`accessflow-engine-snowflake`, own version line pinned in `connectors/snowflake/connector.json`, shading only `net.snowflake:snowflake-jdbc` — itself a self-contained fat jar — with no relocations) — a Snowflake SQL keyword classifier (SELECT / INSERT / UPDATE / DELETE / MERGE→UPDATE / table-view-schema DDL + TRUNCATE; CALL / EXECUTE IMMEDIATE / scripting blocks / PUT / GET / COPY INTO / USE / SHOW / DESCRIBE / GRANT / REVOKE and procedure-function-task-stream-pipe-stage DDL rejected with 422, plus user-supplied `?` placeholders), WHERE-splice row security with positional JDBC parameters (fail-closed on CTE / subquery / JOIN / set-op / MERGE / multi-table shapes; INSERT-into-policied rejected; empty value list = deny-all), the shared `ColumnMasker` post-fetch, and `DatabaseMetaData` introspection scoped to the database. Connection: `host`=account host, `database_name`=database, `username`=user, `password_encrypted`=password **or** unencrypted PKCS#8 private-key PEM (key-pair JWT, detected by the `-----BEGIN` prefix), `jdbc_url_override`=optional full `jdbc:snowflake://` URL (warehouse/role/schema params); port unused — enforced by a dedicated SNOWFLAKE branch in `DatasourceAdminServiceImpl.validateDriverChoice`. The driver is instantiated **directly** (never `DriverManager` — unusable across the plugin's isolated classloader) and connections are **per-request, never pooled** (warehouse sessions are billed while resumed). No free Snowflake emulator exists, so the plugin's test bar is unit + mocked-JDBC facade tests + the shaded-jar ServiceLoader IT (no live-server IT). **BigQuery engine** (see `docs/05-backend.md` → "BigQuery engine"): the ninth engine plugin, `engines/bigquery/` (`accessflow-engine-bigquery`, own version line pinned in `connectors/bigquery/connector.json`, bundling the `google-cloud-bigquery` HTTP/JSON client — no gRPC/Netty — with the **entire third-party tree relocated**) — a GoogleSQL keyword classifier (scripting BEGIN/DECLARE/CALL/EXECUTE IMMEDIATE, EXPORT/LOAD DATA, ASSERT, GRANT/REVOKE, and procedure/function/index/model DDL rejected with 422, plus `?`/`@name` markers), WHERE-splice row security with **positional query parameters** (same fail-closed shapes; deny-all short-circuits without an API call), the shared `ColumnMasker` post-fetch applied **recursively by dot-path** over `RECORD` fields, jobs bounded by the host-computed timeout (cancel on deadline), DML counts from `QueryStatistics.getNumDmlAffectedRows()`, and datasets→tables introspection with RECORD fields flattened to dot-path columns (no PKs). Connection is cloud credentials like DynamoDB: `database_name`=GCP project (optionally `project.dataset` pinning a default dataset), `password_encrypted`=service-account key JSON, `jdbc_url_override`=optional custom endpoint (the `goccy/bigquery-emulator`, used by the plugin's Testcontainers IT with `NoCredentials`); host/port/username unused — enforced by a dedicated BIGQUERY branch in `validateDriverChoice`. **Databricks engine** (see `docs/05-backend.md` → "Databricks engine"): the tenth engine plugin and the first with **no vendor driver or SDK at all**, `engines/databricks/` (`accessflow-engine-databricks`, own version line pinned in `connectors/databricks/connector.json`, bundling only a **relocated Jackson**) — the JDK `java.net.http` client against the SQL Statement Execution REST API (submit with `wait_timeout`/`row_limit=maxRows+1`/INLINE JSON_ARRAY, poll bounded by the host-computed timeout via `context.clock()`, best-effort cancel on deadline; chunked results followed via `next_chunk_index`; EXTERNAL_LINKS out of scope v1). A Databricks SQL keyword classifier (USE / SET / CACHE / COPY INTO / CALL / MSCK / ANALYZE / **OPTIMIZE / VACUUM** / REFRESH / DESCRIBE / SHOW / EXPLAIN / GRANT / REVOKE / scripting and function-volume-catalog-share DDL rejected with 422, plus `?`/`:name` markers — `::` casts are fine), WHERE-splice row security with **named `:afp_n` parameters** (fail-closed shapes as above; a statement already containing the literal `:afp_` fails closed; deny-all makes zero HTTP calls), the shared `ColumnMasker` post-fetch, and `information_schema` introspection through the same API. Connection: `host`=workspace host, `password_encrypted`=personal access token (Bearer), `jdbc_url_override`=**required** warehouse HTTP path `/sql/1.0/warehouses/<id>` (or full https URL), `database_name`=optional Unity Catalog catalog — enforced by a dedicated DATABRICKS branch in `validateDriverChoice`; the IT drives the full SPI against an in-process `com.sun.net.httpserver` stub. The engine-author guide — host↔plugin contract, per-engine config lane, CI/release discovery over `engines/*`, and the full add-an-engine checklist — is `docs/15-engine-sdk.md`.
+AccessFlow is an open-source **database access governance platform**. It is a full query proxy between users and customer databases, enforcing configurable review and approval workflows before any query executes. Core capabilities: AI-powered query analysis, multi-stage human approval chains, role-based access control, a tamper-evident audit log, and real-time notifications.
+
+**Supported engines.** The relational engines (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server) run over pooled JDBC in-process; any other JDBC engine can be added by uploading its driver JAR (`db_type=CUSTOM`). Everything else is an **engine plugin** — a standalone shaded JAR implementing the `core.api.QueryEngine` SPI, resolved on demand through the connector catalog, SHA-256 verified, and discovered via `ServiceLoader`:
+
+| Category | Engines |
+|---|---|
+| `RELATIONAL` | PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, `CUSTOM` (in-process JDBC) |
+| `WAREHOUSE` | Snowflake, BigQuery, Databricks |
+| `DOCUMENT` | MongoDB, Couchbase |
+| `KEY_VALUE` | Redis, DynamoDB |
+| `WIDE_COLUMN` | Cassandra, ScyllaDB *(same JAR)* |
+| `SEARCH` | Elasticsearch, OpenSearch *(same JAR)* |
+| `GRAPH` | Neo4j |
+
+Each plugin has its own version line, pinned by URL + SHA-256 in `connectors/<id>/connector.json`; CI fails on pin drift. Per-engine specifics — dialect classifier, row-security shape and where it fails closed, connection model, shading — live in **`docs/05-backend.md`** (one section per engine). The host↔plugin contract and the add-an-engine checklist are **`docs/15-engine-sdk.md`**.
+
+> Touching an engine? Read `.claude/patterns/engine-plugin.md` first, and
+> `.claude/patterns/engine-fanout.md` before adding any `core.api` enum value.
 
 AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab; a generic `OIDC` provider type covers other IdPs — Keycloak, Auth0, Okta, Authentik, Zitadel — with admin-editable endpoint URLs persisted on the `oauth2_config` row).
 
@@ -30,7 +53,9 @@ accessflow/
 ├── backend/          # Spring Boot application (single Maven module)
 ├── engines/          # Engine plugins — engines/mongodb/, engines/couchbase/, engines/redis/, engines/cassandra/, engines/elasticsearch/, engines/dynamodb/, engines/neo4j/, engines/snowflake/, engines/bigquery/, engines/databricks/ (standalone Maven projects, shaded JARs)
 ├── terraform-provider/ # Terraform/OpenTofu provider (Go module, terraform-plugin-framework) — AF-452, source of truth; released to a dedicated terraform-provider-accessflow mirror repo
-├── frontend/         # React / Vite / TypeScript SPA (to be created)
+├── frontend/         # React / Vite / TypeScript SPA
+├── connectors/       # Connector catalog — one manifest + logo per engine
+├── deploy/           # Postgres init scripts (audit role, pgvector)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (+ .setup.yml and .sso.yml variants)
 ├── ci-templates/     # Reusable GitLab CI template + usage examples (AF-452)
 ├── charts/           # Helm charts — currently charts/accessflow/
@@ -127,12 +152,12 @@ com.bablsoft.accessflow/
 
 #### Key Rules
 
-- **Module boundaries are enforced.** `ApplicationModulesTest` must exist and pass in CI. Run it after every change: `./mvnw test -Dtest=ApplicationModulesTest`.
+- **Module boundaries are enforced.** `ApplicationModulesTest` must exist and pass in CI. Run it after every change: `mvn -f backend/pom.xml test -Dtest=ApplicationModulesTest`.
 - **No cyclic dependencies between modules.** If two modules need each other, extract a shared interface or communicate through events.
 - **`internal` sub-packages are module-private.** Only types in `api` (or the module root package) are accessible to other modules.
 - **Spring configuration placement:** all `@Configuration` classes belong in the owning module's `internal` package.
 - **Cross-module communication** uses `ApplicationEventPublisher` (fire-and-forget) or `@ApplicationModuleListener` (transactional event listeners). Direct injection of another module's internal beans is forbidden.
-- **Module API purity.** Types in `com.bablsoft.accessflow.<module>.api` packages may import **only** `java.*`, `javax.*` (JDK), and other `com.bablsoft.accessflow.*` project types. No Spring, no Spring Data, no Spring Security, no Jackson, no Jakarta Servlet, no Hibernate, no JSqlParser, no Lombok, no third-party library at all — including in Javadoc references. The sole allowed third-party reference is `org.springframework.modulith.NamedInterface` on `package-info.java` (it's a meta-marker that designates the package as the module's exposed named interface — not a runtime contract type). For paginated reads, services accept `core.api.PageRequest` and return `core.api.PageResponse<T>` and adapt to Spring Data inside the service implementation (`core.internal.PageAdapter` for `core` itself; an `internal/web/SpringPageableAdapter` in each module's web layer for the controller side). Enforced by `ApiPackageDependencyTest` (ArchUnit) — the build fails when a new external import appears in any `api/` package. Run it after every change touching an api package: `./mvnw test -Dtest=ApiPackageDependencyTest`.
+- **Module API purity.** Types in `com.bablsoft.accessflow.<module>.api` packages may import **only** `java.*`, `javax.*` (JDK), and other `com.bablsoft.accessflow.*` project types. No Spring, no Spring Data, no Spring Security, no Jackson, no Jakarta Servlet, no Hibernate, no JSqlParser, no Lombok, no third-party library at all — including in Javadoc references. The sole allowed third-party reference is `org.springframework.modulith.NamedInterface` on `package-info.java` (it's a meta-marker that designates the package as the module's exposed named interface — not a runtime contract type). For paginated reads, services accept `core.api.PageRequest` and return `core.api.PageResponse<T>` and adapt to Spring Data inside the service implementation (`core.internal.PageAdapter` for `core` itself; an `internal/web/SpringPageableAdapter` in each module's web layer for the controller side). Enforced by `ApiPackageDependencyTest` (ArchUnit) — the build fails when a new external import appears in any `api/` package. The rule matches `com.bablsoft.accessflow.*.api..` by wildcard, so a new module is covered automatically with no registration step. Run it after every change touching an api package: `mvn -f backend/pom.xml test -Dtest=ApiPackageDependencyTest`.
 
 #### Layering Within a Module
 
@@ -179,26 +204,22 @@ com.bablsoft.accessflow/
 
 #### REST API Design
 
-- All endpoints versioned: `/api/v1/...`.
-- Use proper HTTP methods and status codes (201 for creation, 202 for async acceptance, 204 for deletion, 422 for SQL parse errors).
-- Return `ProblemDetail` (RFC 9457) for all error responses via `@ControllerAdvice`.
-- Use `ResponseEntity` only when setting custom headers or non-default status codes; return concrete types otherwise.
-- Every controller method MUST have Springdoc `@Operation` and `@ApiResponse` annotations.
-- Request DTOs use Bean Validation annotations (`@NotNull`, `@Size`, `@Valid`, etc.).
-- **Validation parity rule:** Every Bean Validation constraint on a request DTO (`@NotBlank`, `@Email`, `@Size`, `@Pattern`, `@NotNull`, etc.) must have a matching client-side rule in the frontend form that submits to that endpoint. When you add, change, or remove a constraint on either side, update the other side in the same commit.
-- All API response envelopes follow the error format in `docs/04-api-spec.md`.
+All endpoints `/api/v1/...`, `kebab-case`. Proper status codes (201 create, 202 async, 204
+delete, 422 SQL parse error). All errors are RFC 9457 `ProblemDetail` via `@ControllerAdvice`.
+Every controller method needs Springdoc `@Operation` + `@ApiResponse`. Request DTOs use Bean
+Validation. **Document a new endpoint in `docs/04-api-spec.md` before writing it.**
+
+→ `.claude/patterns/rest-controller.md`
 
 #### Database & JPA
 
-- All entities use **UUID** primary keys.
-- Entity field access strategy: `@Access(AccessType.FIELD)`.
-- Always specify `@Column(nullable = ...)` and `@Table(name = ...)` explicitly.
-- Use **Flyway** for schema migrations. Migration files: `V{number}__{description}.sql`. **Never modify an existing migration file.**
-- `spring.jpa.hibernate.ddl-auto` must be `validate` in all real environments.
-- Avoid `FetchType.EAGER` — always `LAZY`; fetch via `@EntityGraph` or join-fetch when needed.
-- Use `@Version` for optimistic locking on entities that can be concurrently modified.
-- All tables: `snake_case` names, `UUID` PKs, `TIMESTAMPTZ` timestamps.
-- PostgreSQL enum types: `snake_case`, **no** `_enum` suffix (e.g. `db_type`, `query_status`, `risk_level`, not `db_type_enum`). The `columnDefinition` value in the `@Column` annotation must match the SQL type name exactly.
+UUID PKs, `snake_case` tables, `TIMESTAMPTZ` timestamps, `@Access(AccessType.FIELD)`, explicit
+`@Table`/`@Column`, `FetchType.LAZY` always, `@Version` where concurrent. PG enum types are
+`snake_case` with **no** `_enum` suffix and the `columnDefinition` must match exactly.
+`ddl-auto` is `validate` everywhere real.
+
+→ `.claude/patterns/jpa-entity-migration.md`
+
 
 #### Dependency Injection
 
@@ -218,200 +239,56 @@ com.bablsoft.accessflow/
 
 #### Exception Handling
 
-- Define module-specific exception hierarchies extending a common base.
-- Never catch `Exception` or `Throwable` broadly — catch specific types.
-- A global `@ControllerAdvice` maps exceptions to `ProblemDetail` responses.
-- Never expose stack traces or internal details in API error responses.
+Module-specific hierarchies over a common base. **Never catch `Exception` or `Throwable`
+broadly** (the documented carve-out is a scheduled job's per-row `RuntimeException`). A global
+`@ControllerAdvice` maps to `ProblemDetail`; module advices need
+`@Order(Ordered.HIGHEST_PRECEDENCE)` or the security catch-all wins. Never expose stack traces.
+
 
 #### Internationalisation (i18n)
 
-- **Never hardcode user-facing strings in Java source.** All exception `detail` messages and validation messages must live in `src/main/resources/i18n/messages.properties`. Developer-facing log messages (SLF4J calls) may remain in code.
-- Bean Validation `message` attributes must use `{key}` syntax referencing a key in `messages.properties` — e.g. `@NotBlank(message = "{validation.email.required}")`. Never use inline English text as a `message` attribute value.
-- Exception handlers must resolve `ProblemDetail.detail` via `messageSource.getMessage(key, args, LocaleContextHolder.getLocale())`. Never pass `ex.getMessage()` from a constructor-built message as the detail string.
-- Service classes that throw exceptions with varying messages per call site must inject `MessageSource` and resolve the message at the `throw` site using `LocaleContextHolder.getLocale()`.
-- `SecurityExceptionHandler` (writes directly to `HttpServletResponse`) must use `request.getLocale()` — it cannot use `LocaleContextHolder`.
-- Message key naming convention: `error.<snake_case>` for exception messages; `validation.<field>.<rule>` for Bean Validation messages. Add the key to `messages.properties` in the same commit that adds the exception or constraint.
-- Adding a new language requires only a new `messages_<locale>.properties` file — no code changes.
-- Parity is enforced by `MessagesParityTest` — adding a key to `messages.properties` without translating it in every `messages_<locale>.properties` for each `SupportedLanguage` value fails CI. Orphan keys (present in a locale file but not in the baseline) fail the same test.
+**Never hardcode a user-facing string in Java.** Exception details and validation messages live
+in `i18n/messages.properties`; Bean Validation uses `message = "{key}"`; handlers resolve through
+`MessageSource` with `LocaleContextHolder.getLocale()` (`SecurityExceptionHandler` must use
+`request.getLocale()`). A new key must be added to **all six** locale files —
+`MessagesParityTest` enforces it. SLF4J log messages stay English.
+
+→ `.claude/patterns/backend-i18n.md`
 
 ---
 
+
 ### Configuration
 
-`application.yml` must not contain secrets — use `${ENV_VAR}` placeholders. The full operator-facing env-var reference (grouped by area) lives in [docs/09-deployment.md](docs/09-deployment.md). The most commonly tuned ones:
+`application.yml` carries no secrets — `${ENV_VAR}` placeholders only.
 
-| Variable | Purpose |
-|----------|---------|
-| `SERVER_PORT` | Backend HTTP port (default `8080`). |
-| `DB_URL` | JDBC URL for AccessFlow PostgreSQL |
-| `DB_USER` | PostgreSQL username for the general application connection pool. After `V38__audit_log_role_separation.sql`, this role has SELECT on `audit_log` only — UPDATE/DELETE/TRUNCATE are revoked. |
-| `DB_PASSWORD` | Password for `DB_USER`. |
-| `AUDIT_DB_USER` | PostgreSQL username for the dedicated audit-writer role used by the audit module's `auditDataSource` bean to INSERT into `audit_log`. Defaults to `accessflow_audit`. The role must exist before Flyway runs — provisioned by [`deploy/postgres-init/01-audit-role.sql`](deploy/postgres-init/01-audit-role.sql) (Docker Compose) and `charts/accessflow/values.yaml` → `postgresql.primary.initdb.scripts` (Helm). See [docs/09-deployment.md → "audit_log role separation"](docs/09-deployment.md#audit_log-role-separation). |
-| `AUDIT_DB_PASSWORD` | Password for `AUDIT_DB_USER`. |
-| `ENCRYPTION_KEY` | 32-byte hex — AES-256-GCM for datasource credential encryption |
-| `ACCESSFLOW_SECRETS_VAULT_ENABLED` / `ACCESSFLOW_SECRETS_AWS_ENABLED` / `ACCESSFLOW_SECRETS_AZURE_ENABLED` | Booleans (default `false`, AF-448). Opt-in external secret stores (HashiCorp Vault / AWS Secrets Manager / Azure Key Vault): when enabled, a datasource credential column may hold a secret reference (`vault:<mount>/<path>#<field>` / `aws:<name-or-arn>[#jsonField]` / `azure:<secret-name>`) resolved through the store at credential-use time instead of local AES. Each provider has its own `ACCESSFLOW_SECRETS_<PROVIDER>_*` connection/auth vars — full reference in [docs/09-deployment.md → Secrets Manager](docs/09-deployment.md). |
-| `JWT_PRIVATE_KEY` | RSA-2048 PEM — JWT RS256 signing key |
-| `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` | ISO-8601 duration for the JWT access-token TTL (default `PT15M`). |
-| `ACCESSFLOW_JWT_REFRESH_TOKEN_EXPIRY` | ISO-8601 duration for the refresh-token TTL (default `P7D`). |
-| `AUDIT_HMAC_KEY` | Optional. Hex-encoded HMAC-SHA256 key (≥ 32 bytes) used to chain `audit_log` rows. When unset, the audit module auto-derives a per-deployment key from `ENCRYPTION_KEY` via HKDF-SHA256. |
-| `ACCESSFLOW_AUDIT_VERIFY_CHAIN_ON_STARTUP` | Boolean (default `false`, AF-458). Post-restore integrity sweep: verifies every organization's `audit_log` HMAC chain on `ApplicationReadyEvent`, logging a per-org outcome (never fails startup). Enable for the first boot after a database restore — see [docs/09-deployment.md → Disaster Recovery](docs/09-deployment.md#disaster-recovery). |
-| `REDIS_URL` | Redis for JWT token revocation **and** ShedLock distributed scheduler locks (default: `redis://localhost:6379`) |
-| `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours` (default: `PT5M`). |
-| `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service (default: `PT1M`). |
-| `ACCESSFLOW_ACCESS_GRANT_EXPIRY_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AccessGrantExpiryJob` (the `access` module) scans for `APPROVED` JIT access grants past their `expires_at` and revokes the materialised permission (default: `PT5M`). |
-| `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `WeeklyDigestJob` (the `dashboard` module, AF-498) wakes to scan for users opted into the weekly digest (default: `P1D`). |
-| `ACCESSFLOW_DASHBOARD_WEEKLY_DIGEST_PERIOD` | ISO-8601 duration. Minimum gap between digests for a given user — the job sends at most once per period regardless of poll cadence or restarts (default: `P7D`). |
-| `ACCESSFLOW_ATTESTATION_OPEN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignOpenJob` (the `attestation` module, AF-384) scans for `SCHEDULED` campaigns past their `scheduled_open_at` and opens them — snapshotting current grants into items (default `PT5M`). |
-| `ACCESSFLOW_ATTESTATION_CLOSE_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `AttestationCampaignCloseJob` scans for `OPEN` campaigns past their `due_at` and closes them, applying each campaign's pending-default (`KEEP`/`REVOKE`) to still-PENDING items (default `PT5M`). |
-| `ACCESSFLOW_ATTESTATION_MAX_EVIDENCE_ROWS` | Hard cap on item rows written into a single attestation evidence CSV export; beyond it the export is flagged truncated (default `50000`). |
-| `ACCESSFLOW_APIGOV_SCHEDULED_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestRunJob` (the `apigov` module, AF-500) scans for `APPROVED` API requests whose `scheduled_for` has been reached and executes them (default `PT1M`). |
-| `ACCESSFLOW_APIGOV_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ApiRequestTimeoutJob` scans for API requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). |
-| `ACCESSFLOW_LIFECYCLE_POLICY_SCAN_INTERVAL` | ISO-8601 duration. Cadence at which `RetentionPolicyScanJob` (the `lifecycle` module, AF-499) scans enabled retention policies and stages eligible `lifecycle_runs` (default `PT1H`). Binds `accessflow.lifecycle.policy-scan-interval`. |
-| `ACCESSFLOW_LIFECYCLE_POLICY_EXECUTION_INTERVAL` | ISO-8601 duration. Cadence at which `RetentionPolicyExecutionJob` (the `lifecycle` module, AF-519) drains STAGED `RETENTION_POLICY` `lifecycle_runs` and applies the action through the proxy (default `PT5M`). Binds `accessflow.lifecycle.policy-execution-interval`. |
-| `ACCESSFLOW_LIFECYCLE_ERASURE_EXECUTION_INTERVAL` | ISO-8601 duration. Cadence at which `ErasureExecutionJob` (the `lifecycle` module, AF-499) executes `APPROVED` right-to-erasure requests, transitioning them `APPROVED → EXECUTED`/`FAILED` (default `PT1M`). Binds `accessflow.lifecycle.erasure-execution-interval`. |
-| `ACCESSFLOW_LIFECYCLE_REVIEW_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ErasureReviewTimeoutJob` (the `lifecycle` module, AF-519) scans for erasure requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (default `PT5M`). Binds `accessflow.lifecycle.review-timeout-poll-interval`. |
-| `ACCESSFLOW_LIFECYCLE_REVIEW_TIMEOUT` | ISO-8601 duration. How long an erasure request may sit in `PENDING_REVIEW` before `ErasureReviewTimeoutJob` auto-rejects it (default `PT168H`, AF-519). Binds `accessflow.lifecycle.review-timeout`. |
-| `ACCESSFLOW_REQUESTGROUPS_RUN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `ScheduledGroupRunJob` (the `requestgroups` module, AF-501) scans for `APPROVED` grouped requests whose `scheduled_for ≤ now()` and executes their ordered member sequence (default `PT1M`). Binds `accessflow.requestgroups.run-poll-interval`. |
-| `ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `GroupTimeoutJob` (the `requestgroups` module, AF-501) scans for grouped requests stuck in `PENDING_REVIEW` past the review timeout and auto-rejects them (`TIMED_OUT`) (default `PT5M`). Binds `accessflow.requestgroups.timeout-poll-interval`. |
-| `ACCESSFLOW_DISCOVERY_SCAN_POLL_INTERVAL` | ISO-8601 duration. Cadence at which `DiscoveryScanJob` (the `discovery` module, AF-623) checks for datasources whose sensitive-data discovery scan is due — enabled `discovery_scan_config` rows past their own `scan_interval_hours` (default `PT15M`). Binds `accessflow.discovery.scan-poll-interval`. |
-| `ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET` | ISO-8601 duration. Wall-clock budget for one discovery scan; tables past the deadline are skipped and the run is flagged partial (default `PT10M`). Binds `accessflow.discovery.scan-time-budget`. |
-| `ACCESSFLOW_DISCOVERY_SAMPLE_STATEMENT_TIMEOUT` | ISO-8601 duration. Per-table statement timeout for the discovery scan's bounded sample read (default `PT10S`). Binds `accessflow.discovery.sample-statement-timeout`. |
-| `ACCESSFLOW_DISCOVERY_MAX_TABLES_PER_SCAN` | Hard cap on tables sampled in one discovery scan (default `200`). Binds `accessflow.discovery.max-tables-per-scan`. |
-| `ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN` | Hard cap on tables sent through the optional discovery AI pass per scan, bounding provider spend (default `25`). Binds `accessflow.discovery.max-ai-tables-per-scan`. |
-| `ACCESSFLOW_APIGOV_REVIEW_TIMEOUT` | ISO-8601 duration. How long an API request may sit in `PENDING_REVIEW` before `ApiRequestTimeoutJob` auto-rejects it (default `PT24H`). |
-| `ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES` | Cap on the total encoded size of a submitted API request body (#517) — raw text, x-www-form-urlencoded, or the base64-decoded size of form-data / binary file parts (files ride inline as bounded base64 since AccessFlow has no object storage). Exceeding it rejects the submission with HTTP 422. Default `5242880` (5 MiB). Binds `accessflow.apigov.max-request-body-bytes`. |
-| `ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES` | System-wide hard ceiling (#521) on a stored — and therefore downloadable — API response body; the absolute backstop above any per-connector `max_response_bytes` (effective cap is the **min** of the two). The body lives in a Postgres `text` column and is read fully into JVM memory during the call. Default `10485760` (10 MiB). Binds `accessflow.apigov.max-response-bytes`. |
-| `ACCESSFLOW_APIGOV_MAX_VARIABLE_VALUE_BYTES` | Cap on a single resolved connector dynamic-variable value (AF-613). A digest or nonce is tens of bytes, so a larger value means a runaway expression or an abusive per-request override; exceeding it fails the execution, and a submitted override over the cap is rejected with HTTP 422 at submit time. Default `8192`. Binds `accessflow.apigov.max-variable-value-bytes`. |
-| `ACCESSFLOW_APIGOV_RESPONSE_PREVIEW_BYTES` | How much of the stored response snapshot is embedded inline in the API-request **detail** view (#521); beyond it the detail sets `response_snapshot_preview_truncated=true` and the full body is fetched via `GET /api-requests/{id}/response`. Default `65536` (64 KiB). Binds `accessflow.apigov.response-preview-bytes`. |
-| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_CACHE_SKEW` | ISO-8601 duration (#506). Safety skew subtracted from a fetched outbound-OAuth2 token's `expires_in` before `ConnectorOAuth2TokenService` caches it in Redis (`apigov:oauth2:token:<connectorId>`) (default `PT30S`). Binds `accessflow.apigov.oauth2-token-cache-skew`. |
-| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_REQUEST_TIMEOUT` | ISO-8601 duration (#506). Connect/read timeout for the `apigovOAuth2RestClient` posting to a connector's OAuth2 token endpoint (default `PT10S`). Binds `accessflow.apigov.oauth2-token-request-timeout`. |
-| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FALLBACK_TTL` | ISO-8601 duration (#506). Cache TTL used when a token response omits `expires_in` (default `PT60S`). Binds `accessflow.apigov.oauth2-token-fallback-ttl`. |
-| `ACCESSFLOW_APIGOV_OAUTH2_TOKEN_FAILURE_ALERT_THRESHOLD` | Consecutive outbound-OAuth2 token-fetch failures for a connector before an `API_CONNECTOR_OAUTH2_TOKEN_FAILED` admin notification fires (#506; default `3`). Binds `accessflow.apigov.oauth2-token-failure-alert-threshold`. |
-| `ACCESSFLOW_ACCESS_MIN_DURATION` | ISO-8601 duration. Smallest requestable JIT access duration (default: `PT15M`). |
-| `ACCESSFLOW_ACCESS_MAX_DURATION` | ISO-8601 duration. Largest requestable JIT access duration (default: `P30D`). |
-| `CORS_ALLOWED_ORIGIN` | Frontend origin for CORS |
-| `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` | HikariCP `connectionTimeout` for customer-DB pools (default `30s`). |
-| `ACCESSFLOW_PROXY_IDLE_TIMEOUT` | HikariCP `idleTimeout` (default `10m`). |
-| `ACCESSFLOW_PROXY_MAX_LIFETIME` | HikariCP `maxLifetime` (default `30m`). |
-| `ACCESSFLOW_PROXY_LEAK_DETECTION_THRESHOLD` | HikariCP leak-detection threshold (default `0s` = disabled). |
-| `ACCESSFLOW_PROXY_ESTIMATE_TIMEOUT` | ISO-8601 duration. Statement timeout for the automatic pre-flight cost estimate (AF-624) — the async EXPLAIN + affected-row COUNT run after each submission use this tighter bound instead of the full execution statement timeout (default `PT5S`). |
-| `ACCESSFLOW_PROXY_EXECUTION_MAX_ROWS` | Hard cap on rows returned by a single query (default `10000`). |
-| `ACCESSFLOW_PROXY_EXECUTION_STATEMENT_TIMEOUT` | Statement-level timeout applied to customer-DB JDBC statements (default `30s`). |
-| `ACCESSFLOW_PROXY_EXECUTION_DEFAULT_FETCH_SIZE` | Default JDBC fetch size (default `1000`). |
-| `ACCESSFLOW_PROXY_EXECUTION_INSERT_BATCH_CHUNK_SIZE` | Rows per JDBC `executeBatch()` flush when a `BEGIN…COMMIT` envelope's homogeneous single-row INSERTs are batched (AF-457, default `1000`). |
-| `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` | Per-result byte cap enforced while materializing SELECT rows (#49); exceeding it truncates the result with `truncated_reason=BYTE_LIMIT`. Relational JDBC path only (default `52428800`). |
-| `ACCESSFLOW_PROXY_EXECUTION_MAX_CONCURRENT` | Global budget of in-flight query executions across all datasources (#49); overflow waits then gets 503 `QUERY_CONCURRENCY_LIMIT`. Per-datasource concurrency stays HikariCP's job (default `32`). |
-| `ACCESSFLOW_PROXY_EXECUTION_ACQUIRE_TIMEOUT` | ISO-8601/simple duration. How long an overflow execution waits for a concurrency permit before the 503 (#49, default `5s`). |
-| `ACCESSFLOW_PROXY_CACHE_ENABLED` | Deployment-wide kill-switch for the opt-in SELECT result cache (AF-457, default `true`). The real gate is each datasource's `result_cache_enabled` flag; entries are Redis-backed and invalidated on any proxied write to a referenced table. |
-| `ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL` | ISO-8601 duration. Result-cache TTL used when a datasource opts in without its own `result_cache_ttl_seconds` (default `PT60S`). |
-| `ACCESSFLOW_PROXY_CACHE_MAX_ENTRY_BYTES` | Serialized-size cap per cached SELECT result; larger results are never cached (default `1000000`). |
-| `ACCESSFLOW_PROXY_REPLICA_PROBE_INTERVAL` | ISO-8601 duration. Cadence of the per-node read-replica health prober (AF-457, default `PT30S`). Deliberately per-node (not ShedLock'd) — pools and breaker state are per JVM. |
-| `ACCESSFLOW_PROXY_REPLICA_PROBE_TIMEOUT` | ISO-8601 duration. JDBC `isValid` timeout per replica endpoint probe (default `PT5S`). |
-| `ACCESSFLOW_PROXY_REPLICA_COOLDOWN` | ISO-8601 duration. How long a failed replica endpoint sits out of the read rotation before a half-open retry (default `PT30S`). |
-| `ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>` | Generic per-engine plugin tuning (AF-418): binds `accessflow.proxy.engines.<connector-id>.*`, passed verbatim into the engine's `QueryEngineContext` config map. Key names are each engine's contract (`_`/`.` normalize to `-`); generic env vars override `application.yml` defaults. See `docs/15-engine-sdk.md`. |
-| `ACCESSFLOW_PROXY_MONGO_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-MongoDB-datasource `MongoClient` (default `PT10S`). MongoDB-only; the relational pools use the `ACCESSFLOW_PROXY_CONNECTION_TIMEOUT` HikariCP knob. Legacy alias for `accessflow.proxy.engines.mongodb.connect-timeout` — still fully supported. |
-| `ACCESSFLOW_PROXY_MONGO_SERVER_SELECTION_TIMEOUT` | ISO-8601 duration. MongoDB server-selection timeout (default `PT10S`). Legacy alias for `accessflow.proxy.engines.mongodb.server-selection-timeout`. |
-| `ACCESSFLOW_PROXY_MONGO_MAX_POOL_SIZE` | Max connections in the native MongoDB driver's internal pool (default `10`). Legacy alias for `accessflow.proxy.engines.mongodb.max-pool-size`. |
-| `ACCESSFLOW_PROXY_ENGINES_COUCHBASE_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-Couchbase-datasource native `Cluster` (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_COUCHBASE_WAIT_UNTIL_READY_TIMEOUT` | ISO-8601 duration. How long a freshly opened Couchbase cluster waits for the datasource bucket before the first query (default `PT10S`). |
-| `ACCESSFLOW_PROXY_ENGINES_COUCHBASE_SCAN_CONSISTENCY` | SQL++ scan consistency: `request-plus` (default — reads observe mutations submitted before the query) or `not-bounded` (Couchbase's own default, faster under load). |
-| `ACCESSFLOW_PROXY_ENGINES_REDIS_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-Redis-datasource native Jedis client (default `PT5S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_REDIS_SOCKET_TIMEOUT` | ISO-8601 duration. Socket-read timeout for Redis commands; bounds per-command latency (default `PT5S`). |
-| `ACCESSFLOW_PROXY_ENGINES_REDIS_MAX_POOL_SIZE` | Max connections in the native Jedis pool for a Redis datasource (default `10`). |
-| `ACCESSFLOW_PROXY_ENGINES_CASSANDRA_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-Cassandra-datasource native `CqlSession` (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_CASSANDRA_REQUEST_TIMEOUT` | ISO-8601 duration. Default CQL request timeout (default `PT10S`); the host overrides it per statement with the computed statement timeout. |
-| `ACCESSFLOW_PROXY_ENGINES_SCYLLADB_CONNECT_TIMEOUT` / `ACCESSFLOW_PROXY_ENGINES_SCYLLADB_REQUEST_TIMEOUT` | Same knobs for `db_type=SCYLLADB` datasources (served by the same Cassandra plugin; separate config lane, defaults `PT10S`). |
-| `ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-Elasticsearch-datasource low-level REST client (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_SOCKET_TIMEOUT` | ISO-8601 duration. Socket-read timeout for Elasticsearch requests; bounds per-request latency (default `PT30S`). |
-| `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_CONNECT_TIMEOUT` / `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_SOCKET_TIMEOUT` | Same knobs for `db_type=OPENSEARCH` datasources (served by the same Elasticsearch plugin; separate config lane, defaults `PT10S` / `PT30S`). |
-| `ACCESSFLOW_PROXY_ENGINES_DYNAMODB_CONNECT_TIMEOUT` | ISO-8601 duration. TCP connect timeout for the per-DynamoDB-datasource url-connection HTTP client (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_DYNAMODB_API_CALL_TIMEOUT` | ISO-8601 duration. Default per-request timeout for DynamoDB API calls (default `PT30S`); the host overrides it per statement with the computed statement timeout. |
-| `ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT` | ISO-8601 duration. Connect timeout for the per-Neo4j-datasource native Bolt driver (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE` | Max connections in the native Neo4j driver's internal Bolt connection pool for a datasource (default `100`). |
-| `ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_LOGIN_TIMEOUT` | ISO-8601 duration. Login timeout for the per-request Snowflake JDBC connection — warehouse sessions are opened per request, never pooled (default `PT30S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_NETWORK_TIMEOUT` | ISO-8601 duration. Network (socket) timeout for Snowflake JDBC requests (default `PT60S`). |
-| `ACCESSFLOW_PROXY_ENGINES_BIGQUERY_CONNECT_TIMEOUT` | ISO-8601 duration. HTTP connect timeout for the per-BigQuery-datasource native client (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_BIGQUERY_READ_TIMEOUT` | ISO-8601 duration. HTTP read timeout for BigQuery API requests (default `PT30S`). |
-| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_CONNECT_TIMEOUT` | ISO-8601 duration. TCP connect timeout for the Databricks Statement Execution API HTTP client (default `PT10S`). Generic AF-418 lane — no legacy alias. |
-| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_WAIT_TIMEOUT` | ISO-8601 duration. Server-side `wait_timeout` sent with each Databricks statement submission, clamped to the API's 5–50 s window (default `PT10S`). |
-| `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_POLL_INTERVAL` | ISO-8601 duration. Poll cadence while a submitted Databricks statement is PENDING/RUNNING; the host-computed statement timeout bounds the loop (default `PT1S`). |
-| `ACCESSFLOW_PROXY_HEALTH_CACHE_TTL` | ISO-8601 duration. Caffeine TTL for the admin datasource-health snapshot, cached per `(organizationId, datasourceId)` so the dashboard's 30s auto-refresh doesn't re-run the aggregate every poll (default `PT30S`). MongoDB datasources report query stats but no JDBC pool counters. |
-| `ACCESSFLOW_PUBLIC_BASE_URL` | Public base URL embedded in notification email links and webhook payloads (default `http://localhost:5173`). |
-| `ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST` | ISO-8601 duration before the first webhook retry (default `PT30S`). |
-| `ACCESSFLOW_NOTIFICATIONS_RETRY_SECOND` | ISO-8601 duration before the second webhook retry (default `PT2M`). |
-| `ACCESSFLOW_NOTIFICATIONS_RETRY_THIRD` | ISO-8601 duration before the third (final) webhook retry (default `PT10M`). |
-| `ACCESSFLOW_NOTIFICATIONS_TELEGRAM_API_BASE_URL` | Telegram Bot API base URL used by `TELEGRAM` notification channels (default `https://api.telegram.org/`). Override for air-gapped installs that route through an internal proxy. |
-| `ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_API_BASE_URL` | PagerDuty Events API v2 base URL used by `PAGERDUTY` notification channels (default `https://events.pagerduty.com/`). Override for air-gapped installs that route through an internal proxy. |
-| `ACCESSFLOW_NOTIFICATIONS_SLACK_LINK_CODE_TTL` | ISO-8601 duration. TTL of the one-time Slack account-link code issued for the `/accessflow link <code>` slash-command flow, stored single-use in Redis (default `PT10M`). |
-| `ACCESSFLOW_NOTIFICATIONS_SLACK_SIGNATURE_TOLERANCE` | ISO-8601 duration. Acceptance window for the inbound Slack `X-Slack-Signature` HMAC (`X-Slack-Request-Timestamp` skew) on `/api/v1/integrations/slack/{actions,commands}`; also the Redis replay-dedup window (default `PT5M`). |
-| `ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE` | ISO-8601 duration (AF-453). Acceptance window for the `X-AccessFlow-Signature` HMAC (`X-AccessFlow-Timestamp` skew) on the inbound ServiceNow / Jira ticket-status webhooks `/api/v1/integrations/{servicenow,jira}/webhook/{channelId}`; also the Redis replay-dedup window (default `PT5M`). |
-| `ACCESSFLOW_SECURITY_INVITATION_TTL` | ISO-8601 duration. TTL of user-invitation tokens issued by `POST /admin/users/invitations` (default `P7D`). |
-| `ACCESSFLOW_COMPLIANCE_MAX_REPORT_PERIOD` | ISO-8601 duration. Largest period a single compliance report (AF-459) may span; a longer window is rejected `400 INVALID_REPORT_PERIOD` (default `P366D`). |
-| `ACCESSFLOW_COMPLIANCE_MAX_ROWS` | Hard cap on executed-query snapshots scanned by a single compliance report / signed export; beyond it the report sets `truncated=true` (default `50000`). Export signing reuses `JWT_PRIVATE_KEY` — no separate signing key. |
-| `ACCESSFLOW_SECURITY_PASSWORD_RESET_TTL` | ISO-8601 duration. TTL of self-service password-reset tokens issued by `POST /api/v1/auth/password/forgot` (default `PT1H`). Tokens are single-use. |
-| `ACCESSFLOW_SECURITY_PASSWORD_RESET_RESET_BASE_URL` | Base URL embedded in password-reset emails (default `http://localhost:5173`). The emailed link is `{base}/reset-password/{token}`. |
-| `ACCESSFLOW_SECURITY_STEP_UP_TTL` | ISO-8601 duration (AF-444). TTL of the single-use step-up token minted by `POST /auth/step-up` and consumed by the one-tap push decision endpoint `POST /reviews/{id}/decide` (default `PT5M`). Binds `accessflow.security.step-up.ttl`. |
-| `ACCESSFLOW_PUSH_VAPID_PUBLIC_KEY` / `ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY` | Optional Web Push VAPID keypair (raw base64url, e.g. from `web-push generate-vapid-keys`) (AF-444). When both are set they take precedence; otherwise a keypair is auto-generated on first use and persisted (private key encrypted with `ENCRYPTION_KEY`) in `push_vapid_config`. Binds `accessflow.push.vapid.{public-key,private-key}`. |
-| `ACCESSFLOW_PUSH_VAPID_SUBJECT` | VAPID `sub` claim — a `mailto:` or `https:` contact URL identifying this application server to push services (default `mailto:accessflow@localhost`). Binds `accessflow.push.vapid.subject`. |
-| `ACCESSFLOW_DRIVER_CACHE` | Filesystem path for cached customer-DB JDBC driver JARs (default: `${user.home}/.accessflow/drivers`). Set to a system path like `/var/lib/accessflow/drivers` and mount as a persistent volume in production. |
-| `ACCESSFLOW_DRIVERS_REPOSITORY_URL` | Maven repository base URL for on-demand driver downloads (default: `https://repo1.maven.org/maven2`). Override for internal Nexus / Artifactory mirrors. |
-| `ACCESSFLOW_DRIVERS_OFFLINE` | Boolean. When `true`, disables network resolution and serves only from the cache. Required for air-gapped installs. |
-| `ACCESSFLOW_TRACING_SAMPLING_PROBABILITY` | Micrometer Tracing sampling probability (default `1.0`). Lower this in high-traffic deployments to reduce export volume; MDC trace ids and `ProblemDetail.traceId` are populated regardless. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Optional (AF-454). Enables OTLP trace export of the proxy pipeline when set — the **full** OTLP/HTTP traces URL of the collector (e.g. `http://tempo:4318/v1/traces`; posted verbatim, so include `/v1/traces`). Unset = no export (default). `OtlpTracingEnvironmentPostProcessor` (registered in `META-INF/spring.factories`) bridges it — and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` / optional `OTEL_EXPORTER_OTLP_HEADERS` (`k=v,…`) — onto Spring Boot's `management.opentelemetry.tracing.export.otlp.*`. The bundled `opentelemetry-exporter-otlp` + `micrometer-registry-prometheus` deps (both BOM-managed) are inert until configured; `/actuator/prometheus` is exposed and `permitAll` for in-cluster scraping. |
-| `ACCESSFLOW_LOGGING_STRUCTURED_FORMAT` | When set, console logs are emitted as one JSON object per line. Accepted values: `logstash` (recommended for ELK / OpenSearch), `ecs` (Elastic Common Schema), `gelf` (Graylog). Unset = plain-text default. The MDC `traceId` / `spanId` are top-level fields in every JSON variant. The Spring Boot ASCII banner is hidden by default (`spring.main.banner-mode=off`); set `SPRING_MAIN_BANNER_MODE=console` to restore. |
-| `ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL` | Where the OAuth2 success / failure handler redirects after the provider roundtrip. Defaults to `${CORS_ALLOWED_ORIGIN}/auth/oauth/callback`. The frontend `OAuthCallbackPage` parses `?code=` (success) or `?error=` (failure) from the query string. |
-| `ACCESSFLOW_OAUTH2_EXCHANGE_CODE_TTL` | ISO-8601 duration. TTL of the one-time exchange code in Redis (default `PT1M`). Codes are single-use; keep short. |
-| `ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL` | Where the SAML success / failure handler redirects after the IdP roundtrip. Defaults to `${CORS_ALLOWED_ORIGIN}/auth/saml/callback`. The frontend `SamlCallbackPage` parses `?code=` (success) or `?error=` (failure) from the query string. |
-| `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL` | ISO-8601 duration. TTL of the one-time SAML exchange code in Redis (default `PT1M`). Stored in a separate `saml:exchange:` Redis namespace so codes cannot be cross-replayed against OAuth2. |
-| `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional. PEM-encoded RSA private key for the SP, used to sign AuthnRequests and shipped (via the paired cert) in `GET /api/v1/auth/saml/metadata/{registrationId}`. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. |
-| `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional. PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow, encrypts the private key with `ENCRYPTION_KEY`, and persists both PEMs into `saml_config` so they survive restarts. |
-| `ACCESSFLOW_LANGFUSE_DEFAULT_HOST` | Default Langfuse host pre-filled when a per-org `langfuse_config` row omits its own host (default `https://cloud.langfuse.com`). Per-org credentials and toggles live in the `langfuse_config` table, not in env. |
-| `ACCESSFLOW_LANGFUSE_PROMPT_CACHE_TTL` | ISO-8601 duration. How long a Langfuse-managed analyzer prompt is cached before re-fetch — edits in Langfuse take effect within this window without a restart (default `PT60S`). |
-| `ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT` / `ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT` | ISO-8601 durations for the outbound Langfuse ingestion / prompt API HTTP client (defaults `PT5S` / `PT10S`). |
-| `ACCESSFLOW_RAG_PGVECTOR_ENABLED` | Boolean (AF-336, default `true`). When `false`, the deployment opts out of the in-app pgvector store: no extension provisioning is attempted, the `vector_store` migration (V69) is skipped, and PGVECTOR RAG is disabled. The app always starts regardless. See [docs/09-deployment.md → pgvector for RAG](docs/09-deployment.md). |
-| `ACCESSFLOW_RAG_PGVECTOR_AUTO_PROVISION` | Boolean (AF-336, default `true`). Best-effort `CREATE EXTENSION IF NOT EXISTS vector` before Flyway (handled by `core.internal.config.PgVectorFlywayConfiguration`), so a DB role that may create extensions needs no separate superuser init step. When the extension is genuinely unavailable, V69 is recorded-skipped and `knowledge_document` is created by the idempotent `V73` instead — the app degrades to RAG-PGVECTOR-disabled rather than failing to boot. |
-| `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | Embedding dimension of the in-app RAG pgvector `vector_store` column (AF-336, default `1536`). Bound to the Flyway placeholder that fixes the `vector(N)` column type in V69 — **set before the first migration** and match the embedding model's output dimension. The `vector` extension is provisioned by a superuser init step (`deploy/postgres-init/02-pgvector.sql` for Compose, the Helm initContainer, `withInitScript` in Testcontainers) or auto-provisioned at startup; when unavailable the app starts with PGVECTOR RAG disabled. |
-| `ACCESSFLOW_RAG_CHUNK_SIZE` | Token chunk size used by `TokenTextSplitter` when splitting a RAG knowledge document for embedding (default `800`). |
-| `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS` | Maximum character length of a single RAG knowledge document accepted for ingestion (default `100000`). |
-| `ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE` | Binds `accessflow.ai.rate-limit.requests-per-minute` (AF-55) — per-organization request cap per minute across all AI analysis paths (editor preview, text-to-SQL, async submitted-query analysis), enforced by the `ai` module's `AiRateLimiter` via a Redis fixed-window counter before any `AiAnalyzerStrategy` call. `<= 0` disables (default `30`). |
-| `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` | Binds `accessflow.ai.rate-limit.tokens-per-month` (AF-55) — per-organization monthly token budget over summed `prompt_tokens + completion_tokens` of the org's `ai_analyses` rows in the current calendar month. Preview / text-to-SQL exceedance → HTTP 429; async exceedance → sentinel `CRITICAL` analysis row. `0` = unlimited / opt-in; `<= 0` disables (default `0`). |
-| `ACCESSFLOW_AI_ANOMALY_DETECTION_POLL_INTERVAL` | ISO-8601 duration. Binds `accessflow.ai.anomaly.detection-poll-interval` — cadence at which `BehaviorAnomalyDetectionJob` (the `ai` module, UBA / AF-383) rebuilds per-(user, datasource) behavioural baselines from `audit_log` metadata and runs anomaly detection (default `PT15M`). |
-| `ACCESSFLOW_AI_ANOMALY_LOOKBACK_WINDOW` | ISO-8601 duration. Binds `accessflow.ai.anomaly.lookback-window` — the aggregation window the UBA baseline advances over each cycle (default `PT1H`). |
-| `ACCESSFLOW_AI_ANOMALY_Z_SCORE_THRESHOLD` | Binds `accessflow.ai.anomaly.z-score-threshold` — z-score above which a scalar feature (query count, distinct tables, rows returned, error rate) is flagged (default `3.0`). |
-| `ACCESSFLOW_AI_ANOMALY_IQR_MULTIPLIER` | Binds `accessflow.ai.anomaly.iqr-multiplier` — IQR multiplier for the robust fallback when the baseline stddev is degenerate (default `1.5`). |
-| `ACCESSFLOW_AI_ANOMALY_MIN_SAMPLE_SIZE` | Binds `accessflow.ai.anomaly.min-sample-size` — cold-start guard: baseline windows required before UBA detection activates for a (user, datasource) (default `7`). |
-| `ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES` | Binds `accessflow.ai.anomaly.max-baseline-samples` — cap on the rolling per-feature observation series retained in each baseline (default `90`). |
-| `ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD` | Binds `accessflow.ai.anomaly.off-hours-threshold` — minimum baseline frequency for an active-hour bucket below which a query landing in it is flagged off-hours (default `0.02`). |
-| `ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED` | Boolean. Binds `accessflow.ai.anomaly.summary-enabled` — when `true`, the bound `ai_config` analyzer generates a natural-language explanation per anomaly (fully fail-safe; never blocks detection) (default `true`). |
-| `ACCESSFLOW_BOOTSTRAP_ENABLED` | Boolean. When `true`, the `bootstrap` module reconciles the declared `accessflow.bootstrap.*` admin config (org, admin user, CI/IaC service accounts + API keys, review plans, AI configs, datasources, SAML, OAuth2, Langfuse, notification channels, system SMTP) into the database on every startup. Authoritative GitOps semantics — declared rows are upserted, omitted rows are untouched. Default `false`. See [docs/09-deployment.md → Bootstrap configuration](docs/09-deployment.md#bootstrap-configuration) for the full property tree (`ACCESSFLOW_BOOTSTRAP_ORGANIZATION_*`, `ACCESSFLOW_BOOTSTRAP_ADMIN_*`, `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<N>_*`, `ACCESSFLOW_BOOTSTRAP_DATASOURCES_<N>_*`, etc.). |
-| `ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_<N>_*` | CI/IaC service accounts (AF-452): `_EMAIL`, `_DISPLAY_NAME`, `_ROLE` (default `ADMIN`), `_API_KEY_NAME`, `_API_KEY` (the raw `af_`-prefixed token, from a Secret — hash stored), `_API_KEY_EXPIRES_AT` (optional ISO-8601). Each is an API-key-only user (password login disabled) for the Terraform provider / CI Actions. Upserted by email; key rotated in place. Audited as `API_KEY_CREATED`/`API_KEY_UPDATED`. See [docs/16-iac.md](docs/16-iac.md). |
+**The operator reference is [docs/09-deployment.md](docs/09-deployment.md) — the single
+authoritative copy of all ~141 env vars.** Don't duplicate it here; grep it instead.
 
-> Spring Boot's relaxed binding lets *any* `application.yml` key be overridden by its UPPER_SNAKE_CASE env-var equivalent (e.g. `spring.jpa.show-sql` → `SPRING_JPA_SHOW_SQL=true`). The table above lists the values we expect operators to tune; advanced framework knobs remain reachable via this mechanism.
+Adding a knob: bind `accessflow.<module>.<kebab-name>` on a `<Module>Properties` record in
+`<module>/internal/config/`; use an ISO-8601 `Duration` for cadences with the default inline
+(`${accessflow.x.y:PT5M}`); document the row in `docs/09-deployment.md` in the same commit.
+Spring's relaxed binding gives you the `UPPER_SNAKE_CASE` env form for free — never add an
+`@Value` alias for it. Per-engine plugin tuning needs no host code at all: anything under
+`accessflow.proxy.engines.<id>.*` is passed verbatim into the engine's `QueryEngineContext`,
+reachable as `ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>`.
+
+The five referenced by the non-negotiable Security Rules below: `ENCRYPTION_KEY` (32-byte hex,
+AES-256-GCM for datasource credentials), `JWT_PRIVATE_KEY` (RSA-2048 PEM, RS256 signing),
+`DB_URL`/`DB_USER`/`DB_PASSWORD`, `AUDIT_DB_USER`/`AUDIT_DB_PASSWORD` (the dedicated
+audit-writer role — the app role has SELECT-only on `audit_log`), and `REDIS_URL`.
 
 ---
 
 ### Database Migrations (Flyway)
 
-- All schema changes via Flyway only. Location: `src/main/resources/db/migration/`.
-- File naming: `V{n}__{Snake_case_description}.sql` (double underscore).
-- **Never modify an existing migration file.**
-- Every new column must either have a DEFAULT value or be nullable (zero-downtime deploys).
-- Versioning sequence:
+Flyway only, in `backend/src/main/resources/db/migration/`, named `V{n}__{snake_case}.sql`.
+**Never modify a migration that already exists on `main`** — Flyway checksums applied migrations,
+so a change makes every existing deployment fail to start, with no rollback. Every added column is
+nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sidecar with
+`executeInTransaction=false`.
 
-  ```
-  V1__create_organizations.sql
-  V2__create_users.sql
-  V3__create_datasources.sql
-  V4__create_permissions.sql
-  V5__create_review_plans.sql
-  V6__create_query_requests.sql
-  V7__create_ai_analyses.sql
-  V8__create_review_decisions.sql
-  V9__create_audit_log.sql
-  V10__create_notification_channels.sql
-  V11__create_indexes.sql
-  V12__create_saml_configurations.sql
-  ```
+→ `.claude/patterns/jpa-entity-migration.md`
 
 ---
 
@@ -467,13 +344,13 @@ com.bablsoft.accessflow/
 
 ### Scheduled Jobs (clustered-safe)
 
-- `@EnableScheduling` is enabled in `workflow/internal/config/WorkflowConfiguration`. Place new `@Configuration` toggles in the owning module's `internal/config/` package.
-- **Every `@Scheduled` method MUST also carry `@SchedulerLock`** with a unique short camelCase `name`, plus `lockAtMostFor` and `lockAtLeastFor`. The Redis-backed `LockProvider` (`workflow/internal/config/RedisLockProviderConfiguration`) reuses the existing `RedisConnectionFactory`. Without the annotation, multi-replica deployments would run the job once per replica per tick.
-- Job classes live under `<module>/internal/scheduled/`. They MUST take long-lived dependencies via constructor injection (`@RequiredArgsConstructor`) and MUST swallow per-row `RuntimeException`s with `log.error(...)` so one bad row does not abort the batch.
-- Cadence is configured via a property under the owning module's namespace (e.g. `accessflow.workflow.timeout-poll-interval`). Use `@Scheduled(fixedDelayString = "${...:PT5M}")` with an ISO-8601 `Duration` default — never a hard-coded number of seconds.
-- Document each job in [docs/05-backend.md → "Scheduled jobs and clustering"](docs/05-backend.md#scheduled-jobs-and-clustering) (job name, lock name, cadence property, default).
-- Long-running mutations called from a job MUST go through a public `core.api` service interface — workflow may not depend on `core.internal`.
-- **One-shot cluster-wide locks** (e.g. startup bootstrap reconciliation) — `@SchedulerLock` is annotation-only and tied to `@Scheduled`. For non-periodic critical sections, inject `scheduling.api.DistributedLockService` and call `runLocked(name, lockAtMostFor, action)`. It returns `true` if the action executed, `false` if another node held the lock. Same Redis backend, same `accessflow:shedlock:` key prefix. ShedLock types stay inside `scheduling.internal/` so callers don't need third-party imports.
+**Every `@Scheduled` method MUST also carry `@SchedulerLock`.** Without it, a multi-replica
+deployment runs the job once per replica per tick — for the erasure and retention jobs that is
+data loss. Jobs live in `<module>/internal/scheduled/`, take a `Clock`, swallow per-row
+`RuntimeException`s, and take their cadence from an ISO-8601 property with the default inline.
+For non-periodic critical sections use `scheduling.api.DistributedLockService`.
+
+→ `.claude/patterns/scheduled-job.md`; job registry in `docs/05-backend.md`
 
 ---
 
@@ -498,42 +375,14 @@ com.bablsoft.accessflow/
 | Unit | `*Test.java` | JUnit 5 + Mockito | Single class, no Spring context |
 | Integration | `*IntegrationTest.java` | `@SpringBootTest` + Testcontainers | Full context, real DB |
 | Module | `*ModuleTest.java` | `@ApplicationModuleTest` | Single module isolation |
-| Architecture | `ApplicationModulesTest.java` | Spring Modulith verify API | Module boundary enforcement |
+| Architecture | `ApplicationModulesTest`, `ApiPackageDependencyTest` | Modulith + ArchUnit | Boundary + api/ purity |
 
-**Coverage target: ≥ 90% line coverage** (enforced via JaCoCo — build fails below threshold).
+**Coverage ≥ 90% lines / ≥ 80% branches**, and **every concrete class ships its own test in the
+same change** — do not assume coverage arrives from callers, because controller tests
+`@MockitoBean` the service so the implementation never runs. Use the shared
+`TestcontainersConfig` (it provisions the audit role and pgvector); **never H2**.
 
-**Coverage parity rule — every concrete class ships with its own test class.** When you add a `Default*` implementation of an `*Service` interface, a `*Specifications` helper, a JPA entity / repository wrapper, a request/response DTO with mapping logic, or a record with non-trivial constructor validation, you must ship a dedicated test for it in the same change. **Do not assume coverage will arrive from upstream callers.** Controller integration tests almost always `@MockitoBean` the service interface (so the implementation is never executed); other services typically mock their collaborators too. The JaCoCo gate is a backstop, not a substitute — by the time it fires you may already have an under-tested class merged. Concretely:
-
-- New `Default*Service` → `Default*ServiceTest.java` with one `@Test` per public method, covering happy path, every documented exception, and every distinct branch (status guard, null-check, role-check). Mockito-driven, no Spring context.
-- New JPA `*Specifications` helper → unit test that mocks `Root`, `CriteriaQuery`, `CriteriaBuilder` and verifies each filter field independently AND the no-filter path (see `AuditLogSpecificationsTest` / `QueryRequestSpecificationsTest`).
-- New record/DTO with a static `from(...)` mapper or non-default constructor (validation, normalization) → a focused test of the mapper covering the null-input branch and any conditional logic.
-- Adding a new method to an existing service → extend the existing `*Test.java` in the same change, not in a follow-up. The PR author sets the line/branch coverage of the touched class; the JaCoCo gate just refuses to merge below 90/80.
-
-**Testcontainers setup** — use a shared `@TestConfiguration`:
-
-```java
-@TestConfiguration(proxyBeanMethods = false)
-class TestcontainersConfig {
-    @Bean
-    @ServiceConnection
-    PostgreSQLContainer<?> postgres() {
-        return new PostgreSQLContainer<>("postgres:18-alpine");
-    }
-}
-```
-
-Use `@Import(TestcontainersConfig.class)` in integration tests. **Never use H2** as a substitute for PostgreSQL.
-
-**Architecture verification test** must exist at the root:
-
-```java
-class ApplicationModulesTest {
-    @Test
-    void verifyModularStructure() {
-        ApplicationModules.of(AccessFlowApplication.class).verify();
-    }
-}
-```
+→ `.claude/patterns/backend-test-parity.md`
 
 ---
 
@@ -553,12 +402,21 @@ When adding a new dependency to `backend/pom.xml` (or `frontend/package.json`), 
 
 ### Build Commands
 
+There is **no Maven wrapper** in this repo — use plain `mvn`, as CI does.
+
 ```bash
 cd backend
-./mvnw verify                    # full build + tests
-./mvnw verify -Pcoverage         # with JaCoCo coverage report
-./mvnw spring-boot:run           # run locally (requires env vars set)
-./mvnw test -Dtest=ApplicationModulesTest  # module boundary check
+mvn verify                       # full build + tests
+mvn verify -Pcoverage            # with JaCoCo coverage report
+mvn spring-boot:run              # run locally (requires env vars set)
+mvn -q test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest'  # architecture gates
+```
+
+Engine plugins build separately against the backend's installed plain jar:
+
+```bash
+mvn -f backend/pom.xml install -DskipTests   # publish the plain (non-exec) jar
+mvn -f engines/<id>/pom.xml clean verify     # one plugin
 ```
 
 ---
@@ -578,12 +436,11 @@ void onQuerySubmitted(QuerySubmittedEvent event) { ... }
 
 ## Frontend
 
-The frontend does not exist yet in the repository. Create it at `frontend/` using:
+React 19 / Vite / TypeScript SPA at `frontend/`, with real API wiring throughout (77 modules go
+through `src/api/client.ts`). `src/mocks/` is test-only. Full reference: `docs/06-frontend.md`.
 
-```bash
-npm create vite@latest frontend -- --template react-ts
-```
-
+> Writing a page or a form? Read `.claude/patterns/frontend-page.md` and
+> `.claude/patterns/frontend-form.md`. Touching a covered flow? `.claude/patterns/e2e-spec.md`.
 ### Tech Stack (required libraries — version: always latest stable)
 
 For all frontend dependencies, pin to the **latest stable** version available on npm at the time of `npm install`. Re-verify with `npm view <pkg> version` before adding or upgrading. If a newer major has shipped since the last check, prefer it unless a specific incompatibility is documented in the same change. Do not substitute the libraries themselves — but always take the newest stable major of each.
@@ -630,223 +487,36 @@ src/
 └── utils/        # Pure functions (riskColors, statusColors, dateFormat, sqlFormat)
 ```
 
-### TypeScript Rules
+### Non-negotiables
 
-- `strict: true` in `tsconfig.json` — no implicit `any`, no `any` casts unless unavoidable.
-- All API response and request shapes must be defined in `src/types/api.ts`.
-- Never use `as any` to silence a type error — fix the type.
-- Prefer `interface` for object shapes that may be extended; `type` for unions and mapped types.
+Everything else — state management, routing, WebSocket conventions, error envelopes, loading
+states, code splitting, theming, a11y — is in `docs/06-frontend.md` and the pattern files. These
+eight are the rules an agent needs *before* it knows which pattern to open:
 
-### State Management Rules
+1. **`strict: true`.** Never `as any` to silence a type error — fix the type. API shapes live in
+   `src/types/api.ts`.
+2. **Every user-visible string through `t()`** — labels, placeholders, titles, column headers,
+   `aria-label`s, and backend enum values (via `src/utils/enumLabels.ts`, never an inline
+   `{ value: 'EMAIL', label: 'EMAIL' }`).
+3. **TanStack Query for all server data.** No `useEffect` fetching, and **no server data in
+   Zustand** — only `authStore`, `notificationStore`, `preferencesStore` are legitimate.
+4. **JWT access token in memory** (Zustand), never `localStorage`/`sessionStorage`. The refresh
+   token is an `HttpOnly; Secure; SameSite=Strict` cookie the frontend never reads.
+5. **Config via `getApiBaseUrl()`/`getWsUrl()`** from `src/config/runtimeConfig.ts` — never
+   `import.meta.env` in a component, never `process.env`.
+6. **All requests through `src/api/client.ts`** — never a bare `fetch`. 401 is the interceptor's
+   job; components must not catch it.
+7. **Never `dangerouslySetInnerHTML`, `eval`, or `new Function`.** No hardcoded hex colours —
+   use the `--af-*` tokens, and `src/utils/{statusColors,riskColors}.ts` for status/risk.
+8. **Validation parity.** Every backend Bean Validation constraint has a matching `Form.Item`
+   rule and vice versa, changed in the same commit
+   (`.claude/patterns/frontend-form.md`).
 
-- **TanStack Query** for all server data — no `useEffect` + `useState` for fetching.
-- **Zustand** only for client-side state: auth (`authStore`), in-app notifications (`notificationStore`), editor preferences (`preferencesStore`).
-- Never put server data (query lists, datasources) into Zustand.
-- WebSocket events invalidate TanStack Query cache via `queryClient.invalidateQueries`.
-
-### Auth Flow
-
-- JWT access token (15 min TTL) stored in memory (Zustand), **not** `localStorage`.
-- Refresh token is an `HttpOnly` cookie — Axios sends it automatically on `POST /auth/refresh`.
-- Axios request interceptor: on 401, call `POST /auth/refresh`, retry original request. On refresh failure, call `logout()` and redirect to `/login`.
-- All routes except `/login` and `/auth/saml/callback` are wrapped in `<AuthGuard>`.
-- Admin routes additionally check `user.role === 'ADMIN'`.
-
-### Environment Variables
-
-Two values drive the frontend: `apiBaseUrl` and `wsUrl`. Both are read through `src/config/runtimeConfig.ts` (`getApiBaseUrl()` / `getWsUrl()`) — never reach for `import.meta.env` directly from components.
-
-Build-time `.env` (used by `npm run dev` only):
-
-```env
-VITE_API_BASE_URL=http://localhost:8080
-VITE_WS_URL=ws://localhost:8080/ws
-```
-
-**Frontend runtime config.** `frontend/public/runtime-config.js` sets `window.__APP_CONFIG__` synchronously before the React bundle loads, and `runtimeConfig.ts` reads it with this precedence: `window.__APP_CONFIG__` → `import.meta.env.VITE_*` → `http://localhost:8080` / `ws://localhost:8080/ws`. Production deployments override at container runtime by replacing that one file (Docker bind-mount, Kubernetes ConfigMap, `sed` in an entrypoint) — *not* by setting `VITE_*` env vars on the container, which only affect rebuilds. See [docs/09-deployment.md → "Frontend Runtime Configuration"](docs/09-deployment.md#frontend-runtime-configuration).
-
-Prefix all Vite env vars with `VITE_`. Never access `process.env` in frontend code — use `import.meta.env`.
-
-### Routing
-
-```
-/login                         → LoginPage
-/auth/saml/callback            → SamlCallbackPage
-/dashboard                     → DashboardPage  (default post-login home for non-auditor roles)
-/editor                        → QueryEditorPage
-/queries                       → QueryListPage
-/queries/:id                   → QueryDetailPage
-/reviews                       → ReviewQueuePage
-/reviews/attestations          → AttestationWorklistPage
-/datasources                   → DatasourceListPage
-/datasources/:id/settings      → DatasourceSettingsPage
-/admin/users                   → UsersPage
-/admin/roles                   → RolesPage
-/admin/attestation             → CampaignListPage
-/admin/attestation/:id         → CampaignDetailPage
-/admin/audit-log               → AuditLogPage
-/admin/ai-configs              → AiConfigListPage
-/admin/ai-configs/new          → AiConfigCreateWizardPage
-/admin/ai-configs/:id          → AiConfigEditPage
-/admin/notifications           → NotificationsPage
-/admin/saml                    → SamlConfigPage
-/admin/slack                   → SlackConfigPage
-/admin/langfuse                → LangfuseConfigPage
-```
-
-### SQL Editor Component
-
-Built with CodeMirror 6. Required features:
-- Dialect-aware syntax highlighting (PostgreSQL vs MySQL based on selected datasource).
-- Schema autocomplete — pass introspected schema from `/datasources/{id}/schema` as the `schema` option to `sql()`.
-- Debounced AI analysis (800 ms) calling `POST /queries/analyze`; render issues as gutter markers + AiHintPanel.
-- `Ctrl+Shift+F` → format SQL using `sql-formatter`.
-- Read-only mode (`EditorState.readOnly`) for detail/history views.
-
-### Testing (Frontend)
-
-```bash
-cd frontend
-npm run test           # Vitest unit + component tests
-npm run test:coverage  # Coverage report (enforces threshold)
-npm run lint           # ESLint
-npm run typecheck      # tsc -b --noEmit
-npm run build          # Vite production build
-```
-
-Playwright E2E tests live at the top-level [`e2e/`](e2e/) directory (NOT under `frontend/`). They have their own `package.json`, `playwright.config.ts`, and `docker-compose.e2e.yml` that builds the backend and frontend images from the working tree and seeds a deterministic admin via the `bootstrap` module. A second compose file, [`e2e/docker-compose.e2e.setup.yml`](e2e/docker-compose.e2e.setup.yml), boots the same images on ports 5174 / 8081 with **no admin seeded** for the first-run setup wizard spec — driven by [`e2e/playwright.setup.config.ts`](e2e/playwright.setup.config.ts) via `npm run test:setup`. A third compose file, [`e2e/docker-compose.e2e.sso.yml`](e2e/docker-compose.e2e.sso.yml), boots the same images on ports 5175 / 8082 plus a `kristophjunge/test-saml-idp` (SimpleSAMLphp) mock IdP on 8085 — used by [`e2e/tests/auth-saml-login.spec.ts`](e2e/tests/auth-saml-login.spec.ts), driven by [`e2e/playwright.sso.config.ts`](e2e/playwright.sso.config.ts) via `npm run test:sso`. See [e2e/README.md](e2e/README.md) for the local run flow.
-
-**Do not let `e2e/` drift behind the frontend.** A frontend change that breaks an existing spec — or that introduces a new user-facing flow worth covering — must update `e2e/tests/` **in the same commit set**. Concretely:
-
-- **Existing covered flows must keep passing.** When a change touches a route, page, form, store, or selector that an existing spec uses (`/login`, `/editor`, the user-menu/logout dropdown, the auth interceptor, future specs for the review queue, datasource creation, etc.), update the spec — selectors, expected text, assertions — alongside the code. Don't merge a frontend change that you know will turn an e2e green run red.
-- **New user-facing flows.** When a frontend change adds a new route, a new auth path, a new user-driven mutation (submit query, approve, create datasource, change a setting that has a server effect), add a spec to `e2e/tests/` in the same PR — or note explicitly in the PR description why it isn't worth covering yet. The default is "add a spec".
-- **Pure presentational refactors** (CSS-only tweaks, internal component rename, unit-test cleanup) don't need an e2e update — but they also shouldn't break selectors. If your refactor changes an `id`, `aria-label`, or visible label that a spec relies on, update the spec.
-
-The same rule applies to backend changes that flip behaviour for an e2e-covered flow (e.g. modifying the login endpoint payload, the refresh-cookie semantics, or the bootstrap reconciler). When in doubt, run `cd e2e && npm run stack:up && npm test` locally before opening the PR — the e2e CI job is the load-bearing check.
-
-**Coverage target: ≥ 90% line coverage** — same gate as the backend. Enforced by Vitest's `coverage.thresholds` in `vite.config.ts`; the build fails when below threshold. Branches must hit ≥ 80%, lines/functions/statements ≥ 90%.
-
-The coverage `include` list deliberately scopes measurement to pure-logic modules (`src/utils/**`, the analyzer/schema/delay mocks) at the demo stage. As feature work lands and pages/components gain meaningful tests (tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80)), expand the `include` list in the same change. **Any time you add a new pure-logic module, include it in coverage measurement and ship it with tests.**
-
-CI pipeline (`frontend` job in `.github/workflows/ci.yml`):
-- Runs when the PR/push touches `frontend/**` (gated by the workflow-level `dorny/paths-filter` step).
-- Steps: `npm ci → lint → typecheck → test:coverage → build`.
-- Posts a JUnit-based test summary and a coverage diff comment to the PR (`EnricoMi/publish-unit-test-result-action` + `davelosert/vitest-coverage-report-action`).
-
-The `e2e` job runs separately (same CI file) when a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It boots the full stack from [e2e/docker-compose.e2e.yml](e2e/docker-compose.e2e.yml) (building backend + frontend images from the working tree), waits on healthchecks, runs Playwright, then runs `npm run test:setup` — which boots the second stack from [e2e/docker-compose.e2e.setup.yml](e2e/docker-compose.e2e.setup.yml) to exercise the first-run setup wizard — and finally `npm run test:sso`, which boots the third stack from [e2e/docker-compose.e2e.sso.yml](e2e/docker-compose.e2e.sso.yml) (mock SimpleSAMLphp IdP) to exercise the SAML SSO login flow. All three runs together are included in the `CI Gate` aggregate.
-
-**Test layering and conventions:**
-- **Unit tests** (`src/utils`, `src/mocks`, store logic): pure logic only, no React.
-- **Component tests** (React Testing Library): assert behaviour from the user's perspective — query by role/label, not test IDs. No snapshot tests of large component trees.
-- **E2E tests** (Playwright, in [`e2e/`](e2e/)): drive the real backend + frontend via docker-compose. Seed deterministic state through the `bootstrap` module's env vars — never via test-only endpoints.
-- Mock HTTP at the network layer with **MSW** (when first needed); do not mock Axios directly.
-- Tests live alongside source as `*.test.ts(x)` or in `__tests__/`. Pick one per directory and stay consistent.
-
-### Component & File Conventions
-
-- One component per file. Filename matches the default export (`PascalCase.tsx` for components, `camelCase.ts` for hooks/utilities).
-- Components use named exports; default exports are reserved for lazy-loaded route pages.
-- `components/` folders are grouped by **domain**, not by type — see `docs/06-frontend.md` for the canonical list (`common/`, `editor/`, `review/`, `datasources/`, `audit/`).
-- Shared primitives (`StatusBadge`, `RiskBadge`, `CopyButton`, `PageHeader`) live in `components/common/`. Reuse them — never re-implement status/risk colours inline.
-- Pages own routing concerns and data fetching; presentational components stay pure (props in, JSX out).
-- Co-locate component-specific styles, helpers, and tests alongside the component (`Foo.tsx`, `Foo.test.tsx`, `useFoo.ts`).
-
-### Accessibility (a11y)
-
-- Use semantic HTML (`<button>`, `<nav>`, `<main>`, `<form>`) — never click handlers on `<div>`.
-- All interactive elements must be keyboard-reachable; no `tabindex` > 0.
-- Provide `aria-label` for icon-only buttons (e.g. `CopyButton`, audit-log row actions).
-- Form inputs require visible labels via Ant Design `Form.Item label` — placeholder is not a label.
-- Tables (audit log, permission matrix) need `<caption>` or `aria-label`; column headers use `scope="col"`.
-- Modals/drawers must trap focus and restore it on close (Ant Design's `Modal`/`Drawer` do this — don't bypass with custom overlays).
-- Honour `prefers-reduced-motion`: skip non-essential transitions when set.
-- Colour is never the sole status indicator — pair colour with text or an icon (the existing `StatusBadge` pattern).
-
-### Error Handling & Error Envelopes
-
-- Wrap each top-level route in an error boundary; surface a recovery action ("Retry"), not a stack trace.
-- Backend errors follow the RFC 9457 `ProblemDetail` envelope — see `docs/04-api-spec.md`. Render `title`/`detail`; map known `error` codes (e.g. `PERMISSION_DENIED`, `SQL_PARSE_ERROR`) to user-friendly messages in `src/utils/apiErrors.ts`.
-- **Always surface the server `detail`.** Route every failing-request toast through `showApiError(message, err, builder)` where `builder` is the matching `apiErrors.ts` domain handler (keeps its specific `error code → i18n` mappings) or, for call sites with no dedicated handler, the shared `apiErrorMessage(err, () => t('...generic'))` extractor. The backend `detail` is already localized (resolved via request locale), so it is preferred over a static fallback — the generic string only shows when the envelope carries no `detail`. Never write `onError: () => message.error(t('...'))` that discards `err`, and never pass a static `() => t('...')` builder to `showApiError` (it throws the error away — use `(e) => apiErrorMessage(e, () => t('...'))`).
-- Never display raw axios error objects, server stack traces, or SQL strings as error messages.
-- 422 (SQL parse) errors render inline in the editor as gutter markers — not as a toast.
-- 401 is handled by the Axios interceptor (refresh + retry) — components must not catch it.
-
-### TanStack Query Defaults & Conventions
-
-- Default `staleTime: 30_000`, `gcTime: 5 * 60_000`, `refetchOnWindowFocus: false`, `retry: 1` — set on the global `QueryClient` (`src/main.tsx`). Don't change defaults per-call without a comment explaining why.
-- Query keys are arrays, hierarchical, prefixed by domain — `['queries', queryId]`, `['datasources', 'list', { page, size }]`. Define key factories in `src/api/<domain>.ts`.
-- Mutations that change a list invalidate the list key; mutations that change one record invalidate both `['<domain>', id]` and the list key.
-- Use `useMutation` with optimistic updates for review approve/reject; roll back on error.
-- Never duplicate server data into Zustand — use `useQueryClient().getQueryData(...)` if a non-React caller needs it.
-
-### WebSocket Conventions
-
-- A single `useWebSocket()` hook owns the connection; pages subscribe/unsubscribe to events.
-- JWT is passed as the `?token=<JWT>` query param on connect — **not** an `Authorization` header (browsers don't allow custom headers on WS handshake). Reconnect when the access token rotates.
-- Auto-reconnect with exponential backoff (1s, 2s, 4s, … capped at 30s); reset on successful connect.
-- Map WS events → query invalidations:
-  - `query.status_changed`, `query.executed` → invalidate `['queries', queryId]` and `['queries', 'list']`
-  - `review.new_request`, `review.decision_made` → invalidate `['reviews', 'queue']`
-  - `ai.analysis_complete` → invalidate `['queries', queryId]`
-- Never trust WS payloads as authoritative — always re-fetch via REST after invalidation.
-
-### Forms & Validation
-
-- Use Ant Design `Form` + `Form.Item`; do not manage form state manually with `useState`.
-- Mirror server-side validation rules in the form (e.g. `name` length 3–50, `host` non-empty) so users see errors before submit. The server remains the source of truth — surface its 400/422 responses field-level when `error.path` is present.
-- **Validation parity rule:** Every `Form.Item` rule must mirror the corresponding backend DTO Bean Validation constraint for that field — and vice versa. For example, a backend `@Size(min=8, max=128)` requires `{ min: 8, max: 128 }` on the frontend rule; a frontend `type: 'email'` requires `@Email` on the backend DTO. When adding or changing validation on either side, update the other side in the same change.
-- For runtime validation of API responses with non-trivial shapes (AI analysis, datasource schema), use `zod` (add the dep when first needed). Don't trust `as` casts.
-- Submit handlers are typed (`(values: SubmitQueryRequest) => Promise<void>`); never `any`.
-- Disable the submit button while pending; render a spinner inside the button, not a full-page loader.
-
-### Internationalisation (i18n)
-
-- **Never hardcode user-facing strings in JSX or TypeScript.** All visible text — form labels, placeholders, button labels, page titles, column headers, error messages, `aria-label` values, **and the visible labels for backend enum values** (query status, role, db type, SSL mode, channel type, AI / auth / OAuth provider, etc.) — must come from the `t()` function provided by `react-i18next`. Enum-value labels live under `enums.<enum_name>.<VALUE>` and are rendered through the typed helpers in [`frontend/src/utils/enumLabels.ts`](frontend/src/utils/enumLabels.ts) (`queryStatusLabel`, `roleLabel`, `dbTypeLabel`, …) — never inline the raw enum string into JSX or hand-roll a `<Select>` option array like `{ value: 'EMAIL', label: 'EMAIL' }`. Use `enumOptions(VALUES, label, t)` for option arrays. The value sent over the wire stays the raw enum string; only the label changes.
-- React components use `const { t } = useTranslation();`. Plain utility functions (under `src/utils/`) that produce user-visible strings use `i18n.t()` imported from `src/i18n.ts`.
-- All English translations live in `src/locales/en.json`. Key convention: `<feature>.<screen>.<element>` (e.g. `auth.login.title`, `nav.editor`, `validation.email_required`). Adding a new language requires only a new `src/locales/<locale>.json` file and registering it in `src/i18n.ts`.
-- When adding a new user-visible string: add the key to `src/locales/en.json` first, then reference it with `t('the.key')`. Never inline an English string directly.
-- Plurals use the i18next `_one` / `_other` suffix convention, called with `t('key', { count: n })`.
-- `ConfigProvider` in `src/main.tsx` must receive `locale={enUS}` so built-in Ant Design text (DatePicker, Pagination, Table, etc.) is also localised.
-- `dayjs.locale('en')` must be called in `src/main.tsx` before the React tree mounts.
-- The i18n bootstrap (`import './i18n'`) must be the **first import** in `src/main.tsx`.
-- Type-safe keys: `src/i18n.d.ts` declares `CustomTypeOptions` so `t('nonexistent.key')` is a compile error. Do not disable or bypass this check.
-- Parity is enforced by `src/locales/__tests__/locales.parity.test.ts` — adding a key to `en.json` without translating it in every `<locale>.json` registered in `SUPPORTED_LANGUAGES` fails CI. Orphan keys (present in a locale file but not in `en.json`) fail the same test.
-
-### Loading, Empty, and Skeleton States
-
-- Lists and tables render Ant Design `Skeleton` while loading — not a centred spinner.
-- Empty states use a dedicated component (`<EmptyState title icon action>`) — not a bare "No data".
-- Avoid layout shift: skeletons should match the dimensions of the loaded content.
-- For mutations, show inline progress on the affected row (review approve/reject), not a global toast.
-
-### Code Splitting
-
-- Lazy-load each top-level route group (`pages/admin/*`, `pages/datasources/*`, `pages/reviews/*`) via `React.lazy` + `<Suspense>` in the router.
-- The login page and `AppLayout` shell stay in the main bundle.
-- Don't lazy-load shared components (`components/common/*`) — the cache cost outweighs the bundle saving.
-
-### Frontend Security
-
-- Never use `dangerouslySetInnerHTML`. SQL highlighting in read-only panels uses CodeMirror with a string `value`, not raw HTML.
-- No `eval`, `new Function(...)`, or `setTimeout(stringArg)`.
-- All outbound requests go through `src/api/client.ts` — never `fetch` directly. The centralised client enforces `withCredentials`, baseURL, and the refresh interceptor.
-- Refresh-token cookie is `HttpOnly; Secure; SameSite=Strict` — frontend code never reads it. Token rotation is handled implicitly by the cookie + interceptor; treat each `/auth/refresh` 200 as authoritative.
-- The backend sets a strict CSP (`default-src 'self'`) — no inline `<script>`, no remote CDN scripts, no inline-string event handlers in markup (`onClick={fn}` is fine; HTML-string handlers are not).
-- Never log JWTs, session IDs, or datasource passwords (even in dev). Redact before `console.log`.
-- For `<a target="_blank">` (audit detail, external links), always pair with `rel="noopener noreferrer"`.
-
-### Theming
-
-- Ant Design tokens drive all colour and typography — read them via `--af-*` CSS custom properties (configured in `src/utils/antdTheme.ts`). Never hardcode hex colours in components.
-- Status and risk colours go through `src/utils/statusColors.ts` and `src/utils/riskColors.ts` — single source of truth, already covered by tests.
-- Dark mode follows `prefers-color-scheme`; user preference (when added) lives in `preferencesStore` (Zustand), not `localStorage` directly.
-
-### Demo-Mode Caveat
-
-The current `frontend/` scaffold runs in **demo mode**: mocked auth (`authStore` persists to localStorage), mocked AI/schema, in-memory query store. The rules above describe the **production** patterns and apply when wiring real backend calls (tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80) and follow-ups). Don't "fix" demo code to match these rules unless the task explicitly says so.
+Commands: `npm run lint`, `npm run typecheck`, `npm run test:coverage` (≥90% lines / ≥80%
+branches), `npm run build`. Note `build` is **stricter than `typecheck`** — it enforces
+`noUncheckedIndexedAccess` on test files too, so a green typecheck is not sufficient.
 
 ---
-
 ## API Contract
 
 Base path: `/api/v1`. All requests need `Authorization: Bearer <JWT>` except `/auth/*`.
@@ -902,19 +572,32 @@ carries the same contract for the pre-flight cost estimate — `null`/empty subs
 - Webhook retry policy: 1 initial attempt + up to 3 scheduled retries at +30 s, +2 min, +10 min (4 total attempts). Retry delays are configurable via `accessflow.notifications.retry.{first,second,third}`. On exhaustion the dispatcher logs `ERROR`; audit-log integration is deferred until the audit module exists.
 - Sensitive channel config fields (`smtp_password`, `webhook_secret`) must be AES-256 encrypted before persistence; never returned in API responses.
 
+Adding a `NotificationEventType` or `NotificationChannelType` value touches seven switches, a
+Thymeleaf template, fourteen message files and the frontend union — and two of the switches have a
+`default`, so the compiler will not find them all → `.claude/patterns/notification-fanout.md`
+
 ---
 
 ## Git Workflow
 
+Trunk-based: **`main` is the only long-lived branch.** There is no `develop`. Every
+branch is cut from `main` and merged back into `main` by PR.
+
 ```
-main           → production-ready, tagged releases
-develop        → integration branch
-feature/AF-{n}-description  → from develop
-fix/AF-{n}-description      → from develop
-hotfix/AF-{n}-description   → from main, merge to both main and develop
+main                          → the trunk; production-ready, tagged releases
+feature/AF-{n}-description    → from main   (new capability, tied to issue #n)
+fix/AF-{n}-description        → from main   (bug fix, tied to issue #n)
+chore/AF-{n}-description      → from main   (tooling, docs, release prep)
 ```
 
-**PR requirements:** passing CI (build + tests + lint), ≥ 1 approval, Checkstyle + Spotless green, PR description references the issue number.
+`gh-pages` is release output only (Helm index, connector bundle, engine jars) — never
+hand-edited. `dependabot/*` branches are machine-generated and exempt from the naming rule.
+
+Where no issue exists, a descriptive slug replaces the number
+(`fix/AF-security-txt-expiry-guard`) — but the numbered form is strongly preferred, and
+`impl-gh-issue` always produces it.
+
+**PR requirements:** passing CI (the single required check is `CI / CI Gate`), ≥ 1 approval, PR description references the issue number. Checkstyle and Spotless run in Maven's `validate` phase, so any `mvn verify` already enforces them — see [docs/11-development.md](docs/11-development.md) → Coding Standards. There is no auto-formatter profile; match the surrounding file's style.
 
 Branch names must match the pattern above. Commit messages should be imperative mood, ≤ 72 chars subject line.
 
@@ -922,63 +605,74 @@ Branch names must match the pattern above. Commit messages should be imperative 
 
 ## CI / CD
 
-`.github/workflows/ci.yml` runs on every push / PR to `main`. It's a single workflow with conditional area jobs so branch protection can require **one** required check (`CI / CI Gate`) regardless of which area a PR touches:
+`.github/workflows/ci.yml` — one workflow, conditional area jobs gated by `dorny/paths-filter`,
+so branch protection requires exactly **one** check.
 
-- `changes` — runs `dorny/paths-filter@v4` to compute which areas (`backend`, `frontend`, `helm`) the diff touches.
-- `backend` — Java 25 (Temurin) + Maven `verify -Pcoverage` with JaCoCo gate and JUnit reporter. Runs only when `backend/**` (or `.github/workflows/ci.yml`) changed.
-- `frontend` — Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. Runs only when `frontend/**` (or the workflow file) changed.
-- `helm` — `helm dependency update` + `helm lint charts/accessflow` + `helm template` (default, external-services, bootstrap-fixture, and backup+restore variants). Runs only when `charts/**` (or the workflow file) changed.
-- `engines` — installs the backend plain jar, builds every `engines/*` plugin (unit + Testcontainers tests; mongodb, couchbase, redis, cassandra, elasticsearch, dynamodb, neo4j, snowflake, bigquery, and databricks today — the cassandra JAR backs both the `cassandra` and `scylladb` connectors, the elasticsearch JAR both `elasticsearch` and `opensearch`), and fails when a shaded JAR's SHA-256 drifts from the pin in its `connectors/<id>/connector.json`. Runs when `engines/**`, `backend/**`, or `connectors/**` (or the workflow file) changed.
-- `terraform` — Go build / vet / gofmt / golangci-lint / unit tests for the Terraform provider, then `TF_ACC=1` acceptance tests against a backend built from the working tree and booted with a bootstrap service account (`terraform-provider/docker-compose.acc.yml`). Runs when `terraform-provider/**` or `backend/**` (or the workflow file) changed.
-- `actions` — shellchecks the composite-action scripts and runs a live smoke test (boot the backend, `provision-datasource` create + idempotent re-run, then `run-query`). Runs when `.github/actions/**`, `ci-templates/**`, or `backend/**` (or the workflow file) changed.
-- `gate` — always runs, `needs: [changes, backend, frontend, helm, e2e, connectors, engines, terraform, actions]` with `if: always()`. Succeeds when each area job is either `success` or `skipped`; fails when any area job's `result` is anything else. **This is the only check name to configure as required in GitHub branch protection** — never the individual area jobs (those report `skipped` and would block PRs that don't touch their path).
+- Area jobs: `backend`, `frontend` (includes the `website/` guards), `helm`, `e2e` (3-variant
+  matrix), `connectors`, `engines` (10-engine matrix, fails on SHA pin drift), `terraform`,
+  `actions`. Each runs only when its paths changed.
+- **`CI / CI Gate` is the only check to mark required.** It `needs` every area job with
+  `if: always()` and passes when each is `success` or `skipped`. Never require an individual
+  area job — it reports `skipped` on unrelated PRs and would block them.
 
-Skipped area jobs cost no runner time. Re-running just one area is a "Re-run failed jobs" click on the failing area; the gate re-runs automatically.
+`.github/workflows/release.yml` is **manual** (`workflow_dispatch`) with a semver `version`
+input. A `-suffix` (e.g. `1.2.3-beta.1`) makes it a pre-release: moving tag `:beta` instead of
+`:latest`, GitHub "Pre-release" badge, and the stable connectors-index pointer on `gh-pages` is
+left untouched. It bumps `backend/pom.xml` + `frontend/package.json` on a **detached** commit and
+pushes only the tag, so `main` always reads `1.0.0-SNAPSHOT`. It publishes multi-arch GHCR images,
+the reproducible engine jars, and the Helm chart (whose `version`/`appVersion` track the app
+version 1:1 — the committed `0.1.0` is a placeholder).
 
-`.github/workflows/release.yml` is **manually triggered** (`workflow_dispatch`) and takes a semver `version` input (e.g. `1.2.3` without the leading `v`). A `-suffix` (e.g. `1.2.3-beta.1`, `1.0.0-rc.2`) makes the run a **pre-release / beta build for internal testing** — auto-detected from the `-` by the `Classify release` step (`steps.meta.outputs.prerelease`); it bypasses the `prep-gh-release` GA gates entirely (trigger Release directly). On run it:
-1. Bumps `backend/pom.xml` (`mvn versions:set`) and `frontend/package.json` (`npm version`).
-2. Creates a **detached** commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and pushes only the tag — `main` is never modified, so `main` always reflects `1.0.0-SNAPSHOT`. Checking out the tag shows pom.xml / package.json at the bumped version.
-3. Builds and pushes multi-arch (`linux/amd64`, `linux/arm64`) Docker images to GHCR: `ghcr.io/<owner>/accessflow-backend:{version,<moving>}` and `…-frontend:{version,<moving>}`. The moving tag is `latest` for a GA release and `beta` for a pre-release — so a beta never overwrites `:latest` (production `docker compose up` and the GA chart stay on the last stable). The frontend image gets `APP_VERSION` as a build-arg → `VITE_APP_VERSION` → `__APP_VERSION__` in the bundle.
-4. Publishes a GitHub Release (`softprops/action-gh-release@v2`) with `generate_release_notes: true`, passing `prerelease:` from the classify step — a beta gets the "Pre-release" badge and is never marked GitHub's "Latest". A pre-release also leaves the stable `connectors/connectors-index.json` pointer on gh-pages untouched (only the versioned connectors bundle + reproducible engine jars upload).
-5. Builds every `engines/*` plugin (their version lines are independent — never bumped by `versions:set`), verifies each reproducible SHA-256 against its manifest pin (drift fails the release), and publishes the `accessflow-engine-<id>-<pluginVersion>-all.jar` files to `gh-pages` under `engines/`.
-6. Repackages the Helm chart at `charts/accessflow/`: overwrites `Chart.yaml#version` and `appVersion` with the release semver via `yq`, runs `helm dependency update`, and `helm/chart-releaser-action@v1.7.0` pushes the packaged `.tgz` plus the updated `index.yaml` to the `gh-pages` branch (helm repo URL: `https://<owner>.github.io/accessflow`). Enable GitHub Pages once in **Repo Settings → Pages → Source = `gh-pages`** after the first release.
+`.github/workflows/release-terraform-provider.yml` is separate, fires on
+`terraform-provider-vX.Y.Z`, and git-subtree-splits `terraform-provider/` into the
+`bablsoft/terraform-provider-accessflow` mirror. Full detail: `docs/11-development.md`,
+`docs/16-iac.md`.
 
-`.github/workflows/release-terraform-provider.yml` is a **separate** release path for the Terraform/OpenTofu provider (AF-452), triggered by `terraform-provider-vX.Y.Z` tags (its version line is independent of the app version). It git-subtree-splits `terraform-provider/` and pushes it (plus a `vX.Y.Z` tag) to the dedicated `bablsoft/terraform-provider-accessflow` mirror repo via `MIRROR_REPO_TOKEN`; the mirror's own committed `release.yml` then runs GoReleaser to publish GPG-signed registry artifacts. Listing on opentofu.org / registry.terraform.io is a one-time operator step (issue-form submission + GPG-key registration), documented in [docs/16-iac.md](docs/16-iac.md) — same model as the "enable GitHub Pages once" Helm step.
-
-Helm chart rules:
-- The chart lives at `charts/accessflow/`. Chart `version` and `appVersion` track the app version 1:1 — never bump them independently; the release workflow overwrites both at release time, so the values committed to `main` (`0.1.0`) are placeholders.
-- Subchart deps (`bitnami/postgresql`, `bitnami/redis`) follow the same pin-to-latest-stable rule as every other dependency — refresh both `Chart.yaml` and the `helm search repo bitnami/<name>` output snapshot whenever the chart is touched.
-- `helm/chart-releaser-action`'s working tree-based packaging means dependency `.tgz` files **must not** be excluded by `.helmignore` (otherwise `helm template` and `helm package` fail with "missing in charts/ directory").
-- Dependency lockfiles (`charts/accessflow/Chart.lock`) and pulled `.tgz` artefacts are git-ignored — CI rebuilds them with `helm dependency update`.
-
-Prefer published actions over raw shell in `release.yml` — fall back to `run:` only when no well-maintained action exists (`mvn versions:set`, `npm version`, detached-tag push, `yq` in-place edit).
-
-Docker images:
-- Backend ([`backend/Dockerfile`](backend/Dockerfile)): multi-stage `maven:3-eclipse-temurin-25-alpine` build → `eclipse-temurin:25-jre-alpine` runtime, runs as non-root `app` user.
-- Frontend ([`frontend/Dockerfile`](frontend/Dockerfile)): multi-stage `node:24-alpine` build → `nginx:alpine` serve. Companion [`frontend/nginx.conf`](frontend/nginx.conf) handles SPA routing, `no-store` on `runtime-config.js` / `index.html`, and 7-day cache on hashed assets.
-
-Version surfacing:
-- Backend — `spring-boot-maven-plugin`'s `build-info` goal writes `META-INF/build-info.properties` at build time; Spring Boot publishes it under `info.build.*` on `/actuator/info`. The `health` and `info` actuator endpoints are `permitAll()` in `SecurityConfiguration` so k8s probes and the frontend can read them unauthenticated.
-- Frontend — `vite.config.ts` injects `__APP_VERSION__` (from `VITE_APP_VERSION` build-arg, fallback to `package.json#version`); exposed as `APP_VERSION` from [`src/config/version.ts`](frontend/src/config/version.ts) and rendered in the Sidebar brand mark.
+Docker images: `backend/Dockerfile` (maven:3-eclipse-temurin-25-alpine → temurin:25-jre-alpine,
+non-root) and `frontend/Dockerfile` (node:24-alpine → nginx:alpine, with `frontend/nginx.conf`
+handling SPA routing and `no-store` on `runtime-config.js`).
 
 ---
 
 ## What to Avoid
 
-- Do not use `@Autowired` field injection.
-- Do not return JPA entities from REST controllers — always use DTOs.
-- Do not put `@Transactional` on controllers.
-- Do not modify existing Flyway migration files.
-- Do not use `ddl-auto: create` or `update` outside Testcontainers tests.
-- Do not store the decrypted DB password anywhere beyond the HikariCP pool init.
-- Do not expose `password_encrypted` in any API response.
-- Do not use `useEffect` for data fetching in the frontend — use TanStack Query.
-- Do not store JWT access tokens in `localStorage` or `sessionStorage`.
-- Do not approve a user's own query — enforce in service logic.
-- Do not hard-code secrets — use environment variables.
-- Do not write multi-paragraph comments or doc comments on obvious methods.
-- Do not add features beyond what is requested; do not design for hypothetical future requirements.
-- Do not let `README.md` drift. When a change alters the user-facing pitch, tech stack versions, quick-start commands, project structure, license, or top-level features, update `README.md` in the same commit set — same rule that already applies to `docs/*.md`.
-- Do not let [`e2e/`](e2e/) drift behind the frontend (or behind the backend's auth / setup / proxy flows). When a frontend change touches a route, page, form, store, or selector that an existing Playwright spec uses, update the spec — selectors, expected text, assertions — in the same commit set. When a frontend change adds a new user-facing flow (route, auth path, user-driven mutation), add a spec to `e2e/tests/` in the same PR or note in the PR description why it isn't worth covering yet (the default is "add a spec"). The same rule applies to backend changes that flip behaviour for an e2e-covered flow (login payload, refresh-cookie semantics, bootstrap reconciler). See the **Testing (Frontend)** section for the full rule.
-- Do not let `website/` drift. The public marketing site at [`website/`](website/) is sourced from the application and `docs/` chapters — when a change alters the user-facing pitch, supported databases, AI providers, authentication methods, feature list, roadmap milestones, quick-start commands, docs chapter list, tech stack versions, or top-level URLs, update [`website/index.html`](website/index.html) (and the content-source map in [`website/README.md`](website/README.md)) in the same commit set. Additionally, when deployment instructions, configuration entities (Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation), the RBAC role matrix, or operator-facing env vars change, update the matching chapter under [`website/docs/`](website/docs/) — the public user documentation, **one page per chapter** (`docs/index.html` hub, `docs/install/`, `docs/configuration/{users-roles,datasources,connectors,review-workflows,ai,auth,notifications,audit-compliance}/`, `docs/workflows/`, `docs/iac/`) — in the same commit set. Two contracts bind those pages: [`frontend/src/config/docs.ts`](frontend/src/config/docs.ts) maps every in-app *View docs* anchor to the chapter that owns it, and [`website/app.js`](website/app.js) `LEGACY_DOCS_ANCHORS` permanently forwards the pre-split `/docs/#anchor` links that already-released self-hosted frontends still emit. Moving a section between chapters means updating both; `frontend/src/config/__tests__/docs.test.ts` fails when they disagree. The site has no build step; edits land directly in HTML.
-  - **SEO obligations that ride along with any `website/` edit.** Because there is no build step, these are hand-maintained and will silently rot otherwise: bump `<lastmod>` in [`website/sitemap.xml`](website/sitemap.xml) **and** the `dateModified` in the JSON-LD of each page you touched, to the date of the change; add a `<url>` entry when you add a page. Keep every `<meta name="description">` at **≤ 160 rendered characters** (Google truncates past that and substitutes its own snippet). Do not add `HowTo` schema (deprecated 2023) or `FAQPage` (Google retired FAQ rich results for all sites in May 2026). Link to the homepage as `/` — never `../index.html`, which costs a 307 redirect hop.
+Each line is a hard rule. Where a pattern file expands on it, follow the arrow.
+
+**Backend**
+- `@Autowired` field injection — constructor injection only *(Checkstyle-enforced)*.
+- Returning JPA entities from controllers → `patterns/rest-controller.md`.
+- `@Transactional` on a controller.
+- **Modifying an existing Flyway migration** → `patterns/jpa-entity-migration.md` *(hook-blocked)*.
+- `ddl-auto: create`/`update` outside Testcontainers tests.
+- `@Scheduled` without `@SchedulerLock` → `patterns/scheduled-job.md` *(hook-blocked)*.
+- A third-party import in an `api/` package → `patterns/modulith-module.md`.
+- `com.fasterxml.jackson.databind` imports — Jackson 3 is `tools.jackson.*` *(Checkstyle-enforced)*.
+  The annotation package `com.fasterxml.jackson.annotation.*` is unaffected and still correct.
+- `System.out` / `printStackTrace` — SLF4J only *(Checkstyle-enforced)*.
+- Hardcoded user-facing strings in Java → `patterns/backend-i18n.md`.
+- Shipping a `Default*Service` without its test → `patterns/backend-test-parity.md`.
+
+**Security**
+- Storing the decrypted DB password beyond HikariCP pool init.
+- Exposing `password_encrypted` in any response.
+- Approving your own query — enforce in the service, not just the UI.
+- Hard-coded secrets.
+
+**Frontend**
+- `useEffect` for data fetching — TanStack Query → `patterns/frontend-page.md`.
+- JWT access tokens in `localStorage`/`sessionStorage`.
+- `onError: () => message.error(t('…'))` that discards the server `detail` → `patterns/frontend-page.md`.
+
+**Don't let these drift** — same commit set, always:
+- `README.md`, when the pitch, tech-stack versions, quick-start, structure, or top-level
+  features change.
+- `e2e/tests/`, when a frontend change touches a covered route/form/selector, or adds a
+  user-facing flow → `patterns/e2e-spec.md`.
+- `website/` + its `sitemap.xml` `<lastmod>` and JSON-LD `dateModified`, and the
+  `frontend/src/config/docs.ts` ↔ `website/app.js` anchor contract →
+  `patterns/website-drift.md`.
+- `docs/09-deployment.md`, when you add a config knob.
+
+**Process**
+- Multi-paragraph comments or doc comments on obvious methods.
+- Features beyond what was requested; designing for hypothetical future requirements.

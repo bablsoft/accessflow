@@ -9,7 +9,6 @@ import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.CollaboratorContext;
 import com.bablsoft.accessflow.workflow.api.NewCommentInput;
 import com.bablsoft.accessflow.workflow.api.QueryCommentService;
-import com.bablsoft.accessflow.workflow.api.QueryCommentView;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;

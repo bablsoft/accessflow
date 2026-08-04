@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
-import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;

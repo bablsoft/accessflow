@@ -6,7 +6,6 @@ import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.ChannelConfigCodec;
-import com.bablsoft.accessflow.notifications.internal.codec.WebhookChannelConfig;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;

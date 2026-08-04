@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.core.api.ReviewPlanView;
 import com.bablsoft.accessflow.core.api.UpdateReviewPlanCommand;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanApproverEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewPlanEntity;

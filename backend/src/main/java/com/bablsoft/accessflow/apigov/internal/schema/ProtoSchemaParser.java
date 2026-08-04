@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.apigov.api.ParsedApiSchema;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

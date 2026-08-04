@@ -185,7 +185,7 @@ For the hot-reload dev loop you'll also need:
 - JDK 25 (e.g. `sdk install java 25-tem`)
 - Node.js 20 LTS
 
-The dev compose boots just the infrastructure (Postgres + Redis + a fake SMTP inbox at <http://localhost:1080>) so it can coexist with `./mvnw spring-boot:run` and `npm run dev`:
+The dev compose boots just the infrastructure (Postgres + Redis + a fake SMTP inbox at <http://localhost:1080>) so it can coexist with `mvn spring-boot:run` and `npm run dev`:
 
 ```bash
 docker compose -f backend/docker-compose-dev.yml up -d   # Postgres + Redis + Mailcrab
@@ -194,7 +194,7 @@ docker compose -f backend/docker-compose-dev.yml up -d   # Postgres + Redis + Ma
 Then in two more terminals:
 
 ```bash
-cd backend && ./mvnw spring-boot:run
+cd backend && mvn spring-boot:run
 ```
 
 ```bash
@@ -306,8 +306,8 @@ Both halves of the codebase ship with strict coverage gates enforced by CI.
 
 ```bash
 cd backend
-./mvnw verify -Pcoverage                        # full build + tests + JaCoCo coverage
-./mvnw test -Dtest=ApplicationModulesTest       # Spring Modulith boundary check
+mvn verify -Pcoverage                        # full build + tests + JaCoCo coverage
+mvn test -Dtest=ApplicationModulesTest       # Spring Modulith boundary check
 ```
 
 JaCoCo enforces ≥ 90 % line coverage; the `ApiPackageDependencyTest` ArchUnit check refuses third-party imports inside any `<module>/api/` package; `ApplicationModulesTest` refuses cross-module reaches into `internal/` packages.
