@@ -517,6 +517,7 @@
     "estimated_impact_label": "Գնահատված ազդեցություն",
     "query_type_label": "Գործողություն",
     "est_rows_label": "Գնահատված տողեր",
+    "est_bytes_label": "Գնահատված սկանավորված բայթեր",
     "plan_label": "Կատարման պլան",
     "rows_badge": "≈ {{value}} տող",
     "cost_badge": "արժեք {{value}}",

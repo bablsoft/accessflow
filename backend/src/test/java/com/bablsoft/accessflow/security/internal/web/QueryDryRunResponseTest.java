@@ -26,6 +26,7 @@ class QueryDryRunResponseTest {
         assertThat(response.engineId()).isEqualTo("postgresql");
         assertThat(response.queryType()).isEqualTo(QueryType.SELECT);
         assertThat(response.estimatedRows()).isEqualTo(100L);
+        assertThat(response.estimatedBytesScanned()).isNull();
         assertThat(response.rawPlan()).isEqualTo("{...}");
         assertThat(response.durationMs()).isEqualTo(7L);
         assertThat(response.plan().operation()).isEqualTo("Nested Loop");
@@ -43,7 +44,20 @@ class QueryDryRunResponseTest {
         assertThat(response.supported()).isFalse();
         assertThat(response.plan()).isNull();
         assertThat(response.estimatedRows()).isNull();
+        assertThat(response.estimatedBytesScanned()).isNull();
         assertThat(response.unsupportedReason()).isEqualTo("not supported");
         assertThat(response.durationMs()).isZero();
+    }
+
+    @Test
+    void mapsEstimatedBytesScanned() {
+        var result = QueryDryRunResult.of("bigquery", QueryType.SELECT, null, null, null,
+                Set.of(), Duration.ofMillis(3)).withEstimatedBytesScanned(10_500_000L);
+
+        var response = QueryDryRunResponse.from(result);
+
+        assertThat(response.supported()).isTrue();
+        assertThat(response.estimatedBytesScanned()).isEqualTo(10_500_000L);
+        assertThat(response.plan()).isNull();
     }
 }

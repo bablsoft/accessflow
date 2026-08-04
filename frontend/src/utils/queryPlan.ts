@@ -43,3 +43,22 @@ export function formatCost(value: number | null | undefined): string | null {
   }
   return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
+
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'] as const;
+
+/**
+ * Human byte label for the warehouse scan estimate (AF-634), or `null` when absent.
+ * Decimal (SI) units — BigQuery bills per decimal TB, so the label matches the billing math.
+ */
+export function formatBytes(value: number | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  let scaled = value;
+  let unit = 0;
+  while (scaled >= 1000 && unit < BYTE_UNITS.length - 1) {
+    scaled /= 1000;
+    unit += 1;
+  }
+  return `${scaled.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${BYTE_UNITS[unit]}`;
+}

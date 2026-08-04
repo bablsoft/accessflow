@@ -517,6 +517,7 @@
     "estimated_impact_label": "Impacto estimado",
     "query_type_label": "Operación",
     "est_rows_label": "Filas estimadas",
+    "est_bytes_label": "Bytes escaneados estimados",
     "plan_label": "Plan de ejecución",
     "rows_badge": "≈ {{value}} filas",
     "cost_badge": "coste {{value}}",

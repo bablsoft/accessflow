@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
@@ -132,6 +133,37 @@ class BigQueryQueryEngineIntegrationTest {
                 .containsExactly("Di2");
         run("DELETE FROM " + DATASET + ".users WHERE id = 9");
         assertThat(names("SELECT name FROM " + DATASET + ".users WHERE id = 9")).isEmpty();
+    }
+
+    @Test
+    void dryRunEstimatesWithoutExecuting() {
+        // AF-634: the native dry-run job must never execute — the row targeted by the DELETE
+        // below is still present afterwards. Bytes are emulator-dependent, so only the shape is
+        // asserted, not a value (the Mockito executor test pins the totalBytesProcessed mapping).
+        var sql = "DELETE FROM " + DATASET + ".users WHERE id = 1";
+        var request = new QueryExecutionRequest(descriptor.id(), sql, QueryType.DELETE, null, null,
+                List.of(), List.of(), List.of(), false, List.of(sql));
+
+        var result = engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("bigquery");
+        assertThat(result.queryType()).isEqualTo(QueryType.DELETE);
+        assertThat(names("SELECT name FROM " + DATASET + ".users WHERE id = 1"))
+                .containsExactly("Ada");
+    }
+
+    @Test
+    void dryRunDdlDegradesToUnsupported() {
+        var sql = "CREATE TABLE " + DATASET + ".dry_run_ddl (id INT64)";
+        var request = new QueryExecutionRequest(descriptor.id(), sql, QueryType.DDL, null, null,
+                List.of(), List.of(), List.of(), false, List.of(sql));
+
+        var result = engine.dryRun(new QueryEngineDryRunRequest(request, descriptor,
+                Duration.ofSeconds(30)));
+
+        assertThat(result.supported()).isFalse();
     }
 
     @Test

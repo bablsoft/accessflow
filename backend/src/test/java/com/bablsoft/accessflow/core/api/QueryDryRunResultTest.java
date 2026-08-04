@@ -42,12 +42,13 @@ class QueryDryRunResultTest {
         assertThat(result.rawPlan()).isEqualTo("{...}");
         assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(id);
         assertThat(result.unsupportedReason()).isNull();
+        assertThat(result.estimatedBytesScanned()).isNull();
     }
 
     @Test
     void nullRowSecurityIdsBecomesEmpty() {
         var result = new QueryDryRunResult(true, "postgresql", QueryType.SELECT, 1L, null, null,
-                null, Duration.ZERO, null);
+                null, null, Duration.ZERO, null);
         assertThat(result.appliedRowSecurityPolicyIds()).isEmpty();
     }
 
@@ -57,5 +58,35 @@ class QueryDryRunResultTest {
         assertThat(copied.supported()).isFalse();
         assertThat(copied.engineId()).isEqualTo("cassandra");
         assertThat(copied.unsupportedReason()).isEqualTo("no EXPLAIN");
+    }
+
+    @Test
+    void withEstimatedBytesScannedCopiesAllOtherFields() {
+        var id = UUID.randomUUID();
+        var result = QueryDryRunResult.of("bigquery", QueryType.SELECT, 100L, null, "raw",
+                Set.of(id), Duration.ofMillis(5)).withEstimatedBytesScanned(1_048_576L);
+        assertThat(result.estimatedBytesScanned()).isEqualTo(1_048_576L);
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("bigquery");
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.estimatedRows()).isEqualTo(100L);
+        assertThat(result.rawPlan()).isEqualTo("raw");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(id);
+        assertThat(result.unsupportedReason()).isNull();
+    }
+
+    @Test
+    void withUnsupportedReasonPreservesEstimatedBytesScanned() {
+        var result = QueryDryRunResult.of("bigquery", QueryType.SELECT, null, null, null,
+                Set.of(), Duration.ZERO).withEstimatedBytesScanned(42L)
+                .withUnsupportedReason("reason");
+        assertThat(result.estimatedBytesScanned()).isEqualTo(42L);
+        assertThat(result.unsupportedReason()).isEqualTo("reason");
+    }
+
+    @Test
+    void unsupportedFactoryHasNullEstimatedBytesScanned() {
+        assertThat(QueryDryRunResult.unsupported("redis").estimatedBytesScanned()).isNull();
+        assertThat(QueryDryRunResult.unsupported("redis", "why").estimatedBytesScanned()).isNull();
     }
 }

@@ -1068,6 +1068,8 @@ export interface QueryDryRunResult {
   engine_id: string;
   query_type?: QueryType | null;
   estimated_rows?: number | null;
+  /** Warehouse-native scan estimate in raw bytes (AF-634); null for engines without one. */
+  estimated_bytes_scanned?: number | null;
   plan?: QueryPlanNode | null;
   raw_plan?: string | null;
   /** Localized reason when `supported` is false (engine has no plan concept). */

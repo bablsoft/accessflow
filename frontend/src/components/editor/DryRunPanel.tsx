@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { QueryDryRunResult } from '@/types/api';
 import { fmtNum } from '@/utils/dateFormat';
 import { queryTypeLabel } from '@/utils/enumLabels';
+import { formatBytes } from '@/utils/queryPlan';
 import { PlanTree } from './PlanTree';
 
 interface DryRunPanelProps {
@@ -132,6 +133,13 @@ export function DryRunPanel({ running, result, stale = false, onRun }: DryRunPan
                     : fmtNum(result.estimated_rows)}
                 </span>
               </div>
+              {result.estimated_bytes_scanned !== null &&
+                result.estimated_bytes_scanned !== undefined && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="muted">{t('dry_run_panel.est_bytes_label')}</span>
+                    <span>{formatBytes(result.estimated_bytes_scanned)}</span>
+                  </div>
+                )}
             </div>
 
             {result.plan ? (

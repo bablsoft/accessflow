@@ -517,6 +517,7 @@
     "estimated_impact_label": "Geschätzte Auswirkung",
     "query_type_label": "Operation",
     "est_rows_label": "Geschätzte Zeilen",
+    "est_bytes_label": "Geschätzte gescannte Bytes",
     "plan_label": "Ausführungsplan",
     "rows_badge": "≈ {{value}} Zeilen",
     "cost_badge": "Kosten {{value}}",

@@ -517,6 +517,7 @@
     "estimated_impact_label": "预估影响",
     "query_type_label": "操作",
     "est_rows_label": "预估行数",
+    "est_bytes_label": "预估扫描字节数",
     "plan_label": "执行计划",
     "rows_badge": "≈ {{value}} 行",
     "cost_badge": "成本 {{value}}",

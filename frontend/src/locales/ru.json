@@ -517,6 +517,7 @@
     "estimated_impact_label": "Предполагаемое влияние",
     "query_type_label": "Операция",
     "est_rows_label": "Оценка строк",
+    "est_bytes_label": "Оценка сканируемых байтов",
     "plan_label": "План выполнения",
     "rows_badge": "≈ {{value}} строк",
     "cost_badge": "стоимость {{value}}",

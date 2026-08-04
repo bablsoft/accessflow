@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.bigquery;
 
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
 import com.bablsoft.accessflow.core.api.QueryType;
@@ -35,7 +36,9 @@ import java.util.List;
  * timeout exception raised. SELECTs page at {@code maxRows + 1} to detect truncation, then map
  * through {@link BigQueryResultMapper} (which applies column masking). A deny-all row-security
  * result short-circuits without touching BigQuery. DML (incl. MERGE) reports the job's
- * {@code numDmlAffectedRows}; DDL returns 0 affected rows.
+ * {@code numDmlAffectedRows}; DDL returns 0 affected rows. Dry-run (AF-445/AF-634) submits the
+ * governed statement as a native BigQuery dry-run job — validated and estimated server-side,
+ * never executed — and reports {@code totalBytesProcessed} as the scan estimate.
  */
 class BigQueryQueryExecutor {
 
@@ -95,6 +98,40 @@ class BigQueryQueryExecutor {
             }
             return new UpdateExecutionResult(dmlAffectedRows(completed), durationSince(start),
                     applied.appliedPolicyIds());
+        } catch (BigQueryException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        } catch (IllegalArgumentException ex) {
+            // Client construction failed (invalid service-account key JSON).
+            throw new com.bablsoft.accessflow.core.api.QueryExecutionFailedException(
+                    messages.get("error.query_execution_failed"), ex.getMessage(), null, 0, ex);
+        }
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        // DDL has no scan estimate — degrade gracefully (host localizes the reason).
+        if (statement.kind() == BigQueryStatementKind.DDL) {
+            return QueryDryRunResult.unsupported(BigQueryQueryEngine.ENGINE_ID);
+        }
+        var applied = rowSecurityApplier.apply(statement, request.rowSecurityPredicates());
+        if (applied.denyAll()) {
+            return QueryDryRunResult.of(BigQueryQueryEngine.ENGINE_ID,
+                    statement.kind().queryType(), 0L, null, null, applied.appliedPolicyIds(),
+                    durationSince(start)).withEstimatedBytesScanned(0L);
+        }
+        try {
+            var client = clientManager.client(descriptor);
+            // A dry-run job is validated and estimated server-side without running: create()
+            // returns synchronously with statistics populated — no polling, no cancel path.
+            var job = client.create(JobInfo.of(configuration(applied, descriptor, timeout)
+                    .toBuilder().setDryRun(true).build()));
+            JobStatistics.QueryStatistics statistics = job == null ? null : job.getStatistics();
+            var bytes = statistics == null ? null : statistics.getTotalBytesProcessed();
+            return QueryDryRunResult.of(BigQueryQueryEngine.ENGINE_ID,
+                    statement.kind().queryType(), null, null, null, applied.appliedPolicyIds(),
+                    durationSince(start)).withEstimatedBytesScanned(bytes);
         } catch (BigQueryException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         } catch (IllegalArgumentException ex) {

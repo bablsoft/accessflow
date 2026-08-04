@@ -70,9 +70,11 @@ public interface QueryEngine {
      * (issue AF-445), applying the request's row-security directives so the plan reflects the
      * governed query. Must <em>never</em> execute or mutate data — plan/estimate only (e.g.
      * MongoDB {@code explain} at {@code queryPlanner} verbosity, Couchbase / Neo4j {@code EXPLAIN},
-     * Elasticsearch {@code _validate/query?explain}). Engines with no plan concept inherit the
-     * default, which returns {@link QueryDryRunResult#unsupported(String)} so the host degrades
-     * gracefully with a clear message.
+     * Elasticsearch {@code _validate/query?explain}). Warehouse engines additionally report their
+     * native scan estimate via {@link QueryDryRunResult#estimatedBytesScanned()} (issue AF-634 —
+     * BigQuery dry-run job, Snowflake EXPLAIN, Databricks EXPLAIN COST). Engines with no plan
+     * concept inherit the default, which returns {@link QueryDryRunResult#unsupported(String)} so
+     * the host degrades gracefully with a clear message.
      */
     default QueryDryRunResult dryRun(QueryEngineDryRunRequest request) {
         return QueryDryRunResult.unsupported(engineId());
