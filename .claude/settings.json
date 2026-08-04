@@ -1,0 +1,86 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -v)",
+      "Bash(mvn -version)",
+      "Bash(mvn -f backend/pom.xml *)",
+      "Bash(mvn -f engines/*/pom.xml *)",
+      "Bash(mvn compile *)",
+      "Bash(mvn test-compile *)",
+      "Bash(mvn test *)",
+      "Bash(mvn verify *)",
+      "Bash(mvn clean *)",
+      "Bash(mvn spotless:check)",
+      "Bash(mvn spotless:apply)",
+      "Bash(mvn checkstyle:check)",
+      "Bash(mvn dependency:tree *)",
+      "Bash(mvn dependency:resolve *)",
+      "Bash(mvn help:effective-pom)",
+      "Bash(mvn help:evaluate *)",
+
+      "Bash(npm ci)",
+      "Bash(npm install)",
+      "Bash(npm run *)",
+      "Bash(npm view *)",
+      "Bash(npx playwright *)",
+      "Bash(node .github/scripts/check-engine-pins.mjs*)",
+      "Bash(node .github/scripts/validate-connectors.mjs*)",
+
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh run view *)",
+      "Bash(gh run list *)",
+      "Bash(gh label list *)",
+      "Bash(gh repo view *)",
+      "Bash(gh api repos/*)",
+
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git diff *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(git merge-base *)",
+      "Bash(git cat-file *)",
+      "Bash(git fetch *)",
+
+      "Bash(docker info)",
+      "Bash(docker compose config *)",
+      "Bash(helm lint *)",
+      "Bash(helm template *)",
+      "Bash(helm dependency update *)",
+      "Bash(shasum -a 256 *)",
+      "Bash(.claude/hooks/*.sh)",
+
+      "WebFetch(domain:repo1.maven.org)",
+      "WebFetch(domain:central.sonatype.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:docs.spring.io)",
+      "WebFetch(domain:javadoc.io)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/flyway-guard.sh" },
+          { "type": "command", "command": ".claude/hooks/backend-conventions.sh" },
+          { "type": "command", "command": ".claude/hooks/website-drift.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/mvn-guard.sh" }
+        ]
+      }
+    ]
+  }
+}
