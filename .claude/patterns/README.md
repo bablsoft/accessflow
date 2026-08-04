@@ -68,6 +68,17 @@ move rarely, and a stale line number still lands the reader in the right file.
 |---|---|---|
 | Engine plugin | Adding or modifying an `engines/<id>/` plugin | [engine-plugin.md](engine-plugin.md) |
 
+### Cross-cutting fan-out
+
+Enums whose every new value must be handled in many files at once. **Read these before adding a
+value** — in both cases some of the switch sites have a `default` branch, so the compiler will
+*not* find them all for you.
+
+| Pattern | When to use | File |
+|---|---|---|
+| Engine fan-out | Adding a `RowSecurityOperator` / `DbType` / `ColumnMaskType` value | [engine-fanout.md](engine-fanout.md) |
+| Notification fan-out | Adding a `NotificationEventType` / `NotificationChannelType` value | [notification-fanout.md](notification-fanout.md) |
+
 ## Source-of-truth files this directory mirrors
 
 The runnable definitions live in code; pattern docs reference them, but the code wins on
