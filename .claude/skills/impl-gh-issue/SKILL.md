@@ -100,6 +100,33 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 - **E2E (when frontend or auth/setup/proxy backend code changed):** `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test && npm run stack:down`. The CI `e2e` job runs the same steps — fail-locally-first to keep PR turnaround tight.
 - For UI changes that render in a browser, use the `preview_*` tools (per the harness instructions) — don't ask the user to check manually.
 
+### 5b. Independent review (report, don't block)
+
+Before opening the PR, get a second opinion from two agents that **cannot edit the code** — that
+constraint is the point, since a self-review by the author rationalises past its own choices.
+
+Dispatch both in a single message so they run concurrently. (If you get
+`Agent type 'af-verifier' not found`, the session predates the agent files — agents load at session
+start. Restart, or run the gates manually per step 5.)
+
+- **`af-verifier`** — maps the touched paths onto the gates that actually apply and *runs* them.
+  It reports `PASS` / `FAIL` / `NOT_RUN` / `BLOCKED` per gate. Treat any gate it could not run as
+  unverified, not as fine.
+- **`af-reviewer`** — reads the branch cold against the `.claude/patterns/` acceptance checklists,
+  the fan-out completeness tables, and the "same commit set" drift rules. Returns
+  Blockers / Concerns / Nits with `file:line` evidence.
+
+**This gate reports; it does not block.** Do not silently act on the findings and move on, and do
+not silently ignore them either:
+
+1. Fix anything you agree is a genuine Blocker.
+2. For anything you disagree with, say so explicitly with your reasoning — a reviewer finding can
+   be wrong, and a wrong Blocker acted on blindly is worse than no review.
+3. Surface the surviving Concerns to the user, and put them in the PR description under
+   **Review notes** so they are visible to a human reviewer rather than lost.
+
+If `af-reviewer` returns no Blockers, say that plainly — an empty review is a real result.
+
 ### 6. Commit and PR
 - Imperative subject ≤ 72 chars, prefixed by issue: `feat(AF-58): auto-reject queries past approval_timeout_hours` (match recent history with `git log --oneline -n 5`).
 - PR title mirrors the subject; PR body links the issue (`Closes #<n>`) and lists doc files updated.
@@ -117,4 +144,5 @@ The website has no build step — edits land directly in HTML. If you're unsure 
 - [ ] Frontend: lint + typecheck + `test:coverage` + build all green.
 - [ ] `e2e/tests/` updated to match: existing specs still pass against the change, and new user-facing flows (route, auth path, user-driven mutation) have a new spec — or the PR description states explicitly why one wasn't added. Specs ran locally via `npm run stack:up && npm test` when the change touched frontend or auth/setup/proxy backend code.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).
+- [ ] `af-verifier` and `af-reviewer` ran; every Blocker was fixed or explicitly rebutted with reasoning, and surviving Concerns are in the PR description under **Review notes**.
 - [ ] PR opened, links the issue, and lists touched docs **and website files** in the description.
