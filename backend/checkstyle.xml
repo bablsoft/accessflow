@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+  AccessFlow Checkstyle ruleset.
+
+  Scope note: this is deliberately NOT a formatting ruleset. The codebase is
+  hand-formatted and no google-java-format profile matches it (measured: even the
+  4-space AOSP profile rewrites 2,351 of 2,654 sources). Formatting hygiene is
+  Spotless's job; this file encodes the CLAUDE.md rules that have real consequences
+  and that the codebase already satisfies, so the gate can fail the build from day one.
+
+  Applies to src/main/java only (includeTestSourceDirectory=false in pom.xml) —
+  @Autowired field injection and broad catches are idiomatic in Spring tests.
+
+  Adding a rule: verify it has ZERO existing violations first
+  (`mvn -f backend/pom.xml checkstyle:check`), otherwise it is a warning, not a gate.
+-->
+<module name="Checker">
+    <property name="severity" value="error"/>
+    <property name="fileExtensions" value="java"/>
+
+    <!-- CLAUDE.md → Code Standards: no tabs. -->
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+
+    <!-- CLAUDE.md → Dependency Injection: "Constructor injection exclusively.
+         No @Autowired on fields." Matches @Autowired followed by a field
+         declaration (terminated by ';'), not a constructor/method (which opens '('). -->
+    <module name="RegexpMultiline">
+        <property name="format"
+                  value="@Autowired[^\n]*\n\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:public|protected|private)?\s*(?:static\s+)?(?:final\s+)?[\w.$]+(?:&lt;[^;(]*&gt;)?(?:\[\])?\s+\w+\s*(?:=[^;(]*)?;"/>
+        <property name="message"
+                  value="@Autowired field injection is forbidden — use constructor injection with final fields (@RequiredArgsConstructor). See CLAUDE.md → Dependency Injection."/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- CLAUDE.md → JSON Mapping: "Always import tools.jackson.databind.ObjectMapper
+             (not com.fasterxml.jackson.databind)." The annotation package
+             com.fasterxml.jackson.annotation.* is still correct and stays allowed. -->
+        <module name="IllegalImport">
+            <property name="illegalPkgs"
+                      value="com.fasterxml.jackson.databind, com.fasterxml.jackson.core, com.fasterxml.jackson.datatype"/>
+            <message key="import.illegal"
+                     value="Illegal import - {0}. Jackson 3 lives under tools.jackson.* — import tools.jackson.databind.* instead. (com.fasterxml.jackson.annotation.* is unaffected and still correct.)"/>
+        </module>
+
+        <!-- CLAUDE.md → Logging: "Use SLF4J — never System.out.println." -->
+        <module name="Regexp">
+            <property name="format" value="System\.(out|err)\.print"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message"
+                      value="Use SLF4J (LoggerFactory.getLogger), never System.out/System.err. See CLAUDE.md → Logging."/>
+        </module>
+        <module name="Regexp">
+            <property name="format" value="\.printStackTrace\(\)"/>
+            <property name="illegalPattern" value="true"/>
+            <property name="message"
+                      value="Use log.error(&quot;...&quot;, ex) instead of printStackTrace(). See CLAUDE.md → Logging."/>
+        </module>
+
+        <!-- Import hygiene. Both are currently clean across src/main/java. -->
+        <module name="UnusedImports">
+            <property name="processJavadoc" value="true"/>
+        </module>
+        <module name="RedundantImport"/>
+
+        <!-- Not enforced here: the "@Entity classes must carry the Entity suffix and live
+             in internal/persistence/entity/" rule. Checkstyle's Regexp module is
+             line-oriented, so it cannot look ahead from the annotation to the class
+             declaration without false-positiving on correctly-named entities. That check
+             lives in .claude/hooks/backend-conventions.sh, which sees the whole file. -->
+
+    </module>
+</module>

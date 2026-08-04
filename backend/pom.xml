@@ -29,6 +29,13 @@
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <archiunit.version>1.4.2</archiunit.version>
+        <!-- Code style. Measured 2026-08-04: no google-java-format profile matches this
+             codebase — even the 4-space AOSP profile rewrites 2,351 of 2,654 sources
+             (import ordering + line wrapping). So Spotless runs style-neutral hygiene
+             steps only, and Checkstyle enforces the CLAUDE.md rules that actually matter. -->
+        <spotless.version>3.9.0</spotless.version>
+        <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
+        <checkstyle.version>13.9.0</checkstyle.version>
         <!-- External secret stores (AF-448). -->
         <spring-vault.version>4.1.0</spring-vault.version>
         <awssdk.version>2.49.4</awssdk.version>
@@ -490,6 +497,61 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <java>
+                        <!-- Hygiene only, deliberately. A full google-java-format pass (even the
+                             4-space AOSP profile) rewrites ~2,350 of the ~2,650 backend sources
+                             because of import ordering and line wrapping — measured, not guessed.
+                             These three steps are style-neutral and touch almost nothing. -->
+                        <removeUnusedImports/>
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                    </java>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>${checkstyle.plugin.version}</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>${checkstyle.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <configLocation>checkstyle.xml</configLocation>
+                    <!-- src/main/java only: @Autowired field injection and broad catches
+                         are idiomatic in Spring tests. -->
+                    <includeTestSourceDirectory>false</includeTestSourceDirectory>
+                    <consoleOutput>true</consoleOutput>
+                    <failsOnError>true</failsOnError>
+                    <violationSeverity>error</violationSeverity>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>checkstyle-check</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

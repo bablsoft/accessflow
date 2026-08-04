@@ -22,7 +22,6 @@ import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import com.bablsoft.accessflow.core.api.VotingStrategy;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
-import com.bablsoft.accessflow.core.api.DatasourceRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;

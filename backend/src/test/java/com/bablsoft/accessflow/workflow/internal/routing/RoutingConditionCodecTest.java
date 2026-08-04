@@ -2,7 +2,6 @@ package com.bablsoft.accessflow.workflow.internal.routing;
 
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.workflow.api.ComparisonOperator;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
 import com.bablsoft.accessflow.workflow.api.IllegalRoutingPolicyException;

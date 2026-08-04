@@ -10,14 +10,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LogisticRegressionTrainerTest {
-    
+
     @Test
     void testLinearlySeparableSyntheticDataset() {
         var trainer = new LogisticRegressionTrainer();
         int n = 200;
         double[][] X = new double[n][2];
         boolean[] y = new boolean[n];
-        
+
         int idx = 0;
         for (int i = 0; i < 20; i++) {
             for (int j = 0; j < 10; j++) {
@@ -30,9 +30,9 @@ class LogisticRegressionTrainerTest {
                 idx++;
             }
         }
-        
+
         var model = trainer.train(X, y, List.of("x1", "x2"), 0.0, 1000);
-        
+
         int correct = 0;
         for (int i = 0; i < n; i++) {
             double prob = model.predict(X[i]);
@@ -41,56 +41,56 @@ class LogisticRegressionTrainerTest {
                 correct++;
             }
         }
-        
+
         double accuracy = (double) correct / n;
         assertTrue(accuracy > 0.95, "Accuracy should be > 95%, was: " + accuracy);
     }
-    
+
     @Test
     void testDeterminism() {
         var trainer = new LogisticRegressionTrainer();
         int n = 20;
         double[][] X = new double[n][2];
         boolean[] y = new boolean[n];
-        
+
         for (int i = 0; i < n; i++) {
             X[i][0] = i;
             X[i][1] = n - i;
             y[i] = i > 10;
         }
-        
+
         var model1 = trainer.train(X, y, List.of("x1", "x2"), 0.1, 100);
         var model2 = trainer.train(X, y, List.of("x1", "x2"), 0.1, 100);
-        
+
         double[] weights1 = {model1.weights().get("x1"), model1.weights().get("x2")};
         double[] weights2 = {model2.weights().get("x1"), model2.weights().get("x2")};
-        
+
         assertArrayEquals(weights1, weights2, 0.0, "Weights must be exact bit-identical");
         assertEquals(model1.intercept(), model2.intercept(), 0.0, "Intercept must be exact bit-identical");
     }
-    
+
     @Test
     void testRegularizationL2Shrinkage() {
         var trainer = new LogisticRegressionTrainer();
         int n = 20;
         double[][] X = new double[n][2];
         boolean[] y = new boolean[n];
-        
+
         for (int i = 0; i < n; i++) {
             X[i][0] = i;
             X[i][1] = i * 2;
             y[i] = i > 10;
         }
-        
+
         var modelLow = trainer.train(X, y, List.of("x1", "x2"), 0.0, 500);
         var modelHigh = trainer.train(X, y, List.of("x1", "x2"), 10.0, 500);
-        
+
         double normLow = Math.pow(modelLow.weights().get("x1"), 2) + Math.pow(modelLow.weights().get("x2"), 2);
         double normHigh = Math.pow(modelHigh.weights().get("x1"), 2) + Math.pow(modelHigh.weights().get("x2"), 2);
-        
+
         assertTrue(normHigh < normLow, "Higher lambda should shrink weights");
     }
-    
+
     @Test
     void testStandardizationAndConstantColumn() {
         var trainer = new LogisticRegressionTrainer();
@@ -101,10 +101,10 @@ class LogisticRegressionTrainerTest {
         };
         boolean[] y = {false, true, true};
         var model = trainer.train(X, y, List.of("x1", "const"), 0.0, 10);
-        
+
         assertEquals(4.0, model.means().get("x1"), 1e-6);
         assertEquals(2.0, model.stddevs().get("x1"), 1e-6); // sample stddev
-        
+
         assertEquals(5.0, model.means().get("const"), 1e-6);
         assertEquals(1.0, model.stddevs().get("const"), 1e-6); // exactly 1.0 because stddev ~ 0
     }

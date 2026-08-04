@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
-import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;

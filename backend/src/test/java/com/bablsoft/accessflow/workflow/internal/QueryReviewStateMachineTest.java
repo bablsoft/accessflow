@@ -14,7 +14,6 @@ import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;

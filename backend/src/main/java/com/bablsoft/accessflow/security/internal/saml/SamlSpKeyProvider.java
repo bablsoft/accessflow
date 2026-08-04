@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.security.internal.saml;
 
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
-import com.bablsoft.accessflow.security.internal.persistence.entity.SamlConfigEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.SamlConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.asn1.x500.X500Name;

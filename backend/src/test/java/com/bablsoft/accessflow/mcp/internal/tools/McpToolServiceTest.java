@@ -7,7 +7,6 @@ import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
-import com.bablsoft.accessflow.core.api.QueryListItemView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;

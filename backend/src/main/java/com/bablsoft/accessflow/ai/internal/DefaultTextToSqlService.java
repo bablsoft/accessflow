@@ -9,7 +9,6 @@ import com.bablsoft.accessflow.ai.api.TextToSqlNotConfiguredException;
 import com.bablsoft.accessflow.ai.api.TextToSqlService;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
-import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DbType;

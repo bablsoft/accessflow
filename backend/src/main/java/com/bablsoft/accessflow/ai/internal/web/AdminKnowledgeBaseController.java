@@ -1,7 +1,6 @@
 package com.bablsoft.accessflow.ai.internal.web;
 
 import com.bablsoft.accessflow.ai.api.KnowledgeBaseService;
-import com.bablsoft.accessflow.ai.api.KnowledgeDocumentView;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;

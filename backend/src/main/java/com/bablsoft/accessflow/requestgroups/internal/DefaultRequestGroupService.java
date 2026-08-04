@@ -17,7 +17,6 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.requestgroups.api.CreateRequestGroupCommand;
 import com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException;

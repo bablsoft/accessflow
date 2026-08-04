@@ -12,7 +12,6 @@ import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordApprovalCommand;
-import com.bablsoft.accessflow.core.api.RecordDecisionResult;
 import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Service
