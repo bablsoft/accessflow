@@ -62,6 +62,15 @@ move rarely, and a stale line number still lands the reader in the right file.
 | i18n | Any user-facing string in Java | [backend-i18n.md](backend-i18n.md) |
 | Test parity | Every new concrete backend class | [backend-test-parity.md](backend-test-parity.md) |
 
+### Frontend, e2e, website
+
+| Pattern | When to use | File |
+|---|---|---|
+| Frontend page | A new route/page/tab, or new server data in the UI | [frontend-page.md](frontend-page.md) |
+| Frontend form | Any AntD `Form` that posts to the API — and any backend DTO constraint change | [frontend-form.md](frontend-form.md) |
+| E2E spec | A new user-facing flow, or a change to a selector a spec uses | [e2e-spec.md](e2e-spec.md) |
+| Website drift | Any `website/` edit, or an app change that alters the public pitch or docs | [website-drift.md](website-drift.md) |
+
 ### Engines
 
 | Pattern | When to use | File |
