@@ -89,6 +89,10 @@
           {
             "type": "command",
             "command": ".claude/hooks/mvn-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": "if echo \"$TOOL_INPUT\" | grep -q 'git commit'; then .claude/hooks/pre-commit-check.sh; fi"
           }
         ]
       }
