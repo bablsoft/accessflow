@@ -1013,6 +1013,8 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_PROXY_ENGINES_ELASTICSEARCH_SOCKET_TIMEOUT` | Optional | `PT30S` | Socket-read timeout for Elasticsearch requests; bounds per-request latency |
 | `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-OpenSearch-datasource low-level REST client (served by the same Elasticsearch plugin; separate config lane, same defaults) |
 | `ACCESSFLOW_PROXY_ENGINES_OPENSEARCH_SOCKET_TIMEOUT` | Optional | `PT30S` | Socket-read timeout for OpenSearch requests |
+| `ACCESSFLOW_PROXY_ENGINES_DYNAMODB_CONNECT_TIMEOUT` | Optional | `PT10S` | TCP connect timeout for the per-DynamoDB-datasource url-connection HTTP client |
+| `ACCESSFLOW_PROXY_ENGINES_DYNAMODB_API_CALL_TIMEOUT` | Optional | `PT30S` | Default per-request timeout for DynamoDB API calls; the host overrides it per statement with the computed statement timeout |
 | `ACCESSFLOW_PROXY_ENGINES_NEO4J_CONNECT_TIMEOUT` | Optional | `PT10S` | Connect timeout for the per-Neo4j-datasource native Bolt driver |
 | `ACCESSFLOW_PROXY_ENGINES_NEO4J_MAX_CONNECTION_POOL_SIZE` | Optional | `100` | Max connections in the native Neo4j driver's internal Bolt connection pool for a datasource |
 | `ACCESSFLOW_PROXY_ENGINES_SNOWFLAKE_LOGIN_TIMEOUT` | Optional | `PT30S` | Login timeout for the per-request Snowflake JDBC connection (warehouse sessions are opened per request, never pooled) |
