@@ -8,6 +8,7 @@ surface in production or not at all.
 |---|---|---|
 | `flyway-guard.sh` | `Write\|Edit` on `db/migration/**` | Editing a migration that already shipped (Flyway checksums it — every existing deployment then fails to start). Plus version collisions, missing `.sql.conf` sidecars, `ADD COLUMN` without DEFAULT/NULL. |
 | `backend-conventions.sh` | `Write\|Edit` on `backend/**` + `engines/*/**` `.java` | `@Scheduled` without `@SchedulerLock` (runs once per replica per tick), `@Autowired` on a field, legacy `com.fasterxml.jackson.databind`, third-party imports in a module `api/`, misplaced entities, missing sibling tests. |
+| `frontend-conventions.sh` | `Write\|Edit` on `frontend/src/**` | JWT in web storage, `dangerouslySetInnerHTML`/`eval`, `as any`, `import.meta.env` outside `config/`, bare `fetch`, raw colour literals, `onError` that discards the server detail, inlined enum labels. |
 | `website-drift.sh` | `Write\|Edit` on `website/**.html` | Stale `sitemap.xml` `<lastmod>` and JSON-LD `dateModified` — precisely the half `websiteDocs.test.ts` does *not* cover. Plus retired `HowTo`/`FAQPage` schema. |
 | `mvn-guard.sh` | `Bash` containing `./mvnw` | There is no Maven wrapper in this repo. Blocks with the correct `mvn -f backend/pom.xml …` translation. |
 
@@ -61,10 +62,19 @@ fixed — a wedged session should be a ten-second fix, never a reason to abandon
 2. **Test both directions**: a real clean file must produce no output, and a synthetic bad file
    must fire exactly once.
 
-3. **Watch for these two bash traps**, both of which bit this codebase:
+3. **Watch for these bash traps**, all of which bit this codebase:
    - `grep -q` inside a pipeline under `set -o pipefail` SIGPIPEs the upstream producer and fails
      the whole pipeline. Capture into a variable instead.
    - `${VAR/a\/b/c\/d}` does not escape the way `sed` does. Use `sed` for path rewriting.
+   - **`grep -E` has no negative lookahead.** An inline `(?!…)` is a syntax *error*, so the rule
+     silently never fires — and `2>/dev/null` hides it. Filter with a second `grep -v` pass, and
+     never suppress a grep's stderr in a rule.
+   - A rule that looks clean may just be broken. Prove each one fires on a synthetic violation
+     *before* trusting a zero-finding scan.
 
-4. Prefer a handful of whole-content `grep -E` passes over a per-line loop — the backend has
+4. **Prefer narrowing over dropping.** The raw-colour rule fired on 15 files at first; nearly all
+   were legitimate `var(--token, #fallback)` fallbacks and neutral `rgba(0,0,0,α)` shadows.
+   Stripping those two shapes first took it to 2 real findings, which is a usable warn-level rule.
+
+5. Prefer a handful of whole-content `grep -E` passes over a per-line loop — the backend has
    500+ line services, and a loop spawns thousands of subprocesses per edit.

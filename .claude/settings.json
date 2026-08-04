@@ -17,7 +17,6 @@
       "Bash(mvn dependency:resolve *)",
       "Bash(mvn help:effective-pom)",
       "Bash(mvn help:evaluate *)",
-
       "Bash(npm ci)",
       "Bash(npm install)",
       "Bash(npm run *)",
@@ -25,7 +24,6 @@
       "Bash(npx playwright *)",
       "Bash(node .github/scripts/check-engine-pins.mjs*)",
       "Bash(node .github/scripts/validate-connectors.mjs*)",
-
       "Bash(gh issue view *)",
       "Bash(gh issue list *)",
       "Bash(gh issue comment *)",
@@ -38,7 +36,6 @@
       "Bash(gh label list *)",
       "Bash(gh repo view *)",
       "Bash(gh api repos/*)",
-
       "Bash(git status *)",
       "Bash(git log *)",
       "Bash(git diff *)",
@@ -49,7 +46,6 @@
       "Bash(git merge-base *)",
       "Bash(git cat-file *)",
       "Bash(git fetch *)",
-
       "Bash(docker info)",
       "Bash(docker compose config *)",
       "Bash(helm lint *)",
@@ -57,7 +53,6 @@
       "Bash(helm dependency update *)",
       "Bash(shasum -a 256 *)",
       "Bash(.claude/hooks/*.sh)",
-
       "WebFetch(domain:repo1.maven.org)",
       "WebFetch(domain:central.sonatype.com)",
       "WebFetch(domain:registry.npmjs.org)",
@@ -70,15 +65,31 @@
       {
         "matcher": "Write|Edit",
         "hooks": [
-          { "type": "command", "command": ".claude/hooks/flyway-guard.sh" },
-          { "type": "command", "command": ".claude/hooks/backend-conventions.sh" },
-          { "type": "command", "command": ".claude/hooks/website-drift.sh" }
+          {
+            "type": "command",
+            "command": ".claude/hooks/flyway-guard.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/backend-conventions.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/frontend-conventions.sh"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/website-drift.sh"
+          }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": ".claude/hooks/mvn-guard.sh" }
+          {
+            "type": "command",
+            "command": ".claude/hooks/mvn-guard.sh"
+          }
         ]
       }
     ]
