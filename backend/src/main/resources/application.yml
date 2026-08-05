@@ -195,6 +195,18 @@ accessflow:
       max-baseline-samples: ${ACCESSFLOW_AI_ANOMALY_MAX_BASELINE_SAMPLES:90}
       off-hours-threshold: ${ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD:0.02}
       summary-enabled: ${ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED:true}
+    approval-prediction:
+      # Approval-outcome prediction (AF-645). Every retrain-poll-interval a per-org logistic model
+      # is retrained over the training-lookback of decided queries (once min-training-samples
+      # exist); it serves advisory predictions only when the holdout AUC clears min-auc-to-serve.
+      enabled: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_ENABLED:true}
+      retrain-poll-interval: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_RETRAIN_POLL_INTERVAL:P1D}
+      min-training-samples: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_TRAINING_SAMPLES:50}
+      training-lookback: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_TRAINING_LOOKBACK:P180D}
+      holdout-fraction: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_HOLDOUT_FRACTION:0.2}
+      min-auc-to-serve: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_AUC_TO_SERVE:0.65}
+      l2-lambda: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_L2_LAMBDA:0.01}
+      max-iterations: ${ACCESSFLOW_AI_APPROVAL_PREDICTION_MAX_ITERATIONS:500}
   jwt:
     private-key: ${JWT_PRIVATE_KEY:}
     access-token-expiry: ${ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY:PT15M}

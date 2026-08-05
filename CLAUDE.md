@@ -263,7 +263,7 @@ in `i18n/messages.properties`; Bean Validation uses `message = "{key}"`; handler
 `application.yml` carries no secrets — `${ENV_VAR}` placeholders only.
 
 **The operator reference is [docs/09-deployment.md](docs/09-deployment.md) — the single
-authoritative copy of all ~141 env vars.** Don't duplicate it here; grep it instead.
+authoritative copy of all ~168 env vars.** Don't duplicate it here; grep it instead.
 
 Adding a knob: bind `accessflow.<module>.<kebab-name>` on a `<Module>Properties` record in
 `<module>/internal/config/`; use an ISO-8601 `Duration` for cadences with the default inline
