@@ -1017,6 +1017,55 @@ and the badge count), `ACKNOWLEDGED` (an admin has triaged it; no longer raises 
 
 ---
 
+## approval_prediction_model
+
+Per-organization approval-outcome prediction model (AF-645, Flyway `V130`). One row per org holding
+a hand-rolled logistic regression trained daily on the org's historical **human** review decisions
+(auto-approval paths — routing policies, grant coverage, break-glass, external tickets — are
+excluded from training). Serves an advisory-only "historical approval likelihood" triage signal to
+reviewers; it is never an input to routing, grant coverage, or any decision path. Rewritten by the
+retrain job.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` NOT NULL **UNIQUE** ON DELETE CASCADE — one model per org |
+| `feature_schema_version` | INTEGER NOT NULL — the feature-extractor schema the model was trained against |
+| `coefficients` | JSONB NOT NULL — the full standardized model as a unit: `{intercept, weights: {name: value}, means: {...}, stddevs: {...}}` |
+| `training_samples` | INTEGER NOT NULL — decided samples the model was trained on |
+| `positive_samples` | INTEGER NOT NULL — approved-label subset of `training_samples` |
+| `auc` | DOUBLE PRECISION nullable — holdout AUC (null when holdout evaluation was unavailable) |
+| `accuracy` | DOUBLE PRECISION nullable — holdout accuracy |
+| `serving` | BOOLEAN NOT NULL DEFAULT false — true only when the quality gate passed (≥ 50 decided samples, ≥ 10 per class, holdout AUC over threshold); non-serving models never produce predictions |
+| `trained_at` | TIMESTAMPTZ NOT NULL |
+| `version` | BIGINT — optimistic locking |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+---
+
+## approval_predictions
+
+One advisory approval-likelihood prediction per query request (AF-645, Flyway `V131`), persisted
+when the query lands in `PENDING_REVIEW`. Every scoring path persists a row — success, `skipped=true`
+("not enough history yet" — model missing or not serving), or `failed=true` sentinel — mirroring
+`query_estimates`. Read by the query detail / review queue only (advisory-only guarantee).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | FK → `query_requests` NOT NULL **UNIQUE** ON DELETE CASCADE (one prediction per query; deleted with its query) |
+| `probability` | DOUBLE PRECISION nullable — predicted approval probability in [0,1]; NULL on skipped/failed sentinel rows |
+| `model_id` | UUID nullable — bare back-pointer to the `approval_prediction_model` row that scored it (no FK — models are rewritten by the retrain job) |
+| `feature_schema_version` | INTEGER nullable — the feature schema used at serving time |
+| `features` | JSONB nullable — the serving-time feature snapshot, kept for explainability |
+| `skipped` | BOOLEAN NOT NULL DEFAULT false — true when no serving model existed for the org |
+| `skipped_reason` | VARCHAR(500) nullable — localized reason when `skipped=true` |
+| `failed` | BOOLEAN NOT NULL DEFAULT false — true when scoring hit an unexpected error (sentinel row) |
+| `error_message` | VARCHAR(500) nullable — failure reason when `failed=true` |
+| `created_at` | TIMESTAMPTZ |
+
+---
+
 ## break_glass_events
 
 Mandatory retrospective review opened by a break-glass / emergency-access execution (AF-385, Flyway
