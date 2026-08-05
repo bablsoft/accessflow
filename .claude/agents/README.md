@@ -1,13 +1,17 @@
 # Agents
 
-Two read-only agents that give a change a second opinion before it becomes a PR. They are
-dispatched together by [`impl-gh-issue`](../skills/impl-gh-issue/SKILL.md) at step 5b, and both
-work standalone on any branch.
+Four read-only agents that give a change a second opinion before it becomes a PR. They are
+dispatched by [`impl-gh-issue`](../skills/impl-gh-issue/SKILL.md) at step 5b (and
+[`add-engine`](../skills/add-engine/SKILL.md) at step 13): `af-verifier` and `af-reviewer` always
+run; the two specialists run when their paths are touched. All four work standalone on any
+branch.
 
 | Agent | Job | Tools |
 |---|---|---|
 | [`af-verifier`](af-verifier.md) | Maps the touched paths onto the gates that actually apply and **runs** them. Reports `PASS` / `FAIL` / `NOT_RUN` / `BLOCKED` per gate. | Read, Grep, Glob, Bash |
-| [`af-reviewer`](af-reviewer.md) | Reads the branch cold against the [`patterns/`](../patterns/) acceptance checklists, the fan-out completeness tables, and the drift rules. Returns Blockers / Concerns / Nits with `file:line` evidence. | Read, Grep, Glob, Bash |
+| [`af-reviewer`](af-reviewer.md) | Cross-cutting reviewer: the fan-out completeness tables, the "same commit set" drift rules, website drift, backend↔frontend validation parity. Returns Blockers / Concerns / Nits with `file:line` evidence. | Read, Grep, Glob, Bash |
+| [`af-java-reviewer`](af-java-reviewer.md) | Backend/engine code specialist (`backend/**`, `engines/**`): CLAUDE.md backend rules + the backend/engine [`patterns/`](../patterns/) checklists, incl. test parity. Same output format. | Read, Grep, Glob, Bash |
+| [`af-frontend-reviewer`](af-frontend-reviewer.md) | Frontend/e2e code specialist (`frontend/**`, `e2e/**`): the frontend non-negotiables + the frontend/e2e [`patterns/`](../patterns/) checklists, incl. e2e selector drift. Same output format. | Read, Grep, Glob, Bash |
 
 ## Why neither has an Edit tool
 
@@ -28,6 +32,13 @@ has to guess whether the build passes, and the verifier never has to have an opi
 AccessFlow suits this unusually well: with 30 CI checks, the architecture and parity tests, engine
 SHA pins and the patterns' `## Required` checklists, a reviewer here has real ground truth to
 check against rather than only taste.
+
+The review side splits once more, by ownership rather than stack size: the **specialists own
+code-level correctness within their stack** (`af-java-reviewer` for `backend/`+`engines/`,
+`af-frontend-reviewer` for `frontend/`+`e2e/`), while **`af-reviewer` owns everything that spans
+files, stacks, or artifacts** — fan-out completeness, drift, locale parity, validation parity,
+website. Every finding thus has exactly one natural owner; when two reviewers still report the
+same `path:line`, the dispatching skill keeps the specialist's version.
 
 ## The one hard rule
 
