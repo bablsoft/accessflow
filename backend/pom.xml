@@ -24,7 +24,7 @@
         <spring-ai.version>2.0.0</spring-ai.version>
         <shedlock.version>7.7.0</shedlock.version>
         <slack.sdk.version>1.49.0</slack.sdk.version>
-        <springdoc.version>3.0.3</springdoc.version>
+        <springdoc.version>3.1.0</springdoc.version>
         <jsqlparser.version>5.3</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
