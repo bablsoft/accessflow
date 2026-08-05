@@ -140,6 +140,18 @@ Databricks specifics:
 - **Masking** — post-fetch via the shared `core.api.ColumnMasker`, flat case-insensitive
   column-name matching (Databricks result columns are flat; a qualified ref matches by its last
   segment). Restricted columns without a directive collapse to FULL.
+- **Dry-run (AF-445 / AF-634)** — `dryRun` submits the governed statement (row security spliced,
+  named `:afp_n` parameters riding along) behind an engine-synthesized `EXPLAIN COST` prefix
+  through the same submit/poll path — planned by Catalyst, never executed, no `row_limit`. The
+  single string-column result becomes the raw plan text, and the never-throwing
+  `DatabricksExplainCostParser` extracts the optimized logical plan's top-level
+  `Statistics(sizeInBytes=…, rowCount=…)` — binary-unit suffixes normalized to raw bytes for
+  `QueryDryRunResult.estimatedBytesScanned`, `rowCount` for the row estimate. Catalyst's
+  unknown-size sentinel (`8.0 EiB` = `spark.sql.defaultSizeInBytes`) reads as "no estimate",
+  and grammar drift degrades to a rawPlan-only result; a server-side rejection of
+  `EXPLAIN COST` itself (older DBR channels) surfaces as a translated engine error, same as
+  execution. DDL degrades to *unsupported*; a deny-all row-security result short-circuits to a
+  0-row/0-byte estimate with zero HTTP calls.
 - **Sampling** — `sampleTable` issues `SELECT * FROM \`schema\`.\`table\`` through the same
   governed parse → row-security → masking pipeline.
 - **Connection test & introspection** — `testConnection` runs `SELECT 1` through the same client.

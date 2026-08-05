@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.engine.databricks;
 import com.bablsoft.accessflow.core.api.CredentialDecryptor;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
@@ -26,6 +27,9 @@ import java.util.List;
  * column masking); DML reads the {@code num_affected_rows} value Databricks returns as a one-row
  * result (0 when the shape is absent); DDL returns 0 affected rows. The host-computed statement
  * timeout is the submit→poll deadline; on expiry the statement is cancelled best-effort.
+ * Dry-run (AF-445/AF-634) submits the governed statement behind an engine-synthesized
+ * {@code EXPLAIN COST} prefix — planned, never executed — and reports the optimized plan's
+ * top-level {@code Statistics} ({@code sizeInBytes} → scan estimate, {@code rowCount}).
  */
 class DatabricksQueryExecutor {
 
@@ -90,6 +94,55 @@ class DatabricksQueryExecutor {
         }
         return new UpdateExecutionResult(resultMapper.affectedRows(result), durationSince(start),
                 applied.appliedPolicyIds());
+    }
+
+    QueryDryRunResult dryRun(QueryExecutionRequest request,
+                             DatasourceConnectionDescriptor descriptor, Duration timeout) {
+        var start = clock.instant();
+        var statement = parser.parseStatement(request.sql());
+        // DDL has no cost plan — degrade gracefully (host localizes the reason).
+        if (statement.kind() == DatabricksStatementKind.DDL) {
+            return QueryDryRunResult.unsupported(DatabricksQueryEngine.ENGINE_ID);
+        }
+        var applied = rowSecurityApplier.apply(statement, request.rowSecurityPredicates());
+        if (applied.denyAll()) {
+            return QueryDryRunResult.of(DatabricksQueryEngine.ENGINE_ID,
+                    statement.kind().queryType(), 0L, null, null, applied.appliedPolicyIds(),
+                    durationSince(start)).withEstimatedBytesScanned(0L);
+        }
+        var endpoint = resolveEndpoint(descriptor);
+        var accessToken = credentials.decrypt(descriptor.passwordEncrypted());
+        DatabricksStatementClient.StatementResult result;
+        try {
+            // The parser rejects user-supplied EXPLAIN, so the prefix is engine-synthesized after
+            // parse + row security — EXPLAIN COST plans the statement but never executes it.
+            result = client.execute(endpoint, accessToken, descriptor.databaseName(),
+                    "EXPLAIN COST " + applied.statement(), applied.parameters(), null, timeout);
+        } catch (DatabricksApiException ex) {
+            throw exceptionTranslator.translate(ex, timeout);
+        }
+        var rawPlan = planText(result);
+        var estimate = DatabricksExplainCostParser.parse(rawPlan);
+        return QueryDryRunResult.of(DatabricksQueryEngine.ENGINE_ID, statement.kind().queryType(),
+                estimate.rowCount(), null, rawPlan, applied.appliedPolicyIds(),
+                durationSince(start)).withEstimatedBytesScanned(estimate.sizeInBytes());
+    }
+
+    /** EXPLAIN returns one string column; rows are concatenated into the raw plan text. */
+    private static String planText(DatabricksStatementClient.StatementResult result) {
+        var text = new StringBuilder();
+        for (var row : result.rows()) {
+            for (var cell : row) {
+                if (cell == null || cell.isBlank()) {
+                    continue;
+                }
+                if (!text.isEmpty()) {
+                    text.append('\n');
+                }
+                text.append(cell.stripTrailing());
+            }
+        }
+        return text.isEmpty() ? null : text.toString();
     }
 
     SelectExecutionResult sampleTable(SampleTableRequest request,

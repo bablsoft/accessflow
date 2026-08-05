@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionTestException;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
+import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
@@ -298,6 +300,77 @@ class DatabricksQueryEngineIntegrationTest {
     }
 
     @Test
+    void dryRunSubmitsExplainCostAndMapsStatistics() {
+        stub.submitResponses.add(succeeded("stE1", columns(col("plan", "STRING")),
+                "[[\"== Optimized Logical Plan ==\\nFilter (tenant#1 = acme), "
+                        + "Statistics(sizeInBytes=4.2 GiB, rowCount=1.23E+5)\\n"
+                        + "== Physical Plan ==\\nAdaptiveSparkPlan\"]]", false));
+        var policy = UUID.randomUUID();
+
+        var result = dryRun("SELECT id FROM orders", QueryType.SELECT,
+                List.of(new RowSecurityDirective(policy, "orders", "tenant",
+                        RowSecurityOperator.EQUALS, List.of("acme"))));
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("databricks");
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.estimatedBytesScanned()).isEqualTo(Math.round(4.2 * (1L << 30)));
+        assertThat(result.estimatedRows()).isEqualTo(123_000L);
+        assertThat(result.plan()).isNull();
+        assertThat(result.rawPlan()).contains("== Optimized Logical Plan ==");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policy);
+        var body = stub.requests.get(0).body();
+        assertThat(body).contains(
+                "EXPLAIN COST SELECT id FROM orders WHERE (`tenant` = :afp_1)");
+        assertThat(body).contains("{\"name\":\"afp_1\",\"type\":\"STRING\",\"value\":\"acme\"}");
+        assertThat(body).doesNotContain("row_limit");
+    }
+
+    @Test
+    void dryRunWithoutStatisticsDegradesToRawPlanOnly() {
+        stub.submitResponses.add(succeeded("stE2", columns(col("plan", "STRING")),
+                "[[\"== Physical Plan ==\\nScan parquet\"]]", false));
+
+        var result = dryRun("SELECT * FROM orders", QueryType.SELECT, List.of());
+
+        assertThat(result.supported()).isTrue();
+        assertThat(result.estimatedBytesScanned()).isNull();
+        assertThat(result.estimatedRows()).isNull();
+        assertThat(result.rawPlan()).contains("Scan parquet");
+    }
+
+    @Test
+    void dryRunDdlIsUnsupportedWithZeroHttpCalls() {
+        var result = dryRun("CREATE TABLE t (id INT)", QueryType.DDL, List.of());
+        assertThat(result.supported()).isFalse();
+        assertThat(stub.requests).isEmpty();
+    }
+
+    @Test
+    void dryRunDenyAllShortCircuitsWithZeroHttpCalls() {
+        var policy = UUID.randomUUID();
+        var result = dryRun("SELECT * FROM orders", QueryType.SELECT,
+                List.of(new RowSecurityDirective(policy, "orders", "tenant",
+                        RowSecurityOperator.IN, List.of())));
+        assertThat(result.supported()).isTrue();
+        assertThat(result.estimatedRows()).isZero();
+        assertThat(result.estimatedBytesScanned()).isZero();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policy);
+        assertThat(stub.requests).isEmpty();
+    }
+
+    @Test
+    void dryRunFailedStateSurfacesTheVerbatimApiMessage() {
+        stub.submitResponses.add("""
+                {"statement_id":"stE3","status":{"state":"FAILED","error":{
+                 "error_code":"BAD_REQUEST","message":"[TABLE_OR_VIEW_NOT_FOUND] Table nope"}}}""");
+        assertThatThrownBy(() -> dryRun("SELECT * FROM nope", QueryType.SELECT, List.of()))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(e -> assertThat(((QueryExecutionFailedException) e).detail())
+                        .isEqualTo("[TABLE_OR_VIEW_NOT_FOUND] Table nope"));
+    }
+
+    @Test
     void sampleTableRunsTheGovernedSelect() {
         stub.statementRules.add(Map.entry(
                 s -> s.equals("SELECT * FROM `sales`.`orders`"),
@@ -373,6 +446,13 @@ class DatabricksQueryEngineIntegrationTest {
                                   List<RowSecurityDirective> rls,
                                   List<ColumnMaskDirective> masks, Duration timeout) {
         return execute(descriptor, sql, type, maxRows, rls, masks, timeout);
+    }
+
+    private static QueryDryRunResult dryRun(String sql, QueryType type,
+                                            List<RowSecurityDirective> rls) {
+        var request = new QueryExecutionRequest(descriptor.id(), sql, type, null, null,
+                List.of(), List.of(), rls, false, List.of(sql));
+        return engine.dryRun(new QueryEngineDryRunRequest(request, descriptor, TIMEOUT));
     }
 
     private static Object execute(DatasourceConnectionDescriptor target, String sql,
