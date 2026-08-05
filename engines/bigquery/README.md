@@ -131,6 +131,13 @@ BigQuery specifics:
 - **Masking** — post-fetch via the shared `core.api.ColumnMasker`, applied **recursively by
   dot-path**: a mask on `profile.ssn` redacts the nested STRUCT leaf while siblings stay visible;
   a bare column mask recurses into nested records/arrays (FULL collapses them to the mask token).
+- **Dry-run (AF-445 / AF-634)** — `dryRun` submits the governed statement (row security spliced,
+  same as execution) as a **native BigQuery dry-run job** (`JobConfiguration.dryRun=true`):
+  validated and estimated server-side, never executed, returning synchronously with no polling.
+  The job's `totalBytesProcessed` is reported as `QueryDryRunResult.estimatedBytesScanned` — the
+  on-demand billing basis, i.e. the direct cost signal. There is no plan tree or row estimate.
+  DDL degrades to *unsupported*; a deny-all row-security result short-circuits to a 0-row/0-byte
+  estimate without touching BigQuery.
 - **Execution** — statements run as BigQuery **query jobs** pinned to the default dataset, with
   the host-computed statement timeout enforced twice: server-side via `jobTimeoutMs` and
   client-side by polling the job against the engine clock (cancel + timeout exception on expiry).

@@ -139,6 +139,26 @@ class QueryDryRunControllerIntegrationTest {
     }
 
     @Test
+    void dryRunSerializesEstimatedBytesScanned() {
+        var dsId = UUID.randomUUID();
+        var result = QueryDryRunResult.of("bigquery", QueryType.SELECT, null, null, null,
+                Set.of(), Duration.ofMillis(4)).withEstimatedBytesScanned(10_500_000L);
+        when(queryDryRunService.dryRun(eq(dsId), any(), any(), any(), anyBoolean()))
+                .thenReturn(result);
+
+        var response = mvc.post().uri("/api/v1/queries/dry-run")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"%s\",\"sql\":\"SELECT 1\"}".formatted(dsId))
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.supported").asBoolean().isTrue();
+        assertThat(response).bodyJson().extractingPath("$.estimated_bytes_scanned").asNumber()
+                .isEqualTo(10500000);
+    }
+
+    @Test
     void dryRunUnsupportedReturns200WithReason() {
         var dsId = UUID.randomUUID();
         var result = QueryDryRunResult.unsupported("redis",

@@ -1683,6 +1683,7 @@ Returns a **non-committing dry-run** (AF-445): the engine's execution plan and a
   "engine_id": "postgresql",
   "query_type": "SELECT",
   "estimated_rows": 1000,
+  "estimated_bytes_scanned": null,
   "plan": {
     "operation": "Seq Scan",
     "target": "users",
@@ -1697,7 +1698,7 @@ Returns a **non-committing dry-run** (AF-445): the engine's execution plan and a
 }
 ```
 
-The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE`, SQL Server `SET SHOWPLAN_ALL ON`, MongoDB `explain` (queryPlanner verbosity), Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`. `plan` is a recursive node tree (`operation`, `target`, `estimated_rows`, `estimated_cost`, `detail`, `children`); `estimated_rows`/`plan`/`raw_plan` are individually nullable when an engine's plan does not expose them.
+The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE`, SQL Server `SET SHOWPLAN_ALL ON`, MongoDB `explain` (queryPlanner verbosity), Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`, Snowflake `EXPLAIN USING TABULAR`, BigQuery a native dry-run job. `plan` is a recursive node tree (`operation`, `target`, `estimated_rows`, `estimated_cost`, `detail`, `children`); `estimated_rows`/`plan`/`raw_plan` are individually nullable when an engine's plan does not expose them. `estimated_bytes_scanned` (AF-634) is the warehouse engine's native pre-flight scan estimate in raw bytes — BigQuery reports the dry-run job's `totalBytesProcessed` (the on-demand billing basis), Snowflake the EXPLAIN GlobalStats `bytesAssigned` after partition pruning — and is `null` for engines without one.
 
 **Response 200 (engine without a plan concept):**
 ```json
@@ -1706,6 +1707,7 @@ The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/
   "engine_id": "redis",
   "query_type": null,
   "estimated_rows": null,
+  "estimated_bytes_scanned": null,
   "plan": null,
   "raw_plan": null,
   "unsupported_reason": "Dry-run is not supported for the redis engine",

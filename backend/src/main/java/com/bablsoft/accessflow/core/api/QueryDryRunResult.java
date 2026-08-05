@@ -10,14 +10,17 @@ import java.util.UUID;
  * executing or mutating data. {@code supported} is {@code false} for engines with no plan concept
  * (Redis, Cassandra/ScyllaDB, DynamoDB, custom JDBC); in that case {@code unsupportedReason} carries
  * a human-readable explanation (localized by the host service) and the plan fields are {@code null}.
- * {@code estimatedRows}/{@code plan}/{@code rawPlan} are individually nullable — engines fill in what
- * their EXPLAIN exposes.
+ * {@code estimatedRows}/{@code estimatedBytesScanned}/{@code plan}/{@code rawPlan} are individually
+ * nullable — engines fill in what their EXPLAIN exposes. {@code estimatedBytesScanned} is the
+ * engine's native pre-flight scan estimate in raw bytes (issue AF-634), reported by the warehouse
+ * engines (BigQuery dry-run job, Snowflake EXPLAIN, Databricks EXPLAIN COST).
  */
 public record QueryDryRunResult(
         boolean supported,
         String engineId,
         QueryType queryType,
         Long estimatedRows,
+        Long estimatedBytesScanned,
         QueryPlanNode plan,
         String rawPlan,
         Set<UUID> appliedRowSecurityPolicyIds,
@@ -36,20 +39,27 @@ public record QueryDryRunResult(
 
     /** Degraded result carrying an engine-supplied reason (e.g. "INSERT has no plan"). */
     public static QueryDryRunResult unsupported(String engineId, String reason) {
-        return new QueryDryRunResult(false, engineId, null, null, null, null, Set.of(),
+        return new QueryDryRunResult(false, engineId, null, null, null, null, null, Set.of(),
                 Duration.ZERO, reason);
     }
 
     public static QueryDryRunResult of(String engineId, QueryType queryType, Long estimatedRows,
                                        QueryPlanNode plan, String rawPlan,
                                        Set<UUID> appliedRowSecurityPolicyIds, Duration duration) {
-        return new QueryDryRunResult(true, engineId, queryType, estimatedRows, plan, rawPlan,
+        return new QueryDryRunResult(true, engineId, queryType, estimatedRows, null, plan, rawPlan,
                 appliedRowSecurityPolicyIds, duration, null);
     }
 
     /** Returns a copy with the unsupported reason set (host localizes the message). */
     public QueryDryRunResult withUnsupportedReason(String reason) {
-        return new QueryDryRunResult(supported, engineId, queryType, estimatedRows, plan, rawPlan,
-                appliedRowSecurityPolicyIds, duration, reason);
+        return new QueryDryRunResult(supported, engineId, queryType, estimatedRows,
+                estimatedBytesScanned, plan, rawPlan, appliedRowSecurityPolicyIds, duration, reason);
+    }
+
+    /** Returns a copy carrying the engine's native scan-bytes estimate (warehouse engines). */
+    public QueryDryRunResult withEstimatedBytesScanned(Long estimatedBytesScanned) {
+        return new QueryDryRunResult(supported, engineId, queryType, estimatedRows,
+                estimatedBytesScanned, plan, rawPlan, appliedRowSecurityPolicyIds, duration,
+                unsupportedReason);
     }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueryPlanNode } from '@/types/api';
-import { countPlanNodes, flattenPlan, formatCost, formatEstimatedRows } from './queryPlan';
+import { countPlanNodes, flattenPlan, formatBytes, formatCost, formatEstimatedRows } from './queryPlan';
 
 const tree: QueryPlanNode = {
   operation: 'Nested Loop',
@@ -69,5 +69,28 @@ describe('formatCost', () => {
 
   it('returns null when absent', () => {
     expect(formatCost(undefined)).toBeNull();
+  });
+});
+
+describe('formatBytes', () => {
+  it('returns null when absent', () => {
+    expect(formatBytes(null)).toBeNull();
+    expect(formatBytes(undefined)).toBeNull();
+  });
+
+  it('keeps raw bytes below 1000', () => {
+    expect(formatBytes(0)).toBe('0 B');
+    expect(formatBytes(999)).toBe('999 B');
+  });
+
+  it('scales with decimal (SI) units to match warehouse billing math', () => {
+    expect(formatBytes(1000)).toBe('1 KB');
+    expect(formatBytes(10_500_000)).toBe('10.5 MB');
+    expect(formatBytes(1_234_567_890)).toBe('1.23 GB');
+    expect(formatBytes(2_000_000_000_000)).toBe('2 TB');
+  });
+
+  it('caps at PB for very large values', () => {
+    expect(formatBytes(3_000_000_000_000_000_000)).toBe('3,000 PB');
   });
 });

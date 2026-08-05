@@ -517,6 +517,7 @@
     "estimated_impact_label": "Impact estimé",
     "query_type_label": "Opération",
     "est_rows_label": "Lignes estimées",
+    "est_bytes_label": "Octets analysés estimés",
     "plan_label": "Plan d'exécution",
     "rows_badge": "≈ {{value}} lignes",
     "cost_badge": "coût {{value}}",

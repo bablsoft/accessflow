@@ -35,6 +35,35 @@ describe('DryRunPanel', () => {
     expect(screen.getByText('1,000')).toBeInTheDocument();
   });
 
+  it('renders the estimated-bytes row when the engine reports a scan estimate', () => {
+    const result: QueryDryRunResult = {
+      supported: true,
+      engine_id: 'bigquery',
+      query_type: 'SELECT',
+      estimated_rows: null,
+      estimated_bytes_scanned: 10_500_000,
+      plan: null,
+      duration_ms: 4,
+    };
+    render(<DryRunPanel running={false} result={result} />);
+    expect(screen.getByText(/estimated bytes scanned/i)).toBeInTheDocument();
+    expect(screen.getByText('10.5 MB')).toBeInTheDocument();
+  });
+
+  it('omits the estimated-bytes row when the engine reports none', () => {
+    const result: QueryDryRunResult = {
+      supported: true,
+      engine_id: 'postgresql',
+      query_type: 'SELECT',
+      estimated_rows: 1000,
+      estimated_bytes_scanned: null,
+      plan: { operation: 'Seq Scan', target: 'users', estimated_rows: 1000, children: [] },
+      duration_ms: 12,
+    };
+    render(<DryRunPanel running={false} result={result} />);
+    expect(screen.queryByText(/estimated bytes scanned/i)).not.toBeInTheDocument();
+  });
+
   it('falls back to the raw plan when no structured plan is present', () => {
     const result: QueryDryRunResult = {
       supported: true,
