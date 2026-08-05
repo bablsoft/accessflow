@@ -101,6 +101,110 @@ class SnowflakeQueryExecutorTest {
         return resultSet;
     }
 
+    /** Mocked {@code EXPLAIN USING TABULAR} fixture: GlobalStats aggregate + a two-node tree. */
+    private ResultSet explainResult() throws SQLException {
+        var labels = List.of("id", "parentOperators", "operation", "objects", "partitionsTotal",
+                "partitionsAssigned", "bytesAssigned");
+        var rows = List.of(
+                java.util.Arrays.<Object>asList(null, null, "GlobalStats", null, 3, 1, 1536),
+                java.util.Arrays.<Object>asList(0, "[]", "Result", null, null, null, null),
+                java.util.Arrays.<Object>asList(1, "[0]", "TableScan", "DB.PUBLIC.ORDERS", 3, 1,
+                        1536));
+        var metaData = mock(ResultSetMetaData.class);
+        when(metaData.getColumnCount()).thenReturn(labels.size());
+        for (int i = 0; i < labels.size(); i++) {
+            when(metaData.getColumnLabel(i + 1)).thenReturn(labels.get(i));
+        }
+        var resultSet = mock(ResultSet.class);
+        when(resultSet.getMetaData()).thenReturn(metaData);
+        var cursor = new int[]{-1};
+        when(resultSet.next()).thenAnswer(inv -> ++cursor[0] < rows.size());
+        for (int i = 0; i < labels.size(); i++) {
+            var column = i;
+            when(resultSet.getObject(labels.get(i)))
+                    .thenAnswer(inv -> rows.get(cursor[0]).get(column));
+        }
+        return resultSet;
+    }
+
+    @Test
+    void dryRunRunsExplainWithBindsAndMapsBytes() throws SQLException {
+        var fixture = explainResult();
+        when(prepared.executeQuery()).thenReturn(fixture);
+        var policyId = UUID.randomUUID();
+        var rls = List.of(new RowSecurityDirective(policyId, "orders", "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme")));
+
+        var result = executor.dryRun(
+                request("SELECT * FROM orders", QueryType.SELECT, rls, List.of(), List.of()),
+                descriptor, TIMEOUT);
+
+        var sql = ArgumentCaptor.forClass(String.class);
+        verify(connection).prepareStatement(sql.capture());
+        assertThat(sql.getValue())
+                .isEqualTo("EXPLAIN USING TABULAR SELECT * FROM orders WHERE (\"tenant\" = ?)");
+        verify(prepared).setObject(1, "acme");
+        verify(prepared).setQueryTimeout(30);
+        verify(prepared, never()).setMaxRows(101);
+        assertThat(result.supported()).isTrue();
+        assertThat(result.engineId()).isEqualTo("snowflake");
+        assertThat(result.queryType()).isEqualTo(QueryType.SELECT);
+        assertThat(result.estimatedRows()).isNull();
+        assertThat(result.estimatedBytesScanned()).isEqualTo(1536L);
+        assertThat(result.plan().operation()).isEqualTo("Result");
+        assertThat(result.plan().children().getFirst().target()).isEqualTo("DB.PUBLIC.ORDERS");
+        assertThat(result.rawPlan()).contains("GlobalStats");
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+        verify(connection).close();
+        verify(prepared).close();
+    }
+
+    @Test
+    void dryRunDdlIsUnsupportedWithoutTouchingSnowflake() {
+        var result = executor.dryRun(
+                request("CREATE TABLE t (id INT)", QueryType.DDL, List.of(), List.of(), List.of()),
+                descriptor, TIMEOUT);
+        assertThat(result.supported()).isFalse();
+        assertThat(result.engineId()).isEqualTo("snowflake");
+        verifyNoInteractions(connectionFactory);
+    }
+
+    @Test
+    void dryRunDenyAllShortCircuitsWithoutTouchingSnowflake() {
+        var policyId = UUID.randomUUID();
+        var rls = List.of(new RowSecurityDirective(policyId, "orders", "tenant",
+                RowSecurityOperator.EQUALS, List.of()));
+        var result = executor.dryRun(
+                request("SELECT * FROM orders", QueryType.SELECT, rls, List.of(), List.of()),
+                descriptor, TIMEOUT);
+        assertThat(result.supported()).isTrue();
+        assertThat(result.estimatedRows()).isZero();
+        assertThat(result.estimatedBytesScanned()).isZero();
+        assertThat(result.plan()).isNull();
+        assertThat(result.appliedRowSecurityPolicyIds()).containsExactly(policyId);
+        verifyNoInteractions(connectionFactory);
+    }
+
+    @Test
+    void dryRunTranslatesSqlExceptions() throws SQLException {
+        when(prepared.executeQuery()).thenThrow(new SQLTimeoutException("slow"));
+        assertThatThrownBy(() -> executor.dryRun(
+                request("SELECT * FROM orders", QueryType.SELECT, List.of(), List.of(), List.of()),
+                descriptor, TIMEOUT))
+                .isInstanceOf(QueryExecutionTimeoutException.class);
+    }
+
+    @Test
+    void dryRunConfigExceptionsBecomeExecutionFailures() throws SQLException {
+        when(connectionFactory.open(descriptor)).thenThrow(
+                new SnowflakeConfigException("error.snowflake.invalid_url_override", "bad"));
+        assertThatThrownBy(() -> executor.dryRun(
+                request("SELECT * FROM orders", QueryType.SELECT, List.of(), List.of(), List.of()),
+                descriptor, TIMEOUT))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .hasMessageContaining("error.snowflake.invalid_url_override");
+    }
+
     @Test
     void executesSelectWithRowSecurityBindsAndMasks() throws SQLException {
         var fixture = selectResult(List.of(List.of(1, "alice@example.com")));

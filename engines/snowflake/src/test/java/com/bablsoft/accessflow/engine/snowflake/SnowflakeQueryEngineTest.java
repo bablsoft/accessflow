@@ -35,6 +35,14 @@ class SnowflakeQueryEngineTest {
     }
 
     @Test
+    void dryRunBeforeInitializeFailsFast() {
+        var engine = new SnowflakeQueryEngine();
+        assertThatThrownBy(() -> engine.dryRun(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("before initialize");
+    }
+
+    @Test
     void initializeWiresTheParser() {
         var engine = new SnowflakeQueryEngine();
         engine.initialize(context());
