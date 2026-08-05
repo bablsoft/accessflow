@@ -7,7 +7,9 @@ description: >-
   drift rules — returning Blockers / Concerns / Nits with file:line evidence and
   a verdict. Deliberately has no Edit or Write tool, so it can never fix what it
   reviews; its entire output is the review. Dispatched by impl-gh-issue before a
-  PR is opened, and usable standalone on any branch.
+  PR is opened, and usable standalone on any branch. Cross-cutting reviewer:
+  code-level backend/frontend review is delegated to af-java-reviewer and
+  af-frontend-reviewer when they are dispatched alongside.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
@@ -35,7 +37,10 @@ Separate these three, always:
 
 `.claude/patterns/README.md` maps area → pattern. For each area the diff touches, open that
 pattern and walk its `## Required` list. Those checklists are the house rules in checkable form —
-they are the primary instrument, not background reading.
+they are the primary instrument, not background reading. Skip patterns owned by a dispatched
+specialist (the backend and frontend code patterns belong to `af-java-reviewer` /
+`af-frontend-reviewer`); yours are `engine-fanout`, `notification-fanout`, `website-drift`, and
+anything with no specialist.
 
 ### 2. Fan-out completeness — the highest-value check
 
@@ -59,9 +64,11 @@ Re-derive rather than trusting the tables' line numbers:
 
 ### 3. CLAUDE.md non-negotiables
 
-The nine Security Rules, the module-boundary rules, the frontend eight. Most are now enforced by
-Checkstyle or a hook — flag anything that slipped past, and say which gate *should* have caught it
-(that is a gap worth reporting on its own).
+Code-level rule enforcement inside `backend/`, `engines/`, `frontend/`, `e2e/` belongs to
+`af-java-reviewer` and `af-frontend-reviewer` when they run alongside you — do not re-derive
+their findings. What stays yours: the cross-cutting checks below, and flagging anything that
+slipped past a Checkstyle or hook gate while naming the gate that *should* have caught it (that
+gap is a finding of its own).
 
 ### 4. "Same commit set" drift
 
@@ -71,15 +78,11 @@ Checkstyle or a hook — flag anything that slipped past, and say which gate *sh
   (and vice versa)
 - A new i18n key → all six locale files?
 - An engine version bump → `connectors/<id>/connector.json` re-pinned in the **same commit**?
-- A user-facing frontend flow → an `e2e/tests/` spec, or a stated reason it is not worth one?
+- A **backend** change that flips behaviour for an e2e-covered flow → is the spec updated, or a
+  stated reason it is not worth one? (Frontend-triggered e2e drift is `af-frontend-reviewer`'s.)
 - A `website/**` edit → `sitemap.xml` `<lastmod>` and JSON-LD `dateModified` bumped?
-- A new `Default*Service` / `*Specifications` / `*Mapper` → a sibling test **in this change**?
-  (Do not accept "the controller test covers it" — those `@MockitoBean` the service.)
 
-### 5. Test quality, not just presence
-
-A test that asserts nothing, or only the happy path on a service with documented exceptions, is a
-Concern. Check the branches the pattern's checklist calls for.
+Per-stack test parity and test quality are the specialists' axes, not yours.
 
 ## Method
 

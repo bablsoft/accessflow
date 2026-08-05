@@ -138,6 +138,26 @@ Add the id to the `engines` job matrix in `.github/workflows/ci.yml`.
 Document the config keys only. Operators reach them as
 `ACCESSFLOW_PROXY_ENGINES_<ID>_<KEY>` with zero host code — do not add host-side properties.
 
+### 13. Independent review (report, don't block)
+
+Before opening the PR, dispatch — **in a single message so they run concurrently**:
+
+- **`af-java-reviewer`** — the plugin and backend wiring against `engine-plugin.md` and the
+  backend pattern checklists.
+- **`af-reviewer`** — `DbType` fan-out completeness (migration, `.sql.conf`, **both** credential
+  gates, i18n ×7, frontend union / `engineModes` / icon) plus the connector pin and docs/website
+  drift.
+- **`af-verifier`** — runs the Definition-of-done gates and reports real exit codes.
+
+`af-frontend-reviewer` is deliberately omitted: step 9's frontend registration is mechanical
+fan-out wiring, and `af-reviewer`'s `DbType` check already verifies exactly those files — do not
+"fix" this by adding it. (If you get `Agent type '…' not found`, agents load at session start —
+restart, or run the gates manually.)
+
+Handle findings per the report-don't-block protocol: fix agreed Blockers, rebut disagreements
+explicitly with reasoning, and carry surviving Concerns into the PR description under
+**Review notes**.
+
 ## Definition of done
 
 - [ ] `mvn -f engines/<id>/pom.xml clean verify` green (unit + facade IT + ServiceLoader IT)
@@ -145,6 +165,7 @@ Document the config keys only. Operators reach them as
 - [ ] `mvn -q -f backend/pom.xml test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest,MessagesParityTest'` green
 - [ ] `cd frontend && npm run typecheck && npm run test:coverage` green (locale parity included)
 - [ ] Every item in `docs/15-engine-sdk.md` → "Checklist: adding a new engine" ticked
+- [ ] `af-java-reviewer`, `af-reviewer`, `af-verifier` ran; Blockers fixed or rebutted, surviving Concerns in the PR description
 - [ ] Branch `feature/AF-<n>-<id>-engine`, PR references the issue
 
 ## Out of scope
