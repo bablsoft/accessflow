@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.repo;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -122,4 +123,105 @@ public interface QueryRequestRepository
                                               @Param("datasourceId") UUID datasourceId,
                                               @Param("statuses") Collection<QueryStatus> statuses,
                                               @Param("excludingQueryId") UUID excludingQueryId);
+
+    // AF-649: the approval-outcome training population — human-decided queries only. Terminal
+    // APPROVED/EXECUTED/REJECTED must carry at least one review_decisions row (only the human
+    // review path ever writes one, so this excludes routing auto-approve/auto-reject and — unless
+    // a partial human review preceded the ticket resolution, an accepted noise edge — external-
+    // ticket decisions); TIMED_OUT is the one legitimate zero-decision negative. Grant-covered
+    // auto-approvals and break-glass submissions are excluded explicitly; CANCELLED and FAILED
+    // fall outside the status list. The enum values are bound as parameters (filled by the
+    // default methods below) — enum literals in JPQL render as casts to a nonexistent PG type.
+    String APPROVAL_OUTCOME_DECIDED_PREDICATE = """
+             where q.datasource.organization.id = :orgId
+               and q.createdAt >= :since
+               and q.approvedByGrantId is null
+               and q.submissionReason <> :excludedReason
+               and (q.status = :timedOut
+                    or (q.status in :humanDecidedStatuses
+                        and exists (select 1 from ReviewDecisionEntity rd where rd.queryRequest = q)))
+            """;
+
+    List<QueryStatus> APPROVAL_OUTCOME_HUMAN_DECIDED_STATUSES =
+            List.of(QueryStatus.APPROVED, QueryStatus.EXECUTED, QueryStatus.REJECTED);
+
+    List<QueryStatus> APPROVAL_OUTCOME_APPROVED_STATUSES =
+            List.of(QueryStatus.APPROVED, QueryStatus.EXECUTED);
+
+    // AF-649: one row per decided query with the feature columns the extractor needs. The joins go
+    // through the bare-UUID back-pointers so they pick the query's current analysis / estimate row,
+    // not historical reanalyses. Column order is mirrored by the mapper in
+    // DefaultApprovalOutcomeHistoryLookupService — keep them in sync.
+    @Query("""
+            select q.id, q.queryType, q.transactional, q.createdAt,
+                   q.submittedBy.id, q.datasource.id, q.status,
+                   ai.riskScore, ai.riskLevel, ai.issues, ai.failed,
+                   est.estimatedRows, est.affectedRowCount, est.estimatedCost, est.scanType,
+                   est.supported, est.failed
+              from QueryRequestEntity q
+              left join AiAnalysisEntity ai on ai.id = q.aiAnalysisId
+              left join QueryEstimateEntity est on est.id = q.queryEstimateId
+            """ + APPROVAL_OUTCOME_DECIDED_PREDICATE + """
+             order by q.createdAt desc
+            """)
+    List<Object[]> findApprovalOutcomeSampleRows(
+            @Param("orgId") UUID organizationId,
+            @Param("since") Instant since,
+            @Param("excludedReason") SubmissionReason excludedReason,
+            @Param("timedOut") QueryStatus timedOut,
+            @Param("humanDecidedStatuses") Collection<QueryStatus> humanDecidedStatuses,
+            Pageable pageable);
+
+    default List<Object[]> findApprovalOutcomeSampleRows(UUID organizationId, Instant since,
+                                                         Pageable pageable) {
+        return findApprovalOutcomeSampleRows(organizationId, since,
+                SubmissionReason.EMERGENCY_ACCESS, QueryStatus.TIMED_OUT,
+                APPROVAL_OUTCOME_HUMAN_DECIDED_STATUSES, pageable);
+    }
+
+    @Query("""
+            select count(q),
+                   coalesce(sum(case when q.status in :approvedStatuses then 1 else 0 end), 0)
+              from QueryRequestEntity q
+            """ + APPROVAL_OUTCOME_DECIDED_PREDICATE + """
+               and q.submittedBy.id = :userId
+            """)
+    List<Object[]> countApprovalOutcomesBySubmitter(
+            @Param("orgId") UUID organizationId,
+            @Param("userId") UUID userId,
+            @Param("since") Instant since,
+            @Param("excludedReason") SubmissionReason excludedReason,
+            @Param("timedOut") QueryStatus timedOut,
+            @Param("humanDecidedStatuses") Collection<QueryStatus> humanDecidedStatuses,
+            @Param("approvedStatuses") Collection<QueryStatus> approvedStatuses);
+
+    default List<Object[]> countApprovalOutcomesBySubmitter(UUID organizationId, UUID userId,
+                                                            Instant since) {
+        return countApprovalOutcomesBySubmitter(organizationId, userId, since,
+                SubmissionReason.EMERGENCY_ACCESS, QueryStatus.TIMED_OUT,
+                APPROVAL_OUTCOME_HUMAN_DECIDED_STATUSES, APPROVAL_OUTCOME_APPROVED_STATUSES);
+    }
+
+    @Query("""
+            select count(q),
+                   coalesce(sum(case when q.status in :approvedStatuses then 1 else 0 end), 0)
+              from QueryRequestEntity q
+            """ + APPROVAL_OUTCOME_DECIDED_PREDICATE + """
+               and q.datasource.id = :datasourceId
+            """)
+    List<Object[]> countApprovalOutcomesByDatasource(
+            @Param("orgId") UUID organizationId,
+            @Param("datasourceId") UUID datasourceId,
+            @Param("since") Instant since,
+            @Param("excludedReason") SubmissionReason excludedReason,
+            @Param("timedOut") QueryStatus timedOut,
+            @Param("humanDecidedStatuses") Collection<QueryStatus> humanDecidedStatuses,
+            @Param("approvedStatuses") Collection<QueryStatus> approvedStatuses);
+
+    default List<Object[]> countApprovalOutcomesByDatasource(UUID organizationId,
+                                                             UUID datasourceId, Instant since) {
+        return countApprovalOutcomesByDatasource(organizationId, datasourceId, since,
+                SubmissionReason.EMERGENCY_ACCESS, QueryStatus.TIMED_OUT,
+                APPROVAL_OUTCOME_HUMAN_DECIDED_STATUSES, APPROVAL_OUTCOME_APPROVED_STATUSES);
+    }
 }
