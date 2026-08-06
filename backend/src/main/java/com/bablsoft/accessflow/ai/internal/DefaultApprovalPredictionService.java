@@ -2,14 +2,13 @@ package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.ai.api.ApprovalPredictionService;
 import com.bablsoft.accessflow.ai.internal.config.ApprovalPredictionProperties;
-import com.bablsoft.accessflow.ai.internal.persistence.entity.ApprovalPredictionModelEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.ApprovalPredictionModelRepository;
 import com.bablsoft.accessflow.core.api.ApprovalPredictionLookupService;
 import com.bablsoft.accessflow.core.api.ApprovalPredictionPersistenceService;
 import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.PersistApprovalPredictionCommand;
-import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -28,9 +27,12 @@ import java.util.UUID;
  * review and persists exactly one {@code approval_predictions} row, plus the {@code trainAll}
  * fan-out that keeps each organization's model fresh.
  *
- * <p><strong>Every path persists a row</strong> — a probability, a {@code skipped} row naming the
- * reason, or a {@code failed} sentinel — mirroring how AF-624 handles cost estimates, so the read
- * side can always render a definitive state rather than "nothing yet".
+ * <p><strong>Scoring a query always leaves a row</strong> — a probability, a {@code skipped} row
+ * naming the reason, or a {@code failed} sentinel — mirroring how AF-624 handles cost estimates, so
+ * the read side can render a definitive state rather than "nothing yet". The two exceptions are
+ * both "the query is no longer there to attach a row to": the query request itself is gone, or its
+ * detail row vanished between the two reads. Re-scoring after a late estimate writes only on success
+ * (see {@link #rescore}).
  *
  * <p><strong>Skip reasons are machine tokens, not localized text.</strong> A prediction is written
  * once by an async listener and read later by any reviewer; resolving a {@code MessageSource} at
@@ -41,12 +43,20 @@ import java.util.UUID;
  *
  * <p><strong>Failures cannot reach the workflow.</strong> The methods are driven by
  * {@code @ApplicationModuleListener}s, which are asynchronous and commit-scoped, so nothing here can
- * propagate into the transition that published the event; the {@code catch} below is what makes the
- * <em>row</em> definitive, not what makes the workflow safe. One consequence worth knowing: the
- * lookups this class calls join the listener's transaction, so a lookup that throws marks that
- * transaction rollback-only and the sentinel write is lost at commit. The failures the sentinel
- * actually exists for — coefficient deserialization, feature-vector validation, scoring — are pure
- * computation and leave the transaction usable.
+ * propagate into the transition that published the event; the {@code catch} blocks below are what make
+ * the <em>row</em> definitive, not what makes the workflow safe. Two limits on the sentinel, both
+ * deliberate:
+ *
+ * <ul>
+ *   <li>The guard-path lookups ({@code findById}, the prediction lookup) sit outside the
+ *       {@code try}. A failure there escapes into the listener with no row written — writing one
+ *       would be theatre, because those lookups are {@code @Transactional(readOnly = true)} and join
+ *       the listener's transaction, so a throw marks it rollback-only and discards any sentinel at
+ *       commit anyway.</li>
+ *   <li>The failures the sentinel actually exists for — coefficient deserialization, feature-vector
+ *       validation, scoring — are pure computation and leave the transaction usable, so for those it
+ *       works.</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -70,7 +80,6 @@ class DefaultApprovalPredictionService implements ApprovalPredictionService {
     private static final Logger log = LoggerFactory.getLogger(DefaultApprovalPredictionService.class);
 
     private final QueryRequestLookupService queryRequestLookupService;
-    private final QueryEstimateLookupService queryEstimateLookupService;
     private final ApprovalPredictionLookupService approvalPredictionLookupService;
     private final ApprovalPredictionPersistenceService approvalPredictionPersistenceService;
     private final ApprovalPredictionModelRepository modelRepository;
@@ -114,15 +123,11 @@ class DefaultApprovalPredictionService implements ApprovalPredictionService {
                 || !recordedMissingEstimate(existing.featuresJson())) {
             return;
         }
-        if (!hasUsableEstimate(queryRequestId)) {
-            return;
-        }
         var query = queryRequestLookupService.findById(queryRequestId).orElse(null);
         if (query == null || query.status() != QueryStatus.PENDING_REVIEW) {
             return;
         }
-        log.debug("Re-scoring query {} now that its cost estimate has arrived", queryRequestId);
-        score(query);
+        rescore(query);
     }
 
     @Override
@@ -135,8 +140,10 @@ class DefaultApprovalPredictionService implements ApprovalPredictionService {
         int trained = 0;
         int totalPages;
         do {
+            // Sorted explicitly: each page is its own read-only transaction, so an unsorted
+            // LIMIT/OFFSET gives Postgres licence to reorder between pages and silently skip an org.
             var organizations = organizationAdminService.list(
-                    PageRequest.of(page, ORGANIZATION_PAGE_SIZE));
+                    PageRequest.of(page, ORGANIZATION_PAGE_SIZE, SortOrder.asc("id")));
             totalPages = organizations.totalPages();
             for (var organization : organizations.content()) {
                 if (organization.disabled()) {
@@ -160,49 +167,106 @@ class DefaultApprovalPredictionService implements ApprovalPredictionService {
     }
 
     /**
-     * The shared scoring tail: model gates, then extract, predict and persist. Any unexpected
-     * failure becomes a {@code failed} sentinel row rather than an exception.
+     * First scoring of a query: writes a probability when it can, and a {@code skipped} or
+     * {@code failed} row when it cannot, so the read side always has a definitive state.
      */
     private void score(QueryRequestSnapshot query) {
-        var model = modelRepository.findByOrganizationId(query.organizationId()).orElse(null);
-        if (model == null || !model.isServing()) {
-            persistSkipped(query.id(), SKIP_MODEL_NOT_SERVING);
-            return;
-        }
-        if (model.getFeatureSchemaVersion() != ApprovalFeatureVector.SCHEMA_VERSION) {
-            log.warn("Approval model for org {} was trained against feature schema {}, serving "
-                            + "path is on {} — retrain required",
-                    query.organizationId(), model.getFeatureSchemaVersion(),
-                    ApprovalFeatureVector.SCHEMA_VERSION);
-            persistSkipped(query.id(), SKIP_MODEL_NOT_SERVING);
-            return;
-        }
         try {
-            scoreWithModel(query, model);
+            var model = resolveServingModel(query);
+            if (model == null) {
+                persistSkipped(query.id(), SKIP_MODEL_NOT_SERVING);
+                return;
+            }
+            var command = buildScoredCommand(query, model);
+            if (command != null) {
+                persist(command);
+            }
         } catch (RuntimeException ex) {
             log.error("Approval prediction failed for query {}", query.id(), ex);
             persistFailed(query.id(), ex.getMessage());
         }
     }
 
-    private void scoreWithModel(QueryRequestSnapshot query, ApprovalPredictionModelEntity model) {
-        var trained = TrainedApprovalModel.fromJson(model.getCoefficients(), objectMapper);
+    /**
+     * Re-scoring after a late cost estimate. Unlike {@link #score}, this path <strong>never writes a
+     * sentinel</strong>: the row it would replace already holds a real probability that a reviewer may
+     * have seen, and the persistence service's replace path does not care whether the incoming command
+     * is a genuine score. Downgrading "62%" to "not enough history yet" would also be irreversible —
+     * the rewritten snapshot no longer records a missing estimate, so the single replace path is spent.
+     * If the model stopped serving or scoring fails in the meantime, the existing row simply stands.
+     *
+     * <p>The write is also skipped when the fresh vector <em>still</em> records a missing estimate.
+     * That covers the case that reaches here most often: a transactional query is estimated
+     * {@code supported=false} and yet still publishes the completion event, so there is nothing new to
+     * fold in. Deciding it from the rebuilt vector rather than a separate estimate lookup keeps this
+     * path on exactly the same resolution as {@link ApprovalFeatureLoader} and training.
+     */
+    private void rescore(QueryRequestSnapshot query) {
+        try {
+            var model = resolveServingModel(query);
+            if (model == null) {
+                log.debug("Not re-scoring query {}: no serving model; existing prediction stands",
+                        query.id());
+                return;
+            }
+            var command = buildScoredCommand(query, model);
+            if (command == null) {
+                return;
+            }
+            if (recordedMissingEstimate(command.featuresJson())) {
+                log.debug("Not re-scoring query {}: the estimate is still unusable", query.id());
+                return;
+            }
+            log.debug("Re-scoring query {} now that its cost estimate has arrived", query.id());
+            persist(command);
+        } catch (RuntimeException ex) {
+            log.error("Approval prediction re-score failed for query {}; existing prediction stands",
+                    query.id(), ex);
+        }
+    }
+
+    /**
+     * The org's model, parsed and checked, or {@code null} when it cannot serve — no model row, the
+     * quality gate failed, or it was trained against a different feature schema. Both callers treat
+     * {@code null} as "cannot score right now", and differ only in what they write.
+     */
+    private ServingModel resolveServingModel(QueryRequestSnapshot query) {
+        var entity = modelRepository.findByOrganizationId(query.organizationId()).orElse(null);
+        if (entity == null || !entity.isServing()) {
+            return null;
+        }
+        if (entity.getFeatureSchemaVersion() != ApprovalFeatureVector.SCHEMA_VERSION) {
+            log.warn("Approval model for org {} was trained against feature schema {}, serving "
+                            + "path is on {} — retrain required",
+                    query.organizationId(), entity.getFeatureSchemaVersion(),
+                    ApprovalFeatureVector.SCHEMA_VERSION);
+            return null;
+        }
+        var trained = TrainedApprovalModel.fromJson(entity.getCoefficients(), objectMapper);
         if (!ApprovalFeatureVector.FEATURE_SCHEMA_V1.equals(trained.featureNames())) {
             log.warn("Approval model for org {} declares feature names that do not match schema {}"
                             + " — retrain required",
                     query.organizationId(), ApprovalFeatureVector.SCHEMA_VERSION);
-            persistSkipped(query.id(), SKIP_MODEL_NOT_SERVING);
-            return;
+            return null;
         }
+        return new ServingModel(entity.getId(), trained);
+    }
+
+    /** {@code null} when the query's detail row vanished mid-flight; throws on a scoring failure. */
+    private PersistApprovalPredictionCommand buildScoredCommand(QueryRequestSnapshot query,
+                                                                ServingModel model) {
         var vector = featureLoader.load(query);
         if (vector == null) {
-            return;
+            return null;
         }
-        var probability = requireProbability(trained.predict(vector.values()));
-        persist(new PersistApprovalPredictionCommand(query.id(), probability, model.getId(),
+        var probability = requireProbability(model.model().predict(vector.values()));
+        return new PersistApprovalPredictionCommand(query.id(), probability, model.id(),
                 ApprovalFeatureVector.SCHEMA_VERSION,
                 objectMapper.writeValueAsString(vector.asSnapshotMap()),
-                false, null, false, null));
+                false, null, false, null);
+    }
+
+    private record ServingModel(UUID id, TrainedApprovalModel model) {
     }
 
     private void persistSkipped(UUID queryRequestId, String reason) {
@@ -242,18 +306,6 @@ class DefaultApprovalPredictionService implements ApprovalPredictionService {
             log.debug("Unparseable approval_predictions.features JSON; not re-scoring", ex);
             return false;
         }
-    }
-
-    /**
-     * An estimate that is absent, unsupported or failed still featurizes as
-     * {@code estimate_missing=true}, so re-scoring would rewrite an identical row and fire a
-     * pointless completion event. Transactional queries reach here routinely: their estimate is
-     * persisted {@code supported=false} and the completion event is published anyway.
-     */
-    private boolean hasUsableEstimate(UUID queryRequestId) {
-        return queryEstimateLookupService.findByQueryRequestId(queryRequestId)
-                .filter(estimate -> estimate.supported() && !estimate.failed())
-                .isPresent();
     }
 
     /**

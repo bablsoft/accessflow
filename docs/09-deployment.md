@@ -979,7 +979,7 @@ Tuning for approval-outcome prediction: a per-organization logistic model retrai
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
-| `ACCESSFLOW_AI_APPROVAL_PREDICTION_ENABLED` | Optional | `true` | Master switch for the whole feature (training and serving). Advisory and cheap, hence on by default. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_ENABLED` | Optional | `true` | Master switch for the whole feature (training and serving). Advisory and cheap, hence on by default. Note that `false` does not make the feature inert: no model is trained and no query is scored, but each query entering review still gets one `approval_predictions` row with `skipped_reason=DISABLED`, so the UI can say why rather than showing nothing. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_RETRAIN_POLL_INTERVAL` | Optional | `P1D` | ISO-8601 duration. Cadence of the scheduled per-org model retrain. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_TRAINING_SAMPLES` | Optional | `50` | Cold-start guard: decided queries an org must have inside the lookback before a model is trained. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_TRAINING_LOOKBACK` | Optional | `P180D` | ISO-8601 duration. How far back the training data reaches. |

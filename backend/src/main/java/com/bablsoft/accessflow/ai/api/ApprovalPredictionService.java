@@ -11,16 +11,22 @@ import java.util.UUID;
  * never an input to the routing engine, grant coverage, break-glass, or any other decision path —
  * only the read side (query detail / review queue) consumes it.
  *
- * <p><strong>Every method is fail-safe.</strong> None of them propagates an exception to its caller:
- * the serving methods persist a {@code failed=true} sentinel row and return, and the training
- * methods log and move on. A prediction failure must never affect workflow state.
+ * <p><strong>Fail-safety, precisely.</strong> A prediction failure must never affect workflow state,
+ * and the implementations are driven by asynchronous, commit-scoped event listeners, so a failure
+ * structurally cannot reach the transition that triggered it. What each method guarantees to its own
+ * caller differs, and is documented per method below rather than blanket-promised here.
  */
 public interface ApprovalPredictionService {
 
     /**
-     * Scores {@code queryRequestId} and persists exactly one {@code approval_predictions} row —
-     * either a probability, or a {@code skipped} row whose reason says why (the feature is off, or
-     * the org has no serving model yet). Idempotent: a row already present is left alone.
+     * Scores {@code queryRequestId} and persists one {@code approval_predictions} row — a
+     * probability, a {@code skipped} row whose reason says why (the feature is off, or the org has no
+     * serving model yet), or a {@code failed} sentinel. No row is written only when the query request
+     * is no longer readable.
+     *
+     * <p>Writes once per query: a row already present is left as it is, except by
+     * {@link #refreshForLateEstimate}. A scoring failure is absorbed into the sentinel row; a failure
+     * in the guard lookups that precede scoring propagates (the listener absorbs it).
      */
     void predictForQuery(UUID queryRequestId);
 
@@ -28,13 +34,15 @@ public interface ApprovalPredictionService {
      * Re-scores {@code queryRequestId} when its pre-flight cost estimate (AF-624) arrived after the
      * query had already been scored without one. A no-op unless the persisted prediction recorded a
      * missing estimate, the estimate is now usable, and the query is still awaiting review. This is
-     * the only path that replaces an existing prediction.
+     * the only path that replaces an existing prediction, and it replaces only with a real
+     * probability — never with a sentinel, since the row it overwrites already holds a number a
+     * reviewer may have acted on.
      */
     void refreshForLateEstimate(UUID queryRequestId);
 
     /**
-     * Retrains every organization's model. One organization failing does not stop the others.
-     * Driven by the scheduled retrain job.
+     * Retrains every organization's model. Never throws: one organization failing is logged and does
+     * not stop the others. Driven by the scheduled retrain job.
      */
     void trainAll();
 
@@ -42,6 +50,9 @@ public interface ApprovalPredictionService {
      * Retrains one organization's model and refreshes its row with the resulting quality metrics.
      * The model is marked serving only when the sample-count and holdout-AUC gates both pass; below
      * either gate the row is still written (with {@code serving=false}) so an admin can see why.
+     *
+     * <p>Unlike {@link #trainAll}, this propagates a training failure, so a caller retraining one
+     * named organization can react to it.
      */
     void trainForOrganization(UUID organizationId);
 }

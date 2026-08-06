@@ -157,6 +157,8 @@ class ApprovalModelTrainingService {
         entity.setAccuracy(accuracy);
         entity.setServing(serving);
         entity.setTrainedAt(now);
+        // Only takes effect on insert — the entity's @PreUpdate overwrites updated_at with wall-clock
+        // time on the update path. trained_at is the column the Clock actually governs.
         entity.setUpdatedAt(now);
         modelRepository.save(entity);
     }

@@ -10,8 +10,6 @@ import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.OrganizationView;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.PersistApprovalPredictionCommand;
-import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
-import com.bablsoft.accessflow.core.api.QueryEstimateSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -50,7 +48,6 @@ import static org.mockito.Mockito.when;
 class DefaultApprovalPredictionServiceTest {
 
     @Mock QueryRequestLookupService queryRequestLookupService;
-    @Mock QueryEstimateLookupService queryEstimateLookupService;
     @Mock ApprovalPredictionLookupService approvalPredictionLookupService;
     @Mock ApprovalPredictionPersistenceService approvalPredictionPersistenceService;
     @Mock ApprovalPredictionModelRepository modelRepository;
@@ -75,7 +72,7 @@ class DefaultApprovalPredictionServiceTest {
 
     private DefaultApprovalPredictionService build(boolean enabled) {
         return new DefaultApprovalPredictionService(queryRequestLookupService,
-                queryEstimateLookupService, approvalPredictionLookupService,
+                approvalPredictionLookupService,
                 approvalPredictionPersistenceService, modelRepository, featureLoader,
                 trainingService, organizationAdminService,
                 new ApprovalPredictionProperties(enabled, Duration.ofDays(1), 50,
@@ -367,11 +364,6 @@ class DefaultApprovalPredictionServiceTest {
                 UUID.randomUUID(), 1, featuresJson, skipped, null, failed, null, Instant.now());
     }
 
-    private static QueryEstimateSnapshot estimate(boolean supported, boolean failed) {
-        return new QueryEstimateSnapshot(UUID.randomUUID(), UUID.randomUUID(), "postgresql",
-                QueryType.SELECT, supported, 10L, null, "Seq Scan", 1.0, null, null, null, failed,
-                null, null, Instant.now());
-    }
 
     @Test
     void refreshForLateEstimateDoesNothingWhenDisabled() {
@@ -379,7 +371,7 @@ class DefaultApprovalPredictionServiceTest {
 
         service.refreshForLateEstimate(queryId);
 
-        verifyNoInteractions(approvalPredictionLookupService, queryEstimateLookupService,
+        verifyNoInteractions(approvalPredictionLookupService,
                 approvalPredictionPersistenceService);
     }
 
@@ -390,7 +382,7 @@ class DefaultApprovalPredictionServiceTest {
 
         service.refreshForLateEstimate(queryId);
 
-        verifyNoInteractions(queryEstimateLookupService, approvalPredictionPersistenceService);
+        verifyNoInteractions(queryRequestLookupService, approvalPredictionPersistenceService);
     }
 
     @Test
@@ -403,7 +395,7 @@ class DefaultApprovalPredictionServiceTest {
                 .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, true)));
         service.refreshForLateEstimate(queryId);
 
-        verifyNoInteractions(queryEstimateLookupService, approvalPredictionPersistenceService);
+        verifyNoInteractions(queryRequestLookupService, approvalPredictionPersistenceService);
     }
 
     @Test
@@ -413,7 +405,7 @@ class DefaultApprovalPredictionServiceTest {
 
         service.refreshForLateEstimate(queryId);
 
-        verifyNoInteractions(queryEstimateLookupService, approvalPredictionPersistenceService);
+        verifyNoInteractions(queryRequestLookupService, approvalPredictionPersistenceService);
     }
 
     @Test
@@ -426,36 +418,12 @@ class DefaultApprovalPredictionServiceTest {
                 .thenReturn(Optional.of(prediction("{oops", false, false)));
         service.refreshForLateEstimate(queryId);
 
-        verifyNoInteractions(queryEstimateLookupService, approvalPredictionPersistenceService);
-    }
-
-    @Test
-    void refreshForLateEstimateDoesNothingWhenTheEstimateIsStillNotUsable() {
-        when(approvalPredictionLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, false)));
-
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.empty());
-        service.refreshForLateEstimate(queryId);
-
-        // A transactional query is estimated unsupported but still publishes the completion event.
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(estimate(false, false)));
-        service.refreshForLateEstimate(queryId);
-
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(estimate(true, true)));
-        service.refreshForLateEstimate(queryId);
-
-        verifyNoInteractions(approvalPredictionPersistenceService, modelRepository);
+        verifyNoInteractions(queryRequestLookupService, approvalPredictionPersistenceService);
     }
 
     @Test
     void refreshForLateEstimateDoesNothingOnceTheQueryHasLeftReview() {
-        when(approvalPredictionLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, false)));
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(estimate(true, false)));
+        stubEstimateMissingPrediction();
         when(queryRequestLookupService.findById(queryId))
                 .thenReturn(Optional.of(snapshot(QueryStatus.APPROVED)));
 
@@ -466,10 +434,7 @@ class DefaultApprovalPredictionServiceTest {
 
     @Test
     void refreshForLateEstimateDoesNothingWhenTheQueryIsGone() {
-        when(approvalPredictionLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, false)));
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(estimate(true, false)));
+        stubEstimateMissingPrediction();
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
 
         service.refreshForLateEstimate(queryId);
@@ -477,12 +442,59 @@ class DefaultApprovalPredictionServiceTest {
         verifyNoInteractions(approvalPredictionPersistenceService, modelRepository);
     }
 
+    /**
+     * A transactional query is estimated {@code supported=false} yet still publishes the completion
+     * event, so the fresh vector still records a missing estimate — nothing new to fold in, so the
+     * row must be left exactly as it is rather than rewritten identically.
+     */
+    @Test
+    void refreshForLateEstimateDoesNothingWhenTheFreshVectorStillLacksTheEstimate() {
+        stubEstimateMissingPrediction();
+        stubServingHappyPath(true);
+
+        service.refreshForLateEstimate(queryId);
+
+        verifyNoInteractions(approvalPredictionPersistenceService, eventPublisher);
+    }
+
+    /**
+     * The row being replaced already holds a probability a reviewer may have acted on. A retrain that
+     * gated the model between the first scoring and the estimate's arrival must not turn "62 %" into
+     * "not enough history yet" — and it would be irreversible, since the rewritten snapshot no longer
+     * records a missing estimate.
+     */
+    @Test
+    void refreshForLateEstimateLeavesAGoodRowAloneWhenTheModelStoppedServing() {
+        var gated = servingModel();
+        gated.setServing(false);
+        stubEstimateMissingPrediction();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW)));
+        when(modelRepository.findByOrganizationId(organizationId)).thenReturn(Optional.of(gated));
+
+        service.refreshForLateEstimate(queryId);
+
+        verifyNoInteractions(approvalPredictionPersistenceService, eventPublisher, featureLoader);
+    }
+
+    @Test
+    void refreshForLateEstimateLeavesAGoodRowAloneWhenRescoringThrows() {
+        stubEstimateMissingPrediction();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW)));
+        when(modelRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(servingModel()));
+        when(featureLoader.load(any())).thenThrow(new IllegalStateException("re-score exploded"));
+
+        assertThatCode(() -> service.refreshForLateEstimate(queryId)).doesNotThrowAnyException();
+
+        // Crucially no failed sentinel either — that would also destroy the stored probability.
+        verifyNoInteractions(approvalPredictionPersistenceService, eventPublisher);
+    }
+
     @Test
     void refreshForLateEstimateRescoresWhenEveryGuardPasses() {
-        when(approvalPredictionLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, false)));
-        when(queryEstimateLookupService.findByQueryRequestId(queryId))
-                .thenReturn(Optional.of(estimate(true, false)));
+        stubEstimateMissingPrediction();
         stubServingHappyPath(false);
 
         service.refreshForLateEstimate(queryId);
@@ -491,6 +503,11 @@ class DefaultApprovalPredictionServiceTest {
         assertThat(command.probability()).isNotNull();
         assertThat(command.featuresJson()).contains("\"estimate_missing\":false");
         assertThat(capturePublished().queryRequestId()).isEqualTo(queryId);
+    }
+
+    private void stubEstimateMissingPrediction() {
+        when(approvalPredictionLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(prediction("{\"estimate_missing\":true}", false, false)));
     }
 
     // ------------------------------------------------------------------------ training

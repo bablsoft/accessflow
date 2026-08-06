@@ -29,8 +29,9 @@ import java.util.UUID;
  * {@code (approved + 1) / (decided + 2)}, leaving sample <em>i</em> out of a population of
  * {@code A} approved / {@code D} decided yields {@code A / (D + 1)} when its label is positive and
  * {@code (A + 1) / (D + 1)} when it is negative. Those differ by exactly {@code 1 / (D + 1)} as a
- * deterministic function of the label, so after standardization the feature is a perfect inverse
- * label predictor: the trainer puts a large weight on it, holdout AUC reads ≈1.0, the
+ * deterministic function of the label, so after standardization the feature is an inverse label
+ * predictor — perfectly separating within one subject's {@code (A, D)}, and merely inflated across
+ * subjects whose counts differ. The trainer puts a large weight on it, holdout AUC is overstated, the
  * {@code min-auc-to-serve} gate waves the model through — and at serving time the feature takes the
  * unconditional middle value {@code (A + 1) / (D + 2)}, which carries no label information at all.
  * Leave-one-out therefore defeats the quality gate, which is this feature's only safety mechanism.
@@ -46,6 +47,11 @@ import java.util.UUID;
  * </ul>
  * The population <em>predicate</em> is identical either way — the count queries reuse
  * {@code QueryRequestRepository.APPROVAL_OUTCOME_DECIDED_PREDICATE} verbatim.
+ *
+ * <p>Note the consequence for the quality gate: holdout AUC is measured on the point-in-time
+ * distribution, which is not quite the full-window one the serving path sees, so the gate certifies
+ * something slightly narrower than what it guards. That is the standard cost of an honest
+ * point-in-time feature, and far cheaper than the contaminated alternative above.
  *
  * <p><strong>2. Deterministic holdout split.</strong> The bucket is derived from the query UUID, so
  * a sample lands in the same half on every run and there is no RNG anywhere in training.

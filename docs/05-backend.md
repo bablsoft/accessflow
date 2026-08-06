@@ -1910,7 +1910,7 @@ definitive state. Guards, in order:
 | Guard | Row written |
 |---|---|
 | feature disabled | `skipped`, reason `DISABLED` |
-| query request not found | none — nothing to attach to (logged `WARN`) |
+| query request not found, or its detail row vanished mid-flight | none — nothing to attach a row to (logged `WARN`) |
 | no model row, or `serving=false` | `skipped`, reason `MODEL_NOT_SERVING` |
 | model's `feature_schema_version` ≠ current, or its feature names don't match the schema | `skipped`, reason `MODEL_NOT_SERVING` (both versions logged `WARN`) |
 | scored | probability + `model_id` + the feature snapshot |
@@ -1924,9 +1924,13 @@ Deliberately **no `status == PENDING_REVIEW` guard** on `predictForQuery` — th
 commit and asynchronously, so a fast reviewer can decide first, and a status guard would write no row
 at all and leave the detail view blank. Insert-once persistence is the idempotency mechanism.
 `refreshForLateEstimate` is the only path that replaces a row, and it no-ops unless the persisted
-snapshot recorded `estimate_missing=true`, the estimate is now `supported` and not `failed` (a
-transactional query is estimated unsupported yet still publishes the completion event), and the query
-is still `PENDING_REVIEW`.
+snapshot recorded `estimate_missing=true`, the query is still `PENDING_REVIEW`, and the freshly built
+vector no longer records a missing estimate (a transactional query is estimated `supported=false` yet
+still publishes the completion event, so it reaches this guard routinely). It **replaces only with a
+real probability, never with a sentinel** — the row it overwrites already holds a number a reviewer may
+have acted on, and the rewrite would be irreversible because the new snapshot no longer records a
+missing estimate, spending the single replace path. If the model stopped serving or re-scoring throws,
+the existing row stands.
 
 Failures cannot reach the workflow: `@ApplicationModuleListener` is asynchronous, so nothing here can
 propagate into the transition that published the event. One accepted race — if scoring reads "no
