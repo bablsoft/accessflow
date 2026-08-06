@@ -287,6 +287,25 @@ class DefaultApprovalPredictionServiceTest {
         assertThat(command.skipped()).isFalse();
     }
 
+    /**
+     * A library exception with no message must still yield a sentinel row rather than blowing up
+     * inside the catch block — the truncation helper has to tolerate null.
+     */
+    @Test
+    void predictForQueryPersistsASentinelForAnExceptionWithNoMessage() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW)));
+        when(modelRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(servingModel()));
+        when(featureLoader.load(any())).thenThrow(new IllegalStateException());
+
+        assertThatCode(() -> service.predictForQuery(queryId)).doesNotThrowAnyException();
+
+        var command = capturePersisted();
+        assertThat(command.failed()).isTrue();
+        assertThat(command.errorMessage()).isNull();
+    }
+
     @Test
     void predictForQueryTruncatesAnOverlongFailureMessage() {
         when(queryRequestLookupService.findById(queryId))
@@ -489,6 +508,21 @@ class DefaultApprovalPredictionServiceTest {
         assertThatCode(() -> service.refreshForLateEstimate(queryId)).doesNotThrowAnyException();
 
         // Crucially no failed sentinel either — that would also destroy the stored probability.
+        verifyNoInteractions(approvalPredictionPersistenceService, eventPublisher);
+    }
+
+    /** The last way a re-score can bow out: the query's detail row went away mid-flight. */
+    @Test
+    void refreshForLateEstimateLeavesAGoodRowAloneWhenTheDetailRowVanished() {
+        stubEstimateMissingPrediction();
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW)));
+        when(modelRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(servingModel()));
+        when(featureLoader.load(any())).thenReturn(null);
+
+        service.refreshForLateEstimate(queryId);
+
         verifyNoInteractions(approvalPredictionPersistenceService, eventPublisher);
     }
 
