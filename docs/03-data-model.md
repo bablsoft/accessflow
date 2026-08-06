@@ -1050,6 +1050,11 @@ when the query lands in `PENDING_REVIEW`. Every scoring path persists a row — 
 ("not enough history yet" — model missing or not serving), or `failed=true` sentinel — mirroring
 `query_estimates`. Read by the query detail / review queue only (advisory-only guarantee).
 
+Rows are insert-once with exactly **one** replace path: when the persisted `features` snapshot recorded
+`estimate_missing=true` and the pre-flight cost estimate (AF-624) arrives afterwards, the row is
+rewritten in place (`id` and `created_at` stable). Sentinel rows are never replaced. See
+[docs/05-backend.md](05-backend.md) → "Approval-outcome prediction".
+
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
@@ -1057,9 +1062,9 @@ when the query lands in `PENDING_REVIEW`. Every scoring path persists a row — 
 | `probability` | DOUBLE PRECISION nullable — predicted approval probability in [0,1]; NULL on skipped/failed sentinel rows |
 | `model_id` | UUID nullable — bare back-pointer to the `approval_prediction_model` row that scored it (no FK — models are rewritten by the retrain job) |
 | `feature_schema_version` | INTEGER nullable — the feature schema used at serving time |
-| `features` | JSONB nullable — the serving-time feature snapshot, kept for explainability |
-| `skipped` | BOOLEAN NOT NULL DEFAULT false — true when no serving model existed for the org |
-| `skipped_reason` | VARCHAR(500) nullable — localized reason when `skipped=true` |
+| `features` | JSONB nullable — the serving-time feature snapshot, kept for explainability. `estimate_missing` is written as a JSON **boolean**; it is what gates the single replace path (see below) |
+| `skipped` | BOOLEAN NOT NULL DEFAULT false — true when the feature is off, or no serving model existed for the org |
+| `skipped_reason` | VARCHAR(500) nullable — machine-readable token when `skipped=true`, localized by the frontend (never localized at write time: the row is written once by an async listener and read later by any reviewer). The closed set is `DISABLED` (`accessflow.ai.approval-prediction.enabled=false`) and `MODEL_NOT_SERVING` (cold start, quality gate failed, or the stored model was trained against a different feature schema — the schema versions go to the log) |
 | `failed` | BOOLEAN NOT NULL DEFAULT false — true when scoring hit an unexpected error (sentinel row) |
 | `error_message` | VARCHAR(500) nullable — failure reason when `failed=true` |
 | `created_at` | TIMESTAMPTZ |

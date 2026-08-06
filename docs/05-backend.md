@@ -1879,6 +1879,90 @@ ADMIN (`POST /admin/anomalies/{id}/{acknowledge,dismiss}`); each user sees their
 via `GET /anomalies/badge?datasourceId=`. See [docs/03-data-model.md → behavior_baseline / behavior_anomaly](03-data-model.md#behavior_baseline)
 and [docs/04-api-spec.md → Behavioural Anomaly Detection (UBA)](04-api-spec.md#behavioural-anomaly-detection-uba--af-383).
 
+### Approval-outcome prediction (AF-645)
+
+A per-organization logistic regression trained on the org's historical **human** review decisions,
+predicting the probability a reviewer will approve a query that has just landed in `PENDING_REVIEW`.
+Same "hand-rolled, unit-testable statistics" approach as the UBA detector above — no ML library.
+
+**Advisory only, structurally.** The probability is a triage signal for the review queue. It is never
+an input to the routing engine, grant coverage, break-glass, or any other decision path; only the read
+side consumes it. `ai/api/ApprovalPredictionService` exposes scoring and training and nothing else.
+
+**Serving path.** `ai/internal/ApprovalPredictionListener` has two `@ApplicationModuleListener` methods:
+
+- `QueryReadyForReviewEvent` → `predictForQuery`. That event is published exactly on the
+  `PENDING_AI → PENDING_REVIEW` transition and never on an auto path (routing auto-approve/reject,
+  grant coverage, break-glass), which is precisely the population that has a human decision to predict.
+- `QueryEstimateCompletedEvent` → `refreshForLateEstimate`. The cost estimate (AF-624) is computed in
+  parallel; on the AI-disabled and AI-failed paths it can land *after* the query is already in review,
+  and it contributes four features.
+
+`ai/internal/ApprovalFeatureLoader` assembles the schema-v1 vector from `QueryRequestLookupService`
+(`findById` for `organizationId`/`transactional`, then `findDetailById` for `created_at`, the AI
+analysis and the cost estimate) plus the two `ApprovalOutcomeHistoryLookupService` rate counts. It
+reads the analysis and estimate through the query's **back-pointers**, the same way the training query
+joins them, so training and serving can never disagree on what a feature means.
+
+**Every path persists a row**, mirroring the AF-624 estimate convention so the read side always has a
+definitive state. Guards, in order:
+
+| Guard | Row written |
+|---|---|
+| feature disabled | `skipped`, reason `DISABLED` |
+| query request not found, or its detail row vanished mid-flight | none — nothing to attach a row to (logged `WARN`) |
+| no model row, or `serving=false` | `skipped`, reason `MODEL_NOT_SERVING` |
+| model's `feature_schema_version` ≠ current, or its feature names don't match the schema | `skipped`, reason `MODEL_NOT_SERVING` (both versions logged `WARN`) |
+| scored | probability + `model_id` + the feature snapshot |
+| unexpected `RuntimeException` | `failed` sentinel with the message truncated to 500 chars |
+
+Skip reasons are **machine tokens**, not `MessageSource`-resolved text: the row is written once by an
+async listener and read later by any reviewer, so localizing at write time would freeze the listener
+thread's locale. Schema mismatch folds into `MODEL_NOT_SERVING` to keep the token set closed.
+
+Deliberately **no `status == PENDING_REVIEW` guard** on `predictForQuery` — the listener runs after
+commit and asynchronously, so a fast reviewer can decide first, and a status guard would write no row
+at all and leave the detail view blank. Insert-once persistence is the idempotency mechanism.
+`refreshForLateEstimate` is the only path that replaces a row, and it no-ops unless the persisted
+snapshot recorded `estimate_missing=true`, the query is still `PENDING_REVIEW`, and the freshly built
+vector no longer records a missing estimate (a transactional query is estimated `supported=false` yet
+still publishes the completion event, so it reaches this guard routinely). It **replaces only with a
+real probability, never with a sentinel** — the row it overwrites already holds a number a reviewer may
+have acted on, and the rewrite would be irreversible because the new snapshot no longer records a
+missing estimate, spending the single replace path. If the model stopped serving or re-scoring throws,
+the existing row stands.
+
+Failures cannot reach the workflow: `@ApplicationModuleListener` is asynchronous, so nothing here can
+propagate into the transition that published the event. One accepted race — if scoring reads "no
+estimate", the estimate commits, the refresh finds no prediction row yet, and only then scoring
+commits, the row keeps `estimate_missing=true` with nothing left to re-trigger it. The snapshot
+honestly records that the estimate was absent at scoring time.
+
+**Training** (`ai/internal/ApprovalModelTrainingService.trainForOrganization`, one transaction per org
+so a failing org rolls back only its own row; `trainAll` pages `OrganizationAdminService.list` and
+swallows per-org `RuntimeException`):
+
+1. Fetch decided samples over `training-lookback`, capped at 20 000 rows.
+2. Gate: fewer than `min-training-samples` (50), or fewer than 10 per class → store the row with the
+   sample counts, `coefficients = '{}'` and `serving=false`, so an admin can see *why*.
+3. Featurize with **point-in-time approval rates** — each sample sees only strictly-earlier samples.
+   This is not an optimization: with the Laplace-smoothed rate `(approved+1)/(decided+2)`, a
+   leave-one-out implementation makes a sample's own rate differ by exactly `1/(decided+1)` according
+   to its own label, which after standardization is a perfect inverse label predictor. It would drive
+   holdout AUC to ≈1.0, wave a useless model through the quality gate, and then apply that large
+   coefficient to an uninformative value at serving time.
+4. Split deterministically by `floorMod(queryId.hashCode(), 100)` against `holdout-fraction` — no RNG
+   anywhere, so a retrain over unchanged history reproduces the same model.
+5. Train (`LogisticRegressionTrainer`), evaluate on the holdout (`ModelEvaluator`), and set
+   `serving = auc >= min-auc-to-serve`. An empty or single-class holdout stores `auc = null` rather
+   than the evaluator's `0.5` return, so "no ranking signal" cannot be mistaken for a measured 0.5.
+
+Tunables are `accessflow.ai.approval-prediction.*` — see
+[docs/09-deployment.md](09-deployment.md#approval-prediction-af-645). The clustered-safe retrain job
+that calls `trainAll()` on a schedule lands with AF-652; until then a model is trained only when
+`trainAll()` is invoked directly. Schema:
+[docs/03-data-model.md → approval_prediction_model / approval_predictions](03-data-model.md#approval_prediction_model).
+
 ---
 
 ## Audit Logging
@@ -1918,7 +2002,7 @@ Lives in `audit/`. Owns the `audit_log` table (entity + repository) and exposes 
 ### Module isolation
 
 - The `audit_log` entity lives under `audit/internal/persistence/entity/`, with plain `UUID` columns for `organizationId` / `actorId` (no JPA `@ManyToOne` joins — same pattern as `NotificationChannelEntity`). Postgres-level FKs to `organizations` and `users` were dropped in V14 so audit history survives org/user deletion.
-- Cross-module event types live in `core/events/` (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`, `QueryStatusChangedEvent`, `AiAnalysisCompletedEvent`) and `workflow/events/` (`QueryApprovedEvent`, `QueryRejectedEvent`, `QueryCancelledEvent`, `QueryExecutedEvent`, `ReviewDecisionMadeEvent`). Keeping the read-side events in `core/events/` lets audit and realtime consume them without depending on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
+- Cross-module event types live in `core/events/` (`QueryReadyForReviewEvent`, `QueryAutoApprovedEvent`, `QueryStatusChangedEvent`, `AiAnalysisCompletedEvent`, `ApprovalPredictionCompletedEvent`) and `workflow/events/` (`QueryApprovedEvent`, `QueryRejectedEvent`, `QueryCancelledEvent`, `QueryExecutedEvent`, `ReviewDecisionMadeEvent`). Keeping the read-side events in `core/events/` lets audit and realtime consume them without depending on `workflow`, breaking what would otherwise be a slice cycle (workflow controllers call `AuditLogService` synchronously).
 
 ### Chain verification
 
