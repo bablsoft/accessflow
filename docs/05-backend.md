@@ -1961,10 +1961,14 @@ swallows per-org `RuntimeException`):
 Tunables are `accessflow.ai.approval-prediction.*` — see
 [docs/09-deployment.md](09-deployment.md#approval-prediction-af-645). `ApprovalPredictionTrainingJob`
 (`ai/internal/scheduled/`, lock `approvalPredictionTrainingJob`) calls `trainAll()` every
-`retrain-poll-interval` (default `P1D`), so every organization's model refreshes daily on exactly one
-replica. The job itself is thin: the org loop, the per-org transaction, the per-org error swallowing
-and the `enabled` switch are all `trainAll()`'s, and its own `catch` only stops a batch-level failure
-escaping into the scheduler. Schema:
+`retrain-poll-interval` (default `P1D`), retraining every organization that is not disabled. The job
+is thin: the org loop, the per-org error swallowing and the `enabled` switch are `trainAll()`'s, the
+per-org transaction is the training service's, and the job's own `catch` covers the one thing outside
+`trainAll()`'s per-org `try` — paging the organization list. Note the cadence is *per replica*, not
+cluster-wide: `@SchedulerLock` guarantees one replica per run, but a `fixedDelay` timer starts at
+context refresh, so an N-replica cluster retrains up to N times a day and every pod start triggers a
+pass. That is redundant load, never divergence — training is deterministic, so a repeat pass over
+unchanged history reproduces the same model. Schema:
 [docs/03-data-model.md → approval_prediction_model / approval_predictions](03-data-model.md#approval_prediction_model).
 
 ---
