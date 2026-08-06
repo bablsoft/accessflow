@@ -41,8 +41,12 @@ public interface ApprovalPredictionService {
     void refreshForLateEstimate(UUID queryRequestId);
 
     /**
-     * Retrains every organization's model. Never throws: one organization failing is logged and does
-     * not stop the others. Driven by the scheduled retrain job.
+     * Retrains every organization's model. One organization failing is logged and does not stop the
+     * others. Driven by the scheduled retrain job.
+     *
+     * <p>Not absolutely non-throwing: only the per-organization training sits inside the guarded
+     * block, so a failure while paging the organization list still propagates. The scheduled job
+     * catches that — do not read this method as a reason to drop the job's own {@code catch}.
      */
     void trainAll();
 

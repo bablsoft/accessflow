@@ -975,12 +975,12 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 
 #### Approval Prediction (AF-645)
 
-Tuning for approval-outcome prediction: a per-organization logistic model retrained over the org's decided-query history, serving advisory approval-likelihood predictions only when a holdout quality gate passes. The serving path and the per-org training are live; the clustered-safe job that retrains on a schedule lands with AF-652, so `RETRAIN_POLL_INTERVAL` has no runtime effect until then. All bind under `accessflow.ai.approval-prediction.*`.
+Tuning for approval-outcome prediction: a per-organization logistic model retrained over the org's decided-query history, serving advisory approval-likelihood predictions only when a holdout quality gate passes. Retraining is driven by the clustered-safe `ApprovalPredictionTrainingJob`, so only one replica retrains per tick. All bind under `accessflow.ai.approval-prediction.*`.
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_ENABLED` | Optional | `true` | Master switch for the whole feature (training and serving). Advisory and cheap, hence on by default. Note that `false` does not make the feature inert: no model is trained and no query is scored, but each query entering review still gets one `approval_predictions` row with `skipped_reason=DISABLED`, so the UI can say why rather than showing nothing. |
-| `ACCESSFLOW_AI_APPROVAL_PREDICTION_RETRAIN_POLL_INTERVAL` | Optional | `P1D` | ISO-8601 duration. Cadence of the scheduled per-org model retrain. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_RETRAIN_POLL_INTERVAL` | Optional | `P1D` | ISO-8601 duration. Cadence at which `ApprovalPredictionTrainingJob` retrains every non-disabled organization's model. ShedLock makes it safe under horizontal scaling — one replica per run. The timer is per-replica and starts at context refresh, so a multi-replica cluster may retrain more than once per period; retraining is deterministic, so the extra passes reproduce the same model. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_TRAINING_SAMPLES` | Optional | `50` | Cold-start guard: decided queries an org must have inside the lookback before a model is trained. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_TRAINING_LOOKBACK` | Optional | `P180D` | ISO-8601 duration. How far back the training data reaches. |
 | `ACCESSFLOW_AI_APPROVAL_PREDICTION_HOLDOUT_FRACTION` | Optional | `0.2` | Fraction of samples held out for evaluation (exclusive `0..1` range; out-of-range values fall back to the default). |
