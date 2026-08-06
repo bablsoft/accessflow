@@ -1172,6 +1172,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ScheduledGroupRunJob` | requestgroups | `scheduledGroupRunJob` | `accessflow.requestgroups.run-poll-interval` | `PT1M` |
 | `GroupTimeoutJob` | requestgroups | `groupTimeoutJob` | `accessflow.requestgroups.timeout-poll-interval` | `PT5M` |
 | `DiscoveryScanJob` | discovery | `discoveryScanJob` | `accessflow.discovery.scan-poll-interval` | `PT15M` |
+| `ApprovalPredictionTrainingJob` | ai | `approvalPredictionTrainingJob` | `accessflow.ai.approval-prediction.retrain-poll-interval` | `P1D` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1958,9 +1959,12 @@ swallows per-org `RuntimeException`):
    than the evaluator's `0.5` return, so "no ranking signal" cannot be mistaken for a measured 0.5.
 
 Tunables are `accessflow.ai.approval-prediction.*` — see
-[docs/09-deployment.md](09-deployment.md#approval-prediction-af-645). The clustered-safe retrain job
-that calls `trainAll()` on a schedule lands with AF-652; until then a model is trained only when
-`trainAll()` is invoked directly. Schema:
+[docs/09-deployment.md](09-deployment.md#approval-prediction-af-645). `ApprovalPredictionTrainingJob`
+(`ai/internal/scheduled/`, lock `approvalPredictionTrainingJob`) calls `trainAll()` every
+`retrain-poll-interval` (default `P1D`), so every organization's model refreshes daily on exactly one
+replica. The job itself is thin: the org loop, the per-org transaction, the per-org error swallowing
+and the `enabled` switch are all `trainAll()`'s, and its own `catch` only stops a batch-level failure
+escaping into the scheduler. Schema:
 [docs/03-data-model.md → approval_prediction_model / approval_predictions](03-data-model.md#approval_prediction_model).
 
 ---

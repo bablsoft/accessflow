@@ -975,7 +975,7 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 
 #### Approval Prediction (AF-645)
 
-Tuning for approval-outcome prediction: a per-organization logistic model retrained over the org's decided-query history, serving advisory approval-likelihood predictions only when a holdout quality gate passes. The serving path and the per-org training are live; the clustered-safe job that retrains on a schedule lands with AF-652, so `RETRAIN_POLL_INTERVAL` has no runtime effect until then. All bind under `accessflow.ai.approval-prediction.*`.
+Tuning for approval-outcome prediction: a per-organization logistic model retrained over the org's decided-query history, serving advisory approval-likelihood predictions only when a holdout quality gate passes. Retraining is driven by the clustered-safe `ApprovalPredictionTrainingJob`, so only one replica retrains per tick. All bind under `accessflow.ai.approval-prediction.*`.
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
