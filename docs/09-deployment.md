@@ -973,6 +973,21 @@ Deployment-wide tuning for the `ai` module's `BehaviorAnomalyDetectionJob`, whic
 | `ACCESSFLOW_AI_ANOMALY_OFF_HOURS_THRESHOLD` | Optional | `0.02` | Minimum baseline frequency for an active-hour bucket below which a query landing in it is flagged as off-hours. |
 | `ACCESSFLOW_AI_ANOMALY_SUMMARY_ENABLED` | Optional | `true` | When `true`, the bound `ai_config` analyzer generates a natural-language explanation per anomaly (fully fail-safe — a failed or disabled summary never blocks detection). |
 
+#### Approval Prediction (AF-645)
+
+Tuning for approval-outcome prediction: a per-organization logistic model retrained on a schedule over the org's decided-query history, serving advisory approval-likelihood predictions only when a holdout quality gate passes. (The retrain job and serving path land with the rest of the AF-645 epic; until then these knobs have no runtime effect.) All bind under `accessflow.ai.approval-prediction.*`.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_ENABLED` | Optional | `true` | Master switch for the whole feature (training and serving). Advisory and cheap, hence on by default. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_RETRAIN_POLL_INTERVAL` | Optional | `P1D` | ISO-8601 duration. Cadence of the scheduled per-org model retrain. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_TRAINING_SAMPLES` | Optional | `50` | Cold-start guard: decided queries an org must have inside the lookback before a model is trained. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_TRAINING_LOOKBACK` | Optional | `P180D` | ISO-8601 duration. How far back the training data reaches. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_HOLDOUT_FRACTION` | Optional | `0.2` | Fraction of samples held out for evaluation (exclusive `0..1` range; out-of-range values fall back to the default). |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_MIN_AUC_TO_SERVE` | Optional | `0.65` | Quality gate: holdout AUC below which the trained model never serves predictions. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_L2_LAMBDA` | Optional | `0.01` | L2 regularization strength for the logistic-regression training. `0` disables regularization. |
+| `ACCESSFLOW_AI_APPROVAL_PREDICTION_MAX_ITERATIONS` | Optional | `500` | Gradient-descent iteration cap per training run. |
+
 #### Customer-DB Proxy (HikariCP + Execution)
 
 | Variable | Required | Default | Description |
