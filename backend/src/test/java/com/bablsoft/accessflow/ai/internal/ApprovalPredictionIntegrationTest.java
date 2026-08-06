@@ -72,6 +72,17 @@ class ApprovalPredictionIntegrationTest {
     /** Enough to clear the 50-sample floor and the 10-per-class floor with room to spare. */
     private static final int DECIDED_SAMPLES = 60;
 
+    /**
+     * Seeded timestamps deliberately carry a sub-microsecond component. {@code QueryRequestEntity}'s
+     * {@code @Version} is an {@code Instant}: Postgres truncates it to microseconds while the JVM
+     * holds nanoseconds, so any pre-loaded instance saved a second time fails the optimistic-lock
+     * check. On Linux that happens with a plain {@code Instant.now()}; macOS often hands out
+     * microsecond precision already and hides it. Forcing the nanosecond here makes both platforms
+     * exercise the same path, so {@link #attachBackPointers}'s re-read is actually under test rather
+     * than incidentally unnecessary.
+     */
+    private static final int SUB_MICROSECOND_NANOS = 1;
+
     @Autowired ApprovalPredictionService predictionService;
     @Autowired ApprovalPredictionLookupService predictionLookupService;
     @Autowired ApprovalPredictionModelRepository modelRepository;
@@ -310,7 +321,7 @@ class ApprovalPredictionIntegrationTest {
      * the late-estimate re-score would provably be unable to move a probability.
      */
     private void seedDecisionHistory(int count) {
-        var base = Instant.now().minus(Duration.ofDays(60));
+        var base = Instant.now().minus(Duration.ofDays(60)).plusNanos(SUB_MICROSECOND_NANOS);
         for (int i = 0; i < count; i++) {
             boolean approved = i % 2 == 0;
             var query = new QueryRequestEntity();
@@ -326,13 +337,13 @@ class ApprovalPredictionIntegrationTest {
             query = queryRequestRepository.save(query);
 
             seedDecision(query, approved ? DecisionType.APPROVED : DecisionType.REJECTED);
-            query.setAiAnalysisId(seedAnalysis(query, approved ? 10 : 90,
-                    approved ? RiskLevel.LOW : RiskLevel.HIGH));
-            if (i % 3 != 0) {
-                query.setQueryEstimateId(seedEstimate(query, approved ? 50L : 5_000_000L,
-                        approved ? 1.5 : 90_000.0, approved ? "Index Scan" : "Seq Scan"));
-            }
-            queryRequestRepository.save(query);
+            var analysisId = seedAnalysis(query, approved ? 10 : 90,
+                    approved ? RiskLevel.LOW : RiskLevel.HIGH);
+            var estimateId = i % 3 != 0
+                    ? seedEstimate(query, approved ? 50L : 5_000_000L,
+                            approved ? 1.5 : 90_000.0, approved ? "Index Scan" : "Seq Scan")
+                    : null;
+            attachBackPointers(query.getId(), analysisId, estimateId);
         }
     }
 
@@ -346,22 +357,35 @@ class ApprovalPredictionIntegrationTest {
         query.setQueryType(QueryType.SELECT);
         query.setStatus(QueryStatus.PENDING_REVIEW);
         query.setSubmissionReason(SubmissionReason.USER_SUBMITTED);
-        query.setCreatedAt(Instant.now());
-        query.setUpdatedAt(Instant.now());
+        var submittedAt = Instant.now().plusNanos(SUB_MICROSECOND_NANOS);
+        query.setCreatedAt(submittedAt);
+        query.setUpdatedAt(submittedAt);
         query = queryRequestRepository.save(query);
-        query.setAiAnalysisId(seedAnalysis(query, riskScore, RiskLevel.LOW));
-        if (withEstimate) {
-            query.setQueryEstimateId(seedEstimate(query));
-        }
-        return queryRequestRepository.save(query);
+        var analysisId = seedAnalysis(query, riskScore, RiskLevel.LOW);
+        var estimateId = withEstimate ? seedEstimate(query) : null;
+        return attachBackPointers(query.getId(), analysisId, estimateId);
     }
 
-    /** Re-reads before saving so the pre-loaded {@code @Version} value cannot go stale. */
+    /** Attaches a cost estimate to a query that was scored without one. */
     private void attachEstimate(QueryRequestEntity query) {
         var estimateId = seedEstimate(query);
         var reloaded = queryRequestRepository.findById(query.getId()).orElseThrow();
         reloaded.setQueryEstimateId(estimateId);
         queryRequestRepository.save(reloaded);
+    }
+
+    /**
+     * Sets the {@code ai_analysis_id} / {@code query_estimate_id} back-pointers on a re-read
+     * instance. The re-read is load-bearing: {@code QueryRequestEntity}'s {@code @Version} is an
+     * {@code Instant}, Postgres truncates it to microseconds while the JVM holds nanoseconds, so a
+     * pre-loaded instance's version stops matching the stored one once the child inserts have
+     * flushed — an optimistic-lock failure that shows up on Linux CI and not on macOS.
+     */
+    private QueryRequestEntity attachBackPointers(UUID queryId, UUID analysisId, UUID estimateId) {
+        var reloaded = queryRequestRepository.findById(queryId).orElseThrow();
+        reloaded.setAiAnalysisId(analysisId);
+        reloaded.setQueryEstimateId(estimateId);
+        return queryRequestRepository.save(reloaded);
     }
 
     private OrganizationEntity saveOrg() {
