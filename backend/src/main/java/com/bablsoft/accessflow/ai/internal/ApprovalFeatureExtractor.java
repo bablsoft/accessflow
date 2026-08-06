@@ -140,12 +140,16 @@ class ApprovalFeatureExtractor {
      * Extracts the schema-v1 vector. Either rate-count argument may be {@code null}, which is
      * treated the same as no decided history at all.
      *
-     * <p><strong>Caller contract at training time:</strong> the counts must exclude the sample
-     * being featurized. {@code ApprovalOutcomeHistoryLookupService.submitterCounts} /
-     * {@code datasourceCounts} aggregate the whole decided population, so passing them unadjusted
-     * makes {@code submitter_approval_rate} a partial function of the sample's own label — target
-     * leakage that inflates holdout AUC and can push a model that does not generalise past the
-     * quality gate. Serving is unaffected: the query being scored is not yet decided.
+     * <p><strong>Caller contract at training time:</strong> the counts must aggregate only samples
+     * strictly <em>earlier</em> than the one being featurized — see
+     * {@link ApprovalTrainingSetBuilder}, which is the only training-time caller.
+     * {@code ApprovalOutcomeHistoryLookupService.submitterCounts} / {@code datasourceCounts}
+     * aggregate the whole decided population, so passing them unadjusted makes
+     * {@code submitter_approval_rate} a partial function of the sample's own label — target leakage
+     * that inflates holdout AUC and can push a model that does not generalise past the quality gate.
+     * Subtracting just the sample's own contribution ("leave-one-out") does not fix that and makes it
+     * strictly worse; {@link ApprovalTrainingSetBuilder} documents why. Serving is unaffected: the
+     * query being scored is not yet decided.
      */
     ApprovalFeatureVector extract(ApprovalFeatureInput input,
                                   ApprovalRateCounts submitterCounts,
