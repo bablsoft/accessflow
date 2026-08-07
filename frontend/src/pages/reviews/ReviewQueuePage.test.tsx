@@ -274,4 +274,27 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     // No reject modal should be visible.
     expect(screen.queryByText('Reject query')).toBeNull();
   });
+
+  it('renders the approval-likelihood badge for a scored row (AF-645)', async () => {
+    const page = pendingPage();
+    page.content[0]!.approval_probability = 0.78;
+    listPendingReviewsMock.mockResolvedValue(page);
+
+    render(wrap(<ReviewQueuePage />));
+
+    expect(await screen.findByTestId('approval-prediction-badge')).toHaveTextContent('78%');
+    expect(
+      screen.getByRole('columnheader', { name: 'Approval likelihood' }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders a dash in the approval-likelihood column for an unscored row (AF-645)', async () => {
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+
+    render(wrap(<ReviewQueuePage />));
+
+    await screen.findByRole('columnheader', { name: 'Approval likelihood' });
+    expect(await screen.findByTestId('approval-likelihood-empty')).toHaveTextContent('—');
+    expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
+  });
 });

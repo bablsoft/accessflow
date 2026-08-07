@@ -533,6 +533,17 @@
     "scan_type_label": "Tipo de escaneo",
     "cost_label": "Coste estimado"
   },
+  "approval_prediction": {
+    "value_label": "Probabilidad histórica de aprobación",
+    "badge_value": "{{percent}} %",
+    "tooltip": "Estimación estadística basada en las decisiones de revisión anteriores de esta organización. Solo informativa: nunca aprueba ni rechaza nada.",
+    "pending": "Calculando la probabilidad de aprobación…",
+    "unavailable": "No hay probabilidad de aprobación disponible para esta consulta.",
+    "failed": "No se pudo calcular la probabilidad de aprobación.",
+    "skipped_disabled": "Las estimaciones de probabilidad de aprobación están desactivadas para esta organización.",
+    "skipped_model_not_serving": "Todavía no hay suficiente historial de revisiones.",
+    "queue_unscored_tooltip": "Esta consulta no tiene probabilidad de aprobación. Ábrela para ver por qué."
+  },
   "ai_panel": {
     "title": "Análisis de IA",
     "disabled_badge": "deshabilitado",
@@ -588,6 +599,7 @@
       "no_justification": "El solicitante no proporcionó una justificación.",
       "card_ai": "Análisis de IA",
       "card_cost_estimate": "Estimación de coste",
+      "card_approval_prediction": "Probabilidad de aprobación",
       "ai_awaiting": "Esperando análisis…",
       "ai_failed_banner_title": "El análisis de IA falló",
       "ai_failed_banner_detail": "La revisión continúa sin una recomendación de IA. Motivo: {{reason}}",
@@ -697,6 +709,7 @@
     "col_id": "ID",
     "col_type": "Tipo",
     "col_risk": "Riesgo",
+    "col_approval_likelihood": "Prob. de aprobación",
     "col_datasource": "Fuente de datos",
     "col_submitter": "Remitente",
     "col_created": "Creada",

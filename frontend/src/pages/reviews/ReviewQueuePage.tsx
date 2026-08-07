@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
+import { ApprovalPredictionBadge } from '@/components/review/ApprovalPredictionBadge';
 import { RejectModal } from '@/components/review/RejectModal';
 import { BulkDecisionModal } from '@/components/review/BulkDecisionModal';
 import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
@@ -158,6 +159,23 @@ export function ReviewQueuePage() {
           const ai = item.ai_analysis;
           return ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—';
         },
+      },
+      {
+        title: t('reviews.col_approval_likelihood'),
+        key: 'approval_likelihood',
+        width: 150,
+        render: (_: unknown, item: PendingReviewItem) =>
+          item.approval_probability === null || item.approval_probability === undefined ? (
+            // The queue payload carries no skip reason — only the detail page has it — so the
+            // tooltip points there rather than guessing why the row is unscored.
+            <Tooltip title={t('approval_prediction.queue_unscored_tooltip')}>
+              <span className="muted" data-testid="approval-likelihood-empty">
+                —
+              </span>
+            </Tooltip>
+          ) : (
+            <ApprovalPredictionBadge probability={item.approval_probability} size="sm" />
+          ),
       },
       {
         title: t('reviews.col_datasource'),

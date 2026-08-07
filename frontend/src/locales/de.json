@@ -533,6 +533,17 @@
     "scan_type_label": "Scan-Typ",
     "cost_label": "Geschätzte Kosten"
   },
+  "approval_prediction": {
+    "value_label": "Historische Genehmigungswahrscheinlichkeit",
+    "badge_value": "{{percent}} %",
+    "tooltip": "Statistische Schätzung auf Basis der bisherigen Prüfentscheidungen dieser Organisation. Rein informativ — sie genehmigt und lehnt nichts ab.",
+    "pending": "Genehmigungswahrscheinlichkeit wird berechnet…",
+    "unavailable": "Für diese Abfrage ist keine Genehmigungswahrscheinlichkeit verfügbar.",
+    "failed": "Die Genehmigungswahrscheinlichkeit konnte nicht berechnet werden.",
+    "skipped_disabled": "Schätzungen der Genehmigungswahrscheinlichkeit sind für diese Organisation deaktiviert.",
+    "skipped_model_not_serving": "Noch nicht genug Prüfhistorie vorhanden.",
+    "queue_unscored_tooltip": "Keine Genehmigungswahrscheinlichkeit für diese Abfrage. Öffnen Sie sie, um den Grund zu sehen."
+  },
   "ai_panel": {
     "title": "KI-Analyse",
     "disabled_badge": "deaktiviert",
@@ -588,6 +599,7 @@
       "no_justification": "Der Antragsteller hat keine Begründung angegeben.",
       "card_ai": "KI-Analyse",
       "card_cost_estimate": "Kostenschätzung",
+      "card_approval_prediction": "Genehmigungswahrscheinlichkeit",
       "ai_awaiting": "Warten auf Analyse…",
       "ai_failed_banner_title": "KI-Analyse fehlgeschlagen",
       "ai_failed_banner_detail": "Die Prüfung läuft ohne KI-Empfehlung weiter. Grund: {{reason}}",
@@ -697,6 +709,7 @@
     "col_id": "ID",
     "col_type": "Typ",
     "col_risk": "Risiko",
+    "col_approval_likelihood": "Genehmigungsprognose",
     "col_datasource": "Datenquelle",
     "col_submitter": "Einreicher",
     "col_created": "Erstellt",

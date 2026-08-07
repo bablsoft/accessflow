@@ -235,6 +235,21 @@ describe('websocketManager', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ['queries', 'detail', 'q9'] });
   });
 
+  it('default invalidations fire for query.prediction_complete', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'query.prediction_complete',
+      timestamp: 'now',
+      data: { query_id: 'q7', probability: 0.78 },
+    });
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['queries', 'detail', 'q7'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['reviews', 'pending'] });
+  });
+
   it('drops non-JSON frames without throwing', () => {
     websocketManager.connect('t');
     expect(() => sock(0).triggerMessage('not json')).not.toThrow();

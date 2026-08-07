@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fmtDate, fmtNum, timeAgo } from '../dateFormat';
+import { fmtDate, fmtNum, msSince, timeAgo } from '../dateFormat';
 
 const FIXED_NOW = new Date('2026-05-04T10:30:00Z').getTime();
 
@@ -52,5 +52,25 @@ describe('fmtNum', () => {
 
   it('handles zero', () => {
     expect(fmtNum(0)).toBe('0');
+  });
+});
+
+describe('msSince', () => {
+  it('returns the elapsed milliseconds for a parseable timestamp', () => {
+    expect(msSince(new Date(FIXED_NOW - 90 * 1000).toISOString())).toBe(90 * 1000);
+  });
+
+  it('returns a negative value for a future timestamp', () => {
+    expect(msSince(new Date(FIXED_NOW + 1000).toISOString())).toBe(-1000);
+  });
+
+  it('returns NaN for an unparseable timestamp', () => {
+    expect(msSince('not-a-date')).toBeNaN();
+  });
+
+  it('returns NaN when the timestamp is absent', () => {
+    expect(msSince(null)).toBeNaN();
+    expect(msSince(undefined)).toBeNaN();
+    expect(msSince('')).toBeNaN();
   });
 });

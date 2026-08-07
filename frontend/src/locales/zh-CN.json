@@ -533,6 +533,17 @@
     "scan_type_label": "扫描类型",
     "cost_label": "预估成本"
   },
+  "approval_prediction": {
+    "value_label": "历史批准可能性",
+    "badge_value": "{{percent}}%",
+    "tooltip": "基于本组织既往审核决定的统计估算。仅供参考——它不会批准或拒绝任何请求。",
+    "pending": "正在计算批准可能性…",
+    "unavailable": "此查询没有可用的批准可能性。",
+    "failed": "无法计算批准可能性。",
+    "skipped_disabled": "本组织已关闭批准可能性估算。",
+    "skipped_model_not_serving": "审核历史数据尚不足。",
+    "queue_unscored_tooltip": "此查询没有批准可能性。打开查询可查看原因。"
+  },
   "ai_panel": {
     "title": "AI 分析",
     "disabled_badge": "已禁用",
@@ -588,6 +599,7 @@
       "no_justification": "申请人未提供说明。",
       "card_ai": "AI 分析",
       "card_cost_estimate": "成本预估",
+      "card_approval_prediction": "批准可能性",
       "ai_awaiting": "正在等待分析…",
       "ai_failed_banner_title": "AI 分析失败",
       "ai_failed_banner_detail": "审核将继续，但没有 AI 建议。原因：{{reason}}",
@@ -697,6 +709,7 @@
     "col_id": "ID",
     "col_type": "类型",
     "col_risk": "风险",
+    "col_approval_likelihood": "批准可能性",
     "col_datasource": "数据源",
     "col_submitter": "提交人",
     "col_created": "创建时间",
