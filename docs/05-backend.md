@@ -1905,6 +1905,75 @@ analysis and the cost estimate) plus the two `ApprovalOutcomeHistoryLookupServic
 reads the analysis and estimate through the query's **back-pointers**, the same way the training query
 joins them, so training and serving can never disagree on what a feature means.
 
+**Feature schema v1** — 21 features, in the frozen order `ApprovalFeatureVector.FEATURE_SCHEMA_V1`
+declares, grouped as they are derived. `ApprovalFeatureExtractor` is the single stateless encoder for
+both training and serving, so an encoding cannot drift between them.
+
+| Group | Feature | Derivation |
+|---|---|---|
+| AI analysis | `risk_score` | `ai_analyses.risk_score / 100` |
+| | `risk_level_LOW` / `_MEDIUM` / `_HIGH` / `_CRITICAL` | one-hot on `RiskLevel` |
+| | `issue_count` | number of entries in `ai_analyses.issues`; unparseable JSON counts 0 |
+| | `ai_missing` | 1 when there is no linked analysis, or it failed |
+| Cost estimate (AF-624) | `estimated_rows_log10`, `affected_row_count_log10`, `estimated_cost_log10` | `log10(1 + v)`, compressing the heavy right tail |
+| | `seq_scan` | 1 when the normalized `query_estimates.scan_type` is one of 12 known full/sequential-scan operation names (`seq scan`, `table access full`, `collscan`, `allnodesscan`, …) |
+| | `estimate_missing` | 1 when there is no estimate, it reported `supported=false`, or it failed |
+| Query request | `query_type_SELECT` / `_INSERT` / `_UPDATE` / `_DELETE` / `_DDL` | one-hot on `QueryType` |
+| | `transactional` | the query's transactional flag |
+| | `off_hours` | 1 when `created_at` falls outside `[08:00, 18:00)` **UTC** (see below — the zone is fixed, not the app's) |
+| Historical rates | `submitter_approval_rate`, `datasource_approval_rate` | Laplace-smoothed `(approved + 1) / (decided + 2)` over the same decided population the labels come from |
+
+Three encoding rules carry more weight than they look like they do:
+
+- **Missing inputs are indicated, never imputed.** Every absent value contributes an explicit
+  indicator (`ai_missing`, `estimate_missing`) *plus* a zero fill. The indicators are redundant with
+  their payloads on purpose — that redundancy is what stops an absent input from reading as a genuine
+  zero, and standardization plus L2 absorbs the collinearity. The vector's constructor rejects `NaN`
+  and the infinities, so "a missing input never produces `NaN`" holds structurally, not just under
+  test.
+- **`off_hours` buckets against fixed UTC**, not the application `Clock`. Training and serving must
+  bucket identically, and reading the deployment zone would let a zone change silently invalidate
+  every already-trained model.
+- **`QueryType.OTHER` and a null query type / risk level are the reference category** — their whole
+  one-hot block stays zero. One-hot positions are resolved *by name*, so adding an enum constant
+  degrades to the reference category instead of shifting indices. Reordering or renaming inside v1 is
+  a different matter: `predict` validates only the array *length*, so it would silently score every
+  trained model against the wrong coefficients. That is a schema-v2 event — bump `SCHEMA_VERSION`,
+  add a new list, retrain.
+
+**Training population and labels.** One predicate
+(`QueryRequestRepository.APPROVAL_OUTCOME_DECIDED_PREDICATE`) selects the samples *and* backs both
+rate-count queries, so features and labels cannot disagree about who counts:
+
+```sql
+where q.datasource.organization.id = :orgId
+  and q.createdAt >= :since
+  and q.approvedByGrantId is null
+  and q.submissionReason <> :excludedReason
+  and (q.status = :timedOut
+       or (q.status in :humanDecidedStatuses
+           and exists (select 1 from ReviewDecisionEntity rd where rd.queryRequest = q)))
+```
+
+Every auto path is excluded, because none of them carries reviewer judgment and all of them would
+poison the model:
+
+| Clause | What it excludes |
+|---|---|
+| `approvedByGrantId is null` | grant-covered auto-approval (#582) |
+| `submissionReason <> EMERGENCY_ACCESS` | break-glass (AF-385) |
+| `exists (… ReviewDecisionEntity …)` | routing-policy `AUTO_APPROVE` / `AUTO_REJECT` (AF-379) **and** external-ticket system decisions (AF-453) — neither writes a `review_decisions` row, which is exactly what makes this one clause cover both |
+| `status in (APPROVED, EXECUTED, REJECTED)` | `CANCELLED`, everything still pending, and `FAILED` (a post-approval execution error is not a review outcome) |
+
+Label: **positive** = `APPROVED` / `EXECUTED`, **negative** = `REJECTED` / `TIMED_OUT`. `TIMED_OUT` is
+the one status admitted without a decision row — it short-circuits the `exists` clause, because no
+reviewer acting *is* the outcome being predicted.
+
+One accepted source of noise: an external-ticket resolution that lands *after* a partial human review
+(an earlier-stage approval, or changes requested) leaves a decision row behind and is counted as
+human-decided, even though the terminal transition was machine-attributed. Separating those needs a
+decision-provenance column the schema does not have.
+
 **Every path persists a row**, mirroring the AF-624 estimate convention so the read side always has a
 definitive state. Guards, in order:
 
@@ -1958,6 +2027,23 @@ swallows per-org `RuntimeException`):
    `serving = auc >= min-auc-to-serve`. An empty or single-class holdout stores `auc = null` rather
    than the evaluator's `0.5` return, so "no ranking signal" cannot be mistaken for a measured 0.5.
 
+Several numbers in that sequence are **compiled-in constants, not knobs** — worth knowing before
+reaching for an env var that does not exist:
+
+| Constant | Value | Where |
+|---|---|---|
+| Learning rate | `0.1` | `LogisticRegressionTrainer` — batch gradient descent from a zero init, early stop once the loss improves by less than `1e-7` **while still improving**; an iteration that makes the loss worse does not stop, it runs on to `max-iterations` |
+| Standardization | z-score, sample (`n-1`) stddev | same; a stddev under `1e-9` is clamped to `1.0`, and the intercept is **not** regularized |
+| Split buckets | `100` | `ApprovalTrainingSetBuilder` — percent granularity, so `holdout-fraction = 0.15` is representable |
+| `MIN_SAMPLES_PER_CLASS` | `10` | `ApprovalModelTrainingService` — the per-class floor beside the configurable total |
+| `MAX_TRAINING_ROWS` | `20 000` | same — a safety cap on the fetch, deliberately not a property |
+| Accuracy threshold | `0.5` | same — the neutral midpoint, not a tuned operating point |
+
+AUC is Mann-Whitney U with tie-averaged ranks. The gate **fails closed** in both directions: a
+single-class holdout leaves `auc` null (and `serving` false) rather than accepting the evaluator's
+`0.5`, and a model whose serialized `feature_names` no longer match the current schema is refused at
+serving time rather than scored.
+
 Tunables are `accessflow.ai.approval-prediction.*` — see
 [docs/09-deployment.md](09-deployment.md#approval-prediction-af-645). `ApprovalPredictionTrainingJob`
 (`ai/internal/scheduled/`, lock `approvalPredictionTrainingJob`) calls `trainAll()` every
@@ -1990,9 +2076,17 @@ advisory-only guarantee enforceable rather than merely stated:
 - `RealtimeEventDispatcher` consumes `ApprovalPredictionCompletedEvent` and pushes
   `query.prediction_complete`. Unlike the submitter-only `query.estimate_complete`, it fans out via
   `eligibleReviewersForLowestStage` — the review plan's **first-stage** approvers, the same set
-  `review.new_request` targets, already excluding the submitter — *plus* the submitter, whose detail
-  page renders the same block. The payload is a refetch trigger, not data: `query_id` and a
-  `probability` that is JSON-`null` on the skipped / failed rows.
+  `review.new_request` targets, already excluding the submitter — *plus* the submitter. The payload is
+  a refetch trigger, not data: `query_id` and a `probability` that is JSON-`null` on the skipped /
+  failed rows.
+
+  The submitter is on that list because the endpoint serves the block to any authorized reader, and a
+  submitter who *also* holds `QUERY_REVIEW` renders it. A submitter without that permission gets the
+  push and refetches, but the card stays hidden — AF-654 gates it client-side (see
+  [docs/06-frontend.md](06-frontend.md) → "Approval-likelihood card"), so a submitter cannot watch
+  how their peers are likely to vote on their own open request and cancel-and-resubmit against it.
+  Narrowing the fanout server-side would mean resolving the reader's permissions inside `realtime`;
+  the wasted push is the cheaper trade.
 
   Note the recipient set is the plan's first stage, not the query's *currently open* stage. That is
   exact for the first push (the prediction lands as the query enters review at stage 1), but the

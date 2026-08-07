@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-07",
       "url": "https://accessflow.bablsoft.com/docs/configuration/ai/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/ai/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -216,6 +216,7 @@
             <a href="#cfg-ai">AI configurations</a>
             <a href="#cfg-ai-analyses">AI analyses dashboard</a>
             <a href="#cfg-anomalies">Behavioural anomaly detection (UBA)</a>
+            <a href="#cfg-approval-prediction">Approval-likelihood prediction</a>
             <a href="/docs/configuration/auth/">Auth & SSO</a>
             <a href="/docs/configuration/notifications/">Notifications</a>
             <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
@@ -230,7 +231,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>AI configuration.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-07">7 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -480,6 +481,49 @@
             calendar month. When a limit is hit, the synchronous editor paths return
             <code>HTTP 429</code> and the async path records a <code>CRITICAL</code> "AI budget exhausted" /
             "AI rate limit exceeded" analysis row so human review still proceeds.
+          </p>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-approval-prediction">Approval-likelihood prediction</h2>
+          <p>
+            <strong>What it is.</strong> A triage signal for a busy review queue. AccessFlow trains a
+            small statistical model on your own organization's past review decisions and shows
+            reviewers the probability that a pending query gets approved — <em>Historical approval
+            likelihood: 78%</em> — on both the review queue and the query detail page. There is no AI
+            provider involved and nothing leaves your deployment: it is plain logistic regression over
+            data you already collect (query type, the AI risk verdict, the pre-flight cost estimate,
+            time of day, and per-submitter and per-datasource approval history).
+          </p>
+          <p>
+            <strong>It never decides anything.</strong> The percentage is advisory, and that guarantee
+            is structural rather than a promise — only the read side of the application can see it. It
+            is not an input to routing policies, to just-in-time grant coverage, or to any other path
+            that can approve or reject a query. Use it to decide what to look at first, not what to
+            wave through.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Nothing to switch on. A model is retrained once a day for
+            each organization, and it only starts serving once it has enough history to be worth
+            trusting: at least 50 decided queries, at least 10 in each outcome, and a measured quality
+            score above the threshold. Until then reviewers see <em>Not enough review history yet</em>
+            rather than a misleading number. Queries that never reached a human — auto-approved by a
+            routing policy, covered by a pre-approving JIT grant, or executed through break-glass — are
+            excluded from training, because they carry no reviewer judgment to learn from.
+          </p>
+          <p>
+            <strong>Tune it.</strong> Eight <code>ACCESSFLOW_AI_APPROVAL_PREDICTION_*</code> environment
+            variables, all optional:
+            <code>…_ENABLED</code> (master switch for training and serving, default <code>true</code>),
+            <code>…_RETRAIN_POLL_INTERVAL</code> (how often models retrain, <code>P1D</code>),
+            <code>…_MIN_TRAINING_SAMPLES</code> (decided queries required before a model is trained,
+            <code>50</code>), <code>…_TRAINING_LOOKBACK</code> (how far back the history reaches,
+            <code>P180D</code>), <code>…_HOLDOUT_FRACTION</code> (share of samples reserved for scoring
+            the model, <code>0.2</code>), <code>…_MIN_AUC_TO_SERVE</code> (quality gate below which the
+            model stays silent, <code>0.65</code>), <code>…_L2_LAMBDA</code> (regularization strength,
+            <code>0.01</code>), and <code>…_MAX_ITERATIONS</code> (training iteration cap,
+            <code>500</code>). Switching the feature off does not hide it silently — each query still
+            records why no likelihood is shown.
           </p>
         </section>
 

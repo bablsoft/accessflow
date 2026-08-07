@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Workflows",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-07",
       "url": "https://accessflow.bablsoft.com/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/workflows/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -228,7 +228,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>End-user workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-07">7 August 2026</time></p>
         </header>
 
 <section id="end-user" class="docs-section">
@@ -401,6 +401,15 @@
             shows the query id, classification, AI risk, datasource, submitter, and elapsed
             time. Three tabs scope the view: <em>Assigned to you</em>, <em>All pending</em>
             (visible to anyone the plan grants approver eligibility), and <em>Recently decided</em>.
+          </p>
+          <p>
+            A row may also carry an <strong>approval likelihood</strong> — the probability, learned
+            from your organization's own past decisions, that this query gets approved. It is there to
+            help you pick what to open first and nothing more: it never approves or rejects anything,
+            and it is not an input to routing. Rows show no figure when the organization has too little
+            review history yet, or when the query was not scored; the query detail page explains which.
+            See <a href="/docs/configuration/ai/#cfg-approval-prediction">Approval-likelihood
+            prediction</a>.
           </p>
           <figure class="docs-figure">
             <picture>
