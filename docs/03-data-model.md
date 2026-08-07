@@ -1031,7 +1031,7 @@ retrain job.
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` NOT NULL **UNIQUE** ON DELETE CASCADE — one model per org |
 | `feature_schema_version` | INTEGER NOT NULL — the feature-extractor schema the model was trained against |
-| `coefficients` | JSONB NOT NULL — the full standardized model as a unit: `{intercept, weights: {name: value}, means: {...}, stddevs: {...}}` |
+| `coefficients` | JSONB NOT NULL — the full standardized model as a unit: `{feature_schema_version, feature_names: [...], intercept, weights: {name: value}, means: {...}, stddevs: {...}}`. `'{}'` on a row that failed the sample gates (see below) |
 | `training_samples` | INTEGER NOT NULL — decided samples the model was trained on |
 | `positive_samples` | INTEGER NOT NULL — approved-label subset of `training_samples` |
 | `auc` | DOUBLE PRECISION nullable — holdout AUC (null when holdout evaluation was unavailable) |
@@ -1040,6 +1040,19 @@ retrain job.
 | `trained_at` | TIMESTAMPTZ NOT NULL |
 | `version` | BIGINT — optimistic locking |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Two things about `coefficients` are easy to get wrong. Its `feature_names` array is **load-bearing,
+not documentation**: serving refuses the model and skips with `MODEL_NOT_SERVING` when the array does
+not equal the current schema, which is what stops a stale model from being scored against reordered
+features. And its `feature_schema_version` is the **string** `"v1"`, a different thing from the
+sibling `feature_schema_version` INTEGER column (`1`) — the JSONB is a serialized value object, the
+column is the queryable projection of it.
+
+A model that fails the sample gates — fewer decided samples than `min-training-samples` (default 50),
+or fewer than 10 in either class (a compiled-in floor, not a property) — is still written, with
+`coefficients = '{}'`, `auc`/`accuracy` NULL and `serving=false` — but with the **real**
+`training_samples` / `positive_samples` counts, so an admin can tell "not enough history yet" apart
+from "trained, but below the AUC gate".
 
 ---
 
@@ -1062,7 +1075,7 @@ rewritten in place (`id` and `created_at` stable). Sentinel rows are never repla
 | `probability` | DOUBLE PRECISION nullable — predicted approval probability in [0,1]; NULL on skipped/failed sentinel rows |
 | `model_id` | UUID nullable — bare back-pointer to the `approval_prediction_model` row that scored it (no FK — models are rewritten by the retrain job) |
 | `feature_schema_version` | INTEGER nullable — the feature schema used at serving time |
-| `features` | JSONB nullable — the serving-time feature snapshot, kept for explainability. `estimate_missing` is written as a JSON **boolean**; it is what gates the single replace path (see below) |
+| `features` | JSONB nullable — the serving-time feature snapshot, kept for explainability: all 21 schema-v1 feature names → number, **in schema order** (the order is the contract — see [docs/05-backend.md](05-backend.md) → "Feature schema v1"). The sole exception is `estimate_missing`, written as a JSON **boolean** in its own position; it is what gates the single replace path (see below) |
 | `skipped` | BOOLEAN NOT NULL DEFAULT false — true when the feature is off, or no serving model existed for the org |
 | `skipped_reason` | VARCHAR(500) nullable — machine-readable token when `skipped=true`, localized by the frontend (never localized at write time: the row is written once by an async listener and read later by any reviewer). The closed set is `DISABLED` (`accessflow.ai.approval-prediction.enabled=false`) and `MODEL_NOT_SERVING` (cold start, quality gate failed, or the stored model was trained against a different feature schema — the schema versions go to the log) |
 | `failed` | BOOLEAN NOT NULL DEFAULT false — true when scoring hit an unexpected error (sentinel row) |

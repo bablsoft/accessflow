@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.1.1",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-04",
+        "dateModified": "2026-08-07",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "isAccessibleForFree": true,
@@ -125,7 +125,7 @@
         "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-04"
+        "dateModified": "2026-08-07"
       }
     ]
   }
@@ -379,8 +379,8 @@
               </svg>
             </div>
             <h3>AI query analysis</h3>
-            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Run <strong>several models at once</strong> and combine their verdicts by weighted, highest-risk, or majority voting — say a fast local model alongside a deep cloud one — with per-model cost and latency charted on the dashboard. Add <strong>guardrails</strong> that block configured prompt patterns before a model is ever called. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time. Mark configurations as an ordered <strong>fallback pool</strong> — typically a local Ollama — so analysis keeps working when the primary provider is unreachable, air-gap friendly by design.</p>
-            <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Fallback pool · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · History dashboard</span>
+            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Run <strong>several models at once</strong> and combine their verdicts by weighted, highest-risk, or majority voting — say a fast local model alongside a deep cloud one — with per-model cost and latency charted on the dashboard. Add <strong>guardrails</strong> that block configured prompt patterns before a model is ever called. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time. A separate, purely statistical model learns from your team's own past review decisions and shows reviewers the <strong>historical approval likelihood</strong> of each pending query — a triage signal for prioritising a busy queue, advisory only: it never approves or rejects anything. Mark configurations as an ordered <strong>fallback pool</strong> — typically a local Ollama — so analysis keeps working when the primary provider is unreachable, air-gap friendly by design.</p>
+            <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Fallback pool · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · Approval likelihood (advisory) · History dashboard</span>
           </div>
 
           <div class="feat">
@@ -921,6 +921,7 @@
               <p>A governance process that takes days gets bypassed. AccessFlow's AI reads every query and API call first — risk score, anti-patterns, affected tables — so routing policies can auto-approve safe reads in seconds and send risky changes to the right approvers with the analysis already attached.</p>
               <ul class="uc-benefits">
                 <li>Low-risk requests auto-approve — reviewers see only what deserves attention</li>
+                <li>Once there's enough review history, pending queries show an approval likelihood learned from your own past decisions — a hint about what to open first, never a decision</li>
                 <li>Approvers decide from Slack, email, or one-tap push, with AI findings inline</li>
                 <li>Multi-stage approval chains for the changes that really matter</li>
               </ul>
@@ -1407,6 +1408,7 @@
               <h4 class="rm-cat">AI</h4>
               <ul>
                 <li>Offline AI fallback — provider fallback pool with local Ollama</li>
+                <li>Approval-likelihood prediction — advisory triage signal from your own review history</li>
                 <li>Custom analyzer plugins (SPI / HTTP)</li>
                 <li>Automatic query suggestions</li>
               </ul>
