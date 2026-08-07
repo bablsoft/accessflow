@@ -10,10 +10,12 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.ApprovalPredictionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryEstimateEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.ApprovalPredictionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryEstimateRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
@@ -35,6 +37,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     private final AiAnalysisRepository aiAnalysisRepository;
     private final ReviewDecisionRepository reviewDecisionRepository;
     private final QueryEstimateRepository queryEstimateRepository;
+    private final ApprovalPredictionRepository approvalPredictionRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -217,6 +220,11 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 toCostEstimateDetail(entity.getQueryEstimateId() != null
                         ? queryEstimateRepository.findById(entity.getQueryEstimateId()).orElse(null)
                         : null),
+                // No reciprocal FK on query_requests (approval_predictions.query_request_id is the
+                // only link), so this cannot short-circuit the way the cost estimate above does.
+                toApprovalPredictionDetail(approvalPredictionRepository
+                        .findByQueryRequestId(entity.getId())
+                        .orElse(null)),
                 entity.getRowsAffected(),
                 entity.getExecutionDurationMs(),
                 entity.getErrorMessage(),
@@ -285,6 +293,20 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.isFailed(),
                 entity.getErrorMessage(),
                 entity.getDurationMs());
+    }
+
+    private static QueryDetailView.ApprovalPredictionDetail toApprovalPredictionDetail(
+            ApprovalPredictionEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return new QueryDetailView.ApprovalPredictionDetail(
+                entity.getId(),
+                entity.getProbability(),
+                entity.isSkipped(),
+                entity.getSkippedReason(),
+                entity.isFailed(),
+                entity.getCreatedAt());
     }
 
     private static QueryRequestSnapshot toSnapshot(QueryRequestEntity entity) {

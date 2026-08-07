@@ -24,7 +24,7 @@ class PendingReviewItemTest {
                 submitterId, "alice@example.com",
                 "SELECT 1", QueryType.SELECT, "ticket-42",
                 aiAnalysisId, RiskLevel.MEDIUM, 42, "Single-row UPDATE",
-                1, createdAt);
+                0.78, 1, createdAt);
 
         var item = PendingReviewItem.from(pending);
 
@@ -39,6 +39,7 @@ class PendingReviewItemTest {
         assertThat(item.justification()).isEqualTo("ticket-42");
         assertThat(item.aiAnalysis()).isEqualTo(new PendingReviewItem.AiAnalysisSummary(
                 aiAnalysisId, RiskLevel.MEDIUM, 42, "Single-row UPDATE"));
+        assertThat(item.approvalProbability()).isEqualTo(0.78);
         assertThat(item.currentStage()).isEqualTo(1);
         assertThat(item.createdAt()).isEqualTo(createdAt);
     }
@@ -50,7 +51,7 @@ class PendingReviewItemTest {
                 UUID.randomUUID(), "bob@example.com",
                 "INSERT INTO t VALUES (1)", QueryType.INSERT, null,
                 null, null, null, null,
-                2, Instant.parse("2025-01-15T10:00:00Z"));
+                null, 2, Instant.parse("2025-01-15T10:00:00Z"));
 
         var item = PendingReviewItem.from(pending);
 
@@ -58,5 +59,21 @@ class PendingReviewItemTest {
         assertThat(item.justification()).isNull();
         assertThat(item.currentStage()).isEqualTo(2);
         assertThat(item.queryType()).isEqualTo(QueryType.INSERT);
+    }
+
+    /** A skipped or failed prediction row carries no probability; the queue simply omits it. */
+    @Test
+    void fromKeepsApprovalProbabilityNullWhenNoPredictionScored() {
+        var pending = new PendingReview(
+                UUID.randomUUID(), UUID.randomUUID(), "Staging",
+                UUID.randomUUID(), "bob@example.com",
+                "SELECT 1", QueryType.SELECT, null,
+                UUID.randomUUID(), RiskLevel.LOW, 5, "fine",
+                null, 1, Instant.parse("2025-01-15T10:00:00Z"));
+
+        var item = PendingReviewItem.from(pending);
+
+        assertThat(item.approvalProbability()).isNull();
+        assertThat(item.aiAnalysis()).isNotNull();
     }
 }

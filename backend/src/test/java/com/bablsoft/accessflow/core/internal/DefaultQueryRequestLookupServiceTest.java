@@ -8,12 +8,14 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.internal.persistence.entity.AiAnalysisEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.ApprovalPredictionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.ApprovalPredictionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,7 @@ class DefaultQueryRequestLookupServiceTest {
     @Mock QueryRequestRepository queryRequestRepository;
     @Mock AiAnalysisRepository aiAnalysisRepository;
     @Mock ReviewDecisionRepository reviewDecisionRepository;
+    @Mock ApprovalPredictionRepository approvalPredictionRepository;
     @InjectMocks DefaultQueryRequestLookupService service;
 
     @Test
@@ -333,7 +336,80 @@ class DefaultQueryRequestLookupServiceTest {
         var detail = service.findDetailById(queryId, orgId).orElseThrow();
 
         assertThat(detail.aiAnalysis()).isNull();
+        assertThat(detail.approvalPrediction()).isNull();
         verifyNoInteractions(aiAnalysisRepository);
+    }
+
+    @Test
+    void findDetailByIdMapsScoredApprovalPrediction() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        var predictionId = UUID.randomUUID();
+        var createdAt = Instant.parse("2026-08-01T09:00:00Z");
+        givenDetailLookup(queryId, orgId,
+                prediction(predictionId, 0.78, false, null, false, createdAt));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.approvalPrediction()).isNotNull();
+        assertThat(detail.approvalPrediction().id()).isEqualTo(predictionId);
+        assertThat(detail.approvalPrediction().probability()).isEqualTo(0.78);
+        assertThat(detail.approvalPrediction().skipped()).isFalse();
+        assertThat(detail.approvalPrediction().skippedReason()).isNull();
+        assertThat(detail.approvalPrediction().failed()).isFalse();
+        assertThat(detail.approvalPrediction().createdAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void findDetailByIdMapsSkippedApprovalPredictionWithItsMachineToken() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        givenDetailLookup(queryId, orgId, prediction(UUID.randomUUID(), null, true,
+                "MODEL_NOT_SERVING", false, Instant.parse("2026-08-01T09:00:00Z")));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.approvalPrediction().probability()).isNull();
+        assertThat(detail.approvalPrediction().skipped()).isTrue();
+        assertThat(detail.approvalPrediction().skippedReason()).isEqualTo("MODEL_NOT_SERVING");
+        assertThat(detail.approvalPrediction().failed()).isFalse();
+    }
+
+    @Test
+    void findDetailByIdMapsFailedApprovalPredictionSentinel() {
+        var orgId = UUID.randomUUID();
+        var queryId = UUID.randomUUID();
+        givenDetailLookup(queryId, orgId, prediction(UUID.randomUUID(), null, false, null, true,
+                Instant.parse("2026-08-01T09:00:00Z")));
+
+        var detail = service.findDetailById(queryId, orgId).orElseThrow();
+
+        assertThat(detail.approvalPrediction().probability()).isNull();
+        assertThat(detail.approvalPrediction().skipped()).isFalse();
+        assertThat(detail.approvalPrediction().failed()).isTrue();
+    }
+
+    private void givenDetailLookup(UUID queryId, UUID orgId, ApprovalPredictionEntity prediction) {
+        var entity = entityWith(queryId, UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "alice@example.com", QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findById(queryId)).thenReturn(Optional.of(entity));
+        when(reviewDecisionRepository.findAllByQueryRequest_IdOrderByDecidedAtAsc(queryId))
+                .thenReturn(List.of());
+        when(approvalPredictionRepository.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(prediction));
+    }
+
+    private static ApprovalPredictionEntity prediction(UUID id, Double probability, boolean skipped,
+                                                       String skippedReason, boolean failed,
+                                                       Instant createdAt) {
+        var prediction = new ApprovalPredictionEntity();
+        prediction.setId(id);
+        prediction.setProbability(probability);
+        prediction.setSkipped(skipped);
+        prediction.setSkippedReason(skippedReason);
+        prediction.setFailed(failed);
+        prediction.setCreatedAt(createdAt);
+        return prediction;
     }
 
     @Test

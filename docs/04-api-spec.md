@@ -1448,6 +1448,14 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     "error_message": null,
     "duration_ms": 12
   },
+  "approval_prediction": {
+    "id": "uuid",
+    "probability": 0.78,
+    "skipped": false,
+    "skipped_reason": null,
+    "failed": false,
+    "created_at": "2025-01-15T10:00:20Z"
+  },
   "review_decisions": [
     {
       "id": "uuid",
@@ -1500,6 +1508,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 `matched_policy` is the routing policy that decided this query's routing (AF-379); `null` when no policy matched and the query fell through to the datasource's review plan. `policy_name` is `null` when the matched policy was later deleted. The frontend renders a "matched policy" alert on the detail page when this object is present. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
 `cost_estimate` is the query's persisted pre-flight cost / blast-radius estimate (AF-624), computed automatically and asynchronously right after submission — `null` while it is still being computed (typically only during `PENDING_AI`). `supported=false` with a localized `unsupported_reason` marks engines/statement shapes with no plan concept; `failed=true` with `error_message` marks a computation error. `affected_row_count` is the exact governed row count for UPDATE/DELETE (relational `SELECT COUNT(*)` rewrite, or the engine's native non-mutating count) and is `null` when the shape cannot be provably counted; `estimated_rows`/`scan_type`/`estimated_cost` come from the plan root, and `plan` reuses the dry-run endpoint's plan-node shape — see [POST /queries/dry-run](#post-queriesdry-run--response-200) and [docs/05-backend.md → "Automatic pre-flight cost estimate"](05-backend.md#automatic-pre-flight-cost-estimate-af-624). The `query.estimate_complete` WebSocket event signals completion.
+
+`approval_prediction` is the query's advisory approval-outcome prediction (AF-645) — the probability that a human reviewer approves it, computed from the organization's own decision history. It is a **triage signal only**: it never auto-approves, auto-rejects, or feeds the routing engine, grant coverage, or any other decision path, and clients must present it in neutral wording rather than as an instruction. The block is `null` until the asynchronous scoring pass persists a row (a query only ever gets one — auto-approved, auto-rejected, grant-covered and break-glass queries never reach review, so they never get scored at all). Once present, exactly one of three shapes applies: `probability` in `[0,1]` with `skipped=false, failed=false`; `skipped=true` with a `skipped_reason` machine token the client localizes — the closed set is `DISABLED` (the feature is switched off) and `MODEL_NOT_SERVING` (the org has too little history, the model failed its holdout quality gate, or it was trained against an older feature schema); or `failed=true`, the sentinel for an unexpected scoring error. `probability` is `null` on both sentinel shapes. See [docs/05-backend.md → "Approval-outcome prediction"](05-backend.md#approval-outcome-prediction-af-645). The `query.prediction_complete` WebSocket event signals completion.
 
 `approved_by_grant` is the provenance of a grant-covered auto-approval (#582); `null` for every query that was not auto-approved by a pre-approving JIT access grant. `grant_id` always reflects the query's persisted `approved_by_grant_id`; the approver fields (`approver_id`, `approver_email`, `approved_at` — the grant's final-stage approval) and `expires_at` are resolved from the grant row at read time and are `null` when the grant row or its approver is no longer resolvable. The frontend renders an "auto-approved under an access grant" alert on the detail page when this object is present. See [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582).
 
@@ -1810,6 +1820,7 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
         "risk_score": 42,
         "summary": "Single-row UPDATE with indexed WHERE clause."
       },
+      "approval_probability": 0.78,
       "current_stage": 1,
       "created_at": "2025-01-15T10:00:00Z"
     }
@@ -1820,6 +1831,13 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
   "total_pages": 1
 }
 ```
+
+`approval_probability` is the advisory approval-outcome prediction (AF-645) for the row, in `[0,1]` —
+the same triage signal as `approval_prediction.probability` on [GET /queries/{id}](#get-queriesid--response),
+and equally never an input to any decision path. It is `null` when the query has not been scored yet
+or its persisted prediction is a skipped / failed sentinel; the queue simply shows no badge in that
+case, and the detail endpoint carries the reason. The whole page is resolved in one batch lookup, so
+adding the field costs no extra query per row.
 
 ### POST /reviews/{queryId}/approve — Request Body
 
@@ -4676,6 +4694,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `query.executed` | Execution completed | `query_id`, `rows_affected`, `duration_ms` |
 | `ai.analysis_complete` | AI analysis finished | `query_id`, `risk_level`, `risk_score` |
 | `query.estimate_complete` | The automatic pre-flight cost estimate finished (AF-624) — detail views refetch to render the cost-estimate panel | `query_id`, `supported` |
+| `query.prediction_complete` | The advisory approval-outcome prediction finished (AF-645) — pushed to the query's eligible reviewers at the lowest open stage **and** its submitter, so the review queue and detail view refetch. `probability` is `null` on the skipped / failed sentinel rows | `query_id`, `probability` |
 | `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
 | `access_request.created` | New JIT access request needs a reviewer's decision | `access_request_id`, `requester_id` |
 | `access_request.status_changed` | Access request changed status (approved/rejected/expired/revoked/cancelled) — pushed to the requester | `access_request_id`, `old_status`, `new_status` |

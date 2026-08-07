@@ -58,7 +58,7 @@ class McpReviewToolServiceTest {
                 UUID.randomUUID(), "submitter@e.c",
                 "SELECT 1", QueryType.SELECT, "demo",
                 UUID.randomUUID(), RiskLevel.LOW, 10, "looks ok",
-                1, Instant.now());
+                null, 1, Instant.now());
         when(reviewService.listPendingForReviewer(any(), any()))
                 .thenReturn(new PageResponse<>(List.of(pending), 0, 20, 1, 1));
 

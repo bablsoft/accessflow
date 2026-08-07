@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.core.api.ApprovalPredictionLookupService;
+import com.bablsoft.accessflow.core.api.ApprovalPredictionSnapshot;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -34,7 +36,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +50,7 @@ class DefaultReviewService implements ReviewService {
     private final QueryRequestStateService queryRequestStateService;
     private final ReviewerEligibilityService reviewerEligibilityService;
     private final RoutingDecisionService routingDecisionService;
+    private final ApprovalPredictionLookupService approvalPredictionLookupService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -58,9 +63,13 @@ class DefaultReviewService implements ReviewService {
         }
         var page = queryRequestLookupService.findPendingForReviewer(context.organizationId(),
                 context.userId(), context.roleName(), pageRequest);
-        var visible = page.content().stream()
+        var actionable = page.content().stream()
                 .filter(view -> isCurrentlyActionable(view, context))
-                .map(view -> toPendingReview(view, context))
+                .toList();
+        var probabilities = approvalProbabilities(actionable);
+        var visible = actionable.stream()
+                .map(view -> toPendingReview(view, context,
+                        probabilities.get(view.queryRequestId())))
                 .toList();
         return new PageResponse<>(visible, page.page(), page.size(), page.totalElements(),
                 page.totalPages());
@@ -279,7 +288,24 @@ class DefaultReviewService implements ReviewService {
         return isApproverAtStage(plan, stage, context);
     }
 
-    private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context) {
+    /**
+     * One batch lookup for the whole page — a per-row call here would be an N+1 on every queue
+     * render. Sentinel rows (skipped / failed) carry no probability and are simply absent from the
+     * map, which {@code Collectors.toMap} would reject as a null value anyway.
+     */
+    private Map<UUID, Double> approvalProbabilities(List<PendingReviewView> views) {
+        if (views.isEmpty()) {
+            return Map.of();
+        }
+        var queryRequestIds = views.stream().map(PendingReviewView::queryRequestId).toList();
+        return approvalPredictionLookupService.findByQueryRequestIds(queryRequestIds).stream()
+                .filter(snapshot -> snapshot.probability() != null)
+                .collect(Collectors.toMap(ApprovalPredictionSnapshot::queryRequestId,
+                        ApprovalPredictionSnapshot::probability, (first, second) -> first));
+    }
+
+    private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context,
+                                          Double approvalProbability) {
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElseThrow();
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
         var stage = currentStage(plan, decisions,
@@ -297,6 +323,7 @@ class DefaultReviewService implements ReviewService {
                 view.aiRiskLevel(),
                 view.aiRiskScore(),
                 view.aiSummary(),
+                approvalProbability,
                 stage,
                 view.createdAt());
     }

@@ -283,4 +283,62 @@ class QueryDetailResponseTest {
         assertThat(response.aiAnalysis().issues()).isEqualTo("[]");
         assertThat(response.aiAnalysis().optimizations()).isEqualTo("[]");
     }
+
+    @Test
+    void approvalPredictionIsNullWhenNoPredictionRowExistsYet() {
+        var response = QueryDetailResponse.from(minimalView());
+
+        assertThat(response.approvalPrediction()).isNull();
+    }
+
+    @Test
+    void approvalPredictionCopiesTheScoredProbability() {
+        var predictionId = UUID.randomUUID();
+        var createdAt = Instant.parse("2026-08-01T09:00:00Z");
+
+        var response = QueryDetailResponse.from(viewWithPrediction(
+                new QueryDetailView.ApprovalPredictionDetail(predictionId, 0.78, false, null,
+                        false, createdAt)));
+
+        assertThat(response.approvalPrediction()).isEqualTo(
+                new QueryDetailResponse.ApprovalPredictionDetail(predictionId, 0.78, false, null,
+                        false, createdAt));
+    }
+
+    @Test
+    void approvalPredictionCarriesTheSkippedTokenWithoutAProbability() {
+        var response = QueryDetailResponse.from(viewWithPrediction(
+                new QueryDetailView.ApprovalPredictionDetail(UUID.randomUUID(), null, true,
+                        "MODEL_NOT_SERVING", false, Instant.parse("2026-08-01T09:00:00Z"))));
+
+        assertThat(response.approvalPrediction().probability()).isNull();
+        assertThat(response.approvalPrediction().skipped()).isTrue();
+        assertThat(response.approvalPrediction().skippedReason()).isEqualTo("MODEL_NOT_SERVING");
+        assertThat(response.approvalPrediction().failed()).isFalse();
+    }
+
+    @Test
+    void approvalPredictionCarriesTheFailedSentinel() {
+        var response = QueryDetailResponse.from(viewWithPrediction(
+                new QueryDetailView.ApprovalPredictionDetail(UUID.randomUUID(), null, false, null,
+                        true, Instant.parse("2026-08-01T09:00:00Z"))));
+
+        assertThat(response.approvalPrediction().probability()).isNull();
+        assertThat(response.approvalPrediction().skipped()).isFalse();
+        assertThat(response.approvalPrediction().failed()).isTrue();
+    }
+
+    private QueryDetailView viewWithPrediction(
+            QueryDetailView.ApprovalPredictionDetail prediction) {
+        return new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds", DbType.POSTGRESQL,
+                UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW,
+                "x", null, null, prediction, null, null, null,
+                null,
+                null,
+                null, null,
+                List.of(),
+                null,
+                Instant.now(), Instant.now());
+    }
 }

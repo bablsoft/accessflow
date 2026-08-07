@@ -15,6 +15,7 @@ public record PendingReviewItem(
         QueryType queryType,
         String justification,
         AiAnalysisSummary aiAnalysis,
+        Double approvalProbability,
         int currentStage,
         Instant createdAt) {
 
@@ -31,6 +32,7 @@ public record PendingReviewItem(
                         pending.aiRiskLevel(),
                         pending.aiRiskScore(),
                         pending.aiSummary()),
+                pending.approvalProbability(),
                 pending.currentStage(),
                 pending.createdAt());
     }

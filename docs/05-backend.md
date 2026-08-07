@@ -1971,6 +1971,32 @@ pass. That is redundant load, never divergence — training is deterministic, so
 unchanged history reproduces the same model. Schema:
 [docs/03-data-model.md → approval_prediction_model / approval_predictions](03-data-model.md#approval_prediction_model).
 
+**Read side (AF-653).** Three surfaces, and structurally nothing else — that is what keeps the
+advisory-only guarantee enforceable rather than merely stated:
+
+- `GET /queries/{id}` carries an `approval_prediction` block, assembled in
+  `core/internal/DefaultQueryRequestLookupService.toDetailView` from
+  `QueryDetailView.ApprovalPredictionDetail`. Unlike the AF-624 cost estimate next to it there is no
+  reciprocal `query_requests.approval_prediction_id` FK to short-circuit on, so this is one
+  unconditional `findByQueryRequestId` on the unique index per detail fetch. The block deliberately
+  omits `model_id`, `feature_schema_version`, the feature snapshot and the failure message — the
+  snapshot exists for operator explainability, not for the wire.
+- `GET /reviews/pending` carries a nullable `approval_probability` per row.
+  `DefaultReviewService.listPendingForReviewer` filters the page to the actionable rows first, then
+  makes **one** `ApprovalPredictionLookupService.findByQueryRequestIds` call for the whole page and
+  keys the result into a `Map<UUID, Double>`. A per-row lookup here would be an N+1 on every queue
+  render. Sentinel rows carry no probability and are absent from the map, so the queue shows no badge
+  and the detail endpoint is where the reason lives.
+- `RealtimeEventDispatcher` consumes `ApprovalPredictionCompletedEvent` and pushes
+  `query.prediction_complete`. Unlike the submitter-only `query.estimate_complete`, it fans out to
+  the eligible reviewers at the query's lowest open stage (reusing the same helper as
+  `review.new_request`, which already excludes the submitter) *plus* the submitter, whose detail page
+  renders the same block. The payload is a refetch trigger, not data: `query_id` and a `probability`
+  that is JSON-`null` on the skipped / failed rows.
+
+Nothing localizes `skipped_reason` on the way out — it stays the machine token the serving path
+wrote, and the client resolves it against the reader's locale.
+
 ---
 
 ## Audit Logging

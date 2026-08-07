@@ -73,7 +73,7 @@ class DefaultDashboardServiceTest {
     private PendingReview pending() {
         return new PendingReview(UUID.randomUUID(), UUID.randomUUID(), "DB", UUID.randomUUID(),
                 "s@x.io", "SELECT 1", QueryType.SELECT, "why", UUID.randomUUID(), RiskLevel.HIGH,
-                80, "summary", 1, NOW);
+                80, "summary", null, 1, NOW);
     }
 
     private ApiRequestView apiRequest() {
