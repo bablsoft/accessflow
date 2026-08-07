@@ -4694,7 +4694,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `query.executed` | Execution completed | `query_id`, `rows_affected`, `duration_ms` |
 | `ai.analysis_complete` | AI analysis finished | `query_id`, `risk_level`, `risk_score` |
 | `query.estimate_complete` | The automatic pre-flight cost estimate finished (AF-624) — detail views refetch to render the cost-estimate panel | `query_id`, `supported` |
-| `query.prediction_complete` | The advisory approval-outcome prediction finished (AF-645) — pushed to the query's eligible reviewers at the lowest open stage **and** its submitter, so the review queue and detail view refetch. `probability` is `null` on the skipped / failed sentinel rows | `query_id`, `probability` |
+| `query.prediction_complete` | The advisory approval-outcome prediction finished (AF-645) — pushed to the review plan's **first-stage** approvers (the same set `review.new_request` targets) **and** the submitter, so the review queue and detail view refetch. `probability` is `null` on the skipped / failed sentinel rows | `query_id`, `probability` |
 | `notification.created` | A new in-app notification was persisted for the caller | `notification_id`, `event_type`, `query_id`, `created_at` |
 | `access_request.created` | New JIT access request needs a reviewer's decision | `access_request_id`, `requester_id` |
 | `access_request.status_changed` | Access request changed status (approved/rejected/expired/revoked/cancelled) — pushed to the requester | `access_request_id`, `old_status`, `new_status` |

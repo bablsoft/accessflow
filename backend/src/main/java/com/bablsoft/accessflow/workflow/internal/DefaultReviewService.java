@@ -291,7 +291,9 @@ class DefaultReviewService implements ReviewService {
     /**
      * One batch lookup for the whole page — a per-row call here would be an N+1 on every queue
      * render. Sentinel rows (skipped / failed) carry no probability and are simply absent from the
-     * map, which {@code Collectors.toMap} would reject as a null value anyway.
+     * map, which {@code Collectors.toMap} would reject as a null value anyway. No merge function:
+     * {@code approval_predictions.query_request_id} is UNIQUE, so a duplicate key is a broken
+     * invariant that should throw rather than be silently resolved.
      */
     private Map<UUID, Double> approvalProbabilities(List<PendingReviewView> views) {
         if (views.isEmpty()) {
@@ -301,7 +303,7 @@ class DefaultReviewService implements ReviewService {
         return approvalPredictionLookupService.findByQueryRequestIds(queryRequestIds).stream()
                 .filter(snapshot -> snapshot.probability() != null)
                 .collect(Collectors.toMap(ApprovalPredictionSnapshot::queryRequestId,
-                        ApprovalPredictionSnapshot::probability, (first, second) -> first));
+                        ApprovalPredictionSnapshot::probability));
     }
 
     private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context,
