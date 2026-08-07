@@ -542,7 +542,7 @@
     "failed": "La probabilité d'approbation n'a pas pu être calculée.",
     "skipped_disabled": "Les estimations de probabilité d'approbation sont désactivées pour cette organisation.",
     "skipped_model_not_serving": "Historique de revue encore insuffisant.",
-    "skipped_generic": "Aucune probabilité d'approbation n'est disponible pour cette requête."
+    "queue_unscored_tooltip": "Aucune probabilité d'approbation pour cette requête. Ouvrez-la pour en connaître la raison."
   },
   "ai_panel": {
     "title": "Analyse IA",

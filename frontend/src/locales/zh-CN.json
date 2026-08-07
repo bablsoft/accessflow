@@ -542,7 +542,7 @@
     "failed": "无法计算批准可能性。",
     "skipped_disabled": "本组织已关闭批准可能性估算。",
     "skipped_model_not_serving": "审核历史数据尚不足。",
-    "skipped_generic": "此查询没有可用的批准可能性。"
+    "queue_unscored_tooltip": "此查询没有批准可能性。打开查询可查看原因。"
   },
   "ai_panel": {
     "title": "AI 分析",

@@ -542,7 +542,7 @@
     "failed": "Die Genehmigungswahrscheinlichkeit konnte nicht berechnet werden.",
     "skipped_disabled": "Schätzungen der Genehmigungswahrscheinlichkeit sind für diese Organisation deaktiviert.",
     "skipped_model_not_serving": "Noch nicht genug Prüfhistorie vorhanden.",
-    "skipped_generic": "Für diese Abfrage ist keine Genehmigungswahrscheinlichkeit verfügbar."
+    "queue_unscored_tooltip": "Keine Genehmigungswahrscheinlichkeit für diese Abfrage. Öffnen Sie sie, um den Grund zu sehen."
   },
   "ai_panel": {
     "title": "KI-Analyse",

@@ -166,7 +166,13 @@ export function ReviewQueuePage() {
         width: 150,
         render: (_: unknown, item: PendingReviewItem) =>
           item.approval_probability === null || item.approval_probability === undefined ? (
-            '—'
+            // The queue payload carries no skip reason — only the detail page has it — so the
+            // tooltip points there rather than guessing why the row is unscored.
+            <Tooltip title={t('approval_prediction.queue_unscored_tooltip')}>
+              <span className="muted" data-testid="approval-likelihood-empty">
+                —
+              </span>
+            </Tooltip>
           ) : (
             <ApprovalPredictionBadge probability={item.approval_probability} size="sm" />
           ),

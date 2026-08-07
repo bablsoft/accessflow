@@ -10,6 +10,16 @@ export function timeAgo(iso: string | number | Date): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Milliseconds elapsed since `iso`, or `NaN` when it is absent or unparseable. Callers decide what
+ * an unusable timestamp means — this never guesses.
+ */
+export function msSince(iso: string | null | undefined): number {
+  if (!iso) return Number.NaN;
+  const parsed = Date.parse(iso);
+  return Number.isNaN(parsed) ? Number.NaN : referenceNow() - parsed;
+}
+
 export function fmtDate(iso: string | number | Date): string {
   const d = new Date(iso);
   return d.toLocaleString('en-US', {

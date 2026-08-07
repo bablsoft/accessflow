@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@/i18n';
-import type { ApprovalPredictionDetail } from '@/types/api';
+import type { ApprovalPredictionDetail, ApprovalPredictionSkipReason } from '@/types/api';
 import { ApprovalPredictionPanel } from './ApprovalPredictionPanel';
 
 function prediction(overrides: Partial<ApprovalPredictionDetail> = {}): ApprovalPredictionDetail {
@@ -17,8 +17,37 @@ function prediction(overrides: Partial<ApprovalPredictionDetail> = {}): Approval
 }
 
 describe('ApprovalPredictionPanel', () => {
-  it('shows a pending message while the query is still awaiting a decision', () => {
-    render(<ApprovalPredictionPanel prediction={null} status="PENDING_REVIEW" />);
+  it('shows a pending message during the async scoring gap', () => {
+    render(
+      <ApprovalPredictionPanel
+        prediction={null}
+        status="PENDING_REVIEW"
+        updatedAt={new Date(Date.now() - 5_000).toISOString()}
+      />,
+    );
+    expect(screen.getByText(/computing the approval likelihood/i)).toBeInTheDocument();
+  });
+
+  it('shows a pending message while the query has not reached review yet', () => {
+    render(<ApprovalPredictionPanel prediction={null} status="PENDING_AI" />);
+    expect(screen.getByText(/computing the approval likelihood/i)).toBeInTheDocument();
+  });
+
+  it('stops promising a pending score once the grace window has elapsed', () => {
+    render(
+      <ApprovalPredictionPanel
+        prediction={null}
+        status="PENDING_REVIEW"
+        updatedAt="2026-05-01T10:00:00Z"
+      />,
+    );
+    expect(screen.getByText(/no approval likelihood is available/i)).toBeInTheDocument();
+  });
+
+  it('keeps the pending copy when the timestamp is unusable', () => {
+    render(
+      <ApprovalPredictionPanel prediction={null} status="PENDING_REVIEW" updatedAt="not-a-date" />,
+    );
     expect(screen.getByText(/computing the approval likelihood/i)).toBeInTheDocument();
   });
 
@@ -68,10 +97,13 @@ describe('ApprovalPredictionPanel', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/not enough review history yet/i);
   });
 
-  it('falls back to a generic message for an unknown skip token', () => {
+  it('falls back to a generic message for a token the client does not know', () => {
+    // The type union is closed, but the server can ship a new token ahead of the frontend —
+    // the raw machine token must never reach the DOM.
+    const unknownToken = 'SOMETHING_NEW' as ApprovalPredictionSkipReason;
     render(
       <ApprovalPredictionPanel
-        prediction={prediction({ probability: null, skipped: true, skipped_reason: 'SOMETHING_NEW' })}
+        prediction={prediction({ probability: null, skipped: true, skipped_reason: unknownToken })}
         status="PENDING_REVIEW"
       />,
     );

@@ -542,7 +542,7 @@
     "failed": "The approval likelihood could not be computed.",
     "skipped_disabled": "Approval-likelihood estimates are switched off for this organization.",
     "skipped_model_not_serving": "Not enough review history yet.",
-    "skipped_generic": "No approval likelihood is available for this query."
+    "queue_unscored_tooltip": "No approval likelihood for this query. Open it to see why."
   },
   "ai_panel": {
     "title": "AI analysis",

@@ -942,12 +942,45 @@ describe('QueryDetailPage — approval prediction card (AF-645)', () => {
     expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
   });
 
-  it('falls back to the pending copy while no prediction row exists yet', async () => {
+  it('falls back to the pending copy during the async scoring gap', async () => {
+    setUser('REVIEWER');
+    const q = pendingReviewQuery();
+    q.updated_at = new Date(Date.now() - 3_000).toISOString();
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Computing the approval likelihood…')).toBeInTheDocument();
+  });
+
+  it('says unavailable rather than pending for a query that predates the feature', async () => {
     setUser('REVIEWER');
     getQueryMock.mockResolvedValue(pendingReviewQuery());
 
     render(wrap(<QueryDetailPage />));
 
-    expect(await screen.findByText('Computing the approval likelihood…')).toBeInTheDocument();
+    expect(
+      await screen.findByText('No approval likelihood is available for this query.'),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the card from a submitter who cannot review', async () => {
+    setUser('ANALYST', 'u-submitter');
+    const q = pendingReviewQuery();
+    q.approval_prediction = {
+      id: 'ap-3',
+      probability: 0.12,
+      skipped: false,
+      skipped_reason: null,
+      failed: false,
+      created_at: '2026-05-01T10:00:20Z',
+    };
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText('Approval likelihood')).toBeNull();
+    expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
   });
 });

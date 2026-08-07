@@ -1175,11 +1175,13 @@ export interface CostEstimateDetail {
  * a `probability` in [0,1], a `skipped` sentinel carrying a machine token the client localizes
  * (`DISABLED` | `MODEL_NOT_SERVING`), or a `failed` sentinel.
  */
+export type ApprovalPredictionSkipReason = 'DISABLED' | 'MODEL_NOT_SERVING';
+
 export interface ApprovalPredictionDetail {
   id: string;
   probability?: number | null;
   skipped: boolean;
-  skipped_reason?: string | null;
+  skipped_reason?: ApprovalPredictionSkipReason | null;
   failed: boolean;
   created_at: string;
 }

@@ -294,6 +294,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     render(wrap(<ReviewQueuePage />));
 
     await screen.findByRole('columnheader', { name: 'Approval likelihood' });
+    expect(await screen.findByTestId('approval-likelihood-empty')).toHaveTextContent('—');
     expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
   });
 });
