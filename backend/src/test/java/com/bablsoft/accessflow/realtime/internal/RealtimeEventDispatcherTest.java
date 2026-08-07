@@ -358,8 +358,12 @@ class RealtimeEventDispatcherTest {
         verifyNoInteractions(sessionRegistry);
     }
 
+    /**
+     * AF-645: the prediction is withheld from the submitter (QueryReadController nulls the block
+     * out for them), so pushing them a refetch trigger would only make them refetch nothing.
+     */
     @Test
-    void onApprovalPredictionCompletedReachesEligibleReviewersAndTheSubmitter() throws Exception {
+    void onApprovalPredictionCompletedReachesEligibleReviewersButNotTheSubmitter() throws Exception {
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWithUserApprovers(reviewerId)));
@@ -374,21 +378,40 @@ class RealtimeEventDispatcherTest {
         assertThat(reviewerEnvelope.get("data").get("query_id").asText())
                 .isEqualTo(queryId.toString());
         assertThat(reviewerEnvelope.get("data").get("probability").asDouble()).isEqualTo(0.78);
-        assertThat(captureEnvelope(submitterId).get("event").asText())
-                .isEqualTo("query.prediction_complete");
+        verify(sessionRegistry, never()).sendToUser(org.mockito.ArgumentMatchers.eq(submitterId),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     /** Skipped and failed sentinel rows still notify — the client refetches and renders the reason. */
     @Test
     void onApprovalPredictionCompletedRendersJsonNullForASentinelRow() throws Exception {
         when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
-        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWithUserApprovers(reviewerId)));
+        when(userQueryService.findById(reviewerId))
+                .thenReturn(Optional.of(activeUser(reviewerId, "rev@example.com")));
 
         dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
                 queryId, UUID.randomUUID(), null));
 
-        var envelope = captureEnvelope(submitterId);
+        var envelope = captureEnvelope(reviewerId);
         assertThat(envelope.get("data").get("probability").isNull()).isTrue();
+    }
+
+    /**
+     * With the submitter removed from the recipient set, a datasource with no review plan has no
+     * recipients at all — previously the submitter was the fallback, so nothing covered this.
+     */
+    @Test
+    void onApprovalPredictionCompletedSendsToNobodyWhenTheDatasourceHasNoReviewPlan() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+
+        dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
+                queryId, UUID.randomUUID(), 0.42));
+
+        verify(sessionRegistry, never()).sendToUser(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

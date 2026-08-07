@@ -202,6 +202,9 @@ export function QueryDetailPage() {
   const isReviewer = hasPermission(user, 'QUERY_REVIEW');
   const submitterId = query.submitted_by.id;
   const canDecide = isReviewer && query.status === 'PENDING_REVIEW' && submitterId !== user.id;
+  // Deliberately not canDecide — the card stays useful after a decision lands; it is only the
+  // submitter that must never see it. See the card's comment below.
+  const canSeeApprovalPrediction = isReviewer && submitterId !== user.id;
   const hasScheduledRun =
     query.status === 'APPROVED' && !!query.scheduled_for;
   const showScheduledBanner =
@@ -599,10 +602,12 @@ export function QueryDetailPage() {
             <CostEstimatePanel estimate={query.cost_estimate} status={query.status} />
           </DetailCard>
 
-          {/* Reviewer-only: the prediction is a triage aid for whoever decides, and showing a
-              submitter how their peers are likely to vote on their own open request invites
-              cancel-and-resubmit gaming. */}
-          {isReviewer && (
+          {/* Reviewers deciding someone else's query only: the prediction is a triage aid for
+              whoever decides, and showing a submitter how their peers are likely to vote on their
+              own open request invites cancel-and-resubmit gaming. The backend applies the same rule
+              — QueryReadController drops the block from the response for the submitter and for
+              anyone without QUERY_REVIEW — so this gate is defence in depth, not the only one. */}
+          {canSeeApprovalPrediction && (
             <DetailCard
               title={t('queries.detail.card_approval_prediction')}
               icon={<InfoCircleOutlined style={{ color: 'var(--accent)' }} />}

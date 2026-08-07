@@ -57,8 +57,26 @@ public record QueryDetailResponse(
         return from(view, matched, grant, List.of());
     }
 
+    /**
+     * Omits the AF-645 approval prediction. The shorter arities all default the access-controlled
+     * field <em>closed</em>: a caller that has not decided whether this reader may see it has, by
+     * definition, not established that they may. Pass the flag explicitly to include it.
+     */
     public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
                                            AccessGrantView grant, List<QueryTicketView> tickets) {
+        return from(view, matched, grant, tickets, false);
+    }
+
+    /**
+     * @param includeApprovalPrediction whether the caller may see the advisory approval-outcome
+     *                                  prediction (AF-645). Reviewers deciding someone else's
+     *                                  query may; the submitter of this query may not, so that a
+     *                                  reviewer who submits a request cannot read the likely
+     *                                  verdict on it and cancel-and-resubmit until it looks better.
+     */
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant, List<QueryTicketView> tickets,
+                                           boolean includeApprovalPrediction) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -71,7 +89,9 @@ public record QueryDetailResponse(
                 view.justification(),
                 AiAnalysisDetail.from(view.aiAnalysis()),
                 CostEstimateDetail.from(view.costEstimate()),
-                ApprovalPredictionDetail.from(view.approvalPrediction()),
+                includeApprovalPrediction
+                        ? ApprovalPredictionDetail.from(view.approvalPrediction())
+                        : null,
                 view.rowsAffected(),
                 view.durationMs(),
                 view.errorMessage(),

@@ -142,7 +142,10 @@ class QueryReadController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Fetch one query request, including its AI analysis")
+    @Operation(summary = "Fetch one query request, including its AI analysis",
+            description = "The `approval_prediction` block (AF-645) is omitted for callers without "
+                    + "QUERY_REVIEW and for the query's own submitter; every other field is "
+                    + "caller-independent.")
     @ApiResponse(responseCode = "200", description = "Query detail")
     @ApiResponse(responseCode = "403", description = "Caller is not the submitter, a reviewer, or an admin")
     @ApiResponse(responseCode = "404", description = "Query not found in caller's organization")
@@ -160,7 +163,20 @@ class QueryReadController {
         var approvingGrant = detail.approvedByGrantId() == null ? null
                 : accessGrantLookupService.findGrant(detail.approvedByGrantId()).orElse(null);
         var tickets = queryTicketService.listByQueryRequest(id, caller.organizationId());
-        return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets);
+        // AF-645: the advisory approval-outcome prediction is a triage aid for whoever decides.
+        // Withhold it from the submitter — including a reviewer reading their own request — so the
+        // likely verdict on your own query is never something you can read and then game by
+        // cancelling and resubmitting. Mirrored by the card's gate in QueryDetailPage.tsx.
+        //
+        // QUERY_REVIEW, not QUERY_VIEW_ALL: for the system roles the two are indistinguishable here
+        // (REVIEWER and ADMIN hold both; nobody else clears the QUERY_VIEW_ALL guard above for
+        // someone else's query), so this term only bites for a custom role granted QUERY_VIEW_ALL
+        // alone — an auditor-shaped role that may read the queue but decides nothing, and therefore
+        // has no use for a triage signal.
+        var includeApprovalPrediction = caller.has(Permission.QUERY_REVIEW)
+                && !detail.submittedByUserId().equals(caller.userId());
+        return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets,
+                includeApprovalPrediction);
     }
 
     @PostMapping("/{id}/cancel")

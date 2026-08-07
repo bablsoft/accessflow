@@ -2074,19 +2074,19 @@ advisory-only guarantee enforceable rather than merely stated:
   render. Sentinel rows carry no probability and are absent from the map, so the queue shows no badge
   and the detail endpoint is where the reason lives.
 - `RealtimeEventDispatcher` consumes `ApprovalPredictionCompletedEvent` and pushes
-  `query.prediction_complete`. Unlike the submitter-only `query.estimate_complete`, it fans out via
-  `eligibleReviewersForLowestStage` — the review plan's **first-stage** approvers, the same set
-  `review.new_request` targets, already excluding the submitter — *plus* the submitter. The payload is
-  a refetch trigger, not data: `query_id` and a `probability` that is JSON-`null` on the skipped /
-  failed rows.
-
-  The submitter is on that list because the endpoint serves the block to any authorized reader, and a
-  submitter who *also* holds `QUERY_REVIEW` renders it. A submitter without that permission gets the
-  push and refetches, but the card stays hidden — AF-654 gates it client-side (see
-  [docs/06-frontend.md](06-frontend.md) → "Approval-likelihood card"), so a submitter cannot watch
-  how their peers are likely to vote on their own open request and cancel-and-resubmit against it.
-  Narrowing the fanout server-side would mean resolving the reader's permissions inside `realtime`;
-  the wasted push is the cheaper trade.
+  `query.prediction_complete`. It is the mirror image of the submitter-only
+  `query.estimate_complete`: it fans out via `eligibleReviewersForLowestStage` — the review plan's
+  **first-stage** approvers, the same set `review.new_request` targets — and to nobody else. That
+  helper already excludes the submitter, which is exactly right here, because `QueryReadController`
+  withholds the prediction block from the submitter (see the visibility rule below); pushing them a
+  refetch trigger would only make them refetch nothing. The payload is a refetch trigger, not data:
+  `query_id` and a `probability` that is JSON-`null` on the skipped / failed rows.
+- **Visibility.** `GET /queries/{id}` serves the prediction block only to callers holding
+  `QUERY_REVIEW` who are **not** the query's submitter — a reviewer reading their own request is
+  excluded too. The block is dropped from the response rather than hidden client-side: showing a
+  submitter how their peers are likely to vote on their own open request invites cancelling and
+  resubmitting until the number looks better. `QueryDetailPage.tsx` applies the same predicate to
+  the card, so the rule holds even if a client is written against the raw API.
 
   Note the recipient set is the plan's first stage, not the query's *currently open* stage. That is
   exact for the first push (the prediction lands as the query enters review at stage 1), but the
@@ -2304,7 +2304,7 @@ Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so t
 | `query.executed`        | `QueryExecutedEvent` (in `workflow/events/`)              | submitter            |
 | `ai.analysis_complete`  | `AiAnalysisCompletedEvent` (in `core/events/`)            | submitter            |
 | `query.estimate_complete` | `QueryEstimateCompletedEvent` / `QueryEstimateFailedEvent` (in `core/events/`, AF-624) | submitter          |
-| `query.prediction_complete` | `ApprovalPredictionCompletedEvent` (in `core/events/`, AF-645) | first-stage approvers + submitter |
+| `query.prediction_complete` | `ApprovalPredictionCompletedEvent` (in `core/events/`, AF-645) | first-stage approvers (never the submitter) |
 | `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
 | `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
 | `notification.created`  | `UserNotificationCreatedEvent` (in `notifications/events/`) | the recipient user |

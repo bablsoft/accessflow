@@ -284,9 +284,14 @@ class QueryDetailResponseTest {
         assertThat(response.aiAnalysis().optimizations()).isEqualTo("[]");
     }
 
+    /** The AF-645 prediction is access-controlled, so only the explicit 5-arg form serves it. */
+    private static QueryDetailResponse withPredictionVisible(QueryDetailView view) {
+        return QueryDetailResponse.from(view, null, null, List.of(), true);
+    }
+
     @Test
     void approvalPredictionIsNullWhenNoPredictionRowExistsYet() {
-        var response = QueryDetailResponse.from(minimalView());
+        var response = withPredictionVisible(minimalView());
 
         assertThat(response.approvalPrediction()).isNull();
     }
@@ -296,7 +301,7 @@ class QueryDetailResponseTest {
         var predictionId = UUID.randomUUID();
         var createdAt = Instant.parse("2026-08-01T09:00:00Z");
 
-        var response = QueryDetailResponse.from(viewWithPrediction(
+        var response = withPredictionVisible(viewWithPrediction(
                 new QueryDetailView.ApprovalPredictionDetail(predictionId, 0.78, false, null,
                         false, createdAt)));
 
@@ -307,7 +312,7 @@ class QueryDetailResponseTest {
 
     @Test
     void approvalPredictionCarriesTheSkippedTokenWithoutAProbability() {
-        var response = QueryDetailResponse.from(viewWithPrediction(
+        var response = withPredictionVisible(viewWithPrediction(
                 new QueryDetailView.ApprovalPredictionDetail(UUID.randomUUID(), null, true,
                         "MODEL_NOT_SERVING", false, Instant.parse("2026-08-01T09:00:00Z"))));
 
@@ -319,13 +324,47 @@ class QueryDetailResponseTest {
 
     @Test
     void approvalPredictionCarriesTheFailedSentinel() {
-        var response = QueryDetailResponse.from(viewWithPrediction(
+        var response = withPredictionVisible(viewWithPrediction(
                 new QueryDetailView.ApprovalPredictionDetail(UUID.randomUUID(), null, false, null,
                         true, Instant.parse("2026-08-01T09:00:00Z"))));
 
         assertThat(response.approvalPrediction().probability()).isNull();
         assertThat(response.approvalPrediction().skipped()).isFalse();
         assertThat(response.approvalPrediction().failed()).isTrue();
+    }
+
+    /**
+     * AF-645: the controller passes {@code false} for the submitter, so the block is dropped rather
+     * than merely hidden client-side. Every other field must survive the drop.
+     */
+    @Test
+    void approvalPredictionIsDroppedWhenTheCallerMayNotSeeIt() {
+        var view = viewWithPrediction(new QueryDetailView.ApprovalPredictionDetail(
+                UUID.randomUUID(), 0.78, false, null, false,
+                Instant.parse("2026-08-01T09:00:00Z")));
+
+        var response = QueryDetailResponse.from(view, null, null, List.of(), false);
+
+        assertThat(response.approvalPrediction()).isNull();
+        assertThat(response.id()).isEqualTo(view.id());
+        assertThat(response.sqlText()).isEqualTo(view.sqlText());
+    }
+
+    /**
+     * The shorter arities must fail <em>closed</em>: a future mapper that forgets the flag should
+     * omit an access-controlled field, never leak it.
+     */
+    @Test
+    void theConvenienceOverloadsOmitTheApprovalPredictionByDefault() {
+        var view = viewWithPrediction(new QueryDetailView.ApprovalPredictionDetail(
+                UUID.randomUUID(), 0.78, false, null, false,
+                Instant.parse("2026-08-01T09:00:00Z")));
+
+        assertThat(QueryDetailResponse.from(view).approvalPrediction()).isNull();
+        assertThat(QueryDetailResponse.from(view, null).approvalPrediction()).isNull();
+        assertThat(QueryDetailResponse.from(view, null, null).approvalPrediction()).isNull();
+        assertThat(QueryDetailResponse.from(view, null, null, List.of()).approvalPrediction())
+                .isNull();
     }
 
     private QueryDetailView viewWithPrediction(
