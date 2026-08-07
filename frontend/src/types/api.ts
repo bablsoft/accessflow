@@ -866,6 +866,8 @@ export interface PendingReviewItem {
     risk_score: number;
     summary: string;
   } | null;
+  /** Advisory approval-outcome prediction in [0,1] (AF-645); absent when unscored or a sentinel. */
+  approval_probability?: number | null;
   current_stage: number;
   created_at: string;
 }
@@ -1167,6 +1169,21 @@ export interface CostEstimateDetail {
   duration_ms: number | null;
 }
 
+/**
+ * Advisory approval-outcome prediction persisted for a query in review (AF-645). A triage signal
+ * only — it never approves, rejects, or feeds any decision path. Exactly one shape applies:
+ * a `probability` in [0,1], a `skipped` sentinel carrying a machine token the client localizes
+ * (`DISABLED` | `MODEL_NOT_SERVING`), or a `failed` sentinel.
+ */
+export interface ApprovalPredictionDetail {
+  id: string;
+  probability?: number | null;
+  skipped: boolean;
+  skipped_reason?: string | null;
+  failed: boolean;
+  created_at: string;
+}
+
 export interface ReviewDecisionDetail {
   id: string;
   reviewer: UserRef;
@@ -1187,6 +1204,7 @@ export interface QueryDetail {
   justification: string;
   ai_analysis: AiAnalysisDetail | null;
   cost_estimate: CostEstimateDetail | null;
+  approval_prediction?: ApprovalPredictionDetail | null;
   rows_affected: number | null;
   duration_ms: number | null;
   error_message: string | null;

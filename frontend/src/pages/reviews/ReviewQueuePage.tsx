@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { Avatar } from '@/components/common/Avatar';
+import { ApprovalPredictionBadge } from '@/components/review/ApprovalPredictionBadge';
 import { RejectModal } from '@/components/review/RejectModal';
 import { BulkDecisionModal } from '@/components/review/BulkDecisionModal';
 import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
@@ -158,6 +159,17 @@ export function ReviewQueuePage() {
           const ai = item.ai_analysis;
           return ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—';
         },
+      },
+      {
+        title: t('reviews.col_approval_likelihood'),
+        key: 'approval_likelihood',
+        width: 150,
+        render: (_: unknown, item: PendingReviewItem) =>
+          item.approval_probability === null || item.approval_probability === undefined ? (
+            '—'
+          ) : (
+            <ApprovalPredictionBadge probability={item.approval_probability} size="sm" />
+          ),
       },
       {
         title: t('reviews.col_datasource'),

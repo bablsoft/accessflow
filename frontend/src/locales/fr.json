@@ -533,6 +533,17 @@
     "scan_type_label": "Type de scan",
     "cost_label": "Coût estimé"
   },
+  "approval_prediction": {
+    "value_label": "Probabilité d'approbation historique",
+    "badge_value": "{{percent}} %",
+    "tooltip": "Estimation statistique fondée sur les décisions de revue passées de cette organisation. À titre indicatif uniquement — elle n'approuve ni ne rejette rien.",
+    "pending": "Calcul de la probabilité d'approbation…",
+    "unavailable": "Aucune probabilité d'approbation n'est disponible pour cette requête.",
+    "failed": "La probabilité d'approbation n'a pas pu être calculée.",
+    "skipped_disabled": "Les estimations de probabilité d'approbation sont désactivées pour cette organisation.",
+    "skipped_model_not_serving": "Historique de revue encore insuffisant.",
+    "skipped_generic": "Aucune probabilité d'approbation n'est disponible pour cette requête."
+  },
   "ai_panel": {
     "title": "Analyse IA",
     "disabled_badge": "désactivée",
@@ -588,6 +599,7 @@
       "no_justification": "Le demandeur n'a pas fourni de justification.",
       "card_ai": "Analyse IA",
       "card_cost_estimate": "Estimation du coût",
+      "card_approval_prediction": "Probabilité d'approbation",
       "ai_awaiting": "En attente d'analyse…",
       "ai_failed_banner_title": "Échec de l'analyse IA",
       "ai_failed_banner_detail": "La revue se poursuit sans recommandation de l'IA. Raison : {{reason}}",
@@ -697,6 +709,7 @@
     "col_id": "ID",
     "col_type": "Type",
     "col_risk": "Risque",
+    "col_approval_likelihood": "Prob. d'approbation",
     "col_datasource": "Source de données",
     "col_submitter": "Soumetteur",
     "col_created": "Créée",

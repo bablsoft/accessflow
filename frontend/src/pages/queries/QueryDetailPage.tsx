@@ -27,6 +27,7 @@ import { SqlBlock } from '@/components/common/SqlBlock';
 import { DetailCard } from '@/components/common/DetailCard';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { CostEstimatePanel } from '@/components/review/CostEstimatePanel';
+import { ApprovalPredictionPanel } from '@/components/review/ApprovalPredictionPanel';
 import { IssueCard } from '@/components/editor/IssueCard';
 import { OptimizationCard } from '@/components/editor/OptimizationCard';
 import { QueryCollaboration } from '@/components/editor/QueryCollaboration';
@@ -596,6 +597,16 @@ export function QueryDetailPage() {
             icon={<ExperimentOutlined style={{ color: 'var(--accent)' }} />}
           >
             <CostEstimatePanel estimate={query.cost_estimate} status={query.status} />
+          </DetailCard>
+
+          <DetailCard
+            title={t('queries.detail.card_approval_prediction')}
+            icon={<InfoCircleOutlined style={{ color: 'var(--accent)' }} />}
+          >
+            <ApprovalPredictionPanel
+              prediction={query.approval_prediction}
+              status={query.status}
+            />
           </DetailCard>
 
           {query.status === 'EXECUTED' && (

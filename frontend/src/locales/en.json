@@ -533,6 +533,17 @@
     "scan_type_label": "Scan type",
     "cost_label": "Estimated cost"
   },
+  "approval_prediction": {
+    "value_label": "Historical approval likelihood",
+    "badge_value": "{{percent}}%",
+    "tooltip": "Statistical estimate based on this organization's past review decisions. Advisory only — it never approves or rejects anything.",
+    "pending": "Computing the approval likelihood…",
+    "unavailable": "No approval likelihood is available for this query.",
+    "failed": "The approval likelihood could not be computed.",
+    "skipped_disabled": "Approval-likelihood estimates are switched off for this organization.",
+    "skipped_model_not_serving": "Not enough review history yet.",
+    "skipped_generic": "No approval likelihood is available for this query."
+  },
   "ai_panel": {
     "title": "AI analysis",
     "disabled_badge": "disabled",
@@ -588,6 +599,7 @@
       "no_justification": "Requester did not provide a justification.",
       "card_ai": "AI analysis",
       "card_cost_estimate": "Cost estimate",
+      "card_approval_prediction": "Approval likelihood",
       "ai_awaiting": "Awaiting analysis…",
       "ai_failed_banner_title": "AI analysis failed",
       "ai_failed_banner_detail": "Review is proceeding without an AI recommendation. Reason: {{reason}}",
@@ -697,6 +709,7 @@
     "col_id": "ID",
     "col_type": "Type",
     "col_risk": "Risk",
+    "col_approval_likelihood": "Approval likelihood",
     "col_datasource": "Datasource",
     "col_submitter": "Submitter",
     "col_created": "Created",

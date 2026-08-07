@@ -893,3 +893,61 @@ describe('QueryDetailPage — linked tickets (AF-453)', () => {
     expect(screen.queryByText('Linked tickets')).toBeNull();
   });
 });
+
+describe('QueryDetailPage — approval prediction card (AF-645)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    reanalyzeQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders the likelihood and the advisory note when a prediction is present', async () => {
+    setUser('REVIEWER');
+    const q = pendingReviewQuery();
+    q.approval_prediction = {
+      id: 'ap-1',
+      probability: 0.78,
+      skipped: false,
+      skipped_reason: null,
+      failed: false,
+      created_at: '2026-05-01T10:00:20Z',
+    };
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Approval likelihood')).toBeInTheDocument();
+    expect(screen.getByTestId('approval-prediction-badge')).toHaveTextContent('78%');
+    expect(screen.getByText(/Advisory only/)).toBeInTheDocument();
+  });
+
+  it('explains the cold-start skip instead of showing a number', async () => {
+    setUser('REVIEWER');
+    const q = pendingReviewQuery();
+    q.approval_prediction = {
+      id: 'ap-2',
+      probability: null,
+      skipped: true,
+      skipped_reason: 'MODEL_NOT_SERVING',
+      failed: false,
+      created_at: '2026-05-01T10:00:20Z',
+    };
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Not enough review history yet.')).toBeInTheDocument();
+    expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
+  });
+
+  it('falls back to the pending copy while no prediction row exists yet', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Computing the approval likelihood…')).toBeInTheDocument();
+  });
+});

@@ -192,6 +192,10 @@ class WebSocketManager {
       case 'query.estimate_complete':
         if (queryId) this.queryClient.invalidateQueries({ queryKey: ['queries', 'detail', queryId] });
         break;
+      case 'query.prediction_complete':
+        if (queryId) this.queryClient.invalidateQueries({ queryKey: ['queries', 'detail', queryId] });
+        this.queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
+        break;
       case 'review.new_request':
         this.queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
         break;
