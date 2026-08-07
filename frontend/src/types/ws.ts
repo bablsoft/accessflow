@@ -13,6 +13,7 @@ export type WsEventName =
   | 'query.executed'
   | 'ai.analysis_complete'
   | 'query.estimate_complete'
+  | 'query.prediction_complete'
   | 'notification.created'
   | 'anomaly.detected'
   | 'collab.joined'
@@ -67,6 +68,11 @@ export interface WsEventPayloadMap {
   'query.estimate_complete': {
     query_id: string;
     supported: boolean;
+  };
+  /** Advisory approval-outcome prediction landed (AF-645). Null probability = skipped/failed row. */
+  'query.prediction_complete': {
+    query_id: string;
+    probability: number | null;
   };
   'notification.created': {
     notification_id: string;
@@ -158,6 +164,7 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'query.executed',
   'ai.analysis_complete',
   'query.estimate_complete',
+  'query.prediction_complete',
   'notification.created',
   'anomaly.detected',
   'collab.joined',

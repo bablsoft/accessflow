@@ -1971,6 +1971,40 @@ pass. That is redundant load, never divergence — training is deterministic, so
 unchanged history reproduces the same model. Schema:
 [docs/03-data-model.md → approval_prediction_model / approval_predictions](03-data-model.md#approval_prediction_model).
 
+**Read side (AF-653).** Three surfaces, and structurally nothing else — that is what keeps the
+advisory-only guarantee enforceable rather than merely stated:
+
+- `GET /queries/{id}` carries an `approval_prediction` block, assembled in
+  `core/internal/DefaultQueryRequestLookupService.toDetailView` from
+  `QueryDetailView.ApprovalPredictionDetail`. Unlike the AF-624 cost estimate next to it there is no
+  reciprocal `query_requests.approval_prediction_id` FK to short-circuit on, so this is one
+  unconditional `findByQueryRequestId` on the unique index per detail fetch. The block deliberately
+  omits `model_id`, `feature_schema_version`, the feature snapshot and the failure message — the
+  snapshot exists for operator explainability, not for the wire.
+- `GET /reviews/pending` carries a nullable `approval_probability` per row.
+  `DefaultReviewService.listPendingForReviewer` filters the page to the actionable rows first, then
+  makes **one** `ApprovalPredictionLookupService.findByQueryRequestIds` call for the whole page and
+  keys the result into a `Map<UUID, Double>`. A per-row lookup here would be an N+1 on every queue
+  render. Sentinel rows carry no probability and are absent from the map, so the queue shows no badge
+  and the detail endpoint is where the reason lives.
+- `RealtimeEventDispatcher` consumes `ApprovalPredictionCompletedEvent` and pushes
+  `query.prediction_complete`. Unlike the submitter-only `query.estimate_complete`, it fans out via
+  `eligibleReviewersForLowestStage` — the review plan's **first-stage** approvers, the same set
+  `review.new_request` targets, already excluding the submitter — *plus* the submitter, whose detail
+  page renders the same block. The payload is a refetch trigger, not data: `query_id` and a
+  `probability` that is JSON-`null` on the skipped / failed rows.
+
+  Note the recipient set is the plan's first stage, not the query's *currently open* stage. That is
+  exact for the first push (the prediction lands as the query enters review at stage 1), but the
+  late-estimate rescore can publish a second event after a stage-1 decision, and that one still
+  targets stage-1 approvers. Resolving the open stage needs the decision list and the routing
+  engine's effective `min_approvals`, both of which live behind `workflow`-internal beans the
+  `realtime` module cannot reach — closing the gap would mean a new `api` surface for a refetch hint.
+  Not worth it: the reviewer who now needs the badge is still served by their next queue fetch.
+
+Nothing localizes `skipped_reason` on the way out — it stays the machine token the serving path
+wrote, and the client resolves it against the reader's locale.
+
 ---
 
 ## Audit Logging
@@ -2176,6 +2210,7 @@ Browsers cannot set a custom `Authorization` header on a WebSocket upgrade, so t
 | `query.executed`        | `QueryExecutedEvent` (in `workflow/events/`)              | submitter            |
 | `ai.analysis_complete`  | `AiAnalysisCompletedEvent` (in `core/events/`)            | submitter            |
 | `query.estimate_complete` | `QueryEstimateCompletedEvent` / `QueryEstimateFailedEvent` (in `core/events/`, AF-624) | submitter          |
+| `query.prediction_complete` | `ApprovalPredictionCompletedEvent` (in `core/events/`, AF-645) | first-stage approvers + submitter |
 | `review.new_request`    | `QueryReadyForReviewEvent` (in `core/events/`)            | eligible reviewers   |
 | `review.decision_made`  | `ReviewDecisionMadeEvent` (in `workflow/events/`)         | submitter            |
 | `notification.created`  | `UserNotificationCreatedEvent` (in `notifications/events/`) | the recipient user |

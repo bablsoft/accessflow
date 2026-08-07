@@ -48,6 +48,11 @@ public interface ReviewService {
                            Set<Permission> permissions) {
     }
 
+    /**
+     * {@code approvalProbability} is the advisory approval-outcome prediction (AF-645) — a triage
+     * signal only. It is {@code null} when no prediction has been persisted yet, or the persisted
+     * row is a skipped ("not enough history yet") or failed sentinel.
+     */
     record PendingReview(
             UUID queryRequestId,
             UUID datasourceId,
@@ -61,6 +66,7 @@ public interface ReviewService {
             RiskLevel aiRiskLevel,
             Integer aiRiskScore,
             String aiSummary,
+            Double approvalProbability,
             int currentStage,
             Instant createdAt) {
     }

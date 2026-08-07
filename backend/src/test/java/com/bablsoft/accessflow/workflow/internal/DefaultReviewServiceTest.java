@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
+import com.bablsoft.accessflow.core.api.ApprovalPredictionLookupService;
+import com.bablsoft.accessflow.core.api.ApprovalPredictionSnapshot;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.IllegalQueryStatusTransitionException;
@@ -49,7 +51,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -60,6 +64,7 @@ class DefaultReviewServiceTest {
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock com.bablsoft.accessflow.core.api.ReviewerEligibilityService reviewerEligibilityService;
     @Mock RoutingDecisionService routingDecisionService;
+    @Mock ApprovalPredictionLookupService approvalPredictionLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultReviewService service;
@@ -323,6 +328,62 @@ class DefaultReviewServiceTest {
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).queryRequestId()).isEqualTo(queryId);
         assertThat(page.content().get(0).currentStage()).isEqualTo(1);
+        assertThat(page.content().get(0).approvalProbability()).isNull();
+    }
+
+    /**
+     * The advisory approval probability must cost exactly one lookup for the whole page — a per-row
+     * call would be an N+1 on every queue render.
+     */
+    @Test
+    void listPendingResolvesApprovalProbabilitiesInASingleBatchLookup() {
+        var secondQueryId = UUID.randomUUID();
+        var first = view(QueryStatus.PENDING_REVIEW, submitterId);
+        var second = viewFor(secondQueryId, QueryStatus.PENDING_REVIEW, submitterId);
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                eq("REVIEWER"), any()))
+                .thenReturn(new PageResponse<>(List.of(first, second), 0, 20, 2, 1));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(
+                        new ApproverRule(null, "REVIEWER", 1)))));
+        when(queryRequestStateService.listDecisions(any())).thenReturn(List.of());
+        // Second row is a skipped sentinel: no probability, so the queue shows nothing for it.
+        when(approvalPredictionLookupService.findByQueryRequestIds(List.of(queryId, secondQueryId)))
+                .thenReturn(List.of(
+                        predictionSnapshot(queryId, 0.78, false, null),
+                        predictionSnapshot(secondQueryId, null, true, "MODEL_NOT_SERVING")));
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content()).hasSize(2);
+        assertThat(page.content().get(0).approvalProbability()).isEqualTo(0.78);
+        assertThat(page.content().get(1).approvalProbability()).isNull();
+        verify(approvalPredictionLookupService, times(1))
+                .findByQueryRequestIds(List.of(queryId, secondQueryId));
+    }
+
+    @Test
+    void listPendingSkipsThePredictionLookupWhenNothingIsActionable() {
+        var view = view(QueryStatus.PENDING_REVIEW, reviewerId);
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                eq("REVIEWER"), any()))
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+        verifyNoInteractions(approvalPredictionLookupService);
+    }
+
+    private static ApprovalPredictionSnapshot predictionSnapshot(UUID queryRequestId,
+                                                                 Double probability,
+                                                                 boolean skipped,
+                                                                 String skippedReason) {
+        return new ApprovalPredictionSnapshot(UUID.randomUUID(), queryRequestId, probability, null,
+                1, null, skipped, skippedReason, false, null,
+                Instant.parse("2026-08-01T09:00:00Z"));
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.ApprovalPredictionLookupService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.DecisionType;
+import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
@@ -85,6 +86,7 @@ class ApprovalPredictionIntegrationTest {
 
     @Autowired ApprovalPredictionService predictionService;
     @Autowired ApprovalPredictionLookupService predictionLookupService;
+    @Autowired QueryRequestLookupService queryRequestLookupService;
     @Autowired ApprovalPredictionModelRepository modelRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired UserRepository userRepository;
@@ -206,6 +208,47 @@ class ApprovalPredictionIntegrationTest {
         var probability = trained.predict(
                 new double[ApprovalFeatureVector.FEATURE_SCHEMA_V1.size()]);
         assertThat(probability).isBetween(0.0, 1.0);
+    }
+
+    /**
+     * The read side (AF-653) joins the prediction onto the query detail without a reciprocal FK on
+     * {@code query_requests}, so only a real-schema run proves the extra lookup actually resolves.
+     */
+    @Test
+    void queryDetailCarriesTheScoredPredictionAndTheBatchLookupFindsIt() {
+        seedDecisionHistory(DECIDED_SAMPLES);
+        predictionService.trainAll();
+        var pending = seedPendingReview(20, true);
+
+        predictionService.predictForQuery(pending.getId());
+
+        var detail = queryRequestLookupService.findDetailById(pending.getId(), org.getId())
+                .orElseThrow();
+        var persisted = predictionLookupService.findByQueryRequestId(pending.getId())
+                .orElseThrow();
+        assertThat(detail.approvalPrediction()).isNotNull();
+        assertThat(detail.approvalPrediction().id()).isEqualTo(persisted.id());
+        assertThat(detail.approvalPrediction().probability()).isEqualTo(persisted.probability());
+        assertThat(detail.approvalPrediction().skipped()).isFalse();
+        assertThat(detail.approvalPrediction().failed()).isFalse();
+        assertThat(detail.approvalPrediction().createdAt()).isNotNull();
+
+        assertThat(predictionLookupService.findByQueryRequestIds(List.of(pending.getId())))
+                .singleElement()
+                .satisfies(snapshot -> {
+                    assertThat(snapshot.queryRequestId()).isEqualTo(pending.getId());
+                    assertThat(snapshot.probability()).isEqualTo(persisted.probability());
+                });
+    }
+
+    @Test
+    void queryDetailLeavesTheApprovalPredictionNullBeforeScoring() {
+        var pending = seedPendingReview(20, true);
+
+        var detail = queryRequestLookupService.findDetailById(pending.getId(), org.getId())
+                .orElseThrow();
+
+        assertThat(detail.approvalPrediction()).isNull();
     }
 
     @Test

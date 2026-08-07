@@ -29,6 +29,7 @@ public record QueryDetailResponse(
         String justification,
         AiAnalysisDetail aiAnalysis,
         CostEstimateDetail costEstimate,
+        ApprovalPredictionDetail approvalPrediction,
         Long rowsAffected,
         Integer durationMs,
         String errorMessage,
@@ -70,6 +71,7 @@ public record QueryDetailResponse(
                 view.justification(),
                 AiAnalysisDetail.from(view.aiAnalysis()),
                 CostEstimateDetail.from(view.costEstimate()),
+                ApprovalPredictionDetail.from(view.approvalPrediction()),
                 view.rowsAffected(),
                 view.durationMs(),
                 view.errorMessage(),
@@ -229,6 +231,33 @@ public record QueryDetailResponse(
                     src.failed(),
                     src.errorMessage(),
                     src.durationMs());
+        }
+    }
+
+    /**
+     * The advisory approval-outcome prediction (AF-645) — a reviewer triage signal, never an input
+     * to any decision path. {@code probability} is {@code null} on the {@code skipped} and
+     * {@code failed} sentinel rows; {@code skipped_reason} is a machine token the client localizes.
+     */
+    public record ApprovalPredictionDetail(
+            UUID id,
+            Double probability,
+            boolean skipped,
+            String skippedReason,
+            boolean failed,
+            Instant createdAt) {
+
+        static ApprovalPredictionDetail from(QueryDetailView.ApprovalPredictionDetail src) {
+            if (src == null) {
+                return null;
+            }
+            return new ApprovalPredictionDetail(
+                    src.id(),
+                    src.probability(),
+                    src.skipped(),
+                    src.skippedReason(),
+                    src.failed(),
+                    src.createdAt());
         }
     }
 

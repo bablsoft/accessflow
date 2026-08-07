@@ -22,6 +22,7 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.core.events.ApprovalPredictionCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
@@ -354,6 +355,60 @@ class RealtimeEventDispatcherTest {
         dispatcher.onAttestationCampaignOpened(
                 new com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent(
                         campaignId, organizationId));
+        verifyNoInteractions(sessionRegistry);
+    }
+
+    @Test
+    void onApprovalPredictionCompletedReachesEligibleReviewersAndTheSubmitter() throws Exception {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWithUserApprovers(reviewerId)));
+        when(userQueryService.findById(reviewerId))
+                .thenReturn(Optional.of(activeUser(reviewerId, "rev@example.com")));
+
+        dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
+                queryId, UUID.randomUUID(), 0.78));
+
+        var reviewerEnvelope = captureEnvelope(reviewerId);
+        assertThat(reviewerEnvelope.get("event").asText()).isEqualTo("query.prediction_complete");
+        assertThat(reviewerEnvelope.get("data").get("query_id").asText())
+                .isEqualTo(queryId.toString());
+        assertThat(reviewerEnvelope.get("data").get("probability").asDouble()).isEqualTo(0.78);
+        assertThat(captureEnvelope(submitterId).get("event").asText())
+                .isEqualTo("query.prediction_complete");
+    }
+
+    /** Skipped and failed sentinel rows still notify — the client refetches and renders the reason. */
+    @Test
+    void onApprovalPredictionCompletedRendersJsonNullForASentinelRow() throws Exception {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.empty());
+
+        dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
+                queryId, UUID.randomUUID(), null));
+
+        var envelope = captureEnvelope(submitterId);
+        assertThat(envelope.get("data").get("probability").isNull()).isTrue();
+    }
+
+    @Test
+    void onApprovalPredictionCompletedSkipsWhenQueryIsGone() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.empty());
+
+        dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
+                queryId, UUID.randomUUID(), 0.5));
+
+        verifyNoInteractions(sessionRegistry);
+    }
+
+    @Test
+    void onApprovalPredictionCompletedSwallowsLookupFailures() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenThrow(new IllegalStateException("db down"));
+
+        dispatcher.onApprovalPredictionCompleted(new ApprovalPredictionCompletedEvent(
+                queryId, UUID.randomUUID(), 0.5));
+
         verifyNoInteractions(sessionRegistry);
     }
 

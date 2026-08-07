@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.core.events.ApprovalPredictionCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryEstimateCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryEstimateFailedEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
@@ -202,6 +203,37 @@ class RealtimeEventDispatcher {
             data.put("query_id", queryRequestId.toString());
             data.put("supported", supported);
             sendTo(snapshot.submittedByUserId(), "query.estimate_complete", data);
+        });
+    }
+
+    /**
+     * The advisory approval-outcome prediction (AF-645) is a reviewer triage signal, so unlike the
+     * submitter-only estimate event above this fans out to the reviewers who can act on the query
+     * — their queue is the surface that renders it — plus the submitter, whose detail page shows
+     * the same block. Like {@code query.estimate_complete} the payload is only a refetch trigger:
+     * a {@code null} probability marks the skipped / failed sentinel rows.
+     */
+    @ApplicationModuleListener
+    void onApprovalPredictionCompleted(ApprovalPredictionCompletedEvent event) {
+        safe("query.prediction_complete", event.queryRequestId(), () -> {
+            var snapshot = queryRequestLookupService.findById(event.queryRequestId()).orElse(null);
+            if (snapshot == null) {
+                return;
+            }
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("query_id", event.queryRequestId().toString());
+            if (event.probability() != null) {
+                data.put("probability", event.probability());
+            } else {
+                data.putNull("probability");
+            }
+            var envelope = serialize("query.prediction_complete", data);
+            // eligibleReviewersForLowestStage already excludes the submitter, hence the explicit add.
+            Set<UUID> recipients = new LinkedHashSet<>(eligibleReviewersForLowestStage(snapshot));
+            recipients.add(snapshot.submittedByUserId());
+            for (var userId : recipients) {
+                sessionRegistry.sendToUser(userId, envelope);
+            }
         });
     }
 

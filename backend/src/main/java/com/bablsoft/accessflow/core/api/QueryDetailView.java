@@ -23,6 +23,7 @@ public record QueryDetailView(
         String justification,
         AiAnalysisDetail aiAnalysis,
         CostEstimateDetail costEstimate,
+        ApprovalPredictionDetail approvalPrediction,
         Long rowsAffected,
         Integer durationMs,
         String errorMessage,
@@ -49,6 +50,26 @@ public record QueryDetailView(
                 aiAnalysis, null, rowsAffected, durationMs, errorMessage, previousRunId,
                 approvedByGrantId, reviewPlanName, approvalTimeoutHours, reviewDecisions,
                 scheduledFor, createdAt, updatedAt);
+    }
+
+    /**
+     * Backward-compatible constructor without the AF-645 approval prediction (defaults to absent).
+     * Chains from the cost-estimate overload above, so the three arities form 24 → 25 → canonical.
+     */
+    public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
+                           UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                           String submittedByDisplayName, String sqlText, QueryType queryType,
+                           QueryStatus status, String justification, AiAnalysisDetail aiAnalysis,
+                           CostEstimateDetail costEstimate, Long rowsAffected, Integer durationMs,
+                           String errorMessage, UUID previousRunId, UUID approvedByGrantId,
+                           String reviewPlanName, Integer approvalTimeoutHours,
+                           List<ReviewDecisionView> reviewDecisions, Instant scheduledFor,
+                           Instant createdAt, Instant updatedAt) {
+        this(id, datasourceId, datasourceName, dbType, organizationId, submittedByUserId,
+                submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
+                aiAnalysis, costEstimate, null, rowsAffected, durationMs, errorMessage,
+                previousRunId, approvedByGrantId, reviewPlanName, approvalTimeoutHours,
+                reviewDecisions, scheduledFor, createdAt, updatedAt);
     }
 
     public record AiAnalysisDetail(
@@ -84,6 +105,21 @@ public record QueryDetailView(
             boolean failed,
             String errorMessage,
             Integer durationMs) {
+    }
+
+    /**
+     * The advisory approval-outcome prediction (AF-645), when a row has been persisted.
+     * {@code probability} is {@code null} on the {@code skipped} and {@code failed} sentinel rows;
+     * {@code skippedReason} is a machine token ({@code DISABLED} / {@code MODEL_NOT_SERVING})
+     * localized by the reader, never at write time.
+     */
+    public record ApprovalPredictionDetail(
+            UUID id,
+            Double probability,
+            boolean skipped,
+            String skippedReason,
+            boolean failed,
+            Instant createdAt) {
     }
 
     public record ReviewDecisionView(
