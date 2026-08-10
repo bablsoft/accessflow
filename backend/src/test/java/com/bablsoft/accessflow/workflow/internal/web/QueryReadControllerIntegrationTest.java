@@ -365,6 +365,72 @@ class QueryReadControllerIntegrationTest {
                 .isEqualTo(qid.toString());
     }
 
+    @Test
+    void getServesTheApprovalPredictionToAReviewerDecidingSomeoneElsesQuery() {
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detailWithPrediction(qid, analyst)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.approval_prediction.probability")
+                .isEqualTo(0.78);
+        assertThat(response).bodyJson().extractingPath("$.approval_prediction.skipped")
+                .isEqualTo(false);
+    }
+
+    /**
+     * AF-645: the prediction is a triage aid for whoever decides. Withholding it from the submitter
+     * — a reviewer reading their own request included — is what stops someone reading the likely
+     * verdict on their own query and cancel-and-resubmitting until it looks better.
+     */
+    @Test
+    void getWithholdsTheApprovalPredictionFromTheSubmitterEvenWhenTheyAreAReviewer() {
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detailWithPrediction(qid, reviewer)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().doesNotHavePath("$.approval_prediction");
+    }
+
+    /**
+     * The analyst here is both the submitter and a non-reviewer, because no system role separates
+     * the two: REVIEWER and ADMIN hold `QUERY_REVIEW` and `QUERY_VIEW_ALL` together, and a role
+     * with neither cannot read someone else's query at all (it 404s above). Only a custom role
+     * granted `QUERY_VIEW_ALL` alone isolates the permission term — see the comment on the gate.
+     */
+    @Test
+    void getWithholdsTheApprovalPredictionFromAnAnalystReadingTheirOwnQuery() {
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(detailWithPrediction(qid, analyst)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().doesNotHavePath("$.approval_prediction");
+    }
+
+    private QueryDetailView detailWithPrediction(UUID qid, UserEntity submitter) {
+        return new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(), submitter.getId(), submitter.getEmail(), submitter.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.PENDING_REVIEW, "x", null, null,
+                new QueryDetailView.ApprovalPredictionDetail(UUID.randomUUID(), 0.78, false, null,
+                        false, Instant.parse("2026-05-01T10:00:00Z")),
+                null, null, null, null, null, null, null, List.of(), null,
+                Instant.now(), Instant.now());
+    }
+
     // ── POST /api/v1/queries/{id}/reanalyze ─────────────────────────────────────
 
     @Test

@@ -275,6 +275,8 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | View all query history | — | — | ✓ | ✓ | — |
 | Approve / reject queries | — | — | ✓ | ✓ | — |
 | Approve own submitted queries | — | — | — | — | — |
+| View approval likelihood on a query (AF-645) | — | — | ✓ | ✓ | — |
+| View approval likelihood on own submitted query | — | — | — | — | — |
 | Request time-bound datasource access (AF-378) | ✓ | ✓ | ✓ | ✓ | — |
 | Review / approve / reject access requests | — | — | ✓ | ✓ | — |
 | Approve own access request | — | — | — | — | — |
@@ -298,6 +300,13 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Export attestation evidence CSV | — | — | — | ✓ | ✓ |
 
 **Key rule:** A user can never approve their own query request, regardless of role.
+
+**Approval likelihood (AF-645):** the advisory approval-outcome prediction is served only to callers
+holding `QUERY_REVIEW` who are not the query's submitter — a reviewer reading their own request is
+excluded too. `QueryReadController` omits the `approval_prediction` block from the response for
+everyone else rather than relying on the client to hide it, and `RealtimeEventDispatcher` keeps the
+submitter out of the `query.prediction_complete` fan-out for the same reason. The rule exists so
+nobody can read the likely verdict on their own open request and cancel-and-resubmit against it.
 
 **Access recertification (AF-384):** an `ADMIN` creates, opens, cancels, and exports evidence for
 attestation campaigns; a `REVIEWER` or `ADMIN` certifies/revokes the individual items they are

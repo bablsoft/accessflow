@@ -496,6 +496,13 @@
             time of day, and per-submitter and per-datasource approval history).
           </p>
           <p>
+            <strong>Who sees it.</strong> Only reviewers, and never on their own request — someone who
+            submits a query is not shown the likelihood on it even when they hold the reviewer
+            permission. The number is withheld by the API itself, not merely hidden in the interface,
+            so nobody can read the likely verdict on their own query and keep resubmitting until it
+            looks better.
+          </p>
+          <p>
             <strong>It never decides anything.</strong> The percentage is advisory, and that guarantee
             is structural rather than a promise — only the read side of the application can see it. It
             is not an input to routing policies, to just-in-time grant coverage, or to any other path

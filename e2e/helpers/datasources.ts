@@ -376,6 +376,52 @@ export async function waitForQueryStatus(
   );
 }
 
+/** The advisory approval-outcome prediction block on GET /queries/{id} (AF-645). */
+export interface ApprovalPredictionBlock {
+  id: string;
+  probability?: number | null;
+  skipped: boolean;
+  skipped_reason?: string | null;
+  failed: boolean;
+  created_at: string;
+}
+
+/**
+ * Scoring runs in an after-commit async listener, so the row lands shortly after the query reaches
+ * PENDING_REVIEW. Poll rather than racing the UI.
+ *
+ * The block is access-controlled — it is served only to a caller holding QUERY_REVIEW who is not
+ * the submitter — so passing a submitter's token here will always time out. That is deliberate:
+ * the timeout message reports the last HTTP status so an authorization failure does not read like
+ * "scoring never ran".
+ */
+export async function waitForApprovalPrediction(
+  request: APIRequestContext,
+  accessToken: string,
+  queryId: string,
+  timeoutMs = 20_000,
+): Promise<ApprovalPredictionBlock> {
+  const deadline = Date.now() + timeoutMs;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.get(`${apiBase()}/api/v1/queries/${queryId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    last = `HTTP ${res.status()}`;
+    if (res.ok()) {
+      const body = (await res.json()) as {
+        approval_prediction?: ApprovalPredictionBlock | null;
+      };
+      if (body.approval_prediction) return body.approval_prediction;
+      last = 'HTTP 200, no approval_prediction block';
+    }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error(
+    `No approval_prediction on query ${queryId} within ${timeoutMs}ms (last seen: ${last || '<no response>'})`,
+  );
+}
+
 // POST /api/v1/queries/{id}/execute — manually triggers execution of an
 // APPROVED query. Returns the post-execution body (status: 'EXECUTED' on
 // success, 'FAILED' on a customer-DB error).

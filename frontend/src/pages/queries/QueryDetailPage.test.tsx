@@ -983,4 +983,27 @@ describe('QueryDetailPage — approval prediction card (AF-645)', () => {
     expect(screen.queryByText('Approval likelihood')).toBeNull();
     expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
   });
+
+  // The anti-gaming rule is about the submitter, not the role: a reviewer reading their own
+  // request must not learn the likely verdict on it either. The backend drops the block for them,
+  // so this asserts the client agrees rather than rendering whatever it is handed.
+  it('hides the card from a reviewer reading a query they submitted themselves', async () => {
+    setUser('REVIEWER', 'u-submitter');
+    const q = pendingReviewQuery();
+    q.approval_prediction = {
+      id: 'ap-4',
+      probability: 0.91,
+      skipped: false,
+      skipped_reason: null,
+      failed: false,
+      created_at: '2026-05-01T10:00:20Z',
+    };
+    getQueryMock.mockResolvedValue(q);
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText('Approval likelihood')).toBeNull();
+    expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
+  });
 });

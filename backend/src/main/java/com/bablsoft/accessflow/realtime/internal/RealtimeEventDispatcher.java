@@ -207,11 +207,13 @@ class RealtimeEventDispatcher {
     }
 
     /**
-     * The advisory approval-outcome prediction (AF-645) is a reviewer triage signal, so unlike the
-     * submitter-only estimate event above this fans out to the reviewers who can act on the query
-     * — their queue is the surface that renders it — plus the submitter, whose detail page shows
-     * the same block. Like {@code query.estimate_complete} the payload is only a refetch trigger:
-     * a {@code null} probability marks the skipped / failed sentinel rows.
+     * The advisory approval-outcome prediction (AF-645) is a reviewer triage signal, so this is the
+     * mirror image of the submitter-only estimate event above: it fans out to the reviewers who can
+     * act on the query — their queue and detail view are the surfaces that render it — and to
+     * nobody else. The submitter is deliberately excluded, matching the gate in
+     * {@code QueryReadController}, which withholds the block from them entirely. Like
+     * {@code query.estimate_complete} the payload is only a refetch trigger: a {@code null}
+     * probability marks the skipped / failed sentinel rows.
      */
     @ApplicationModuleListener
     void onApprovalPredictionCompleted(ApprovalPredictionCompletedEvent event) {
@@ -228,10 +230,9 @@ class RealtimeEventDispatcher {
                 data.putNull("probability");
             }
             var envelope = serialize("query.prediction_complete", data);
-            // eligibleReviewersForLowestStage already excludes the submitter, hence the explicit add.
-            Set<UUID> recipients = new LinkedHashSet<>(eligibleReviewersForLowestStage(snapshot));
-            recipients.add(snapshot.submittedByUserId());
-            for (var userId : recipients) {
+            // eligibleReviewersForLowestStage already excludes the submitter, which is exactly the
+            // recipient set we want here — no explicit add.
+            for (var userId : eligibleReviewersForLowestStage(snapshot)) {
                 sessionRegistry.sendToUser(userId, envelope);
             }
         });
