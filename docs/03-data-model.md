@@ -708,7 +708,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
 | `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
-| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
+| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93) \| `RECURRING` (#627, Flyway V133). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path; `RECURRING` marks a child occurrence row created by the `RecurringQueryRunJob` for an approved recurring series (never user-submitted). Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
 | `query_estimate_id` | FK → `query_estimates` nullable (AF-624, Flyway `V128`) — the query's persisted pre-flight cost estimate; bare-UUID back-pointer mirroring `ai_analysis_id` (the real NOT NULL FK lives on `query_estimates.query_request_id`) |
@@ -718,6 +718,11 @@ The central entity. Represents a single SQL submission through the platform.
 | `error_message` | TEXT nullable |
 | `execution_duration_ms` | INTEGER nullable |
 | `scheduled_for` | TIMESTAMPTZ nullable — when set on submission, defers execution: once the query reaches `APPROVED`, the `ScheduledQueryRunJob` picks it up at `scheduled_for ≤ now()` and triggers execution via `QueryLifecycleService.executeScheduled`. A partial index `idx_query_requests_scheduled_for ON query_requests(scheduled_for) WHERE scheduled_for IS NOT NULL` keeps the scan cheap. |
+| `recurrence_rule` | TEXT nullable (#627, `V132`) — the recurring-series cadence on a **parent** row: a 6-field Spring cron expression evaluated in UTC, or an ISO-8601 duration (`P` prefix). Mutually exclusive with `scheduled_for` (service-enforced). Validated at submission (`RecurrenceRule.parse`); minimum gap `accessflow.workflow.recurrence-min-interval` (default PT5M). |
+| `recurrence_until` | TIMESTAMPTZ nullable (`V132`) — mandatory series expiry when `recurrence_rule` is set; the reviewer approves query + cadence + expiry as one unit. Occurrences stop once `now > recurrence_until` (derived "Series completed" — no status change). |
+| `recurrence_next_run_at` | TIMESTAMPTZ nullable (`V132`) — the scheduler cursor: next occurrence instant, advanced atomically with each occurrence-row insert (advance-before-execute = double-fire guard). Cleared (`NULL`) on series completion, fail-closed halt, or cancellation. Partial index `idx_query_requests_recurrence_due ON query_requests(recurrence_next_run_at) WHERE recurrence_next_run_at IS NOT NULL` backs the `RecurringQueryRunJob` poll. |
+| `recurrence_halted_reason` | TEXT nullable (`V132`) — set only when the series was halted fail-closed (submitter's permission removed/expired/insufficient, SQL no longer re-parses, datasource deactivated); accompanied by a `RECURRING_SERIES_HALTED` audit row. NULL for active, completed, or cancelled series. |
+| `recurring_parent_id` | UUID nullable, FK → `query_requests(id)` (`V132`) — set on **occurrence** rows: points at the recurring-series parent. Occurrence rows are created directly in `APPROVED` with `submission_reason = 'RECURRING'` and executed immediately (`"trigger": "recurring"` audit metadata). Partial index `idx_query_requests_recurring_parent ON query_requests(recurring_parent_id, created_at DESC) WHERE recurring_parent_id IS NOT NULL` backs `GET /queries/{id}/occurrences`. |
 | `previous_run_id` | UUID nullable, FK → `query_requests(id)`. Set on a successful execution (AF-361) when an earlier `EXECUTED` row exists for the same `(submitted_by, datasource_id, canonical_sql)`. Used by `GET /queries/{id}/diff` to compute the rows-affected / execution-ms / row-count deltas surfaced on `QueryDetailPage`. Rows that executed before the feature shipped have `canonical_sql = NULL` and never match — diff is unavailable for those queries. |
 | `canonical_sql` | TEXT nullable — populated on each successful execution with the output of `SqlCanonicalizer.canonicalize(sql_text)` (strip comments, collapse whitespace, upper-case). Lookup key for `previous_run_id`. A partial index `idx_query_requests_diff_lookup ON query_requests(submitted_by, datasource_id, canonical_sql, execution_completed_at DESC) WHERE status = 'EXECUTED' AND canonical_sql IS NOT NULL` keeps the per-execution lookup a single indexed scan. |
 | `submitted_ip` | VARCHAR(45) nullable (AF-446, Flyway `V88`) — source IP captured at submission (`X-Forwarded-For` first hop, else remote address). Read by the `source_ip` routing condition (routing runs asynchronously, after submission). |
@@ -737,10 +742,21 @@ PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTED
            ↘ APPROVED       (routing policy AUTO_APPROVE — see routing_policy)
            ↘ REJECTED       (routing policy AUTO_REJECT — see routing_policy)
 PENDING_REVIEW → CANCELLED (by submitter)
-APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet)
+APPROVED       → CANCELLED (submitter, when scheduled_for is set and run hasn't fired yet;
+                            for a recurring series — recurrence_rule set, #627 — also any
+                            QUERY_REVIEW holder, stopping the whole series)
 APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now())
+APPROVED       → EXECUTED / FAILED (recurring occurrence rows — created directly in APPROVED
+                            by RecurringQueryRunJob with submission_reason=RECURRING and
+                            executed in the same tick; the series parent stays APPROVED)
 APPROVED       → FAILED    (on execution error)
 ```
+
+**Recurring occurrence rows (#627)** are *inserted* in `APPROVED` (an insert, not a transition — no
+`QuerySubmittedEvent`, no AI, no review): the human approval happened once, on the parent, covering
+query + cadence + expiry. The parent row never leaves `APPROVED` while the series runs; series end is
+derived (`recurrence_next_run_at IS NULL`), a fail-closed halt additionally sets
+`recurrence_halted_reason`, and a kill-switch cancel transitions the parent to `CANCELLED`.
 
 **Auto-approve fast path (`PENDING_AI → APPROVED` directly).** When the datasource's review plan has `auto_approve_reads=true`, a SELECT whose AI analysis returns LOW or MEDIUM risk skips `PENDING_REVIEW` entirely. HIGH/CRITICAL risk SELECTs and all non-SELECT queries still go through human review. Plans with `requires_human_approval=false` always auto-approve on AI completion. AI failure (`AiAnalysisFailedEvent`) never auto-approves — the query always lands in `PENDING_REVIEW` so a human can inspect.
 
@@ -1359,7 +1375,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_BREAK_GLASS_EXECUTED` | Proxy executes a break-glass / emergency-access query (AF-385), bypassing pre-approval. Prominently distinct from `QUERY_EXECUTED`; metadata carries `break_glass=true` plus the same UBA enrichment. Resource: `query_request`. |
 | `BREAK_GLASS_REVIEWED` | An admin acknowledges (reconciles) a break-glass retro-review (AF-385). Resource: `break_glass_event`. Metadata: `query_request_id`, `datasource_id`, `submitted_by`. |
 | `QUERY_FAILED` | Execution error. Metadata is enriched (AF-383) with `datasource_id` and `query_type` for UBA error-rate tracking. |
-| `QUERY_CANCELLED` | Submitter cancels |
+| `QUERY_CANCELLED` | Submitter cancels. For a recurring series (#627) also written when a `QUERY_REVIEW` holder uses the kill-switch — metadata then carries `cancelled_by_reviewer=true`. |
+| `RECURRING_SERIES_HALTED` | A recurring series (#627) was halted fail-closed by `RecurringQueryRunJob` — the submitter's permission disappeared/expired/lost coverage, the submitter went inactive, the SQL no longer re-parses, or the datasource was deactivated. Metadata: `reason`, `recurrence_rule`, `recurrence_until`, `datasource_id`. Resource: the parent `query_request` (which stays `APPROVED`). |
 | `DATASOURCE_CREATED` | Admin creates datasource |
 | `DATASOURCE_UPDATED` | Admin updates datasource config |
 | `DATASOURCE_SECRET_RESOLVED` | A datasource credential secret reference was resolved through its external store (AF-448). Metadata: `provider`, `reference` — never the secret value. Resource: `datasource`. System-initiated (`actorId=null`). |

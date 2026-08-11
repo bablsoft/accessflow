@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -79,6 +80,14 @@ class MsTeamsPayloadFactoryTest {
     }
 
     @Test
+    void queryExecutedHeaderReflectsSuccessAndFailure() {
+        assertThat(factory.buildEventBody(executedCtx(QueryStatus.EXECUTED)))
+                .contains("Recurring Query Results Ready");
+        assertThat(factory.buildEventBody(executedCtx(QueryStatus.FAILED)))
+                .contains("Recurring Query Run Failed");
+    }
+
+    @Test
     void weeklyDigestRendersFactsAndDashboardAction() {
         var body = factory.buildEventBody(digestCtx());
         assertThat(body).contains("Weekly Digest")
@@ -106,6 +115,40 @@ class MsTeamsPayloadFactoryTest {
                 new com.bablsoft.accessflow.notifications.internal.WeeklyDigestData(
                         java.time.LocalDate.of(2026, 6, 22), java.time.LocalDate.of(2026, 6, 29),
                         5, 2, 1, 3));
+    }
+
+    /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */
+    private static NotificationContext executedCtx(QueryStatus executionStatus) {
+        return new NotificationContext(
+                NotificationEventType.QUERY_EXECUTED,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                QueryType.SELECT,
+                "SELECT 1",
+                "SELECT 1",
+                "SELECT 1",
+                RiskLevel.LOW,
+                10,
+                "ok",
+                UUID.randomUUID(),
+                "Production",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                null,
+                null,
+                null,
+                null,
+                URI.create("https://app.example.com/queries/abc"),
+                List.of(),
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                executionStatus, 5L, 120L);
     }
 
     private static NotificationContext ctx(NotificationEventType eventType, Integer approvalTimeoutHours) {

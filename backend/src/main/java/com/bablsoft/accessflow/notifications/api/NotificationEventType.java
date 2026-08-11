@@ -5,6 +5,8 @@ public enum NotificationEventType {
     QUERY_APPROVED,
     QUERY_REJECTED,
     QUERY_ESCALATED,
+    /** Recurring occurrence completed (#627) — result delivery to the submitter. */
+    QUERY_EXECUTED,
     REVIEW_TIMEOUT,
     AI_HIGH_RISK,
     ACCESS_REQUEST_SUBMITTED,

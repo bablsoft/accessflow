@@ -271,6 +271,25 @@ class NotificationContextBuilderTest {
     }
 
     @Test
+    void buildQueryExecutedCarriesOutcomeAndTargetsSubmitterOnly() {
+        var ctx = builder.buildQueryExecuted(queryId, QueryStatus.EXECUTED, 42L, 1_500L)
+                .orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.QUERY_EXECUTED);
+        assertThat(ctx.executionStatus()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(ctx.executionRowsAffected()).isEqualTo(42L);
+        assertThat(ctx.executionDurationMs()).isEqualTo(1_500L);
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("alice@example.com");
+    }
+
+    @Test
+    void buildQueryExecutedReturnsEmptyWhenQueryUnknown() {
+        when(queryRequestLookup.findById(queryId)).thenReturn(Optional.empty());
+        assertThat(builder.buildQueryExecuted(queryId, QueryStatus.FAILED, null, 10L)).isEmpty();
+    }
+
+    @Test
     void aiHighRiskRecipientsAreActiveAdmins() {
         var adminA = user(UUID.randomUUID(), "a@example.com", UserRoleType.ADMIN);
         var adminB = user(UUID.randomUUID(), "b@example.com", UserRoleType.ADMIN);

@@ -10,6 +10,7 @@ import type {
   QueryDiffResponse,
   QueryDryRunResult,
   QueryListItem,
+  QueryOccurrencePage,
   QueryResultsPage,
   QueryStatus,
   QueryType,
@@ -25,6 +26,8 @@ export interface SubmitQueryInput {
   justification: string;
   scheduled_for?: string | null;
   submission_reason?: SubmissionReason;
+  recurrence_rule?: string | null;
+  recurrence_until?: string | null;
 }
 
 export interface AnalyzeQueryInput {
@@ -57,6 +60,8 @@ export const queryKeys = {
   results: (id: string, page: number, size: number) =>
     ['queries', 'detail', id, 'results', page, size] as const,
   diff: (id: string) => ['queries', 'detail', id, 'diff'] as const,
+  occurrences: (id: string, page: number, size: number) =>
+    ['queries', 'detail', id, 'occurrences', page, size] as const,
 };
 
 export async function submitQuery(input: SubmitQueryInput): Promise<SubmitQueryResponse> {
@@ -114,6 +119,17 @@ export async function getQueryResults(
   size = 100,
 ): Promise<QueryResultsPage> {
   const { data } = await apiClient.get<QueryResultsPage>(`${BASE}/${id}/results`, {
+    params: { page, size },
+  });
+  return data;
+}
+
+export async function listOccurrences(
+  id: string,
+  page = 0,
+  size = 20,
+): Promise<QueryOccurrencePage> {
+  const { data } = await apiClient.get<QueryOccurrencePage>(`${BASE}/${id}/occurrences`, {
     params: { page, size },
   });
   return data;

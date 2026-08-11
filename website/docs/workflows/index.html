@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Workflows",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-07",
+      "dateModified": "2026-08-11",
       "url": "https://accessflow.bablsoft.com/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/workflows/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -341,6 +341,23 @@
             <code>ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL</code>, default
             <code>PT1M</code>) triggers execution. The submitter can cancel an
             <code>APPROVED</code> scheduled run any time before it fires.
+          </p>
+          <p>
+            For repeating needs — weekly reports, daily data checks — a query can instead be
+            submitted as a <em>recurring series</em>: pick a fixed interval (every 15&nbsp;minutes
+            to every 7&nbsp;days) or a 6-field cron schedule evaluated in UTC, plus a mandatory
+            series end time. Reviewers approve the query, cadence, and expiry <strong>once</strong>;
+            <code>RecurringQueryRunJob</code> (cadence
+            <code>ACCESSFLOW_WORKFLOW_RECURRING_RUN_POLL_INTERVAL</code>, default
+            <code>PT1M</code>) then executes each occurrence through the full proxy pipeline with
+            the policy state current at that moment, recording every run as its own immutable
+            request — the query detail page lists them in an <em>Occurrences</em> table, and the
+            submitter receives each run's results over the configured notification channels (email
+            attaches the rows as a capped CSV). The submitter <em>or any reviewer</em> can cancel
+            the series, and revoking the submitter's permission, deactivating the datasource, or
+            SQL that no longer parses halts it fail-closed with an audited reason. Occurrence
+            cadence is floored by <code>ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL</code>
+            (default <code>PT5M</code>).
           </p>
           <figure class="docs-figure">
             <picture>

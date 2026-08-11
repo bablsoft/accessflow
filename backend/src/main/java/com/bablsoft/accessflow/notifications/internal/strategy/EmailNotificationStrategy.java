@@ -35,6 +35,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
     private final SpringTemplateEngine templateEngine;
     private final MailSenderFactory mailSenderFactory;
     private final MessageSource messageSource;
+    private final QueryResultCsvRenderer queryResultCsvRenderer;
 
     @Override
     public NotificationChannelType supports() {
@@ -72,10 +73,26 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         }
         var sender = mailSenderFactory.create(config);
         var subject = subject(ctx);
-        var html = renderHtml(template, ctx);
+        var attachment = resolveAttachment(ctx);
+        var html = renderHtml(template, ctx, attachment != null);
         for (RecipientView recipient : ctx.recipients()) {
-            sendOne(sender, config, recipient.email(), subject, html);
+            sendOne(sender, config, recipient.email(), subject, html, attachment);
         }
+    }
+
+    /**
+     * The results-CSV attachment for a successful recurring occurrence (#627); {@code null} for
+     * every other event, for failed occurrences, and for occurrences with no stored result
+     * (non-SELECT). The stored rows are post-mask, so nothing the in-app table would redact can
+     * leak into the attachment.
+     */
+    private QueryResultCsvRenderer.Csv resolveAttachment(NotificationContext ctx) {
+        if (ctx.eventType() != NotificationEventType.QUERY_EXECUTED
+                || ctx.executionStatus() != com.bablsoft.accessflow.core.api.QueryStatus.EXECUTED
+                || ctx.queryRequestId() == null) {
+            return null;
+        }
+        return queryResultCsvRenderer.render(ctx.queryRequestId()).orElse(null);
     }
 
     /**
@@ -94,11 +111,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                 ? optionalEmailOverride
                 : config.fromAddress();
         sendOne(sender, config, to, "AccessFlow notification test",
-                "<p>This is a test message from AccessFlow.</p>");
+                "<p>This is a test message from AccessFlow.</p>", null);
     }
 
     private void sendOne(JavaMailSender sender, EmailChannelConfig config, String to,
-                         String subject, String html) {
+                         String subject, String html, QueryResultCsvRenderer.Csv attachment) {
         if (to == null || to.isBlank()) {
             return;
         }
@@ -109,6 +126,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(html, true);
+            if (attachment != null) {
+                helper.addAttachment(attachment.filename(),
+                        new org.springframework.core.io.ByteArrayResource(attachment.content()),
+                        "text/csv");
+            }
             sender.send(message);
         } catch (MessagingException | UnsupportedEncodingException ex) {
             throw new NotificationDeliveryException("Email composition failed", ex);
@@ -131,7 +153,15 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
     }
 
     private String renderHtml(String template, NotificationContext ctx) {
+        return renderHtml(template, ctx, false);
+    }
+
+    private String renderHtml(String template, NotificationContext ctx, boolean resultsAttached) {
         var context = new Context(resolveLocale(ctx));
+        context.setVariable("executionStatus", ctx.executionStatus());
+        context.setVariable("executionRowsAffected", ctx.executionRowsAffected());
+        context.setVariable("executionDurationMs", ctx.executionDurationMs());
+        context.setVariable("resultsAttached", resultsAttached);
         context.setVariable("eventType", ctx.eventType());
         context.setVariable("queryRequestId", ctx.queryRequestId());
         context.setVariable("queryType", ctx.queryType());
@@ -174,6 +204,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_APPROVED -> "email/query-approved";
             case QUERY_REJECTED -> "email/query-rejected";
             case QUERY_ESCALATED -> "email/query-escalated";
+            // #627: recurring occurrence result delivery (successful runs carry a results.csv).
+            case QUERY_EXECUTED -> "email/query-executed";
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
             case AI_HIGH_RISK -> "email/query-ready-for-review";
             case ANOMALY_DETECTED -> "email/anomaly-detected";
@@ -207,6 +239,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_APPROVED -> "notification.email.subject.query_approved";
             case QUERY_REJECTED -> "notification.email.subject.query_rejected";
             case QUERY_ESCALATED -> "notification.email.subject.query_escalated";
+            case QUERY_EXECUTED -> "notification.email.subject.query_executed";
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";
             case ANOMALY_DETECTED -> "notification.email.subject.anomaly_detected";

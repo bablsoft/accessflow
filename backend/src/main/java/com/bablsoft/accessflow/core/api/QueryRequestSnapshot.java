@@ -20,5 +20,19 @@ public record QueryRequestSnapshot(
         Instant scheduledFor,
         String submittedIp,
         String submittedUserAgent,
-        boolean ciCdOrigin) {
+        boolean ciCdOrigin,
+        String recurrenceRule,
+        Instant recurrenceUntil,
+        Instant recurrenceNextRunAt,
+        UUID recurringParentId) {
+
+    /** Backward-compatible constructor without the #627 recurrence fields (defaults to absent). */
+    public QueryRequestSnapshot(UUID id, UUID datasourceId, UUID organizationId,
+                                UUID submittedByUserId, String sqlText, QueryType queryType,
+                                boolean transactional, QueryStatus status, Instant scheduledFor,
+                                String submittedIp, String submittedUserAgent, boolean ciCdOrigin) {
+        this(id, datasourceId, organizationId, submittedByUserId, sqlText, queryType, transactional,
+                status, scheduledFor, submittedIp, submittedUserAgent, ciCdOrigin,
+                null, null, null, null);
+    }
 }

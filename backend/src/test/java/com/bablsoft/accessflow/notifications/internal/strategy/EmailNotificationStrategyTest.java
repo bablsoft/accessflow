@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
@@ -22,6 +23,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -47,6 +49,7 @@ class EmailNotificationStrategyTest {
     private EmailNotificationStrategy.MailSenderFactory factory;
     private JavaMailSender sender;
     private MessageSource messageSource;
+    private QueryResultCsvRenderer csvRenderer;
     private EmailNotificationStrategy strategy;
 
     @BeforeEach
@@ -56,7 +59,9 @@ class EmailNotificationStrategyTest {
         factory = mock(EmailNotificationStrategy.MailSenderFactory.class);
         sender = mock(JavaMailSender.class);
         messageSource = mock(MessageSource.class);
-        strategy = new EmailNotificationStrategy(codec, templateEngine, factory, messageSource);
+        csvRenderer = mock(QueryResultCsvRenderer.class);
+        strategy = new EmailNotificationStrategy(codec, templateEngine, factory, messageSource,
+                csvRenderer);
 
         when(factory.create(any())).thenReturn(sender);
         when(sender.createMimeMessage()).thenAnswer(inv -> {
@@ -292,6 +297,61 @@ class EmailNotificationStrategyTest {
     }
 
     @Test
+    void deliverUsesExecutedTemplateAndSubjectForQueryExecutedEvent() throws Exception {
+        when(csvRenderer.render(any())).thenReturn(java.util.Optional.empty());
+        var ctx = execCtx(QueryStatus.FAILED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+
+        strategy.deliver(ctx, channel());
+
+        verify(templateEngine).process(eq("email/query-executed"), any());
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        assertThat(captor.getValue().getSubject())
+                .isEqualTo("subject:notification.email.subject.query_executed");
+    }
+
+    @Test
+    void deliverAttachesResultsCsvForSuccessfulQueryExecuted() throws Exception {
+        var ctx = execCtx(QueryStatus.EXECUTED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+        when(csvRenderer.render(ctx.queryRequestId())).thenReturn(java.util.Optional.of(
+                new QueryResultCsvRenderer.Csv("id\r\n1\r\n".getBytes(StandardCharsets.UTF_8),
+                        "results-" + ctx.queryRequestId() + ".csv")));
+
+        strategy.deliver(ctx, channel());
+
+        verify(csvRenderer).render(ctx.queryRequestId());
+        var contextCaptor = ArgumentCaptor.forClass(Context.class);
+        verify(templateEngine).process(eq("email/query-executed"), contextCaptor.capture());
+        assertThat(contextCaptor.getValue().getVariable("resultsAttached")).isEqualTo(true);
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(sender).send(captor.capture());
+        var multipart = (jakarta.mail.internet.MimeMultipart) captor.getValue().getContent();
+        // Body part + the results.csv attachment part.
+        assertThat(multipart.getCount()).isEqualTo(2);
+        assertThat(multipart.getBodyPart(1).getFileName())
+                .isEqualTo("results-" + ctx.queryRequestId() + ".csv");
+    }
+
+    @Test
+    void deliverDoesNotInvokeRendererForFailedOccurrence() {
+        var ctx = execCtx(QueryStatus.FAILED, List.of(
+                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
+
+        strategy.deliver(ctx, channel());
+
+        verify(csvRenderer, never()).render(any());
+        verify(sender, times(1)).send(any(MimeMessage.class));
+    }
+
+    @Test
+    void hasTemplateForQueryExecutedIsTrue() {
+        assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_EXECUTED))
+                .isTrue();
+    }
+
+    @Test
     void hasTemplateForReflectsQueryEventsAndExcludesAccessEvents() {
         // Query/AI events resolve to an email template…
         assertThat(EmailNotificationStrategy.hasTemplateFor(NotificationEventType.QUERY_SUBMITTED))
@@ -333,6 +393,41 @@ class EmailNotificationStrategyTest {
     private static NotificationContext ctx(NotificationEventType eventType,
                                            List<RecipientView> recipients) {
         return ctx(eventType, recipients, "en", null);
+    }
+
+    /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */
+    private static NotificationContext execCtx(QueryStatus executionStatus,
+                                               List<RecipientView> recipients) {
+        return new NotificationContext(
+                NotificationEventType.QUERY_EXECUTED,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                QueryType.SELECT,
+                "SELECT 1",
+                "SELECT 1",
+                "SELECT 1",
+                RiskLevel.LOW,
+                10,
+                "ok",
+                UUID.randomUUID(),
+                "Production",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                null,
+                null,
+                null,
+                null,
+                URI.create("https://app.example.com/queries/abc"),
+                recipients,
+                Instant.now(),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                executionStatus, 5L, 120L);
     }
 
     private static NotificationContext ctx(NotificationEventType eventType,

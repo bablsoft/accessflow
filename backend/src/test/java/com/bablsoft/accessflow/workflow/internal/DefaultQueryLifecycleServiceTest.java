@@ -75,6 +75,10 @@ import static org.mockito.Mockito.when;
 class DefaultQueryLifecycleServiceTest {
 
     @Mock QueryRequestLookupService queryRequestLookupService;
+    @Mock com.bablsoft.accessflow.core.api.QueryRequestPersistenceService queryRequestPersistenceService;
+    @Mock DatasourcePermissionVerifier permissionVerifier;
+    @Mock com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
+    @Mock com.bablsoft.accessflow.core.api.RolePermissionResolver rolePermissionResolver;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock QueryResultPersistenceService queryResultPersistenceService;
     @Mock QueryExecutor queryExecutor;
@@ -98,11 +102,19 @@ class DefaultQueryLifecycleServiceTest {
     private final UUID organizationId = UUID.randomUUID();
     private final UUID submitterId = UUID.randomUUID();
     private final UUID otherUserId = UUID.randomUUID();
+    private final java.time.Instant now = java.time.Instant.parse("2026-08-11T12:00:00Z");
+    private final java.time.Clock fixedClock =
+            java.time.Clock.fixed(now, java.time.ZoneOffset.UTC);
 
     @BeforeEach
     void setUp() {
         service = new DefaultQueryLifecycleService(
                 queryRequestLookupService,
+                queryRequestPersistenceService,
+                permissionVerifier,
+                userQueryService,
+                rolePermissionResolver,
+                fixedClock,
                 queryRequestStateService,
                 queryResultPersistenceService,
                 queryExecutor,
@@ -755,5 +767,324 @@ class DefaultQueryLifecycleServiceTest {
 
         assertThatThrownBy(() -> service.executeBreakGlass(queryId, submitterId))
                 .isInstanceOf(QueryRequestNotFoundException.class);
+    }
+
+    // ── recurring series (#627) ───────────────────────────────────────────────
+
+    private QueryRequestSnapshot recurringParent(QueryStatus status, String rule,
+                                                 java.time.Instant until,
+                                                 java.time.Instant nextRunAt) {
+        return new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
+                "SELECT 1", QueryType.SELECT, false, status, null, null, null, false,
+                rule, until, nextRunAt, null);
+    }
+
+    private com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor activeDescriptor() {
+        return new com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor(
+                datasourceId, organizationId, com.bablsoft.accessflow.core.api.DbType.POSTGRESQL,
+                "h", 5432, "db", "u", "ENC", com.bablsoft.accessflow.core.api.SslMode.DISABLE,
+                10, 1000, false, null, false, null, null, null, null, null, null, true);
+    }
+
+    /** Active non-admin submitter — the recurring recheck resolves role permissions per tick. */
+    private void stubActiveAnalystSubmitter() {
+        when(userQueryService.findById(submitterId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.UserView(submitterId, "sub@example.com",
+                        "Sub", com.bablsoft.accessflow.core.api.UserRoleType.ANALYST,
+                        organizationId, true,
+                        com.bablsoft.accessflow.core.api.AuthProviderType.LOCAL, null, null,
+                        null, false, java.time.Instant.parse("2026-01-01T00:00:00Z"))));
+        when(rolePermissionResolver.resolve(any(), any())).thenReturn(java.util.Set.of());
+    }
+
+    @Test
+    void cancelRecurringApprovedBySubmitterTransitionsToCancelled() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.plusSeconds(3600))));
+
+        service.cancel(new CancelQueryCommand(queryId, submitterId, organizationId));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.APPROVED,
+                QueryStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelRecurringApprovedByReviewerIsAllowed() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.plusSeconds(3600))));
+
+        service.cancel(new CancelQueryCommand(queryId, otherUserId, organizationId, true));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.APPROVED,
+                QueryStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelNonRecurringByReviewerIsDenied() {
+        when(queryRequestLookupService.findById(queryId))
+                .thenReturn(Optional.of(snapshot(QueryStatus.PENDING_REVIEW, QueryType.SELECT)));
+        when(messageSource.getMessage(eq("error.query_not_owned_by_caller"), any(), any(Locale.class)))
+                .thenReturn("not yours");
+
+        assertThatThrownBy(() -> service.cancel(
+                new CancelQueryCommand(queryId, otherUserId, organizationId, true)))
+                .isInstanceOf(AccessDeniedException.class);
+
+        verify(queryRequestStateService, never()).transitionTo(any(), any(), any());
+    }
+
+    @Test
+    void executeThrowsForRecurringParentSoTheSeriesIsNeverConsumed() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.plusSeconds(3600))));
+
+        assertThatThrownBy(() -> service.execute(
+                new ExecuteQueryCommand(queryId, submitterId, organizationId, false)))
+                .isInstanceOf(QueryNotExecutableException.class);
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceSkipsWhenCursorMissingOrFuture() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400), null)));
+        service.executeRecurringOccurrence(queryId);
+
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.plusSeconds(600))));
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceCompletesSeriesWhenUntilPassed() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.minusSeconds(60),
+                        now.minusSeconds(10))));
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, null);
+        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceHaltsFailClosedWhenPermissionDenied() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        org.mockito.Mockito.doThrow(new AccessDeniedException("permission revoked"))
+                .when(permissionVerifier).verify(eq(submitterId), eq(datasourceId), any(), any());
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, "permission revoked");
+        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(queryExecutor, never()).execute(any());
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.RECURRING_SERIES_HALTED);
+        assertThat(auditCaptor.getValue().metadata()).containsEntry("reason", "permission revoked");
+    }
+
+    @Test
+    void executeRecurringOccurrenceHaltsWhenDatasourceInactiveOrGone() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId)).thenReturn(Optional.empty());
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService)
+                .clearRecurrenceNextRun(eq(queryId), anyString());
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceHaltsWhenSqlNoLongerParses() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryParser.parse(anyString(), any()))
+                .thenThrow(new com.bablsoft.accessflow.core.api.InvalidSqlException("bad sql"));
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, "bad sql");
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceCreatesChildAdvancesCursorAndExecutes() {
+        stubActiveAnalystSubmitter();
+        var childId = UUID.randomUUID();
+        var until = now.plusSeconds(86400);
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", until, now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+                .thenReturn(Optional.of(childId));
+        when(queryRequestLookupService.findById(childId)).thenReturn(Optional.of(
+                new QueryRequestSnapshot(childId, datasourceId, organizationId, submitterId,
+                        "SELECT 1", QueryType.SELECT, false, QueryStatus.APPROVED, null,
+                        null, null, false, null, null, null, queryId)));
+        when(queryExecutor.execute(any())).thenReturn(new SelectExecutionResult(
+                List.of(new ResultColumn("id", 4, "int4")),
+                List.of(List.of(1)),
+                1L, false, Duration.ofMillis(9)));
+
+        service.executeRecurringOccurrence(queryId);
+
+        // Cursor advances by the interval from "now" — never a backfill of missed runs.
+        verify(queryRequestPersistenceService)
+                .createRecurringOccurrence(queryId, now.plusSeconds(3600));
+        var execCaptor = ArgumentCaptor.forClass(RecordExecutionCommand.class);
+        verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
+        assertThat(execCaptor.getValue().queryRequestId()).isEqualTo(childId);
+        assertThat(execCaptor.getValue().outcome()).isEqualTo(QueryStatus.EXECUTED);
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().action()).isEqualTo(AuditAction.QUERY_EXECUTED);
+        assertThat(auditCaptor.getValue().metadata()).containsEntry("trigger", "recurring");
+        var eventCaptor = ArgumentCaptor.forClass(QueryExecutedEvent.class);
+        verify(eventPublisher).publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().queryRequestId()).isEqualTo(childId);
+        assertThat(eventCaptor.getValue().recurringParentId()).isEqualTo(queryId);
+    }
+
+    @Test
+    void executeRecurringOccurrencePassesNullCursorForFinalOccurrence() {
+        stubActiveAnalystSubmitter();
+        // Next occurrence (now + 1h) would land beyond recurrence_until → this run is the last.
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(1800),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryRequestPersistenceService.createRecurringOccurrence(queryId, null))
+                .thenReturn(Optional.empty());
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).createRecurringOccurrence(queryId, null);
+    }
+
+    @Test
+    void executeRecurringOccurrenceSkipsWhenRacedCancelClearedTheCursor() {
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+                .thenReturn(Optional.empty());
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryExecutor, never()).execute(any());
+        verify(queryRequestPersistenceService, never()).clearRecurrenceNextRun(any(), any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceSkipsPermissionGateForAdminSubmitter() {
+        // Mirrors submission: an admin has no per-datasource permission row, so the recurring
+        // recheck must not halt the series for lacking one.
+        when(userQueryService.findById(submitterId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.UserView(submitterId, "admin@example.com",
+                        "Admin", com.bablsoft.accessflow.core.api.UserRoleType.ADMIN,
+                        organizationId, true,
+                        com.bablsoft.accessflow.core.api.AuthProviderType.LOCAL, null, null,
+                        null, false, java.time.Instant.parse("2026-01-01T00:00:00Z"))));
+        when(rolePermissionResolver.resolve(any(), any()))
+                .thenReturn(java.util.Set.of(
+                        com.bablsoft.accessflow.core.api.Permission.QUERY_ADMIN));
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenReturn(Optional.of(activeDescriptor()));
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+                .thenReturn(Optional.empty());
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(permissionVerifier, never()).verify(any(), any(), any(), any());
+        verify(queryRequestPersistenceService).createRecurringOccurrence(eq(queryId), any());
+    }
+
+    @Test
+    void executeRecurringOccurrenceDoesNotHaltOnTransientInfrastructureError() {
+        // A pool blip is not a permission loss — the exception propagates to the job's per-row
+        // catch and the still-due cursor retries next tick.
+        stubActiveAnalystSubmitter();
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+        when(datasourceLookupService.findById(datasourceId))
+                .thenThrow(new org.springframework.dao.QueryTimeoutException("pool exhausted"));
+
+        assertThatThrownBy(() -> service.executeRecurringOccurrence(queryId))
+                .isInstanceOf(org.springframework.dao.QueryTimeoutException.class);
+
+        verify(queryRequestPersistenceService, never()).clearRecurrenceNextRun(any(), any());
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void executeThrowsForOrphanedOccurrenceRow() {
+        // A crash between child insert and execution leaves an APPROVED occurrence; its slot
+        // was already consumed by the cursor advance, so manual execution stays blocked.
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                new QueryRequestSnapshot(queryId, datasourceId, organizationId, submitterId,
+                        "SELECT 1", QueryType.SELECT, false, QueryStatus.APPROVED, null,
+                        null, null, false, null, null, null, UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.execute(
+                new ExecuteQueryCommand(queryId, submitterId, organizationId, false)))
+                .isInstanceOf(QueryNotExecutableException.class);
+        verify(queryExecutor, never()).execute(any());
+    }
+
+    @Test
+    void cancelRecurringSeriesClearsTheCursor() {
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.plusSeconds(3600))));
+
+        service.cancel(new CancelQueryCommand(queryId, submitterId, organizationId));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.APPROVED,
+                QueryStatus.CANCELLED);
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, null);
+    }
+
+    @Test
+    void executeRecurringOccurrenceHaltsWhenSubmitterInactive() {
+        when(userQueryService.findById(submitterId)).thenReturn(Optional.empty());
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(
+                recurringParent(QueryStatus.APPROVED, "PT1H", now.plusSeconds(86400),
+                        now.minusSeconds(10))));
+
+        service.executeRecurringOccurrence(queryId);
+
+        verify(queryRequestPersistenceService).clearRecurrenceNextRun(eq(queryId), anyString());
+        verify(queryExecutor, never()).execute(any());
     }
 }

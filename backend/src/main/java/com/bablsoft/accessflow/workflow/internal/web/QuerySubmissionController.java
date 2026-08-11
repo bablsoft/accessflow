@@ -66,7 +66,9 @@ class QuerySubmissionController {
                 submissionReason,
                 auditContext.ipAddress(),
                 auditContext.userAgent(),
-                ciCdOrigin));
+                ciCdOrigin,
+                body.recurrenceRule(),
+                body.recurrenceUntil()));
         recordAudit(caller, result.id(), body, submissionReason, auditContext);
         return ResponseEntity.accepted().body(new SubmitQueryResponse(
                 result.id(), result.status(), null, null, null));
@@ -85,6 +87,12 @@ class QuerySubmissionController {
             var metadata = new HashMap<String, Object>();
             metadata.put("datasource_id", body.datasourceId().toString());
             metadata.put("submission_reason", submissionReason.name());
+            if (body.recurrenceRule() != null && !body.recurrenceRule().isBlank()) {
+                metadata.put("recurrence_rule", body.recurrenceRule());
+                if (body.recurrenceUntil() != null) {
+                    metadata.put("recurrence_until", body.recurrenceUntil().toString());
+                }
+            }
             auditLogService.record(new AuditEntry(
                     AuditAction.QUERY_SUBMITTED,
                     AuditResourceType.QUERY_REQUEST,

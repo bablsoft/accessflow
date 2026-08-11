@@ -19,6 +19,8 @@ public record QueryListItem(
         Integer riskScore,
         boolean aiFailed,
         Instant scheduledFor,
+        boolean recurring,
+        UUID recurringParentId,
         Instant createdAt) {
 
     public static QueryListItem from(QueryListItemView view) {
@@ -33,6 +35,8 @@ public record QueryListItem(
                 view.aiRiskScore(),
                 view.aiFailed(),
                 view.scheduledFor(),
+                view.recurring(),
+                view.recurringParentId(),
                 view.createdAt());
     }
 

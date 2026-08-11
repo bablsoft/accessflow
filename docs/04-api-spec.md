@@ -1209,7 +1209,8 @@ Synchronous.
 | `GET` | `/me/break-glass` | List the datasources the caller may currently break-glass on (backs the editor's "Emergency access" button gating) |
 | `GET` | `/queries` | List query requests (filterable by status, datasource, user, date range) |
 | `GET` | `/queries/{id}` | Get full query request details including AI analysis |
-| `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set) |
+| `POST` | `/queries/{id}/cancel` | Cancel a pending query (submitter only, while `PENDING_AI`, `PENDING_REVIEW`, or `APPROVED` with `scheduled_for` set). For a recurring series (#627, `recurrence_rule` set) the `APPROVED` parent may additionally be cancelled by any holder of `QUERY_REVIEW` in the organization |
+| `GET` | `/queries/{id}/occurrences` | List the executed occurrences of a recurring query series (#627), newest first, paginated |
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
 | `POST` | `/queries/{id}/replay` | Replay an executed query's immutable snapshot against a test datasource (`?targetDatasourceId=`), re-entering the full review workflow (AF-449) |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
@@ -1275,6 +1276,8 @@ Validation: `body` is required, ≤ 4000 chars; `anchor_start_line` / `anchor_en
   "sql": "UPDATE orders SET status = 'shipped' WHERE id = 123",
   "justification": "Customer support ticket #8821 — order stuck in processing",
   "scheduled_for": "2026-06-01T03:00:00Z",
+  "recurrence_rule": "0 0 8 * * MON",
+  "recurrence_until": "2026-09-01T00:00:00Z",
   "submission_reason": "USER_SUBMITTED"
 }
 ```
@@ -1283,7 +1286,9 @@ The `sql` field carries the query text for **every** engine. For a `MONGODB` dat
 
 `scheduled_for` is optional. When supplied it must be a valid ISO-8601 timestamp strictly in the future (enforced by `@Future` Bean Validation — invalid values produce HTTP 400). When set, the query still goes through the normal AI / review flow; the difference comes after approval: instead of waiting for a manual `POST /queries/{id}/execute`, the backend's `ScheduledQueryRunJob` (cluster-locked via ShedLock) picks the row up at `scheduled_for ≤ now()` and triggers execution as a system-initiated action — the submitter is recorded as the audit actor and the audit metadata carries `"trigger": "scheduled"`. While the query is `APPROVED` with a future `scheduled_for`, the submitter may cancel it via `POST /queries/{id}/cancel` (transitions to `CANCELLED`).
 
-`submission_reason` is optional (default `USER_SUBMITTED`; the other value is `AI_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451). It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint.
+`recurrence_rule` + `recurrence_until` (#627) turn the request into a **recurring series**: the query, cadence, and expiry are reviewed and approved **once**, then the backend's `RecurringQueryRunJob` (cluster-locked via ShedLock) executes each occurrence through the full proxy pipeline with the policy state current at that moment. `recurrence_rule` is either a **6-field Spring cron expression** evaluated in **UTC** (`"0 0 8 * * MON"` — every Monday 08:00 UTC) or an **ISO-8601 duration** (`"PT6H"` — every 6 hours from approval). `recurrence_until` is **mandatory** when `recurrence_rule` is present, must be strictly in the future, and hard-stops the series. `recurrence_rule` is mutually exclusive with `scheduled_for` (HTTP 400 when both are supplied). The gap between occurrences must be at least `ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL` (default 5 minutes) — shorter rules produce HTTP 400. Every recurrence-validation failure produces a `400` ProblemDetail with `error: RECURRENCE_INVALID` and a localized `detail`. Each occurrence is recorded as its own child `query_requests` row (`recurring_parent_id` = the series parent, `submission_reason` = `RECURRING`) created directly in `APPROVED` and executed immediately with audit metadata `"trigger": "recurring"` — the parent row **stays `APPROVED`** for the lifetime of the series. Missed occurrences (e.g. during downtime) are not backfilled; the schedule advances from the current time. When an occurrence of a `SELECT` completes, the submitter is notified through the review plan's notification channels — email channels receive the results as a capped `results.csv` attachment, chat channels a summary with a link (see [docs/08-notifications.md](08-notifications.md)). The series **halts fail-closed** — `recurrence_next_run_at` cleared, `recurrence_halted_reason` recorded, `RECURRING_SERIES_HALTED` audit row — when the submitter's permission on the datasource disappears, expires, or loses the required capability/table coverage, when the SQL no longer re-parses, or when the datasource is deactivated. When `recurrence_until` passes, the series completes: the parent keeps status `APPROVED` with `recurrence_next_run_at = null` and clients derive "Series completed".
+
+`submission_reason` is optional (default `USER_SUBMITTED`; the only other client-suppliable value is `AI_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451). It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint. The system-only values `EMERGENCY_ACCESS` (stamped by the break-glass endpoint, AF-385) and `RECURRING` (stamped on occurrence rows by the recurring job, #627) are rejected here with `403 FORBIDDEN` so a client cannot pollute the audit trail with a system provenance.
 
 **Client-context capture (AF-446).** On submission the backend captures the source IP (`X-Forwarded-For` first hop, else remote address), the `User-Agent` header, and a CI/CD-origin flag, persisting them on `query_requests` for the context-aware routing conditions (`source_ip`, `user_agent`, `cicd_origin`). The CI/CD-origin flag is set when the request is authenticated via an API key **or** carries the optional **`X-AccessFlow-CI`** request header with a truthy value (`true` / `1` / `yes` / `ci` / `cicd`) — pipelines using a JWT instead of an API key set this header to opt into CI/CD-origin routing. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
@@ -1380,7 +1385,7 @@ transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and re
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
 
-Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), and `created_at`. The full SQL text and AI analysis are only on `GET /queries/{id}`.
+Each row in the paginated response carries the summary fields shown on `QueryListPage`: `id`, `datasource`, `submitted_by`, `query_type`, `status`, `risk_level`, `risk_score`, `ai_failed`, `scheduled_for` (nullable ISO-8601 — non-null when the submitter requested a scheduled execution, so the frontend can render a clock indicator on the row), `recurring` (boolean — `true` when the row is a recurring-series parent, #627, so the frontend can render a repeat indicator), `recurring_parent_id` (nullable UUID — set on occurrence rows), and `created_at`. The full SQL text and AI analysis are only on `GET /queries/{id}`.
 
 ### GET /queries/export.csv — CSV export
 
@@ -1500,6 +1505,11 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
     }
   ],
   "scheduled_for": "2026-06-01T03:00:00Z",
+  "recurrence_rule": null,
+  "recurrence_until": null,
+  "recurrence_next_run_at": null,
+  "recurrence_halted_reason": null,
+  "recurring_parent_id": null,
   "created_at": "2025-01-15T10:00:00Z",
   "updated_at": "2025-01-15T10:01:00Z"
 }
@@ -1517,6 +1527,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
+The recurrence block (#627): `recurrence_rule` / `recurrence_until` echo the submitted series definition (`null` for non-recurring queries). `recurrence_next_run_at` is the next occurrence the `RecurringQueryRunJob` will fire — `null` once the series has completed (`recurrence_until` passed), halted, or been cancelled. `recurrence_halted_reason` is a human-readable reason set only when the series was halted fail-closed (permission lost/expired, SQL no longer parses, datasource deactivated); `null` for an active, completed, or cancelled series. `recurring_parent_id` is set on **occurrence** rows and points at the series parent, letting clients render a "part of a recurring series" banner; occurrences are listed via [`GET /queries/{id}/occurrences`](#get-queriesidoccurrences--response-200).
+
 `previous_run_id` is set on a successful execution when an earlier `EXECUTED` row exists for the same `(submitted_by, datasource_id, canonical_sql)` — the same submitter re-running the same query against the same datasource (whitespace, comments, and case are ignored). When non-null, clients should expose a "Compare to previous run" affordance and fetch [`GET /queries/{id}/diff`](#get-queriesiddiff--response-200) for the deltas. `null` for queries that have not yet executed, or whose canonical SQL has no prior match.
 
 `status` is one of `PENDING_AI` | `PENDING_REVIEW` | `APPROVED` | `REJECTED` | `TIMED_OUT` | `EXECUTED` | `FAILED` | `CANCELLED`. `TIMED_OUT` is the terminal state for queries that exceeded the review plan's `approval_timeout_hours` without a human decision (see [03-data-model.md → Approval timeout](03-data-model.md#approval-timeout)). `review_plan_name` and `approval_timeout_hours` reflect the review plan attached to the datasource at the time of fetch (both `null` when no plan is configured); they are populated for every query so clients can render "auto-rejects in N hours" hints, not just for `TIMED_OUT` rows.
@@ -1529,15 +1541,47 @@ Authorization: per the [docs/07-security.md role matrix](07-security.md#authoriz
 
 Cancels a query that is still pending AI analysis or human review. The request body is empty.
 
-Authorization: only the original submitter may cancel the query (admins cannot cancel on behalf of someone else). Cancellation is permitted while `status` is `PENDING_AI` or `PENDING_REVIEW`, and additionally while `status` is `APPROVED` with a non-null `scheduled_for` (the deferred execution is cancelled before the scheduler fires). Once the query reaches any other state it is no longer cancellable.
+Authorization: the original submitter may cancel the query (admins cannot cancel on behalf of someone else). **Exception — recurring series kill-switch (#627):** when the query has a `recurrence_rule`, any caller holding `QUERY_REVIEW` in the organization may also cancel it, stopping the whole series; the audit metadata carries `"cancelled_by_reviewer": true` when the canceller is not the submitter. Cancellation is permitted while `status` is `PENDING_AI` or `PENDING_REVIEW`, and additionally while `status` is `APPROVED` with a non-null `scheduled_for` (the deferred execution is cancelled before the scheduler fires) or a non-null `recurrence_rule` (the recurring series is stopped; already-executed occurrences are unaffected). Once the query reaches any other state it is no longer cancellable.
 
 On success the query transitions to `CANCELLED`, a `QUERY_CANCELLED` audit row is written synchronously from the controller (capturing the caller's IP and User-Agent), and a `query.status_changed` WebSocket event is broadcast to subscribers.
 
 **Errors:**
 - `401 UNAUTHORIZED` — missing or invalid JWT.
-- `403 FORBIDDEN` — caller is not the original submitter.
+- `403 FORBIDDEN` — caller is not the original submitter (nor, for a recurring series, a `QUERY_REVIEW` holder).
 - `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization.
-- `409 QUERY_NOT_CANCELLABLE` — query is no longer in `PENDING_AI` or `PENDING_REVIEW`. The response carries the offending `currentStatus` as an extension property.
+- `409 QUERY_NOT_CANCELLABLE` — query is no longer in a cancellable state. The response carries the offending `currentStatus` as an extension property.
+
+### GET /queries/{id}/occurrences — Response 200
+
+Lists the executed occurrences of a recurring query series (#627) — the child `query_requests` rows created by the `RecurringQueryRunJob` — newest first. Standard pagination (`page` 0-indexed, `size` default 20, max 100). Returns an empty page for a non-recurring query or a series that has not fired yet.
+
+```json
+{
+  "items": [
+    {
+      "id": "uuid",
+      "status": "EXECUTED",
+      "rows_affected": 12,
+      "execution_duration_ms": 240,
+      "executed_at": "2026-06-08T08:00:03Z",
+      "error_message": null,
+      "created_at": "2026-06-08T08:00:02Z"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`status` is `EXECUTED` or `FAILED` (an occurrence is created directly in `APPROVED` and executed in the same job tick, so other statuses are transient). `executed_at` is the execution completion instant; `error_message` carries the verbatim driver error for `FAILED` occurrences (same rules as the detail response). Each occurrence is a full query request — fetch `GET /queries/{occurrence_id}` / `GET /queries/{occurrence_id}/results` for its detail and result rows.
+
+Authorization mirrors `GET /queries/{id}`: `ADMIN` and `REVIEWER` (`QUERY_VIEW_ALL`) may read any series in the organization; other callers only their own. Non-matching callers receive `404 QUERY_REQUEST_NOT_FOUND`.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `404 QUERY_REQUEST_NOT_FOUND` — query does not exist in the caller's organization, or the caller is not allowed to read it.
 
 ### POST /queries/{id}/reanalyze — Response 202
 

@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react';
 import { App, Button, DatePicker, Input, Select, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { Dayjs } from 'dayjs';
-import { ClockCircleOutlined, DownloadOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  ClockCircleOutlined,
+  DownloadOutlined,
+  SearchOutlined,
+  SyncOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -133,6 +138,14 @@ export function QueryListPage() {
             >
               <ClockCircleOutlined
                 aria-label={t('queries.list.scheduled_for_aria')}
+                style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
+              />
+            </Tooltip>
+          )}
+          {r.recurring && (
+            <Tooltip title={t('queries.list.recurring_tooltip')}>
+              <SyncOutlined
+                aria-label={t('queries.list.recurring_aria')}
                 style={{ color: 'var(--af-color-primary, #6366f1)', fontSize: 12 }}
               />
             </Tooltip>

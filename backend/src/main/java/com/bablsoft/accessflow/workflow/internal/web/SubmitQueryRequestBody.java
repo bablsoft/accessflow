@@ -15,5 +15,9 @@ public record SubmitQueryRequestBody(
         @Size(max = 100_000, message = "{validation.sql.max}") String sql,
         @Size(max = 4000, message = "{validation.justification.max}") String justification,
         @Future(message = "{validation.scheduled_for.future}") Instant scheduledFor,
-        SubmissionReason submissionReason) {
+        SubmissionReason submissionReason,
+        // #627: 6-field Spring cron (UTC) or ISO-8601 duration; cross-field rules (mandatory
+        // expiry, exclusivity with scheduledFor, minimum interval) live in the submission service.
+        @Size(max = 255, message = "{validation.recurrence_rule.max}") String recurrenceRule,
+        @Future(message = "{validation.recurrence_until.future}") Instant recurrenceUntil) {
 }

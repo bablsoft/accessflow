@@ -102,6 +102,35 @@ export function buildTimelineStages(
       failed: query.status === 'FAILED',
     });
   }
+  // #627: a recurring parent never reaches EXECUTED itself — its occurrences do. Replace the
+  // Execute stage with a series stage reflecting the derived state (active/completed/halted).
+  const isRecurringParent = query.recurrence_rule != null;
+  if (isRecurringParent && query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {
+    const halted = query.recurrence_halted_reason != null;
+    const completed =
+      query.status === 'APPROVED' && !halted && query.recurrence_next_run_at == null;
+    out.push({
+      label: halted
+        ? t('queries.detail.timeline_recurring_halted_label')
+        : completed
+        ? t('queries.detail.timeline_recurring_completed_label')
+        : t('queries.detail.timeline_recurring_label'),
+      who: query.recurrence_rule ?? '—',
+      time: null,
+      done: completed,
+      active: query.status === 'APPROVED' && !halted && query.recurrence_next_run_at != null,
+      cancelled: query.status === 'CANCELLED',
+      failed: halted,
+      detail: halted
+        ? query.recurrence_halted_reason
+        : query.recurrence_next_run_at
+        ? `${t('queries.detail.timeline_recurring_next_prefix')} ${fmtDate(
+            query.recurrence_next_run_at,
+          )}`
+        : null,
+    });
+    return out;
+  }
   if (query.status !== 'REJECTED' && query.status !== 'TIMED_OUT') {
     out.push({
       label:

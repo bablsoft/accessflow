@@ -28,6 +28,7 @@ const {
   reanalyzeQueryMock,
   getQueryDiffMock,
   replayQueryMock,
+  listOccurrencesMock,
 } = vi.hoisted(() => ({
   getQueryMock: vi.fn(),
   cancelQueryMock: vi.fn(),
@@ -35,6 +36,7 @@ const {
   reanalyzeQueryMock: vi.fn(),
   getQueryDiffMock: vi.fn(),
   replayQueryMock: vi.fn(),
+  listOccurrencesMock: vi.fn(),
 }));
 
 vi.mock('@/api/queries', () => ({
@@ -44,6 +46,7 @@ vi.mock('@/api/queries', () => ({
   reanalyzeQuery: reanalyzeQueryMock,
   getQueryDiff: getQueryDiffMock,
   replayQuery: replayQueryMock,
+  listOccurrences: listOccurrencesMock,
   queryKeys: {
     all: ['queries'] as const,
     lists: () => ['queries', 'list'] as const,
@@ -53,6 +56,8 @@ vi.mock('@/api/queries', () => ({
     results: (id: string, page: number, size: number) =>
       ['queries', 'detail', id, 'results', page, size] as const,
     diff: (id: string) => ['queries', 'detail', id, 'diff'] as const,
+    occurrences: (id: string, page: number, size: number) =>
+      ['queries', 'detail', id, 'occurrences', page, size] as const,
   },
 }));
 
@@ -128,6 +133,11 @@ function failedQuery(): QueryDetail {
     review_decisions: [],
     linked_tickets: [],
     scheduled_for: null,
+    recurrence_rule: null,
+    recurrence_until: null,
+    recurrence_next_run_at: null,
+    recurrence_halted_reason: null,
+    recurring_parent_id: null,
     created_at: '2026-05-01T10:00:00Z',
     updated_at: '2026-05-01T10:00:30Z',
   };
@@ -1005,5 +1015,136 @@ describe('QueryDetailPage — approval prediction card (AF-645)', () => {
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByText('Approval likelihood')).toBeNull();
     expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
+  });
+});
+
+describe('QueryDetailPage — recurring series (#627)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    cancelQueryMock.mockReset();
+    executeQueryMock.mockReset();
+    listOccurrencesMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  function recurringParent(overrides: Partial<QueryDetail> = {}): QueryDetail {
+    return {
+      ...failedQuery(),
+      ai_analysis: null,
+      status: 'APPROVED',
+      submitted_by: { id: 'u-submitter', email: 's@example.com', display_name: 'Submitter' },
+      recurrence_rule: 'PT6H',
+      recurrence_until: '2026-09-01T00:00:00Z',
+      recurrence_next_run_at: '2026-08-11T18:00:00Z',
+      recurrence_halted_reason: null,
+      recurring_parent_id: null,
+      ...overrides,
+    };
+  }
+
+  const emptyOccurrences = {
+    items: [],
+    page: 0,
+    size: 10,
+    total_elements: 0,
+    total_pages: 0,
+  };
+
+  it('shows the active series banner, occurrences card, and hides Execute for the submitter', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(recurringParent());
+    listOccurrencesMock.mockResolvedValue({
+      ...emptyOccurrences,
+      items: [
+        {
+          id: 'occ-1234567890',
+          status: 'EXECUTED',
+          rows_affected: 12,
+          execution_duration_ms: 240,
+          executed_at: '2026-08-11T08:00:03Z',
+          error_message: null,
+          created_at: '2026-08-11T08:00:02Z',
+        },
+      ],
+      total_elements: 1,
+      total_pages: 1,
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('recurrence-banner')).toBeInTheDocument();
+    expect(screen.getByText('Recurring series active')).toBeInTheDocument();
+    const card = await screen.findByTestId('occurrences-card');
+    expect(await within(card).findByText('occ-1234')).toBeInTheDocument();
+    // A recurring parent must never be manually executable.
+    expect(screen.queryByRole('button', { name: /Execute now/i })).toBeNull();
+    // The submitter sees the series kill-switch label.
+    expect(screen.getByRole('button', { name: /Cancel series/i })).toBeInTheDocument();
+  });
+
+  it('shows the halted banner with the fail-closed reason', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(
+      recurringParent({
+        recurrence_next_run_at: null,
+        recurrence_halted_reason: 'permission revoked',
+      }),
+    );
+    listOccurrencesMock.mockResolvedValue(emptyOccurrences);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Recurring series halted')).toBeInTheDocument();
+    // The reason surfaces in both the banner and the timeline stage detail.
+    expect(screen.getAllByText(/permission revoked/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('shows the completed banner once the cursor is cleared without a halt reason', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue(recurringParent({ recurrence_next_run_at: null }));
+    listOccurrencesMock.mockResolvedValue(emptyOccurrences);
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByText('Recurring series completed')).toBeInTheDocument();
+  });
+
+  it('offers Cancel series to a reviewer who is not the submitter', async () => {
+    setUser('REVIEWER', 'u-reviewer');
+    getQueryMock.mockResolvedValue(recurringParent());
+    listOccurrencesMock.mockResolvedValue(emptyOccurrences);
+    cancelQueryMock.mockResolvedValue(undefined);
+
+    render(wrap(<QueryDetailPage />));
+
+    const cancelButton = await screen.findByRole('button', { name: /Cancel series/i });
+    await act(async () => {
+      fireEvent.click(cancelButton);
+    });
+    const confirm = await screen.findByRole('button', { name: 'OK' });
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+    await waitFor(() => {
+      expect(cancelQueryMock).toHaveBeenCalledWith('q-1');
+    });
+  });
+
+  it('links an occurrence row back to its series parent', async () => {
+    setUser('ANALYST', 'u-submitter');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      ai_analysis: null,
+      status: 'EXECUTED',
+      submitted_by: { id: 'u-submitter', email: 's@example.com', display_name: 'Submitter' },
+      recurring_parent_id: 'parent-1',
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('occurrence-banner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /View series/i })).toBeInTheDocument();
+    // An occurrence carries no series definition, so no occurrences card renders.
+    expect(screen.queryByTestId('occurrences-card')).toBeNull();
   });
 });

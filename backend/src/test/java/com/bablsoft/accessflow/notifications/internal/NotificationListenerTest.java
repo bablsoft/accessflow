@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
@@ -7,6 +8,7 @@ import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
+import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +129,30 @@ class NotificationListenerTest {
         listener.onAiCompleted(new AiAnalysisCompletedEvent(id, UUID.randomUUID(), RiskLevel.CRITICAL));
         verify(dispatcher).dispatch(eq(NotificationEventType.AI_HIGH_RISK), eq(id),
                 isNull(), isNull(), isNull());
+    }
+
+    @Test
+    void executedNonRecurringDoesNotDispatch() {
+        listener.onQueryExecuted(new QueryExecutedEvent(UUID.randomUUID(), 5L, 120L,
+                QueryStatus.EXECUTED, null));
+        verify(dispatcher, never()).dispatchQueryExecuted(any(), any(), any(), any());
+    }
+
+    @Test
+    void executedRecurringOccurrenceDispatchesWithOutcome() {
+        var id = UUID.randomUUID();
+        listener.onQueryExecuted(new QueryExecutedEvent(id, 5L, 120L,
+                QueryStatus.EXECUTED, UUID.randomUUID()));
+        verify(dispatcher).dispatchQueryExecuted(eq(id), eq(QueryStatus.EXECUTED),
+                eq(5L), eq(120L));
+    }
+
+    @Test
+    void executedDispatchExceptionIsSwallowed() {
+        doThrow(new RuntimeException("boom"))
+                .when(dispatcher).dispatchQueryExecuted(any(), any(), any(), any());
+        listener.onQueryExecuted(new QueryExecutedEvent(UUID.randomUUID(), null, 10L,
+                QueryStatus.FAILED, UUID.randomUUID()));
     }
 
     @Test

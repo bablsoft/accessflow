@@ -97,6 +97,27 @@ public class QueryRequestEntity {
     @Column(name = "scheduled_for")
     private Instant scheduledFor;
 
+    // #627 recurring series (parent rows): 6-field Spring cron (UTC) or ISO-8601 duration,
+    // mandatory expiry, and the scheduler cursor advanced atomically with each occurrence insert.
+    @Column(name = "recurrence_rule", columnDefinition = "text")
+    private String recurrenceRule;
+
+    @Column(name = "recurrence_until")
+    private Instant recurrenceUntil;
+
+    @Column(name = "recurrence_next_run_at")
+    private Instant recurrenceNextRunAt;
+
+    // Set only when the series was halted fail-closed (permission lost, SQL unparseable,
+    // datasource deactivated); null for active / completed / cancelled series.
+    @Column(name = "recurrence_halted_reason", columnDefinition = "text")
+    private String recurrenceHaltedReason;
+
+    // Bare UUID back-pointer from an occurrence row to its series parent (the DB carries the
+    // real self-FK); bare to avoid a self-referential association, mirroring previousRunId.
+    @Column(name = "recurring_parent_id")
+    private UUID recurringParentId;
+
     @Column(name = "previous_run_id")
     private UUID previousRunId;
 

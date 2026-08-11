@@ -1,6 +1,18 @@
 import { useMemo, useState } from 'react';
 import { hasPermission } from '@/utils/permissions';
-import { Alert, App, Button, Empty, Form, Input, Modal, Popconfirm, Select, Skeleton } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Empty,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Skeleton,
+  Table,
+} from 'antd';
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -14,6 +26,7 @@ import {
   InfoCircleOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
+  SyncOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -40,6 +53,7 @@ import {
   cancelQuery,
   executeQuery,
   getQuery,
+  listOccurrences,
   queryKeys,
   reanalyzeQuery,
   replayQuery,
@@ -54,7 +68,7 @@ import {
 import { apiErrorMessage, queryCancelErrorMessage, queryReplayErrorMessage, reviewErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { userDisplay } from '@/utils/userDisplay';
-import type { LinkedTicketRef, QueryDetail } from '@/types/api';
+import type { LinkedTicketRef, QueryDetail, QueryOccurrence } from '@/types/api';
 import { QueryDiffCard } from './QueryDiffCard';
 import { buildTimelineStages } from './buildTimelineStages';
 import './query-detail.css';
@@ -74,6 +88,10 @@ export function QueryDetailPage() {
     queryKey: queryKeys.detail(id ?? ''),
     queryFn: () => getQuery(id!),
     enabled: !!id,
+    // #627: an active recurring series changes server-side on every occurrence — keep the
+    // next-run cursor and derived series state fresh while the user watches the page.
+    refetchInterval: (q) =>
+      q.state.data?.recurrence_next_run_at != null ? 15_000 : false,
   });
 
   const cancelMutation = useMutation({
@@ -212,13 +230,35 @@ export function QueryDetailPage() {
     (query.status === 'PENDING_AI' ||
       query.status === 'PENDING_REVIEW' ||
       query.status === 'APPROVED');
+  // #627 recurring series: parents carry recurrence_rule; occurrence rows carry
+  // recurring_parent_id. Series state is derived — no dedicated status value exists.
+  const isRecurringParent = !!query.recurrence_rule;
+  const hasActiveSeries =
+    query.status === 'APPROVED' && isRecurringParent && !!query.recurrence_next_run_at;
+  const seriesState: 'active' | 'completed' | 'halted' | 'cancelled' | null = !isRecurringParent
+    ? null
+    : query.status === 'CANCELLED'
+      ? 'cancelled'
+      : query.recurrence_halted_reason
+        ? 'halted'
+        : query.status === 'APPROVED'
+          ? query.recurrence_next_run_at
+            ? 'active'
+            : 'completed'
+          : null;
+  const cancellableState =
+    query.status === 'PENDING_AI' ||
+    query.status === 'PENDING_REVIEW' ||
+    hasScheduledRun ||
+    hasActiveSeries;
+  // The submitter may always cancel; a reviewer only a recurring series (the #627 kill-switch).
   const canCancel =
-    submitterId === user.id &&
-    (query.status === 'PENDING_AI' ||
-      query.status === 'PENDING_REVIEW' ||
-      hasScheduledRun);
+    cancellableState && (submitterId === user.id || (isReviewer && isRecurringParent));
+  // A recurring parent must stay APPROVED — manual execution is blocked (409 server-side too).
   const canExecute =
-    query.status === 'APPROVED' && (submitterId === user.id || hasPermission(user, 'QUERY_ADMIN'));
+    query.status === 'APPROVED' &&
+    !isRecurringParent &&
+    (submitterId === user.id || hasPermission(user, 'QUERY_ADMIN'));
   // Replay is offered once a query has executed; its immutable snapshot exists from then on.
   const canReplay = query.status === 'EXECUTED';
   const replayTargets = (replayDatasources?.content ?? []).filter(
@@ -258,14 +298,18 @@ export function QueryDetailPage() {
             {canCancel && (
               <Popconfirm
                 title={
-                  hasScheduledRun
-                    ? t('queries.detail.cancel_schedule_confirm_title')
-                    : t('queries.detail.cancel_confirm_title')
+                  isRecurringParent
+                    ? t('queries.detail.cancel_series_confirm_title')
+                    : hasScheduledRun
+                      ? t('queries.detail.cancel_schedule_confirm_title')
+                      : t('queries.detail.cancel_confirm_title')
                 }
                 description={
-                  hasScheduledRun
-                    ? t('queries.detail.cancel_schedule_confirm_body')
-                    : t('queries.detail.cancel_confirm_body')
+                  isRecurringParent
+                    ? t('queries.detail.cancel_series_confirm_body')
+                    : hasScheduledRun
+                      ? t('queries.detail.cancel_schedule_confirm_body')
+                      : t('queries.detail.cancel_confirm_body')
                 }
                 okText={t('common.ok')}
                 okButtonProps={{ danger: true }}
@@ -277,9 +321,11 @@ export function QueryDetailPage() {
                   icon={<CloseOutlined />}
                   loading={cancelMutation.isPending}
                 >
-                  {hasScheduledRun
-                    ? t('queries.detail.cancel_schedule')
-                    : t('queries.detail.cancel_query')}
+                  {isRecurringParent
+                    ? t('queries.detail.cancel_series')
+                    : hasScheduledRun
+                      ? t('queries.detail.cancel_schedule')
+                      : t('queries.detail.cancel_query')}
                 </Button>
               </Popconfirm>
             )}
@@ -355,6 +401,45 @@ export function QueryDetailPage() {
                   : t('queries.detail.scheduled_banner_body_pending', {
                       when: fmtDate(query.scheduled_for!),
                     })
+              }
+            />
+          )}
+          {isRecurringParent && seriesState && (
+            <Alert
+              type={seriesState === 'halted' ? 'warning' : 'info'}
+              showIcon
+              icon={<SyncOutlined />}
+              data-testid="recurrence-banner"
+              message={t(`queries.detail.series_banner_title_${seriesState}`)}
+              description={
+                seriesState === 'active'
+                  ? t('queries.detail.series_banner_body_active', {
+                      rule: query.recurrence_rule,
+                      next: fmtDate(query.recurrence_next_run_at!),
+                      until: fmtDate(query.recurrence_until!),
+                    })
+                  : seriesState === 'halted'
+                    ? t('queries.detail.series_banner_body_halted', {
+                        reason: query.recurrence_halted_reason ?? '—',
+                      })
+                    : t('queries.detail.series_banner_body_ended')
+              }
+            />
+          )}
+          {query.recurring_parent_id && (
+            <Alert
+              type="info"
+              showIcon
+              icon={<SyncOutlined />}
+              data-testid="occurrence-banner"
+              message={t('queries.detail.occurrence_banner_title')}
+              action={
+                <Button
+                  size="small"
+                  onClick={() => navigate(`/queries/${query.recurring_parent_id}`)}
+                >
+                  {t('queries.detail.occurrence_banner_link')}
+                </Button>
               }
             />
           )}
@@ -692,6 +777,8 @@ export function QueryDetailPage() {
             </DetailCard>
           )}
 
+          {isRecurringParent && <OccurrencesCard queryId={query.id} />}
+
           {query.status === 'EXECUTED' && <QueryDiffCard query={query} />}
 
           {query.status === 'EXECUTED' && query.query_type === 'SELECT' && (
@@ -885,10 +972,107 @@ function Metadata({ query }: { query: QueryDetail }) {
         {query.scheduled_for && (
           <Row k={t('queries.detail.scheduled_for_label')} v={fmtDate(query.scheduled_for)} />
         )}
+        {query.recurrence_rule && (
+          <>
+            <Row k={t('queries.detail.recurrence_rule_label')} v={query.recurrence_rule} />
+            {query.recurrence_until && (
+              <Row
+                k={t('queries.detail.recurrence_until_label')}
+                v={fmtDate(query.recurrence_until)}
+              />
+            )}
+            {query.recurrence_next_run_at && (
+              <Row
+                k={t('queries.detail.recurrence_next_run_label')}
+                v={fmtDate(query.recurrence_next_run_at)}
+              />
+            )}
+          </>
+        )}
         {query.rows_affected != null && <Row k="rows" v={fmtNum(query.rows_affected)} />}
         {query.duration_ms != null && <Row k="exec.ms" v={String(query.duration_ms)} />}
       </div>
     </div>
+  );
+}
+
+/** Paginated history of a recurring series' occurrence rows (#627), newest first. */
+function OccurrencesCard({ queryId }: { queryId: string }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [page, setPage] = useState(0);
+  const size = 10;
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.occurrences(queryId, page, size),
+    queryFn: () => listOccurrences(queryId, page, size),
+  });
+  return (
+    <DetailCard title={t('queries.detail.card_occurrences')} icon={<SyncOutlined />}>
+      <div style={{ padding: 14 }} data-testid="occurrences-card">
+        {isLoading ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : (
+          <Table<QueryOccurrence>
+            size="small"
+            rowKey="id"
+            dataSource={data?.items ?? []}
+            locale={{ emptyText: t('queries.detail.occurrences_empty') }}
+            pagination={{
+              current: page + 1,
+              pageSize: size,
+              total: data?.total_elements ?? 0,
+              showSizeChanger: false,
+              onChange: (p) => setPage(p - 1),
+            }}
+            columns={[
+              {
+                title: t('queries.detail.occurrences_col_id'),
+                dataIndex: 'id',
+                render: (id: string) => (
+                  <Button
+                    type="link"
+                    size="small"
+                    className="mono"
+                    style={{ padding: 0 }}
+                    onClick={() => navigate(`/queries/${id}`)}
+                  >
+                    {id.slice(0, 8)}
+                  </Button>
+                ),
+              },
+              {
+                title: t('queries.detail.occurrences_col_status'),
+                dataIndex: 'status',
+                render: (status: QueryOccurrence['status']) => <StatusPill status={status} />,
+              },
+              {
+                title: t('queries.detail.occurrences_col_rows'),
+                dataIndex: 'rows_affected',
+                align: 'right',
+                render: (rows: number | null) => (rows != null ? fmtNum(rows) : '—'),
+              },
+              {
+                title: t('queries.detail.occurrences_col_duration'),
+                dataIndex: 'execution_duration_ms',
+                align: 'right',
+                render: (ms: number | null) => (ms != null ? `${ms} ms` : '—'),
+              },
+              {
+                title: t('queries.detail.occurrences_col_executed_at'),
+                dataIndex: 'executed_at',
+                render: (at: string | null) => (at ? fmtDate(at) : '—'),
+              },
+              {
+                title: t('queries.detail.occurrences_col_error'),
+                dataIndex: 'error_message',
+                ellipsis: true,
+                render: (err: string | null) => err ?? '—',
+              },
+            ]}
+          />
+        )}
+      </div>
+    </DetailCard>
   );
 }
 

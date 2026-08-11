@@ -101,6 +101,30 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void fromCarriesRecurrenceFields() {
+        var parentId = UUID.randomUUID();
+        var until = Instant.parse("2026-09-01T00:00:00Z");
+        var nextRun = Instant.parse("2026-08-18T08:00:00Z");
+        var view = new QueryDetailView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                DbType.POSTGRESQL, UUID.randomUUID(), UUID.randomUUID(), "a@b.com", "A",
+                "SELECT 1", QueryType.SELECT, QueryStatus.APPROVED,
+                "weekly report", null, null, null, null, null, null, null, null,
+                null, null,
+                List.of(),
+                null,
+                "0 0 8 * * MON", until, nextRun, "permission revoked", parentId,
+                Instant.now(), Instant.now());
+
+        var response = QueryDetailResponse.from(view);
+
+        assertThat(response.recurrenceRule()).isEqualTo("0 0 8 * * MON");
+        assertThat(response.recurrenceUntil()).isEqualTo(until);
+        assertThat(response.recurrenceNextRunAt()).isEqualTo(nextRun);
+        assertThat(response.recurrenceHaltedReason()).isEqualTo("permission revoked");
+        assertThat(response.recurringParentId()).isEqualTo(parentId);
+    }
+
+    @Test
     void aiAnalysisDetailCarriesFailureFlagAndReason() {
         var ai = new QueryDetailView.AiAnalysisDetail(
                 UUID.randomUUID(), RiskLevel.CRITICAL, 100,
