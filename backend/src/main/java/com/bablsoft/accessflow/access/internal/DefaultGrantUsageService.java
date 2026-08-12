@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.access.internal;
 
-import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.access.api.GrantUsageReportQuery;
 import com.bablsoft.accessflow.access.api.GrantUsageService;
 import com.bablsoft.accessflow.access.api.GrantUsageView;
@@ -13,7 +12,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -63,19 +61,8 @@ class DefaultGrantUsageService implements GrantUsageService {
             pageable = org.springframework.data.domain.PageRequest.of(
                     pageable.getPageNumber(), pageable.getPageSize(), DEFAULT_SORT);
         }
-        var recommendations = filter.recommendations();
-        var page = summaryRepository.report(
-                organizationId,
-                filter.resourceKind(),
-                recommendations.isEmpty(),
-                // An empty IN () list is invalid SQL, so pass a non-empty placeholder that the
-                // allRecommendations flag short-circuits before it is ever evaluated.
-                recommendations.isEmpty()
-                        ? EnumSet.allOf(GrantUsageRecommendation.class)
-                        : recommendations,
-                filter.resourceId(),
-                filter.userId(),
-                pageable);
+        var page = summaryRepository.findAll(
+                GrantUsageSpecifications.report(organizationId, filter), pageable);
         return AccessPageAdapter.toPageResponse(page.map(viewMapper::toView));
     }
 }

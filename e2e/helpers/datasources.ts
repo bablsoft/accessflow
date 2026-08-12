@@ -1117,3 +1117,53 @@ export async function submitErasureViaApi(
   }
   return (await res.json()) as CreatedErasureRequest;
 }
+
+// --- Over-provisioned access report (#625) ---
+
+export interface OverProvisionedGrantRow {
+  id: string;
+  resource_kind: 'DATASOURCE' | 'API_CONNECTOR';
+  resource_name: string;
+  user_email: string;
+  granted_target_count: number | null;
+  used_target_count: number;
+  usage_count: number;
+  days_since_last_use: number | null;
+  recommendation: string;
+}
+
+export async function listOverProvisionedGrantsViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  params: Record<string, string> = {},
+): Promise<{ content: OverProvisionedGrantRow[]; total_elements: number }> {
+  const query = new URLSearchParams(params).toString();
+  const res = await request.get(
+    `${apiBase()}/api/v1/admin/over-provisioned-access${query ? `?${query}` : ''}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`List over-provisioned access failed: ${res.status()} ${await res.text()}`);
+  }
+  return res.json();
+}
+
+export async function exportOverProvisionedCsvViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+): Promise<{ contentType: string; disposition: string; truncated: string; body: string }> {
+  const res = await request.get(`${apiBase()}/api/v1/admin/over-provisioned-access/export.csv`, {
+    // Accept text/csv to match the endpoint's `produces` — the request context defaults to
+    // application/json, which would fail content negotiation.
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/csv' },
+  });
+  if (!res.ok()) {
+    throw new Error(`Export over-provisioned access failed: ${res.status()} ${await res.text()}`);
+  }
+  return {
+    contentType: res.headers()['content-type'] ?? '',
+    disposition: res.headers()['content-disposition'] ?? '',
+    truncated: res.headers()['x-accessflow-export-truncated'] ?? '',
+    body: await res.text(),
+  };
+}

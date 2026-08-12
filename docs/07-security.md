@@ -216,7 +216,7 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 ## Authorization — Roles & the permission catalog (AF-522)
 
 Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
-permissions (`core.api.Permission`, 38 values grouped for display — see
+permissions (`core.api.Permission`, 39 values grouped for display — see
 `GET /api/v1/admin/permissions`) is composed into **roles**:
 
 - The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
@@ -281,6 +281,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Review / approve / reject access requests | — | — | ✓ | ✓ | — |
 | Approve own access request | — | — | — | — | — |
 | Early-revoke an active grant | — | — | — | ✓ | — |
+| View / export the over-provisioned access report (`ACCESS_USAGE_REPORT_VIEW`, #625) | — | — | — | ✓ | ✓ |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ | — |
 | Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ | — |
 | Create / edit datasources | — | — | — | ✓ | — |
@@ -323,8 +324,18 @@ and the auditor dashboard (`/admin/auditor`); it has no datasource permissions, 
 queries, and it cannot reach any other admin surface. Its frontend home redirect is `/admin/auditor`
 (not `/editor`) — since AF-522 the redirect is permission-driven (a user holding
 `COMPLIANCE_REPORT_VIEW` but not `QUERY_SUBMIT_SELECT` lands on the auditor dashboard). The role's
-permission set is `{COMPLIANCE_REPORT_VIEW, ATTESTATION_EVIDENCE_EXPORT, BREAK_GLASS_VIEW,
-ANOMALY_VIEW}`.
+permission set is `{COMPLIANCE_REPORT_VIEW, ATTESTATION_EVIDENCE_EXPORT, ACCESS_USAGE_REPORT_VIEW,
+BREAK_GLASS_VIEW, ANOMALY_VIEW}`.
+
+**Over-provisioned access (#625):** `ACCESS_USAGE_REPORT_VIEW` gates both
+`/api/v1/admin/over-provisioned-access` and its CSV export
+(`@PreAuthorize("hasAuthority('PERM_ACCESS_USAGE_REPORT_VIEW')")`). It is held by `ADMIN` (which holds
+the whole catalog) and `AUDITOR`, seeded by `V134` — the `role_permissions.permission` column is
+`VARCHAR` against a code-defined catalog, so a new value needs no DDL. The report exposes *who holds
+which standing grant and when they last used it*, which is activity data about other users; that is
+why it is an admin/auditor surface and not something a grant holder can read about themselves or
+anyone else. The recommendation it carries is **advisory only** — no authorization decision anywhere
+reads it, and nothing is revoked on its strength.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

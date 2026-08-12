@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-12",
       "url": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -442,6 +442,54 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption><code>/admin/attestation</code> — admins schedule recurring access-recertification campaigns; reviewers certify or revoke each snapshotted grant.</figcaption>
           </figure>
+          <p>
+            <strong>Unused-grant analytics.</strong> Certifying access is easier when you know which
+            grants nobody is using, so a clustered-safe background job folds the audit log's executed
+            queries and executed API calls into a per-grant usage summary — last used, how often, and
+            which of the granted tables (datasource grants) or operations (API-connector grants) were
+            ever actually exercised — and labels each grant <code>NEVER_USED</code>,
+            <code>STALE</code>, <code>OVER_SCOPED</code>, <code>ACTIVE</code>, or
+            <code>INSUFFICIENT_DATA</code>. The label shows on every attestation item and sorts the
+            reviewer worklist staleness-first, so never-used grants land on page one; admins and
+            auditors also get the standing report at <code>/admin/over-provisioned-access</code>
+            (filter by resource, holder, or recommendation, and export as CSV — gated on the
+            <code>ACCESS_USAGE_REPORT_VIEW</code> permission, held by <code>ADMIN</code> and
+            <code>AUDITOR</code>), and an opt-out notification nudges org admins once per cooldown
+            when a grant crosses the staleness threshold. It is <strong>advisory only</strong>:
+            nothing is ever revoked automatically, and a recommendation is never an input to routing,
+            grant coverage, or any other decision path. Grants inherited from a user group are not
+            covered.
+          </p>
+          <p>
+            <strong>Tune it.</strong> Grant-usage analytics reads nothing but the audit log, so the
+            knobs are all about how far back it looks and how patient it is (defaults shown):
+          </p>
+          <ul>
+            <li><strong>Cadence &amp; window:</strong>
+              <code>ACCESSFLOW_ACCESS_USAGE_AGGREGATION_POLL_INTERVAL</code> (<code>PT1H</code> —
+              how often the job folds new audit events),
+              <code>ACCESSFLOW_ACCESS_USAGE_BACKFILL_WINDOW</code> (<code>P90D</code> — how far back
+              a newly-summarised grant starts observing).</li>
+            <li><strong>Verdict thresholds:</strong>
+              <code>ACCESSFLOW_ACCESS_USAGE_STALENESS_THRESHOLD</code> (<code>P60D</code> — unused
+              for longer than this is <code>STALE</code>),
+              <code>ACCESSFLOW_ACCESS_USAGE_MIN_OBSERVATION_WINDOW</code> (<code>P14D</code> — below
+              this a grant is <code>INSUFFICIENT_DATA</code> rather than <code>NEVER_USED</code>),
+              <code>ACCESSFLOW_ACCESS_USAGE_OVER_SCOPED_THRESHOLD</code> (<code>0.5</code> —
+              exercised/granted ratio below which an active grant is <code>OVER_SCOPED</code>).</li>
+            <li><strong>Caps:</strong>
+              <code>ACCESSFLOW_ACCESS_USAGE_MAX_ROWS_PER_TICK</code> (<code>50000</code> — audit
+              events folded per organization per run; the remainder is picked up next run),
+              <code>ACCESSFLOW_ACCESS_USAGE_MAX_TRACKED_TARGETS</code> (<code>200</code> — distinct
+              exercised tables/operations retained per grant),
+              <code>ACCESSFLOW_ACCESS_USAGE_MAX_REPORT_ROWS</code> (<code>50000</code> — row cap
+              before a report CSV is marked truncated).</li>
+            <li><strong>Staleness nudge:</strong>
+              <code>ACCESSFLOW_ACCESS_USAGE_NUDGE_ENABLED</code> (<code>true</code> — set
+              <code>false</code> to switch the notification off),
+              <code>ACCESSFLOW_ACCESS_USAGE_NUDGE_COOLDOWN</code> (<code>P30D</code> — minimum time
+              between nudges for the same grant).</li>
+          </ul>
         </section>
 
       </article>

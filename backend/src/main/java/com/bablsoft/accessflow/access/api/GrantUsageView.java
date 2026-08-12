@@ -52,13 +52,16 @@ public record GrantUsageView(
     /**
      * Average uses per week over this grant's observation window, or {@code null} when the window is
      * shorter than a day (any rate computed over minutes is noise, not a frequency).
+     *
+     * <p>Rounded to two decimals: the extra digits are false precision on a figure derived from
+     * whole-day arithmetic, and they read as noise in the CSV an auditor opens.
      */
     public Double usagePerWeek(Instant now) {
         var observed = Duration.between(observedSince, now);
         if (observed.toDays() < 1) {
             return null;
         }
-        return usageCount * 7.0d / observed.toDays();
+        return Math.round(usageCount * 700.0d / observed.toDays()) / 100.0d;
     }
 
     /**

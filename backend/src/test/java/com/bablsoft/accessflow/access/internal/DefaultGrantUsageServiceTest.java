@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.access.internal;
 
-import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.access.api.GrantUsageReportQuery;
 import com.bablsoft.accessflow.access.internal.persistence.entity.GrantUsageSummaryEntity;
 import com.bablsoft.accessflow.access.internal.persistence.repo.GrantUsageSummaryRepository;
@@ -9,23 +8,21 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.SortOrder;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,7 +83,8 @@ class DefaultGrantUsageServiceTest {
 
     @Test
     void reportMapsThePageOntoViews() {
-        when(repository.report(any(), any(), anyBoolean(), anyCollection(), any(), any(), any()))
+        when(repository.findAll(ArgumentMatchers.<Specification<GrantUsageSummaryEntity>>any(),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(entity()), Pageable.ofSize(20), 1));
 
         var page = service.report(ORG, GrantUsageReportQuery.empty(), PageRequest.of(0, 20));
@@ -96,48 +94,20 @@ class DefaultGrantUsageServiceTest {
         assertThat(page.totalElements()).isEqualTo(1);
     }
 
-    /**
-     * An empty recommendation filter must not reach SQL as {@code IN ()}. It is signalled by the
-     * flag instead, with a full placeholder set the flag short-circuits.
-     */
-    @Test
-    void anEmptyRecommendationFilterIsSignalledByTheFlagNotAnEmptyInList() {
-        when(repository.report(any(), any(), anyBoolean(), anyCollection(), any(), any(), any()))
-                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
 
-        service.report(ORG, GrantUsageReportQuery.empty(), PageRequest.of(0, 20));
-
-        verify(repository).report(any(), any(), org.mockito.ArgumentMatchers.eq(true),
-                org.mockito.ArgumentMatchers.eq(EnumSet.allOf(GrantUsageRecommendation.class)),
-                any(), any(), any());
-    }
-
-    @Test
-    void passesAnExplicitRecommendationFilterThrough() {
-        when(repository.report(any(), any(), anyBoolean(), anyCollection(), any(), any(), any()))
-                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
-        var filter = Set.of(GrantUsageRecommendation.NEVER_USED, GrantUsageRecommendation.STALE);
-
-        service.report(ORG, new GrantUsageReportQuery(GrantResourceKind.DATASOURCE, filter, RESOURCE,
-                USER), PageRequest.of(0, 20));
-
-        verify(repository).report(any(), org.mockito.ArgumentMatchers.eq(GrantResourceKind.DATASOURCE),
-                org.mockito.ArgumentMatchers.eq(false),
-                org.mockito.ArgumentMatchers.eq(filter),
-                org.mockito.ArgumentMatchers.eq(RESOURCE),
-                org.mockito.ArgumentMatchers.eq(USER), any());
-    }
 
     /** Worst first, with a tiebreaker — an unstable sort silently skips rows across pages. */
     @Test
     void defaultsToNeverUsedFirstThenLongestIdleWithAStableTiebreaker() {
-        when(repository.report(any(), any(), anyBoolean(), anyCollection(), any(), any(), any()))
+        when(repository.findAll(ArgumentMatchers.<Specification<GrantUsageSummaryEntity>>any(),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
 
         service.report(ORG, null, PageRequest.of(0, 20));
 
         var captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).report(any(), any(), anyBoolean(), anyCollection(), any(), any(),
+        verify(repository).findAll(
+                ArgumentMatchers.<Specification<GrantUsageSummaryEntity>>any(),
                 captor.capture());
         var orders = captor.getValue().getSort().toList();
         assertThat(orders).hasSize(2);
@@ -149,13 +119,15 @@ class DefaultGrantUsageServiceTest {
 
     @Test
     void honoursAnExplicitSort() {
-        when(repository.report(any(), any(), anyBoolean(), anyCollection(), any(), any(), any()))
+        when(repository.findAll(ArgumentMatchers.<Specification<GrantUsageSummaryEntity>>any(),
+                any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
 
         service.report(ORG, null, PageRequest.of(0, 20, SortOrder.desc("usageCount")));
 
         var captor = ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).report(any(), any(), anyBoolean(), anyCollection(), any(), any(),
+        verify(repository).findAll(
+                ArgumentMatchers.<Specification<GrantUsageSummaryEntity>>any(),
                 captor.capture());
         assertThat(captor.getValue().getSort().toList()).singleElement()
                 .satisfies(order -> assertThat(order.getProperty()).isEqualTo("usageCount"));
