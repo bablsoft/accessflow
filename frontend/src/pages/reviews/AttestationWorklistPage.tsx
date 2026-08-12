@@ -26,6 +26,10 @@ import { showApiError } from '@/utils/showApiError';
 import { attestationItemDecisionLabel } from '@/utils/enumLabels';
 import { attestationItemDecisionColor } from '@/utils/statusColors';
 import type { AttestationBulkRowStatus, AttestationItem } from '@/types/api';
+import { AttestationCapabilities } from '@/components/attestation/AttestationCapabilities';
+import { AttestationUsageCell } from '@/components/attestation/AttestationUsageCell';
+
+const PAGE_SIZE = 20;
 
 type BulkAction = AttestationBulkDecision | null;
 
@@ -35,11 +39,14 @@ export default function AttestationWorklistPage() {
   const queryClient = useQueryClient();
 
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<BulkAction>(null);
   const [rowStatuses, setRowStatuses] = useState<Record<string, AttestationBulkRowStatus>>({});
 
-  const filters: WorklistFilters = { size: 50 };
+  // Paged rather than a fixed 50-row slab: the server now orders staleness-first (#625), and
+  // silently truncating that ordering would hide exactly the grants the ordering surfaces.
+  const filters: WorklistFilters = { page, size: PAGE_SIZE };
   const { data, isLoading, refetch } = useQuery({
     queryKey: attestationKeys.worklistFor(filters),
     queryFn: () => listAttestationWorklist(filters),
@@ -141,7 +148,13 @@ export default function AttestationWorklistPage() {
       {
         title: t('attestation.worklist.col_capabilities'),
         key: 'capabilities',
-        render: (_: unknown, item: AttestationItem) => <Capabilities item={item} />,
+        render: (_: unknown, item: AttestationItem) => <AttestationCapabilities item={item} />,
+      },
+      {
+        title: t('attestation.worklist.col_usage'),
+        key: 'usage',
+        width: 210,
+        render: (_: unknown, item: AttestationItem) => <AttestationUsageCell item={item} />,
       },
       {
         title: t('attestation.worklist.col_decision'),
@@ -253,7 +266,12 @@ export default function AttestationWorklistPage() {
             rowKey="id"
             dataSource={items}
             columns={columns}
-            pagination={false}
+            pagination={{
+              pageSize: PAGE_SIZE,
+              current: page + 1,
+              total: data?.total_elements ?? 0,
+              onChange: (p) => setPage(p - 1),
+            }}
             size="middle"
             scroll={{ x: 'max-content' }}
             rowSelection={{
@@ -287,20 +305,3 @@ export default function AttestationWorklistPage() {
   );
 }
 
-function Capabilities({ item }: { item: AttestationItem }) {
-  const { t } = useTranslation();
-  const caps: string[] = [];
-  if (item.can_read) caps.push(t('attestation.detail.cap_read'));
-  if (item.can_write) caps.push(t('attestation.detail.cap_write'));
-  if (item.can_ddl) caps.push(t('attestation.detail.cap_ddl'));
-  if (item.can_break_glass) caps.push(t('attestation.detail.cap_break_glass'));
-  return (
-    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
-      {caps.map((c) => (
-        <Pill key={c} size="sm">
-          {c}
-        </Pill>
-      ))}
-    </span>
-  );
-}

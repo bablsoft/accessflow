@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "连接器",
     "auditor": "合规报告",
+    "over_provisioned_access": "权限过度分配",
     "anomalies": "异常",
     "break_glass": "Break-glass 日志",
     "dashboard": "仪表板",
@@ -2568,6 +2569,17 @@
       "KEEP": "保留访问",
       "REVOKE": "撤销访问"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "数据源",
+      "API_CONNECTOR": "API 连接器"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "数据不足",
+      "NEVER_USED": "从未使用",
+      "STALE": "长期闲置",
+      "OVER_SCOPED": "范围过宽",
+      "ACTIVE": "活跃"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -3132,6 +3144,7 @@
       "items_empty": "此活动暂无条目。",
       "col_subject": "对象",
       "col_capabilities": "权限",
+      "col_usage": "使用情况",
       "col_decision": "决定",
       "col_decided_at": "决定时间",
       "cap_read": "读取",
@@ -3148,6 +3161,7 @@
       "col_subject": "对象",
       "col_datasource": "数据源",
       "col_capabilities": "权限",
+      "col_usage": "使用情况",
       "col_decision": "决定",
       "col_actions": "操作",
       "certify": "认证",
@@ -3176,7 +3190,41 @@
         "row_status_invalid_state": "已不再开放",
         "row_status_not_found": "未找到"
       }
+    },
+    "usage": {
+      "no_data": "无使用数据",
+      "no_data_hint": "活动开启时该授权尚未汇总。这与「从未使用」不同 — 不应据此撤销。",
+      "never_used": "从未使用",
+      "last_used": "最近使用 {{date}}",
+      "scope_ratio": "范围内 {{used}}/{{granted}}"
     }
+  },
+  "over_provisioned": {
+    "title": "权限过度分配",
+    "subtitle": "看起来未被使用或范围过宽的长期授权，最严重的排在前面。仅为建议 — 不会自动撤销任何授权。",
+    "col_subject": "授权持有人",
+    "col_resource": "资源",
+    "col_last_used": "最近使用",
+    "col_scope": "已使用范围",
+    "col_usage": "使用次数",
+    "col_recommendation": "建议",
+    "never_used": "从未使用",
+    "days_ago_one": "{{count}} 天前",
+    "days_ago_other": "{{count}} 天前",
+    "unrestricted": "不受限",
+    "unrestricted_hint": "该授权允许所有表或操作，因此不存在未充分使用的范围。",
+    "scope_ratio": "{{granted}} 中的 {{used}}",
+    "filter_resource_kind": "资源类型",
+    "filter_all_kinds": "所有资源类型",
+    "filter_recommendation": "建议",
+    "filter_all_recommendations": "所有建议",
+    "filter_user_placeholder": "按用户 ID 筛选",
+    "count_label": "{{count}} 项授权",
+    "export_csv": "导出 CSV",
+    "export_truncated": "导出已达到行数上限并被截断。",
+    "empty_title": "没有长期授权",
+    "empty_description": "没有授权符合这些筛选条件。使用情况按计划汇总，新授权可能尚未出现。",
+    "load_error": "无法加载权限过度分配报告"
   },
   "apiGov": {
     "connectors": {

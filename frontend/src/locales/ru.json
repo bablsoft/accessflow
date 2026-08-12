@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "Коннекторы",
     "auditor": "Отчёты о соответствии",
+    "over_provisioned_access": "Избыточные доступы",
     "anomalies": "Аномалии",
     "break_glass": "Журнал break-glass",
     "dashboard": "Панель",
@@ -2568,6 +2569,17 @@
       "KEEP": "Сохранить доступ",
       "REVOKE": "Отозвать доступ"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Источник данных",
+      "API_CONNECTOR": "API-коннектор"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Недостаточно данных",
+      "NEVER_USED": "Ни разу не использован",
+      "STALE": "Устаревший",
+      "OVER_SCOPED": "Слишком широкий",
+      "ACTIVE": "Активный"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -3132,6 +3144,7 @@
       "items_empty": "В этой кампании пока нет элементов.",
       "col_subject": "Субъект",
       "col_capabilities": "Права",
+      "col_usage": "Использование",
       "col_decision": "Решение",
       "col_decided_at": "Решено",
       "cap_read": "Чтение",
@@ -3148,6 +3161,7 @@
       "col_subject": "Субъект",
       "col_datasource": "Источник данных",
       "col_capabilities": "Права",
+      "col_usage": "Использование",
       "col_decision": "Решение",
       "col_actions": "Действия",
       "certify": "Подтвердить",
@@ -3176,7 +3190,41 @@
         "row_status_invalid_state": "Больше не открыто",
         "row_status_not_found": "Не найдено"
       }
+    },
+    "usage": {
+      "no_data": "Нет данных об использовании",
+      "no_data_hint": "На момент открытия кампании это право ещё не было агрегировано. Это не то же самое, что «ни разу не использовано» — не считайте это поводом для отзыва.",
+      "never_used": "Ни разу не использован",
+      "last_used": "Последнее использование {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} области"
     }
+  },
+  "over_provisioned": {
+    "title": "Избыточные доступы",
+    "subtitle": "Постоянные права, которые выглядят неиспользуемыми или слишком широкими — сначала самые проблемные. Только рекомендация: ничего не отзывается автоматически.",
+    "col_subject": "Владелец доступа",
+    "col_resource": "Ресурс",
+    "col_last_used": "Последнее использование",
+    "col_scope": "Использовано из области",
+    "col_usage": "Использований",
+    "col_recommendation": "Рекомендация",
+    "never_used": "Ни разу не использован",
+    "days_ago_one": "{{count}} день назад",
+    "days_ago_other": "{{count}} дн. назад",
+    "unrestricted": "Без ограничений",
+    "unrestricted_hint": "Это право допускает любую таблицу или операцию, поэтому недоиспользованной области нет.",
+    "scope_ratio": "{{used}} из {{granted}}",
+    "filter_resource_kind": "Тип ресурса",
+    "filter_all_kinds": "Все типы ресурсов",
+    "filter_recommendation": "Рекомендация",
+    "filter_all_recommendations": "Все рекомендации",
+    "filter_user_placeholder": "Фильтр по id пользователя",
+    "count_label": "{{count}} прав",
+    "export_csv": "Экспорт в CSV",
+    "export_truncated": "Экспорт достиг лимита строк и усечён.",
+    "empty_title": "Постоянных прав нет",
+    "empty_description": "Под эти фильтры ничего не подходит. Использование агрегируется по расписанию, поэтому новое право может ещё не появиться.",
+    "load_error": "Не удалось загрузить отчёт об избыточных доступах"
   },
   "apiGov": {
     "connectors": {

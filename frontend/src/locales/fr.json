@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "Connecteurs",
     "auditor": "Rapports de conformité",
+    "over_provisioned_access": "Accès surprovisionnés",
     "anomalies": "Anomalies",
     "break_glass": "Journal break-glass",
     "dashboard": "Tableau de bord",
@@ -2568,6 +2569,17 @@
       "KEEP": "Conserver l’accès",
       "REVOKE": "Révoquer l’accès"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Source de données",
+      "API_CONNECTOR": "Connecteur d'API"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Données insuffisantes",
+      "NEVER_USED": "Jamais utilisé",
+      "STALE": "Obsolète",
+      "OVER_SCOPED": "Portée excessive",
+      "ACTIVE": "Actif"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -3132,6 +3144,7 @@
       "items_empty": "Cette campagne n’a pas encore d’éléments.",
       "col_subject": "Sujet",
       "col_capabilities": "Capacités",
+      "col_usage": "Utilisation",
       "col_decision": "Décision",
       "col_decided_at": "Décidé",
       "cap_read": "Lecture",
@@ -3148,6 +3161,7 @@
       "col_subject": "Sujet",
       "col_datasource": "Source de données",
       "col_capabilities": "Capacités",
+      "col_usage": "Utilisation",
       "col_decision": "Décision",
       "col_actions": "Actions",
       "certify": "Certifier",
@@ -3176,7 +3190,41 @@
         "row_status_invalid_state": "Plus ouvert",
         "row_status_not_found": "Introuvable"
       }
+    },
+    "usage": {
+      "no_data": "Aucune donnée d'utilisation",
+      "no_data_hint": "Cette autorisation n'était pas encore agrégée à l'ouverture de la campagne. Ce n'est pas la même chose que « jamais utilisée » — n'y voyez pas un motif de révocation.",
+      "never_used": "Jamais utilisé",
+      "last_used": "Dernière utilisation {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} de la portée"
     }
+  },
+  "over_provisioned": {
+    "title": "Accès surprovisionnés",
+    "subtitle": "Autorisations permanentes qui semblent inutilisées ou trop larges, les plus critiques d'abord. Simple recommandation : rien n'est révoqué automatiquement.",
+    "col_subject": "Titulaire",
+    "col_resource": "Ressource",
+    "col_last_used": "Dernière utilisation",
+    "col_scope": "Portée utilisée",
+    "col_usage": "Utilisations",
+    "col_recommendation": "Recommandation",
+    "never_used": "Jamais utilisé",
+    "days_ago_one": "il y a {{count}} jour",
+    "days_ago_other": "il y a {{count}} jours",
+    "unrestricted": "Sans restriction",
+    "unrestricted_hint": "Cette autorisation couvre toutes les tables ou opérations : il n'y a donc pas de portée sous-utilisée.",
+    "scope_ratio": "{{used}} sur {{granted}}",
+    "filter_resource_kind": "Type de ressource",
+    "filter_all_kinds": "Tous les types de ressource",
+    "filter_recommendation": "Recommandation",
+    "filter_all_recommendations": "Toutes les recommandations",
+    "filter_user_placeholder": "Filtrer par id utilisateur",
+    "count_label": "{{count}} autorisations",
+    "export_csv": "Exporter en CSV",
+    "export_truncated": "L'export a atteint la limite de lignes et est tronqué.",
+    "empty_title": "Aucune autorisation permanente",
+    "empty_description": "Aucune autorisation ne correspond à ces filtres. L'utilisation est agrégée périodiquement : une autorisation récente peut ne pas encore apparaître.",
+    "load_error": "Impossible de charger le rapport des accès surprovisionnés"
   },
   "apiGov": {
     "connectors": {

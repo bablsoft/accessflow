@@ -52,6 +52,7 @@
     "data_classifications": "Data classifications",
     "audit": "Audit log",
     "auditor": "Compliance reports",
+    "over_provisioned_access": "Over-provisioned access",
     "ai_configs": "AI configurations",
     "ai_analyses": "AI analyses",
     "notifications": "Notifications",
@@ -2603,6 +2604,17 @@
       "KEEP": "Keep access",
       "REVOKE": "Revoke access"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Datasource",
+      "API_CONNECTOR": "API connector"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Insufficient data",
+      "NEVER_USED": "Never used",
+      "STALE": "Stale",
+      "OVER_SCOPED": "Over-scoped",
+      "ACTIVE": "Active"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -3132,6 +3144,7 @@
       "items_empty": "This campaign has no items yet.",
       "col_subject": "Subject",
       "col_capabilities": "Capabilities",
+      "col_usage": "Usage",
       "col_decision": "Decision",
       "col_decided_at": "Decided",
       "cap_read": "Read",
@@ -3148,6 +3161,7 @@
       "col_subject": "Subject",
       "col_datasource": "Datasource",
       "col_capabilities": "Capabilities",
+      "col_usage": "Usage",
       "col_decision": "Decision",
       "col_actions": "Actions",
       "certify": "Certify",
@@ -3176,7 +3190,41 @@
         "row_status_invalid_state": "No longer open",
         "row_status_not_found": "Not found"
       }
+    },
+    "usage": {
+      "no_data": "No usage data",
+      "no_data_hint": "This grant had not been summarised when the campaign opened. That is different from never being used — do not read it as a reason to revoke.",
+      "never_used": "Never used",
+      "last_used": "Last used {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} in scope"
     }
+  },
+  "over_provisioned": {
+    "title": "Over-provisioned access",
+    "subtitle": "Standing grants that look unused or over-scoped, worst first. Advisory only — nothing is revoked automatically.",
+    "col_subject": "Grant holder",
+    "col_resource": "Resource",
+    "col_last_used": "Last used",
+    "col_scope": "Scope used",
+    "col_usage": "Uses",
+    "col_recommendation": "Recommendation",
+    "never_used": "Never used",
+    "days_ago_one": "{{count}} day ago",
+    "days_ago_other": "{{count}} days ago",
+    "unrestricted": "Unrestricted",
+    "unrestricted_hint": "This grant allows every table or operation, so there is no scope to under-use.",
+    "scope_ratio": "{{used}} of {{granted}}",
+    "filter_resource_kind": "Resource kind",
+    "filter_all_kinds": "All resource kinds",
+    "filter_recommendation": "Recommendation",
+    "filter_all_recommendations": "All recommendations",
+    "filter_user_placeholder": "Filter by user id",
+    "count_label": "{{count}} grants",
+    "export_csv": "Export CSV",
+    "export_truncated": "The export hit the row cap and is truncated.",
+    "empty_title": "No standing grants",
+    "empty_description": "No grants match these filters. Usage is summarised on a schedule, so a new grant may not appear yet.",
+    "load_error": "Could not load the over-provisioned access report"
   },
   "apiGov": {
     "connectors": {

@@ -24,6 +24,8 @@ import type {
   AuthProvider,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
+  GrantResourceKind,
+  GrantUsageRecommendation,
   ChannelType,
   ComparisonOperator,
   DataClassification,
@@ -364,6 +366,27 @@ export const attestationItemDecisionLabel = (
   t: TFunction,
   v: AttestationItemDecision,
 ): string => t(`enums.attestation_item_decision.${v}` as const);
+
+export const grantResourceKindLabel = (t: TFunction, v: GrantResourceKind): string =>
+  t(`enums.grant_resource_kind.${v}` as const);
+
+export const grantUsageRecommendationLabel = (
+  t: TFunction,
+  v: GrantUsageRecommendation,
+): string => t(`enums.grant_usage_recommendation.${v}` as const);
+
+export const GRANT_USAGE_RECOMMENDATIONS: readonly GrantUsageRecommendation[] = [
+  'NEVER_USED',
+  'STALE',
+  'OVER_SCOPED',
+  'ACTIVE',
+  'INSUFFICIENT_DATA',
+] as const;
+
+export const GRANT_RESOURCE_KINDS: readonly GrantResourceKind[] = [
+  'DATASOURCE',
+  'API_CONNECTOR',
+] as const;
 
 export const ATTESTATION_PENDING_DEFAULTS: readonly AttestationPendingDefault[] = [
   'KEEP',
