@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,9 +78,6 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     private final AccessProperties properties;
     private final ApplicationEventPublisher eventPublisher;
 
-    /** Rows already logged as target-capped this tick; keeps the notice to one line each. */
-    private final Set<UUID> cappedTargetRows = new java.util.HashSet<>();
-
     @Override
     @Transactional(readOnly = true)
     public List<UUID> findOrganizationIds() {
@@ -103,13 +101,16 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     @Override
     @Transactional
     public int aggregateOrganization(UUID organizationId, Instant now) {
-        cappedTargetRows.clear();
+        // Rows already logged as target-capped, so the notice stays one line each rather than one
+        // per event. Call-local: this is a singleton bean, and a field here would be shared state.
+        var cappedTargetRows = new HashSet<UUID>();
         var usage = properties.usage();
         var cursor = loadCursor(organizationId, now, usage.backfillWindow());
 
-        var reconciled = reconcile(organizationId, now, cursor.occurredAt(), usage);
+        var reconciled = reconcile(organizationId, now, cursor.occurredAt(), usage,
+                cappedTargetRows);
         var summaries = reconciled.summaries();
-        foldUsage(organizationId, cursor, now, summaries, usage);
+        foldUsage(organizationId, cursor, now, summaries, usage, cappedTargetRows);
         recomputeExercisedCounts(summaries, reconciled.grantedTargets());
         recomputeRecommendations(now, summaries.values(), usage);
         nudgeStaleGrants(now, summaries.values(), reconciled.createdNow(), usage);
@@ -126,7 +127,7 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
      * "over-provisioned access", not linger as a permanently idle row.
      */
     private Reconciled reconcile(UUID organizationId, Instant now, Instant cursor,
-                                 AccessProperties.Usage usage) {
+                                 AccessProperties.Usage usage, Set<UUID> cappedTargetRows) {
         var existing = new HashMap<GrantKey, GrantUsageSummaryEntity>();
         for (var row : summaryRepository.findByOrganizationId(organizationId)) {
             existing.put(GrantKey.of(row), row);
@@ -158,7 +159,7 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
             log.debug("Removed {} grant usage summaries for deleted resources in org {}",
                     orphans.size(), organizationId);
         }
-        backfill(organizationId, created, cursor, usage);
+        backfill(organizationId, created, cursor, usage, cappedTargetRows);
         return new Reconciled(live, grantedTargets,
                 created.stream().map(GrantUsageSummaryEntity::getId).collect(
                         java.util.stream.Collectors.toSet()));
@@ -276,7 +277,8 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
      * {@code NEVER_USED} on evidence that was merely truncated.
      */
     private void backfill(UUID organizationId, List<GrantUsageSummaryEntity> created,
-                          Instant cursor, AccessProperties.Usage usage) {
+                          Instant cursor, AccessProperties.Usage usage,
+                          Set<UUID> cappedTargetRows) {
         if (created.isEmpty()) {
             return;
         }
@@ -290,7 +292,8 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
         var byKey = new HashMap<GrantKey, GrantUsageSummaryEntity>();
         created.forEach(row -> byKey.put(GrantKey.of(row), row));
         var drained = drain(organizationId, earliest, GrantUsageAuditAggregationService.START,
-                cursor, usage, events -> applyEvents(events, byKey, usage, true));
+                cursor, usage,
+                events -> applyEvents(events, byKey, usage, true, cappedTargetRows));
         log.debug("Backfilled {} new grant usage summaries in org {} from {} audit events",
                 created.size(), organizationId, drained.applied());
     }
@@ -299,12 +302,12 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
 
     private void foldUsage(UUID organizationId, Cursor cursor, Instant now,
                            Map<GrantKey, GrantUsageSummaryEntity> summaries,
-                           AccessProperties.Usage usage) {
+                           AccessProperties.Usage usage, Set<UUID> cappedTargetRows) {
         if (!cursor.occurredAt().isBefore(now)) {
             return;
         }
         var drained = drain(organizationId, cursor.occurredAt(), cursor.auditLogId(), now, usage,
-                events -> applyEvents(events, summaries, usage, false));
+                events -> applyEvents(events, summaries, usage, false, cappedTargetRows));
         // Only jump the cursor to the window end when the window was actually exhausted. Hitting
         // the page cap and stamping `now` anyway would discard every event past the last page.
         saveCursor(organizationId, drained.exhausted()
@@ -351,7 +354,8 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
 
     private void applyEvents(List<GrantUsageAuditEvent> events,
                              Map<GrantKey, GrantUsageSummaryEntity> summaries,
-                             AccessProperties.Usage usage, boolean enforceObservationWindow) {
+                             AccessProperties.Usage usage, boolean enforceObservationWindow,
+                             Set<UUID> cappedTargetRows) {
         for (var event : events) {
             var row = summaries.get(new GrantKey(event.resourceKind(), event.resourceId(),
                     event.userId()));
@@ -366,12 +370,12 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
             if (enforceObservationWindow && event.occurredAt().isBefore(row.getObservedSince())) {
                 continue;
             }
-            apply(row, event, usage);
+            apply(row, event, usage, cappedTargetRows);
         }
     }
 
     private void apply(GrantUsageSummaryEntity row, GrantUsageAuditEvent event,
-                       AccessProperties.Usage usage) {
+                       AccessProperties.Usage usage, Set<UUID> cappedTargetRows) {
         row.setUsageCount(row.getUsageCount() + 1);
         if (row.getFirstUsedAt() == null || event.occurredAt().isBefore(row.getFirstUsedAt())) {
             row.setFirstUsedAt(event.occurredAt());
