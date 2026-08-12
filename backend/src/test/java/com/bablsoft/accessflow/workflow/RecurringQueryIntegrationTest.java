@@ -96,6 +96,12 @@ class RecurringQueryIntegrationTest {
         registry.add("accessflow.jwt.private-key", () -> pem);
         registry.add("accessflow.encryption-key", () ->
                 "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        // These tests drive executeRecurringOccurrence by hand on rows with an already-due
+        // cursor. The real RecurringQueryRunJob also runs in this context and would race the
+        // manual calls (an extra child appears whenever a tick lands mid-test), so push its
+        // cadence far beyond the test's lifetime. The lone context-startup tick fires before
+        // any test row exists.
+        registry.add("accessflow.workflow.recurring-run-poll-interval", () -> "PT10H");
     }
 
     @BeforeAll
