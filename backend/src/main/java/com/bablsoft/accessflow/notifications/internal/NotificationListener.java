@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal;
 import com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
@@ -120,6 +121,16 @@ class NotificationListener {
             dispatcher.dispatchAnomaly(event.anomalyId(), event.organizationId());
         } catch (RuntimeException ex) {
             log.error("Notification dispatch failed for anomaly {}", event.anomalyId(), ex);
+        }
+    }
+
+    @ApplicationModuleListener
+    void onGrantStale(GrantStaleEvent event) {
+        try {
+            dispatcher.dispatchGrantStale(event);
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for stale grant summary {}",
+                    event.summaryId(), ex);
         }
     }
 

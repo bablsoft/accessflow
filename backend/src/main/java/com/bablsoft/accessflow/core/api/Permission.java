@@ -37,6 +37,8 @@ public enum Permission {
     ACCESS_REQUEST_REVIEW(PermissionGroup.ACCESS),
     /** Early-revoke an active JIT access grant. */
     ACCESS_GRANT_REVOKE(PermissionGroup.ACCESS),
+    /** View and export the over-provisioned (unused / over-scoped) standing-grant report. */
+    ACCESS_USAGE_REPORT_VIEW(PermissionGroup.ACCESS),
 
     /** Manage API connectors: CRUD, schema ingestion, masking policies, classification tags. */
     API_CONNECTOR_MANAGE(PermissionGroup.API_GOVERNANCE),

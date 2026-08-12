@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
 import com.bablsoft.accessflow.ai.api.BehaviorAnomalyView;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService;
@@ -156,9 +157,9 @@ class NotificationContextBuilder {
             // Access (JIT), anomaly, digest, attestation, and API-request events are not query-backed
             // and are built/dispatched by their own listeners (AF-500: ApiNotificationListener).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
-                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, WEEKLY_DIGEST,
-                 ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,
-                 API_REQUEST_EXECUTED, API_REQUEST_FAILED,
+                 ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, GRANT_STALE,
+                 WEEKLY_DIGEST, ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED,
+                 API_REQUEST_APPROVED, API_REQUEST_EXECUTED, API_REQUEST_FAILED,
                  API_CONNECTOR_OAUTH2_TOKEN_FAILED, ERASURE_APPROVED -> List.of();
         };
     }
@@ -229,6 +230,51 @@ class NotificationContextBuilder {
                 null,
                 null, null, null,
                 null));
+    }
+
+    /**
+     * Builds the context for an unused-grant staleness nudge (#625). Not query-backed: the granted
+     * resource rides in the {@code datasource*} fields (it may be an API connector — the
+     * {@code grantResourceKind} says which) and the grant holder in the {@code submitter*} fields.
+     * Recipients are the organization's active ADMINs, mirroring {@code ANOMALY_DETECTED}: they are
+     * the party who can act on it, and telling one user about another's inactivity would leak
+     * activity data across the tenant.
+     *
+     * <p>Returns empty when the organization has no active admin — with no one to nudge, there is
+     * nothing to send.
+     */
+    Optional<NotificationContext> buildGrantStale(GrantStaleEvent event) {
+        var recipients = userQueryService
+                .findByOrganizationAndRole(event.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
+        if (recipients.isEmpty()) {
+            return Optional.empty();
+        }
+        var locale = localizationConfigService.getOrDefault(event.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.GRANT_STALE,
+                event.organizationId(),
+                null, null, null, null, null, null, null, null,
+                event.resourceId(),
+                event.resourceName(),
+                event.userId(),
+                event.userEmail(),
+                null,
+                null, null, null, null,
+                buildOverProvisionedAccessUrl(),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null, null,
+                null, null, null, null,
+                null, null, null,
+                event.resourceKind(),
+                event.daysSinceLastUse(),
+                event.recommendation()));
     }
 
     /**
@@ -422,6 +468,12 @@ class NotificationContextBuilder {
             return view.userDisplayName();
         }
         return view.userEmail() != null ? view.userEmail() : view.userId().toString();
+    }
+
+    private URI buildOverProvisionedAccessUrl() {
+        var base = properties.publicBaseUrl().toString();
+        var trimmed = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return URI.create(trimmed + "/admin/over-provisioned-access");
     }
 
     private URI buildAnomalyUrl() {

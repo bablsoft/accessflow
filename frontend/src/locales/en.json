@@ -2166,6 +2166,7 @@
       "ACCESS_REQUEST_REJECTED": "Your access request for {{datasource}} was rejected",
       "ACCESS_GRANT_EXPIRED": "Your access grant on {{datasource}} expired",
       "ACCESS_GRANT_REVOKED": "Your access grant on {{datasource}} was revoked",
+      "GRANT_STALE": "Access to {{datasource}} looks unused — review it",
       "fallback": "New notification"
     }
   },
@@ -2723,6 +2724,7 @@
       "QUERY_ADMIN": "Administer queries",
       "ACCESS_REQUEST_REVIEW": "Review access requests",
       "ACCESS_GRANT_REVOKE": "Revoke access grants",
+      "ACCESS_USAGE_REPORT_VIEW": "View over-provisioned access report",
       "API_CONNECTOR_MANAGE": "Manage API connectors",
       "API_REQUEST_REVIEW": "Review API requests",
       "DATASOURCE_MANAGE": "Manage datasources",

@@ -23,6 +23,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
@@ -103,6 +105,48 @@ class DefaultAttestationReviewServiceTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).subjectUserId()).isEqualTo(subjectId);
+    }
+
+    /**
+     * Staleness-first ordering (#625) puts the riskiest grants on the reviewer's first page instead
+     * of burying them. The tiebreaker matters as much as the sort: without it, rows with equal
+     * timestamps can swap between pages and one is never seen.
+     */
+    @Test
+    void listDefaultsToNeverUsedFirstThenLongestIdle() {
+        when(itemRepository.findItemsByCampaignStatusAndDecision(eq(orgId),
+                eq(AttestationCampaignStatus.OPEN), eq(AttestationItemDecision.PENDING), any()))
+                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
+
+        service.listPendingForReviewer(reviewer, PageRequest.of(0, 20));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findItemsByCampaignStatusAndDecision(eq(orgId),
+                eq(AttestationCampaignStatus.OPEN), eq(AttestationItemDecision.PENDING),
+                captor.capture());
+        var orders = captor.getValue().getSort().toList();
+        assertThat(orders).hasSize(2);
+        assertThat(orders.get(0).getProperty()).isEqualTo("usageLastUsedAt");
+        assertThat(orders.get(0).getDirection()).isEqualTo(Sort.Direction.ASC);
+        assertThat(orders.get(0).getNullHandling()).isEqualTo(Sort.NullHandling.NULLS_FIRST);
+        assertThat(orders.get(1).getProperty()).isEqualTo("id");
+    }
+
+    @Test
+    void listHonoursAnExplicitSort() {
+        when(itemRepository.findItemsByCampaignStatusAndDecision(eq(orgId),
+                eq(AttestationCampaignStatus.OPEN), eq(AttestationItemDecision.PENDING), any()))
+                .thenReturn(new PageImpl<>(List.of(), Pageable.ofSize(20), 0));
+
+        service.listPendingForReviewer(reviewer,
+                PageRequest.of(0, 20, com.bablsoft.accessflow.core.api.SortOrder.asc("createdAt")));
+
+        var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findItemsByCampaignStatusAndDecision(eq(orgId),
+                eq(AttestationCampaignStatus.OPEN), eq(AttestationItemDecision.PENDING),
+                captor.capture());
+        assertThat(captor.getValue().getSort().toList()).singleElement()
+                .satisfies(order -> assertThat(order.getProperty()).isEqualTo("createdAt"));
     }
 
     @Test

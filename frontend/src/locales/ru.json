@@ -2166,6 +2166,7 @@
       "ACCESS_REQUEST_REJECTED": "Ваш запрос доступа к {{datasource}} был отклонён",
       "ACCESS_GRANT_EXPIRED": "Срок вашего доступа к {{datasource}} истёк",
       "ACCESS_GRANT_REVOKED": "Ваш доступ к {{datasource}} был отозван",
+      "GRANT_STALE": "Доступ к {{datasource}} не используется — проверьте",
       "fallback": "Новое уведомление"
     }
   },
@@ -2699,6 +2700,7 @@
       "QUERY_ADMIN": "Администрировать запросы",
       "ACCESS_REQUEST_REVIEW": "Проверять запросы доступа",
       "ACCESS_GRANT_REVOKE": "Отзывать предоставленный доступ",
+      "ACCESS_USAGE_REPORT_VIEW": "Просматривать отчёт об избыточных доступах",
       "API_CONNECTOR_MANAGE": "Управлять API-коннекторами",
       "API_REQUEST_REVIEW": "Проверять API-запросы",
       "DATASOURCE_MANAGE": "Управлять источниками данных",

@@ -2166,6 +2166,7 @@
       "ACCESS_REQUEST_REJECTED": "您对 {{datasource}} 的访问请求已被拒绝",
       "ACCESS_GRANT_EXPIRED": "您对 {{datasource}} 的访问授权已过期",
       "ACCESS_GRANT_REVOKED": "您对 {{datasource}} 的访问授权已被撤销",
+      "GRANT_STALE": "对 {{datasource}} 的访问似乎未被使用 — 请审阅",
       "fallback": "新通知"
     }
   },
@@ -2699,6 +2700,7 @@
       "QUERY_ADMIN": "管理查询",
       "ACCESS_REQUEST_REVIEW": "审核访问请求",
       "ACCESS_GRANT_REVOKE": "撤销访问授权",
+      "ACCESS_USAGE_REPORT_VIEW": "查看权限过度分配报告",
       "API_CONNECTOR_MANAGE": "管理 API 连接器",
       "API_REQUEST_REVIEW": "审核 API 请求",
       "DATASOURCE_MANAGE": "管理数据源",

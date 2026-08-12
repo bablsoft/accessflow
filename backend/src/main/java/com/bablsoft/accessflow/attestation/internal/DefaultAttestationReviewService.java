@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +34,9 @@ import java.util.UUID;
 @Slf4j
 class DefaultAttestationReviewService implements AttestationReviewService {
 
+    private static final Sort STALENESS_FIRST = Sort.by(
+            new Sort.Order(Sort.Direction.ASC, "usageLastUsedAt", Sort.NullHandling.NULLS_FIRST),
+            Sort.Order.asc("id"));
 
     private final AttestationItemRepository itemRepository;
     private final AttestationCampaignRepository campaignRepository;
@@ -46,7 +51,7 @@ class DefaultAttestationReviewService implements AttestationReviewService {
         if (!has(context, Permission.ATTESTATION_REVIEW)) {
             return PageResponse.empty(pageRequest.page(), pageRequest.size());
         }
-        var pageable = AttestationPageAdapter.toSpringPageable(pageRequest);
+        var pageable = withDefaultSort(AttestationPageAdapter.toSpringPageable(pageRequest));
         var page = itemRepository.findItemsByCampaignStatusAndDecision(context.organizationId(),
                 AttestationCampaignStatus.OPEN, AttestationItemDecision.PENDING, pageable);
         var visible = page.getContent().stream()
@@ -55,6 +60,22 @@ class DefaultAttestationReviewService implements AttestationReviewService {
                 .toList();
         return new PageResponse<>(visible, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
+    }
+
+    /**
+     * Staleness-first ordering (#625): grants never used (null {@code usageLastUsedAt}) ahead of
+     * merely idle ones, then longest-idle, so the riskiest items are on the reviewer's first page
+     * rather than buried. {@code id} breaks ties — without it two rows with equal timestamps can
+     * swap between pages and one is silently skipped.
+     *
+     * <p>Applied only when the caller supplied no sort, so an explicit {@code ?sort=} still wins.
+     */
+    private static Pageable withDefaultSort(Pageable pageable) {
+        if (!pageable.isPaged() || pageable.getSort().isSorted()) {
+            return pageable;
+        }
+        return org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(),
+                pageable.getPageSize(), STALENESS_FIRST);
     }
 
     @Override

@@ -2166,6 +2166,7 @@
       "ACCESS_REQUEST_REJECTED": "Ձեր մուտքի հայտը {{datasource}}-ի համար մերժվել է",
       "ACCESS_GRANT_EXPIRED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում ժամկետանց է",
       "ACCESS_GRANT_REVOKED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում հետ է կանչվել",
+      "GRANT_STALE": "{{datasource}}-ի մուտքը անօգտագործված է թվում — դիտարկեք",
       "fallback": "Նոր ծանուցում"
     }
   },
@@ -2699,6 +2700,7 @@
       "QUERY_ADMIN": "Կառավարել հարցումները",
       "ACCESS_REQUEST_REVIEW": "Վերանայել մուտքի հայտերը",
       "ACCESS_GRANT_REVOKE": "Հետ կանչել մուտքի տրամադրումները",
+      "ACCESS_USAGE_REPORT_VIEW": "Դիտել ավելորդ մուտքերի հաշվետվությունը",
       "API_CONNECTOR_MANAGE": "Կառավարել API միակցիչները",
       "API_REQUEST_REVIEW": "Վերանայել API հայտերը",
       "DATASOURCE_MANAGE": "Կառավարել տվյալների աղբյուրները",

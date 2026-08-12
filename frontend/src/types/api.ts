@@ -1802,7 +1802,8 @@ export type UserNotificationEventType =
   | 'ACCESS_REQUEST_APPROVED'
   | 'ACCESS_REQUEST_REJECTED'
   | 'ACCESS_GRANT_EXPIRED'
-  | 'ACCESS_GRANT_REVOKED';
+  | 'ACCESS_GRANT_REVOKED'
+  | 'GRANT_STALE';
 
 export interface UserNotificationPayload {
   query_id?: string;

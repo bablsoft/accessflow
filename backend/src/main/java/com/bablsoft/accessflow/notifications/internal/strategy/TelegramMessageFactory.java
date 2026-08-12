@@ -113,6 +113,7 @@ class TelegramMessageFactory {
             case AI_HIGH_RISK -> "🚨 AI Flagged High-Risk Query";
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
+            case GRANT_STALE -> "🧹 Unused Access Grant";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";

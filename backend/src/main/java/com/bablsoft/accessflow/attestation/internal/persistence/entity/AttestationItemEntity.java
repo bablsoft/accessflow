@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation.internal.persistence.entity;
 
+import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
 import com.bablsoft.accessflow.attestation.api.AttestationItemDecision;
 import jakarta.persistence.Column;
@@ -76,6 +77,26 @@ public class AttestationItemEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "permission_snapshot", nullable = false, columnDefinition = "jsonb")
     private String permissionSnapshot;
+
+    // #625 usage evidence, frozen at campaign open alongside the rest of the snapshot. Every field
+    // is nullable and null means "no data" — not zero, and not "never used": a grant summarised
+    // after its campaign opened legitimately has none.
+    @Column(name = "usage_last_used_at")
+    private Instant usageLastUsedAt;
+
+    @Column(name = "usage_count")
+    private Long usageCount;
+
+    @Column(name = "usage_granted_target_count")
+    private Integer usageGrantedTargetCount;
+
+    @Column(name = "usage_used_target_count")
+    private Integer usageUsedTargetCount;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "usage_recommendation", columnDefinition = "grant_usage_recommendation")
+    private GrantUsageRecommendation usageRecommendation;
 
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)

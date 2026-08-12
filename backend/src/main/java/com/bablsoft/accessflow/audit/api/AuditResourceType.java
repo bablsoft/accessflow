@@ -41,6 +41,7 @@ public enum AuditResourceType {
     DASHBOARD_SUMMARY("dashboard_summary"),
     ATTESTATION_CAMPAIGN("attestation_campaign"),
     ATTESTATION_ITEM("attestation_item"),
+    GRANT_USAGE_SUMMARY("grant_usage_summary"),
     API_CONNECTOR("api_connector"),
     API_REQUEST("api_request"),
     RETENTION_POLICY("retention_policy"),

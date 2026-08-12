@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
+import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
@@ -114,6 +115,18 @@ class NotificationDispatcher {
             return;
         }
         deliver(NotificationEventType.ATTESTATION_CAMPAIGN_OPENED, contextOpt.get());
+    }
+
+    /** Dispatch a staleness nudge for an unused standing grant (#625) — non-query-backed; fans out
+     *  to all active org channels, mirroring {@code ANOMALY_DETECTED}. Advisory only: it never pages
+     *  (no PagerDutyTrigger maps to it) and never opens a ticket (no TicketingTrigger does). */
+    void dispatchGrantStale(GrantStaleEvent event) {
+        var contextOpt = contextBuilder.buildGrantStale(event);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping GRANT_STALE for grant summary {}", event.summaryId());
+            return;
+        }
+        deliver(NotificationEventType.GRANT_STALE, contextOpt.get());
     }
 
     /** Dispatch an approved-erasure notification to the submitter (AF-499). */
@@ -263,6 +276,7 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.BREAK_GLASS_EXECUTED
                 || eventType == NotificationEventType.WEEKLY_DIGEST
                 || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED
+                || eventType == NotificationEventType.GRANT_STALE
                 || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }

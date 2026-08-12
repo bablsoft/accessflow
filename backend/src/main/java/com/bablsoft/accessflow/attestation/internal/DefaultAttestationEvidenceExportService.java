@@ -19,11 +19,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DefaultAttestationEvidenceExportService implements AttestationEvidenceExportService {
 
+    // The usage_* columns (#625) are the evidence a reviewer saw at decision time — an auditor
+    // asking "why was this certified?" needs the same picture, not today's usage.
     private static final String[] HEADER = {
             "item_id", "campaign_id", "campaign_name", "datasource_name", "subject_email",
             "subject_display_name", "can_read", "can_write", "can_ddl", "can_break_glass",
-            "permission_expires_at", "decision", "close_reason", "decided_by", "decided_at",
-            "decision_comment"
+            "permission_expires_at", "usage_last_used_at", "usage_count",
+            "usage_granted_target_count", "usage_used_target_count", "usage_recommendation",
+            "decision", "close_reason", "decided_by", "decided_at", "decision_comment"
     };
 
     private final AttestationCampaignRepository campaignRepository;
@@ -58,6 +61,12 @@ class DefaultAttestationEvidenceExportService implements AttestationEvidenceExpo
                     Boolean.toString(item.isCanBreakGlass()),
                     item.getPermissionExpiresAt() != null
                             ? item.getPermissionExpiresAt().toString() : "",
+                    text(item.getUsageLastUsedAt()),
+                    text(item.getUsageCount()),
+                    text(item.getUsageGrantedTargetCount()),
+                    text(item.getUsageUsedTargetCount()),
+                    item.getUsageRecommendation() != null
+                            ? item.getUsageRecommendation().name() : "",
                     item.getDecision().name(),
                     item.getCloseReason() != null ? item.getCloseReason().name() : "",
                     item.getDecidedBy() != null ? item.getDecidedBy().toString() : "",
@@ -67,5 +76,10 @@ class DefaultAttestationEvidenceExportService implements AttestationEvidenceExpo
         byte[] body = sb.toString().getBytes(StandardCharsets.UTF_8);
         var filename = "attestation-campaign-" + campaignId + "-evidence.csv";
         return new EvidenceExport(body, filename, rows.size(), truncated);
+    }
+
+    /** Empty rather than "null" — an absent usage figure means "not measured", not zero. */
+    private static String text(Object value) {
+        return value == null ? "" : value.toString();
     }
 }

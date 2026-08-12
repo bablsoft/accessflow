@@ -2166,6 +2166,7 @@
       "ACCESS_REQUEST_REJECTED": "Tu solicitud de acceso para {{datasource}} fue rechazada",
       "ACCESS_GRANT_EXPIRED": "Tu permiso de acceso en {{datasource}} expiró",
       "ACCESS_GRANT_REVOKED": "Tu permiso de acceso en {{datasource}} fue revocado",
+      "GRANT_STALE": "El acceso a {{datasource}} parece sin usar: revísalo",
       "fallback": "Nueva notificación"
     }
   },
@@ -2699,6 +2700,7 @@
       "QUERY_ADMIN": "Administrar consultas",
       "ACCESS_REQUEST_REVIEW": "Revisar solicitudes de acceso",
       "ACCESS_GRANT_REVOKE": "Revocar concesiones de acceso",
+      "ACCESS_USAGE_REPORT_VIEW": "Ver el informe de accesos sobreaprovisionados",
       "API_CONNECTOR_MANAGE": "Gestionar conectores de API",
       "API_REQUEST_REVIEW": "Revisar solicitudes de API",
       "DATASOURCE_MANAGE": "Gestionar fuentes de datos",

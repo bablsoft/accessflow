@@ -276,6 +276,7 @@ class AttestationReviewControllerIntegrationTest {
         return new AttestationItemView(UUID.randomUUID(), UUID.randomUUID(), organization.getId(),
                 UUID.randomUUID(), UUID.randomUUID(), "Production", UUID.randomUUID(),
                 "subject@example.com", "Subject", true, false, false, false, null, null,
+                null, null, null, null, null,
                 AttestationItemDecision.PENDING, null, null, null, null,
                 Instant.parse("2026-07-01T00:00:00Z"));
     }

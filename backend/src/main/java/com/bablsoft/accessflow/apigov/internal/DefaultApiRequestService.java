@@ -286,6 +286,12 @@ public class DefaultApiRequestService implements ApiRequestService {
         var metadata = new HashMap<String, Object>(extra);
         metadata.put("connector_id", entity.getConnectorId().toString());
         metadata.put("path", entity.getRequestPath());
+        // #625: the operation is the connector-side analogue of a query's referenced_tables — it is
+        // what least-privilege intelligence compares against the grant's allowed_operations. Nullable
+        // because an ad-hoc call need not resolve to a catalogued operation.
+        if (entity.getOperationId() != null && !entity.getOperationId().isBlank()) {
+            metadata.put("operation_id", entity.getOperationId());
+        }
         try {
             auditLogService.record(new AuditEntry(action, AuditResourceType.API_REQUEST, entity.getId(),
                     entity.getOrganizationId(), entity.getSubmittedBy(), metadata, ip, userAgent));

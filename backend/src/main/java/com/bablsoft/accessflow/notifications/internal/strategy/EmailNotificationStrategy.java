@@ -191,6 +191,11 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("digestOpenSuggestions", digest != null ? digest.openSuggestions() : null);
         context.setVariable("dashboardUrl",
                 ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
+        context.setVariable("grantResourceKind",
+                ctx.grantResourceKind() != null ? ctx.grantResourceKind().name() : null);
+        context.setVariable("grantDaysSinceLastUse", ctx.grantDaysSinceLastUse());
+        context.setVariable("grantRecommendation",
+                ctx.grantRecommendation() != null ? ctx.grantRecommendation().name() : null);
         context.setVariable("attestationCampaignName", ctx.attestationCampaignName());
         context.setVariable("attestationDueAt", ctx.attestationDueAt());
         context.setVariable("attestationUrl",
@@ -212,6 +217,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case BREAK_GLASS_EXECUTED -> "email/break-glass-executed";
             case WEEKLY_DIGEST -> "email/weekly-digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "email/attestation-campaign-opened";
+            // #625: staleness nudge to org admins.
+            case GRANT_STALE -> "email/grant-stale";
             // A connector whose OAuth2 token keeps failing is effectively down — alert admins by email.
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "email/api-connector-token-failed";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
@@ -228,6 +235,10 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         var args = switch (ctx.eventType()) {
             case TEST -> null;
             case ATTESTATION_CAMPAIGN_OPENED -> new Object[]{ctx.attestationCampaignName()};
+            // #625: the resource name rides in datasourceName for both grant kinds, so the
+            // default below is already correct — spelled out so the choice is deliberate
+            // rather than an accident of this switch having a default branch.
+            case GRANT_STALE -> new Object[]{ctx.datasourceName()};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -247,6 +258,7 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case WEEKLY_DIGEST -> "notification.email.subject.weekly_digest";
             case ATTESTATION_CAMPAIGN_OPENED ->
                     "notification.email.subject.attestation_campaign_opened";
+            case GRANT_STALE -> "notification.email.subject.grant_stale";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "notification.email.subject.api_connector_token_failed";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.

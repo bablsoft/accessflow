@@ -2353,6 +2353,90 @@ New audit actions: `ATTESTATION_CAMPAIGN_OPENED`, `ATTESTATION_CAMPAIGN_CLOSED`,
 
 ---
 
+## Over-Provisioned Access Endpoints (#625)
+
+Least-privilege intelligence: per-standing-grant usage evidence folded out of the audit log by
+`GrantUsageAggregationJob`, and the revocation recommendation derived from it. Covers both grant
+kinds — `datasource_user_permissions` (scope = allowed tables) and `api_connector_user_permissions`
+(scope = allowed operations). Group-inherited grants (AF-530/531) are **not** covered.
+
+**Advisory only.** Nothing in the product acts on a recommendation; it is read by this report and by
+attestation reviewers, and never by routing, grant coverage, break-glass, or any decision path.
+
+The rows are a derived cache refreshed each tick, not a record: a grant created since the last run
+simply has no row yet, and a revoked grant's row is deleted rather than kept as permanently idle.
+
+### Report *(ADMIN or AUDITOR)* — base `/admin/over-provisioned-access`
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/over-provisioned-access?resource_kind=&recommendation=&resource_id=&user_id=&page=&size=` | Paged standing-grant usage report. Defaults to worst-first (never-used, then longest-idle) |
+| `GET` | `/admin/over-provisioned-access/export.csv?resource_kind=&recommendation=&resource_id=&user_id=` | Same rows as CSV *(ADMIN or AUDITOR)*; `Content-Disposition: attachment`, header `X-AccessFlow-Export-Truncated` |
+
+Both require `ACCESS_USAGE_REPORT_VIEW`. `recommendation` is repeatable
+(`?recommendation=NEVER_USED&recommendation=STALE`); omitting it returns every recommendation.
+
+**`GET /admin/over-provisioned-access` — Response `200`**
+
+```json
+{
+  "content": [
+    {
+      "id": "8f1b…",
+      "resource_kind": "DATASOURCE",
+      "resource_id": "3c2a…",
+      "resource_name": "analytics-prod",
+      "permission_id": "b71e…",
+      "user_id": "d40c…",
+      "user_email": "dev@example.com",
+      "user_display_name": "Dev Example",
+      "granted_at": "2025-11-02T09:14:00Z",
+      "expires_at": null,
+      "granted_target_count": 12,
+      "used_targets": ["public.orders", "public.customers"],
+      "used_target_count": 2,
+      "unused_target_count": 10,
+      "usage_count": 37,
+      "first_used_at": "2026-01-08T11:02:00Z",
+      "last_used_at": "2026-05-30T16:41:00Z",
+      "observed_since": "2026-03-03T00:00:00Z",
+      "days_since_last_use": 2,
+      "usage_per_week": 2.9,
+      "recommendation": "OVER_SCOPED"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 1,
+  "total_pages": 1
+}
+```
+
+`granted_target_count`, `unused_target_count` and `usage_per_week` are **nullable**, and null does
+not mean zero:
+
+| Field | Null means |
+|---|---|
+| `granted_target_count` | The grant is **unrestricted** — it allows every table / operation. Such a grant is never reported `OVER_SCOPED`, because there is no granted scope to under-use. |
+| `unused_target_count` | Same — no allow-list to subtract from. |
+| `days_since_last_use` | The grant has **never** been used. Render this differently from a large number of days. |
+| `usage_per_week` | The observation window is under a day; any rate over it would be noise. |
+
+`recommendation` is one of:
+
+| Value | Meaning |
+|---|---|
+| `INSUFFICIENT_DATA` | Observed for less than `min-observation-window`; too new to judge |
+| `NEVER_USED` | Observed long enough and never exercised |
+| `STALE` | Last exercised longer ago than `staleness-threshold` |
+| `OVER_SCOPED` | Used recently, but across less than `over-scoped-threshold` of its granted scope |
+| `ACTIVE` | Used recently and broadly enough that the grant looks justified |
+
+New audit action: `OVER_PROVISIONED_ACCESS_EXPORTED` (resource type `GRANT_USAGE_SUMMARY`), written
+on the CSV export with `row_count` / `truncated` / the applied filters in its metadata.
+
+---
+
 ## Admin Endpoints
 
 | Method | Path | Description |
