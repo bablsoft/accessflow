@@ -331,6 +331,7 @@ export async function submitQueryViaApi(
   sql: string,
   justification = 'e2e: helper-submitted query',
   scheduledFor?: string,
+  recurrence?: { rule: string; until: string },
 ): Promise<SubmittedQuery> {
   const body: Record<string, unknown> = {
     datasource_id: datasourceId,
@@ -338,6 +339,10 @@ export async function submitQueryViaApi(
     justification,
   };
   if (scheduledFor) body.scheduled_for = scheduledFor;
+  if (recurrence) {
+    body.recurrence_rule = recurrence.rule;
+    body.recurrence_until = recurrence.until;
+  }
   const res = await request.post(`${apiBase()}/api/v1/queries`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     data: body,

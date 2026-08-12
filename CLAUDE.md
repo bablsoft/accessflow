@@ -322,9 +322,20 @@ nullable or has a DEFAULT. `ALTER TYPE … ADD VALUE` needs a `.sql.conf` sideca
                           the ticket provenance as reason; no-op when a manual decision raced)
   PENDING_REVIEW → CANCELLED (submitter only)
   APPROVED       → CANCELLED (submitter only, when scheduled_for is set and the
-                              deferred run has not yet fired — AF-345)
+                              deferred run has not yet fired — AF-345; for a recurring
+                              series (recurrence_rule set, #627) also any QUERY_REVIEW
+                              holder — the reviewer kill-switch stops the whole series)
   APPROVED       → EXECUTED  (ScheduledQueryRunJob at scheduled_for ≤ now() —
                               system-initiated, audit metadata trigger=scheduled)
+  APPROVED       → EXECUTED / FAILED (recurring occurrence rows — #627. RecurringQueryRunJob
+                              INSERTS child rows directly in APPROVED (submission_reason=
+                              RECURRING, recurring_parent_id set, no QuerySubmittedEvent) and
+                              executes them with trigger=recurring; the series parent stays
+                              APPROVED for its lifetime and can never be executed manually.
+                              Fail-closed: a failed per-tick recheck (permission gone/expired,
+                              submitter inactive, SQL unparseable, datasource inactive) clears
+                              recurrence_next_run_at, records recurrence_halted_reason, and
+                              audits RECURRING_SERIES_HALTED)
   APPROVED       → EXECUTED  (break-glass run — audit action QUERY_BREAK_GLASS_EXECUTED — AF-385)
   APPROVED       → FAILED    (execution error)
   ```

@@ -91,6 +91,28 @@ public interface QueryRequestRepository
             """, nativeQuery = true)
     List<UUID> findScheduledDueIds(@Param("now") Instant now);
 
+    // #627: due recurring-series parents. The partial index idx_query_requests_recurrence_due
+    // (V132) keeps this a cheap scan over active series only.
+    @Query(value = """
+            SELECT q.id
+            FROM query_requests q
+            WHERE q.status = 'APPROVED'::query_status
+              AND q.recurrence_next_run_at IS NOT NULL
+              AND q.recurrence_next_run_at <= :now
+            """, nativeQuery = true)
+    List<UUID> findRecurringDueIds(@Param("now") Instant now);
+
+    // #627: occurrence history of a recurring series, org-scoped, newest first (the caller
+    // supplies the sort via Pageable so Spring can page it).
+    @Query("""
+            select q from QueryRequestEntity q
+             where q.recurringParentId = :parentId
+               and q.datasource.organization.id = :orgId
+            """)
+    Page<QueryRequestEntity> findOccurrences(@Param("parentId") UUID parentId,
+                                             @Param("orgId") UUID organizationId,
+                                             Pageable pageable);
+
     @Query("""
             select q.id from QueryRequestEntity q
              where q.status = :status

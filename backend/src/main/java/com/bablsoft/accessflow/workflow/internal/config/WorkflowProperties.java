@@ -9,7 +9,9 @@ import java.time.Duration;
 @ConfigurationProperties("accessflow.workflow")
 @Validated
 public record WorkflowProperties(@NotNull Duration timeoutPollInterval,
-                                 @NotNull Duration scheduledRunPollInterval) {
+                                 @NotNull Duration scheduledRunPollInterval,
+                                 @NotNull Duration recurringRunPollInterval,
+                                 @NotNull Duration recurrenceMinInterval) {
 
     public WorkflowProperties {
         if (timeoutPollInterval == null) {
@@ -17,6 +19,12 @@ public record WorkflowProperties(@NotNull Duration timeoutPollInterval,
         }
         if (scheduledRunPollInterval == null) {
             scheduledRunPollInterval = Duration.ofMinutes(1);
+        }
+        if (recurringRunPollInterval == null) {
+            recurringRunPollInterval = Duration.ofMinutes(1);
+        }
+        if (recurrenceMinInterval == null) {
+            recurrenceMinInterval = Duration.ofMinutes(5);
         }
     }
 }

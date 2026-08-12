@@ -68,6 +68,21 @@ class NotificationDispatcher {
         deliver(eventType, contextOpt.get());
     }
 
+    /** Dispatch a completed recurring occurrence (#627) to the submitter, with the execution
+     *  outcome riding on the context so the email strategy can attach the results CSV. Routed
+     *  through the review plan's channels like every other submitter-targeted event. */
+    void dispatchQueryExecuted(UUID queryRequestId,
+                               com.bablsoft.accessflow.core.api.QueryStatus executionStatus,
+                               Long rowsAffected, Long durationMs) {
+        var contextOpt = contextBuilder.buildQueryExecuted(queryRequestId, executionStatus,
+                rowsAffected, durationMs);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping QUERY_EXECUTED for unknown query {}", queryRequestId);
+            return;
+        }
+        deliver(NotificationEventType.QUERY_EXECUTED, contextOpt.get());
+    }
+
     /** Dispatch a behavioural anomaly (UBA, AF-383) — non-query-backed; fans out to all active
      *  org channels, mirroring {@code AI_HIGH_RISK}. */
     void dispatchAnomaly(UUID anomalyId, UUID organizationId) {
@@ -231,6 +246,12 @@ class NotificationDispatcher {
         }
         if (ctx.reviewerComment() != null) {
             payload.put("reviewer_comment", ctx.reviewerComment());
+        }
+        if (ctx.executionStatus() != null) {
+            payload.put("final_status", ctx.executionStatus().name());
+        }
+        if (ctx.executionRowsAffected() != null) {
+            payload.put("rows_affected", ctx.executionRowsAffected());
         }
         return payload.toString();
     }

@@ -1,20 +1,29 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
+import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(DefaultQueryRequestPersistenceService.class);
 
     private final QueryRequestRepository queryRequestRepository;
     private final DatasourceRepository datasourceRepository;
@@ -44,7 +53,58 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
         entity.setSubmittedIp(command.submittedIp());
         entity.setSubmittedUserAgent(command.submittedUserAgent());
         entity.setCiCdOrigin(command.ciCdOrigin());
+        entity.setRecurrenceRule(command.recurrenceRule());
+        entity.setRecurrenceUntil(command.recurrenceUntil());
+        entity.setRecurrenceNextRunAt(command.recurrenceNextRunAt());
         var saved = queryRequestRepository.save(entity);
         return saved.getId();
+    }
+
+    @Override
+    @Transactional
+    public Optional<UUID> createRecurringOccurrence(UUID parentId, Instant expectedNextRunAt,
+                                                    Instant nextRunAt) {
+        var parent = queryRequestRepository.findByIdForUpdate(parentId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Recurring parent not found: " + parentId));
+        // Under the lock the cursor is authoritative. A cancel/halt cleared it (null), and a
+        // racing caller that fired the same due window already advanced it past the value this
+        // caller observed — either way, compare-and-set fails and no occurrence is created.
+        if (parent.getStatus() != QueryStatus.APPROVED
+                || parent.getRecurrenceNextRunAt() == null
+                || !parent.getRecurrenceNextRunAt().equals(expectedNextRunAt)) {
+            log.debug("Skipping recurring occurrence for {}: status={}, cursor={}, expected={}",
+                    parentId, parent.getStatus(), parent.getRecurrenceNextRunAt(),
+                    expectedNextRunAt);
+            return Optional.empty();
+        }
+        var child = new QueryRequestEntity();
+        child.setId(UUID.randomUUID());
+        child.setDatasource(parent.getDatasource());
+        child.setSubmittedBy(parent.getSubmittedBy());
+        child.setSqlText(parent.getSqlText());
+        child.setQueryType(parent.getQueryType());
+        child.setTransactional(parent.isTransactional());
+        child.setJustification(parent.getJustification());
+        child.setStatus(QueryStatus.APPROVED);
+        child.setSubmissionReason(SubmissionReason.RECURRING);
+        child.setRecurringParentId(parent.getId());
+        var saved = queryRequestRepository.save(child);
+        // Advance-before-execute: the cursor moves in the same transaction as the child insert,
+        // so a crash mid-execution can never re-fire the same occurrence.
+        parent.setRecurrenceNextRunAt(nextRunAt);
+        return Optional.of(saved.getId());
+    }
+
+    @Override
+    @Transactional
+    public void clearRecurrenceNextRun(UUID parentId, String haltedReason) {
+        var parent = queryRequestRepository.findByIdForUpdate(parentId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Recurring parent not found: " + parentId));
+        parent.setRecurrenceNextRunAt(null);
+        if (haltedReason != null) {
+            parent.setRecurrenceHaltedReason(haltedReason);
+        }
     }
 }

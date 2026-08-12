@@ -1041,7 +1041,11 @@ export interface OptimizationSuggestion {
   sql: string;
 }
 
-export type SubmissionReason = 'USER_SUBMITTED' | 'AI_SUGGESTION' | 'EMERGENCY_ACCESS';
+export type SubmissionReason =
+  | 'USER_SUBMITTED'
+  | 'AI_SUGGESTION'
+  | 'EMERGENCY_ACCESS'
+  | 'RECURRING';
 
 export interface AiAnalysis {
   risk_level: RiskLevel;
@@ -1131,6 +1135,8 @@ export interface QueryListItem {
   risk_score: number | null;
   ai_failed: boolean;
   scheduled_for: string | null;
+  recurring: boolean;
+  recurring_parent_id: string | null;
   created_at: string;
 }
 
@@ -1218,8 +1224,32 @@ export interface QueryDetail {
   review_decisions: ReviewDecisionDetail[];
   linked_tickets: LinkedTicketRef[];
   scheduled_for: string | null;
+  recurrence_rule: string | null;
+  recurrence_until: string | null;
+  recurrence_next_run_at: string | null;
+  recurrence_halted_reason: string | null;
+  recurring_parent_id: string | null;
   created_at: string;
   updated_at: string;
+}
+
+/** One executed (or failed) occurrence of a recurring query series (#627). */
+export interface QueryOccurrence {
+  id: string;
+  status: QueryStatus;
+  rows_affected: number | null;
+  execution_duration_ms: number | null;
+  executed_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface QueryOccurrencePage {
+  items: QueryOccurrence[];
+  page: number;
+  size: number;
+  total_elements: number;
+  total_pages: number;
 }
 
 /** A ticket auto-created in an external ticketing system for this query (AF-453). */
@@ -1761,6 +1791,7 @@ export type UserNotificationEventType =
   | 'QUERY_APPROVED'
   | 'QUERY_REJECTED'
   | 'QUERY_ESCALATED'
+  | 'QUERY_EXECUTED'
   | 'REVIEW_TIMEOUT'
   | 'AI_HIGH_RISK'
   | 'API_REQUEST_SUBMITTED'

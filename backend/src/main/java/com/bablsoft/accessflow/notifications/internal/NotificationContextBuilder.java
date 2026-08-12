@@ -60,6 +60,28 @@ class NotificationContextBuilder {
     Optional<NotificationContext> build(NotificationEventType eventType, UUID queryRequestId,
                                         UUID reviewerUserId, String reviewerComment,
                                         Integer approvalTimeoutHours) {
+        return buildQueryBacked(eventType, queryRequestId, reviewerUserId, reviewerComment,
+                approvalTimeoutHours, null, null, null);
+    }
+
+    /**
+     * Builds the context for a completed recurring occurrence (#627): the query-backed shape plus
+     * the execution outcome the renderers need ("N rows in M ms", success vs failure). The single
+     * recipient is the submitter (resolved by {@code resolveRecipients}).
+     */
+    Optional<NotificationContext> buildQueryExecuted(UUID queryRequestId,
+                                                     com.bablsoft.accessflow.core.api.QueryStatus
+                                                             executionStatus,
+                                                     Long rowsAffected, Long durationMs) {
+        return buildQueryBacked(NotificationEventType.QUERY_EXECUTED, queryRequestId, null, null,
+                null, executionStatus, rowsAffected, durationMs);
+    }
+
+    private Optional<NotificationContext> buildQueryBacked(
+            NotificationEventType eventType, UUID queryRequestId, UUID reviewerUserId,
+            String reviewerComment, Integer approvalTimeoutHours,
+            com.bablsoft.accessflow.core.api.QueryStatus executionStatus, Long rowsAffected,
+            Long durationMs) {
         var snapshot = queryRequestLookupService.findById(queryRequestId).orElse(null);
         if (snapshot == null) {
             return Optional.empty();
@@ -99,7 +121,12 @@ class NotificationContextBuilder {
                 recipients,
                 Instant.now(),
                 locale,
-                approvalTimeoutHours));
+                approvalTimeoutHours,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                executionStatus, rowsAffected, durationMs));
     }
 
     private List<RecipientView> resolveRecipients(NotificationEventType eventType,
@@ -110,7 +137,9 @@ class NotificationContextBuilder {
             // QUERY_ESCALATED targets the same reviewer set as QUERY_SUBMITTED — a routing policy
             // raised the approval bar, but the people who must act are still the plan's reviewers.
             case QUERY_SUBMITTED, QUERY_ESCALATED -> reviewersForLowestStage(plan, snapshot);
-            case QUERY_APPROVED, QUERY_REJECTED -> submitter != null
+            // QUERY_EXECUTED (#627): a recurring occurrence completed — the submitter gets the
+            // results, mirroring the approved/rejected recipient shape.
+            case QUERY_APPROVED, QUERY_REJECTED, QUERY_EXECUTED -> submitter != null
                     ? List.of(toRecipient(submitter))
                     : List.of();
             case REVIEW_TIMEOUT -> reviewTimeoutRecipients(snapshot, submitter);

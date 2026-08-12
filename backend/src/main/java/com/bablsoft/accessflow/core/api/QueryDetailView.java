@@ -33,6 +33,11 @@ public record QueryDetailView(
         Integer approvalTimeoutHours,
         List<ReviewDecisionView> reviewDecisions,
         Instant scheduledFor,
+        String recurrenceRule,
+        Instant recurrenceUntil,
+        Instant recurrenceNextRunAt,
+        String recurrenceHaltedReason,
+        UUID recurringParentId,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -50,6 +55,25 @@ public record QueryDetailView(
                 aiAnalysis, null, rowsAffected, durationMs, errorMessage, previousRunId,
                 approvedByGrantId, reviewPlanName, approvalTimeoutHours, reviewDecisions,
                 scheduledFor, createdAt, updatedAt);
+    }
+
+    /** Backward-compatible constructor without the #627 recurrence fields (defaults to absent). */
+    public QueryDetailView(UUID id, UUID datasourceId, String datasourceName, DbType dbType,
+                           UUID organizationId, UUID submittedByUserId, String submittedByEmail,
+                           String submittedByDisplayName, String sqlText, QueryType queryType,
+                           QueryStatus status, String justification, AiAnalysisDetail aiAnalysis,
+                           CostEstimateDetail costEstimate,
+                           ApprovalPredictionDetail approvalPrediction, Long rowsAffected,
+                           Integer durationMs, String errorMessage, UUID previousRunId,
+                           UUID approvedByGrantId, String reviewPlanName,
+                           Integer approvalTimeoutHours, List<ReviewDecisionView> reviewDecisions,
+                           Instant scheduledFor, Instant createdAt, Instant updatedAt) {
+        this(id, datasourceId, datasourceName, dbType, organizationId, submittedByUserId,
+                submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
+                aiAnalysis, costEstimate, approvalPrediction, rowsAffected, durationMs,
+                errorMessage, previousRunId, approvedByGrantId, reviewPlanName,
+                approvalTimeoutHours, reviewDecisions, scheduledFor, null, null, null, null, null,
+                createdAt, updatedAt);
     }
 
     /**

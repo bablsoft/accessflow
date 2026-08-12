@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -61,7 +62,57 @@ public record NotificationContext(
         UUID attestationCampaignId,
         String attestationCampaignName,
         Instant attestationDueAt,
-        UUID apiRequestId) {
+        UUID apiRequestId,
+        QueryStatus executionStatus,
+        Long executionRowsAffected,
+        Long executionDurationMs) {
+
+    /** Compatibility constructor without the #627 execution-outcome fields. */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest,
+            UUID attestationCampaignId,
+            String attestationCampaignName,
+            Instant attestationDueAt,
+            UUID apiRequestId) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                attestationCampaignId, attestationCampaignName, attestationDueAt, apiRequestId,
+                null, null, null);
+    }
 
     /** Backward-compatible constructor for the query / access notification paths (no anomaly fields). */
     public NotificationContext(

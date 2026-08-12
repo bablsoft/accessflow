@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
@@ -180,6 +181,10 @@ class MsTeamsPayloadFactory {
             case QUERY_APPROVED -> "✅ Query Approved";
             case QUERY_REJECTED -> "❌ Query Rejected";
             case QUERY_ESCALATED -> "⚠️ Query Escalated for Review";
+            // #627: recurring occurrence result delivery to the submitter.
+            case QUERY_EXECUTED -> ctx.executionStatus() == QueryStatus.FAILED
+                    ? "❌ Recurring Query Run Failed"
+                    : "🔁 Recurring Query Results Ready";
             case REVIEW_TIMEOUT -> "⌛ Query Auto-Rejected (review timeout)";
             case AI_HIGH_RISK -> "🚨 AI Flagged High-Risk Query";
             case TEST -> "AccessFlow Test";

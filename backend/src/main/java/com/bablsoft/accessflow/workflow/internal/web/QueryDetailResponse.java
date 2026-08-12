@@ -41,6 +41,11 @@ public record QueryDetailResponse(
         List<ReviewDecisionDetail> reviewDecisions,
         List<LinkedTicketDetail> linkedTickets,
         Instant scheduledFor,
+        String recurrenceRule,
+        Instant recurrenceUntil,
+        Instant recurrenceNextRunAt,
+        String recurrenceHaltedReason,
+        UUID recurringParentId,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -105,6 +110,11 @@ public record QueryDetailResponse(
                         ? List.of()
                         : tickets.stream().map(LinkedTicketDetail::from).toList(),
                 view.scheduledFor(),
+                view.recurrenceRule(),
+                view.recurrenceUntil(),
+                view.recurrenceNextRunAt(),
+                view.recurrenceHaltedReason(),
+                view.recurringParentId(),
                 view.createdAt(),
                 view.updatedAt());
     }

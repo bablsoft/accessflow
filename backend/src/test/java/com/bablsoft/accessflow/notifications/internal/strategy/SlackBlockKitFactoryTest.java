@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -175,6 +176,19 @@ class SlackBlockKitFactoryTest {
     }
 
     @Test
+    void queryExecutedHeaderReflectsSuccessAndFailure() {
+        var success = factory.buildEventPayload(executedCtx(QueryStatus.EXECUTED), null);
+        assertThat(success.getText()).contains("Recurring Query Results Ready");
+        var successHeader = (HeaderBlock) success.getBlocks().get(0);
+        assertThat(successHeader.getText().getText()).contains("Recurring Query Results Ready");
+
+        var failed = factory.buildEventPayload(executedCtx(QueryStatus.FAILED), null);
+        assertThat(failed.getText()).contains("Recurring Query Run Failed");
+        var failedHeader = (HeaderBlock) failed.getBlocks().get(0);
+        assertThat(failedHeader.getText().getText()).contains("Recurring Query Run Failed");
+    }
+
+    @Test
     void weeklyDigestHeaderAndSectionRenderTheDigestMetrics() {
         var payload = factory.buildEventPayload(digestCtx(), null);
         var header = (HeaderBlock) payload.getBlocks().get(0);
@@ -207,6 +221,40 @@ class SlackBlockKitFactoryTest {
 
     private static NotificationContext ctxWith(NotificationEventType eventType) {
         return ctxWith(eventType, null);
+    }
+
+    /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */
+    private static NotificationContext executedCtx(QueryStatus executionStatus) {
+        return new NotificationContext(
+                NotificationEventType.QUERY_EXECUTED,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                QueryType.SELECT,
+                "SELECT 1",
+                "SELECT 1",
+                "SELECT 1",
+                RiskLevel.LOW,
+                10,
+                "ok",
+                UUID.randomUUID(),
+                "Production",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                null,
+                null,
+                null,
+                null,
+                URI.create("https://app.example.com/queries/abc"),
+                List.of(),
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                executionStatus, 5L, 120L);
     }
 
     private static NotificationContext ctxWith(NotificationEventType eventType,

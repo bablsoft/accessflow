@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleDirectiveResolutionService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
+import com.bablsoft.accessflow.core.api.QueryRequestPersistenceService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
@@ -48,6 +49,7 @@ import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -62,6 +64,11 @@ import java.util.UUID;
 class DefaultQueryLifecycleService implements QueryLifecycleService {
 
     private final QueryRequestLookupService queryRequestLookupService;
+    private final QueryRequestPersistenceService queryRequestPersistenceService;
+    private final DatasourcePermissionVerifier permissionVerifier;
+    private final com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
+    private final com.bablsoft.accessflow.core.api.RolePermissionResolver rolePermissionResolver;
+    private final Clock clock;
     private final QueryRequestStateService queryRequestStateService;
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final QueryExecutor queryExecutor;
@@ -86,17 +93,27 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
     @Override
     public void cancel(CancelQueryCommand command) {
         var query = loadOrThrow(command.queryRequestId(), command.callerOrganizationId());
-        if (!query.submittedByUserId().equals(command.callerUserId())) {
+        boolean isRecurringSeries = query.recurrenceRule() != null;
+        if (!query.submittedByUserId().equals(command.callerUserId())
+                // #627 kill-switch: a reviewer may cancel a recurring series (never a plain query).
+                && !(command.callerIsReviewer() && isRecurringSeries)) {
             throw new AccessDeniedException(msg("error.query_not_owned_by_caller"));
         }
         var current = query.status();
         boolean isScheduledApproved = current == QueryStatus.APPROVED && query.scheduledFor() != null;
+        boolean isRecurringApproved = current == QueryStatus.APPROVED && isRecurringSeries;
         if (current != QueryStatus.PENDING_AI
                 && current != QueryStatus.PENDING_REVIEW
-                && !isScheduledApproved) {
+                && !isScheduledApproved
+                && !isRecurringApproved) {
             throw new QueryNotCancellableException(query.id(), current);
         }
         queryRequestStateService.transitionTo(query.id(), current, QueryStatus.CANCELLED);
+        if (isRecurringSeries && query.recurrenceNextRunAt() != null) {
+            // Keep the "cursor cleared ⇒ series over" invariant and drop the row out of the
+            // recurrence-due partial index (the job already filters on APPROVED regardless).
+            queryRequestPersistenceService.clearRecurrenceNextRun(query.id(), null);
+        }
         eventPublisher.publishEvent(new QueryCancelledEvent(query.id(), command.callerUserId()));
     }
 
@@ -121,6 +138,14 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             throw new AccessDeniedException(msg("error.query_not_owned_by_caller"));
         }
         if (query.status() != QueryStatus.APPROVED) {
+            throw new QueryNotExecutableException(query.id(), query.status());
+        }
+        // A recurring parent (#627) must stay APPROVED for the series' lifetime — a manual
+        // execute would consume the status and silently kill the series. Occurrence rows are
+        // equally non-executable: a normal one is executed by the job in the tick that created
+        // it, so an APPROVED occurrence reachable here is a crash orphan that already had its
+        // slot consumed by the cursor advance.
+        if (query.recurrenceRule() != null || query.recurringParentId() != null) {
             throw new QueryNotExecutableException(query.id(), query.status());
         }
         return doExecute(query, command.callerUserId(), null, true, AuditAction.QUERY_EXECUTED);
@@ -148,6 +173,101 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             return;
         }
         doExecute(query, query.submittedByUserId(), "scheduled", false, AuditAction.QUERY_EXECUTED);
+    }
+
+    @Override
+    public void executeRecurringOccurrence(UUID parentQueryRequestId) {
+        var parent = queryRequestLookupService.findById(parentQueryRequestId)
+                .orElseThrow(() -> new QueryRequestNotFoundException(parentQueryRequestId));
+        var now = clock.instant();
+        if (parent.status() != QueryStatus.APPROVED || parent.recurrenceRule() == null
+                || parent.recurrenceNextRunAt() == null
+                || parent.recurrenceNextRunAt().isAfter(now)) {
+            log.debug("Skipping recurring occurrence for {} — status={}, nextRunAt={}",
+                    parent.id(), parent.status(), parent.recurrenceNextRunAt());
+            return;
+        }
+        if (parent.recurrenceUntil() != null && now.isAfter(parent.recurrenceUntil())) {
+            // Series completed: clear the cursor with no halt reason — the UI derives
+            // "Series completed" from the cleared cursor + past expiry.
+            queryRequestPersistenceService.clearRecurrenceNextRun(parent.id(), null);
+            return;
+        }
+        // Fail-closed recheck with CURRENT state. Re-parse first: a parse failure would make the
+        // referenced-table set empty and vacuously pass the allow-list (the tryGrantFastPath
+        // idiom), so it halts the series instead. A corrupt stored rule halts the same way.
+        // Only *deterministic* failures halt — a transient infrastructure error (pool blip,
+        // timeout) propagates to the job's per-row catch and simply retries next tick, since
+        // the cursor is still due.
+        Instant next;
+        try {
+            var submitter = userQueryService.findById(parent.submittedByUserId())
+                    .filter(com.bablsoft.accessflow.core.api.UserView::active)
+                    .orElseThrow(() -> new AccessDeniedException(
+                            "Submitter inactive or gone: " + parent.submittedByUserId()));
+            var dbType = datasourceLookupService.findById(parent.datasourceId())
+                    .filter(DatasourceConnectionDescriptor::active)
+                    .map(DatasourceConnectionDescriptor::dbType)
+                    .orElseThrow(() -> new AccessDeniedException(
+                            "Datasource inactive or gone: " + parent.datasourceId()));
+            var referencedTables = queryParser.parse(parent.sqlText(), dbType).referencedTables();
+            // Admins bypass the per-datasource permission gate at submission; mirror that here so
+            // an admin-submitted series isn't halted for lacking a permission row. Losing the
+            // admin role (and holding no row) still halts — the fail-closed contract survives.
+            var effectivePermissions = rolePermissionResolver.resolve(
+                    submitter.roleId(), submitter.role());
+            if (!effectivePermissions.contains(
+                    com.bablsoft.accessflow.core.api.Permission.QUERY_ADMIN)) {
+                permissionVerifier.verify(parent.submittedByUserId(), parent.datasourceId(),
+                        parent.queryType(), referencedTables);
+            }
+            next = nextOccurrenceOrNull(parent, now);
+        } catch (AccessDeniedException | InvalidSqlException | IllegalArgumentException
+                 | java.time.format.DateTimeParseException ex) {
+            haltSeries(parent, ex);
+            return;
+        }
+        var childId = queryRequestPersistenceService
+                .createRecurringOccurrence(parent.id(), parent.recurrenceNextRunAt(), next)
+                .orElse(null);
+        if (childId == null) {
+            // A cancel/halt cleared the cursor, or a racing tick already fired this due window
+            // and advanced it — the CAS under the parent lock is authoritative either way.
+            log.debug("Recurring occurrence for {} skipped — cursor no longer matches",
+                    parent.id());
+            return;
+        }
+        var child = queryRequestLookupService.findById(childId)
+                .orElseThrow(() -> new QueryRequestNotFoundException(childId));
+        doExecute(child, parent.submittedByUserId(), "recurring", false,
+                AuditAction.QUERY_EXECUTED);
+    }
+
+    /** Next cursor after {@code now}, or {@code null} when the series ends with this occurrence. */
+    private Instant nextOccurrenceOrNull(QueryRequestSnapshot parent, Instant now) {
+        var next = RecurrenceRule.parse(parent.recurrenceRule()).nextAfter(now);
+        if (next == null
+                || (parent.recurrenceUntil() != null && next.isAfter(parent.recurrenceUntil()))) {
+            return null;
+        }
+        return next;
+    }
+
+    private void haltSeries(QueryRequestSnapshot parent, RuntimeException cause) {
+        var reason = cause.getMessage() != null
+                ? cause.getMessage()
+                : cause.getClass().getSimpleName();
+        log.warn("Halting recurring series {} fail-closed: {}", parent.id(), reason);
+        queryRequestPersistenceService.clearRecurrenceNextRun(parent.id(), reason);
+        var metadata = new HashMap<String, Object>();
+        metadata.put("reason", reason);
+        metadata.put("recurrence_rule", parent.recurrenceRule());
+        if (parent.recurrenceUntil() != null) {
+            metadata.put("recurrence_until", parent.recurrenceUntil().toString());
+        }
+        metadata.put("datasource_id", parent.datasourceId().toString());
+        recordAudit(AuditAction.RECURRING_SERIES_HALTED, parent.id(),
+                parent.submittedByUserId(), parent.organizationId(), metadata);
     }
 
     private ExecutionOutcome doExecute(QueryRequestSnapshot query, UUID actorUserId,
@@ -249,7 +369,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             recordAudit(successAction, query.id(), actorUserId,
                     query.organizationId(), successMetadata);
             eventPublisher.publishEvent(new QueryExecutedEvent(
-                    query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED));
+                    query.id(), rowsAffected, durationMs, QueryStatus.EXECUTED,
+                    query.recurringParentId()));
             return new ExecutionOutcome(query.id(), QueryStatus.EXECUTED, rowsAffected, durationMs);
         } catch (UnrewritableRowSecurityException | InvalidSqlException ex) {
             // A structurally unfilterable (or unparseable) query is a client error. For an
@@ -292,7 +413,8 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
         recordAudit(AuditAction.QUERY_FAILED, query.id(), actorUserId,
                 query.organizationId(), failureMetadata);
         eventPublisher.publishEvent(new QueryExecutedEvent(
-                query.id(), null, durationMs, QueryStatus.FAILED));
+                query.id(), null, durationMs, QueryStatus.FAILED,
+                query.recurringParentId()));
         return new ExecutionOutcome(query.id(), QueryStatus.FAILED, null, durationMs);
     }
 

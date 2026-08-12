@@ -16,6 +16,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { QueryAuthoringPanel } from '@/components/editor/QueryAuthoringPanel';
+import {
+  RecurrencePicker,
+  cronLooksValid,
+  type RecurrenceMode,
+} from '@/components/editor/RecurrencePicker';
 import { useQueryAuthoring } from '@/components/editor/useQueryAuthoring';
 import { ReviewPlanPreview } from '@/components/editor/ReviewPlanPreview';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
@@ -44,6 +49,10 @@ export function QueryEditorPage() {
   const [sql, setSql] = useState(() => presetState?.presetSql ?? '');
   const [justification, setJustification] = useState('');
   const [scheduledFor, setScheduledFor] = useState<Dayjs | null>(null);
+  // #627 recurring series — mutually exclusive with scheduledFor (setting one clears the other).
+  const [recurrenceMode, setRecurrenceMode] = useState<RecurrenceMode>('none');
+  const [recurrenceRule, setRecurrenceRule] = useState('');
+  const [recurrenceUntil, setRecurrenceUntil] = useState<Dayjs | null>(null);
   const [submissionReason, setSubmissionReason] = useState<SubmissionReason>('USER_SUBMITTED');
   const [breakGlassOpen, setBreakGlassOpen] = useState(false);
   const [breakGlassJustification, setBreakGlassJustification] = useState('');
@@ -70,6 +79,9 @@ export function QueryEditorPage() {
         justification,
         scheduled_for: scheduledFor ? scheduledFor.toISOString() : null,
         submission_reason: submissionReason,
+        recurrence_rule: recurrenceMode !== 'none' && recurrenceRule ? recurrenceRule : null,
+        recurrence_until:
+          recurrenceMode !== 'none' && recurrenceUntil ? recurrenceUntil.toISOString() : null,
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.lists() });
@@ -126,8 +138,20 @@ export function QueryEditorPage() {
   const sqlNonEmpty = sql.trim().length > 0;
   const submitGatedByAnalysis = authoring.aiSupported && !authoring.hasFreshAnalysis;
   const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
+  // #627: a recurring submission needs a rule and a future end time; mirror the backend rules.
+  const recurring = recurrenceMode !== 'none';
+  const recurrenceInvalid =
+    recurring &&
+    (!recurrenceRule.trim() ||
+      !recurrenceUntil ||
+      !recurrenceUntil.isAfter(dayjs()) ||
+      (recurrenceMode === 'cron' && !cronLooksValid(recurrenceRule)));
   const canSubmit =
-    sqlNonEmpty && !submitMutation.isPending && !submitGatedByAnalysis && !scheduleInPast;
+    sqlNonEmpty &&
+    !submitMutation.isPending &&
+    !submitGatedByAnalysis &&
+    !scheduleInPast &&
+    !recurrenceInvalid;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -237,7 +261,15 @@ export function QueryEditorPage() {
               <DatePicker
                 showTime
                 value={scheduledFor}
-                onChange={(value) => setScheduledFor(value)}
+                onChange={(value) => {
+                  setScheduledFor(value);
+                  // One-time scheduling and recurrence are mutually exclusive (#627).
+                  if (value) {
+                    setRecurrenceMode('none');
+                    setRecurrenceRule('');
+                    setRecurrenceUntil(null);
+                  }
+                }}
                 placeholder={t('editor.schedule_placeholder')}
                 disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
                 style={{ width: 280 }}
@@ -245,9 +277,24 @@ export function QueryEditorPage() {
               <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
                 {scheduleInPast
                   ? t('editor.schedule_in_past_error')
-                  : t('editor.schedule_help')}
+                  : recurring
+                    ? t('editor.recurrence_exclusive_note')
+                    : t('editor.schedule_help')}
               </div>
             </div>
+            <RecurrencePicker
+              mode={recurrenceMode}
+              onModeChange={(mode) => {
+                setRecurrenceMode(mode);
+                if (mode !== 'none') {
+                  setScheduledFor(null);
+                }
+              }}
+              rule={recurrenceRule}
+              onRuleChange={setRecurrenceRule}
+              until={recurrenceUntil}
+              onUntilChange={setRecurrenceUntil}
+            />
             <ReviewPlanPreview ds={ds} />
           </>
         }

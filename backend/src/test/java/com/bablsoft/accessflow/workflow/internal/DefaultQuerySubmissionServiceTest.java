@@ -16,11 +16,11 @@ import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.workflow.api.InvalidRecurrenceRuleException;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -52,11 +52,33 @@ class DefaultQuerySubmissionServiceTest {
     @Mock com.bablsoft.accessflow.core.api.QuotaService quotaService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
-    @InjectMocks DefaultQuerySubmissionService service;
+
+    DefaultQuerySubmissionService service;
 
     private final UUID datasourceId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
     private final UUID organizationId = UUID.randomUUID();
+    private final Instant now = Instant.now();
+    private final java.time.Clock fixedClock =
+            java.time.Clock.fixed(now, java.time.ZoneOffset.UTC);
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        // A REAL verifier over the mocked lookup keeps the permission/allow-list tests exercising
+        // the extracted logic end-to-end (the verifier also has its own dedicated test).
+        service = new DefaultQuerySubmissionService(
+                queryParser,
+                datasourceAdminService,
+                new DatasourcePermissionVerifier(permissionLookupService, messageSource,
+                        fixedClock),
+                queryRequestPersistenceService,
+                quotaService,
+                eventPublisher,
+                messageSource,
+                new com.bablsoft.accessflow.workflow.internal.config.WorkflowProperties(
+                        null, null, null, null),
+                fixedClock);
+    }
 
     @Test
     void submitsSelectAsAnalystWithReadPermission() {
@@ -431,6 +453,107 @@ class DefaultQuerySubmissionServiceTest {
         ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
         verify(queryRequestPersistenceService).submit(captor.capture());
         assertThat(captor.getValue().scheduledFor()).isEqualTo(futureInstant);
+    }
+
+    // ── recurring series (#627) ───────────────────────────────────────────────
+
+    @Test
+    void persistsRecurrenceFieldsAndInitialCursor() {
+        stubParse("SELECT 1", QueryType.SELECT);
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null);
+        stubPersist();
+        var until = now.plusSeconds(7 * 24 * 3600);
+
+        service.submit(recurringInput("PT6H", until, null));
+
+        ArgumentCaptor<SubmitQueryCommand> captor = ArgumentCaptor.forClass(SubmitQueryCommand.class);
+        verify(queryRequestPersistenceService).submit(captor.capture());
+        var cmd = captor.getValue();
+        assertThat(cmd.recurrenceRule()).isEqualTo("PT6H");
+        assertThat(cmd.recurrenceUntil()).isEqualTo(until);
+        assertThat(cmd.recurrenceNextRunAt()).isEqualTo(now.plusSeconds(6 * 3600));
+    }
+
+    @Test
+    void rejectsRecurrenceWithoutUntil() {
+        stubActiveDatasourceForUser();
+
+        assertThatThrownBy(() -> service.submit(recurringInput("PT6H", null, null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void rejectsUntilWithoutRule() {
+        stubActiveDatasourceForUser();
+
+        assertThatThrownBy(() -> service.submit(
+                recurringInput(null, now.plusSeconds(3600), null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsRecurrenceCombinedWithScheduledFor() {
+        stubActiveDatasourceForUser();
+
+        assertThatThrownBy(() -> service.submit(recurringInput("PT6H",
+                now.plusSeconds(7200), now.plusSeconds(600))))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsUntilInThePast() {
+        stubActiveDatasourceForUser();
+
+        assertThatThrownBy(() -> service.submit(
+                recurringInput("PT6H", now.minusSeconds(60), null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsUnparseableRule() {
+        stubActiveDatasourceForUser();
+
+        assertThatThrownBy(() -> service.submit(
+                recurringInput("every day at noon", now.plusSeconds(3600), null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsIntervalBelowConfiguredFloor() {
+        stubActiveDatasourceForUser();
+
+        // Default floor is PT5M; PT1M is too chatty.
+        assertThatThrownBy(() -> service.submit(
+                recurringInput("PT1M", now.plusSeconds(3600), null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsRuleWithNoOccurrenceBeforeUntil() {
+        stubActiveDatasourceForUser();
+
+        // First occurrence (now + 6h) is already past the 1h expiry — the series would never fire.
+        assertThatThrownBy(() -> service.submit(
+                recurringInput("PT6H", now.plusSeconds(3600), null)))
+                .isInstanceOf(InvalidRecurrenceRuleException.class);
+    }
+
+    @Test
+    void rejectsSystemOnlySubmissionReasons() {
+        for (var reserved : new SubmissionReason[]{
+                SubmissionReason.RECURRING, SubmissionReason.EMERGENCY_ACCESS}) {
+            assertThatThrownBy(() -> service.submit(new SubmissionInput(datasourceId, "SELECT 1",
+                    null, userId, organizationId, false, null, reserved, null, null, false)))
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+        verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    private SubmissionInput recurringInput(String rule, Instant until, Instant scheduledFor) {
+        return new SubmissionInput(datasourceId, "SELECT 1", null, userId, organizationId, false,
+                scheduledFor, null, null, null, false, rule, until);
     }
 
     private SubmissionInput input(String sql, boolean isAdmin) {

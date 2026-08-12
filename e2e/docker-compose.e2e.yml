@@ -164,6 +164,9 @@ services:
       # Lower the scheduled-run poll interval so the AF-345 query-scheduling spec
       # fires its scheduled execution within the Playwright per-test budget.
       ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL: PT1S
+      # #627: recurring queries fire every second and accept second-scale cadences under e2e.
+      ACCESSFLOW_WORKFLOW_RECURRING_RUN_POLL_INTERVAL: PT1S
+      ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL: PT1S
       # AF-347: bootstrap a mock OpenAI-compatible ai_config wired to the
       # mock-ai (WireMock) container so the AI analysis listener can produce
       # real ai_analyses rows the admin dashboard spec then reads.

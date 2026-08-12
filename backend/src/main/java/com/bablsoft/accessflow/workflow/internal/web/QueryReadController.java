@@ -180,35 +180,72 @@ class QueryReadController {
     }
 
     @PostMapping("/{id}/cancel")
-    @Operation(summary = "Cancel a pending query (submitter only)")
+    @Operation(summary = "Cancel a pending query (submitter only; for a recurring series also "
+            + "any QUERY_REVIEW holder — the #627 kill-switch)")
     @ApiResponse(responseCode = "204", description = "Query cancelled")
-    @ApiResponse(responseCode = "403", description = "Caller is not the submitter")
+    @ApiResponse(responseCode = "403", description = "Caller is not the submitter (nor, for a "
+            + "recurring series, a reviewer)")
     @ApiResponse(responseCode = "404", description = "Query not found")
     @ApiResponse(responseCode = "409", description = "Query is no longer cancellable")
     ResponseEntity<Void> cancel(@PathVariable UUID id, Authentication authentication,
                                 RequestAuditContext auditContext) {
         var caller = (JwtClaims) authentication.getPrincipal();
+        var submitterId = queryRequestLookupService
+                .findDetailById(id, caller.organizationId())
+                .map(detail -> detail.submittedByUserId())
+                .orElse(null);
         queryLifecycleService.cancel(new CancelQueryCommand(id, caller.userId(),
-                caller.organizationId()));
-        recordCancelAudit(caller, id, auditContext);
+                caller.organizationId(), caller.has(Permission.QUERY_REVIEW)));
+        recordCancelAudit(caller, id, submitterId, auditContext);
         return ResponseEntity.noContent().build();
     }
 
-    private void recordCancelAudit(JwtClaims caller, UUID queryId,
+    private void recordCancelAudit(JwtClaims caller, UUID queryId, UUID submitterId,
                                    RequestAuditContext auditContext) {
         try {
+            var metadata = new HashMap<String, Object>();
+            if (submitterId != null && !submitterId.equals(caller.userId())) {
+                metadata.put("cancelled_by_reviewer", true);
+            }
             auditLogService.record(new AuditEntry(
                     AuditAction.QUERY_CANCELLED,
                     AuditResourceType.QUERY_REQUEST,
                     queryId,
                     caller.organizationId(),
                     caller.userId(),
-                    new HashMap<>(),
+                    metadata,
                     auditContext.ipAddress(),
                     auditContext.userAgent()));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for QUERY_CANCELLED on query {}", queryId, ex);
         }
+    }
+
+    @GetMapping("/{id}/occurrences")
+    @Operation(summary = "List the executed occurrences of a recurring query series (#627), "
+            + "newest first")
+    @ApiResponse(responseCode = "200", description = "Page of occurrence rows (empty for a "
+            + "non-recurring query)")
+    @ApiResponse(responseCode = "404", description = "Query not found in caller's organization, "
+            + "or the caller may not read it")
+    QueryOccurrencePageResponse occurrences(@PathVariable UUID id,
+                                            Authentication authentication,
+                                            Pageable pageable) {
+        if (pageable.getPageSize() > MAX_PAGE_SIZE) {
+            throw new BadQueryListException("Page size cannot exceed " + MAX_PAGE_SIZE);
+        }
+        var caller = (JwtClaims) authentication.getPrincipal();
+        var detail = queryRequestLookupService.findDetailById(id, caller.organizationId())
+                .orElseThrow(() -> new QueryRequestNotFoundException(id));
+        // Same read gate as GET /{id}: QUERY_VIEW_ALL holders read any series, everyone else
+        // only their own (404, not 403, so ids cannot be probed).
+        if (!caller.has(Permission.QUERY_VIEW_ALL)
+                && !detail.submittedByUserId().equals(caller.userId())) {
+            throw new QueryRequestNotFoundException(id);
+        }
+        var page = queryRequestLookupService.findOccurrences(id, caller.organizationId(),
+                SpringPageableAdapter.toPageRequest(pageable));
+        return QueryOccurrencePageResponse.from(page.map(QueryOccurrenceItem::from));
     }
 
     @PostMapping("/{id}/reanalyze")

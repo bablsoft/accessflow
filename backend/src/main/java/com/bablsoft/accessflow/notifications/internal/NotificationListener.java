@@ -13,9 +13,11 @@ import com.bablsoft.accessflow.lifecycle.events.ErasureRequestApprovedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.workflow.events.BreakGlassExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryApprovedEvent;
+import com.bablsoft.accessflow.workflow.events.QueryExecutedEvent;
 import com.bablsoft.accessflow.workflow.events.QueryRejectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
@@ -88,6 +90,28 @@ class NotificationListener {
     void onBreakGlassExecuted(BreakGlassExecutedEvent event) {
         safeDispatch(NotificationEventType.BREAK_GLASS_EXECUTED, event.queryRequestId(),
                 null, null, null);
+    }
+
+    /**
+     * Result delivery for recurring occurrences (#627). A plain {@link EventListener}, NOT an
+     * {@code @ApplicationModuleListener}: {@link QueryExecutedEvent} is published outside any
+     * transaction, so an AFTER_COMMIT listener would silently never fire (the
+     * {@code QuerySnapshotListener} Javadoc documents the same trap). Only occurrence rows
+     * ({@code recurringParentId != null}) are dispatched — one-off executions notify nobody,
+     * matching the deferred row in docs/08-notifications.md.
+     */
+    @EventListener
+    void onQueryExecuted(QueryExecutedEvent event) {
+        if (event.recurringParentId() == null) {
+            return;
+        }
+        try {
+            dispatcher.dispatchQueryExecuted(event.queryRequestId(), event.finalStatus(),
+                    event.rowsAffected(), event.durationMs());
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for QUERY_EXECUTED on query {}",
+                    event.queryRequestId(), ex);
+        }
     }
 
     @ApplicationModuleListener

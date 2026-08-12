@@ -38,7 +38,24 @@ class QueryListItemTest {
         assertThat(item.riskScore()).isEqualTo(80);
         assertThat(item.aiFailed()).isFalse();
         assertThat(item.scheduledFor()).isEqualTo(scheduledFor);
+        assertThat(item.recurring()).isFalse();
+        assertThat(item.recurringParentId()).isNull();
         assertThat(item.createdAt()).isEqualTo(Instant.parse("2026-05-01T10:00:00Z"));
+    }
+
+    @Test
+    void fromCarriesRecurringSeriesMarkers() {
+        var parentId = UUID.randomUUID();
+        var view = new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "ds",
+                UUID.randomUUID(), "a@b.com", "A",
+                QueryType.SELECT, QueryStatus.EXECUTED, null, null, false,
+                null, true, parentId,
+                Instant.now());
+
+        var item = QueryListItem.from(view);
+
+        assertThat(item.recurring()).isTrue();
+        assertThat(item.recurringParentId()).isEqualTo(parentId);
     }
 
     @Test

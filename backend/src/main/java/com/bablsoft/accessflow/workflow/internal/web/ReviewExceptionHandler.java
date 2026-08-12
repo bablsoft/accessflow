@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.workflow.api.BulkReviewCommentRequiredException;
+import com.bablsoft.accessflow.workflow.api.InvalidRecurrenceRuleException;
 import com.bablsoft.accessflow.workflow.api.QueryNotCancellableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotExecutableException;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
@@ -83,6 +84,15 @@ class ReviewExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 msg("error.bulk_review.comment_required", ex.decision().name()));
         pd.setProperty("error", "VALIDATION_ERROR");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidRecurrenceRuleException.class)
+    ProblemDetail handleInvalidRecurrenceRule(InvalidRecurrenceRuleException ex) {
+        // Message resolved at throw site via MessageSource — see DefaultQuerySubmissionService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        pd.setProperty("error", "RECURRENCE_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

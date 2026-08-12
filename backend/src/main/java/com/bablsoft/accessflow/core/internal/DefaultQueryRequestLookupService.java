@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.PendingReviewView;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
+import com.bablsoft.accessflow.core.api.QueryOccurrenceView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -70,6 +71,35 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     @Transactional(readOnly = true)
     public List<UUID> findScheduledDueIds(Instant now) {
         return queryRequestRepository.findScheduledDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findRecurringDueIds(Instant now) {
+        return queryRequestRepository.findRecurringDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<QueryOccurrenceView> findOccurrences(UUID parentId, UUID organizationId,
+                                                             PageRequest pageRequest) {
+        var pageable = org.springframework.data.domain.PageRequest.of(
+                pageRequest.page(), pageRequest.size(),
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
+        var page = queryRequestRepository.findOccurrences(parentId, organizationId, pageable);
+        return PageAdapter.toPageResponse(page.map(DefaultQueryRequestLookupService::toOccurrenceView));
+    }
+
+    private static QueryOccurrenceView toOccurrenceView(QueryRequestEntity entity) {
+        return new QueryOccurrenceView(
+                entity.getId(),
+                entity.getStatus(),
+                entity.getRowsAffected(),
+                entity.getExecutionDurationMs(),
+                entity.getExecutionCompletedAt(),
+                entity.getErrorMessage(),
+                entity.getCreatedAt());
     }
 
     @Override
@@ -190,6 +220,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 aiAnalysis != null ? aiAnalysis.getRiskScore() : null,
                 aiAnalysis != null && aiAnalysis.isFailed(),
                 entity.getScheduledFor(),
+                entity.getRecurrenceRule() != null,
+                entity.getRecurringParentId(),
                 entity.getCreatedAt());
     }
 
@@ -234,6 +266,11 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 plan != null ? plan.getApprovalTimeoutHours() : null,
                 decisions,
                 entity.getScheduledFor(),
+                entity.getRecurrenceRule(),
+                entity.getRecurrenceUntil(),
+                entity.getRecurrenceNextRunAt(),
+                entity.getRecurrenceHaltedReason(),
+                entity.getRecurringParentId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }
@@ -322,7 +359,11 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getScheduledFor(),
                 entity.getSubmittedIp(),
                 entity.getSubmittedUserAgent(),
-                entity.isCiCdOrigin());
+                entity.isCiCdOrigin(),
+                entity.getRecurrenceRule(),
+                entity.getRecurrenceUntil(),
+                entity.getRecurrenceNextRunAt(),
+                entity.getRecurringParentId());
     }
 
     private static final List<QueryStatus> APPROVED_STATUSES =

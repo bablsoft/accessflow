@@ -42,6 +42,21 @@ public interface QueryRequestLookupService {
     List<UUID> findScheduledDueIds(Instant now);
 
     /**
+     * Returns the ids of {@code APPROVED} recurring-series parents (#627) whose
+     * {@code recurrence_next_run_at} cursor is at or before {@code now}. The caller (workflow's
+     * {@code RecurringQueryRunJob}) iterates these and triggers occurrence execution via
+     * {@code QueryLifecycleService.executeRecurringOccurrence}.
+     */
+    List<UUID> findRecurringDueIds(Instant now);
+
+    /**
+     * Returns the occurrence rows of a recurring series (#627) — the child query requests whose
+     * {@code recurring_parent_id} equals {@code parentId} — org-scoped, newest first.
+     */
+    PageResponse<QueryOccurrenceView> findOccurrences(UUID parentId, UUID organizationId,
+                                                      PageRequest pageRequest);
+
+    /**
      * Returns queries in {@code PENDING_REVIEW} where the reviewer is listed (by user id or
      * role) on the datasource's review plan, scoped to their organization, excluding queries
      * the reviewer themselves submitted. The current-stage filter is applied by the caller

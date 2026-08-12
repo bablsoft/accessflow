@@ -55,6 +55,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -635,6 +636,93 @@ class QueryReadControllerIntegrationTest {
 
         assertThat(response).hasStatus(401);
         verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void cancelByReviewerMarksAuditMetadataAndPassesReviewerFlag() {
+        // #627 kill-switch: a reviewer cancels someone else's recurring series; the audit row
+        // records cancelled_by_reviewer and the command carries the reviewer authority flag.
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(plainDetail(qid, analyst)));
+        doNothing().when(queryLifecycleService).cancel(any());
+
+        var response = mvc.post().uri("/api/v1/queries/" + qid + "/cancel")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(204);
+        var cmdCaptor = ArgumentCaptor.forClass(
+                QueryLifecycleService.CancelQueryCommand.class);
+        verify(queryLifecycleService).cancel(cmdCaptor.capture());
+        assertThat(cmdCaptor.getValue().callerIsReviewer()).isTrue();
+        var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().metadata())
+                .containsEntry("cancelled_by_reviewer", true);
+    }
+
+    // ── GET /api/v1/queries/{id}/occurrences (#627) ─────────────────────────────
+
+    private QueryDetailView plainDetail(UUID qid, UserEntity submitter) {
+        return new QueryDetailView(qid, UUID.randomUUID(), "Prod PG", DbType.POSTGRESQL,
+                org.getId(), submitter.getId(), submitter.getEmail(), submitter.getDisplayName(),
+                "SELECT 1", QueryType.SELECT, QueryStatus.APPROVED, "x", null, null, null,
+                null, null, null, null, null, null, null, List.of(), null,
+                Instant.now(), Instant.now());
+    }
+
+    @Test
+    void occurrencesReturnsPageForSubmitter() {
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(plainDetail(qid, analyst)));
+        var occurrence = new com.bablsoft.accessflow.core.api.QueryOccurrenceView(
+                UUID.randomUUID(), QueryStatus.EXECUTED, 12L, 240,
+                Instant.parse("2026-08-11T08:00:03Z"), null,
+                Instant.parse("2026-08-11T08:00:02Z"));
+        when(queryRequestLookupService.findOccurrences(eq(qid), eq(org.getId()), any()))
+                .thenReturn(new com.bablsoft.accessflow.core.api.PageResponse<>(
+                        List.of(occurrence), 0, 20, 1L, 1));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid + "/occurrences")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(200);
+        assertThat(response).bodyJson().extractingPath("$.items[0].status").asString()
+                .isEqualTo("EXECUTED");
+        assertThat(response).bodyJson().extractingPath("$.items[0].rows_affected")
+                .isEqualTo(12);
+        assertThat(response).bodyJson().extractingPath("$.total_elements").isEqualTo(1);
+    }
+
+    @Test
+    void occurrencesReturns404ForNonSubmitterWithoutViewAll() {
+        var qid = UUID.randomUUID();
+        // Submitted by the admin — the analyst (no QUERY_VIEW_ALL) must not see the series.
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.of(plainDetail(qid, admin)));
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid + "/occurrences")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + analystToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
+        verify(queryRequestLookupService, never()).findOccurrences(any(), any(), any());
+    }
+
+    @Test
+    void occurrencesReturns404WhenQueryMissing() {
+        var qid = UUID.randomUUID();
+        when(queryRequestLookupService.findDetailById(qid, org.getId()))
+                .thenReturn(Optional.empty());
+
+        var response = mvc.get().uri("/api/v1/queries/" + qid + "/occurrences")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + reviewerToken)
+                .exchange();
+
+        assertThat(response).hasStatus(404);
     }
 
     // ── POST /api/v1/queries/{id}/execute ───────────────────────────────────────

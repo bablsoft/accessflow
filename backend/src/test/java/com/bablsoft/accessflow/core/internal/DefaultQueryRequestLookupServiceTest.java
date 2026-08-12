@@ -640,6 +640,41 @@ class DefaultQueryRequestLookupServiceTest {
                 "REVIEWER", QueryStatus.PENDING_REVIEW, pageable);
     }
 
+    @Test
+    void findOccurrencesMapsChildRowsAndForcesNewestFirstSort() {
+        var parentId = UUID.randomUUID();
+        var orgId = UUID.randomUUID();
+        var child = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "sub@example.com", QueryStatus.EXECUTED);
+        child.setRecurringParentId(parentId);
+        child.setRowsAffected(12L);
+        child.setExecutionDurationMs(240);
+        child.setExecutionCompletedAt(Instant.parse("2026-08-11T08:00:03Z"));
+        when(queryRequestRepository.findOccurrences(eq(parentId), eq(orgId), any()))
+                .thenReturn(new PageImpl<>(List.of(child), PageRequest.of(0, 20), 1));
+
+        var page = service.findOccurrences(parentId, orgId,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.totalElements()).isEqualTo(1);
+        var view = page.content().get(0);
+        assertThat(view.id()).isEqualTo(child.getId());
+        assertThat(view.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(view.rowsAffected()).isEqualTo(12L);
+        assertThat(view.executionDurationMs()).isEqualTo(240);
+        assertThat(view.executionCompletedAt())
+                .isEqualTo(Instant.parse("2026-08-11T08:00:03Z"));
+        assertThat(view.errorMessage()).isNull();
+
+        var pageableCaptor = org.mockito.ArgumentCaptor
+                .forClass(org.springframework.data.domain.Pageable.class);
+        verify(queryRequestRepository).findOccurrences(eq(parentId), eq(orgId),
+                pageableCaptor.capture());
+        var sort = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
+        assertThat(sort).isNotNull();
+        assertThat(sort.isDescending()).isTrue();
+    }
+
     private static QueryRequestEntity entityWith(UUID queryId, UUID datasourceId,
                                                  UUID organizationId, UUID userId, String email,
                                                  QueryStatus status) {

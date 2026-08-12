@@ -11,8 +11,11 @@ import java.util.UUID;
 public interface QueryLifecycleService {
 
     /**
-     * Transitions the query to {@link QueryStatus#CANCELLED}. Only the submitter may cancel,
-     * and only while the query is in {@code PENDING_AI} or {@code PENDING_REVIEW}.
+     * Transitions the query to {@link QueryStatus#CANCELLED}. Only the submitter may cancel —
+     * except a recurring series (#627, {@code recurrence_rule} set), which any caller with
+     * review authority ({@code callerIsReviewer}) may also cancel as a kill-switch. Cancellable
+     * while the query is in {@code PENDING_AI} or {@code PENDING_REVIEW}, or {@code APPROVED}
+     * with a pending {@code scheduled_for} or a recurrence rule.
      *
      * <p>Authorization is enforced by the security layer; a denial is translated to HTTP 403
      * by the global exception handler.
@@ -62,6 +65,25 @@ public interface QueryLifecycleService {
     void executeScheduled(UUID queryRequestId);
 
     /**
+     * System-triggered execution of the next occurrence of an approved recurring series (#627).
+     * Re-evaluates the submitter's permission (existence, expiry, capability, table allow-list)
+     * and the datasource's active flag with <em>current</em> state, re-parsing the SQL first so a
+     * parse failure can never vacuously pass the allow-list — any failure <strong>halts the series
+     * fail-closed</strong> (cursor cleared, {@code recurrence_halted_reason} persisted, audited as
+     * {@code RECURRING_SERIES_HALTED}) rather than retrying every tick. On success a child
+     * occurrence row is created directly in {@code APPROVED} (advancing the cursor atomically) and
+     * executed through the full proxy pipeline; the parent stays {@code APPROVED}. Once
+     * {@code recurrence_until} passes, the cursor is cleared with no halt reason — the derived
+     * "series completed" state.
+     *
+     * <p>Idempotent: silently returns if the parent is no longer {@code APPROVED}, has no
+     * recurrence rule, or its cursor is null / still in the future.
+     *
+     * @throws com.bablsoft.accessflow.core.api.QueryRequestNotFoundException if the parent is gone.
+     */
+    void executeRecurringOccurrence(UUID parentQueryRequestId);
+
+    /**
      * Re-runs AI analysis on a query whose previous analysis failed. Restricted to reviewers and
      * admins by the security layer. The pre-existing failed {@code ai_analyses} row is removed
      * and {@link com.bablsoft.accessflow.ai.api.AiAnalyzerService#analyzeSubmittedQuery(UUID)} is
@@ -75,7 +97,14 @@ public interface QueryLifecycleService {
      */
     void reanalyze(ReanalyzeQueryCommand command);
 
-    record CancelQueryCommand(UUID queryRequestId, UUID callerUserId, UUID callerOrganizationId) {
+    record CancelQueryCommand(UUID queryRequestId, UUID callerUserId, UUID callerOrganizationId,
+                              boolean callerIsReviewer) {
+
+        /** Backward-compatible constructor without the #627 reviewer kill-switch flag. */
+        public CancelQueryCommand(UUID queryRequestId, UUID callerUserId,
+                                  UUID callerOrganizationId) {
+            this(queryRequestId, callerUserId, callerOrganizationId, false);
+        }
     }
 
     record ExecuteQueryCommand(UUID queryRequestId, UUID callerUserId, UUID callerOrganizationId,

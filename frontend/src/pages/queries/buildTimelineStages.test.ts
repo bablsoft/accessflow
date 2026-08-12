@@ -51,6 +51,11 @@ function makeQuery(overrides: Partial<QueryDetail>): QueryDetail {
     review_decisions: [],
     linked_tickets: [],
     scheduled_for: null,
+    recurrence_rule: null,
+    recurrence_until: null,
+    recurrence_next_run_at: null,
+    recurrence_halted_reason: null,
+    recurring_parent_id: null,
     created_at: '2026-05-01T09:00:00Z',
     updated_at: '2026-05-01T09:00:00Z',
     ...overrides,
@@ -269,5 +274,71 @@ describe('buildTimelineStages — execute stage', () => {
     expect(exec!.done).toBe(true);
     expect(exec!.detail).toContain('rows');
     expect(exec!.detail).toContain('42ms');
+  });
+});
+
+describe('buildTimelineStages — recurring series stage (#627)', () => {
+  const recurringBase = {
+    status: 'APPROVED' as const,
+    recurrence_rule: 'PT6H',
+    recurrence_until: '2026-09-01T00:00:00Z',
+  };
+
+  it('replaces the Execute stage with an active Recurring stage carrying the next run', () => {
+    const q = makeQuery({
+      ...recurringBase,
+      recurrence_next_run_at: '2026-08-11T18:00:00Z',
+    });
+    const stages = buildTimelineStages(q, false, t);
+    expect(stages.find((s) => s.label === 'Execute')).toBeUndefined();
+    const recurring = stages.find(
+      (s) => s.label === 'queries.detail.timeline_recurring_label',
+    );
+    expect(recurring).toBeDefined();
+    expect(recurring!.active).toBe(true);
+    expect(recurring!.done).toBe(false);
+    expect(recurring!.who).toBe('PT6H');
+    expect(recurring!.detail).toContain('queries.detail.timeline_recurring_next_prefix');
+  });
+
+  it('marks the stage done once the series completed (cursor cleared, no halt reason)', () => {
+    const q = makeQuery({ ...recurringBase, recurrence_next_run_at: null });
+    const stages = buildTimelineStages(q, false, t);
+    const recurring = stages.find(
+      (s) => s.label === 'queries.detail.timeline_recurring_completed_label',
+    );
+    expect(recurring).toBeDefined();
+    expect(recurring!.done).toBe(true);
+    expect(recurring!.active).toBe(false);
+  });
+
+  it('marks the stage failed with the halt reason when the series was halted', () => {
+    const q = makeQuery({
+      ...recurringBase,
+      recurrence_next_run_at: null,
+      recurrence_halted_reason: 'permission revoked',
+    });
+    const stages = buildTimelineStages(q, false, t);
+    const recurring = stages.find(
+      (s) => s.label === 'queries.detail.timeline_recurring_halted_label',
+    );
+    expect(recurring).toBeDefined();
+    expect(recurring!.failed).toBe(true);
+    expect(recurring!.detail).toBe('permission revoked');
+  });
+
+  it('marks the stage cancelled when the series was cancelled', () => {
+    const q = makeQuery({
+      ...recurringBase,
+      status: 'CANCELLED',
+      recurrence_next_run_at: null,
+    });
+    const stages = buildTimelineStages(q, false, t);
+    const recurring = stages.find(
+      (s) => s.label === 'queries.detail.timeline_recurring_label',
+    );
+    expect(recurring).toBeDefined();
+    expect(recurring!.cancelled).toBe(true);
+    expect(recurring!.done).toBe(false);
   });
 });

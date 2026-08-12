@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.notifications.internal;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
@@ -9,6 +10,7 @@ import com.bablsoft.accessflow.notifications.internal.persistence.repo.Notificat
 import com.bablsoft.accessflow.notifications.internal.strategy.NotificationChannelStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
@@ -18,6 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
@@ -278,6 +281,47 @@ class NotificationDispatcherTest {
     }
 
     @Test
+    void dispatchQueryExecutedRoutesViaPlanChannelsAndPersistsOutcome() {
+        var submitter = UUID.randomUUID();
+        when(contextBuilder.buildQueryExecuted(queryRequestId, QueryStatus.EXECUTED, 5L, 120L))
+                .thenReturn(Optional.of(sampleExecutedContext(
+                        List.of(new RecipientView(submitter, "a@x", "A")))));
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(contextBuilder.lookupPlanChannelIds(datasourceId))
+                .thenReturn(List.of(emailCh.getId()));
+        when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
+                .thenReturn(List.of(emailCh));
+
+        dispatcher.dispatchQueryExecuted(queryRequestId, QueryStatus.EXECUTED, 5L, 120L);
+
+        // Plan channels, not the org-wide list — QUERY_EXECUTED is submitter-targeted.
+        verify(emailStrategy).deliver(any(), eq(emailCh));
+        verify(channelRepository, never()).findAllByOrganizationIdAndActiveTrue(any());
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.QUERY_EXECUTED),
+                eq(Set.of(submitter)),
+                eq(orgId),
+                eq(queryRequestId),
+                isNull(),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"final_status\":\"EXECUTED\"")
+                .contains("\"rows_affected\":5");
+    }
+
+    @Test
+    void dispatchQueryExecutedUnknownQueryShortCircuits() {
+        when(contextBuilder.buildQueryExecuted(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        dispatcher.dispatchQueryExecuted(queryRequestId, QueryStatus.EXECUTED, 5L, 120L);
+
+        verify(emailStrategy, never()).deliver(any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
     void dispatchApiConnectorUsesAllActiveOrgChannels() {
         var connectorId = UUID.randomUUID();
         when(contextBuilder.buildApiConnector(
@@ -318,6 +362,25 @@ class NotificationDispatcherTest {
                 null, null, null, null,
                 URI.create("https://app.example.test/queries/x"),
                 recipients, Instant.now(), "en", null);
+    }
+
+    /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */
+    private NotificationContext sampleExecutedContext(List<RecipientView> recipients) {
+        return new NotificationContext(
+                NotificationEventType.QUERY_EXECUTED,
+                orgId, queryRequestId, QueryType.SELECT,
+                "SELECT 1", "SELECT 1", "SELECT 1",
+                RiskLevel.LOW, 10, "ok",
+                datasourceId, "ds",
+                UUID.randomUUID(), "submit@example.com", "Sub",
+                null, null, null, null,
+                URI.create("https://app.example.test/queries/x"),
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                QueryStatus.EXECUTED, 5L, 120L);
     }
 
     private NotificationContext sampleApiContext(UUID apiRequestId, List<RecipientView> recipients) {
