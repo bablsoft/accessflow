@@ -858,7 +858,8 @@ class DefaultQueryLifecycleServiceTest {
                         now.plusSeconds(600))));
         service.executeRecurringOccurrence(queryId);
 
-        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(queryRequestPersistenceService, never())
+                .createRecurringOccurrence(any(), any(), any());
         verify(queryExecutor, never()).execute(any());
     }
 
@@ -871,7 +872,8 @@ class DefaultQueryLifecycleServiceTest {
         service.executeRecurringOccurrence(queryId);
 
         verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, null);
-        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(queryRequestPersistenceService, never())
+                .createRecurringOccurrence(any(), any(), any());
         verify(auditLogService, never()).record(any());
     }
 
@@ -889,7 +891,8 @@ class DefaultQueryLifecycleServiceTest {
         service.executeRecurringOccurrence(queryId);
 
         verify(queryRequestPersistenceService).clearRecurrenceNextRun(queryId, "permission revoked");
-        verify(queryRequestPersistenceService, never()).createRecurringOccurrence(any(), any());
+        verify(queryRequestPersistenceService, never())
+                .createRecurringOccurrence(any(), any(), any());
         verify(queryExecutor, never()).execute(any());
         var auditCaptor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(auditCaptor.capture());
@@ -938,7 +941,7 @@ class DefaultQueryLifecycleServiceTest {
                 recurringParent(QueryStatus.APPROVED, "PT1H", until, now.minusSeconds(10))));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(activeDescriptor()));
-        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any(), any()))
                 .thenReturn(Optional.of(childId));
         when(queryRequestLookupService.findById(childId)).thenReturn(Optional.of(
                 new QueryRequestSnapshot(childId, datasourceId, organizationId, submitterId,
@@ -953,7 +956,7 @@ class DefaultQueryLifecycleServiceTest {
 
         // Cursor advances by the interval from "now" — never a backfill of missed runs.
         verify(queryRequestPersistenceService)
-                .createRecurringOccurrence(queryId, now.plusSeconds(3600));
+                .createRecurringOccurrence(queryId, now.minusSeconds(10), now.plusSeconds(3600));
         var execCaptor = ArgumentCaptor.forClass(RecordExecutionCommand.class);
         verify(queryRequestStateService).recordExecutionOutcome(execCaptor.capture());
         assertThat(execCaptor.getValue().queryRequestId()).isEqualTo(childId);
@@ -977,12 +980,12 @@ class DefaultQueryLifecycleServiceTest {
                         now.minusSeconds(10))));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(activeDescriptor()));
-        when(queryRequestPersistenceService.createRecurringOccurrence(queryId, null))
+        when(queryRequestPersistenceService.createRecurringOccurrence(queryId, now.minusSeconds(10), null))
                 .thenReturn(Optional.empty());
 
         service.executeRecurringOccurrence(queryId);
 
-        verify(queryRequestPersistenceService).createRecurringOccurrence(queryId, null);
+        verify(queryRequestPersistenceService).createRecurringOccurrence(queryId, now.minusSeconds(10), null);
     }
 
     @Test
@@ -993,7 +996,7 @@ class DefaultQueryLifecycleServiceTest {
                         now.minusSeconds(10))));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(activeDescriptor()));
-        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any(), any()))
                 .thenReturn(Optional.empty());
 
         service.executeRecurringOccurrence(queryId);
@@ -1020,13 +1023,13 @@ class DefaultQueryLifecycleServiceTest {
                         now.minusSeconds(10))));
         when(datasourceLookupService.findById(datasourceId))
                 .thenReturn(Optional.of(activeDescriptor()));
-        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any()))
+        when(queryRequestPersistenceService.createRecurringOccurrence(eq(queryId), any(), any()))
                 .thenReturn(Optional.empty());
 
         service.executeRecurringOccurrence(queryId);
 
         verify(permissionVerifier, never()).verify(any(), any(), any(), any());
-        verify(queryRequestPersistenceService).createRecurringOccurrence(eq(queryId), any());
+        verify(queryRequestPersistenceService).createRecurringOccurrence(eq(queryId), any(), any());
     }
 
     @Test

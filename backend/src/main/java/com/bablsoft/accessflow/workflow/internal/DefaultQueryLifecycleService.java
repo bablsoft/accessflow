@@ -228,11 +228,13 @@ class DefaultQueryLifecycleService implements QueryLifecycleService {
             return;
         }
         var childId = queryRequestPersistenceService
-                .createRecurringOccurrence(parent.id(), next)
+                .createRecurringOccurrence(parent.id(), parent.recurrenceNextRunAt(), next)
                 .orElse(null);
         if (childId == null) {
-            // A cancel or halt raced the due-scan; the cursor is authoritative under its lock.
-            log.debug("Recurring occurrence for {} skipped — parent no longer active", parent.id());
+            // A cancel/halt cleared the cursor, or a racing tick already fired this due window
+            // and advanced it — the CAS under the parent lock is authoritative either way.
+            log.debug("Recurring occurrence for {} skipped — cursor no longer matches",
+                    parent.id());
             return;
         }
         var child = queryRequestLookupService.findById(childId)

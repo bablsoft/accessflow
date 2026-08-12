@@ -62,15 +62,20 @@ class DefaultQueryRequestPersistenceService implements QueryRequestPersistenceSe
 
     @Override
     @Transactional
-    public Optional<UUID> createRecurringOccurrence(UUID parentId, Instant nextRunAt) {
+    public Optional<UUID> createRecurringOccurrence(UUID parentId, Instant expectedNextRunAt,
+                                                    Instant nextRunAt) {
         var parent = queryRequestRepository.findByIdForUpdate(parentId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Recurring parent not found: " + parentId));
-        // A cancel or fail-closed halt may have raced the job's due-scan; under the lock the
-        // cursor is authoritative, so an ineligible parent simply produces no occurrence.
-        if (parent.getStatus() != QueryStatus.APPROVED || parent.getRecurrenceNextRunAt() == null) {
-            log.debug("Skipping recurring occurrence for {}: status={}, cursor={}",
-                    parentId, parent.getStatus(), parent.getRecurrenceNextRunAt());
+        // Under the lock the cursor is authoritative. A cancel/halt cleared it (null), and a
+        // racing caller that fired the same due window already advanced it past the value this
+        // caller observed — either way, compare-and-set fails and no occurrence is created.
+        if (parent.getStatus() != QueryStatus.APPROVED
+                || parent.getRecurrenceNextRunAt() == null
+                || !parent.getRecurrenceNextRunAt().equals(expectedNextRunAt)) {
+            log.debug("Skipping recurring occurrence for {}: status={}, cursor={}, expected={}",
+                    parentId, parent.getStatus(), parent.getRecurrenceNextRunAt(),
+                    expectedNextRunAt);
             return Optional.empty();
         }
         var child = new QueryRequestEntity();

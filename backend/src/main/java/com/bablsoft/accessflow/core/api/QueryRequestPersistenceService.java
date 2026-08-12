@@ -15,15 +15,20 @@ public interface QueryRequestPersistenceService {
     /**
      * Creates the next occurrence row of an approved recurring series (#627) and advances the
      * parent's {@code recurrence_next_run_at} cursor to {@code nextRunAt} ({@code null} marks the
-     * final occurrence) — both in one transaction, under a pessimistic lock on the parent, so a
-     * crashed executor can never double-fire the same occurrence. The child copies the parent's
-     * datasource, submitter, SQL, query type, transactional flag, and justification; it is created
-     * directly in {@link QueryStatus#APPROVED} with {@link SubmissionReason#RECURRING} and
-     * {@code recurring_parent_id} set — an insert, not a state transition, and no submission event
-     * is published. Returns empty (creating nothing) when the parent is no longer an active series
-     * — not {@code APPROVED}, or its cursor was cleared by a raced cancel / halt.
+     * final occurrence) — both in one transaction, under a pessimistic lock on the parent. The
+     * advance is a <strong>compare-and-set</strong>: it only happens when the locked parent's
+     * cursor still equals {@code expectedNextRunAt}, the due instant the caller observed. Two
+     * racing callers (overlapping job ticks across nodes) therefore fire each due window exactly
+     * once — the loser sees the already-advanced cursor and creates nothing. The child copies the
+     * parent's datasource, submitter, SQL, query type, transactional flag, and justification; it
+     * is created directly in {@link QueryStatus#APPROVED} with {@link SubmissionReason#RECURRING}
+     * and {@code recurring_parent_id} set — an insert, not a state transition, and no submission
+     * event is published. Returns empty (creating nothing) when the parent is no longer an active
+     * series — not {@code APPROVED}, cursor cleared by a raced cancel / halt — or when the CAS
+     * check fails.
      */
-    Optional<UUID> createRecurringOccurrence(UUID parentId, Instant nextRunAt);
+    Optional<UUID> createRecurringOccurrence(UUID parentId, Instant expectedNextRunAt,
+                                             Instant nextRunAt);
 
     /**
      * Clears an approved recurring series' {@code recurrence_next_run_at} cursor so the recurring

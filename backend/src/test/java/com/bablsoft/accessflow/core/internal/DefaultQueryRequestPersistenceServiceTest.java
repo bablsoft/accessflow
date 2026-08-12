@@ -137,7 +137,8 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(queryRequestRepository.save(any(QueryRequestEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
-        var childId = service.createRecurringOccurrence(parent.getId(), nextRunAt);
+        var childId = service.createRecurringOccurrence(parent.getId(),
+                parent.getRecurrenceNextRunAt(), nextRunAt);
 
         assertThat(childId).isPresent();
         ArgumentCaptor<QueryRequestEntity> captor = ArgumentCaptor.forClass(QueryRequestEntity.class);
@@ -168,11 +169,32 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(queryRequestRepository.findByIdForUpdate(parent.getId()))
                 .thenReturn(Optional.of(parent));
 
-        var childId = service.createRecurringOccurrence(parent.getId(), null);
+        var childId = service.createRecurringOccurrence(parent.getId(),
+                parent.getRecurrenceNextRunAt(), null);
 
         assertThat(childId).isEmpty();
         verify(queryRequestRepository, org.mockito.Mockito.never())
                 .save(any(QueryRequestEntity.class));
+    }
+
+    @Test
+    void createRecurringOccurrenceReturnsEmptyWhenAnotherCallerAlreadyAdvancedTheCursor() {
+        // The CI-caught double-fire: two racing callers both saw the same due cursor; the loser's
+        // expected value no longer matches under the lock, so it must create nothing.
+        var parent = recurringParent();
+        var observedByLoser = parent.getRecurrenceNextRunAt();
+        parent.setRecurrenceNextRunAt(java.time.Instant.now().plusSeconds(6 * 3600));
+        when(queryRequestRepository.findByIdForUpdate(parent.getId()))
+                .thenReturn(Optional.of(parent));
+
+        var childId = service.createRecurringOccurrence(parent.getId(), observedByLoser,
+                java.time.Instant.now().plusSeconds(12 * 3600));
+
+        assertThat(childId).isEmpty();
+        verify(queryRequestRepository, org.mockito.Mockito.never())
+                .save(any(QueryRequestEntity.class));
+        // The winner's cursor stays untouched.
+        assertThat(parent.getRecurrenceNextRunAt()).isNotEqualTo(observedByLoser);
     }
 
     @Test
@@ -182,7 +204,7 @@ class DefaultQueryRequestPersistenceServiceTest {
         when(queryRequestRepository.findByIdForUpdate(parent.getId()))
                 .thenReturn(Optional.of(parent));
 
-        assertThat(service.createRecurringOccurrence(parent.getId(), null)).isEmpty();
+        assertThat(service.createRecurringOccurrence(parent.getId(), null, null)).isEmpty();
     }
 
     @Test
