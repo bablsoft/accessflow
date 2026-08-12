@@ -19,17 +19,25 @@ import java.util.UUID;
 public interface GrantUsageAuditRepository extends Repository<AuditLogEntity, UUID> {
 
     /**
-     * Execution events for one organization in {@code [from, to)}, oldest first. Org-scoped so the
-     * read rides {@code idx_audit_log_created}; {@code Pageable} supplies the row cap. JSONB
-     * metadata is parsed in the service, matching the UBA reader.
+     * Execution events for one organization strictly after the {@code (afterCreatedAt, afterId)}
+     * keyset and before {@code to}, oldest first. Org-scoped so the read rides
+     * {@code idx_audit_log_created}; {@code Pageable} supplies the row cap. JSONB metadata is parsed
+     * in the service, matching the UBA reader.
+     *
+     * <p>The {@code id} tiebreaker is load-bearing in both the predicate and the ordering:
+     * {@code created_at} is not unique, so without it a caller resuming from the last row of a full
+     * page either loses the rest of that instant or replays it forever.
      */
     @Query("select a from AuditLogEntity a "
             + "where a.organizationId = :orgId and a.action in :actions and a.actorId is not null "
-            + "and a.createdAt >= :from and a.createdAt < :to "
-            + "order by a.createdAt asc")
+            + "and (a.createdAt > :afterCreatedAt "
+            + "     or (a.createdAt = :afterCreatedAt and a.id > :afterId)) "
+            + "and a.createdAt < :to "
+            + "order by a.createdAt asc, a.id asc")
     List<AuditLogEntity> findUsageEvents(@Param("orgId") UUID orgId,
                                          @Param("actions") Collection<String> actions,
-                                         @Param("from") Instant from,
+                                         @Param("afterCreatedAt") Instant afterCreatedAt,
+                                         @Param("afterId") UUID afterId,
                                          @Param("to") Instant to,
                                          Pageable pageable);
 }

@@ -1,6 +1,7 @@
 import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Pill } from '@/components/common/Pill';
+import { fmtDate } from '@/utils/dateFormat';
 import { grantUsageRecommendationLabel } from '@/utils/enumLabels';
 import { grantUsageRecommendationColor } from '@/utils/statusColors';
 import type { AttestationItem } from '@/types/api';
@@ -31,10 +32,10 @@ export function AttestationUsageCell({ item }: { item: AttestationItem }) {
 
   const color = grantUsageRecommendationColor(item.usage_recommendation);
   const scope =
-    item.usage_granted_target_count === null
+    item.usage_granted_target_count === null || item.usage_used_target_count === null
       ? null
       : t('attestation.usage.scope_ratio', {
-          used: item.usage_used_target_count ?? 0,
+          used: item.usage_used_target_count,
           granted: item.usage_granted_target_count,
         });
 
@@ -44,11 +45,13 @@ export function AttestationUsageCell({ item }: { item: AttestationItem }) {
         {grantUsageRecommendationLabel(t, item.usage_recommendation)}
       </Pill>
       <span className="muted" style={{ fontSize: 11 }}>
-        {item.usage_last_used_at === null
-          ? t('attestation.usage.never_used')
-          : t('attestation.usage.last_used', {
-              date: new Date(item.usage_last_used_at).toLocaleDateString(),
-            })}
+        {item.usage_last_used_at !== null
+          ? t('attestation.usage.last_used', { date: fmtDate(item.usage_last_used_at) })
+          : item.usage_recommendation === 'INSUFFICIENT_DATA'
+            ? // Measured, but not for long enough to conclude anything. Saying "never used" here
+              // would read as an argument for revoking a grant that is simply too new to judge.
+              t('attestation.usage.not_yet_observed')
+            : t('attestation.usage.never_used')}
         {scope !== null ? ` · ${scope}` : ''}
       </span>
     </div>

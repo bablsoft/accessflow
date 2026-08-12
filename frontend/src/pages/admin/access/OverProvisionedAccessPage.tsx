@@ -112,16 +112,19 @@ export default function OverProvisionedAccessPage() {
         title: t('over_provisioned.col_last_used'),
         key: 'last_used',
         width: 170,
-        render: (_: unknown, row: OverProvisionedGrant) =>
-          // Null is "never used", which is a stronger statement than a big number of days —
-          // rendering it as 0 or a dash would understate it.
-          row.days_since_last_use === null ? (
-            <span style={{ color: 'var(--risk-crit)' }}>{t('over_provisioned.never_used')}</span>
+        render: (_: unknown, row: OverProvisionedGrant) => {
+          if (row.days_since_last_use !== null) {
+            return <span>{t('over_provisioned.days_ago', { count: row.days_since_last_use })}</span>;
+          }
+          // A null timestamp alone does not mean "never used" — a grant too new to judge has one
+          // too. Only NEVER_USED has actually been observed going unused, so only it earns the
+          // critical colour; INSUFFICIENT_DATA stays muted.
+          return row.recommendation === 'INSUFFICIENT_DATA' ? (
+            <span className="muted">{t('over_provisioned.not_yet_observed')}</span>
           ) : (
-            <span>
-              {t('over_provisioned.days_ago', { count: row.days_since_last_use })}
-            </span>
-          ),
+            <span style={{ color: 'var(--risk-crit)' }}>{t('over_provisioned.never_used')}</span>
+          );
+        },
       },
       {
         title: t('over_provisioned.col_scope'),

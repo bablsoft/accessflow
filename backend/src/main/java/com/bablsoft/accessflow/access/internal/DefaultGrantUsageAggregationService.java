@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * Folds audit-derived usage into the per-grant summaries that back least-privilege intelligence
@@ -76,6 +77,9 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     private final AccessProperties properties;
     private final ApplicationEventPublisher eventPublisher;
 
+    /** Rows already logged as target-capped this tick; keeps the notice to one line each. */
+    private final Set<UUID> cappedTargetRows = new java.util.HashSet<>();
+
     @Override
     @Transactional(readOnly = true)
     public List<UUID> findOrganizationIds() {
@@ -99,15 +103,16 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     @Override
     @Transactional
     public int aggregateOrganization(UUID organizationId, Instant now) {
+        cappedTargetRows.clear();
         var usage = properties.usage();
         var cursor = loadCursor(organizationId, now, usage.backfillWindow());
 
-        var reconciled = reconcile(organizationId, now, cursor, usage);
+        var reconciled = reconcile(organizationId, now, cursor.occurredAt(), usage);
         var summaries = reconciled.summaries();
         foldUsage(organizationId, cursor, now, summaries, usage);
         recomputeExercisedCounts(summaries, reconciled.grantedTargets());
         recomputeRecommendations(now, summaries.values(), usage);
-        nudgeStaleGrants(now, summaries.values(), usage);
+        nudgeStaleGrants(now, summaries.values(), reconciled.createdNow(), usage);
 
         summaryRepository.saveAll(summaries.values());
         return summaries.size();
@@ -143,21 +148,51 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
             grantedTargets.put(key, grant.grantedTargets());
         }
 
-        if (!existing.isEmpty()) {
-            summaryRepository.deleteAll(existing.values());
-            log.debug("Removed {} grant usage summaries for revoked grants in org {}",
-                    existing.size(), organizationId);
+        // Only rows whose RESOURCE no longer exists at all are orphans. A datasource or connector
+        // that is merely deactivated still has its grants, and liveGrants() does not enumerate it —
+        // deleting on that basis would erase the usage history every time an operator pauses a
+        // datasource, and reactivating would restart observation from scratch.
+        var orphans = existing.values().stream().filter(this::resourceIsGone).toList();
+        if (!orphans.isEmpty()) {
+            summaryRepository.deleteAll(orphans);
+            log.debug("Removed {} grant usage summaries for deleted resources in org {}",
+                    orphans.size(), organizationId);
         }
         backfill(organizationId, created, cursor, usage);
-        return new Reconciled(live, grantedTargets);
+        return new Reconciled(live, grantedTargets,
+                created.stream().map(GrantUsageSummaryEntity::getId).collect(
+                        java.util.stream.Collectors.toSet()));
     }
 
-    /** Every standing grant in the organization, across both resource kinds. */
+    /**
+     * True only when the summary's resource no longer exists at all. A deactivated datasource or
+     * connector still resolves through {@code findRef}, so its grants keep their history.
+     */
+    private boolean resourceIsGone(GrantUsageSummaryEntity row) {
+        return switch (row.getResourceKind()) {
+            case DATASOURCE -> datasourceLookupService.findRef(row.getResourceId()).isEmpty();
+            case API_CONNECTOR -> connectorLookupService.findRef(row.getResourceId()).isEmpty();
+        };
+    }
+
+    /**
+     * Every standing grant in the organization, across both resource kinds.
+     *
+     * <p>A grant whose holder cannot be resolved to an email is skipped rather than carried
+     * forward. {@code api_connector_user_permissions.user_id} has no FK to {@code users}, so an
+     * orphaned row yields a null email — and {@code grant_usage_summary.user_email} is NOT NULL, so
+     * including it would fail the whole-organization transaction at commit. The job's isolation is
+     * per-organization, so that one bad row would roll back the cursor too and the tenant would
+     * never aggregate again, at one ERROR line per hour.
+     */
     private List<LiveGrant> liveGrants(UUID organizationId) {
         var grants = new ArrayList<LiveGrant>();
         for (var datasource : datasourceLookupService.findActiveRefsByOrganization(organizationId)) {
             for (var permission : datasourceAdminService.listPermissions(datasource.id(),
                     organizationId)) {
+                if (skipUnresolvableHolder(organizationId, permission.id(), permission.userEmail())) {
+                    continue;
+                }
                 grants.add(new LiveGrant(GrantResourceKind.DATASOURCE, datasource.id(),
                         datasource.name(), permission.id(), permission.userId(),
                         permission.userEmail(), permission.userDisplayName(),
@@ -168,6 +203,9 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
         for (var connector : connectorLookupService.findActiveRefsByOrganization(organizationId)) {
             for (var permission : connectorAdminService.listPermissions(connector.id(),
                     organizationId)) {
+                if (skipUnresolvableHolder(organizationId, permission.id(), permission.userEmail())) {
+                    continue;
+                }
                 grants.add(new LiveGrant(GrantResourceKind.API_CONNECTOR, connector.id(),
                         connector.name(), permission.id(), permission.userId(),
                         permission.userEmail(), permission.userDisplayName(),
@@ -176,6 +214,15 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
             }
         }
         return grants;
+    }
+
+    private boolean skipUnresolvableHolder(UUID organizationId, UUID permissionId, String email) {
+        if (email != null && !email.isBlank()) {
+            return false;
+        }
+        log.warn("Skipping grant {} in org {} from usage analytics: its holder has no resolvable "
+                + "email (orphaned permission row)", permissionId, organizationId);
+        return true;
     }
 
     private GrantUsageSummaryEntity newSummary(UUID organizationId, LiveGrant grant, Instant now,
@@ -202,6 +249,11 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
         row.setUserEmail(grant.userEmail());
         row.setUserDisplayName(grant.userDisplayName());
         row.setGrantedAt(grant.grantedAt() == null ? row.getObservedSince() : grant.grantedAt());
+        // A revoke/re-grant on the same (resource, user) reuses the row, so observation must not
+        // predate the new grant — otherwise frequency is diluted by a window the grant did not exist in.
+        if (grant.grantedAt() != null && row.getObservedSince().isBefore(grant.grantedAt())) {
+            row.setObservedSince(grant.grantedAt());
+        }
         row.setExpiresAt(grant.expiresAt());
         // Empty allow-list means unrestricted, which is null here and NOT zero — an unrestricted
         // grant has no scope to under-use, so it can never be reported over-scoped.
@@ -212,9 +264,19 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     /**
      * Replays audit history for grants summarised for the first time. Without this a grant created
      * after the organization's cursor moved forward would never see its own past.
+     *
+     * <p>Each row is replayed over <em>its own</em> {@code [observedSince, cursor)} window, not over
+     * the union: two grants created in the same tick can have very different ages, and letting the
+     * younger absorb events from before it existed would inflate its frequency and hide it from
+     * {@code NEVER_USED}.
+     *
+     * <p>The read drains rather than taking a single page. A single capped page would return the
+     * <em>oldest</em> slice of what can be a 90-day window and silently drop everything newer —
+     * which is the worst possible failure here, because the row would then be stamped
+     * {@code NEVER_USED} on evidence that was merely truncated.
      */
-    private void backfill(UUID organizationId, List<GrantUsageSummaryEntity> created, Instant cursor,
-                          AccessProperties.Usage usage) {
+    private void backfill(UUID organizationId, List<GrantUsageSummaryEntity> created,
+                          Instant cursor, AccessProperties.Usage usage) {
         if (created.isEmpty()) {
             return;
         }
@@ -227,47 +289,81 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
         }
         var byKey = new HashMap<GrantKey, GrantUsageSummaryEntity>();
         created.forEach(row -> byKey.put(GrantKey.of(row), row));
-        var events = auditAggregationService.findUsageEvents(organizationId, earliest, cursor,
-                usage.maxRowsPerTick());
-        applyEvents(events, byKey, usage);
+        var drained = drain(organizationId, earliest, GrantUsageAuditAggregationService.START,
+                cursor, usage, events -> applyEvents(events, byKey, usage, true));
         log.debug("Backfilled {} new grant usage summaries in org {} from {} audit events",
-                created.size(), organizationId, events.size());
+                created.size(), organizationId, drained.applied());
     }
 
     // ---------------------------------------------------------------- phase 2: fold
 
-    private void foldUsage(UUID organizationId, Instant cursor, Instant now,
+    private void foldUsage(UUID organizationId, Cursor cursor, Instant now,
                            Map<GrantKey, GrantUsageSummaryEntity> summaries,
                            AccessProperties.Usage usage) {
-        if (!cursor.isBefore(now)) {
+        if (!cursor.occurredAt().isBefore(now)) {
             return;
         }
-        var events = auditAggregationService.findUsageEvents(organizationId, cursor, now,
-                usage.maxRowsPerTick());
-        applyEvents(events, summaries, usage);
+        var drained = drain(organizationId, cursor.occurredAt(), cursor.auditLogId(), now, usage,
+                events -> applyEvents(events, summaries, usage, false));
+        // Only jump the cursor to the window end when the window was actually exhausted. Hitting
+        // the page cap and stamping `now` anyway would discard every event past the last page.
+        saveCursor(organizationId, drained.exhausted()
+                ? new Cursor(now, GrantUsageAuditAggregationService.START)
+                : new Cursor(drained.resumeOccurredAt(), drained.resumeAuditLogId()));
+    }
 
-        // A full page means the window was not drained. Resuming from the window end would skip
-        // everything after the last event we saw, so resume from that event instead. The +1ms keeps
-        // the half-open read from re-serving the same final row forever.
-        var next = events.size() >= usage.maxRowsPerTick() && !events.isEmpty()
-                ? events.get(events.size() - 1).occurredAt().plusMillis(1)
-                : now;
-        if (events.size() >= usage.maxRowsPerTick()) {
-            log.info("Grant usage fold for org {} hit the {}-row cap; resuming from {}",
-                    organizationId, usage.maxRowsPerTick(), next);
+    /**
+     * Reads {@code (from, to)} in keyset pages until it is exhausted, handing each page to
+     * {@code sink}, and returns how many events were applied.
+     *
+     * <p>Paging on {@code (occurredAt, auditLogId)} rather than on a timestamp alone is what makes
+     * this exact — {@code audit_log.created_at} is not unique, so resuming from a bare instant
+     * either replays or skips the events sharing it. {@code maxPagesPerTick} bounds the work; if a
+     * tenant is busy enough to hit it, the remainder is picked up next tick from the persisted
+     * cursor, and the drop is logged rather than silent.
+     */
+    private Drained drain(UUID organizationId, Instant fromOccurredAt, UUID fromAuditLogId,
+                          Instant to, AccessProperties.Usage usage,
+                          Consumer<List<GrantUsageAuditEvent>> sink) {
+        var afterOccurredAt = fromOccurredAt;
+        var afterId = fromAuditLogId;
+        long applied = 0;
+        for (int page = 0; page < usage.maxPagesPerTick(); page++) {
+            var events = auditAggregationService.findUsageEvents(organizationId, afterOccurredAt,
+                    afterId, to, usage.maxRowsPerTick());
+            if (events.isEmpty()) {
+                return new Drained(applied, afterOccurredAt, afterId, true);
+            }
+            sink.accept(events);
+            applied += events.size();
+            var last = events.get(events.size() - 1);
+            afterOccurredAt = last.occurredAt();
+            afterId = last.auditLogId();
+            if (events.size() < usage.maxRowsPerTick()) {
+                return new Drained(applied, afterOccurredAt, afterId, true);
+            }
         }
-        saveCursor(organizationId, next);
+        log.warn("Grant usage read for org {} hit the {}-page cap ({} rows/page); the remainder of "
+                        + "the window resumes next tick from {}", organizationId,
+                usage.maxPagesPerTick(), usage.maxRowsPerTick(), afterOccurredAt);
+        return new Drained(applied, afterOccurredAt, afterId, false);
     }
 
     private void applyEvents(List<GrantUsageAuditEvent> events,
                              Map<GrantKey, GrantUsageSummaryEntity> summaries,
-                             AccessProperties.Usage usage) {
+                             AccessProperties.Usage usage, boolean enforceObservationWindow) {
         for (var event : events) {
             var row = summaries.get(new GrantKey(event.resourceKind(), event.resourceId(),
                     event.userId()));
             if (row == null) {
                 // No live grant for this event — revoked since, or a QUERY_ADMIN holder who needs
                 // no grant at all. Either way there is nothing to attribute the usage to.
+                continue;
+            }
+            // Backfill reads one window covering every row created this tick, so a young grant
+            // would otherwise absorb activity from before it was granted — inflating its frequency
+            // and masking a genuinely-new grant out of NEVER_USED.
+            if (enforceObservationWindow && event.occurredAt().isBefore(row.getObservedSince())) {
                 continue;
             }
             apply(row, event, usage);
@@ -288,16 +384,19 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
         }
         var targets = new LinkedHashSet<>(viewMapper.readUsedTargets(row));
         int before = targets.size();
+        boolean capped = false;
         for (var target : GrantTargetNormalizer.normalizeAll(event.targets())) {
             if (targets.size() >= usage.maxTrackedTargets()) {
-                if (!targets.contains(target)) {
-                    log.info("Grant usage summary {} hit the {}-target cap; further distinct "
-                                    + "targets are not tracked", row.getId(),
-                            usage.maxTrackedTargets());
-                }
+                capped = capped || !targets.contains(target);
                 break;
             }
             targets.add(target);
+        }
+        // Logged once per row per tick, not once per event: at the cap, every one of up to
+        // maxRowsPerTick events would otherwise emit a line.
+        if (capped && cappedTargetRows.add(row.getId())) {
+            log.info("Grant usage summary {} hit the {}-target cap; further distinct targets are "
+                    + "not tracked", row.getId(), usage.maxTrackedTargets());
         }
         if (targets.size() != before) {
             row.setUsedTargets(viewMapper.writeUsedTargets(List.copyOf(targets)));
@@ -338,11 +437,19 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
     }
 
     private void nudgeStaleGrants(Instant now, Iterable<GrantUsageSummaryEntity> summaries,
-                                  AccessProperties.Usage usage) {
+                                  Set<UUID> createdThisTick, AccessProperties.Usage usage) {
         if (!Boolean.TRUE.equals(usage.nudgeEnabled())) {
             return;
         }
         for (var row : summaries) {
+            // Never nudge on the tick a row was created. Its verdict rests on a backfill that has
+            // only just run, and on first install EVERY grant is new — without this, upgrading
+            // mails each admin once per dormant grant, and a truncated backfill can fire a
+            // "revoke this" alarm for a grant that is in daily use. One tick's delay costs
+            // nothing; a false revoke recommendation costs trust in the whole feature.
+            if (createdThisTick.contains(row.getId())) {
+                continue;
+            }
             if (!isNudgeable(row.getRecommendation()) || withinCooldown(row, now, usage)) {
                 continue;
             }
@@ -369,21 +476,32 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
 
     // ---------------------------------------------------------------- cursor
 
-    private Instant loadCursor(UUID organizationId, Instant now, Duration backfillWindow) {
+    private Cursor loadCursor(UUID organizationId, Instant now, Duration backfillWindow) {
         return watermarkRepository.findById(organizationId)
-                .map(GrantUsageWatermarkEntity::getAggregatedThrough)
-                .orElseGet(() -> now.minus(backfillWindow));
+                .map(w -> new Cursor(w.getAggregatedThrough(), w.getAggregatedThroughId()))
+                .orElseGet(() -> new Cursor(now.minus(backfillWindow),
+                        GrantUsageAuditAggregationService.START));
     }
 
-    private void saveCursor(UUID organizationId, Instant aggregatedThrough) {
+    private void saveCursor(UUID organizationId, Cursor cursor) {
         var watermark = watermarkRepository.findById(organizationId)
                 .orElseGet(() -> {
                     var fresh = new GrantUsageWatermarkEntity();
                     fresh.setOrganizationId(organizationId);
                     return fresh;
                 });
-        watermark.setAggregatedThrough(aggregatedThrough);
+        watermark.setAggregatedThrough(cursor.occurredAt());
+        watermark.setAggregatedThroughId(cursor.auditLogId());
         watermarkRepository.save(watermark);
+    }
+
+    /** Keyset position in the organization's audit stream. */
+    private record Cursor(Instant occurredAt, UUID auditLogId) {
+    }
+
+    /** Outcome of a paged audit read: how much was applied and where to resume. */
+    private record Drained(long applied, Instant resumeOccurredAt, UUID resumeAuditLogId,
+                           boolean exhausted) {
     }
 
     // ---------------------------------------------------------------- value types
@@ -393,7 +511,8 @@ class DefaultGrantUsageAggregationService implements GrantUsageAggregationServic
      * needs to intersect against the exercised targets.
      */
     private record Reconciled(Map<GrantKey, GrantUsageSummaryEntity> summaries,
-                              Map<GrantKey, Set<String>> grantedTargets) {
+                              Map<GrantKey, Set<String>> grantedTargets,
+                              Set<UUID> createdNow) {
     }
 
     /** Identity of a standing grant: the resource it covers and who holds it. */

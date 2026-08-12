@@ -24,6 +24,9 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
+import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
+import com.bablsoft.accessflow.access.events.GrantStaleEvent;
+import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -620,5 +623,78 @@ class NotificationContextBuilderTest {
 
     private static <T> T any(Class<T> type) {
         return org.mockito.ArgumentMatchers.any(type);
+    }
+
+    // ------------------------------------------------------------------ #625 grant staleness
+
+    /**
+     * The context is built through a 41-component positional constructor with 27 bare nulls, so a
+     * misplaced argument compiles silently and only shows up as a wrong field in a rendered email.
+     * These assertions pin each field the template actually reads.
+     */
+    @Test
+    void buildGrantStaleTargetsAdminsAndCarriesTheGrantFields() {
+        var admin = new UserView(UUID.randomUUID(), "admin@example.test", "Admin",
+                UserRoleType.ADMIN, orgId, true, AuthProviderType.LOCAL, null, null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+        var summaryId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var resourceId = UUID.randomUUID();
+
+        var ctx = builder.buildGrantStale(new GrantStaleEvent(orgId, summaryId, userId,
+                "dev@example.test", GrantResourceKind.API_CONNECTOR, resourceId, "billing", 94L,
+                GrantUsageRecommendation.STALE)).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.GRANT_STALE);
+        assertThat(ctx.organizationId()).isEqualTo(orgId);
+        // The granted resource rides in the datasource* fields for both grant kinds.
+        assertThat(ctx.datasourceId()).isEqualTo(resourceId);
+        assertThat(ctx.datasourceName()).isEqualTo("billing");
+        // ...and the grant holder in the submitter* fields.
+        assertThat(ctx.submittedByUserId()).isEqualTo(userId);
+        assertThat(ctx.submitterEmail()).isEqualTo("dev@example.test");
+        assertThat(ctx.grantResourceKind()).isEqualTo(GrantResourceKind.API_CONNECTOR);
+        assertThat(ctx.grantDaysSinceLastUse()).isEqualTo(94L);
+        assertThat(ctx.grantRecommendation()).isEqualTo(GrantUsageRecommendation.STALE);
+        assertThat(ctx.reviewUrl())
+                .hasToString("https://app.example.test/admin/over-provisioned-access");
+        assertThat(ctx.recipients()).singleElement()
+                .satisfies(r -> assertThat(r.email()).isEqualTo("admin@example.test"));
+        // Not query-backed: nothing from the query path may leak in.
+        assertThat(ctx.queryRequestId()).isNull();
+        assertThat(ctx.apiRequestId()).isNull();
+        assertThat(ctx.anomalyId()).isNull();
+    }
+
+    /** Never used is a null day count, not zero — the template renders the two differently. */
+    @Test
+    void buildGrantStaleKeepsNeverUsedAsANullDayCount() {
+        var admin = new UserView(UUID.randomUUID(), "admin@example.test", "Admin",
+                UserRoleType.ADMIN, orgId, true, AuthProviderType.LOCAL, null, null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+
+        var ctx = builder.buildGrantStale(new GrantStaleEvent(orgId, UUID.randomUUID(),
+                UUID.randomUUID(), "dev@example.test", GrantResourceKind.DATASOURCE,
+                UUID.randomUUID(), "analytics", null,
+                GrantUsageRecommendation.NEVER_USED)).orElseThrow();
+
+        assertThat(ctx.grantDaysSinceLastUse()).isNull();
+    }
+
+    @Test
+    void buildGrantStaleSkipsInactiveAdminsAndReturnsEmptyWhenNoneRemain() {
+        var inactive = new UserView(UUID.randomUUID(), "gone@example.test", "Gone",
+                UserRoleType.ADMIN, orgId, false, AuthProviderType.LOCAL, null, null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(inactive));
+
+        assertThat(builder.buildGrantStale(new GrantStaleEvent(orgId, UUID.randomUUID(),
+                UUID.randomUUID(), "dev@example.test", GrantResourceKind.DATASOURCE,
+                UUID.randomUUID(), "analytics", 10L, GrantUsageRecommendation.STALE))).isEmpty();
     }
 }

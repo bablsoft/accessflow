@@ -86,7 +86,7 @@ class DefaultGrantUsageAggregationServiceTest {
                 .thenReturn(List.of());
         lenient().when(connectorLookupService.findActiveRefsByOrganization(ORG))
                 .thenReturn(List.of());
-        lenient().when(auditAggregationService.findUsageEvents(eq(ORG), any(), any(), anyInt()))
+        lenient().when(auditAggregationService.findUsageEvents(eq(ORG), any(), any(), any(), anyInt()))
                 .thenReturn(List.of());
     }
 
@@ -123,13 +123,13 @@ class DefaultGrantUsageAggregationServiceTest {
     }
 
     private void givenUsage(GrantUsageAuditEvent... events) {
-        when(auditAggregationService.findUsageEvents(eq(ORG), any(), any(), anyInt()))
+        when(auditAggregationService.findUsageEvents(eq(ORG), any(), any(), any(), anyInt()))
                 .thenReturn(List.of(events));
     }
 
     private static GrantUsageAuditEvent datasourceUse(Instant at, String... tables) {
-        return new GrantUsageAuditEvent(ORG, USER, GrantResourceKind.DATASOURCE, DATASOURCE, at,
-                List.of(tables));
+        return new GrantUsageAuditEvent(UUID.randomUUID(), ORG, USER, GrantResourceKind.DATASOURCE,
+                DATASOURCE, at, List.of(tables));
     }
 
     private List<GrantUsageSummaryEntity> saved() {
@@ -275,7 +275,7 @@ class DefaultGrantUsageAggregationServiceTest {
 
     @Test
     void capsTheTrackedTargetSet() {
-        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 0, 2, 0, null, null));
+        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 2, 0, null, null));
         givenDatasourceGrant(List.of("a", "b", "c", "d"), NOW.minus(Duration.ofDays(200)));
         givenUsage(datasourceUse(NOW.minus(Duration.ofDays(1)), "a", "b", "c", "d"));
 
@@ -298,21 +298,38 @@ class DefaultGrantUsageAggregationServiceTest {
     }
 
     /**
-     * A full page means the window was not drained. Resuming from the window end would silently
-     * skip everything after the last event read, so the cursor must stop at that event.
+     * Exhausting the page budget means the window was not drained. Stamping the window end anyway
+     * would silently skip everything past the last page, so the cursor stops at the last event —
+     * keyset, so the events sharing that instant are neither replayed nor lost.
      */
     @Test
-    void aFullPageResumesFromTheLastEventRatherThanTheWindowEnd() {
-        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 2, 0, 0, null, null));
+    void anUndrainedWindowResumesFromTheLastEventKeysetRatherThanTheWindowEnd() {
+        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 2, 1, 0, 0, null, null));
         givenDatasourceGrant(List.of(), NOW.minus(Duration.ofDays(200)));
-        var last = NOW.minus(Duration.ofDays(20));
-        givenUsage(datasourceUse(NOW.minus(Duration.ofDays(30)), "a"), datasourceUse(last, "b"));
+        var last = datasourceUse(NOW.minus(Duration.ofDays(20)), "b");
+        givenUsage(datasourceUse(NOW.minus(Duration.ofDays(30)), "a"), last);
 
         service.aggregateOrganization(ORG, NOW);
 
         var captor = ArgumentCaptor.forClass(GrantUsageWatermarkEntity.class);
         verify(watermarkRepository).save(captor.capture());
-        assertThat(captor.getValue().getAggregatedThrough()).isEqualTo(last.plusMillis(1));
+        assertThat(captor.getValue().getAggregatedThrough()).isEqualTo(last.occurredAt());
+        assertThat(captor.getValue().getAggregatedThroughId()).isEqualTo(last.auditLogId());
+    }
+
+    /** A drained window advances to the window end and resets the keyset. */
+    @Test
+    void aDrainedWindowAdvancesToTheWindowEnd() {
+        givenDatasourceGrant(List.of(), NOW.minus(Duration.ofDays(200)));
+        givenUsage(datasourceUse(NOW.minus(Duration.ofDays(2)), "a"));
+
+        service.aggregateOrganization(ORG, NOW);
+
+        var captor = ArgumentCaptor.forClass(GrantUsageWatermarkEntity.class);
+        verify(watermarkRepository).save(captor.capture());
+        assertThat(captor.getValue().getAggregatedThrough()).isEqualTo(NOW);
+        assertThat(captor.getValue().getAggregatedThroughId())
+                .isEqualTo(GrantUsageAuditAggregationService.START);
     }
 
     @Test
@@ -327,8 +344,8 @@ class DefaultGrantUsageAggregationServiceTest {
 
         service.aggregateOrganization(ORG, NOW);
 
-        verify(auditAggregationService).findUsageEvents(ORG, cursor, NOW,
-                properties.usage().maxRowsPerTick());
+        verify(auditAggregationService).findUsageEvents(ORG, cursor,
+                GrantUsageAuditAggregationService.START, NOW, properties.usage().maxRowsPerTick());
     }
 
     /**
@@ -346,7 +363,8 @@ class DefaultGrantUsageAggregationServiceTest {
 
         service.aggregateOrganization(ORG, NOW);
 
-        verify(auditAggregationService).findUsageEvents(ORG, NOW.minus(Duration.ofDays(90)), cursor,
+        verify(auditAggregationService).findUsageEvents(ORG, NOW.minus(Duration.ofDays(90)),
+                GrantUsageAuditAggregationService.START, cursor,
                 properties.usage().maxRowsPerTick());
     }
 
@@ -363,13 +381,14 @@ class DefaultGrantUsageAggregationServiceTest {
         service.aggregateOrganization(ORG, NOW);
 
         verify(auditAggregationService, never()).findUsageEvents(eq(ORG),
-                eq(NOW.minus(Duration.ofDays(90))), eq(cursor), anyInt());
+                eq(NOW.minus(Duration.ofDays(90))), any(), eq(cursor), anyInt());
     }
 
     // ------------------------------------------------------------------ nudge
 
     @Test
     void publishesAStaleNudgeForANeverUsedGrant() {
+        stored.add(summaryRow(GrantResourceKind.DATASOURCE, DATASOURCE, USER));
         givenDatasourceGrant(List.of(), NOW.minus(Duration.ofDays(200)));
 
         service.aggregateOrganization(ORG, NOW);
@@ -406,9 +425,25 @@ class DefaultGrantUsageAggregationServiceTest {
         verify(eventPublisher).publishEvent(any(GrantStaleEvent.class));
     }
 
+    /**
+     * The tick that creates a row must never nudge on it. Its verdict rests on a backfill that has
+     * only just run, and on first install every grant is new — without this, upgrading mails each
+     * admin once per dormant grant, and a truncated backfill can raise a "revoke this" alarm for a
+     * grant in daily use.
+     */
+    @Test
+    void doesNotNudgeOnTheTickThatCreatedTheRow() {
+        givenDatasourceGrant(List.of(), NOW.minus(Duration.ofDays(200)));
+
+        service.aggregateOrganization(ORG, NOW);
+
+        assertThat(onlySaved().getRecommendation()).isEqualTo(GrantUsageRecommendation.NEVER_USED);
+        verify(eventPublisher, never()).publishEvent(any(GrantStaleEvent.class));
+    }
+
     @Test
     void doesNotNudgeWhenDisabled() {
-        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 0, Boolean.FALSE, null));
+        withUsage(new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 0, 0, Boolean.FALSE, null));
         givenDatasourceGrant(List.of(), NOW.minus(Duration.ofDays(200)));
 
         service.aggregateOrganization(ORG, NOW);

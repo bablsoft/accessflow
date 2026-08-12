@@ -1,44 +1,54 @@
 # Notification fan-out
 
 **When to use:** Adding a `NotificationEventType` (or `NotificationChannelType`) value.
-**Canonical example:** `backend/src/main/java/com/bablsoft/accessflow/notifications/api/NotificationEventType.java:3` (21 values)
+**Canonical example:** `backend/src/main/java/com/bablsoft/accessflow/notifications/api/NotificationEventType.java:3` (23 values)
 **Tests:** `backend/src/test/java/com/bablsoft/accessflow/notifications/internal/strategy/**`
 **Related:** [engine-fanout.md](engine-fanout.md), [backend-i18n.md](backend-i18n.md), `docs/08-notifications.md`
 
 ## Shape
 
-One enum value reaches seven Java switches, a Thymeleaf template, fourteen message files, and the
-frontend union. **Verified 2026-08-04** — re-derive with
-`grep -rln NotificationEventType backend/src/main`:
+One enum value reaches nine Java switches, a Thymeleaf template, fourteen message files, and the
+frontend. **Verified 2026-08-12** (#625) — re-derive rather than trust these line numbers:
+`grep -rln NotificationEventType backend/src/main`, then check each switch for a `default`.
 
 | Site | File | Line | On a new value |
 |---|---|---|---|
-| Context assembly | `notifications/internal/NotificationContextBuilder.java` | 109 | **compile error** |
-| Slack Block Kit | `notifications/internal/strategy/SlackBlockKitFactory.java` | 181 | **compile error** |
-| Discord | `notifications/internal/strategy/DiscordPayloadFactory.java` | 130 | **compile error** |
-| MS Teams | `notifications/internal/strategy/MsTeamsPayloadFactory.java` | 178 | **compile error** |
-| Telegram | `notifications/internal/strategy/TelegramMessageFactory.java` | 102 | **compile error** |
+| Context assembly | `notifications/internal/NotificationContextBuilder.java` | 137 | **compile error** |
+| Slack Block Kit | `notifications/internal/strategy/SlackBlockKitFactory.java` | 182 | **compile error** |
+| Discord | `notifications/internal/strategy/DiscordPayloadFactory.java` | 131 | **compile error** |
+| MS Teams | `notifications/internal/strategy/MsTeamsPayloadFactory.java` | 179 | **compile error** |
+| Telegram | `notifications/internal/strategy/TelegramMessageFactory.java` | 103 | **compile error** |
+| Email — subject key | `notifications/internal/strategy/EmailNotificationStrategy.java` | 248 | **compile error** |
 | **PagerDuty** | `notifications/internal/strategy/PagerDutyPayloadFactory.java` | 139 | ⚠️ **silent** — has a `default` |
-| **Email — template** | `notifications/internal/strategy/EmailNotificationStrategy.java` | 172 | ⚠️ **silent** — has a `default` |
-| Email — subject args | `notifications/internal/strategy/EmailNotificationStrategy.java` | 196 | check both |
-| Ticket body (ServiceNow/Jira) | `notifications/internal/strategy/TicketDescriptionBuilder.java` | | check |
-| Thymeleaf template | `backend/src/main/resources/templates/email/<event>.html` (12 exist) | | silent |
+| **Email — template** | `notifications/internal/strategy/EmailNotificationStrategy.java` | 207 | ⚠️ **silent** — has a `default` |
+| **Email — subject args** | `notifications/internal/strategy/EmailNotificationStrategy.java` | 235 | ⚠️ **silent** — has a `default` |
+| **Ticket body** | `notifications/internal/strategy/TicketDescriptionBuilder.java` | 21 | ⚠️ **silent** — has a `default` |
+| Dispatcher / channel scope | `notifications/internal/NotificationDispatcher.java` | `resolveChannels` | org-wide events must be listed explicitly |
+| PagerDuty / ticketing triggers | `internal/codec/{PagerDutyTrigger,TicketingTrigger}.java` | | absent ⇒ never pages / never opens a ticket (usually right) |
+| Thymeleaf template | `backend/src/main/resources/templates/email/<event>.html` | | silent |
 | i18n subject/body | `i18n/messages.properties` + 6 locales | | `MessagesParityTest` |
-| Frontend | `frontend/src/types/api.ts:1737` (`UserNotificationEventType`) + `locales/*.json` | | silent |
+| **Frontend — in-app label** | `frontend/src/components/common/NotificationBell.tsx` (`labelFor` switch + `routeForNotification`) | | ⚠️ **silent** — has a `default` returning `notifications.events.fallback` |
+| Frontend — union + locales | `frontend/src/types/api.ts` (`UserNotificationEventType`) + `locales/*.json` | | silent |
 
-**Five of the seven switches are exhaustive**, so the compiler finds those. **PagerDuty and Email
-are not** — both have a `default`, so a new event silently produces a generic PagerDuty payload
-and falls through to whatever the email default is. Those two are the ones to check by hand.
+**Six of the ten Java switches are exhaustive**, so the compiler finds those. **PagerDuty, both
+remaining Email switches, and the ticket body are not.**
 
-`NotificationChannelType` has its own comparable surface, including
-`notifications/internal/codec/ChannelConfigCodec.java` for the encrypted per-channel config.
+⚠️ **The frontend bell is the one most often missed** (#625 shipped the locale key and the union but
+not the `case`, so every admin would have seen a contentless "New notification"). The backend
+records an in-app row for *every* event except `TEST` — `NotificationDispatcher.deliver` always
+calls `recordInAppNotifications` — so if your event reaches any recipient, it reaches the bell.
+Nothing tests for unused locale keys, and the parity test only compares locales to each other.
 
 ## Required (acceptance checklist)
 
-- [ ] All seven Java switch sites handled — **verify PagerDuty and Email by hand**, the compiler
-      will not flag them.
-- [ ] `EmailNotificationStrategy` covered at **both** sites: the template selector (`:172`) and
-      the subject-args switch (`:196`).
+- [ ] All ten Java switch sites handled — **verify PagerDuty, both silent Email switches and
+      `TicketDescriptionBuilder` by hand**, the compiler will not flag them.
+- [ ] `EmailNotificationStrategy` covered at **all three** sites: the template selector, the
+      subject-args switch, and the subject-key switch (only the last is exhaustive).
+- [ ] `NotificationBell.labelFor` has a `case` — otherwise the in-app entry silently renders
+      "New notification" — and `routeForNotification` sends it somewhere useful.
+- [ ] `NotificationDispatcher.resolveChannels` lists the event if it fans out org-wide rather than
+      to a review plan's channels.
 - [ ] A Thymeleaf template at `templates/email/<event>.html` if the email strategy routes the
       event to one.
 - [ ] Subject and body keys in `messages.properties` **and all six** locale files

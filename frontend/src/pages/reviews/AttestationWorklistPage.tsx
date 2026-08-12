@@ -256,6 +256,18 @@ export default function AttestationWorklistPage() {
         )}
         {isLoading ? (
           <Skeleton active paragraph={{ rows: 6 }} />
+        ) : items.length === 0 && page > 0 ? (
+          // The list shrank under us (the last items on this page were just decided). Drop back
+          // rather than rendering an empty state with no pager to escape from.
+          <EmptyState
+            title={t('attestation.worklist.page_empty_title')}
+            description={t('attestation.worklist.page_empty_description')}
+            action={
+              <Button type="primary" onClick={() => setPage(0)}>
+                {t('attestation.worklist.back_to_first_page')}
+              </Button>
+            }
+          />
         ) : items.length === 0 ? (
           <EmptyState
             title={t('attestation.worklist.empty_title')}
@@ -270,7 +282,13 @@ export default function AttestationWorklistPage() {
               pageSize: PAGE_SIZE,
               current: page + 1,
               total: data?.total_elements ?? 0,
-              onChange: (p) => setPage(p - 1),
+              // Clear the selection when the page changes. Bulk decide posts selectedRowKeys, so
+              // carrying a selection across pages would let a reviewer revoke grants they can no
+              // longer see — the count in the action bar being the only hint.
+              onChange: (p) => {
+                setSelectedRowKeys([]);
+                setPage(p - 1);
+              },
             }}
             size="middle"
             scroll={{ x: 'max-content' }}

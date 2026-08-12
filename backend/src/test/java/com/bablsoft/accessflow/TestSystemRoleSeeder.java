@@ -36,7 +36,7 @@ public final class TestSystemRoleSeeder {
             UserRoleType.ANALYST, "Submits SELECT and DML queries and views own history.",
             UserRoleType.READONLY, "Submits SELECT queries only.",
             UserRoleType.AUDITOR, "Read-only compliance role: compliance reports, attestation "
-                    + "evidence, break-glass events, and anomalies.");
+                    + "evidence, over-provisioned access, break-glass events, and anomalies.");
 
     private TestSystemRoleSeeder() {
     }

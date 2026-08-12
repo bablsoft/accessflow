@@ -33,6 +33,10 @@ public class GrantUsageWatermarkEntity {
     @Column(name = "aggregated_through", nullable = false)
     private Instant aggregatedThrough;
 
+    /** The audit row the fold stopped after; the nil UUID means "start of that instant". */
+    @Column(name = "aggregated_through_id", nullable = false)
+    private UUID aggregatedThroughId = new UUID(0L, 0L);
+
     @Version
     @Column(nullable = false)
     private long version;

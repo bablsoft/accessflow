@@ -15,9 +15,13 @@ import java.util.UUID;
 public interface GrantUsageAuditAggregationService {
 
     /**
-     * Successful grant-use events for one organization in {@code [from, to)}, oldest first, capped
-     * at {@code maxRows}. A caller that receives exactly {@code maxRows} events must resume from the
-     * last event's timestamp rather than from {@code to}, or it will skip the tail of the window.
+     * Successful grant-use events for one organization, ordered by {@code (occurredAt, auditLogId)}
+     * and capped at {@code maxRows}.
+     *
+     * <p><strong>Keyset, not offset.</strong> The read starts strictly after {@code afterOccurredAt}
+     * / {@code afterAuditLogId} and ends before {@code to}. Paging on the timestamp alone cannot be
+     * made exact — {@code created_at} is not unique, so a cursor holding only an instant must either
+     * re-serve the events sharing it or skip them. Pass {@link #START} to begin at a window's start.
      *
      * <p><strong>The organization scope is required, not a convenience.</strong> {@code audit_log}
      * is indexed on {@code (organization_id, created_at DESC)} and has no index on {@code action},
@@ -32,6 +36,12 @@ public interface GrantUsageAuditAggregationService {
      * look abandoned. Failures are excluded: they carry no referenced tables, and a query that did
      * not run is not evidence that its granted scope is needed.
      */
-    List<GrantUsageAuditEvent> findUsageEvents(UUID organizationId, Instant from, Instant to,
-                                               int maxRows);
+    List<GrantUsageAuditEvent> findUsageEvents(UUID organizationId, Instant afterOccurredAt,
+                                               UUID afterAuditLogId, Instant to, int maxRows);
+
+    /**
+     * The lowest possible UUID, for starting a keyset scan at an instant rather than after a
+     * specific row. {@code audit_log.id} is never nil, so nothing is skipped.
+     */
+    UUID START = new UUID(0L, 0L);
 }

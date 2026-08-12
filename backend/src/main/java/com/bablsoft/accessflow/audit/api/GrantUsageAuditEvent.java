@@ -14,8 +14,13 @@ import java.util.UUID;
  * tables for a {@code DATASOURCE} event, the invoked operation for an {@code API_CONNECTOR} one. It
  * is empty — never null — for rows written before the corresponding metadata enrichment landed,
  * which callers must read as "used, scope unknown" rather than "used nothing".
+ *
+ * <p>{@code auditLogId} is the source row's id, and it is what makes exact resumption possible:
+ * {@code created_at} alone is not unique, so a cursor that stores only a timestamp either re-serves
+ * or skips the events sharing its final instant.
  */
 public record GrantUsageAuditEvent(
+        UUID auditLogId,
         UUID organizationId,
         UUID userId,
         GrantResourceKind resourceKind,

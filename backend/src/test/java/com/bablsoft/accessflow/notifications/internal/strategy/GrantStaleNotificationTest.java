@@ -66,10 +66,12 @@ class GrantStaleNotificationTest {
                 .contains("An access grant looks unused")
                 .contains("dev@example.com")
                 .contains("analytics-prod")
-                .contains("DATASOURCE")
+                .contains("Datasource")
+                .doesNotContain("DATASOURCE")
                 .contains("Days since last use:")
                 .contains("94")
-                .contains("STALE")
+                .contains("Stale")
+                .doesNotContain(">STALE<")
                 .contains("https://app.example.com/admin/over-provisioned-access");
     }
 

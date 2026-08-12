@@ -109,7 +109,7 @@ class DefaultGrantUsageExportServiceTest {
     /** Fetch cap + 1 so "exactly cap rows exist" is distinguishable from a truncated page. */
     @Test
     void fetchesOneRowBeyondTheCapAndFlagsTruncation() {
-        var usage = new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 2, null, null);
+        var usage = new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 0, 2, null, null);
         var rows = new ArrayList<GrantUsageView>();
         for (int i = 0; i < 3; i++) {
             rows.add(view("u" + i + "@example.test", null, 0, 0, null,
@@ -130,7 +130,7 @@ class DefaultGrantUsageExportServiceTest {
 
     @Test
     void exactlyCapRowsIsNotTruncated() {
-        var usage = new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 2, null, null);
+        var usage = new AccessProperties.Usage(null, null, null, null, 0, 0, 0, 0, 2, null, null);
         givenRows(List.of(
                 view("a@example.test", null, 0, 0, null, GrantUsageRecommendation.NEVER_USED),
                 view("b@example.test", null, 0, 0, null, GrantUsageRecommendation.NEVER_USED)));

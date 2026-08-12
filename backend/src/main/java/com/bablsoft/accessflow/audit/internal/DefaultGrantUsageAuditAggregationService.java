@@ -44,7 +44,8 @@ class DefaultGrantUsageAuditAggregationService implements GrantUsageAuditAggrega
 
     @Override
     @Transactional(readOnly = true)
-    public List<GrantUsageAuditEvent> findUsageEvents(UUID organizationId, Instant from, Instant to,
+    public List<GrantUsageAuditEvent> findUsageEvents(UUID organizationId, Instant afterOccurredAt,
+                                                      UUID afterAuditLogId, Instant to,
                                                       int maxRows) {
         if (organizationId == null) {
             throw new IllegalArgumentException("organizationId is required");
@@ -52,10 +53,11 @@ class DefaultGrantUsageAuditAggregationService implements GrantUsageAuditAggrega
         if (maxRows <= 0) {
             throw new IllegalArgumentException("maxRows must be > 0");
         }
-        if (from == null || to == null || !from.isBefore(to)) {
+        if (afterOccurredAt == null || to == null || !afterOccurredAt.isBefore(to)) {
             return List.of();
         }
-        var rows = grantUsageAuditRepository.findUsageEvents(organizationId, USAGE_ACTIONS, from, to,
+        var rows = grantUsageAuditRepository.findUsageEvents(organizationId, USAGE_ACTIONS,
+                afterOccurredAt, afterAuditLogId == null ? START : afterAuditLogId, to,
                 PageRequest.of(0, maxRows));
         var events = new ArrayList<GrantUsageAuditEvent>(rows.size());
         for (AuditLogEntity row : rows) {
@@ -84,7 +86,7 @@ class DefaultGrantUsageAuditAggregationService implements GrantUsageAuditAggrega
         if (datasourceId == null) {
             return null;
         }
-        return new GrantUsageAuditEvent(row.getOrganizationId(), row.getActorId(),
+        return new GrantUsageAuditEvent(row.getId(), row.getOrganizationId(), row.getActorId(),
                 GrantResourceKind.DATASOURCE, datasourceId, row.getCreatedAt(),
                 AuditMetadataReader.stringArray(metadata, "referenced_tables"));
     }
@@ -98,7 +100,7 @@ class DefaultGrantUsageAuditAggregationService implements GrantUsageAuditAggrega
         var targets = operationId == null || operationId.isBlank()
                 ? List.<String>of()
                 : List.of(operationId);
-        return new GrantUsageAuditEvent(row.getOrganizationId(), row.getActorId(),
+        return new GrantUsageAuditEvent(row.getId(), row.getOrganizationId(), row.getActorId(),
                 GrantResourceKind.API_CONNECTOR, connectorId, row.getCreatedAt(), targets);
     }
 

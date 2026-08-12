@@ -23,7 +23,8 @@
     <p class="meta">
         <strong th:text="#{notification.email.grant_stale.resource_label}">Resource:</strong>
         <span th:text="${datasourceName} ?: '—'">—</span>
-        <span th:if="${grantResourceKind}" th:text="'(' + ${grantResourceKind} + ')'"></span>
+        <span th:if="${grantResourceKind}"
+              th:text="'(' + #{'notification.email.grant_stale.kind.' + ${grantResourceKind}} + ')'"></span>
     </p>
     <!-- Never used and idle-for-N-days are different facts, so they get different sentences
          rather than a "0 days" that reads as "used today". -->
@@ -37,7 +38,7 @@
     </p>
     <p class="meta" th:if="${grantRecommendation}">
         <strong th:text="#{notification.email.grant_stale.recommendation_label}">Recommendation:</strong>
-        <span th:text="${grantRecommendation}">—</span>
+        <span th:text="#{'notification.email.grant_stale.verdict.' + ${grantRecommendation}}">—</span>
     </p>
     <p>
         <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.grant_stale.cta}">Open in AccessFlow</a>

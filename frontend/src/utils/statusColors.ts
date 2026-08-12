@@ -79,7 +79,7 @@ export const grantUsageRecommendationColor = (
     case 'ACTIVE':
       return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
     case 'INSUFFICIENT_DATA':
-      return { fg: 'var(--text-muted)', bg: 'var(--bg-elev)', border: 'var(--border)' };
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };
 

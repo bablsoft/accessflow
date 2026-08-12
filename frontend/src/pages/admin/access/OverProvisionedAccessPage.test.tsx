@@ -180,4 +180,23 @@ describe('OverProvisionedAccessPage', () => {
       await screen.findByText('The export hit the row cap and is truncated.'),
     ).toBeInTheDocument();
   });
+
+  /** Only a measured, genuinely-unused grant earns the critical "Never used"; too-new does not. */
+  it('renders a too-new grant as not-yet-observed rather than never used', async () => {
+    listMock.mockResolvedValue(
+      pageOf([
+        grant({
+          recommendation: 'INSUFFICIENT_DATA',
+          last_used_at: null,
+          days_since_last_use: null,
+          usage_count: 0,
+        }),
+      ]),
+    );
+
+    render(wrap(<OverProvisionedAccessPage />));
+
+    expect(await screen.findByText('Not enough history yet')).toBeInTheDocument();
+    expect(screen.queryByText('Never used')).not.toBeInTheDocument();
+  });
 });

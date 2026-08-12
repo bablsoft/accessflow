@@ -1,6 +1,8 @@
 -- #625: least-privilege intelligence. Seeds the new ACCESS_USAGE_REPORT_VIEW permission for the
--- AUDITOR system role, mirroring core.api.SystemRolePermissions (a parity test keeps the two in
--- sync). ADMIN holds every catalog value via EnumSet.allOf, so its row is seeded here too.
+-- AUDITOR system role, mirroring core.api.SystemRolePermissions. ADMIN holds every catalog
+-- value via EnumSet.allOf, so its row is seeded here too. Note the mirror is by convention,
+-- not enforcement: system roles resolve from the code map at runtime
+-- (DefaultRolePermissionResolver), and no test compares these rows to the enum.
 -- role_permissions.permission is VARCHAR — the catalog is code-defined, not a PG enum — so the new
 -- value itself needs no DDL.
 

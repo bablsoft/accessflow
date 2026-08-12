@@ -33,7 +33,7 @@ public record AccessProperties(
             maxDuration = Duration.ofDays(30);
         }
         if (usage == null) {
-            usage = new Usage(null, null, null, null, 0, 0, 0, 0, null, null);
+            usage = new Usage(null, null, null, null, 0, 0, 0, 0, 0, null, null);
         }
     }
 
@@ -50,9 +50,11 @@ public record AccessProperties(
      *       rather than {@code NEVER_USED}, so a fresh grant is never recommended for revocation.</li>
      *   <li>{@code overScopedThreshold} — exercised/granted target ratio below which an actively-used
      *       grant is flagged {@code OVER_SCOPED}. Clamped to (0, 1].</li>
-     *   <li>{@code maxRowsPerTick} — audit events folded per organization per tick. On a full page
-     *       the cursor advances to the last event rather than the window end, so the tail is picked
-     *       up next tick rather than skipped.</li>
+     *   <li>{@code maxRowsPerTick} — audit events read per keyset page.</li>
+     *   <li>{@code maxPagesPerTick} — pages read per organization per tick. The read drains until a
+     *       short page arrives; this bounds the work a single very busy tenant can do in one tick.
+     *       Hitting it is logged and the cursor stops at the last applied event, so the remainder is
+     *       picked up next tick rather than skipped.</li>
      *   <li>{@code maxTrackedTargets} — cap on the distinct exercised targets retained per grant.</li>
      *   <li>{@code maxReportRows} — hard cap on rows in a single over-provisioned CSV export; beyond
      *       it the export is flagged truncated.</li>
@@ -67,6 +69,7 @@ public record AccessProperties(
             Duration minObservationWindow,
             double overScopedThreshold,
             int maxRowsPerTick,
+            int maxPagesPerTick,
             int maxTrackedTargets,
             int maxReportRows,
             Boolean nudgeEnabled,
@@ -92,6 +95,9 @@ public record AccessProperties(
             }
             if (maxRowsPerTick <= 0) {
                 maxRowsPerTick = 50_000;
+            }
+            if (maxPagesPerTick <= 0) {
+                maxPagesPerTick = 20;
             }
             if (maxTrackedTargets <= 0) {
                 maxTrackedTargets = 200;

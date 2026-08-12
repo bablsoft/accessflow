@@ -9,8 +9,8 @@ function user(permissions: string[]): Pick<AuthUser, 'permissions'> {
 }
 
 describe('permissions', () => {
-  it('exposes the full 38-entry catalog mirror', () => {
-    expect(PERMISSIONS).toHaveLength(38);
+  it('exposes the full 39-entry catalog mirror', () => {
+    expect(PERMISSIONS).toHaveLength(39);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
   });
 

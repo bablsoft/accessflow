@@ -100,4 +100,26 @@ describe('AttestationUsageCell', () => {
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.queryByText(/in scope/)).not.toBeInTheDocument();
   });
+
+  /**
+   * INSUFFICIENT_DATA also has a null last-used timestamp. Branching on the timestamp alone would
+   * label a grant that is simply too new to judge as "never used" — the same conflation this
+   * component exists to prevent, one state over.
+   */
+  it('distinguishes a too-new grant from one measured and never used', () => {
+    render(
+      <AttestationUsageCell
+        item={item({
+          usage_recommendation: 'INSUFFICIENT_DATA',
+          usage_count: 0,
+          usage_last_used_at: null,
+          usage_granted_target_count: 4,
+          usage_used_target_count: 0,
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/Not enough history yet/)).toBeInTheDocument();
+    expect(screen.queryByText(/Never used/)).not.toBeInTheDocument();
+  });
 });

@@ -66,10 +66,14 @@ CREATE INDEX idx_grant_usage_summary_resource
 -- table is owned by the audit role so Flyway cannot add one), which advances every row in the org
 -- together. A row created after the cursor moved forward is backfilled explicitly at reconcile
 -- time; keeping the cursor out of the summary row is what makes that gap visible rather than silent.
+-- The cursor is a KEYSET, not a timestamp: audit_log.created_at is not unique, so resuming from a
+-- bare instant either replays the events sharing it or skips them. aggregated_through_id is the
+-- audit_log row the fold stopped after; the nil UUID means "start of that instant".
 CREATE TABLE grant_usage_watermark (
-    organization_id    UUID        PRIMARY KEY,
-    aggregated_through TIMESTAMPTZ NOT NULL,
-    version            BIGINT      NOT NULL DEFAULT 0,
-    created_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at         TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    organization_id       UUID        PRIMARY KEY,
+    aggregated_through    TIMESTAMPTZ NOT NULL,
+    aggregated_through_id UUID        NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000',
+    version               BIGINT      NOT NULL DEFAULT 0,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

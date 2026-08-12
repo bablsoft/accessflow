@@ -34,7 +34,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -165,7 +164,7 @@ class OverProvisionedAccessController {
                 new Object[]{ex.getName()}, LocaleContextHolder.getLocale());
         var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         problem.setProperty("error", "VALIDATION_ERROR");
-        problem.setProperty("timestamp", Instant.now().toString());
+        problem.setProperty("timestamp", clock.instant().toString());
         return problem;
     }
 

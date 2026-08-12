@@ -22,7 +22,4 @@ public interface GrantUsageSummaryRepository extends JpaRepository<GrantUsageSum
             UUID organizationId, GrantResourceKind resourceKind, UUID resourceId, UUID userId);
 
     List<GrantUsageSummaryEntity> findByOrganizationId(UUID organizationId);
-
-    List<GrantUsageSummaryEntity> findByOrganizationIdAndResourceKind(
-            UUID organizationId, GrantResourceKind resourceKind);
 }

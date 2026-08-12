@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.audit.internal;
 
+import com.bablsoft.accessflow.audit.api.GrantUsageAuditAggregationService;
 import com.bablsoft.accessflow.audit.internal.persistence.entity.AuditLogEntity;
 import com.bablsoft.accessflow.audit.internal.persistence.repo.GrantUsageAuditRepository;
 import com.bablsoft.accessflow.core.api.GrantResourceKind;
@@ -47,12 +48,12 @@ class DefaultGrantUsageAuditAggregationServiceTest {
     }
 
     private void given(AuditLogEntity... rows) {
-        when(repo.findUsageEvents(eq(ORG), anyCollection(), eq(FROM), eq(TO), any(Pageable.class)))
-                .thenReturn(List.of(rows));
+        when(repo.findUsageEvents(eq(ORG), anyCollection(), eq(FROM), any(), eq(TO),
+                any(Pageable.class))).thenReturn(List.of(rows));
     }
 
     private List<com.bablsoft.accessflow.audit.api.GrantUsageAuditEvent> events() {
-        return service.findUsageEvents(ORG, FROM, TO, 100);
+        return service.findUsageEvents(ORG, FROM, GrantUsageAuditAggregationService.START, TO, 100);
     }
 
     @Test
@@ -147,35 +148,50 @@ class DefaultGrantUsageAuditAggregationServiceTest {
         verify(repo).findUsageEvents(eq(ORG),
                 eq(List.of("QUERY_EXECUTED", "QUERY_BREAK_GLASS_EXECUTED", "API_REQUEST_EXECUTED",
                         "API_REQUEST_BREAK_GLASS_EXECUTED")),
-                eq(FROM), eq(TO), any(Pageable.class));
+                eq(FROM), any(), eq(TO), any(Pageable.class));
     }
 
     @Test
     void capsTheReadAtMaxRows() {
-        when(repo.findUsageEvents(eq(ORG), anyCollection(), eq(FROM), eq(TO), any(Pageable.class)))
-                .thenReturn(List.of());
+        when(repo.findUsageEvents(eq(ORG), anyCollection(), eq(FROM), any(), eq(TO),
+                any(Pageable.class))).thenReturn(List.of());
 
-        service.findUsageEvents(ORG, FROM, TO, 25);
+        service.findUsageEvents(ORG, FROM, GrantUsageAuditAggregationService.START, TO, 25);
 
-        verify(repo).findUsageEvents(eq(ORG), anyCollection(), eq(FROM), eq(TO),
+        verify(repo).findUsageEvents(eq(ORG), anyCollection(), eq(FROM), any(), eq(TO),
                 eq(org.springframework.data.domain.PageRequest.of(0, 25)));
+    }
+
+    /** The nil UUID is the "start of this instant" sentinel; a null keyset must fall back to it. */
+    @Test
+    void aNullKeysetStartsAtTheBeginningOfTheInstant() {
+        when(repo.findUsageEvents(eq(ORG), anyCollection(), eq(FROM), any(), eq(TO),
+                any(Pageable.class))).thenReturn(List.of());
+
+        service.findUsageEvents(ORG, FROM, null, TO, 10);
+
+        verify(repo).findUsageEvents(eq(ORG), anyCollection(), eq(FROM),
+                eq(GrantUsageAuditAggregationService.START), eq(TO), any(Pageable.class));
     }
 
     @Test
     void returnsEmptyForAnEmptyOrInvertedWindowWithoutQuerying() {
-        assertThat(service.findUsageEvents(ORG, TO, FROM, 10)).isEmpty();
-        assertThat(service.findUsageEvents(ORG, FROM, FROM, 10)).isEmpty();
-        assertThat(service.findUsageEvents(ORG, null, TO, 10)).isEmpty();
+        var start = GrantUsageAuditAggregationService.START;
+        assertThat(service.findUsageEvents(ORG, TO, start, FROM, 10)).isEmpty();
+        assertThat(service.findUsageEvents(ORG, FROM, start, FROM, 10)).isEmpty();
+        assertThat(service.findUsageEvents(ORG, null, start, TO, 10)).isEmpty();
 
-        verify(repo, never()).findUsageEvents(any(), anyCollection(), any(), any(), any());
+        verify(repo, never()).findUsageEvents(any(), anyCollection(), any(), any(), any(), any());
     }
 
     @Test
     void rejectsMissingOrganizationAndNonPositiveMaxRows() {
-        assertThatThrownBy(() -> service.findUsageEvents(null, FROM, TO, 10))
+        assertThatThrownBy(() -> service.findUsageEvents(null, FROM,
+                GrantUsageAuditAggregationService.START, TO, 10))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("organizationId");
-        assertThatThrownBy(() -> service.findUsageEvents(ORG, FROM, TO, 0))
+        assertThatThrownBy(() -> service.findUsageEvents(ORG, FROM,
+                GrantUsageAuditAggregationService.START, TO, 0))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxRows");
     }

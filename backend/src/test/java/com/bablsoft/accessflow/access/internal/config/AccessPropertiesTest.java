@@ -14,7 +14,7 @@ class AccessPropertiesTest {
                                int maxTrackedTargets, int maxReportRows, Boolean nudgeEnabled,
                                Duration nudgeCooldown) {
         return new Usage(aggregation, backfill, staleness, minObservation, overScoped,
-                maxRowsPerTick, maxTrackedTargets, maxReportRows, nudgeEnabled, nudgeCooldown);
+                maxRowsPerTick, 0, maxTrackedTargets, maxReportRows, nudgeEnabled, nudgeCooldown);
     }
 
     @Test
@@ -53,6 +53,7 @@ class AccessPropertiesTest {
         assertThat(usage.minObservationWindow()).isEqualTo(Duration.ofDays(14));
         assertThat(usage.overScopedThreshold()).isEqualTo(0.5);
         assertThat(usage.maxRowsPerTick()).isEqualTo(50_000);
+        assertThat(usage.maxPagesPerTick()).isEqualTo(20);
         assertThat(usage.maxTrackedTargets()).isEqualTo(200);
         assertThat(usage.maxReportRows()).isEqualTo(50_000);
         assertThat(usage.nudgeEnabled()).isTrue();
