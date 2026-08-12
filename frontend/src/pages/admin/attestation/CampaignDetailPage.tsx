@@ -37,6 +37,9 @@ import {
   attestationItemDecisionColor,
 } from '@/utils/statusColors';
 import type { AttestationItem, AttestationItemDecision } from '@/types/api';
+import { downloadBlob } from '@/utils/downloadBlob';
+import { AttestationCapabilities } from '@/components/attestation/AttestationCapabilities';
+import { AttestationUsageCell } from '@/components/attestation/AttestationUsageCell';
 
 const PAGE_SIZE = 20;
 
@@ -90,7 +93,7 @@ export default function CampaignDetailPage() {
   const exportMutation = useMutation({
     mutationFn: () => exportEvidenceCsv(id),
     onSuccess: (result: EvidenceExportResult) => {
-      triggerDownload(result);
+      downloadBlob(result);
       if (result.truncated) {
         message.warning(t('attestation.detail.export_truncated'));
       }
@@ -249,7 +252,13 @@ export default function CampaignDetailPage() {
               {
                 title: t('attestation.detail.col_capabilities'),
                 key: 'capabilities',
-                render: (_v, item) => <Capabilities item={item} />,
+                render: (_v, item) => <AttestationCapabilities item={item} />,
+              },
+              {
+                title: t('attestation.detail.col_usage'),
+                key: 'usage',
+                width: 210,
+                render: (_v, item) => <AttestationUsageCell item={item} />,
               },
               {
                 title: t('attestation.detail.col_decision'),
@@ -279,23 +288,6 @@ export default function CampaignDetailPage() {
   );
 }
 
-function Capabilities({ item }: { item: AttestationItem }) {
-  const { t } = useTranslation();
-  const caps: string[] = [];
-  if (item.can_read) caps.push(t('attestation.detail.cap_read'));
-  if (item.can_write) caps.push(t('attestation.detail.cap_write'));
-  if (item.can_ddl) caps.push(t('attestation.detail.cap_ddl'));
-  if (item.can_break_glass) caps.push(t('attestation.detail.cap_break_glass'));
-  return (
-    <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 6 }}>
-      {caps.map((c) => (
-        <Pill key={c} size="sm">
-          {c}
-        </Pill>
-      ))}
-    </span>
-  );
-}
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -311,13 +303,3 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-function triggerDownload({ blob, filename }: EvidenceExportResult): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}

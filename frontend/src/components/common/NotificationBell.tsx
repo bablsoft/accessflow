@@ -231,6 +231,9 @@ function renderMessage(
       return t('notifications.events.ACCESS_GRANT_EXPIRED', { datasource: accessResource });
     case 'ACCESS_GRANT_REVOKED':
       return t('notifications.events.ACCESS_GRANT_REVOKED', { datasource: accessResource });
+    // #625 — the resource name rides in the `datasource` payload field for both grant kinds.
+    case 'GRANT_STALE':
+      return t('notifications.events.GRANT_STALE', { datasource: accessResource });
     default:
       return t('notifications.events.fallback');
   }
@@ -255,6 +258,11 @@ export function routeForNotification(item: UserNotification): string | null {
     item.event_type === 'ACCESS_GRANT_REVOKED'
   ) {
     return '/access-requests';
+  }
+  // Admin-targeted: the report is where the grant can actually be acted on, and it is where the
+  // same event's email points.
+  if (item.event_type === 'GRANT_STALE') {
+    return '/admin/over-provisioned-access';
   }
   // Terminal API events are submitter-targeted → the API-request detail page.
   if (

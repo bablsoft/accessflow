@@ -1179,6 +1179,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `GroupTimeoutJob` | requestgroups | `groupTimeoutJob` | `accessflow.requestgroups.timeout-poll-interval` | `PT5M` |
 | `DiscoveryScanJob` | discovery | `discoveryScanJob` | `accessflow.discovery.scan-poll-interval` | `PT15M` |
 | `ApprovalPredictionTrainingJob` | ai | `approvalPredictionTrainingJob` | `accessflow.ai.approval-prediction.retrain-poll-interval` | `P1D` |
+| `GrantUsageAggregationJob` | access | `grantUsageAggregationJob` | `accessflow.access.usage.aggregation-poll-interval` | `PT1H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -1220,7 +1221,83 @@ campaign's `pending_default` — `REVOKE` revokes the grant, `KEEP` certifies it
 **Evidence.** `AttestationEvidenceExportService` streams a CSV of every item (subject, capabilities,
 decision, who decided, when), capped at `accessflow.attestation.max-evidence-rows` (default 50000;
 beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) writes an
-`ATTESTATION_EVIDENCE_EXPORTED` audit row.
+`ATTESTATION_EVIDENCE_EXPORTED` audit row. Since #625 the CSV also carries the five `usage_*` columns
+frozen on each item — an auditor asking "why was this certified?" needs the picture the reviewer had
+at decision time, not today's usage.
+
+### Least-privilege intelligence (#625)
+
+The `access` module folds `audit_log` execution history into **per-standing-grant usage evidence** and
+derives a revocation recommendation from it, so an admin can see which grants are unused or far wider
+than the work they support. Both grant kinds are covered — `datasource_user_permissions` (scope =
+`allowed_tables`) and `api_connector_user_permissions` (scope = `allowed_operations`); group-inherited
+grants (AF-530/531) are not. The read model is `grant_usage_summary`, one row per live grant, refreshed
+by `GrantUsageAggregationJob` (see [§ Scheduled jobs](#scheduled-jobs-and-clustering)).
+
+**Where the usage comes from.** `audit.api.GrantUsageAuditAggregationService` is the only reader — a
+sibling of the UBA aggregation rather than an extension of it, because UBA asks "what did this known
+subject do on this one datasource" while this asks "which grants were exercised at all", across both
+resource kinds. It lives in the `audit` module so JSONB `metadata` parsing stays with the table that
+owns it, and it reads only, which is what keeps it compatible with the SELECT-only application role on
+`audit_log`. It counts the **four execution actions** — `QUERY_EXECUTED`,
+`QUERY_BREAK_GLASS_EXECUTED`, `API_REQUEST_EXECUTED` and `API_REQUEST_BREAK_GLASS_EXECUTED`.
+Break-glass is deliberately included: emergency access is unambiguously use of a grant, and omitting it
+would let a grant exercised only under break-glass look abandoned. `QUERY_FAILED` is excluded — it
+carries no referenced tables, and a query that did not run is not evidence that its granted scope is
+needed. Exercised scope comes from metadata only, never result data: `referenced_tables` (AF-383) for a
+datasource event, and for a connector event the new `operation_id` enrichment that
+`DefaultApiRequestService` writes on `API_REQUEST_EXECUTED` / `API_REQUEST_BREAK_GLASS_EXECUTED` — the
+connector-side analogue of `referenced_tables`, nullable because an ad-hoc call need not resolve to a
+catalogued operation. Every mapping step is fail-soft: an unparseable row, a missing resource id, or a
+row predating an enrichment yields nothing or an event with **empty** targets, which downstream reads
+as "used, scope unknown" rather than "used nothing".
+
+**The recommendation ladder.** `GrantUsageRecommender` is a pure function of its inputs — no Spring, no
+repository, no clock of its own — so every verdict and boundary is unit-testable. In order:
+`ACTIVE` / `OVER_SCOPED` when the last use is within `staleness-threshold`; otherwise
+`INSUFFICIENT_DATA` when the observation window is shorter than `min-observation-window`; otherwise
+`NEVER_USED` when nothing was ever observed and `STALE` when something was. Two conservatism rules
+shape that ordering, and both exist so the ladder never recommends revoking a grant that is genuinely
+in use:
+
+- **Recent use beats youth.** A grant created yesterday and used today is `ACTIVE`, not
+  `INSUFFICIENT_DATA` — the observation-window guard applies only when there is nothing recent to
+  report.
+- **Unknown scope is never over-scope.** `OVER_SCOPED` requires a scope-limited grant *and* at least
+  one granted target observed. An unrestricted grant (`granted_target_count` null, not zero) has no
+  scope to under-use, and a grant known only through audit rows predating the target enrichment has
+  `used_target_count = 0` with a non-zero usage count — reporting either as over-scoped would be
+  fabricating evidence.
+
+Exercised scope is recomputed each tick against the **live** allow-list rather than a stored count, so
+a query outside the allow-list (possible for a `QUERY_ADMIN` holder, whose submissions bypass the
+per-grant check) can never inflate the figure past the grant's own scope, and a shrunken allow-list is
+reflected immediately.
+
+**Advisory only, structurally.** Nothing in the product acts on a `GrantUsageRecommendation`. It is
+read by the over-provisioned report, by attestation reviewers, and by the `GRANT_STALE` nudge — never
+by routing policies, grant-covered auto-approval, break-glass, or any other decision path. The
+staleness nudge is addressed to org **administrators**, not to the grant holder: admins are the party
+who can act on it, and telling one user about another's inactivity would leak activity data across the
+tenant.
+
+**Attestation enrichment.** `AttestationLifecycleService.openCampaign` calls
+`GrantUsageService.findFor` per item and freezes the evidence onto the `attestation_item` row
+(`usage_last_used_at`, `usage_count`, `usage_granted_target_count`, `usage_used_target_count`,
+`usage_recommendation`), and the reviewer worklist defaults to staleness-first ordering (never-used
+before merely-idle, then longest-idle, `id` breaking ties so no row can swap between pages and be
+skipped) — an explicit `?sort=` still wins. `findFor` returns an `Optional` and the absent case must be
+rendered as "no data", never defaulted to zero: a grant not yet summarised looks identical in the data
+to one never used, and the two point a reviewer in opposite directions.
+
+**Report and export.** `GrantUsageService.report` serves the paginated, filterable over-provisioned
+report and `GrantUsageExportService` renders the same rows as CSV, capped at
+`accessflow.access.usage.max-report-rows` (default 50000; the exporter fetches `cap + 1` to tell a full
+page from "exactly cap rows exist", and flags the result truncated rather than silently shipping a
+partial inventory). Both are gated on the new `ACCESS_USAGE_REPORT_VIEW` permission (ADMIN and
+AUDITOR); the export writes an `OVER_PROVISIONED_ACCESS_EXPORTED` audit row (resource type
+`GRANT_USAGE_SUMMARY`) carrying the row count, the truncation flag and the applied filters. Endpoints:
+[docs/04-api-spec.md → Over-Provisioned Access Endpoints](04-api-spec.md#over-provisioned-access-endpoints-625).
 
 `ScheduledQueryRunJob` implements query scheduling (AF-345): a submitter may include `scheduled_for` on `POST /queries` to defer execution. The query still goes through the normal AI / review flow; once it reaches `APPROVED`, the job picks it up at the next tick where `scheduled_for ≤ now()` and calls `QueryLifecycleService.executeScheduled(id)`. That method bypasses the per-user ownership guard (the actor is the scheduler, not a request principal), records the submitter as the audit actor, and tags the audit metadata with `"trigger": "scheduled"`. The job is idempotent — if the query is no longer `APPROVED` (manual execute / cancel raced the tick), the lifecycle service logs and returns without firing.
 
@@ -1231,6 +1308,10 @@ beyond it the export is flagged truncated). The HTTP export (ADMIN or AUDITOR) w
 `RetentionPolicyScanJob` implements the retention scan (AF-499, the `lifecycle` module): each tick it loads enabled `retention_policies`, computes eligibility per policy via the proxy's non-committing dry-run (`LifecyclePreviewCalculator`), and stages a `lifecycle_runs` row (`STAGED`) for each policy with eligible rows and no pending run yet. It is idempotent (a policy with an existing `STAGED` run is skipped) and swallows per-policy `RuntimeException`s so one bad policy cannot abort the batch. Each cycle publishes a `LifecycleScanCompletedEvent` consumed by the notifications module.
 
 `ScheduledGroupRunJob` / `GroupTimeoutJob` drive deferred grouped requests (AF-501, the `requestgroups` module) — see [§ Request chaining & grouping](#request-chaining--grouping-af-501). The run job scans `APPROVED` groups whose `scheduled_for ≤ now()` and executes their ordered sequence via `GroupExecutionService`; the timeout job auto-rejects `PENDING_REVIEW` groups past the review timeout to `TIMED_OUT`. Both are idempotent and swallow per-group `RuntimeException`s so one bad group cannot abort the batch.
+
+`GrantUsageAggregationJob` refreshes the per-grant usage summaries behind least-privilege intelligence (#625) — see [§ Least-privilege intelligence](#least-privilege-intelligence-625). It loops the active organizations and runs four phases per organization, each in one transaction: (1) **reconcile + backfill** — upsert one `grant_usage_summary` per live standing grant across both resource kinds, delete rows whose grant is gone, and replay `[observed_since, cursor)` for rows summarised for the first time (without that replay a grant created after the cursor moved forward would read as never-used forever); (2) **fold** new `audit_log` execution events from the cursor forward into the counters, `first_used_at` / `last_used_at`, and the exercised-target set; (3) **recompute** every recommendation, so a threshold change or the mere passage of time is reflected without waiting for new activity; (4) **nudge** — publish `GrantStaleEvent` for `NEVER_USED` / `STALE` rows outside `accessflow.access.usage.nudge-cooldown`, stamping `nudged_at`. The transaction is what makes the nudge safe at all: the notifications listener is an AFTER_COMMIT `@ApplicationModuleListener`, and an event published outside a transaction would be dropped silently. Per-organization `RuntimeException`s are logged and skipped so one bad tenant cannot abort the batch; without the `@SchedulerLock` every replica would fold the same audit window and multiply every usage count.
+
+The fold cursor (`grant_usage_watermark`) is **per organization, not per summary row**, and that is forced by the read shape rather than chosen: `audit_log` is indexed on `(organization_id, created_at DESC)` with **no index on `action`**, and since `V38` the table is owned by the dedicated audit role while Flyway runs as the application role — so no index can ever be added, and an org-scoped range read is the only shape that stays off a sequential scan. One such read advances every row in the organization together, which is why a newly-created row needs the explicit backfill above; keeping the cursor out of the summary row is what makes that gap visible rather than silent. When a tick comes back with a **full page** (`accessflow.access.usage.max-rows-per-tick`), the window was not drained, so the cursor advances to the last event's timestamp + 1 ms instead of to the window end — resuming from the window end would silently skip everything after the last event seen; the +1 ms keeps the half-open read from re-serving that final row forever.
 
 To add a new job: place the `@Component` under `<module>/internal/scheduled/`, annotate the method with `@Scheduled` + `@SchedulerLock(name = "<unique>")`, and document the row above. Lock-name conventions: short camelCase (`<jobName>`); never reuse a name across modules. The `scheduling` module's `LockProvider` is picked up automatically — no extra wiring needed.
 

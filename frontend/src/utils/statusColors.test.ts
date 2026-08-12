@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   accessGrantStatusColor,
@@ -5,11 +6,13 @@ import {
   attestationCampaignStatusColor,
   attestationItemDecisionColor,
   breakGlassStatusColor,
+  grantUsageRecommendationColor,
   statusColor,
 } from './statusColors';
 import type {
   AttestationCampaignStatus,
   AttestationItemDecision,
+  GrantUsageRecommendation,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
 } from '@/types/api';
@@ -88,5 +91,37 @@ describe('statusColor / accessGrantStatusColor smoke', () => {
   it('still resolves existing status palettes', () => {
     expect(statusColor('APPROVED').fg).toBe('var(--risk-low)');
     expect(accessGrantStatusColor('PENDING').fg).toBe('var(--status-info)');
+  });
+});
+
+describe('grantUsageRecommendationColor', () => {
+  const ALL: GrantUsageRecommendation[] = [
+    'INSUFFICIENT_DATA',
+    'NEVER_USED',
+    'STALE',
+    'OVER_SCOPED',
+    'ACTIVE',
+  ];
+
+  it('returns a distinct colour triple for each recommendation', () => {
+    const triples = ALL.map((r) => JSON.stringify(grantUsageRecommendationColor(r)));
+    expect(new Set(triples).size).toBe(ALL.length);
+  });
+
+  /**
+   * An undefined custom property is invalid at computed-value time, so the pill would silently
+   * inherit its surrounding colour. Every token used here must exist in tokens.css.
+   */
+  it('only references design tokens that exist', () => {
+    // Read from the project root: under jsdom import.meta.url is not a file: URL.
+    const defined = readFileSync('src/styles/tokens.css', 'utf8');
+    for (const recommendation of ALL) {
+      const triple = grantUsageRecommendationColor(recommendation);
+      for (const value of [triple.fg, triple.bg, triple.border]) {
+        const token = /var\((--[a-z0-9-]+)\)/.exec(value)?.[1];
+        expect(token, `${recommendation} -> ${value}`).toBeDefined();
+        expect(defined, `${token} is not defined in tokens.css`).toContain(`${token}:`);
+      }
+    }
   });
 });

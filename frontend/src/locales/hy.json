@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "Միակցիչներ",
     "auditor": "Համապատասխանության հաշվետվություններ",
+    "over_provisioned_access": "Ավելորդ մուտքեր",
     "anomalies": "Անոմալիաներ",
     "break_glass": "Break-glass մատյան",
     "dashboard": "Վահանակ",
@@ -2166,6 +2167,7 @@
       "ACCESS_REQUEST_REJECTED": "Ձեր մուտքի հայտը {{datasource}}-ի համար մերժվել է",
       "ACCESS_GRANT_EXPIRED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում ժամկետանց է",
       "ACCESS_GRANT_REVOKED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում հետ է կանչվել",
+      "GRANT_STALE": "{{datasource}}-ի մուտքը անօգտագործված է թվում — դիտարկեք",
       "fallback": "Նոր ծանուցում"
     }
   },
@@ -2567,6 +2569,17 @@
       "KEEP": "Պահպանել մուտքը",
       "REVOKE": "Չեղարկել մուտքը"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Տվյալների աղբյուր",
+      "API_CONNECTOR": "API միակցիչ"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Անբավարար տվյալներ",
+      "NEVER_USED": "Երբեք չօգտագործված",
+      "STALE": "Հնացած",
+      "OVER_SCOPED": "Չափազանց լայն",
+      "ACTIVE": "Ակտիվ"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -2699,6 +2712,7 @@
       "QUERY_ADMIN": "Կառավարել հարցումները",
       "ACCESS_REQUEST_REVIEW": "Վերանայել մուտքի հայտերը",
       "ACCESS_GRANT_REVOKE": "Հետ կանչել մուտքի տրամադրումները",
+      "ACCESS_USAGE_REPORT_VIEW": "Դիտել ավելորդ մուտքերի հաշվետվությունը",
       "API_CONNECTOR_MANAGE": "Կառավարել API միակցիչները",
       "API_REQUEST_REVIEW": "Վերանայել API հայտերը",
       "DATASOURCE_MANAGE": "Կառավարել տվյալների աղբյուրները",
@@ -3130,6 +3144,7 @@
       "items_empty": "Այս արշավը դեռ տարրեր չունի։",
       "col_subject": "Սուբյեկտ",
       "col_capabilities": "Հնարավորություններ",
+      "col_usage": "Օգտագործում",
       "col_decision": "Որոշում",
       "col_decided_at": "Որոշվել է",
       "cap_read": "Կարդալ",
@@ -3142,10 +3157,14 @@
       "subtitle": "Հաստատել կամ չեղարկել ստուգման ենթակա մուտքերը",
       "empty_title": "Ստուգելու բան չկա",
       "empty_description": "Դուք չունեք որոշման սպասող հաստատման տարրեր։",
+      "page_empty_title": "Այս էջում այլևս ոչինչ չկա",
+      "page_empty_description": "Դուք որոշեցիք վերջին տարրերը այստեղ: Վերադարձեք ցանկի սկիզբ:",
+      "back_to_first_page": "Վերադառնալ առաջին էջ",
       "load_error": "Չհաջողվեց բեռնել աշխատանքային ցուցակը",
       "col_subject": "Սուբյեկտ",
       "col_datasource": "Տվյալների աղբյուր",
       "col_capabilities": "Հնարավորություններ",
+      "col_usage": "Օգտագործում",
       "col_decision": "Որոշում",
       "col_actions": "Գործողություններ",
       "certify": "Հաստատել",
@@ -3174,7 +3193,44 @@
         "row_status_invalid_state": "Այլևս բաց չէ",
         "row_status_not_found": "Չի գտնվել"
       }
+    },
+    "usage": {
+      "no_data": "Օգտագործման տվյալներ չկան",
+      "no_data_hint": "Այս թույլտվությունը դեռ ամփոփված չէր, երբ արշավը բացվեց: Դա նույնը չէ, ինչ «երբեք չօգտագործված» — մի ընդունեք որպես հետ կանչելու պատճառ:",
+      "never_used": "Երբեք չի օգտագործվել",
+      "not_yet_observed": "Դեռ բավարար պատմություն չկա",
+      "last_used": "Վերջին օգտագործումը՝ {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} ծավալից"
     }
+  },
+  "over_provisioned": {
+    "title": "Ավելորդ մուտքեր",
+    "subtitle": "Մշտական թույլտվություններ, որոնք անօգտագործված կամ չափազանց լայն են թվում՝ ամենակարևորը առաջինը: Միայն առաջարկ է — ոչինչ ավտոմատ չի հետ կանչվում:",
+    "col_subject": "Թույլտվության տիրապետ",
+    "col_resource": "Ռեսուրս",
+    "col_last_used": "Վերջին օգտագործում",
+    "col_scope": "Օգտագործված ծավալ",
+    "col_usage": "Օգտագործումներ",
+    "col_recommendation": "Առաջարկ",
+    "never_used": "Երբեք չի օգտագործվել",
+    "not_yet_observed": "Դեռ բավարար պատմություն չկա",
+    "days_ago_one": "{{count}} օր առաջ",
+    "days_ago_other": "{{count}} օր առաջ",
+    "unrestricted": "Անսահմանափակ",
+    "unrestricted_hint": "Այս թույլտվությունը թույլ է տալիս ցանկացած աղյուսակ կամ գործողություն, ուստի չօգտագործվող ծավալ չկա:",
+    "scope_ratio": "{{used}} / {{granted}}",
+    "filter_resource_kind": "Ռեսուրսի տեսակ",
+    "filter_all_kinds": "Բոլոր ռեսուրսների տեսակները",
+    "filter_recommendation": "Առաջարկ",
+    "filter_all_recommendations": "Բոլոր առաջարկները",
+    "filter_user_placeholder": "Զտել ըստ օգտատիրոջ ID-ի",
+    "count_label_one": "{{count}} թույլտվություն",
+    "count_label_other": "{{count}} թույլտվություն",
+    "export_csv": "Արտահանել CSV",
+    "export_truncated": "Արտահանումը հասել է տողերի սահմանին և կրճատված է:",
+    "empty_title": "Մշտական թույլտվություններ չկան",
+    "empty_description": "Այս զտիչներին ոչ մի թույլտվություն չի համապատասխանում: Օգտագործումը ամփոփվում է ժամանակացույցով, ուստի նոր թույլտվությունը կարող է դեռ չերևալ:",
+    "load_error": "Չհաջողվեց բեռնել ավելորդ մուտքերի հաշվետվությունը"
   },
   "apiGov": {
     "connectors": {

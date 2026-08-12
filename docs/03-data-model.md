@@ -1801,6 +1801,11 @@ a **bare** reference (no FK) used only as the revoke target.
 | `can_read` / `can_write` / `can_ddl` / `can_break_glass` | BOOLEAN NOT NULL DEFAULT false |
 | `permission_expires_at` / `permission_created_at` | TIMESTAMPTZ nullable |
 | `permission_snapshot` | JSONB NOT NULL — full serialized `DatasourcePermissionView` |
+| `usage_last_used_at` | TIMESTAMPTZ nullable (#625, Flyway V136) — last observed use at campaign open |
+| `usage_count` | BIGINT nullable (#625) — observed uses within the grant's observation window |
+| `usage_granted_target_count` | INT nullable (#625) — allow-listed tables; null also means *unrestricted* |
+| `usage_used_target_count` | INT nullable (#625) — granted tables actually exercised |
+| `usage_recommendation` | ENUM `grant_usage_recommendation` nullable (#625) — the verdict frozen at open |
 | `decision` | ENUM `attestation_item_decision`: `PENDING` \| `CERTIFIED` \| `REVOKED`; DEFAULT `PENDING` |
 | `close_reason` | ENUM `attestation_item_close_reason`: `REVIEWER` \| `AUTO_DEFAULT_KEEP` \| `AUTO_DEFAULT_REVOKE`; nullable |
 | `decided_by` | UUID nullable (bare) — null for the end-of-campaign automatic default |
@@ -1810,8 +1815,92 @@ a **bare** reference (no FK) used only as the revoke target.
 | `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
 
 Constraints: `UNIQUE(campaign_id, permission_id)` (open-idempotency backstop); indexes
-`(campaign_id, decision)` (worklist + close sweep) and `(organization_id, subject_user_id)`. Item
-state machine: `PENDING → CERTIFIED` \| `PENDING → REVOKED` (terminal; idempotent replay).
+`(campaign_id, decision)` (worklist + close sweep), `(organization_id, subject_user_id)`, and
+`(campaign_id, usage_last_used_at NULLS FIRST)` — the staleness-first reviewer worklist ordering
+(#625). Item state machine: `PENDING → CERTIFIED` \| `PENDING → REVOKED` (terminal; idempotent
+replay).
+
+The five `usage_*` columns are the least-privilege evidence (#625) captured alongside the rest of the
+snapshot, so a reviewer sees whether a grant is actually exercised instead of deciding blind. They are
+**nullable together and never backfilled**: `attestation_item` is a frozen evidence record of what was
+true at campaign open, and retro-stamping today's usage onto a campaign reviewed months ago would
+falsify it. Null therefore means **"no data"**, *not* "never used" — a grant first summarised after its
+campaign opened legitimately has none, and the two readings push a reviewer in opposite directions, so
+the read models must render them differently (`AttestationItemResponse` carries
+`@JsonInclude(ALWAYS)` precisely so an absent key cannot be confused with a null one).
+
+---
+
+## grant_usage_summary
+
+The materialised read model behind least-privilege intelligence (#625, Flyway V135): **one row per
+live standing grant**, not one row per observed usage. That inversion is deliberate — a never-used
+grant is the single most important row in this feature and it produces no audit events at all, so the
+table has to be driven off the grant inventory and have usage folded into it. It also turns the
+over-provisioned report into a plain paginated, filterable, sortable query instead of an in-memory
+join. Covers both grant kinds: `datasource_user_permissions` (scope = allowed tables) and
+`api_connector_user_permissions` (scope = allowed operations). Group-inherited grants (AF-530/531) are
+not covered.
+
+Rows are a **derived cache, not a record**. `GrantUsageAggregationJob` reconciles them against the live
+grants every tick and deletes any whose grant is gone — a revoked grant must vanish from
+"over-provisioned access", not linger as a permanently idle row. `organization_id` / `resource_id` /
+`permission_id` / `user_id` are bare UUIDs (no FK), like `attestation_item`, so reconciliation owns the
+lifecycle rather than a cascade.
+
+Two new PG enums (`snake_case`, no `_enum` suffix): `grant_resource_kind` (`DATASOURCE` \|
+`API_CONNECTOR`) and `grant_usage_recommendation` (`INSUFFICIENT_DATA` \| `NEVER_USED` \| `STALE` \|
+`OVER_SCOPED` \| `ACTIVE`). `grant_usage_recommendation` is reused by `attestation_item`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL (bare) |
+| `resource_kind` | ENUM `grant_resource_kind`: `DATASOURCE` \| `API_CONNECTOR` |
+| `resource_id` / `resource_name` | UUID NOT NULL (bare) / TEXT NOT NULL — denormalized |
+| `permission_id` | UUID NOT NULL (bare) — the live `*_user_permissions` row this summarises |
+| `user_id` / `user_email` | UUID NOT NULL (bare) / TEXT NOT NULL — the grant holder |
+| `user_display_name` | TEXT nullable |
+| `granted_at` | TIMESTAMPTZ NOT NULL |
+| `expires_at` | TIMESTAMPTZ nullable |
+| `granted_target_count` | INT nullable — **null means the grant is unrestricted** (empty allow-list = all tables/operations), which is not zero: only a scope-limited grant can be `OVER_SCOPED` |
+| `used_targets` | JSONB NOT NULL DEFAULT `[]` — distinct tables/operations actually exercised, capped at `accessflow.access.usage.max-tracked-targets` (a cap hit is logged, never silently truncated) |
+| `used_target_count` | INT NOT NULL DEFAULT 0 — *granted* entries exercised, so an out-of-scope query by a `QUERY_ADMIN` holder cannot inflate it past the grant's own scope |
+| `usage_count` | BIGINT NOT NULL DEFAULT 0 |
+| `first_used_at` / `last_used_at` | TIMESTAMPTZ nullable — null `last_used_at` = never used |
+| `observed_since` | TIMESTAMPTZ NOT NULL — start of this row's observation window and the denominator for usage frequency, so a grant younger than the backfill window is not reported as low-frequency |
+| `recommendation` | ENUM `grant_usage_recommendation`; DEFAULT `INSUFFICIENT_DATA` |
+| `nudged_at` | TIMESTAMPTZ nullable — gates the `GRANT_STALE` nudge cooldown |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+Constraints: `UNIQUE(organization_id, resource_kind, resource_id, user_id)` — grant identity, and the
+upsert key reconciliation works against. Indexes: `(organization_id, recommendation, last_used_at NULLS
+FIRST)` serves the over-provisioned report in its default worst-first ordering (`NULLS FIRST` puts a
+never-used grant above one that merely has not been used lately), and `(organization_id, resource_kind,
+resource_id)` serves the single-grant lookup the attestation snapshot performs one item at a time.
+
+## grant_usage_watermark
+
+The audit-fold cursor for grant-usage aggregation (#625, Flyway V135) — **one row per organization**,
+not one per summary row.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `organization_id` | UUID PK (bare) |
+| `aggregated_through` | TIMESTAMPTZ NOT NULL — exclusive upper bound of the audit window already folded |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT now() |
+
+The per-organization granularity is forced by the read shape, not chosen for convenience: `audit_log`
+is indexed on `(organization_id, created_at DESC)` and has **no index on `action`**, and since `V38`
+the table is owned by the dedicated audit role while Flyway runs as the application role, so no index
+can be added. The only read that stays off a sequential scan is therefore one org-scoped range query
+per tick — which advances every summary row in the organization together. A row created after the
+cursor moved forward is backfilled explicitly over `[observed_since, cursor)` at reconcile time;
+keeping the cursor out of the summary row is what makes that gap visible rather than silent. When a
+tick returns a **full page** (`max-rows-per-tick`), the cursor advances to the last event's timestamp
++1 ms rather than to the window end, so the undrained tail is picked up next tick instead of skipped.
 
 ---
 

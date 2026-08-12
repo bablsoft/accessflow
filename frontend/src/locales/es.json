@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "Conectores",
     "auditor": "Informes de cumplimiento",
+    "over_provisioned_access": "Accesos sobreaprovisionados",
     "anomalies": "Anomalías",
     "break_glass": "Registro break-glass",
     "dashboard": "Panel",
@@ -2166,6 +2167,7 @@
       "ACCESS_REQUEST_REJECTED": "Tu solicitud de acceso para {{datasource}} fue rechazada",
       "ACCESS_GRANT_EXPIRED": "Tu permiso de acceso en {{datasource}} expiró",
       "ACCESS_GRANT_REVOKED": "Tu permiso de acceso en {{datasource}} fue revocado",
+      "GRANT_STALE": "El acceso a {{datasource}} parece sin usar: revísalo",
       "fallback": "Nueva notificación"
     }
   },
@@ -2567,6 +2569,17 @@
       "KEEP": "Mantener acceso",
       "REVOKE": "Revocar acceso"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Fuente de datos",
+      "API_CONNECTOR": "Conector de API"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Datos insuficientes",
+      "NEVER_USED": "Nunca usado",
+      "STALE": "Obsoleto",
+      "OVER_SCOPED": "Alcance excesivo",
+      "ACTIVE": "Activo"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -2699,6 +2712,7 @@
       "QUERY_ADMIN": "Administrar consultas",
       "ACCESS_REQUEST_REVIEW": "Revisar solicitudes de acceso",
       "ACCESS_GRANT_REVOKE": "Revocar concesiones de acceso",
+      "ACCESS_USAGE_REPORT_VIEW": "Ver el informe de accesos sobreaprovisionados",
       "API_CONNECTOR_MANAGE": "Gestionar conectores de API",
       "API_REQUEST_REVIEW": "Revisar solicitudes de API",
       "DATASOURCE_MANAGE": "Gestionar fuentes de datos",
@@ -3130,6 +3144,7 @@
       "items_empty": "Esta campaña aún no tiene elementos.",
       "col_subject": "Sujeto",
       "col_capabilities": "Capacidades",
+      "col_usage": "Uso",
       "col_decision": "Decisión",
       "col_decided_at": "Decidido",
       "cap_read": "Lectura",
@@ -3142,10 +3157,14 @@
       "subtitle": "Certificar o revocar accesos en revisión",
       "empty_title": "Nada que revisar",
       "empty_description": "No tiene elementos de atestación pendientes de decisión.",
+      "page_empty_title": "No queda nada en esta página",
+      "page_empty_description": "Decidiste los últimos elementos de aquí. Vuelve al inicio de la lista.",
+      "back_to_first_page": "Volver a la primera página",
       "load_error": "No se pudo cargar la lista de trabajo",
       "col_subject": "Sujeto",
       "col_datasource": "Fuente de datos",
       "col_capabilities": "Capacidades",
+      "col_usage": "Uso",
       "col_decision": "Decisión",
       "col_actions": "Acciones",
       "certify": "Certificar",
@@ -3174,7 +3193,44 @@
         "row_status_invalid_state": "Ya no está abierto",
         "row_status_not_found": "No encontrado"
       }
+    },
+    "usage": {
+      "no_data": "Sin datos de uso",
+      "no_data_hint": "Este permiso no estaba resumido cuando se abrió la campaña. Eso no es lo mismo que no haberse usado nunca: no lo tomes como motivo para revocar.",
+      "never_used": "Nunca usado",
+      "not_yet_observed": "Aún no hay historial suficiente",
+      "last_used": "Último uso {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} del alcance"
     }
+  },
+  "over_provisioned": {
+    "title": "Accesos sobreaprovisionados",
+    "subtitle": "Permisos permanentes que parecen sin usar o de alcance excesivo, los peores primero. Solo es una recomendación: no se revoca nada automáticamente.",
+    "col_subject": "Titular del permiso",
+    "col_resource": "Recurso",
+    "col_last_used": "Último uso",
+    "col_scope": "Alcance usado",
+    "col_usage": "Usos",
+    "col_recommendation": "Recomendación",
+    "never_used": "Nunca usado",
+    "not_yet_observed": "Aún no hay historial suficiente",
+    "days_ago_one": "hace {{count}} día",
+    "days_ago_other": "hace {{count}} días",
+    "unrestricted": "Sin restricción",
+    "unrestricted_hint": "Este permiso admite cualquier tabla u operación, así que no hay alcance que quede sin usar.",
+    "scope_ratio": "{{used}} de {{granted}}",
+    "filter_resource_kind": "Tipo de recurso",
+    "filter_all_kinds": "Todos los tipos de recurso",
+    "filter_recommendation": "Recomendación",
+    "filter_all_recommendations": "Todas las recomendaciones",
+    "filter_user_placeholder": "Filtrar por id de usuario",
+    "count_label_one": "{{count}} permiso",
+    "count_label_other": "{{count}} permisos",
+    "export_csv": "Exportar CSV",
+    "export_truncated": "La exportación alcanzó el límite de filas y está truncada.",
+    "empty_title": "Sin permisos permanentes",
+    "empty_description": "Ningún permiso coincide con estos filtros. El uso se resume de forma programada, así que un permiso nuevo puede no aparecer todavía.",
+    "load_error": "No se pudo cargar el informe de accesos sobreaprovisionados"
   },
   "apiGov": {
     "connectors": {

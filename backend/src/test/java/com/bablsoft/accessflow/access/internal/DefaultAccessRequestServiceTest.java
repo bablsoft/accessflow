@@ -69,7 +69,7 @@ class DefaultAccessRequestServiceTest {
     @BeforeEach
     void setUp() {
         var properties = new AccessProperties(Duration.ofMinutes(5), Duration.ofMinutes(15),
-                Duration.ofDays(30));
+                Duration.ofDays(30), null);
         service = new DefaultAccessRequestService(requestRepository, stateService, viewMapper,
                 datasourceLookupService, datasourceAdminService, connectorLookupService,
                 apiSchemaService, properties, eventPublisher, messageSource);

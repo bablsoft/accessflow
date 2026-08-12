@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.grant_stale.title}">Unused access grant</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #2b6cb0; color: #fff; text-decoration: none; border-radius: 4px; }
+        .grant-banner { padding: 10px 12px; border-left: 3px solid #d69e2e; background: #fffaf0; color: #744210; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.grant_stale.heading}">An access grant looks unused</h2>
+    <p class="grant-banner" th:text="#{notification.email.grant_stale.body}">
+        AccessFlow has not seen this standing grant exercised recently. Review it at the next
+        recertification — this is a recommendation only, and nothing has been revoked.
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.grant_stale.user_label}">Grant holder:</strong>
+        <span th:text="${submitterEmail} ?: '—'">—</span>
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.grant_stale.resource_label}">Resource:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span>
+        <span th:if="${grantResourceKind}"
+              th:text="'(' + #{'notification.email.grant_stale.kind.' + ${grantResourceKind}} + ')'"></span>
+    </p>
+    <!-- Never used and idle-for-N-days are different facts, so they get different sentences
+         rather than a "0 days" that reads as "used today". -->
+    <p class="meta" th:if="${grantDaysSinceLastUse != null}"
+       th:text="#{notification.email.grant_stale.idle_label} + ' ' + ${grantDaysSinceLastUse}">
+        Days since last use: —
+    </p>
+    <p class="meta" th:if="${grantDaysSinceLastUse == null}"
+       th:text="#{notification.email.grant_stale.never_used}">
+        This grant has never been used.
+    </p>
+    <p class="meta" th:if="${grantRecommendation}">
+        <strong th:text="#{notification.email.grant_stale.recommendation_label}">Recommendation:</strong>
+        <span th:text="#{'notification.email.grant_stale.verdict.' + ${grantRecommendation}}">—</span>
+    </p>
+    <p>
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.grant_stale.cta}">Open in AccessFlow</a>
+    </p>
+</body>
+</html>

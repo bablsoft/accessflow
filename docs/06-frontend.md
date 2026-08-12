@@ -167,6 +167,7 @@ accessflow-ui/
 │   │   ├── riskColors.ts            # Risk level → Ant Design color token map
 │   │   ├── statusColors.ts          # Query status → color map
 │   │   ├── dateFormat.ts            # Consistent date/time formatting
+│   │   ├── downloadBlob.ts          # Saves an export blob to disk (shared by every CSV/PDF export)
 │   │   └── sqlFormat.ts             # sql-formatter wrapper
 │   │
 │   ├── App.tsx                      # Route definitions
@@ -322,6 +323,28 @@ immediately.
 ### AuditorDashboardPage *(AUDITOR or ADMIN)* — AF-459
 
 The compliance-reporting dashboard at `/admin/auditor` (lazy-loaded). A `Segmented` control switches between the **Classified data access** and **Regulatory audit trail** reports; an AntD `RangePicker` sets the period (defaults to the last 90 days). Data is fetched with TanStack Query (`api/compliance.ts`, key `complianceKeys.report(type, params)`); results render in a `Table` with a `Skeleton` while loading and an `EmptyState` when no rows match. Two header buttons export the current report as a **signed PDF** or **CSV** (`exportComplianceReport`) — the download is triggered from the response blob, and the returned signature / SHA-256 are surfaced via a success toast (with a truncation warning when the row cap was hit).
+
+### Over-provisioned access (#625)
+
+`/admin/over-provisioned-access` (lazy, `ACCESS_USAGE_REPORT_VIEW` — ADMIN and AUDITOR) lists every
+standing grant with the usage evidence folded out of the audit log, worst first. Server-side paging
+and filters (resource kind, a multi-select of recommendations, user id) on the `AuditLogPage` shell;
+`api/grantUsage.ts` with `grantUsageKeys.report(filters)`; the CSV export reuses the same filters
+object minus page/size and warns on the `X-AccessFlow-Export-Truncated` header.
+
+The nullable figures carry meaning and must never be coerced for display: a null
+`granted_target_count` means the grant is **unrestricted** (no allow-list to under-use, so it is
+never `OVER_SCOPED`), and a null `days_since_last_use` means **never used** — rendering it as "0
+days ago" would say the opposite. `INSUFFICIENT_DATA` shares that null timestamp but means only
+"too new to judge", so it renders muted as "Not enough history yet" rather than critical-red.
+
+The same evidence appears on `AttestationWorklistPage` and `CampaignDetailPage` through
+`components/attestation/AttestationUsageCell.tsx`, which additionally distinguishes *no usage data*
+(the grant was not summarised when the campaign opened) from *never used* — a missing measurement
+must not read as an argument for revoking. `AttestationCapabilities` was extracted from the two
+pages at the same time, and the worklist gained server-side paging (it previously rendered a fixed
+50-row slab, which would have silently truncated the new staleness-first ordering); changing page
+clears the bulk selection so a decision can never apply to rows that scrolled out of view.
 
 Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePath.ts`) sends an auditor-shaped user (holds `COMPLIANCE_REPORT_VIEW`, lacks `QUERY_SUBMIT_SELECT`) to `/admin/auditor`; everyone else lands on `/dashboard` (AF-498), and `AuthGuard` bounces a permission-mismatch to that same home.
 
@@ -763,7 +786,7 @@ for deployment recipes (Docker Compose, Helm).
 /queries/:id                        → QueryDetailPage
 /reviews                            → ReviewQueuePage (header carries the **Enable push approvals** toggle — AF-444)
 /reviews/:id/decide                 → PushDecidePage (lazy; REVIEWER/ADMIN — one-tap push decide landing with step-up auth, AF-444)
-/reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384)
+/reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384; usage-evidence column + staleness-first server ordering + paging, #625)
 /request-groups                     → RequestGroupListPage (lazy; grouped-request history — AF-501)
 /request-groups/new                 → GroupBuilderPage (lazy; build + reorder + submit a grouped request — AF-501)
 /request-groups/:id/edit            → GroupBuilderPage (lazy; re-open an own DRAFT for editing — #559)
@@ -782,7 +805,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
 /admin/anomalies                    → AnomaliesPage (lazy; AUDITOR or ADMIN — behavioural anomaly detection / UBA, AF-383)
 /admin/attestation                  → CampaignListPage (lazy; ADMIN — access-recertification campaign list + create, AF-384)
-/admin/attestation/:id              → CampaignDetailPage (lazy; ADMIN — campaign items + open/cancel + evidence CSV export, AF-384)
+/admin/attestation/:id              → CampaignDetailPage (lazy; ADMIN — campaign items + open/cancel + evidence CSV export, AF-384; usage-evidence column, #625)
+/admin/over-provisioned-access      → OverProvisionedAccessPage (lazy; ADMIN or AUDITOR — unused/over-scoped standing grants + CSV export, #625)
 /admin/lifecycle/policies           → LifecyclePoliciesListPage (lazy; ADMIN — retention/erasure-rule list + create + delete + dry-run preview; create modal embeds the shared ErasureConfigForm (target/columns/conditions/raw-WHERE; schema-driven cascading table→column pickers with free-text fallback when introspection is unavailable, #548) + cron field, AF-499/AF-519)
 /lifecycle/erasure-reviews          → ErasureReviewQueuePage (lazy; REVIEWER/ADMIN — review-plan-based right-to-erasure review queue, optimistic approve/reject + scope snapshot, AF-519)
 /lifecycle/erasure                  → ErasureSubmitPage (lazy; any authenticated — self-service erasure request submit (shared ErasureConfigForm, schema-driven target pickers #548) + my-requests list with cancel, AF-499/AF-519)

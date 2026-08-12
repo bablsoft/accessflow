@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.attestation.internal;
 
+import com.bablsoft.accessflow.access.api.GrantUsageService;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignScope;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
@@ -19,6 +20,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,6 +45,7 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
     private final AttestationItemStateService itemStateService;
     private final DatasourceAdminService datasourceAdminService;
     private final DatasourceLookupService datasourceLookupService;
+    private final GrantUsageService grantUsageService;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
@@ -167,7 +170,29 @@ class DefaultAttestationLifecycleService implements AttestationLifecycleService 
         item.setPermissionCreatedAt(view.createdAt());
         item.setPermissionSnapshot(toSnapshotJson(view));
         item.setDecision(AttestationItemDecision.PENDING);
+        applyUsageEvidence(item, campaign.getOrganizationId(), view);
         return item;
+    }
+
+    /**
+     * Attaches the least-privilege evidence for this grant (#625) so the reviewer sees whether it is
+     * actually exercised. Absent evidence — a grant not yet summarised by
+     * {@code GrantUsageAggregationJob} — leaves every field null, which the worklist renders as "no
+     * data". It must not be defaulted to zero: "never used" and "not measured" point a reviewer in
+     * opposite directions.
+     */
+    private void applyUsageEvidence(AttestationItemEntity item, UUID organizationId,
+                                    DatasourcePermissionView view) {
+        grantUsageService
+                .findFor(organizationId, GrantResourceKind.DATASOURCE, view.datasourceId(),
+                        view.userId())
+                .ifPresent(usage -> {
+                    item.setUsageLastUsedAt(usage.lastUsedAt());
+                    item.setUsageCount(usage.usageCount());
+                    item.setUsageGrantedTargetCount(usage.grantedTargetCount());
+                    item.setUsageUsedTargetCount(usage.usedTargetCount());
+                    item.setUsageRecommendation(usage.recommendation());
+                });
     }
 
     private String toSnapshotJson(DatasourcePermissionView view) {

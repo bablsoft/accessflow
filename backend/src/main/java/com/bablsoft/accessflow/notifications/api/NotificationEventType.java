@@ -15,6 +15,11 @@ public enum NotificationEventType {
     ACCESS_GRANT_EXPIRED,
     ACCESS_GRANT_REVOKED,
     ANOMALY_DETECTED,
+    /**
+     * A standing grant crossed the staleness threshold (#625). Advisory nudge to org admins — never
+     * pages, never opens a ticket, and never revokes anything.
+     */
+    GRANT_STALE,
     BREAK_GLASS_EXECUTED,
     WEEKLY_DIGEST,
     ATTESTATION_CAMPAIGN_OPENED,

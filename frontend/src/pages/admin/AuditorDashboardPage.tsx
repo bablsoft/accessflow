@@ -10,11 +10,11 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { queryTypeLabel, dataClassificationLabel } from '@/utils/enumLabels';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { downloadBlob } from '@/utils/downloadBlob';
 import {
   complianceKeys,
   exportComplianceReport,
   fetchComplianceReport,
-  type ComplianceExportResult,
   type ComplianceReportParams,
 } from '@/api/compliance';
 import type {
@@ -25,17 +25,6 @@ import type {
 } from '@/types/api';
 
 const { Text } = Typography;
-
-function triggerDownload({ blob, filename }: ComplianceExportResult): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
 
 export default function AuditorDashboardPage() {
   const { t } = useTranslation();
@@ -56,7 +45,7 @@ export default function AuditorDashboardPage() {
   const exportMutation = useMutation({
     mutationFn: (format: ComplianceReportFormat) => exportComplianceReport(type, format, params),
     onSuccess: (result) => {
-      triggerDownload(result);
+      downloadBlob(result);
       if (result.truncated) {
         message.warning(t('auditor.export_truncated'));
       }

@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.attestation.internal;
 
+import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
+import com.bablsoft.accessflow.access.api.GrantUsageView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignScope;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignStatus;
 import com.bablsoft.accessflow.attestation.api.AttestationItemCloseReason;
@@ -16,6 +18,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceLookupService;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionView;
 import com.bablsoft.accessflow.core.api.DatasourceRef;
+import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +48,7 @@ class DefaultAttestationLifecycleServiceTest {
     @Mock AttestationItemStateService itemStateService;
     @Mock DatasourceAdminService datasourceAdminService;
     @Mock DatasourceLookupService datasourceLookupService;
+    @Mock com.bablsoft.accessflow.access.api.GrantUsageService grantUsageService;
     @Mock com.bablsoft.accessflow.audit.api.AuditLogService auditLogService;
     @Mock ApplicationEventPublisher eventPublisher;
 
@@ -57,8 +61,8 @@ class DefaultAttestationLifecycleServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultAttestationLifecycleService(campaignRepository, itemRepository,
-                itemStateService, datasourceAdminService, datasourceLookupService, auditLogService,
-                eventPublisher, new ObjectMapper());
+                itemStateService, datasourceAdminService, datasourceLookupService,
+                grantUsageService, auditLogService, eventPublisher, new ObjectMapper());
     }
 
     private AttestationCampaignEntity scheduledDatasourceCampaign() {
@@ -97,6 +101,67 @@ class DefaultAttestationLifecycleServiceTest {
         verify(auditLogService).record(audit.capture());
         assertThat(audit.getValue().action())
                 .isEqualTo(AuditAction.ATTESTATION_CAMPAIGN_OPENED);
+    }
+
+    /**
+     * The reviewer's whole reason for existing here: the item carries the usage evidence as it stood
+     * at campaign open, so certifying is an informed decision rather than a rubber stamp.
+     */
+    @Test
+    void openStampsUsageEvidenceOntoEachItem() {
+        var userId = UUID.randomUUID();
+        var lastUsed = Instant.parse("2026-03-01T00:00:00Z");
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        when(datasourceAdminService.listPermissions(datasourceId, orgId))
+                .thenReturn(List.of(permission(userId)));
+        when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+        when(grantUsageService.findFor(orgId, GrantResourceKind.DATASOURCE, datasourceId, userId))
+                .thenReturn(Optional.of(new GrantUsageView(UUID.randomUUID(), orgId,
+                        GrantResourceKind.DATASOURCE, datasourceId, "Production", UUID.randomUUID(),
+                        userId, "u@example.com", "User", Instant.parse("2025-01-01T00:00:00Z"), null,
+                        8, List.of("public.users"), 2, 41, lastUsed, lastUsed,
+                        Instant.parse("2026-01-01T00:00:00Z"),
+                        GrantUsageRecommendation.OVER_SCOPED)));
+
+        service.openCampaign(campaignId);
+
+        var item = ArgumentCaptor.forClass(AttestationItemEntity.class);
+        verify(itemRepository).save(item.capture());
+        assertThat(item.getValue().getUsageLastUsedAt()).isEqualTo(lastUsed);
+        assertThat(item.getValue().getUsageCount()).isEqualTo(41);
+        assertThat(item.getValue().getUsageGrantedTargetCount()).isEqualTo(8);
+        assertThat(item.getValue().getUsageUsedTargetCount()).isEqualTo(2);
+        assertThat(item.getValue().getUsageRecommendation())
+                .isEqualTo(GrantUsageRecommendation.OVER_SCOPED);
+    }
+
+    /**
+     * A grant not yet summarised must leave the fields null, never zero: "never used" and "not
+     * measured" push a reviewer in opposite directions.
+     */
+    @Test
+    void openLeavesUsageEvidenceNullWhenTheGrantHasNoSummaryYet() {
+        when(campaignRepository.findByIdForUpdate(campaignId))
+                .thenReturn(Optional.of(scheduledDatasourceCampaign()));
+        when(datasourceLookupService.findRef(datasourceId))
+                .thenReturn(Optional.of(new DatasourceRef(datasourceId, "Production")));
+        when(datasourceAdminService.listPermissions(datasourceId, orgId))
+                .thenReturn(List.of(permission(UUID.randomUUID())));
+        when(itemRepository.existsByCampaignIdAndPermissionId(any(), any())).thenReturn(false);
+        when(grantUsageService.findFor(any(), any(), any(), any())).thenReturn(Optional.empty());
+
+        service.openCampaign(campaignId);
+
+        var item = ArgumentCaptor.forClass(AttestationItemEntity.class);
+        verify(itemRepository).save(item.capture());
+        assertThat(item.getValue().getUsageLastUsedAt()).isNull();
+        assertThat(item.getValue().getUsageCount()).isNull();
+        assertThat(item.getValue().getUsageGrantedTargetCount()).isNull();
+        assertThat(item.getValue().getUsageUsedTargetCount()).isNull();
+        assertThat(item.getValue().getUsageRecommendation()).isNull();
     }
 
     @Test

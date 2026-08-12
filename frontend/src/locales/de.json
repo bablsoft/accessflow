@@ -68,6 +68,7 @@
     "langfuse": "Langfuse",
     "connectors": "Konnektoren",
     "auditor": "Compliance-Berichte",
+    "over_provisioned_access": "Überprivilegierte Zugriffe",
     "anomalies": "Anomalien",
     "break_glass": "Break-Glass-Protokoll",
     "dashboard": "Dashboard",
@@ -2166,6 +2167,7 @@
       "ACCESS_REQUEST_REJECTED": "Deine Zugriffsanfrage für {{datasource}} wurde abgelehnt",
       "ACCESS_GRANT_EXPIRED": "Deine Zugriffsberechtigung auf {{datasource}} ist abgelaufen",
       "ACCESS_GRANT_REVOKED": "Deine Zugriffsberechtigung auf {{datasource}} wurde widerrufen",
+      "GRANT_STALE": "Zugriff auf {{datasource}} scheint ungenutzt — bitte prüfen",
       "fallback": "Neue Benachrichtigung"
     }
   },
@@ -2567,6 +2569,17 @@
       "KEEP": "Zugriff behalten",
       "REVOKE": "Zugriff widerrufen"
     },
+    "grant_resource_kind": {
+      "DATASOURCE": "Datenquelle",
+      "API_CONNECTOR": "API-Connector"
+    },
+    "grant_usage_recommendation": {
+      "INSUFFICIENT_DATA": "Unzureichende Daten",
+      "NEVER_USED": "Nie genutzt",
+      "STALE": "Veraltet",
+      "OVER_SCOPED": "Zu weit gefasst",
+      "ACTIVE": "Aktiv"
+    },
     "api_protocol": {
       "REST": "REST",
       "SOAP": "SOAP",
@@ -2699,6 +2712,7 @@
       "QUERY_ADMIN": "Abfragen verwalten",
       "ACCESS_REQUEST_REVIEW": "Zugriffsanfragen prüfen",
       "ACCESS_GRANT_REVOKE": "Zugriffsgewährungen widerrufen",
+      "ACCESS_USAGE_REPORT_VIEW": "Bericht über überprivilegierte Zugriffe anzeigen",
       "API_CONNECTOR_MANAGE": "API-Konnektoren verwalten",
       "API_REQUEST_REVIEW": "API-Anfragen prüfen",
       "DATASOURCE_MANAGE": "Datenquellen verwalten",
@@ -3130,6 +3144,7 @@
       "items_empty": "Diese Kampagne hat noch keine Einträge.",
       "col_subject": "Betroffener",
       "col_capabilities": "Berechtigungen",
+      "col_usage": "Nutzung",
       "col_decision": "Entscheidung",
       "col_decided_at": "Entschieden",
       "cap_read": "Lesen",
@@ -3142,10 +3157,14 @@
       "subtitle": "Geprüfte Zugriffe bestätigen oder widerrufen",
       "empty_title": "Nichts zu prüfen",
       "empty_description": "Sie haben keine offenen Attestierungseinträge.",
+      "page_empty_title": "Auf dieser Seite ist nichts mehr offen",
+      "page_empty_description": "Du hast die letzten Einträge hier entschieden. Zurück zum Anfang der Liste.",
+      "back_to_first_page": "Zurück zur ersten Seite",
       "load_error": "Arbeitsliste konnte nicht geladen werden",
       "col_subject": "Betroffener",
       "col_datasource": "Datenquelle",
       "col_capabilities": "Berechtigungen",
+      "col_usage": "Nutzung",
       "col_decision": "Entscheidung",
       "col_actions": "Aktionen",
       "certify": "Bestätigen",
@@ -3174,7 +3193,44 @@
         "row_status_invalid_state": "Nicht mehr offen",
         "row_status_not_found": "Nicht gefunden"
       }
+    },
+    "usage": {
+      "no_data": "Keine Nutzungsdaten",
+      "no_data_hint": "Diese Berechtigung war beim Öffnen der Kampagne noch nicht ausgewertet. Das ist etwas anderes als „nie genutzt“ — kein Grund für einen Widerruf.",
+      "never_used": "Nie genutzt",
+      "not_yet_observed": "Noch zu wenig Verlauf",
+      "last_used": "Zuletzt genutzt {{date}}",
+      "scope_ratio": "{{used}}/{{granted}} im Umfang"
     }
+  },
+  "over_provisioned": {
+    "title": "Überprivilegierte Zugriffe",
+    "subtitle": "Dauerhafte Berechtigungen, die ungenutzt oder zu weit gefasst wirken — kritischste zuerst. Nur eine Empfehlung, es wird nichts automatisch widerrufen.",
+    "col_subject": "Berechtigungsinhaber",
+    "col_resource": "Ressource",
+    "col_last_used": "Zuletzt genutzt",
+    "col_scope": "Genutzter Umfang",
+    "col_usage": "Nutzungen",
+    "col_recommendation": "Empfehlung",
+    "never_used": "Nie genutzt",
+    "not_yet_observed": "Noch zu wenig Verlauf",
+    "days_ago_one": "vor {{count}} Tag",
+    "days_ago_other": "vor {{count}} Tagen",
+    "unrestricted": "Unbeschränkt",
+    "unrestricted_hint": "Diese Berechtigung erlaubt jede Tabelle bzw. Operation, es gibt also keinen Umfang, der ungenutzt bleiben könnte.",
+    "scope_ratio": "{{used}} von {{granted}}",
+    "filter_resource_kind": "Ressourcentyp",
+    "filter_all_kinds": "Alle Ressourcentypen",
+    "filter_recommendation": "Empfehlung",
+    "filter_all_recommendations": "Alle Empfehlungen",
+    "filter_user_placeholder": "Nach Benutzer-ID filtern",
+    "count_label_one": "{{count}} Berechtigung",
+    "count_label_other": "{{count}} Berechtigungen",
+    "export_csv": "CSV exportieren",
+    "export_truncated": "Der Export hat das Zeilenlimit erreicht und ist gekürzt.",
+    "empty_title": "Keine dauerhaften Berechtigungen",
+    "empty_description": "Keine Berechtigung passt zu diesen Filtern. Die Nutzung wird periodisch ausgewertet, eine neue Berechtigung erscheint daher evtl. noch nicht.",
+    "load_error": "Bericht über überprivilegierte Zugriffe konnte nicht geladen werden"
   },
   "apiGov": {
     "connectors": {

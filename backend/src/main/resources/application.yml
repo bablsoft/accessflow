@@ -353,6 +353,35 @@ accessflow:
     # Inclusive bounds the requested JIT access duration (ISO-8601) must fall within.
     min-duration: ${ACCESSFLOW_ACCESS_MIN_DURATION:PT15M}
     max-duration: ${ACCESSFLOW_ACCESS_MAX_DURATION:P30D}
+    # Least-privilege intelligence (#625) — unused-grant analytics. Advisory only: nothing here
+    # revokes anything, and no decision path reads a recommendation.
+    usage:
+      # Cadence at which GrantUsageAggregationJob refreshes the per-grant usage summaries.
+      # ShedLock makes this safe under horizontal scaling.
+      aggregation-poll-interval: ${ACCESSFLOW_ACCESS_USAGE_AGGREGATION_POLL_INTERVAL:PT1H}
+      # How far back a newly-summarised grant starts observing. Also caps how far into the past
+      # "never used" can see.
+      backfill-window: ${ACCESSFLOW_ACCESS_USAGE_BACKFILL_WINDOW:P90D}
+      # A grant unused for longer than this is STALE.
+      staleness-threshold: ${ACCESSFLOW_ACCESS_USAGE_STALENESS_THRESHOLD:P60D}
+      # Below this the verdict is INSUFFICIENT_DATA rather than NEVER_USED, so a fresh grant is
+      # never recommended for revocation.
+      min-observation-window: ${ACCESSFLOW_ACCESS_USAGE_MIN_OBSERVATION_WINDOW:P14D}
+      # Exercised/granted target ratio below which an actively-used grant is flagged OVER_SCOPED.
+      over-scoped-threshold: ${ACCESSFLOW_ACCESS_USAGE_OVER_SCOPED_THRESHOLD:0.5}
+      # Audit rows per keyset page, and pages per organization per tick. The read drains until a
+      # short page arrives; hitting the page cap defers the remainder to the next tick rather than
+      # skipping it.
+      max-rows-per-tick: ${ACCESSFLOW_ACCESS_USAGE_MAX_ROWS_PER_TICK:50000}
+      max-pages-per-tick: ${ACCESSFLOW_ACCESS_USAGE_MAX_PAGES_PER_TICK:20}
+      # Cap on distinct exercised tables/operations retained per grant.
+      max-tracked-targets: ${ACCESSFLOW_ACCESS_USAGE_MAX_TRACKED_TARGETS:200}
+      # Hard cap on rows in one over-provisioned CSV export; beyond it the export is flagged
+      # truncated via X-AccessFlow-Export-Truncated.
+      max-report-rows: ${ACCESSFLOW_ACCESS_USAGE_MAX_REPORT_ROWS:50000}
+      # Staleness nudge to org admins, and the minimum gap between nudges for the same grant.
+      nudge-enabled: ${ACCESSFLOW_ACCESS_USAGE_NUDGE_ENABLED:true}
+      nudge-cooldown: ${ACCESSFLOW_ACCESS_USAGE_NUDGE_COOLDOWN:P30D}
   audit:
     # HMAC-SHA256 key (hex-encoded, >= 32 bytes) used to chain audit_log rows. Optional: when unset
     # we fall back to an HKDF-SHA256 derivative of accessflow.encryption-key. See AuditConfiguration.

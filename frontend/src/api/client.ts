@@ -33,6 +33,10 @@ export const apiBaseUrl = (): string => getApiBaseUrl();
 export const apiClient = axios.create({
   baseURL: apiBaseUrl(),
   withCredentials: true,
+  // Repeat array params as `?k=a&k=b` rather than axios's default `?k[]=a&k[]=b`. Spring binds a
+  // `List<T>` @RequestParam from the repeated bare key and silently ignores the bracketed form —
+  // the filter just stops filtering, with no error anywhere to notice.
+  paramsSerializer: { indexes: null },
 });
 
 // Exposed for Playwright E2E (e2e/) — used to fire authenticated requests from inside the page.

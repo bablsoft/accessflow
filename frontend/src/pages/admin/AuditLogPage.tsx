@@ -34,6 +34,7 @@ import { showApiError } from '@/utils/showApiError';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
 import type { AuditChainResult, AuditEvent, AuditLogFilters } from '@/types/api';
+import { downloadBlob } from '@/utils/downloadBlob';
 
 const PAGE_SIZE = 20;
 
@@ -131,7 +132,7 @@ export function AuditLogPage() {
   const exportCsv = useMutation({
     mutationFn: () => exportAuditLogCsv(filters),
     onSuccess: (result: AuditLogExportResult) => {
-      triggerDownload(result);
+      downloadBlob(result);
       if (result.truncated) {
         message.warning(t('admin.audit.export_truncated'));
       }
@@ -484,17 +485,6 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
       {!title ? <div style={{ padding: 14 }}>{children}</div> : children}
     </div>
   );
-}
-
-function triggerDownload({ blob, filename }: AuditLogExportResult): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 function Row({ k, v }: { k: string; v: string }) {

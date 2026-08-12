@@ -95,6 +95,7 @@ export default defineConfig({
         'src/api/dataClassifications.ts',
         'src/api/datasourceHealth.ts',
         'src/api/datasources.ts',
+        'src/api/grantUsage.ts',
         'src/api/maskingPolicies.ts',
         'src/api/notifications.ts',
         'src/api/organizations.ts',

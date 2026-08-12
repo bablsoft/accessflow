@@ -1802,7 +1802,8 @@ export type UserNotificationEventType =
   | 'ACCESS_REQUEST_APPROVED'
   | 'ACCESS_REQUEST_REJECTED'
   | 'ACCESS_GRANT_EXPIRED'
-  | 'ACCESS_GRANT_REVOKED';
+  | 'ACCESS_GRANT_REVOKED'
+  | 'GRANT_STALE';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2460,6 +2461,16 @@ export interface AttestationItem {
   can_break_glass: boolean;
   permission_expires_at: string | null;
   permission_created_at: string;
+  /**
+   * Least-privilege evidence captured at campaign open (#625). All five are null together when no
+   * usage summary existed then — which is "no data", not "never used". Render the two differently:
+   * a missing measurement must not read as an argument for revoking the grant.
+   */
+  usage_last_used_at: string | null;
+  usage_count: number | null;
+  usage_granted_target_count: number | null;
+  usage_used_target_count: number | null;
+  usage_recommendation: GrantUsageRecommendation | null;
   decision: AttestationItemDecision;
   close_reason: AttestationItemCloseReason | null;
   decided_by: string | null;
@@ -3354,3 +3365,50 @@ export interface BulkDiscoveryDecisionRow {
 export interface BulkDiscoveryDecisionResult {
   results: BulkDiscoveryDecisionRow[];
 }
+
+// --- Least-privilege intelligence: unused-grant analytics (#625) ---
+
+export type GrantResourceKind = 'DATASOURCE' | 'API_CONNECTOR';
+
+export type GrantUsageRecommendation =
+  | 'INSUFFICIENT_DATA'
+  | 'NEVER_USED'
+  | 'STALE'
+  | 'OVER_SCOPED'
+  | 'ACTIVE';
+
+/**
+ * One standing grant in the over-provisioned access report.
+ *
+ * The nullable numbers are facts, not missing data, and must not be coerced to 0 for display:
+ * - `granted_target_count` / `unused_target_count` null → the grant is *unrestricted* (it allows
+ *   every table or operation), so there is no scope to under-use and it is never `OVER_SCOPED`.
+ * - `days_since_last_use` null → the grant has **never** been used. Rendering that as 0 would read
+ *   as "used today", the opposite conclusion.
+ * - `usage_per_week` null → the observation window is under a day, so any rate would be noise.
+ */
+export interface OverProvisionedGrant {
+  id: string;
+  resource_kind: GrantResourceKind;
+  resource_id: string;
+  resource_name: string;
+  permission_id: string;
+  user_id: string;
+  user_email: string;
+  user_display_name: string | null;
+  granted_at: string;
+  expires_at: string | null;
+  granted_target_count: number | null;
+  used_targets: string[];
+  used_target_count: number;
+  unused_target_count: number | null;
+  usage_count: number;
+  first_used_at: string | null;
+  last_used_at: string | null;
+  observed_since: string;
+  days_since_last_use: number | null;
+  usage_per_week: number | null;
+  recommendation: GrantUsageRecommendation;
+}
+
+export type OverProvisionedGrantPage = PageEnvelope<OverProvisionedGrant>;

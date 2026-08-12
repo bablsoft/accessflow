@@ -4,6 +4,7 @@ import type {
   AttestationItemDecision,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
+  GrantUsageRecommendation,
   QueryStatus,
   RequestGroupItemStatus,
   RequestGroupStatus,
@@ -57,6 +58,27 @@ export const attestationCampaignStatusColor = (
     case 'CLOSED':
       return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
     case 'CANCELLED':
+      return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+/**
+ * Severity ramp for a grant's revocation recommendation (#625). INSUFFICIENT_DATA is deliberately
+ * neutral rather than green: "not measured yet" is not a clean bill of health.
+ */
+export const grantUsageRecommendationColor = (
+  recommendation: GrantUsageRecommendation,
+): ColorTriple => {
+  switch (recommendation) {
+    case 'NEVER_USED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'STALE':
+      return { fg: 'var(--risk-high)', bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)' };
+    case 'OVER_SCOPED':
+      return { fg: 'var(--risk-med)', bg: 'var(--risk-med-bg)', border: 'var(--risk-med-border)' };
+    case 'ACTIVE':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'INSUFFICIENT_DATA':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
   }
 };

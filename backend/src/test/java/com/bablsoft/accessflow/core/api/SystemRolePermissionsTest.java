@@ -54,6 +54,7 @@ class SystemRolePermissionsTest {
                 .containsExactlyInAnyOrder(
                         Permission.COMPLIANCE_REPORT_VIEW,
                         Permission.ATTESTATION_EVIDENCE_EXPORT,
+                        Permission.ACCESS_USAGE_REPORT_VIEW,
                         Permission.BREAK_GLASS_VIEW,
                         Permission.ANOMALY_VIEW);
     }

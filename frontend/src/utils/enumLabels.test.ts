@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
+  GRANT_RESOURCE_KINDS,
+  GRANT_USAGE_RECOMMENDATIONS,
+  grantResourceKindLabel,
+  grantUsageRecommendationLabel,
   ANOMALY_STATUSES,
   API_MASKING_MATCHER_TYPES,
   BREAK_GLASS_STATUSES,
@@ -124,5 +128,40 @@ describe('roleLabel (AF-522)', () => {
     const i18n = (await import('@/i18n')).default;
     const realT = i18n.t.bind(i18n);
     expect(roleLabel(realT, 'Release Manager')).toBe('Release Manager');
+  });
+});
+
+describe('grant usage labels (#625)', () => {
+  it('maps each recommendation and resource kind to its enum translation key', () => {
+    for (const recommendation of GRANT_USAGE_RECOMMENDATIONS) {
+      expect(grantUsageRecommendationLabel(t, recommendation)).toBe(
+        `enums.grant_usage_recommendation.${recommendation}`,
+      );
+    }
+    for (const kind of GRANT_RESOURCE_KINDS) {
+      expect(grantResourceKindLabel(t, kind)).toBe(`enums.grant_resource_kind.${kind}`);
+    }
+  });
+
+  it('lists every recommendation, worst first, and both resource kinds', () => {
+    expect(GRANT_USAGE_RECOMMENDATIONS).toEqual([
+      'NEVER_USED',
+      'STALE',
+      'OVER_SCOPED',
+      'ACTIVE',
+      'INSUFFICIENT_DATA',
+    ]);
+    expect(GRANT_RESOURCE_KINDS).toEqual(['DATASOURCE', 'API_CONNECTOR']);
+  });
+
+  it('resolves every label against the real bundle', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    for (const recommendation of GRANT_USAGE_RECOMMENDATIONS) {
+      expect(grantUsageRecommendationLabel(realT, recommendation)).not.toContain('enums.');
+    }
+    for (const kind of GRANT_RESOURCE_KINDS) {
+      expect(grantResourceKindLabel(realT, kind)).not.toContain('enums.');
+    }
   });
 });
