@@ -1,0 +1,118 @@
+/*
+ * Tailwind v4 + Bklit chart theming (vendored shadcn-registry components under
+ * src/components/charts/ — see docs/06-frontend.md "Bklit charts").
+ *
+ * Deliberately NOT importing tailwindcss/preflight.css — AntD owns the global base styles and
+ * preflight would clobber them. Only the theme tokens and on-demand utilities are generated.
+ */
+@layer theme, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Dark mode follows the app's [data-theme] attribute (preferencesStore), not a .dark class. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/*
+ * Bridge: every CSS variable the vendored Bklit components consume, derived from the app's
+ * design tokens (tokens.css) wherever a token exists. tokens.css redefines the source tokens
+ * under [data-theme='dark'], so derived values flip automatically; only the explicit oklch
+ * ramps below need a dark block. The oklch ramps are the one sanctioned exception to the
+ * "colors only in tokens.css" rule — they are chart-palette extensions of the token set.
+ */
+:root {
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --muted: var(--bg-sunken);
+  --muted-foreground: var(--fg-muted);
+  /* --border already exists in tokens.css with compatible semantics; not redefined here. */
+
+  /* Chart surfaces, grid, labels. */
+  --chart-background: var(--bg-elev);
+  --chart-foreground: var(--fg);
+  --chart-foreground-muted: var(--fg-muted);
+  --chart-label: var(--fg-muted);
+  --chart-grid: var(--border);
+  --chart-crosshair: var(--fg-faint);
+  --chart-brush-border: var(--chart-grid);
+
+  /* Primary/secondary series + indicators. */
+  --chart-line-primary: var(--accent);
+  --chart-line-secondary: var(--fg-faint);
+  --chart-indicator-color: var(--accent);
+  --chart-indicator-secondary-color: var(--fg-faint);
+  --chart-segment-background: var(--bg-sunken);
+  --chart-segment-line: var(--border);
+
+  /* Tooltip + markers. */
+  --chart-tooltip-background: var(--bg-elev);
+  --chart-tooltip-foreground: var(--fg);
+  --chart-tooltip-muted: var(--fg-muted);
+  --chart-marker-background: var(--bg-elev);
+  --chart-marker-border: var(--border);
+  --chart-marker-foreground: var(--fg);
+  --chart-marker-badge-background: var(--accent-bg);
+  --chart-marker-badge-foreground: var(--accent-strong);
+
+  /* Fallback categorical ramp (series usually receive explicit token colors from widgets). */
+  --chart-1: oklch(0.55 0.19 275);
+  --chart-2: oklch(0.45 0.03 275);
+  --chart-3: oklch(0.6 0.02 275);
+  --chart-4: oklch(0.72 0.015 275);
+  --chart-5: oklch(0.84 0.01 275);
+
+  /* Heatmap intensity ramp — indigo, matching the accent hue. */
+  --chart-scale-01: oklch(0.95 0.02 275);
+  --chart-scale-02: oklch(0.86 0.06 275);
+  --chart-scale-03: oklch(0.74 0.11 275);
+  --chart-scale-04: oklch(0.62 0.17 275);
+  --chart-scale-05: oklch(0.51 0.22 275);
+  --chart-scale-pattern-color: var(--fg-faint);
+}
+
+[data-theme='dark'] {
+  --chart-1: oklch(0.72 0.16 275);
+  --chart-2: oklch(0.78 0.03 275);
+  --chart-3: oklch(0.62 0.02 275);
+  --chart-4: oklch(0.48 0.015 275);
+  --chart-5: oklch(0.38 0.01 275);
+
+  --chart-scale-01: oklch(0.28 0.04 275);
+  --chart-scale-02: oklch(0.38 0.08 275);
+  --chart-scale-03: oklch(0.5 0.13 275);
+  --chart-scale-04: oklch(0.62 0.18 275);
+  --chart-scale-05: oklch(0.75 0.16 275);
+}
+
+/* Register the bridged colors as Tailwind theme colors so utilities such as `text-foreground`,
+ * `text-chart-label`, `bg-chart-tooltip-background`, and `border-chart-tooltip-muted` resolve
+ * inside the vendored components. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-chart-background: var(--chart-background);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --color-chart-label: var(--chart-label);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-line-primary: var(--chart-line-primary);
+  --color-chart-line-secondary: var(--chart-line-secondary);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-marker-background: var(--chart-marker-background);
+  --color-chart-marker-border: var(--chart-marker-border);
+  --color-chart-marker-foreground: var(--chart-marker-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-scale-01: var(--chart-scale-01);
+  --color-chart-scale-02: var(--chart-scale-02);
+  --color-chart-scale-03: var(--chart-scale-03);
+  --color-chart-scale-04: var(--chart-scale-04);
+  --color-chart-scale-05: var(--chart-scale-05);
+}

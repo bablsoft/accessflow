@@ -463,6 +463,8 @@ For all frontend dependencies, pin to the **latest stable** version available on
 | TypeScript | 6.x | Language (`strict: true`) |
 | Ant Design | 6.x | Component library |
 | @ant-design/charts | 2.x | Admin dashboard charts (AI analyses history) |
+| Bklit UI (vendored) | shadcn registry `@bklit/*` | User-dashboard charts (AF-498 redesign) — area/line/ring/heatmap, vendored under `src/components/charts/`; pulls `@visx/*@4.0.1-alpha.0` (pinned as Bklit requires — sanctioned exception to the latest-stable rule) + `motion` |
+| Tailwind CSS + @tailwindcss/vite | 4.x | **Only** for the vendored Bklit components — `src/styles/bklit.css` imports theme+utilities without preflight (AntD owns base styles) and binds dark mode to `[data-theme='dark']` |
 | @xyflow/react | 12.x | ER diagram on `DatasourceSettingsPage` |
 | dagre | 0.8.x | Auto-layout for the ER diagram graph |
 | @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities | 6.x / 10.x / 3.x | Drag-and-drop reorder of personalized dashboard widgets (AF-498) |
@@ -519,6 +521,12 @@ eight are the rules an agent needs *before* it knows which pattern to open:
    job; components must not catch it.
 7. **Never `dangerouslySetInnerHTML`, `eval`, or `new Function`.** No hardcoded hex colours —
    use the `--af-*` tokens, and `src/utils/{statusColors,riskColors}.ts` for status/risk.
+   Carve-out: the **vendored Bklit chart components** (`src/components/charts/**`,
+   `src/components/shimmering-text.tsx`) are third-party registry code — excluded from ESLint,
+   re-vendorable, and themed exclusively through the CSS-variable bridge in
+   `src/styles/bklit.css` (whose oklch chart ramps are the one sanctioned token extension
+   outside `tokens.css`). App code imports them only via the `src/components/charts/index.ts`
+   barrel and never edits vendored files beyond annotated local patches.
 8. **Validation parity.** Every backend Bean Validation constraint has a matching `Form.Item`
    rule and vice versa, changed in the same commit
    (`.claude/patterns/frontend-form.md`).
