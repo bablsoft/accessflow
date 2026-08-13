@@ -10,6 +10,7 @@ import com.bablsoft.accessflow.core.api.QuotaType;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.core.events.UserDeactivatedEvent;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageImpl;
 import tools.jackson.databind.ObjectMapper;
 
@@ -45,6 +47,7 @@ class UserAdminServiceImplTest {
     @Mock RoleRepository roleRepository;
     @Mock RolePermissionRepository rolePermissionRepository;
     @Mock QuotaService quotaService;
+    @Mock ApplicationEventPublisher eventPublisher;
     UserAdminServiceImpl service;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -56,7 +59,7 @@ class UserAdminServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new UserAdminServiceImpl(userRepository, organizationRepository, roleRepository,
-                rolePermissionRepository, quotaService, objectMapper);
+                rolePermissionRepository, quotaService, objectMapper, eventPublisher);
         // System-role row missing → the service keeps the legacy enum-column behaviour.
         lenient().when(roleRepository.findByNameAndSystemTrue(any())).thenReturn(Optional.empty());
     }
@@ -203,6 +206,62 @@ class UserAdminServiceImplTest {
         var result = service.deactivateUser(userId, orgId, adminId);
 
         assertThat(result.active()).isFalse();
+    }
+
+    @Test
+    void deactivateUserPublishesDeactivatedEvent() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        service.deactivateUser(userId, orgId, adminId);
+
+        verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+    }
+
+    @Test
+    void deactivateUserAlreadyInactiveDoesNotPublish() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        entity.setActive(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.deactivateUser(userId, orgId, adminId);
+
+        assertThat(result.active()).isFalse();
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateUserActiveFalsePublishesDeactivatedEvent() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        service.updateUser(userId, orgId, adminId, new UpdateUserCommand(null, false, null, null));
+
+        verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+    }
+
+    @Test
+    void updateUserActiveFalseOnInactiveUserDoesNotPublish() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        entity.setActive(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        service.updateUser(userId, orgId, adminId, new UpdateUserCommand(null, false, null, null));
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateUserReactivationDoesNotPublish() {
+        var entity = buildUser(userId, orgId, "user@example.com", UserRoleType.ANALYST);
+        entity.setActive(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.updateUser(userId, orgId, adminId,
+                new UpdateUserCommand(null, true, null, null));
+
+        assertThat(result.active()).isTrue();
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

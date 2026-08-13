@@ -20,8 +20,10 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RolePermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
+import com.bablsoft.accessflow.core.events.UserDeactivatedEvent;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
@@ -45,6 +47,7 @@ class UserAdminServiceImpl implements UserAdminService {
     private final RolePermissionRepository rolePermissionRepository;
     private final QuotaService quotaService;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(readOnly = true)
@@ -99,7 +102,12 @@ class UserAdminServiceImpl implements UserAdminService {
             applyRole(entity, organizationId, command.role(), command.roleId());
         }
         if (command.active() != null) {
+            var wasActive = entity.isActive();
             entity.setActive(command.active());
+            if (wasActive && !command.active()) {
+                eventPublisher.publishEvent(
+                        new UserDeactivatedEvent(entity.getId(), organizationId));
+            }
         }
         if (command.displayName() != null) {
             entity.setDisplayName(command.displayName());
@@ -124,7 +132,10 @@ class UserAdminServiceImpl implements UserAdminService {
                     "Admin users cannot deactivate themselves");
         }
         var entity = loadInOrganization(id, organizationId);
-        entity.setActive(false);
+        if (entity.isActive()) {
+            entity.setActive(false);
+            eventPublisher.publishEvent(new UserDeactivatedEvent(entity.getId(), organizationId));
+        }
         return toView(entity);
     }
 

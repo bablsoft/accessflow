@@ -35,6 +35,11 @@ public interface AccessGrantRequestRepository
     List<UUID> findIdsByStatusAndExpiresAtBefore(@Param("status") AccessGrantStatus status,
                                                  @Param("now") Instant now);
 
+    @Query("select a.id from AccessGrantRequestEntity a "
+            + "where a.requesterId = :requesterId and a.status = :status")
+    List<UUID> findIdsByRequesterIdAndStatus(@Param("requesterId") UUID requesterId,
+                                             @Param("status") AccessGrantStatus status);
+
     List<AccessGrantRequestEntity>
     findAllByOrganizationIdAndRequesterIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
             UUID organizationId, UUID requesterId, UUID datasourceId,
