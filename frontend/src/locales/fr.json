@@ -3045,7 +3045,12 @@
       "anomalies": "Alertes d'anomalie",
       "recentApiRequests": "Mes requêtes API récentes",
       "apiRequestTrends": "Tendances des requêtes API",
-      "pendingApiApprovals": "Approbations API en attente"
+      "pendingApiApprovals": "Approbations API en attente",
+      "attestationsDue": "Attestations à traiter",
+      "myAccessRequests": "Mes demandes d'accès",
+      "myRequestGroups": "Mes groupes de demandes",
+      "riskMix": "Répartition du risque",
+      "activityHeatmap": "Carte d'activité"
     },
     "pending": {
       "empty": "Rien n'attend votre examen",
@@ -3060,7 +3065,14 @@
       "status_title": "Requêtes par statut",
       "risk_title": "Requêtes par niveau de risque",
       "axis_date": "Date",
-      "axis_count": "Requêtes"
+      "axis_count": "Requêtes",
+      "metric_status": "Par statut",
+      "metric_risk": "Par risque",
+      "range_7d": "7 j",
+      "range_30d": "30 j",
+      "range_90d": "90 j",
+      "window": "{{from}} – {{to}}",
+      "loading": "Chargement de l'activité…"
     },
     "suggestions": {
       "empty": "Aucune suggestion d'optimisation pour le moment",
@@ -3086,6 +3098,36 @@
       "empty": "Aucune activité de requête API sur cette période",
       "status_title": "Requêtes API par statut",
       "risk_title": "Requêtes API par niveau de risque"
+    },
+    "view_all": "Tout afficher",
+    "reset_layout": "Réinitialiser la disposition",
+    "widen": "Élargir le widget {{title}}",
+    "narrow": "Rétrécir le widget {{title}}",
+    "error_title": "Chargement impossible",
+    "retry": "Réessayer",
+    "digest_last_sent": "Dernier envoi : {{time}}",
+    "digest_never_sent": "Pas encore envoyé",
+    "stat_open": "Ouvrir {{label}}",
+    "attestations": {
+      "empty": "Aucune attestation en attente de votre décision",
+      "expires": "Expire le {{date}}"
+    },
+    "access_requests": {
+      "empty": "Vous n'avez pas encore demandé d'accès",
+      "expires": "Expire le {{date}}"
+    },
+    "request_groups": {
+      "empty": "Vous n'avez pas encore de groupes de demandes",
+      "item_count_one": "{{count}} étape",
+      "item_count_other": "{{count}} étapes",
+      "view": "Voir"
+    },
+    "risk_mix": {
+      "empty": "Aucune requête analysée sur cette période",
+      "total": "analysées"
+    },
+    "activity": {
+      "empty": "Aucune activité de requêtes sur les 90 derniers jours"
     }
   },
   "attestation": {

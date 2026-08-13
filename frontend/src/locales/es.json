@@ -3045,7 +3045,12 @@
       "anomalies": "Alertas de anomalías",
       "recentApiRequests": "Mis solicitudes de API recientes",
       "apiRequestTrends": "Tendencias de solicitudes de API",
-      "pendingApiApprovals": "Aprobaciones de API pendientes"
+      "pendingApiApprovals": "Aprobaciones de API pendientes",
+      "attestationsDue": "Atestaciones pendientes",
+      "myAccessRequests": "Mis solicitudes de acceso",
+      "myRequestGroups": "Mis grupos de solicitudes",
+      "riskMix": "Distribución de riesgo",
+      "activityHeatmap": "Mapa de actividad"
     },
     "pending": {
       "empty": "No hay nada esperando tu revisión",
@@ -3060,7 +3065,14 @@
       "status_title": "Consultas por estado",
       "risk_title": "Consultas por nivel de riesgo",
       "axis_date": "Fecha",
-      "axis_count": "Consultas"
+      "axis_count": "Consultas",
+      "metric_status": "Por estado",
+      "metric_risk": "Por riesgo",
+      "range_7d": "7 d",
+      "range_30d": "30 d",
+      "range_90d": "90 d",
+      "window": "{{from}} – {{to}}",
+      "loading": "Cargando actividad…"
     },
     "suggestions": {
       "empty": "No hay sugerencias de optimización ahora mismo",
@@ -3086,6 +3098,36 @@
       "empty": "Sin actividad de solicitudes de API en este período",
       "status_title": "Solicitudes de API por estado",
       "risk_title": "Solicitudes de API por nivel de riesgo"
+    },
+    "view_all": "Ver todo",
+    "reset_layout": "Restablecer diseño",
+    "widen": "Ampliar el widget {{title}}",
+    "narrow": "Reducir el widget {{title}}",
+    "error_title": "No se pudo cargar",
+    "retry": "Reintentar",
+    "digest_last_sent": "Último envío: {{time}}",
+    "digest_never_sent": "Aún no enviado",
+    "stat_open": "Abrir {{label}}",
+    "attestations": {
+      "empty": "No hay atestaciones pendientes de su decisión",
+      "expires": "Caduca: {{date}}"
+    },
+    "access_requests": {
+      "empty": "Aún no ha solicitado acceso",
+      "expires": "Caduca: {{date}}"
+    },
+    "request_groups": {
+      "empty": "Aún no tiene grupos de solicitudes",
+      "item_count_one": "{{count}} paso",
+      "item_count_other": "{{count}} pasos",
+      "view": "Ver"
+    },
+    "risk_mix": {
+      "empty": "No hay consultas analizadas en este período",
+      "total": "analizadas"
+    },
+    "activity": {
+      "empty": "Sin actividad de consultas en los últimos 90 días"
     }
   },
   "attestation": {

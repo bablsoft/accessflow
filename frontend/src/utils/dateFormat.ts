@@ -28,6 +28,21 @@ export function fmtDate(iso: string | number | Date): string {
   });
 }
 
+/**
+ * Date without a time component — for ranges and day-granular values where the time is noise.
+ * Pass `utc` for values anchored at UTC midnights (e.g. trend windows), where local-time
+ * rendering would shift the label across the date line.
+ */
+export function fmtDateOnly(iso: string | number | Date, opts?: { utc?: boolean }): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    ...(opts?.utc ? { timeZone: 'UTC' } : {}),
+  });
+}
+
 export function fmtNum(n: number | null | undefined): string {
   if (n == null) return '—';
   return n.toLocaleString('en-US');

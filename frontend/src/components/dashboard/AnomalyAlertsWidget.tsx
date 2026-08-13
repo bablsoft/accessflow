@@ -3,6 +3,7 @@ import { CheckOutlined, CloseOutlined, SafetyOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
+import { WidgetError } from '@/components/dashboard/WidgetError';
 import {
   acknowledgeMyAnomaly,
   anomalyKeys,
@@ -42,14 +43,20 @@ export function AnomalyAlertsWidget() {
     onError: (err) => message.error(dashboardErrorMessage(err)),
   });
 
-  if (anomaliesQuery.isLoading || !anomaliesQuery.data) {
+  if (anomaliesQuery.isLoading) {
     return <Skeleton active paragraph={{ rows: 3 }} />;
+  }
+  if (anomaliesQuery.isError || !anomaliesQuery.data) {
+    return (
+      <WidgetError error={anomaliesQuery.error} onRetry={() => void anomaliesQuery.refetch()} />
+    );
   }
   const items = anomaliesQuery.data.content;
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<SafetyOutlined style={{ fontSize: 20 }} />}
+        size="sm"
+        icon={<SafetyOutlined style={{ fontSize: 16 }} />}
         title={t('dashboard.anomalies.empty')}
       />
     );

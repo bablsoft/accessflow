@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DASHBOARD_WIDGET_IDS, usePreferencesStore } from './preferencesStore';
+import {
+  DASHBOARD_WIDGET_IDS,
+  DEFAULT_WIDGET_SIZE,
+  migratePreferences,
+  usePreferencesStore,
+  widgetSize,
+  type DashboardWidgetPreferences,
+} from './preferencesStore';
 
 function reset() {
   usePreferencesStore.setState({
@@ -9,10 +16,12 @@ function reset() {
     setupProgressSkipped: [],
     language: 'en',
     dashboardWidgets: {
-      visible: [...DASHBOARD_WIDGET_IDS],
+      hidden: [],
       order: [...DASHBOARD_WIDGET_IDS],
       collapsed: {},
+      size: {},
     },
+    dashboardTrendsRange: '30d',
   });
 }
 
@@ -60,18 +69,20 @@ describe('preferencesStore base actions', () => {
 describe('preferencesStore dashboard widgets', () => {
   beforeEach(reset);
 
-  it('defaults to all widgets visible in natural order', () => {
-    const { dashboardWidgets } = usePreferencesStore.getState();
-    expect(dashboardWidgets.visible).toEqual(DASHBOARD_WIDGET_IDS);
+  it('defaults to nothing hidden, natural order, no size overrides', () => {
+    const { dashboardWidgets, dashboardTrendsRange } = usePreferencesStore.getState();
+    expect(dashboardWidgets.hidden).toEqual([]);
     expect(dashboardWidgets.order).toEqual(DASHBOARD_WIDGET_IDS);
     expect(dashboardWidgets.collapsed).toEqual({});
+    expect(dashboardWidgets.size).toEqual({});
+    expect(dashboardTrendsRange).toBe('30d');
   });
 
-  it('toggleWidgetVisibility removes then re-adds a widget', () => {
+  it('toggleWidgetVisibility hides then re-shows a widget', () => {
     usePreferencesStore.getState().toggleWidgetVisibility('trends');
-    expect(usePreferencesStore.getState().dashboardWidgets.visible).not.toContain('trends');
+    expect(usePreferencesStore.getState().dashboardWidgets.hidden).toContain('trends');
     usePreferencesStore.getState().toggleWidgetVisibility('trends');
-    expect(usePreferencesStore.getState().dashboardWidgets.visible).toContain('trends');
+    expect(usePreferencesStore.getState().dashboardWidgets.hidden).not.toContain('trends');
   });
 
   it('toggleWidgetCollapsed flips per-widget collapsed state', () => {
@@ -87,12 +98,107 @@ describe('preferencesStore dashboard widgets', () => {
     expect(usePreferencesStore.getState().dashboardWidgets.order).toEqual(reversed);
   });
 
+  it('setWidgetSize overrides the default and widgetSize resolves it', () => {
+    const before = usePreferencesStore.getState().dashboardWidgets;
+    expect(widgetSize(before, 'trends')).toBe(DEFAULT_WIDGET_SIZE.trends);
+    usePreferencesStore.getState().setWidgetSize('trends', 'full');
+    const after = usePreferencesStore.getState().dashboardWidgets;
+    expect(after.size.trends).toBe('full');
+    expect(widgetSize(after, 'trends')).toBe('full');
+  });
+
+  it('resetDashboardWidgets restores the defaults', () => {
+    usePreferencesStore.getState().toggleWidgetVisibility('anomalies');
+    usePreferencesStore.getState().toggleWidgetCollapsed('trends');
+    usePreferencesStore.getState().setWidgetSize('recentQueries', 'full');
+    usePreferencesStore.getState().reorderWidgets([...DASHBOARD_WIDGET_IDS].reverse());
+    usePreferencesStore.getState().resetDashboardWidgets();
+    const { dashboardWidgets } = usePreferencesStore.getState();
+    expect(dashboardWidgets).toEqual({
+      hidden: [],
+      order: DASHBOARD_WIDGET_IDS,
+      collapsed: {},
+      size: {},
+    });
+  });
+
+  it('setDashboardTrendsRange persists the range preference', () => {
+    usePreferencesStore.getState().setDashboardTrendsRange('7d');
+    expect(usePreferencesStore.getState().dashboardTrendsRange).toBe('7d');
+  });
+
   it('keeps other widget prefs intact when toggling one', () => {
     usePreferencesStore.getState().toggleWidgetCollapsed('anomalies');
     usePreferencesStore.getState().toggleWidgetVisibility('pendingApprovals');
     const { dashboardWidgets } = usePreferencesStore.getState();
     expect(dashboardWidgets.collapsed.anomalies).toBe(true);
-    expect(dashboardWidgets.visible).not.toContain('pendingApprovals');
-    expect(dashboardWidgets.visible).toContain('anomalies');
+    expect(dashboardWidgets.hidden).toContain('pendingApprovals');
+    expect(dashboardWidgets.hidden).not.toContain('anomalies');
+  });
+});
+
+describe('migratePreferences (v0 → v1)', () => {
+  it('turns the visible allow-list into a hidden deny-list', () => {
+    const migrated = migratePreferences(
+      {
+        theme: 'dark',
+        dashboardWidgets: {
+          visible: ['recentQueries', 'trends'],
+          order: ['recentQueries', 'trends', 'suggestions', 'anomalies'],
+          collapsed: { trends: true },
+        },
+      },
+      0,
+    ) as { theme: string; dashboardWidgets: DashboardWidgetPreferences };
+    expect(migrated.dashboardWidgets.hidden).toEqual(['suggestions', 'anomalies']);
+    expect(migrated.dashboardWidgets.order).toEqual([
+      'recentQueries',
+      'trends',
+      'suggestions',
+      'anomalies',
+    ]);
+    expect(migrated.dashboardWidgets.collapsed).toEqual({ trends: true });
+    expect(migrated.dashboardWidgets.size).toEqual({});
+    expect(migrated.theme).toBe('dark');
+  });
+
+  it('does not hide a widget absent from the persisted order (the v0 visibility bug)', () => {
+    // Under v0, a widget missing from `order` was always shown regardless of `visible` — so its
+    // absence from `visible` is not evidence the user hid it.
+    const migrated = migratePreferences(
+      {
+        dashboardWidgets: {
+          visible: ['recentQueries'],
+          order: ['recentQueries', 'trends'],
+          collapsed: {},
+        },
+      },
+      0,
+    ) as { dashboardWidgets: DashboardWidgetPreferences };
+    expect(migrated.dashboardWidgets.hidden).toEqual(['trends']);
+    expect(migrated.dashboardWidgets.hidden).not.toContain('suggestions');
+  });
+
+  it('falls back to defaults when dashboardWidgets is missing', () => {
+    const migrated = migratePreferences({ theme: 'light' }, 0) as {
+      dashboardWidgets: DashboardWidgetPreferences;
+    };
+    expect(migrated.dashboardWidgets.hidden).toEqual([]);
+    expect(migrated.dashboardWidgets.order).toEqual(DASHBOARD_WIDGET_IDS);
+  });
+
+  it('tolerates a partially-missing v0 payload', () => {
+    const migrated = migratePreferences({ dashboardWidgets: {} }, 0) as {
+      dashboardWidgets: DashboardWidgetPreferences;
+    };
+    expect(migrated.dashboardWidgets.hidden).toEqual([]);
+    expect(migrated.dashboardWidgets.order).toEqual(DASHBOARD_WIDGET_IDS);
+    expect(migrated.dashboardWidgets.size).toEqual({});
+  });
+
+  it('passes v1 state and non-object payloads through unchanged', () => {
+    const v1 = { dashboardWidgets: { hidden: [], order: [], collapsed: {}, size: {} } };
+    expect(migratePreferences(v1, 1)).toBe(v1);
+    expect(migratePreferences(null, 0)).toBeNull();
   });
 });

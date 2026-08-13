@@ -155,7 +155,7 @@ accessflow-ui/
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language, dashboard widget layout (AF-498)
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language, dashboard widget layout + trends range (AF-498; persist v1, hidden[]/order[]/collapsed{}/size{})
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -351,26 +351,61 @@ Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePa
 ### DashboardPage *(any authenticated user)* — AF-498
 
 The personalized home at `/dashboard` (lazy-loaded; nav entry at the top of the **Workflow** group; the
-default post-login landing for non-auditor roles). The header shows headline stat cards (pending
-approvals, open queries, open anomalies, open suggestions) over a customizable, drag-sortable column of
-widgets. Widgets (and their matching stat cards) are **role-gated** to what the current user can
-actually use, mirroring the sidebar nav model — **Pending approvals** shows only for `REVIEWER`/`ADMIN`,
-**My recent queries** / **Query trends** for any query-submitting role, **AI optimization suggestions**
-for editor-capable roles (`ANALYST`/`REVIEWER`/`ADMIN`), and **Anomaly alerts** for `ADMIN`. The core
-widgets — **Pending approvals**, **My recent queries** (+ status/risk trend sparklines via
-`@ant-design/charts`), **AI optimization suggestions** (dismissable, with "open in editor"), and
-**Anomaly alerts** (acknowledge/dismiss) — read from the self-scoped `api/dashboard.ts` (summary +
-trends + suggestions) and `api/anomalies.ts` (`/anomalies/mine`) via TanStack Query, each with a
-`Skeleton` while loading and a per-widget `EmptyState`. The API Access Governance widgets (AF-500) add
-**My recent API requests** / **API request trends** (any query-submitting role) and **Pending API
-approvals** (`REVIEWER`/`ADMIN`), plus **Open API requests** / **Pending API approvals** stat cards —
-backed by `/dashboard/summary` and `/dashboard/my-api-request-trends`, linking to `/api-requests/:id`
-and `/api-reviews`. Widget show/hide, collapse, and **drag-and-drop
-reorder** (`@dnd-kit`) persist in `preferencesStore.dashboardWidgets` (`{ visible[], order[], collapsed{} }`,
-stored in `af-preferences`). A header `Switch` toggles the opt-in weekly email digest (server-persisted via
-`GET`/`PUT /dashboard/digest-subscription`), and an **Export this week** dropdown downloads the signed
-PDF/CSV weekly summary. "Open in editor" navigates to `/editor` with the suggestion's SQL via router
-`location.state.presetSql` (the editor seeds its initial SQL from it).
+default post-login landing for non-auditor roles). The header shows **clickable** headline stat tiles
+(`StatTile` — whole surface navigates to the matching list page: pending approvals → `/reviews`, open
+queries → `/queries`, anomalies → `/admin/anomalies`, API requests → `/api-requests`, API approvals →
+`/api-reviews`; the suggestions tile scrolls to and expands the suggestions widget since no dedicated
+page exists). The open-queries tile renders the summary's `status_counts` as a mini per-status
+breakdown, and the open-queries / open-API-requests tiles carry a **Bklit sparkline + `DeltaBadge`**
+(second-half vs first-half of the trends window, sharing the trends query cache).
+
+**Bklit charts (vendored).** The dashboard's charts are Bklit UI components vendored via the shadcn
+registry into `src/components/charts/` (see the CLAUDE.md tech-stack rows for the Tailwind scoping and
+the `@visx` alpha-pin exception): app code imports them only through the
+`src/components/charts/index.ts` barrel; theming is a pure CSS-variable bridge
+(`src/styles/bklit.css`) mapping the `--af` tokens onto Bklit's `--chart-*` variables, so light/dark
+follows `[data-theme]` with no JS. Data shaping (sparse day buckets → dense Date-keyed rows, daily
+totals, half-window deltas, weekly heatmap columns) lives in `src/utils/trendSeries.ts`; unit tests
+stub the barrel via `components/dashboard/chartsTestMocks.tsx` because jsdom cannot lay out
+visx/motion SVG. Below, widgets live on a **responsive 12-column grid** (`.af-dashboard-grid`,
+`pages/dashboard/dashboard.css`): each widget is `half` (span 6) or `full` (span 12) — toggleable per
+widget from the card header, defaults in `DEFAULT_WIDGET_SIZE` — collapsing to a single column below
+1100 px. Drag-and-drop reorder uses `@dnd-kit` with `rectSortingStrategy`.
+
+Widgets (and their matching stat tiles) are **role-gated** to what the current user can actually use,
+mirroring the sidebar nav model (`WIDGET_PERMISSIONS`): **Pending approvals** (`QUERY_REVIEW`),
+**Attestations due** (`ATTESTATION_REVIEW`, from `/reviews/attestations/items`), **My recent queries**
+/ **My access requests** / **My request groups** / trends (any query-submitting role), **AI
+optimization suggestions** (`QUERY_SUBMIT_DML`), **Anomaly alerts** (`ANOMALY_MANAGE`), **My recent
+API requests** / **API request trends** (AF-500), and **Pending API approvals**
+(`API_REQUEST_REVIEW`). Row lists share `components/dashboard/ActivityList` (aligned pill/primary/meta
+columns, single-line truncation with tooltip, ≤5 rows, a **View all** footer link to the full page);
+every widget has a `Skeleton` (or the Bklit loading chrome) while loading, a compact
+`EmptyState size="sm"` when empty, and a `WidgetError` block (surfacing the server `detail`, with
+retry) on failure — including the stat row when `/dashboard/summary` fails. The two trend widgets are
+one `TrendsWidget` (`kind: 'queries'|'apiRequests'`): a Bklit **gradient `AreaChart`** (one `Area` per
+status/risk series, colored by the status/risk tokens, with a custom legend row) plus a status/risk
+metric toggle and a 7d/30d/90d range control feeding `?from&to` (range persisted as
+`preferencesStore.dashboardTrendsRange`; window anchored at UTC day granularity —
+`trendsFiltersForRange`). Two further Bklit widgets share that range/cache: **Risk mix**
+(`RiskRingWidget`, one ring per risk level with a centered total) and **Activity heatmap**
+(`ActivityHeatmapWidget`, GitHub-style weekly columns over a fixed 90-day horizon), both gated on
+`QUERY_SUBMIT_SELECT`.
+
+Widget hide/show, collapse, size, and order persist in `preferencesStore.dashboardWidgets`
+(`{ hidden[], order[], collapsed{}, size{} }`, `af-preferences`, persist **version 1**): visibility is
+a deny-list (`hidden`), so a widget shipped after prefs were persisted appears — and can be hidden —
+without migration; `migratePreferences` converts the v0 `visible[]` allow-list. The **Customize**
+dropdown stays open across toggles (whole row is the hit target; the checkbox is presentational) and
+carries a **Reset layout** action. The header **Refresh** invalidates every dashboard-related query key
+(dashboard, anomalies-mine, attestation worklist, access requests, request groups), and the page
+subscribes to `anomaly.detected` / `query.status_changed` / `review.new_request` WebSocket events as
+invalidation hints. A header `Switch` toggles the opt-in weekly email digest (server-persisted via
+`GET`/`PUT /dashboard/digest-subscription`; its tooltip surfaces `last_sent_at`), and an **Export this
+week** dropdown downloads the signed PDF/CSV weekly summary. "Open in editor" navigates to `/editor`
+with the suggestion's SQL via router `location.state.presetSql` (the editor seeds its initial SQL from
+it). A notifications widget is deliberately absent — the Topbar `NotificationBell` already owns that
+feed and duplicating it on the dashboard would add a second interaction surface for no navigation win.
 
 ### AnomaliesPage *(AUDITOR or ADMIN)* — AF-383
 

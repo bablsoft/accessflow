@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
@@ -12,6 +13,9 @@ const APP_VERSION = process.env.VITE_APP_VERSION ?? pkg.version;
 export default defineConfig({
   plugins: [
     react(),
+    // Tailwind is scoped to the vendored Bklit chart components (src/charts, src/styles/bklit.css)
+    // — preflight is deliberately NOT imported so AntD's base styles stay untouched.
+    tailwindcss(),
     // PWA (AF-444): we own the service worker source (src/sw.ts) for the push /
     // notificationclick handlers; Workbox injects the precache manifest for the
     // offline review-queue shell. Registration is manual (main.tsx) to honour the

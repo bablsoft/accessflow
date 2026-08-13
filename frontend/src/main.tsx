@@ -26,6 +26,7 @@ import { darkTheme, lightTheme } from './theme/antdTheme';
 import { usePreferencesStore } from './store/preferencesStore';
 import type { Language } from './i18n';
 import './styles/globals.css';
+import './styles/bklit.css';
 
 const ANTD_LOCALES: Record<Language, Locale> = {
   en: enUS,

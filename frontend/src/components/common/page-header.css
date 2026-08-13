@@ -13,9 +13,12 @@
 }
 .af-page-header-row {
   display: flex;
+  /* Wide action clusters (the dashboard header has four) drop to their own row instead of
+     squeezing the title/subtitle column into a sliver of wrapped text. */
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px 16px;
 }
 .af-page-title {
   margin: 0;

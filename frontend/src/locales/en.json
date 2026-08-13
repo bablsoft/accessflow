@@ -3045,7 +3045,12 @@
       "anomalies": "Anomaly alerts",
       "recentApiRequests": "My recent API requests",
       "apiRequestTrends": "API request trends",
-      "pendingApiApprovals": "Pending API approvals"
+      "pendingApiApprovals": "Pending API approvals",
+      "attestationsDue": "Attestations due",
+      "myAccessRequests": "My access requests",
+      "myRequestGroups": "My request groups",
+      "riskMix": "Risk mix",
+      "activityHeatmap": "Activity heatmap"
     },
     "pending": {
       "empty": "Nothing awaiting your review",
@@ -3060,7 +3065,14 @@
       "status_title": "Queries by status",
       "risk_title": "Queries by risk level",
       "axis_date": "Date",
-      "axis_count": "Queries"
+      "axis_count": "Queries",
+      "metric_status": "By status",
+      "metric_risk": "By risk",
+      "range_7d": "7d",
+      "range_30d": "30d",
+      "range_90d": "90d",
+      "window": "{{from}} – {{to}}",
+      "loading": "Loading activity…"
     },
     "suggestions": {
       "empty": "No optimization suggestions right now",
@@ -3086,6 +3098,36 @@
       "empty": "No API request activity in this period",
       "status_title": "API requests by status",
       "risk_title": "API requests by risk level"
+    },
+    "view_all": "View all",
+    "reset_layout": "Reset layout",
+    "widen": "Widen the {{title}} widget",
+    "narrow": "Narrow the {{title}} widget",
+    "error_title": "Couldn't load this",
+    "retry": "Retry",
+    "digest_last_sent": "Last sent {{time}}",
+    "digest_never_sent": "Not sent yet",
+    "stat_open": "Open {{label}}",
+    "attestations": {
+      "empty": "No attestation items awaiting your decision",
+      "expires": "Expires {{date}}"
+    },
+    "access_requests": {
+      "empty": "You haven't requested any access yet",
+      "expires": "Expires {{date}}"
+    },
+    "request_groups": {
+      "empty": "You have no request groups yet",
+      "item_count_one": "{{count}} step",
+      "item_count_other": "{{count}} steps",
+      "view": "View"
+    },
+    "risk_mix": {
+      "empty": "No analyzed queries in this period",
+      "total": "analyzed"
+    },
+    "activity": {
+      "empty": "No query activity in the last 90 days"
     }
   },
   "attestation": {

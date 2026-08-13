@@ -3045,7 +3045,12 @@
       "anomalies": "Оповещения об аномалиях",
       "recentApiRequests": "Мои недавние API-запросы",
       "apiRequestTrends": "Тренды API-запросов",
-      "pendingApiApprovals": "Ожидающие согласования API"
+      "pendingApiApprovals": "Ожидающие согласования API",
+      "attestationsDue": "Аттестации на проверку",
+      "myAccessRequests": "Мои запросы доступа",
+      "myRequestGroups": "Мои группы запросов",
+      "riskMix": "Распределение риска",
+      "activityHeatmap": "Карта активности"
     },
     "pending": {
       "empty": "Ничего не ожидает вашего рассмотрения",
@@ -3060,7 +3065,14 @@
       "status_title": "Запросы по статусу",
       "risk_title": "Запросы по уровню риска",
       "axis_date": "Дата",
-      "axis_count": "Запросы"
+      "axis_count": "Запросы",
+      "metric_status": "По статусу",
+      "metric_risk": "По риску",
+      "range_7d": "7 дн",
+      "range_30d": "30 дн",
+      "range_90d": "90 дн",
+      "window": "{{from}} – {{to}}",
+      "loading": "Загрузка активности…"
     },
     "suggestions": {
       "empty": "Сейчас нет предложений по оптимизации",
@@ -3086,6 +3098,36 @@
       "empty": "Нет активности API-запросов за этот период",
       "status_title": "API-запросы по статусу",
       "risk_title": "API-запросы по уровню риска"
+    },
+    "view_all": "Показать все",
+    "reset_layout": "Сбросить макет",
+    "widen": "Расширить виджет {{title}}",
+    "narrow": "Сузить виджет {{title}}",
+    "error_title": "Не удалось загрузить",
+    "retry": "Повторить",
+    "digest_last_sent": "Последняя отправка: {{time}}",
+    "digest_never_sent": "Ещё не отправлялся",
+    "stat_open": "Открыть {{label}}",
+    "attestations": {
+      "empty": "Нет аттестаций, ожидающих вашего решения",
+      "expires": "Истекает: {{date}}"
+    },
+    "access_requests": {
+      "empty": "Вы ещё не запрашивали доступ",
+      "expires": "Истекает: {{date}}"
+    },
+    "request_groups": {
+      "empty": "У вас пока нет групп запросов",
+      "item_count_one": "{{count}} шаг",
+      "item_count_other": "{{count}} шагов",
+      "view": "Открыть"
+    },
+    "risk_mix": {
+      "empty": "Нет проанализированных запросов за этот период",
+      "total": "всего"
+    },
+    "activity": {
+      "empty": "Нет активности запросов за последние 90 дней"
     }
   },
   "attestation": {

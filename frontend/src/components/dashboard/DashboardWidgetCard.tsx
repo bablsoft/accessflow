@@ -1,31 +1,43 @@
 import type { ReactNode } from 'react';
 import { Card } from 'antd';
-import { DownOutlined, HolderOutlined, RightOutlined } from '@ant-design/icons';
+import {
+  CompressOutlined,
+  DownOutlined,
+  ExpandOutlined,
+  HolderOutlined,
+  RightOutlined,
+} from '@ant-design/icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import type { DashboardWidgetId } from '@/store/preferencesStore';
+import type { DashboardWidgetId, DashboardWidgetSize } from '@/store/preferencesStore';
 
 interface DashboardWidgetCardProps {
   id: DashboardWidgetId;
   title: string;
   badge?: number;
   collapsed: boolean;
+  size: DashboardWidgetSize;
   onToggleCollapsed: () => void;
+  onToggleSize: () => void;
   children: ReactNode;
 }
 
 /**
- * A drag-sortable, collapsible card hosting a dashboard widget (AF-498). The drag handle is the only
- * draggable affordance so inner buttons/links stay clickable; collapse hides the body but keeps the
- * card in the layout. Keyboard-accessible via dnd-kit's keyboard sensor on the handle.
+ * A drag-sortable, collapsible, resizable card hosting a dashboard widget (AF-498). The drag
+ * handle is the only draggable affordance so inner buttons/links stay clickable; collapse hides
+ * the body but keeps the card in the layout; the size toggle switches the card between a half
+ * and a full grid row (hidden below the single-column breakpoint via CSS). Keyboard-accessible
+ * via dnd-kit's keyboard sensor on the handle.
  */
 export function DashboardWidgetCard({
   id,
   title,
   badge,
   collapsed,
+  size,
   onToggleCollapsed,
+  onToggleSize,
   children,
 }: DashboardWidgetCardProps) {
   const { t } = useTranslation();
@@ -38,7 +50,12 @@ export function DashboardWidgetCard({
   };
 
   return (
-    <div ref={setNodeRef} style={style} data-testid={`dashboard-widget-${id}`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={size === 'full' ? 'af-widget--full' : 'af-widget--half'}
+      data-testid={`dashboard-widget-${id}`}
+    >
       <Card
         styles={{ body: { padding: collapsed ? 0 : 16 } }}
         title={
@@ -68,6 +85,19 @@ export function DashboardWidgetCard({
                 {badge}
               </span>
             )}
+            <button
+              type="button"
+              className="af-icon-btn af-widget-size-toggle"
+              aria-label={
+                size === 'half'
+                  ? t('dashboard.widen', { title })
+                  : t('dashboard.narrow', { title })
+              }
+              style={{ marginLeft: 'auto' }}
+              onClick={onToggleSize}
+            >
+              {size === 'half' ? <ExpandOutlined /> : <CompressOutlined />}
+            </button>
           </div>
         }
       >
