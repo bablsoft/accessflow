@@ -85,6 +85,36 @@ class CouchbaseQueryEngineIntegrationTest {
                        ('p2', {"name": "Bo", "team": "eng", "salary": 90, "email": "bo@x.io"}),
                        ('p3', {"name": "Cy", "team": "sales", "salary": 80, "email": "cy@x.io"})
                 """);
+        awaitSeededCount(3);
+    }
+
+    /**
+     * Blocks until the indexer reports all seeded documents. An unfiltered {@code COUNT(*)} — the
+     * shape {@link CouchbaseCountRewriter} emits for a WHERE-less UPDATE/DELETE — is planned as a
+     * {@code CountScan} over the primary index, and that fast path can still read a just-committed
+     * INSERT as short by one or two even under {@code REQUEST_PLUS}. Every WHERE-bearing count
+     * takes the ordinary scan-and-fetch path and is unaffected.
+     */
+    private static void awaitSeededCount(long expected) {
+        var deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();
+        Long seen;
+        do {
+            var probe = countAffected("UPDATE _default SET bonus = 1", List.of());
+            // A probe that stops being countable is a regression, not a settling delay.
+            assertThat(probe.supported()).isTrue();
+            seen = probe.affectedRows();
+            if (seen != null && seen == expected) {
+                return;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("interrupted while settling the seed", e);
+            }
+        } while (System.nanoTime() < deadline);
+        throw new IllegalStateException(
+                "seed never settled: indexer reported " + seen + " of " + expected + " documents");
     }
 
     @Test
