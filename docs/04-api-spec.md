@@ -2492,6 +2492,11 @@ on the CSV export with `row_count` / `truncated` / the applied filters in its me
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
 | `GET` | `/admin/saml-config` | Get SAML configuration *(ADMIN only)* |
 | `PUT` | `/admin/saml-config` | Update SAML configuration *(ADMIN only)* |
+| `GET` | `/admin/scim-config` | Get SCIM provisioning configuration (#621) *(ADMIN only)* |
+| `PUT` | `/admin/scim-config` | Update SCIM provisioning configuration *(ADMIN only)* |
+| `GET` | `/admin/scim/tokens` | List SCIM bearer tokens — prefixes only, never the raw token *(ADMIN only)* |
+| `POST` | `/admin/scim/tokens` | Create a SCIM bearer token; the raw value is returned exactly once *(ADMIN only)* |
+| `DELETE` | `/admin/scim/tokens/{id}` | Revoke a SCIM bearer token *(ADMIN only)* |
 | `GET` | `/admin/slack-app-config` | Get the Slack app configuration; `404` when unconfigured *(ADMIN only)* |
 | `PUT` | `/admin/slack-app-config` | Create or update the Slack app configuration *(ADMIN only)* |
 | `DELETE` | `/admin/slack-app-config` | Delete the Slack app configuration *(ADMIN only)* |
@@ -4057,6 +4062,92 @@ Validation: free-text fields ≤ 1024 chars (idp/sp/acs/slo URLs and entity IDs)
 **Response 200:** Updated configuration (same shape as GET, `signing_cert_pem` replaced with `"********"` if set).
 **Response 400:** Validation error.
 
+### SCIM Configuration (`/admin/scim-config`, `/admin/scim/tokens`) *(ADMIN only)* (#621)
+
+Per-organization SCIM 2.0 provisioning settings (singleton row) plus the long-lived bearer tokens
+identity providers use against the [SCIM provisioning endpoints](#scim-20-provisioning-endpoints-621).
+Gated by `SSO_CONFIGURE`.
+
+#### GET /admin/scim-config
+
+Returns the org's configuration, or an all-default view (disabled, default mappings) when none exists.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "enabled": false,
+  "attr_email": "userName",
+  "attr_display_name": "displayName",
+  "default_role": "ANALYST",
+  "created_at": "2026-08-13T10:00:00Z",
+  "updated_at": "2026-08-13T10:00:00Z"
+}
+```
+
+`attr_email` is the SCIM attribute the user's email is read from (`userName` or `emails.primary`);
+`attr_display_name` is the SCIM attribute the display name is read from (`displayName`,
+`name.formatted`, or `userName`). `default_role` is the system role assigned to SCIM-provisioned
+users (mirrors `saml_config.default_role` / `oauth2_config.default_role`).
+
+#### PUT /admin/scim-config
+
+Partial update / upsert. Any omitted field is left unchanged.
+
+**Request body:** `{ "enabled": true, "attr_email": "userName", "attr_display_name": "displayName", "default_role": "ANALYST" }`
+
+Validation: `attr_email` ∈ {`userName`, `emails.primary`}; `attr_display_name` ∈ {`displayName`,
+`name.formatted`, `userName`}; `default_role` a system-role enum name.
+
+**Response 200:** Updated configuration (same shape as GET). Emits a `SCIM_CONFIG_UPDATED` audit row.
+**Response 400:** Validation error.
+
+#### GET /admin/scim/tokens
+
+Lists the org's SCIM bearer tokens, newest first. Only the `token_prefix` is ever returned — the
+raw token is not recoverable after creation.
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid",
+    "name": "okta-prod",
+    "token_prefix": "af_scim_AbCd",
+    "created_at": "2026-08-13T10:00:00Z",
+    "last_used_at": "2026-08-13T11:30:00Z",
+    "revoked_at": null
+  }
+]
+```
+
+#### POST /admin/scim/tokens
+
+Creates a named bearer token. The response is the **only** time the raw token is returned; only a
+SHA-256 hash is persisted.
+
+**Request body:** `{ "name": "okta-prod" }` — 1–100 chars, unique per organization.
+
+**Response 201:**
+```json
+{
+  "token": { "id": "uuid", "name": "okta-prod", "token_prefix": "af_scim_AbCd", "created_at": "…", "last_used_at": null, "revoked_at": null },
+  "raw_token": "af_scim_AbCd…"
+}
+```
+
+**Response 409:** A token with this name already exists. `error: SCIM_TOKEN_NAME_CONFLICT`.
+
+Emits a `SCIM_TOKEN_CREATED` audit row.
+
+#### DELETE /admin/scim/tokens/{id}
+
+Revokes the token (idempotent; revoked tokens fail SCIM authentication immediately).
+
+**Response 204.** **Response 404:** unknown token id (`error: SCIM_TOKEN_NOT_FOUND`). Emits a
+`SCIM_TOKEN_REVOKED` audit row.
+
 ### Langfuse Configuration (`/admin/langfuse-config`) *(ADMIN only)*
 
 Per-organization Langfuse integration settings (singleton row). Drives analyzer **tracing** and **prompt management** — see [docs/05-backend.md → "Langfuse integration"](05-backend.md#langfuse-integration).
@@ -4524,6 +4615,69 @@ count). A breach is rejected with `409 Conflict` and a localized `detail` naming
 ```
 
 ---
+
+## SCIM 2.0 Provisioning Endpoints (#621)
+
+The SCIM 2.0 service-provider surface identity providers (Okta, Microsoft Entra ID, Keycloak,
+OneLogin) call to drive user and group lifecycle. **Not under `/api/v1`** — SCIM mandates its own
+base path and PascalCase resource names (RFC 7644), a deliberate exception to the kebab-case rule.
+
+- **Base path:** `/scim/v2`
+- **Authentication:** `Authorization: Bearer <token>` with a per-organization SCIM token created via
+  [`POST /admin/scim/tokens`](#post-adminscimtokens). Never a JWT. The org is derived from the
+  token; requests are rejected with 401 when the token is unknown/revoked, when the org's SCIM
+  config is disabled, or when the organization itself is disabled.
+- **Media types:** `application/scim+json` and `application/json` are both accepted and produced.
+- **Errors:** the SCIM error envelope — **not** RFC 9457 `ProblemDetail`:
+
+```json
+{
+  "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+  "status": "400",
+  "scimType": "invalidFilter",
+  "detail": "Unsupported filter expression"
+}
+```
+
+`scimType` values used: `invalidFilter`, `uniqueness`, `invalidPath`, `invalidValue`. SCIM error
+`detail` strings are intentionally not localized (the consumer is an IdP provisioning engine).
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/scim/v2/ServiceProviderConfig` | Capability discovery (patch supported, filter max 200, no bulk/sort/etag) |
+| `GET` | `/scim/v2/ResourceTypes` | Resource-type discovery (User, Group) |
+| `GET` | `/scim/v2/Schemas` | Schema discovery |
+| `GET` | `/scim/v2/Users` | List/filter users — `filter=userName eq "…"`, `externalId eq "…"`, `emails eq "…"`; `startIndex` (1-based), `count` (max 200) |
+| `POST` | `/scim/v2/Users` | Provision a user (201; 409 `uniqueness` when the email exists; 403 when the org user quota is exceeded) |
+| `GET` | `/scim/v2/Users/{id}` | Fetch a user (404 when unknown in this org) |
+| `PUT` | `/scim/v2/Users/{id}` | Replace SCIM-owned attributes (mapped email, display name, `externalId`, `active`) |
+| `PATCH` | `/scim/v2/Users/{id}` | PatchOp — `replace`/`add` on `active`, `displayName`, `externalId`, the mapped email attribute |
+| `DELETE` | `/scim/v2/Users/{id}` | Deactivates the user (AccessFlow never hard-deletes users) — 204 |
+| `GET` | `/scim/v2/Groups` | List/filter groups — `filter=displayName eq "…"`, `externalId eq "…"` |
+| `POST` | `/scim/v2/Groups` | Create a group (409 `uniqueness` on duplicate name/externalId) |
+| `GET` | `/scim/v2/Groups/{id}` | Fetch a group with members |
+| `PUT` | `/scim/v2/Groups/{id}` | Replace `displayName`, `externalId`, and SCIM-sourced members |
+| `PATCH` | `/scim/v2/Groups/{id}` | `add`/`remove`/`replace` on `members` (including the `members[value eq "…"]` path form Entra sends) and `replace` on `displayName` |
+| `DELETE` | `/scim/v2/Groups/{id}` | Delete the group — cascades memberships **and group-based grants** — 204 |
+
+Semantics worth knowing (full detail in [docs/07-security.md → SCIM 2.0 provisioning](07-security.md)):
+
+- **List responses** use the `urn:ietf:params:scim:api:messages:2.0:ListResponse` envelope with
+  `totalResults`, `startIndex`, `itemsPerPage`, `Resources`.
+- **`userName`** echoes the configured email-source attribute (default: the user's email). `id` is
+  the AccessFlow user UUID. `meta.created`/`meta.lastModified` map to `created_at`/`updated_at`;
+  `meta.location` is the absolute resource URL.
+- **User responses never contain password data**, and SCIM can never write `role`, `platform_admin`,
+  TOTP settings, or row-security `attributes` — only the mapped email, display name, `externalId`,
+  `active`, and group memberships.
+- **`active: false`** (via PUT, PATCH, or DELETE) deactivates the user: login is disabled, refresh
+  tokens are revoked, and active JIT access grants are revoked. Deactivating an already-inactive
+  user is an idempotent no-op.
+- **Group memberships written by SCIM are tracked with `source=SCIM`** — they coexist with
+  memberships an admin created manually (`MANUAL`) and with SSO-login group mapping (`IDP`); SCIM
+  member ops never touch the other two sources, and vice versa.
+- **Provisioned users** are created with `auth_provider=SCIM`, no password, and the configured
+  `default_role`; they sign in through the org's SAML/OIDC SSO.
 
 ## Slack Integration Endpoints (AF-362)
 
@@ -5219,6 +5373,8 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_REQUEST_PERMISSION_DENIED` | 403 | Caller lacks read/write/break-glass on the connector. |
 | `API_REQUEST_VALIDATION_ERROR` | 422 | The call failed validation against the connector schema (`reason`). |
 | `API_EXECUTION_FAILED` | 502 | The upstream API call could not be executed (`reason`). |
+| `SCIM_TOKEN_NOT_FOUND` | 404 | Unknown SCIM token id for the caller's organization (#621). |
+| `SCIM_TOKEN_NAME_CONFLICT` | 409 | A SCIM token with that name already exists in the org (#621). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|
