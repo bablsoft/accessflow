@@ -28,7 +28,7 @@
         <jsqlparser.version>5.3</jsqlparser.version>
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
-        <archiunit.version>1.4.2</archiunit.version>
+        <archiunit.version>1.5.0</archiunit.version>
         <!-- Code style. Measured 2026-08-04: no google-java-format profile matches this
              codebase — even the 4-space AOSP profile rewrites 2,351 of 2,654 sources
              (import ordering + line wrapping). So Spotless runs style-neutral hygiene
