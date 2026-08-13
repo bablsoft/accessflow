@@ -1854,6 +1854,7 @@
       "section_tokens": "Bearer-токены",
       "tokens_description": "Долгоживущие токены, которыми аутентифицируется ваш IdP. Значение показывается только один раз.",
       "tokens_empty": "SCIM-токенов пока нет",
+      "tokens_load_error": "Не удалось загрузить SCIM-токены",
       "token_create": "Создать токен",
       "token_create_title": "Создать SCIM-токен",
       "token_name_label": "Имя токена",

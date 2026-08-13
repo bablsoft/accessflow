@@ -1911,6 +1911,7 @@
       "section_tokens": "Bearer tokens",
       "tokens_description": "Long-lived tokens your IdP authenticates with. The raw value is shown only once.",
       "tokens_empty": "No SCIM tokens yet",
+      "tokens_load_error": "Failed to load SCIM tokens",
       "token_create": "Create token",
       "token_create_title": "Create SCIM token",
       "token_name_label": "Token name",

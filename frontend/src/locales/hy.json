@@ -1854,6 +1854,7 @@
       "section_tokens": "Bearer թոքեններ",
       "tokens_description": "Երկարակյաց թոքեններ, որոնցով նույնականանում է ձեր IdP-ն։ Արժեքը ցուցադրվում է միայն մեկ անգամ:",
       "tokens_empty": "Դեռ SCIM թոքեններ չկան",
+      "tokens_load_error": "Չհաջողվեց բեռնել SCIM թոքենները",
       "token_create": "Ստեղծել թոքեն",
       "token_create_title": "Ստեղծել SCIM թոքեն",
       "token_name_label": "Թոքենի անուն",

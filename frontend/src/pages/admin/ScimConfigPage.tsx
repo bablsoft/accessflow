@@ -30,6 +30,7 @@ import {
   scimTokenKeys,
   updateScimConfig,
 } from '@/api/admin';
+import { apiBaseUrl } from '@/api/client';
 import { adminErrorMessage } from '@/utils/apiErrors';
 import { enumOptions, roleLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
@@ -135,7 +136,10 @@ export function ScimConfigPage() {
   });
   const fmtDate = (value: string | null) => (value ? dateFormatter.format(new Date(value)) : '—');
 
-  const baseUrl = `${window.location.origin}/scim/v2`;
+  // The IdP calls the BACKEND, not the frontend — always the API base URL here, never
+  // window.location.origin (wrong host → silent fall-through to the SPA; see the same
+  // warning in OAuth2ConfigPage.callbackUrlFor).
+  const baseUrl = `${apiBaseUrl().replace(/\/+$/, '')}/scim/v2`;
 
   const tokenColumns: ColumnsType<ScimToken> = [
     {
@@ -245,6 +249,8 @@ export function ScimConfigPage() {
                 label={t('admin.scim.label_attr_email')}
                 rules={[{ required: true }]}
               >
+                {/* Options are literal SCIM wire attribute paths (RFC 7643), not
+                    translatable enum labels — rendered verbatim on purpose. */}
                 <Select
                   options={ATTR_EMAIL_VALUES.map((value) => ({ value, label: value }))}
                 />
@@ -307,6 +313,13 @@ export function ScimConfigPage() {
 
               {tokensQuery.isLoading ? (
                 <Skeleton active />
+              ) : tokensQuery.isError ? (
+                <Alert
+                  type="error"
+                  showIcon
+                  message={t('admin.scim.tokens_load_error')}
+                  description={adminErrorMessage(tokensQuery.error)}
+                />
               ) : tokensQuery.data && tokensQuery.data.length > 0 ? (
                 <Table<ScimToken>
                   dataSource={tokensQuery.data}

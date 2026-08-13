@@ -87,6 +87,9 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     if (adminAccessToken) {
       await resetScimConfig(request, adminAccessToken);
     }
+    // The provisioned user is deliberately left behind (deactivated by test 5):
+    // AccessFlow never hard-deletes users, and the per-run unique email prevents
+    // collisions on warm-stack reruns.
   });
 
   test('1) initial load → defaults rendered, SCIM disabled', async ({ page }) => {

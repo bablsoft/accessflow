@@ -1854,6 +1854,7 @@
       "section_tokens": "Jetons Bearer",
       "tokens_description": "Jetons de longue durée avec lesquels votre IdP s'authentifie. La valeur brute n'est affichée qu'une seule fois.",
       "tokens_empty": "Aucun jeton SCIM pour l'instant",
+      "tokens_load_error": "Échec du chargement des jetons SCIM",
       "token_create": "Créer un jeton",
       "token_create_title": "Créer un jeton SCIM",
       "token_name_label": "Nom du jeton",

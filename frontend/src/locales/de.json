@@ -1854,6 +1854,7 @@
       "section_tokens": "Bearer-Token",
       "tokens_description": "Langlebige Token, mit denen sich Ihr IdP authentifiziert. Der Rohwert wird nur einmal angezeigt.",
       "tokens_empty": "Noch keine SCIM-Token",
+      "tokens_load_error": "SCIM-Token konnten nicht geladen werden",
       "token_create": "Token erstellen",
       "token_create_title": "SCIM-Token erstellen",
       "token_name_label": "Token-Name",

@@ -1854,6 +1854,7 @@
       "section_tokens": "Bearer 令牌",
       "tokens_description": "您的 IdP 用于身份验证的长期令牌。原始值仅显示一次。",
       "tokens_empty": "暂无 SCIM 令牌",
+      "tokens_load_error": "无法加载 SCIM 令牌",
       "token_create": "创建令牌",
       "token_create_title": "创建 SCIM 令牌",
       "token_name_label": "令牌名称",

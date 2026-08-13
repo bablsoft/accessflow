@@ -90,7 +90,9 @@ describe('ScimConfigPage', () => {
 
     expect(await screen.findByText('SCIM Provisioning')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('switch')).toBeChecked());
-    expect(screen.getByText(`${window.location.origin}/scim/v2`)).toBeInTheDocument();
+    // The IdP-facing base URL is built from the API base, never the SPA origin.
+    expect(screen.getByText(/\/scim\/v2$/)).toBeInTheDocument();
+    expect(screen.queryByText(`${window.location.origin}/scim/v2`)).not.toBeInTheDocument();
   });
 
   it('saves the configuration', async () => {

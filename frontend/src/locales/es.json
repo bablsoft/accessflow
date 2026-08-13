@@ -1854,6 +1854,7 @@
       "section_tokens": "Tokens Bearer",
       "tokens_description": "Tokens de larga duración con los que se autentica su IdP. El valor solo se muestra una vez.",
       "tokens_empty": "Aún no hay tokens SCIM",
+      "tokens_load_error": "No se pudieron cargar los tokens SCIM",
       "token_create": "Crear token",
       "token_create_title": "Crear token SCIM",
       "token_name_label": "Nombre del token",
