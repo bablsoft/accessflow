@@ -21,4 +21,7 @@ public interface UserGroupRepository extends JpaRepository<UserGroupEntity, UUID
             + "and lower(g.name) = lower(:name)")
     Optional<UserGroupEntity> findByOrganizationIdAndNameIgnoreCase(
             @Param("organizationId") UUID organizationId, @Param("name") String name);
+
+    Optional<UserGroupEntity> findByOrganization_IdAndScimExternalId(
+            UUID organizationId, String scimExternalId);
 }

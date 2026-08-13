@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.CreateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.UpdateUserGroupCommand;
 import com.bablsoft.accessflow.core.api.UserGroupMembershipNotFoundException;
+import com.bablsoft.accessflow.core.api.UserGroupMembershipSourceType;
 import com.bablsoft.accessflow.core.api.UserGroupNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.UserGroupNotFoundException;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
@@ -201,6 +202,147 @@ class DefaultUserGroupServiceTest {
         verify(membershipRepository).delete(idpDropMembership);
         verify(membershipRepository).save(any(UserGroupMembershipEntity.class));
         assertThat(result).containsExactlyInAnyOrder(idpKeepGroupId, idpAddGroupId);
+    }
+
+    @Test
+    void syncIdpMembershipsPreservesScimRows() {
+        var userId = UUID.randomUUID();
+        var scimGroupId = UUID.randomUUID();
+        var scimMembership = membership(userId, scimGroupId, UserGroupMembershipSource.SCIM);
+        when(membershipRepository.findAllByUser_Id(userId)).thenReturn(List.of(scimMembership));
+
+        // The SCIM-sourced group is also in the desired IdP set: it must be neither deleted nor
+        // duplicated with an IDP row (PK is (user_id, group_id)).
+        var result = service.syncIdpMemberships(userId, orgId, Set.of(scimGroupId));
+
+        verify(membershipRepository, never()).delete(any(UserGroupMembershipEntity.class));
+        verify(membershipRepository, never()).save(any(UserGroupMembershipEntity.class));
+        assertThat(result).containsExactly(scimGroupId);
+    }
+
+    @Test
+    void addMemberWithScimSourcePersistsScimMembership() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var user = user(UUID.randomUUID(), orgId);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(membershipRepository.existsByUser_IdAndGroup_Id(user.getId(), group.getId()))
+                .thenReturn(false);
+        when(membershipRepository.save(any(UserGroupMembershipEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var view = service.addMember(group.getId(), user.getId(), orgId,
+                UserGroupMembershipSourceType.SCIM);
+
+        assertThat(view.source()).isEqualTo(UserGroupMembershipSourceType.SCIM);
+    }
+
+    @Test
+    void addMemberWithSourceIsIdempotentWhenRowExists() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var user = user(UUID.randomUUID(), orgId);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        when(membershipRepository.existsByUser_IdAndGroup_Id(user.getId(), group.getId()))
+                .thenReturn(true);
+        var existing = membership(user.getId(), group.getId(), UserGroupMembershipSource.MANUAL);
+        existing.setUser(user);
+        existing.setGroup(group);
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of(existing));
+
+        var view = service.addMember(group.getId(), user.getId(), orgId,
+                UserGroupMembershipSourceType.SCIM);
+
+        // First source wins: the MANUAL row is returned untouched.
+        assertThat(view.source()).isEqualTo(UserGroupMembershipSourceType.MANUAL);
+        verify(membershipRepository, never()).save(any());
+    }
+
+    @Test
+    void removeMemberBySourceOnlyRemovesMatchingSource() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var user = user(UUID.randomUUID(), orgId);
+        var manualRow = membership(user.getId(), group.getId(), UserGroupMembershipSource.MANUAL);
+        manualRow.setUser(user);
+        manualRow.setGroup(group);
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of(manualRow));
+
+        service.removeMemberBySource(group.getId(), user.getId(), orgId,
+                UserGroupMembershipSourceType.SCIM);
+
+        verify(membershipRepository, never()).delete(any(UserGroupMembershipEntity.class));
+    }
+
+    @Test
+    void removeMemberBySourceRemovesOwnRow() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        var user = user(UUID.randomUUID(), orgId);
+        var scimRow = membership(user.getId(), group.getId(), UserGroupMembershipSource.SCIM);
+        scimRow.setUser(user);
+        scimRow.setGroup(group);
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of(scimRow));
+
+        service.removeMemberBySource(group.getId(), user.getId(), orgId,
+                UserGroupMembershipSourceType.SCIM);
+
+        verify(membershipRepository).delete(scimRow);
+    }
+
+    @Test
+    void replaceMembersBySourceReplacesOnlyScimRows() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+
+        var manualUser = user(UUID.randomUUID(), orgId);
+        var staleScimUser = user(UUID.randomUUID(), orgId);
+        var keptScimUser = user(UUID.randomUUID(), orgId);
+        var newUser = user(UUID.randomUUID(), orgId);
+
+        var manualRow = membership(manualUser.getId(), group.getId(),
+                UserGroupMembershipSource.MANUAL);
+        manualRow.setUser(manualUser);
+        manualRow.setGroup(group);
+        var staleScimRow = membership(staleScimUser.getId(), group.getId(),
+                UserGroupMembershipSource.SCIM);
+        staleScimRow.setUser(staleScimUser);
+        staleScimRow.setGroup(group);
+        var keptScimRow = membership(keptScimUser.getId(), group.getId(),
+                UserGroupMembershipSource.SCIM);
+        keptScimRow.setUser(keptScimUser);
+        keptScimRow.setGroup(group);
+        when(membershipRepository.findAllByGroup_Id(group.getId()))
+                .thenReturn(List.of(manualRow, staleScimRow, keptScimRow));
+        when(userRepository.findByOrganization_IdAndId(orgId, newUser.getId()))
+                .thenReturn(Optional.of(newUser));
+        when(membershipRepository.save(any(UserGroupMembershipEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.replaceMembersBySource(group.getId(), orgId,
+                List.of(keptScimUser.getId(), newUser.getId(), manualUser.getId()),
+                UserGroupMembershipSourceType.SCIM);
+
+        verify(membershipRepository).delete(staleScimRow);
+        verify(membershipRepository, never()).delete(manualRow);
+        // manualUser keeps the MANUAL row — no SCIM duplicate is inserted for them.
+        assertThat(result).containsExactlyInAnyOrder(keptScimUser.getId(), newUser.getId());
+    }
+
+    @Test
+    void replaceMembersBySourceSkipsUnknownUsers() {
+        var group = group("Engineers");
+        when(userGroupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        when(membershipRepository.findAllByGroup_Id(group.getId())).thenReturn(List.of());
+        var unknownUserId = UUID.randomUUID();
+        when(userRepository.findByOrganization_IdAndId(orgId, unknownUserId))
+                .thenReturn(Optional.empty());
+
+        var result = service.replaceMembersBySource(group.getId(), orgId,
+                List.of(unknownUserId), UserGroupMembershipSourceType.SCIM);
+
+        assertThat(result).isEmpty();
+        verify(membershipRepository, never()).save(any());
     }
 
     private UserGroupEntity group(String name) {

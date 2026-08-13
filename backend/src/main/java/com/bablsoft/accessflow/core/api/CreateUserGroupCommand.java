@@ -5,5 +5,11 @@ import java.util.UUID;
 public record CreateUserGroupCommand(
         UUID organizationId,
         String name,
-        String description
-) {}
+        String description,
+        String scimExternalId
+) {
+    /** Convenience constructor for callers that predate the SCIM external id (#621). */
+    public CreateUserGroupCommand(UUID organizationId, String name, String description) {
+        this(organizationId, name, description, null);
+    }
+}

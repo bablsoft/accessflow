@@ -93,6 +93,7 @@ class DefaultUserGroupService implements UserGroupService {
         entity.setOrganization(organization);
         entity.setName(normalizedName);
         entity.setDescription(command.description());
+        entity.setScimExternalId(command.scimExternalId());
         entity.setCreatedAt(Instant.now());
         entity.setUpdatedAt(entity.getCreatedAt());
         return toView(userGroupRepository.save(entity), 0L);
@@ -116,6 +117,10 @@ class DefaultUserGroupService implements UserGroupService {
         }
         if (command.description() != null) {
             entity.setDescription(command.description());
+        }
+        if (command.scimExternalId() != null) {
+            entity.setScimExternalId(
+                    command.scimExternalId().isBlank() ? null : command.scimExternalId());
         }
         entity.setUpdatedAt(Instant.now());
         return toView(entity, membershipRepository.countByGroup_Id(groupId));
@@ -144,6 +149,13 @@ class DefaultUserGroupService implements UserGroupService {
     @Override
     @Transactional
     public UserGroupMembershipView addMember(UUID groupId, UUID userId, UUID organizationId) {
+        return addMember(groupId, userId, organizationId, UserGroupMembershipSourceType.MANUAL);
+    }
+
+    @Override
+    @Transactional
+    public UserGroupMembershipView addMember(UUID groupId, UUID userId, UUID organizationId,
+                                             UserGroupMembershipSourceType source) {
         var group = loadInOrganization(groupId, organizationId);
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
@@ -161,7 +173,7 @@ class DefaultUserGroupService implements UserGroupService {
         membership.setId(new UserGroupMembershipEntity.Id(userId, groupId));
         membership.setUser(user);
         membership.setGroup(group);
-        membership.setSource(UserGroupMembershipSource.MANUAL);
+        membership.setSource(toEntitySource(source));
         membership.setJoinedAt(Instant.now());
         return toMembershipView(membershipRepository.save(membership));
     }
@@ -178,6 +190,68 @@ class DefaultUserGroupService implements UserGroupService {
 
     @Override
     @Transactional
+    public void removeMemberBySource(UUID groupId, UUID userId, UUID organizationId,
+                                     UserGroupMembershipSourceType source) {
+        loadInOrganization(groupId, organizationId);
+        membershipRepository.findAllByGroup_Id(groupId).stream()
+                .filter(m -> m.getUser().getId().equals(userId))
+                .filter(m -> m.getSource() == toEntitySource(source))
+                .findFirst()
+                .ifPresent(membershipRepository::delete);
+    }
+
+    @Override
+    @Transactional
+    public Set<UUID> replaceMembersBySource(UUID groupId, UUID organizationId,
+                                            Collection<UUID> userIds,
+                                            UserGroupMembershipSourceType source) {
+        var group = loadInOrganization(groupId, organizationId);
+        var entitySource = toEntitySource(source);
+        var desired = userIds == null ? Set.<UUID>of() : new LinkedHashSet<>(userIds);
+        var existing = membershipRepository.findAllByGroup_Id(groupId);
+        var existingBySource = existing.stream()
+                .filter(m -> m.getSource() == entitySource)
+                .collect(Collectors.toMap(m -> m.getUser().getId(), m -> m));
+        var otherSourceUserIds = existing.stream()
+                .filter(m -> m.getSource() != entitySource)
+                .map(m -> m.getUser().getId())
+                .collect(Collectors.toSet());
+
+        for (var entry : existingBySource.entrySet()) {
+            if (!desired.contains(entry.getKey())) {
+                membershipRepository.delete(entry.getValue());
+            }
+        }
+
+        var result = new HashSet<UUID>();
+        for (UUID userId : desired) {
+            if (existingBySource.containsKey(userId)) {
+                result.add(userId);
+                continue;
+            }
+            // A row of another source already makes the user a member — first source wins.
+            if (otherSourceUserIds.contains(userId)) {
+                continue;
+            }
+            var user = userRepository.findByOrganization_IdAndId(organizationId, userId)
+                    .orElse(null);
+            if (user == null) {
+                continue;
+            }
+            var membership = new UserGroupMembershipEntity();
+            membership.setId(new UserGroupMembershipEntity.Id(userId, groupId));
+            membership.setUser(user);
+            membership.setGroup(group);
+            membership.setSource(entitySource);
+            membership.setJoinedAt(Instant.now());
+            membershipRepository.save(membership);
+            result.add(userId);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional
     public Set<UUID> syncIdpMemberships(UUID userId, UUID organizationId,
                                         Collection<UUID> desiredGroupIds) {
         var existing = membershipRepository.findAllByUser_Id(userId);
@@ -185,8 +259,10 @@ class DefaultUserGroupService implements UserGroupService {
         var idpExistingByGroup = existing.stream()
                 .filter(m -> m.getSource() == UserGroupMembershipSource.IDP)
                 .collect(Collectors.toMap(m -> m.getGroup().getId(), m -> m));
-        var manualGroupIds = existing.stream()
-                .filter(m -> m.getSource() == UserGroupMembershipSource.MANUAL)
+        // Everything not IDP-sourced (MANUAL, SCIM) is out of this sync's ownership: never
+        // removed, and never duplicated with an IDP row (#621).
+        var nonIdpGroupIds = existing.stream()
+                .filter(m -> m.getSource() != UserGroupMembershipSource.IDP)
                 .map(m -> m.getGroup().getId())
                 .collect(Collectors.toSet());
 
@@ -197,9 +273,9 @@ class DefaultUserGroupService implements UserGroupService {
             }
         }
 
-        // Add new desired rows (skip already-manual rows — a manual membership wins).
+        // Add new desired rows (skip rows another source owns — that membership wins).
         for (UUID groupId : desired) {
-            if (manualGroupIds.contains(groupId) || idpExistingByGroup.containsKey(groupId)) {
+            if (nonIdpGroupIds.contains(groupId) || idpExistingByGroup.containsKey(groupId)) {
                 continue;
             }
             var group = userGroupRepository.findById(groupId).orElse(null);
@@ -252,7 +328,8 @@ class DefaultUserGroupService implements UserGroupService {
                 entity.getDescription(),
                 memberCount,
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getScimExternalId());
     }
 
     private static UserGroupMembershipView toMembershipView(UserGroupMembershipEntity entity) {
@@ -270,6 +347,15 @@ class DefaultUserGroupService implements UserGroupService {
         return switch (source) {
             case MANUAL -> UserGroupMembershipSourceType.MANUAL;
             case IDP -> UserGroupMembershipSourceType.IDP;
+            case SCIM -> UserGroupMembershipSourceType.SCIM;
+        };
+    }
+
+    private static UserGroupMembershipSource toEntitySource(UserGroupMembershipSourceType source) {
+        return switch (source) {
+            case MANUAL -> UserGroupMembershipSource.MANUAL;
+            case IDP -> UserGroupMembershipSource.IDP;
+            case SCIM -> UserGroupMembershipSource.SCIM;
         };
     }
 }

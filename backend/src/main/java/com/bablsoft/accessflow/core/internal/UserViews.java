@@ -25,7 +25,9 @@ final class UserViews {
                 entity.getPreferredLanguage(),
                 entity.isTotpEnabled(),
                 entity.isPlatformAdmin(),
-                entity.getCreatedAt()
+                entity.getCreatedAt(),
+                entity.getScimExternalId(),
+                entity.getUpdatedAt()
         );
     }
 }

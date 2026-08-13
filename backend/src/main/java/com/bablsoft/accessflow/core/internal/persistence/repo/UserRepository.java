@@ -23,6 +23,15 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     long countByOrganization_IdAndActiveTrue(UUID organizationId);
 
+    long countByOrganization_Id(UUID organizationId);
+
+    Optional<UserEntity> findByOrganization_IdAndId(UUID organizationId, UUID id);
+
+    Optional<UserEntity> findByOrganization_IdAndEmail(UUID organizationId, String email);
+
+    Optional<UserEntity> findByOrganization_IdAndScimExternalId(
+            UUID organizationId, String scimExternalId);
+
     List<UserEntity> findAllByOrganization_Id(UUID organizationId);
 
     Page<UserEntity> findAllByOrganization_Id(UUID organizationId, Pageable pageable);
