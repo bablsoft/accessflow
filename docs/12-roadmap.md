@@ -69,6 +69,7 @@
 - SAML 2.0 SP-initiated and IdP-initiated SSO
 - Auto-provisioning of users from SAML assertions
 - SAML attribute → role mapping
+- SCIM 2.0 provisioning — IdP-driven user & group lifecycle (Okta / Entra ID / Keycloak, #621)
 - OAuth 2.0 / OIDC sign-in with built-in templates for Google, GitHub, Microsoft, and GitLab; additional providers configurable via DB-driven `oauth2_config` rows
 
 ---

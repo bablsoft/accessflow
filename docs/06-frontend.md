@@ -151,6 +151,7 @@ accessflow-ui/
 │   │       ├── AIConfigPage.tsx
 │   │       ├── NotificationsPage.tsx
 │   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
+│   │       ├── ScimConfigPage.tsx    # SCIM 2.0 provisioning config + bearer tokens (#621)
 │   │       └── LangfuseConfigPage.tsx # Langfuse tracing + prompt management
 │   │
 │   ├── store/
@@ -855,6 +856,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
 /admin/saml                         → SamlConfigPage
+/admin/scim                         → ScimConfigPage (lazy; SCIM 2.0 provisioning — #621)
 /admin/oauth2                       → OAuth2ConfigPage (lazy)
 /admin/slack                        → SlackConfigPage (lazy; Slack app config — AF-362)
 /admin/langfuse                     → LangfuseConfigPage (lazy; Langfuse tracing + prompt management — AF-333)

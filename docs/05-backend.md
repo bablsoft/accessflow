@@ -2489,6 +2489,51 @@ User-managed API keys live alongside the rest of authentication in the **`securi
 
 The full REST contract is in `docs/04-api-spec.md` → "API Keys".
 
+## SCIM provisioning (scim module, #621)
+
+The **`scim/` module** (`com.bablsoft.accessflow.scim`) is the SCIM 2.0 service provider: IdPs
+(Okta, Entra ID, Keycloak, OneLogin) create/update/deactivate users and sync groups over
+`/scim/v2/Users` and `/scim/v2/Groups`.
+
+- **Own security chain.** `scim.internal.config.ScimSecurityConfiguration` contributes a
+  `SecurityFilterChain` bean (`@Order(0)`, `securityMatcher("/scim/v2/**")`) — Spring collects
+  filter-chain beans from any `@Configuration`, so the security module's
+  `SecurityConfiguration` is untouched. `ScimTokenAuthenticationFilter` resolves the per-org
+  bearer token (SHA-256 hash lookup on `scim_tokens`), re-checks `scim_config.enabled` and the
+  org-disabled kill-switch per request, and a dedicated entry point emits 401 in the SCIM
+  error envelope (never ProblemDetail; see `docs/07-security.md`).
+- **Protocol layer.** Hand-rolled RFC 7644 pragmatic subset in `scim.internal.protocol`:
+  Jackson wire records (annotated `@JsonNaming(LowerCamelCase)` to override the app-wide
+  SNAKE_CASE strategy — SCIM mandates camelCase), an `eq`-only filter parser, and a PatchOp
+  applier that handles both Okta shapes (no-path value objects, real booleans) and Entra
+  shapes (`path: "active"` with string `"False"`, `members[value eq "…"]` removes).
+- **Orchestration.** `ScimUserOrchestrator` maps the wire contract onto
+  `core.api.ExternalUserDirectoryService` — the system-actor user primitives (create with
+  quota + global-email uniqueness, partial update limited to SCIM-owned attributes, offset
+  paging for `startIndex`). `ScimGroupOrchestrator` maps onto `core.api.UserGroupService`'s
+  source-scoped member operations (`source=SCIM`). DELETE on a user deactivates — AccessFlow
+  never hard-deletes users.
+- **Admin surface.** `/api/v1/admin/scim-config` + `/api/v1/admin/scim/tokens`
+  (`PERM_SSO_CONFIGURE`), show-once token issuance mirroring API keys.
+- No scheduled jobs — SCIM is entirely IdP-push-driven.
+
+### User deactivation fan-out (UserDeactivatedEvent)
+
+Whenever a user's `is_active` transitions `true → false` — admin `PUT /admin/users/{id}
+active=false`, admin `DELETE /admin/users/{id}`, or any SCIM deactivation path —
+`core.events.UserDeactivatedEvent` is published (transition-only: deactivating an inactive user
+publishes nothing). Consumers, both `@ApplicationModuleListener` (async, AFTER_COMMIT):
+
+- `security.internal.UserDeactivationListener` — revokes every refresh token
+  (`RefreshTokenStore.revokeAllForUser`); outstanding access tokens expire within
+  `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` (default 15 min).
+- `access.internal.UserDeactivationGrantRevoker` — revokes the user's `APPROVED` JIT grants
+  through the ordinary revocation path (system-attributed, idempotent, per-row failures
+  swallowed).
+
+Before #621, refresh-token revocation lived in `AdminUserController` and only fired on the
+DELETE path; the event unifies all deactivation paths.
+
 ## API Access Governance (apigov module, AF-500)
 
 The **`apigov/` module** governs outbound API calls (REST / SOAP / GraphQL / gRPC) with the same

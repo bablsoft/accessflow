@@ -34,7 +34,8 @@ The `disabled` / `max_*` columns are added by `V87__org_isolation_quotas_platfor
 
 ## users
 
-Platform users. Can be created locally or auto-provisioned via SAML.
+Platform users. Can be created locally, auto-provisioned via SAML/OIDC login, or provisioned by
+an identity provider over SCIM 2.0 (#621).
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -43,7 +44,7 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `email` | VARCHAR(255) UNIQUE NOT NULL |
 | `display_name` | VARCHAR(255) |
 | `password_hash` | VARCHAR — null if SSO-only user |
-| `auth_provider` | ENUM: `LOCAL` \| `SAML` \| `OAUTH2` |
+| `auth_provider` | ENUM: `LOCAL` \| `SAML` \| `OAUTH2` \| `SCIM` (`SCIM` added in V141, #621 — IdP-provisioned, no password, signs in via SSO) |
 | `saml_subject` | VARCHAR — SAML NameID, nullable |
 | `role` | ENUM: `ADMIN` \| `REVIEWER` \| `ANALYST` \| `READONLY` \| `AUDITOR` (`AUDITOR` added in V91 — dedicated read-only compliance role, AF-459). **Nullable since V114 (AF-522)** — populated (and kept in sync) for users on a system role, NULL for users on a custom role; `role_id` is the source of truth. |
 | `role_id` | FK → `roles`, nullable (AF-522, V114) — the user's assigned role (system or custom). Backfilled from the legacy `role` enum for pre-existing rows. Indexed (`idx_users_role_id`). |
@@ -55,7 +56,9 @@ Platform users. Can be created locally or auto-provisioned via SAML.
 | `totp_enabled` | BOOLEAN NOT NULL DEFAULT false — flipped to true only after the user confirms enrolment with a valid code |
 | `totp_backup_codes_encrypted` | TEXT — AES-256-GCM ciphertext of a JSON array of bcrypt hashes (one per single-use recovery code). Codes are removed from the array as they're consumed. Null when 2FA is not enabled. |
 | `attributes` | JSONB NOT NULL DEFAULT `'{}'` (AF-380) — admin-editable per-user attribute map, resolvable in row-security predicates as `:user.<key>`. Set via the user admin API; **not** synced from the IdP. Added by `V61__add_users_attributes.sql`. |
+| `scim_external_id` | VARCHAR(255), nullable (#621, V139) — the IdP-side SCIM `externalId`. Partial unique index `uq_users_org_scim_external_id ON (organization_id, scim_external_id) WHERE scim_external_id IS NOT NULL`. |
 | `created_at` | TIMESTAMPTZ |
+| `updated_at` | TIMESTAMPTZ NOT NULL (#621, V139; backfilled from `created_at`) — maintained by JPA `@PreUpdate`, feeds SCIM `meta.lastModified`. |
 
 ---
 
@@ -577,7 +580,7 @@ Records the outcome of routing a single query request (AF-379, Flyway `V59__crea
 
 ## user_groups
 
-Named, organisation-scoped collections of users. Groups are used as the indirection layer for reviewer assignment (see `datasource_reviewers`) and may be auto-synced from OAuth2 / SAML IdP claims.
+Named, organisation-scoped collections of users. Groups are used as the indirection layer for reviewer assignment (see `datasource_reviewers`), may be auto-synced from OAuth2 / SAML IdP claims, and can be created and member-synced by an identity provider over SCIM 2.0 (#621).
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -585,6 +588,7 @@ Named, organisation-scoped collections of users. Groups are used as the indirect
 | `organization_id` | FK → `organizations` |
 | `name` | VARCHAR(128) NOT NULL — unique per `(organization_id, lower(name))` |
 | `description` | VARCHAR(512) NULL |
+| `scim_external_id` | VARCHAR(255), nullable (#621, V139) — the IdP-side SCIM `externalId`; partial unique index per org, mirroring `users.scim_external_id` |
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic locking |
 | `created_at`, `updated_at` | TIMESTAMPTZ |
 
@@ -596,10 +600,10 @@ Composite-key join table that bundles users into groups.
 |--------|-------------|
 | `user_id` | FK → `users` ON DELETE CASCADE — part of PK |
 | `group_id` | FK → `user_groups` ON DELETE CASCADE — part of PK |
-| `source` | ENUM: `MANUAL` \| `IDP` — `IDP` rows are owned by the OAuth2 / SAML login sync flow; `MANUAL` rows are owned by admins via the API |
+| `source` | ENUM: `MANUAL` \| `IDP` \| `SCIM` — `IDP` rows are owned by the OAuth2 / SAML login sync flow; `MANUAL` rows are owned by admins via the API; `SCIM` rows (V140, #621) are owned by the IdP's SCIM provisioning engine |
 | `joined_at` | TIMESTAMPTZ |
 
-The SSO group-sync flow replaces only `source = 'IDP'` rows per user on each login, leaving `source = 'MANUAL'` rows untouched.
+The SSO group-sync flow replaces only `source = 'IDP'` rows per user on each login; SCIM member operations touch only `source = 'SCIM'` rows. Each of the three sources is blind to the other two — first source wins on membership, so no path can wipe or duplicate another's rows.
 
 ---
 
@@ -1428,7 +1432,9 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`.
+
+SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
 ---
 
@@ -1748,6 +1754,48 @@ Per-organization [Langfuse](https://langfuse.com) integration settings — one r
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
 Tracing and prompt fetch are **best-effort and non-blocking** — a Langfuse outage or misconfiguration never affects the analysis result (failures are logged and swallowed; prompt fetch falls back to the locally stored template).
+
+---
+
+## scim_config
+
+Per-organization SCIM 2.0 provisioning settings (#621, V137) — a singleton row per org, owned by
+the `scim` module. `attr_email` / `attr_display_name` name the SCIM attribute the corresponding
+user field is read from (attribute mapping); `default_role` is the system role assigned to
+SCIM-provisioned users, mirroring `saml_config.default_role`. Every `/scim/v2/**` request
+re-checks `enabled` — flipping it off cuts the IdP over immediately.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE, UNIQUE (one row per org) |
+| `enabled` | BOOLEAN NOT NULL DEFAULT FALSE — master switch, checked per SCIM request |
+| `attr_email` | VARCHAR(255) NOT NULL DEFAULT `'userName'` — ∈ {`userName`, `emails.primary`} (app-enforced; HTTP 400 `SCIM_INVALID_MAPPING` otherwise) |
+| `attr_display_name` | VARCHAR(255) NOT NULL DEFAULT `'displayName'` — ∈ {`displayName`, `name.formatted`, `userName`} |
+| `default_role` | ENUM `user_role_type` NOT NULL DEFAULT `'ANALYST'` — role given to SCIM-provisioned users; SCIM can never change a role afterwards |
+| `version` | BIGINT — `@Version` optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+## scim_tokens
+
+Long-lived SCIM bearer tokens (#621, V138) — one or more named tokens per org so an operator can
+rotate without downtime. Shape mirrors `api_keys`: only the SHA-256 hex hash and a 12-char
+display prefix are stored; the raw `af_scim_…` value is shown exactly once at creation.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `name` | VARCHAR(100) NOT NULL — UNIQUE per org (`scim_tokens_unique_name_per_org`); HTTP 409 `SCIM_TOKEN_NAME_CONFLICT` on duplicates |
+| `token_prefix` | VARCHAR(16) NOT NULL — display prefix (`af_scim_XXXX`) |
+| `token_hash` | VARCHAR(128) NOT NULL UNIQUE — SHA-256 hex; `@JsonIgnore`d, never serialized |
+| `created_by` | FK → `users` ON DELETE SET NULL, nullable |
+| `last_used_at` | TIMESTAMPTZ — best-effort bump on each successful authentication |
+| `revoked_at` | TIMESTAMPTZ — set once, idempotent; revoked tokens never authenticate |
+| `created_at` | TIMESTAMPTZ |
+
+Indexes: `(organization_id)`; partial `idx_scim_tokens_active_hash ON (token_hash) WHERE
+revoked_at IS NULL` — authentication is a hash lookup on every SCIM request.
 
 ---
 
