@@ -48,7 +48,9 @@ public enum AuditResourceType {
     DELETION_REQUEST("deletion_request"),
     REQUEST_GROUP("request_group"),
     QUERY_TICKET("query_ticket"),
-    DISCOVERY_FINDING("discovery_finding");
+    DISCOVERY_FINDING("discovery_finding"),
+    SCIM_CONFIG("scim_config"),
+    SCIM_TOKEN("scim_token");
 
     private final String dbValue;
 
