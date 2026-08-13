@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
+import { WidgetError } from '@/components/dashboard/WidgetError';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   dashboardKeys,
@@ -40,14 +41,23 @@ export function SuggestionBacklogWidget() {
     navigate('/editor', { state: { presetSql: s.sql, datasourceId: s.datasource_id } });
   };
 
-  if (suggestionsQuery.isLoading || !suggestionsQuery.data) {
+  if (suggestionsQuery.isLoading) {
     return <Skeleton active paragraph={{ rows: 3 }} />;
+  }
+  if (suggestionsQuery.isError || !suggestionsQuery.data) {
+    return (
+      <WidgetError
+        error={suggestionsQuery.error}
+        onRetry={() => void suggestionsQuery.refetch()}
+      />
+    );
   }
   const items = suggestionsQuery.data.suggestions;
   if (items.length === 0) {
     return (
       <EmptyState
-        icon={<BulbOutlined style={{ fontSize: 20 }} />}
+        size="sm"
+        icon={<BulbOutlined style={{ fontSize: 16 }} />}
         title={t('dashboard.suggestions.empty')}
       />
     );

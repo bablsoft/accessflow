@@ -1,11 +1,20 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
-import type { AnomalyPage, DashboardSummary, DashboardSuggestions, DigestSubscription, MyQueryTrends } from '@/types/api';
+import type {
+  AccessRequestPage,
+  AnomalyPage,
+  AttestationItemPage,
+  DashboardSummary,
+  DashboardSuggestions,
+  DigestSubscription,
+  MyQueryTrends,
+  RequestGroupPage,
+} from '@/types/api';
 
 const {
   fetchSummary,
@@ -17,6 +26,9 @@ const {
   setDigest,
   exportSummary,
   listMine,
+  listWorklist,
+  listAccess,
+  listGroups,
 } = vi.hoisted(() => ({
   fetchSummary: vi.fn(),
   fetchTrends: vi.fn(),
@@ -27,10 +39,14 @@ const {
   setDigest: vi.fn(),
   exportSummary: vi.fn(),
   listMine: vi.fn(),
+  listWorklist: vi.fn(),
+  listAccess: vi.fn(),
+  listGroups: vi.fn(),
 }));
 
 vi.mock('@/api/dashboard', () => ({
   dashboardKeys: {
+    all: ['dashboard'],
     summary: () => ['dashboard', 'summary'],
     trends: (f: unknown) => ['dashboard', 'trends', f],
     apiRequestTrends: (f: unknown) => ['dashboard', 'api-request-trends', f],
@@ -52,11 +68,30 @@ vi.mock('@/api/anomalies', async () => {
   return { ...actual, listMyAnomalies: listMine };
 });
 
-vi.mock('@ant-design/charts', () => ({
-  Line: ({ data }: { data: unknown[] }) => <div data-testid="ant-line-chart" data-points={data.length} />,
-}));
+vi.mock('@/api/attestation', async () => {
+  const actual = await vi.importActual<typeof import('@/api/attestation')>('@/api/attestation');
+  return { ...actual, listAttestationWorklist: listWorklist };
+});
+
+vi.mock('@/api/accessRequests', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/api/accessRequests')>('@/api/accessRequests');
+  return { ...actual, listMyAccessRequests: listAccess };
+});
+
+vi.mock('@/api/requestGroups', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/api/requestGroups')>('@/api/requestGroups');
+  return { ...actual, listRequestGroups: listGroups };
+});
+
+vi.mock('@/components/charts', async () => {
+  const { bklitChartMocks } = await import('@/components/dashboard/chartsTestMocks');
+  return bklitChartMocks();
+});
 
 import { useAuthStore } from '@/store/authStore';
+import { usePreferencesStore } from '@/store/preferencesStore';
 import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
 const { default: DashboardPage } = await import('./DashboardPage');
@@ -87,7 +122,10 @@ function summary(): DashboardSummary {
     open_suggestions_count: 2,
     open_api_requests_count: 4,
     pending_api_approvals_count: 5,
-    status_counts: [],
+    status_counts: [
+      { status: 'PENDING_REVIEW', count: 4 },
+      { status: 'APPROVED', count: 3 },
+    ],
     recent_queries: [
       {
         id: 'q1',
@@ -151,6 +189,28 @@ const emptyApiTrends: MyQueryTrends = { status_by_day: [], risk_by_day: [] };
 const emptySuggestions: DashboardSuggestions = { suggestions: [] };
 const disabledDigest: DigestSubscription = { enabled: false, last_sent_at: null };
 const emptyMine: AnomalyPage = { content: [], page: 0, size: 10, total_elements: 0, total_pages: 0 };
+const emptyWorklist: AttestationItemPage = {
+  content: [],
+  page: 0,
+  size: 5,
+  total_elements: 0,
+  total_pages: 0,
+};
+const emptyAccess: AccessRequestPage = {
+  content: [],
+  page: 0,
+  size: 5,
+  total_elements: 0,
+  total_pages: 0,
+};
+const emptyGroups: RequestGroupPage = {
+  content: [],
+  page: 0,
+  size: 5,
+  total_elements: 0,
+  total_pages: 0,
+  last: true,
+};
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -161,7 +221,14 @@ function renderPage() {
       </App>
     </QueryClientProvider>
   );
-  return render(<DashboardPage />, { wrapper });
+  return render(
+    <Routes>
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/reviews" element={<div data-testid="reviews-page" />} />
+      <Route path="/queries" element={<div data-testid="queries-page" />} />
+    </Routes>,
+    { wrapper },
+  );
 }
 
 describe('DashboardPage', () => {
@@ -173,17 +240,21 @@ describe('DashboardPage', () => {
     fetchDigest.mockResolvedValue(disabledDigest);
     setDigest.mockResolvedValue({ enabled: true, last_sent_at: null });
     listMine.mockResolvedValue(emptyMine);
+    listWorklist.mockResolvedValue(emptyWorklist);
+    listAccess.mockResolvedValue(emptyAccess);
+    listGroups.mockResolvedValue(emptyGroups);
     exportSummary.mockResolvedValue({ blob: new Blob(['x']), filename: 'dashboard-summary.pdf' });
     // jsdom lacks object-URL helpers used by the export download.
     URL.createObjectURL = vi.fn(() => 'blob:x');
     URL.revokeObjectURL = vi.fn();
     // Reset persisted widget prefs so all widgets show.
     localStorage.clear();
+    usePreferencesStore.getState().resetDashboardWidgets();
     // ADMIN sees every widget (role gating, AF-498).
     setRole('ADMIN');
   });
 
-  it('renders the summary counts and the four core widgets', async () => {
+  it('renders the summary counts and every widget for ADMIN', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
     expect(within(screen.getByTestId('dashboard-stat-pending')).getByText('3')).toBeInTheDocument();
@@ -198,6 +269,33 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-widget-pendingApiApprovals')).toBeInTheDocument();
     expect(within(screen.getByTestId('dashboard-stat-openApiRequests')).getByText('4')).toBeInTheDocument();
     expect(within(screen.getByTestId('dashboard-stat-pendingApiApprovals')).getByText('5')).toBeInTheDocument();
+    // Redesign additions (AF-498 redesign).
+    expect(screen.getByTestId('dashboard-widget-attestationsDue')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-myAccessRequests')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-myRequestGroups')).toBeInTheDocument();
+    // Bklit chart widgets.
+    expect(screen.getByTestId('dashboard-widget-riskMix')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-activityHeatmap')).toBeInTheDocument();
+  });
+
+  it('shows a sparkline on the open-queries tile when the trends window has activity', async () => {
+    fetchTrends.mockResolvedValue({
+      status_by_day: [{ date: '2026-08-10', status: 'EXECUTED', count: 3 }],
+      risk_by_day: [],
+    });
+    renderPage();
+    const openTile = await screen.findByTestId('dashboard-stat-open');
+    await waitFor(() =>
+      expect(within(openTile).getByTestId('bklit-line-chart')).toBeInTheDocument(),
+    );
+  });
+
+  it('renders the status breakdown inside the open-queries stat tile', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId('dashboard-stat-open')).toBeInTheDocument());
+    const openTile = screen.getByTestId('dashboard-stat-open');
+    expect(within(openTile).getByText('4')).toBeInTheDocument();
+    expect(within(openTile).getByText('3')).toBeInTheDocument();
   });
 
   it('hides widgets the role cannot use (ANALYST sees no pending-approvals or anomalies)', async () => {
@@ -217,6 +315,49 @@ describe('DashboardPage', () => {
     expect(screen.queryByTestId('dashboard-widget-pendingApiApprovals')).not.toBeInTheDocument();
     expect(screen.getByTestId('dashboard-stat-openApiRequests')).toBeInTheDocument();
     expect(screen.queryByTestId('dashboard-stat-pendingApiApprovals')).not.toBeInTheDocument();
+    // Attestation worklist needs ATTESTATION_REVIEW; the self-scoped lists follow submit rights.
+    expect(screen.queryByTestId('dashboard-widget-attestationsDue')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-myAccessRequests')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-myRequestGroups')).toBeInTheDocument();
+  });
+
+  it('navigates to the reviews queue from the pending-approvals stat tile', async () => {
+    renderPage();
+    const tile = await screen.findByTestId('dashboard-stat-pending');
+    fireEvent.click(tile);
+    await waitFor(() => expect(screen.getByTestId('reviews-page')).toBeInTheDocument());
+  });
+
+  it('navigates via keyboard from a stat tile', async () => {
+    renderPage();
+    const tile = await screen.findByTestId('dashboard-stat-open');
+    fireEvent.keyDown(tile, { key: 'Enter' });
+    await waitFor(() => expect(screen.getByTestId('queries-page')).toBeInTheDocument());
+  });
+
+  it('hides a widget from Customize and restores it with Reset layout', async () => {
+    renderPage();
+    await screen.findByTestId('dashboard-widget-trends');
+    fireEvent.click(screen.getByRole('button', { name: /customize/i }));
+    const menu = await screen.findByRole('menu');
+    fireEvent.click(within(menu).getByText('Query trends'));
+    await waitFor(() =>
+      expect(screen.queryByTestId('dashboard-widget-trends')).not.toBeInTheDocument(),
+    );
+    // The menu stays open for further toggles; Reset layout restores the defaults.
+    fireEvent.click(within(menu).getByText(/reset layout/i));
+    await waitFor(() => expect(screen.getByTestId('dashboard-widget-trends')).toBeInTheDocument());
+  });
+
+  it('toggles the widget size preference from the card header', async () => {
+    renderPage();
+    await screen.findByTestId('dashboard-widget-trends');
+    const widen = within(screen.getByTestId('dashboard-widget-trends')).getByRole('button', {
+      name: /widen/i,
+    });
+    fireEvent.click(widen);
+    expect(usePreferencesStore.getState().dashboardWidgets.size.trends).toBe('full');
+    expect(screen.getByTestId('dashboard-widget-trends')).toHaveClass('af-widget--full');
   });
 
   it('toggles the weekly digest opt-in', async () => {
@@ -235,5 +376,18 @@ describe('DashboardPage', () => {
     const pdfItem = await screen.findByText(/export as pdf/i);
     fireEvent.click(pdfItem);
     await waitFor(() => expect(exportSummary).toHaveBeenCalledWith('PDF'));
+  });
+
+  it('shows an error block with retry when the summary fails', async () => {
+    fetchSummary.mockRejectedValue(new Error('boom'));
+    renderPage();
+    const alerts = await screen.findAllByRole('alert');
+    expect(alerts.length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('dashboard-stat-pending')).not.toBeInTheDocument();
+    fetchSummary.mockResolvedValue(summary());
+    const retry = screen.getAllByRole('button', { name: /retry/i });
+    expect(retry.length).toBeGreaterThan(0);
+    fireEvent.click(retry[0]!);
+    await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
   });
 });

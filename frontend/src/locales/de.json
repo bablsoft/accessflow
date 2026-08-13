@@ -3045,7 +3045,12 @@
       "anomalies": "Anomaliewarnungen",
       "recentApiRequests": "Meine letzten API-Anfragen",
       "apiRequestTrends": "Trends der API-Anfragen",
-      "pendingApiApprovals": "Ausstehende API-Genehmigungen"
+      "pendingApiApprovals": "Ausstehende API-Genehmigungen",
+      "attestationsDue": "Fällige Attestierungen",
+      "myAccessRequests": "Meine Zugriffsanfragen",
+      "myRequestGroups": "Meine Anfragegruppen",
+      "riskMix": "Risikoverteilung",
+      "activityHeatmap": "Aktivitäts-Heatmap"
     },
     "pending": {
       "empty": "Nichts wartet auf Ihre Prüfung",
@@ -3060,7 +3065,14 @@
       "status_title": "Abfragen nach Status",
       "risk_title": "Abfragen nach Risikostufe",
       "axis_date": "Datum",
-      "axis_count": "Abfragen"
+      "axis_count": "Abfragen",
+      "metric_status": "Nach Status",
+      "metric_risk": "Nach Risiko",
+      "range_7d": "7 T",
+      "range_30d": "30 T",
+      "range_90d": "90 T",
+      "window": "{{from}} – {{to}}",
+      "loading": "Aktivität wird geladen…"
     },
     "suggestions": {
       "empty": "Derzeit keine Optimierungsvorschläge",
@@ -3086,6 +3098,36 @@
       "empty": "Keine API-Anfrageaktivität in diesem Zeitraum",
       "status_title": "API-Anfragen nach Status",
       "risk_title": "API-Anfragen nach Risikostufe"
+    },
+    "view_all": "Alle anzeigen",
+    "reset_layout": "Layout zurücksetzen",
+    "widen": "Widget {{title}} verbreitern",
+    "narrow": "Widget {{title}} verschmälern",
+    "error_title": "Laden fehlgeschlagen",
+    "retry": "Erneut versuchen",
+    "digest_last_sent": "Zuletzt gesendet: {{time}}",
+    "digest_never_sent": "Noch nicht gesendet",
+    "stat_open": "{{label}} öffnen",
+    "attestations": {
+      "empty": "Keine Attestierungen warten auf Ihre Entscheidung",
+      "expires": "Läuft ab: {{date}}"
+    },
+    "access_requests": {
+      "empty": "Sie haben noch keinen Zugriff angefragt",
+      "expires": "Läuft ab: {{date}}"
+    },
+    "request_groups": {
+      "empty": "Sie haben noch keine Anfragegruppen",
+      "item_count_one": "{{count}} Schritt",
+      "item_count_other": "{{count}} Schritte",
+      "view": "Anzeigen"
+    },
+    "risk_mix": {
+      "empty": "Keine analysierten Abfragen in diesem Zeitraum",
+      "total": "analysiert"
+    },
+    "activity": {
+      "empty": "Keine Abfrageaktivität in den letzten 90 Tagen"
     }
   },
   "attestation": {

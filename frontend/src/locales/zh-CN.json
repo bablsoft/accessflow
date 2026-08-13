@@ -3045,7 +3045,12 @@
       "anomalies": "异常告警",
       "recentApiRequests": "我最近的 API 请求",
       "apiRequestTrends": "API 请求趋势",
-      "pendingApiApprovals": "待审批的 API 请求"
+      "pendingApiApprovals": "待审批的 API 请求",
+      "attestationsDue": "待处理认证",
+      "myAccessRequests": "我的访问申请",
+      "myRequestGroups": "我的请求组",
+      "riskMix": "风险分布",
+      "activityHeatmap": "活动热图"
     },
     "pending": {
       "empty": "没有等待您审核的内容",
@@ -3060,7 +3065,14 @@
       "status_title": "按状态分类的查询",
       "risk_title": "按风险级别分类的查询",
       "axis_date": "日期",
-      "axis_count": "查询数"
+      "axis_count": "查询数",
+      "metric_status": "按状态",
+      "metric_risk": "按风险",
+      "range_7d": "7 天",
+      "range_30d": "30 天",
+      "range_90d": "90 天",
+      "window": "{{from}} – {{to}}",
+      "loading": "正在加载活动…"
     },
     "suggestions": {
       "empty": "目前没有优化建议",
@@ -3086,6 +3098,36 @@
       "empty": "此期间没有 API 请求活动",
       "status_title": "按状态分类的 API 请求",
       "risk_title": "按风险级别分类的 API 请求"
+    },
+    "view_all": "查看全部",
+    "reset_layout": "重置布局",
+    "widen": "加宽 {{title}} 小组件",
+    "narrow": "缩窄 {{title}} 小组件",
+    "error_title": "加载失败",
+    "retry": "重试",
+    "digest_last_sent": "上次发送:{{time}}",
+    "digest_never_sent": "尚未发送",
+    "stat_open": "打开{{label}}",
+    "attestations": {
+      "empty": "没有等待您决定的认证项",
+      "expires": "到期:{{date}}"
+    },
+    "access_requests": {
+      "empty": "您还没有访问申请",
+      "expires": "到期:{{date}}"
+    },
+    "request_groups": {
+      "empty": "您还没有请求组",
+      "item_count_one": "{{count}} 个步骤",
+      "item_count_other": "{{count}} 个步骤",
+      "view": "查看"
+    },
+    "risk_mix": {
+      "empty": "该时段没有已分析的查询",
+      "total": "已分析"
+    },
+    "activity": {
+      "empty": "过去 90 天没有查询活动"
     }
   },
   "attestation": {

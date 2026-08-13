@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fmtDate, fmtNum, msSince, timeAgo } from '../dateFormat';
+import { fmtDate, fmtDateOnly, fmtNum, msSince, timeAgo } from '../dateFormat';
 
 const FIXED_NOW = new Date('2026-05-04T10:30:00Z').getTime();
 
@@ -52,6 +52,19 @@ describe('fmtNum', () => {
 
   it('handles zero', () => {
     expect(fmtNum(0)).toBe('0');
+  });
+});
+
+describe('fmtDateOnly', () => {
+  it('formats the date without a time component', () => {
+    const formatted = fmtDateOnly('2026-08-12T17:29:00Z');
+    expect(formatted).toMatch(/Aug \d{1,2}, 2026/);
+    expect(formatted).not.toMatch(/\d{2}:\d{2}/);
+  });
+
+  it('renders UTC-anchored instants on their UTC day when utc is set', () => {
+    // 1ms before a UTC midnight — local rendering could show the next day.
+    expect(fmtDateOnly('2026-08-12T23:59:59.999Z', { utc: true })).toBe('Aug 12, 2026');
   });
 });
 

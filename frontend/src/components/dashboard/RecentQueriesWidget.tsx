@@ -1,8 +1,7 @@
-import { List, Skeleton } from 'antd';
 import { UnorderedListOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { EmptyState } from '@/components/common/EmptyState';
+import { ActivityList } from '@/components/dashboard/ActivityList';
 import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
@@ -12,36 +11,26 @@ import type { DashboardRecentQuery } from '@/types/api';
 interface Props {
   items: DashboardRecentQuery[];
   loading: boolean;
+  error?: unknown;
+  onRetry?: () => void;
 }
 
 /** The current user's most recent query submissions, with status + risk (AF-498). */
-export function RecentQueriesWidget({ items, loading }: Props) {
+export function RecentQueriesWidget({ items, loading, error, onRetry }: Props) {
   const { t } = useTranslation();
-  if (loading) {
-    return <Skeleton active paragraph={{ rows: 3 }} />;
-  }
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        icon={<UnorderedListOutlined style={{ fontSize: 20 }} />}
-        title={t('dashboard.recent.empty')}
-      />
-    );
-  }
   return (
-    <List
-      size="small"
-      dataSource={items}
+    <ActivityList
+      items={items}
+      loading={loading}
+      error={error}
+      onRetry={onRetry}
+      emptyIcon={<UnorderedListOutlined style={{ fontSize: 16 }} />}
+      emptyTitle={t('dashboard.recent.empty')}
       rowKey={(it) => it.id}
-      renderItem={(it) => (
-        <List.Item
-          actions={[
-            <Link key="open" to={`/queries/${it.id}`}>
-              {t('dashboard.recent.view')}
-            </Link>,
-          ]}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      viewAllTo="/queries"
+      renderRow={(it) => ({
+        pills: (
+          <>
             <QueryTypePill type={it.query_type} size="sm" />
             <StatusPill status={it.status} size="sm" />
             <RiskPill
@@ -50,13 +39,12 @@ export function RecentQueriesWidget({ items, loading }: Props) {
               failed={it.ai_failed}
               size="sm"
             />
-            <span style={{ fontWeight: 500 }}>{it.datasource_name ?? '—'}</span>
-            <span className="muted" style={{ fontSize: 12 }}>
-              {timeAgo(it.created_at)}
-            </span>
-          </div>
-        </List.Item>
-      )}
+          </>
+        ),
+        primary: <span style={{ fontWeight: 500 }}>{it.datasource_name ?? '—'}</span>,
+        meta: timeAgo(it.created_at),
+        action: <Link to={`/queries/${it.id}`}>{t('dashboard.recent.view')}</Link>,
+      })}
     />
   );
 }
