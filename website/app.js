@@ -206,6 +206,7 @@
       'compliance-reports': '/docs/configuration/audit-compliance/',
       'cfg-oauth': '/docs/configuration/auth/',
       'cfg-saml': '/docs/configuration/auth/',
+      'cfg-scim': '/docs/configuration/auth/',
       'cfg-api-connectors': '/docs/configuration/connectors/',
       'cfg-connectors': '/docs/configuration/connectors/',
       'cfg-data-classifications': '/docs/configuration/datasources/',

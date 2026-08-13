@@ -357,6 +357,40 @@ describe('api/admin', () => {
     expect(put).toHaveBeenCalledWith('/api/v1/admin/saml-config', { active: true });
   });
 
+  // ── SCIM config + tokens (#621) ───────────────────────────────────────────
+  it('getScimConfig GETs /admin/scim-config', async () => {
+    get.mockResolvedValueOnce({ data: { enabled: false } });
+    await adminApi.getScimConfig();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/scim-config');
+  });
+
+  it('updateScimConfig PUTs the body', async () => {
+    put.mockResolvedValueOnce({ data: { enabled: true } });
+    await adminApi.updateScimConfig({ enabled: true, attr_email: 'userName' });
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/scim-config', {
+      enabled: true,
+      attr_email: 'userName',
+    });
+  });
+
+  it('listScimTokens GETs /admin/scim/tokens', async () => {
+    get.mockResolvedValueOnce({ data: [] });
+    await adminApi.listScimTokens();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/scim/tokens');
+  });
+
+  it('createScimToken POSTs the name', async () => {
+    post.mockResolvedValueOnce({ data: { raw_token: 'af_scim_x' } });
+    await adminApi.createScimToken({ name: 'okta-prod' });
+    expect(post).toHaveBeenCalledWith('/api/v1/admin/scim/tokens', { name: 'okta-prod' });
+  });
+
+  it('revokeScimToken DELETEs by id', async () => {
+    del.mockResolvedValueOnce({});
+    await adminApi.revokeScimToken('token-1');
+    expect(del).toHaveBeenCalledWith('/api/v1/admin/scim/tokens/token-1');
+  });
+
   // ── Langfuse config ───────────────────────────────────────────────────────
   it('getLangfuseConfig GETs /admin/langfuse-config', async () => {
     get.mockResolvedValueOnce({ data: { enabled: false } });

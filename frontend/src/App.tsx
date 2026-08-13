@@ -9,6 +9,7 @@ import { LoginPage } from '@/pages/auth/LoginPage';
 import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
 const SamlCallbackPage = lazy(() => import('@/pages/auth/SamlCallbackPage'));
+const ScimConfigPage = lazy(() => import('@/pages/admin/ScimConfigPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
@@ -586,6 +587,16 @@ export function App() {
             element={
               <AuthGuard requirePermission={'SSO_CONFIGURE'}>
                 <SamlConfigPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/scim"
+            element={
+              <AuthGuard requirePermission={'SSO_CONFIGURE'}>
+                <Suspense fallback={null}>
+                  <ScimConfigPage />
+                </Suspense>
               </AuthGuard>
             }
           />

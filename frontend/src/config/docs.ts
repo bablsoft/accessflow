@@ -39,6 +39,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-langfuse': 'configuration/ai/',
   'cfg-oauth': 'configuration/auth/',
   'cfg-saml': 'configuration/auth/',
+  'cfg-scim': 'configuration/auth/',
   'cfg-notification-channels': 'configuration/notifications/',
   'cfg-slack': 'configuration/notifications/',
   'cfg-smtp': 'configuration/notifications/',
