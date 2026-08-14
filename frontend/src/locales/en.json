@@ -1423,7 +1423,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2230,7 +2231,8 @@
       "save": "Update password",
       "saved": "Password updated. You'll be signed out of other sessions.",
       "saml_disabled": "Password is managed by your SAML identity provider.",
-      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings."
+      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings.",
+      "scim_disabled": "Password is managed by your identity provider over SCIM."
     },
     "totp": {
       "title": "Two-factor authentication",
@@ -2241,6 +2243,7 @@
       "disable": "Disable 2FA",
       "saml_disabled": "Two-factor authentication is managed by your SAML identity provider.",
       "oauth2_disabled": "Two-factor authentication is managed by your OAuth provider. Enable it in that provider's account settings.",
+      "scim_disabled": "Two-factor authentication is managed by your identity provider.",
       "enroll_title": "Enable two-factor authentication",
       "step_scan": "Scan the QR code",
       "step_scan_help": "Open Google Authenticator, 1Password, or any TOTP app and scan this code.",

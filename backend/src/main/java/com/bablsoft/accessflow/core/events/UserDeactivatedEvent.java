@@ -7,8 +7,9 @@ import java.util.UUID;
  * initiating path (admin API update/delete, SCIM deprovisioning). Not published when deactivating
  * an already-inactive user.
  *
- * <p>Consumers own the deactivation side-effects: the security module revokes all refresh tokens,
- * the access module revokes the user's active JIT grants.
+ * <p>Refresh-token revocation happens synchronously at the publishing service (a failed
+ * revocation must surface to the caller); listeners own the remaining side-effects — the access
+ * module revokes the user's active JIT grants.
  */
 public record UserDeactivatedEvent(UUID userId, UUID organizationId) {
 }

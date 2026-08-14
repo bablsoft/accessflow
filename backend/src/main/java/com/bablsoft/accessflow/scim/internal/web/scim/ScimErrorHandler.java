@@ -8,8 +8,10 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Renders every {@code /scim/v2/**} failure as the SCIM error envelope (#621) — never RFC 9457
@@ -27,6 +29,22 @@ class ScimErrorHandler {
         return ResponseEntity.status(ex.status())
                 .contentType(ScimMediaTypes.SCIM_JSON)
                 .body(ScimError.of(ex.status(), ex.scimType(), ex.getMessage()));
+    }
+
+    /** Malformed JSON from the IdP — RFC 7644 wants 400 invalidSyntax, never a 500. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ScimError> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .contentType(ScimMediaTypes.SCIM_JSON)
+                .body(ScimError.of(400, "invalidSyntax", "Malformed request body"));
+    }
+
+    /** A non-UUID {id} path segment — the resource cannot exist. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ScimError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .contentType(ScimMediaTypes.SCIM_JSON)
+                .body(ScimError.of(400, "invalidValue", "Invalid resource id"));
     }
 
     @ExceptionHandler(QuotaExceededException.class)

@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.ExternalIdAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QuotaType;
+import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.UpdateExternalUserCommand;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -47,6 +48,7 @@ class DefaultExternalUserDirectoryServiceTest {
     @Mock RoleRepository roleRepository;
     @Mock QuotaService quotaService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock SessionRevocationService sessionRevocationService;
 
     DefaultExternalUserDirectoryService service;
 
@@ -56,7 +58,7 @@ class DefaultExternalUserDirectoryServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultExternalUserDirectoryService(userRepository, organizationRepository,
-                roleRepository, quotaService, eventPublisher);
+                roleRepository, quotaService, eventPublisher, sessionRevocationService);
         lenient().when(roleRepository.findByNameAndSystemTrue(any())).thenReturn(Optional.empty());
     }
 
@@ -125,6 +127,7 @@ class DefaultExternalUserDirectoryServiceTest {
 
         assertThat(entity.isActive()).isFalse();
         verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+        verify(sessionRevocationService).revokeAllSessions(userId);
     }
 
     @Test
@@ -137,6 +140,7 @@ class DefaultExternalUserDirectoryServiceTest {
                 new UpdateExternalUserCommand(null, null, null, false));
 
         verify(eventPublisher, never()).publishEvent(any());
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
     }
 
     @Test

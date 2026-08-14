@@ -2007,7 +2007,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2230,7 +2231,8 @@
       "save": "Actualizar contraseña",
       "saved": "Contraseña actualizada. Se cerrará la sesión en otros dispositivos.",
       "saml_disabled": "La contraseña la gestiona tu proveedor de identidad SAML.",
-      "oauth2_disabled": "La contraseña la gestiona tu proveedor OAuth. Actualízala en la configuración de cuenta de ese proveedor."
+      "oauth2_disabled": "La contraseña la gestiona tu proveedor OAuth. Actualízala en la configuración de cuenta de ese proveedor.",
+      "scim_disabled": "La contraseña la gestiona su proveedor de identidad mediante SCIM."
     },
     "totp": {
       "title": "Autenticación en dos pasos",
@@ -2241,6 +2243,7 @@
       "disable": "Desactivar 2FA",
       "saml_disabled": "La autenticación en dos pasos la gestiona tu proveedor de identidad SAML.",
       "oauth2_disabled": "La autenticación en dos pasos la gestiona tu proveedor OAuth. Actívala en la configuración de cuenta de ese proveedor.",
+      "scim_disabled": "La autenticación de dos factores la gestiona su proveedor de identidad.",
       "enroll_title": "Activar la autenticación en dos pasos",
       "step_scan": "Escanea el código QR",
       "step_scan_help": "Abre Google Authenticator, 1Password o cualquier aplicación TOTP y escanea este código.",

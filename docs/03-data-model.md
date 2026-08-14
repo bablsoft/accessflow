@@ -603,7 +603,7 @@ Composite-key join table that bundles users into groups.
 | `source` | ENUM: `MANUAL` \| `IDP` \| `SCIM` — `IDP` rows are owned by the OAuth2 / SAML login sync flow; `MANUAL` rows are owned by admins via the API; `SCIM` rows (V140, #621) are owned by the IdP's SCIM provisioning engine |
 | `joined_at` | TIMESTAMPTZ |
 
-The SSO group-sync flow replaces only `source = 'IDP'` rows per user on each login; SCIM member operations touch only `source = 'SCIM'` rows. Each of the three sources is blind to the other two — first source wins on membership, so no path can wipe or duplicate another's rows.
+The SSO group-sync flow replaces only `source = 'IDP'` rows per user on each login; SCIM member operations touch only `source = 'SCIM'` rows. The **automated sync paths** are blind to each other — first source wins on membership, so neither sync can wipe or duplicate the other's rows (or MANUAL ones). The admin remove-member API is deliberately source-agnostic: an admin can remove any membership, including IDP/SCIM-owned rows (the owning sync will re-add it on its next push if the IdP still asserts it).
 
 ---
 

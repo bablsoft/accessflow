@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ExternalIdAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.ExternalUserDirectoryService;
 import com.bablsoft.accessflow.core.api.QuotaService;
+import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.UpdateExternalUserCommand;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -22,6 +23,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,6 +39,7 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
     private final RoleRepository roleRepository;
     private final QuotaService quotaService;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessionRevocationService sessionRevocationService;
 
     @Override
     @Transactional
@@ -96,6 +99,9 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
         if (command.active() != null) {
             applyActive(entity, organizationId, command.active());
         }
+        // The @PreUpdate bump only runs at flush — stamp updatedAt now so the returned view
+        // (and the SCIM meta.lastModified built from it) reflects this write.
+        entity.setUpdatedAt(Instant.now());
         return UserViews.toView(entity);
     }
 
@@ -141,6 +147,9 @@ class DefaultExternalUserDirectoryService implements ExternalUserDirectoryServic
             return;
         }
         entity.setActive(false);
+        // Refresh tokens are revoked synchronously (a failed revocation must surface); the
+        // event fans the remaining side-effects (JIT-grant revocation) out to listeners.
+        sessionRevocationService.revokeAllSessions(entity.getId());
         eventPublisher.publishEvent(new UserDeactivatedEvent(entity.getId(), organizationId));
     }
 

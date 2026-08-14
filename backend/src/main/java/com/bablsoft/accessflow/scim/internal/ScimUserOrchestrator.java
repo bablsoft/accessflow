@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.scim.api.ScimConfigView;
 import com.bablsoft.accessflow.scim.api.ScimPrincipal;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimEmail;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimFilter;
+import com.bablsoft.accessflow.scim.internal.protocol.ScimFilterParser;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimInvalidFilterException;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimInvalidPathException;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimInvalidValueException;
@@ -25,6 +26,7 @@ import com.bablsoft.accessflow.scim.internal.protocol.ScimUniquenessException;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimUserResource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import java.util.List;
@@ -50,8 +52,7 @@ public class ScimUserOrchestrator {
         var config = configService.get(principal.organizationId());
         var normalizedStart = Math.max(1, startIndex);
         var normalizedCount = Math.clamp(count, 1, 200);
-        var filter = com.bablsoft.accessflow.scim.internal.protocol.ScimFilterParser
-                .parse(filterExpression);
+        var filter = ScimFilterParser.parse(filterExpression);
         if (filter == null) {
             var page = directory.list(principal.organizationId(), normalizedStart - 1,
                     normalizedCount);
@@ -63,6 +64,7 @@ public class ScimUserOrchestrator {
                 match == null ? List.of() : List.of(toResource(match, config, baseUrl)));
     }
 
+    @Transactional
     public ScimUserResource create(ScimPrincipal principal, ScimUserResource resource, String baseUrl) {
         var config = configService.get(principal.organizationId());
         var email = extractEmail(resource, config);
@@ -93,6 +95,7 @@ public class ScimUserOrchestrator {
     }
 
     /** PUT — full replace of the SCIM-owned attributes only. */
+    @Transactional
     public ScimUserWriteResult replace(ScimPrincipal principal, UUID id, ScimUserResource resource,
                                 String baseUrl) {
         var config = configService.get(principal.organizationId());
@@ -110,6 +113,7 @@ public class ScimUserOrchestrator {
         return apply(principal, existing, command, config, baseUrl);
     }
 
+    @Transactional
     public ScimUserWriteResult patch(ScimPrincipal principal, UUID id, ScimPatchRequest patch,
                               String baseUrl) {
         var config = configService.get(principal.organizationId());
@@ -165,6 +169,7 @@ public class ScimUserOrchestrator {
     }
 
     /** DELETE — AccessFlow never hard-deletes users; this deactivates (idempotently). */
+    @Transactional
     public boolean delete(ScimPrincipal principal, UUID id) {
         var existing = loadOrThrow(principal, id);
         if (!existing.active()) {

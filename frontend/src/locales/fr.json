@@ -2007,7 +2007,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2230,7 +2231,8 @@
       "save": "Mettre à jour le mot de passe",
       "saved": "Mot de passe mis à jour. Vos autres sessions seront déconnectées.",
       "saml_disabled": "Votre mot de passe est géré par votre fournisseur d'identité SAML.",
-      "oauth2_disabled": "Votre mot de passe est géré par votre fournisseur OAuth. Mettez-le à jour dans les paramètres du compte chez ce fournisseur."
+      "oauth2_disabled": "Votre mot de passe est géré par votre fournisseur OAuth. Mettez-le à jour dans les paramètres du compte chez ce fournisseur.",
+      "scim_disabled": "Le mot de passe est géré par votre fournisseur d’identité via SCIM."
     },
     "totp": {
       "title": "Authentification à deux facteurs",
@@ -2241,6 +2243,7 @@
       "disable": "Désactiver la 2FA",
       "saml_disabled": "L'authentification à deux facteurs est gérée par votre fournisseur d'identité SAML.",
       "oauth2_disabled": "L'authentification à deux facteurs est gérée par votre fournisseur OAuth. Activez-la dans les paramètres du compte chez ce fournisseur.",
+      "scim_disabled": "L’authentification à deux facteurs est gérée par votre fournisseur d’identité.",
       "enroll_title": "Activer l'authentification à deux facteurs",
       "step_scan": "Scannez le code QR",
       "step_scan_help": "Ouvrez Google Authenticator, 1Password ou toute application TOTP et scannez ce code.",

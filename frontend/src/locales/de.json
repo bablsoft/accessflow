@@ -2007,7 +2007,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2230,7 +2231,8 @@
       "save": "Passwort aktualisieren",
       "saved": "Passwort aktualisiert. Andere Sitzungen werden abgemeldet.",
       "saml_disabled": "Das Passwort wird von deinem SAML-Identitätsanbieter verwaltet.",
-      "oauth2_disabled": "Das Passwort wird von deinem OAuth-Anbieter verwaltet. Aktualisiere es in den Kontoeinstellungen dieses Anbieters."
+      "oauth2_disabled": "Das Passwort wird von deinem OAuth-Anbieter verwaltet. Aktualisiere es in den Kontoeinstellungen dieses Anbieters.",
+      "scim_disabled": "Das Passwort wird von Ihrem Identity Provider über SCIM verwaltet."
     },
     "totp": {
       "title": "Zwei-Faktor-Authentifizierung",
@@ -2241,6 +2243,7 @@
       "disable": "2FA deaktivieren",
       "saml_disabled": "Die Zwei-Faktor-Authentifizierung wird von deinem SAML-Identitätsanbieter verwaltet.",
       "oauth2_disabled": "Die Zwei-Faktor-Authentifizierung wird von deinem OAuth-Anbieter verwaltet. Aktiviere sie in den Kontoeinstellungen dieses Anbieters.",
+      "scim_disabled": "Die Zwei-Faktor-Authentifizierung wird von Ihrem Identity Provider verwaltet.",
       "enroll_title": "Zwei-Faktor-Authentifizierung aktivieren",
       "step_scan": "QR-Code scannen",
       "step_scan_help": "Öffne Google Authenticator, 1Password oder eine andere TOTP-App und scanne diesen Code.",

@@ -23,8 +23,6 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     long countByOrganization_IdAndActiveTrue(UUID organizationId);
 
-    long countByOrganization_Id(UUID organizationId);
-
     Optional<UserEntity> findByOrganization_IdAndId(UUID organizationId, UUID id);
 
     Optional<UserEntity> findByOrganization_IdAndEmail(UUID organizationId, String email);

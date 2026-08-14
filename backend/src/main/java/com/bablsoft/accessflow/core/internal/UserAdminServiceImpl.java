@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.RoleNotFoundException;
+import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
@@ -48,6 +49,7 @@ class UserAdminServiceImpl implements UserAdminService {
     private final QuotaService quotaService;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final SessionRevocationService sessionRevocationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -105,8 +107,7 @@ class UserAdminServiceImpl implements UserAdminService {
             var wasActive = entity.isActive();
             entity.setActive(command.active());
             if (wasActive && !command.active()) {
-                eventPublisher.publishEvent(
-                        new UserDeactivatedEvent(entity.getId(), organizationId));
+                onDeactivated(entity.getId(), organizationId);
             }
         }
         if (command.displayName() != null) {
@@ -134,7 +135,7 @@ class UserAdminServiceImpl implements UserAdminService {
         var entity = loadInOrganization(id, organizationId);
         if (entity.isActive()) {
             entity.setActive(false);
-            eventPublisher.publishEvent(new UserDeactivatedEvent(entity.getId(), organizationId));
+            onDeactivated(entity.getId(), organizationId);
         }
         return toView(entity);
     }
@@ -160,6 +161,16 @@ class UserAdminServiceImpl implements UserAdminService {
                         this::toView,
                         (a, b) -> a,
                         LinkedHashMap::new));
+    }
+
+    /**
+     * Refresh tokens are revoked synchronously (a failed revocation must surface to the caller,
+     * and the in-memory event channel is fire-and-forget); the event fans the remaining
+     * side-effects (JIT-grant revocation) out to listeners.
+     */
+    private void onDeactivated(UUID userId, UUID organizationId) {
+        sessionRevocationService.revokeAllSessions(userId);
+        eventPublisher.publishEvent(new UserDeactivatedEvent(userId, organizationId));
     }
 
     /**

@@ -23,6 +23,7 @@ import com.bablsoft.accessflow.scim.internal.protocol.ScimSchemas;
 import com.bablsoft.accessflow.scim.internal.protocol.ScimUniquenessException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 
 import java.util.ArrayList;
@@ -79,6 +80,7 @@ public class ScimGroupOrchestrator {
                 normalizedStart, window.size(), window);
     }
 
+    @Transactional
     public ScimGroupResource create(ScimPrincipal principal, ScimGroupResource resource, String baseUrl) {
         if (resource.displayName() == null || resource.displayName().isBlank()) {
             throw new ScimInvalidValueException("Missing required attribute: displayName");
@@ -111,6 +113,7 @@ public class ScimGroupOrchestrator {
     }
 
     /** PUT — replaces displayName/externalId and the SCIM-sourced member set. */
+    @Transactional
     public ScimGroupResource replace(ScimPrincipal principal, UUID id, ScimGroupResource resource,
                               String baseUrl) {
         requireExists(principal, id);
@@ -137,6 +140,7 @@ public class ScimGroupOrchestrator {
         return get(principal, id, baseUrl);
     }
 
+    @Transactional
     public ScimGroupResource patch(ScimPrincipal principal, UUID id, ScimPatchRequest patch,
                             String baseUrl) {
         requireExists(principal, id);
@@ -172,6 +176,7 @@ public class ScimGroupOrchestrator {
     }
 
     /** @return the deleted group's view — the controller audits its name and member count. */
+    @Transactional
     public UserGroupView delete(ScimPrincipal principal, UUID id) {
         try {
             var group = userGroupService.getGroup(id, principal.organizationId());

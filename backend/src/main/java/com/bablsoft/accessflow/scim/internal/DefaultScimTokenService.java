@@ -61,8 +61,13 @@ class DefaultScimTokenService implements ScimTokenService {
         }
     }
 
+    /**
+     * Deliberately NOT {@code @Transactional}: with a managed entity the last-used bump would
+     * flush at commit, outside the try/catch, and a failure there would escape as an unhandled
+     * exception from the auth filter. Detached read + explicit save keeps the bump truly
+     * best-effort.
+     */
     @Override
-    @Transactional
     public Optional<ScimPrincipal> authenticate(String rawToken) {
         if (!ScimTokenHasher.hasExpectedShape(rawToken)) {
             return Optional.empty();

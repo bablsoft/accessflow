@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QuotaType;
+import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserNotFoundException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -48,6 +49,7 @@ class UserAdminServiceImplTest {
     @Mock RolePermissionRepository rolePermissionRepository;
     @Mock QuotaService quotaService;
     @Mock ApplicationEventPublisher eventPublisher;
+    @Mock SessionRevocationService sessionRevocationService;
     UserAdminServiceImpl service;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -59,7 +61,8 @@ class UserAdminServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new UserAdminServiceImpl(userRepository, organizationRepository, roleRepository,
-                rolePermissionRepository, quotaService, objectMapper, eventPublisher);
+                rolePermissionRepository, quotaService, objectMapper, eventPublisher,
+                sessionRevocationService);
         // System-role row missing → the service keeps the legacy enum-column behaviour.
         lenient().when(roleRepository.findByNameAndSystemTrue(any())).thenReturn(Optional.empty());
     }
@@ -216,6 +219,7 @@ class UserAdminServiceImplTest {
         service.deactivateUser(userId, orgId, adminId);
 
         verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+        verify(sessionRevocationService).revokeAllSessions(userId);
     }
 
     @Test
@@ -228,6 +232,7 @@ class UserAdminServiceImplTest {
 
         assertThat(result.active()).isFalse();
         verify(eventPublisher, never()).publishEvent(any());
+        verify(sessionRevocationService, never()).revokeAllSessions(any());
     }
 
     @Test
@@ -238,6 +243,7 @@ class UserAdminServiceImplTest {
         service.updateUser(userId, orgId, adminId, new UpdateUserCommand(null, false, null, null));
 
         verify(eventPublisher).publishEvent(new UserDeactivatedEvent(userId, orgId));
+        verify(sessionRevocationService).revokeAllSessions(userId);
     }
 
     @Test

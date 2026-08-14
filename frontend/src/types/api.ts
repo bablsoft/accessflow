@@ -2162,7 +2162,7 @@ export interface ReplicaHealth {
 export type DatasourceHealthPage = PageEnvelope<DatasourceHealth>;
 
 // ── User groups (AF-353) ─────────────────────────────────────────────────────
-export type GroupMembershipSource = 'MANUAL' | 'IDP';
+export type GroupMembershipSource = 'MANUAL' | 'IDP' | 'SCIM';
 
 export interface UserGroup {
   id: string;

@@ -33,6 +33,7 @@ import type { GroupMembershipSource, UserGroupMember } from '@/types/api';
 const SOURCE_TAG_COLOR: Record<GroupMembershipSource, string> = {
   MANUAL: 'blue',
   IDP: 'gold',
+  SCIM: 'purple',
 };
 
 export function GroupDetailPage() {
