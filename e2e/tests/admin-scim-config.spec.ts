@@ -162,7 +162,9 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     await expect(
       issuedDialog.getByText('Copy this token now — it will not be shown again.'),
     ).toBeVisible();
-    await issuedDialog.getByRole('button', { name: 'Close' }).click();
+    // Two buttons in the dialog have the accessible name "Close": AntD's X icon
+    // (aria-label="Close", first in DOM) and the footer button — target the latter.
+    await issuedDialog.getByRole('button', { name: 'Close' }).last().click();
 
     // The token row lists only the prefix, never the raw value.
     await expect(page.getByText(TOKEN_NAME, { exact: true })).toBeVisible();
