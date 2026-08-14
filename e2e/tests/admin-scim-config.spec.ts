@@ -165,9 +165,14 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     // Two buttons in the dialog have the accessible name "Close": AntD's X icon
     // (aria-label="Close", first in DOM) and the footer button — target the latter.
     await issuedDialog.getByRole('button', { name: 'Close' }).last().click();
+    // AntD keeps the modal mounted through its close animation — wait for it to hide
+    // so the token name below matches only the table row, not the modal's copy.
+    await expect(issuedDialog).toBeHidden();
 
     // The token row lists only the prefix, never the raw value.
-    await expect(page.getByText(TOKEN_NAME, { exact: true })).toBeVisible();
+    await expect(
+      page.getByLabel('Bearer tokens').getByText(TOKEN_NAME, { exact: true }),
+    ).toBeVisible();
 
     // The raw token authenticates against the SCIM discovery endpoint.
     const spConfig = await request.get(`${apiBase()}/scim/v2/ServiceProviderConfig`, {
