@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.RoleNotFoundException;
+import com.bablsoft.accessflow.core.api.SessionRevocationService;
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
@@ -20,8 +21,10 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RolePermissionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.RoleRepository;
+import com.bablsoft.accessflow.core.events.UserDeactivatedEvent;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
@@ -45,6 +48,8 @@ class UserAdminServiceImpl implements UserAdminService {
     private final RolePermissionRepository rolePermissionRepository;
     private final QuotaService quotaService;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
+    private final SessionRevocationService sessionRevocationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -99,7 +104,11 @@ class UserAdminServiceImpl implements UserAdminService {
             applyRole(entity, organizationId, command.role(), command.roleId());
         }
         if (command.active() != null) {
+            var wasActive = entity.isActive();
             entity.setActive(command.active());
+            if (wasActive && !command.active()) {
+                onDeactivated(entity.getId(), organizationId);
+            }
         }
         if (command.displayName() != null) {
             entity.setDisplayName(command.displayName());
@@ -124,7 +133,10 @@ class UserAdminServiceImpl implements UserAdminService {
                     "Admin users cannot deactivate themselves");
         }
         var entity = loadInOrganization(id, organizationId);
-        entity.setActive(false);
+        if (entity.isActive()) {
+            entity.setActive(false);
+            onDeactivated(entity.getId(), organizationId);
+        }
         return toView(entity);
     }
 
@@ -149,6 +161,16 @@ class UserAdminServiceImpl implements UserAdminService {
                         this::toView,
                         (a, b) -> a,
                         LinkedHashMap::new));
+    }
+
+    /**
+     * Refresh tokens are revoked synchronously (a failed revocation must surface to the caller,
+     * and the in-memory event channel is fire-and-forget); the event fans the remaining
+     * side-effects (JIT-grant revocation) out to listeners.
+     */
+    private void onDeactivated(UUID userId, UUID organizationId) {
+        sessionRevocationService.revokeAllSessions(userId);
+        eventPublisher.publishEvent(new UserDeactivatedEvent(userId, organizationId));
     }
 
     /**

@@ -27,10 +27,12 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 @SpringBootTest
@@ -228,7 +230,9 @@ class AdminUserControllerIntegrationTest {
         assertThat(result).hasStatus(204);
         var reloaded = userRepository.findById(analyst.getId()).orElseThrow();
         assertThat(reloaded.isActive()).isFalse();
-        assertThat(refreshTokenStore.isRevoked("rt-analyst")).isTrue();
+        // Revocation now runs in an async UserDeactivatedEvent listener (AFTER_COMMIT).
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(
+                () -> assertThat(refreshTokenStore.isRevoked("rt-analyst")).isTrue());
     }
 
     @Test

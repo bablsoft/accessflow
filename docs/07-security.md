@@ -170,6 +170,63 @@ API returns `"********"` whenever a secret is stored — the plaintext never lea
 `AiAnalyzerStrategyHolder`. Config changes take effect on the next authorize request — no
 application restart.
 
+### SCIM 2.0 provisioning (#621)
+
+Identity providers (Okta, Microsoft Entra ID, Keycloak, OneLogin) drive user and group
+lifecycle over `/scim/v2/Users` and `/scim/v2/Groups` — the joiner/mover/leaver follow-on to
+SSO. Implemented by the standalone `scim` module.
+
+- **Authentication.** A long-lived per-organization bearer token, never a JWT. Format
+  `af_scim_<32-byte base64url>`; only the SHA-256 hex hash and a 12-char display prefix are
+  stored (`scim_tokens.token_hash`, `token_prefix`), the plaintext is shown **once** on
+  creation (same reasoning as API keys: 256 bits of entropy make the unsalted hash safe to
+  look up per request). Multiple named tokens per org allow zero-downtime rotation; revocation
+  sets `revoked_at` and takes effect on the next request.
+- **Filter chain.** `/scim/v2/**` has its own `SecurityFilterChain` (`@Order(0)`, ahead of the
+  SAML/OAuth2/catch-all chains) with `ScimTokenAuthenticationFilter` and a dedicated entry
+  point that answers 401 in the SCIM error envelope
+  (`urn:ietf:params:scim:api:messages:2.0:Error`) — IdP provisioning engines do not parse
+  ProblemDetail. CSRF and CORS are disabled: SCIM is server-to-server, a browser never calls
+  it. The org is **derived from the token**, never from the request; every request re-checks
+  `scim_config.enabled` and the org-disabled kill-switch, exactly like the JWT and API-key
+  filters. The filter's `SCIM` authority never overlaps `PERM_*`/`ROLE_*`, so a SCIM token can
+  never reach a JWT-guarded endpoint.
+- **Write boundary.** SCIM owns exactly: the mapped email, display name, `externalId`,
+  `active`, and group memberships. It can never write roles, `platform_admin`, passwords, TOTP
+  settings, or row-security attributes — there is no role-escalation surface. User responses
+  never contain password-shaped fields (the wire records have none). SCIM-provisioned users
+  carry `auth_provider = SCIM` and a NULL password hash: local login is impossible and they
+  sign in through the org's SAML/OIDC SSO (whose email-match provisioning accepts non-LOCAL
+  rows without tripping the local-account takeover guard).
+- **Deactivation fan-out.** `active=false` (PATCH, PUT, or DELETE — AccessFlow never
+  hard-deletes users) flips `is_active` and publishes `core.events.UserDeactivatedEvent`; the
+  security module revokes all refresh tokens and the access module revokes the user's APPROVED
+  JIT grants through the ordinary revocation path (system-attributed). Outstanding access
+  tokens expire naturally within `ACCESSFLOW_JWT_ACCESS_TOKEN_EXPIRY` (default 15 minutes).
+  The same event unifies admin-UI deactivation, so all paths behave identically.
+- **Group provenance.** SCIM-pushed memberships carry `source = SCIM` in
+  `user_group_memberships`, disjoint from admin `MANUAL` rows and SSO-login `IDP` rows — no
+  path can overwrite another's memberships. Deleting a group over SCIM cascades its
+  memberships **and** its group-based grants (`datasource_group_permissions`,
+  `api_connector_group_permissions`) — the correct semantics for "group removed at the IdP",
+  and audited with member counts.
+- **Failure modes.** Unknown/revoked token, disabled config, disabled org → 401 (SCIM
+  envelope). Duplicate email/externalId/group name → 409 `scimType=uniqueness` (emails are
+  globally unique across orgs; the IdP then adopts the existing user via its `userName eq`
+  lookup). User quota exhausted (create or reactivation) → 403. Unsupported filter → 400
+  `invalidFilter`; unsupported PatchOp path/op → 400 `invalidPath`/`invalidValue`. SCIM error
+  details are intentionally not localized — the consumer is a machine.
+- **Audit.** Every SCIM mutation writes a synchronous audit row (`SCIM_USER_PROVISIONED`,
+  `SCIM_USER_UPDATED`, `SCIM_USER_DEACTIVATED`, `SCIM_GROUP_SYNCED`, `SCIM_GROUP_DELETED`)
+  with `actor_id = NULL` and the token identity (`scim_token_id`, `scim_token_name`) in the
+  metadata. Admin config/token changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` /
+  `SCIM_TOKEN_REVOKED` with the caller as actor.
+- **Load-bearing regression check:** `e2e/tests/admin-scim-config.spec.ts` — config CRUD,
+  show-once token issue/revoke, Okta-shaped provisioning, Entra-shaped deactivation, and the
+  401 envelope after revocation.
+
+Operator setup guide (Okta / Entra ID walkthroughs): `website/docs/configuration/auth/#cfg-scim`.
+
 ### API key authentication
 
 Users may create personal API keys (under **Profile → API keys**) to authenticate the MCP

@@ -57,6 +57,7 @@
     "ai_analyses": "AI analyses",
     "notifications": "Notifications",
     "saml": "SAML / SSO",
+    "scim": "SCIM Provisioning",
     "oauth2": "OAuth providers",
     "languages": "Languages",
     "custom_drivers": "Custom JDBC drivers",
@@ -1422,7 +1423,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -1894,6 +1896,44 @@
       "save_button": "Save",
       "error_metadata_url_invalid": "Enter a valid URL (https://…)"
     },
+    "scim": {
+      "title": "SCIM Provisioning",
+      "subtitle": "Let your identity provider create, update, and deactivate users and sync groups automatically.",
+      "load_error": "Failed to load SCIM configuration",
+      "save_success": "SCIM configuration saved",
+      "save_button": "Save",
+      "section_endpoint": "SCIM endpoint",
+      "label_base_url": "Base URL (configure this in your IdP)",
+      "label_enabled": "Enabled",
+      "section_mapping": "Attribute mapping",
+      "label_attr_email": "Email source attribute",
+      "label_attr_display_name": "Display-name source attribute",
+      "label_default_role": "Default role for provisioned users",
+      "section_tokens": "Bearer tokens",
+      "tokens_description": "Long-lived tokens your IdP authenticates with. The raw value is shown only once.",
+      "tokens_empty": "No SCIM tokens yet",
+      "tokens_load_error": "Failed to load SCIM tokens",
+      "token_create": "Create token",
+      "token_create_title": "Create SCIM token",
+      "token_name_label": "Token name",
+      "token_name_placeholder": "e.g. okta-prod",
+      "token_name_required": "Token name is required",
+      "token_name_size": "Token name must be at most 100 characters",
+      "token_issued_title": "SCIM token created",
+      "token_copy_once_warning": "Copy this token now — it will not be shown again.",
+      "token_raw_label": "Bearer token",
+      "token_revoked": "Token revoked",
+      "token_revoke": "Revoke",
+      "token_revoke_confirm": "Revoke token “{{name}}”? Your IdP will immediately lose access.",
+      "token_revoke_aria": "Revoke token {{name}}",
+      "token_column_name": "Name",
+      "token_column_prefix": "Prefix",
+      "token_column_created_at": "Created",
+      "token_column_last_used_at": "Last used",
+      "token_column_status": "Status",
+      "token_status_active": "Active",
+      "token_status_revoked": "Revoked"
+    },
     "languages": {
       "title": "Languages",
       "subtitle": "Pick which languages users can choose, the default for new accounts, and the language the AI analyzer responds in.",
@@ -2191,7 +2231,8 @@
       "save": "Update password",
       "saved": "Password updated. You'll be signed out of other sessions.",
       "saml_disabled": "Password is managed by your SAML identity provider.",
-      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings."
+      "oauth2_disabled": "Password is managed by your OAuth provider. Update it in that provider's account settings.",
+      "scim_disabled": "Password is managed by your identity provider over SCIM."
     },
     "totp": {
       "title": "Two-factor authentication",
@@ -2202,6 +2243,7 @@
       "disable": "Disable 2FA",
       "saml_disabled": "Two-factor authentication is managed by your SAML identity provider.",
       "oauth2_disabled": "Two-factor authentication is managed by your OAuth provider. Enable it in that provider's account settings.",
+      "scim_disabled": "Two-factor authentication is managed by your identity provider.",
       "enroll_title": "Enable two-factor authentication",
       "step_scan": "Scan the QR code",
       "step_scan_help": "Open Google Authenticator, 1Password, or any TOTP app and scan this code.",
@@ -2447,7 +2489,8 @@
     "auth_provider": {
       "LOCAL": "Local",
       "SAML": "SAML",
-      "OAUTH2": "OAuth 2.0"
+      "OAUTH2": "OAuth 2.0",
+      "SCIM": "SCIM"
     },
     "oauth2_provider": {
       "GOOGLE": "Google",

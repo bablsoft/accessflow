@@ -21,6 +21,11 @@ import type {
   OAuth2Config,
   OAuth2Provider,
   SamlConfig,
+  ScimConfig,
+  ScimToken,
+  CreateScimTokenInput,
+  CreatedScimToken,
+  UpdateScimConfigInput,
   SetupProgress,
   TestAiConfigResult,
   TestNotificationChannelInput,
@@ -48,6 +53,8 @@ const CHANNELS_BASE = '/api/v1/admin/notification-channels';
 const AI_CONFIGS_BASE = '/api/v1/admin/ai-configs';
 const AI_ANALYSES_BASE = '/api/v1/admin/ai-analyses';
 const SAML_CONFIG_BASE = '/api/v1/admin/saml-config';
+const SCIM_CONFIG_BASE = '/api/v1/admin/scim-config';
+const SCIM_TOKENS_BASE = '/api/v1/admin/scim/tokens';
 const LANGFUSE_CONFIG_BASE = '/api/v1/admin/langfuse-config';
 const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
@@ -94,6 +101,16 @@ export const aiConfigKeys = {
 export const samlConfigKeys = {
   all: ['samlConfig'] as const,
   current: () => ['samlConfig', 'current'] as const,
+};
+
+export const scimConfigKeys = {
+  all: ['scimConfig'] as const,
+  current: () => ['scimConfig', 'current'] as const,
+};
+
+export const scimTokenKeys = {
+  all: ['scimTokens'] as const,
+  list: () => ['scimTokens', 'list'] as const,
 };
 
 export const langfuseConfigKeys = {
@@ -352,6 +369,32 @@ export async function getSamlConfig(): Promise<SamlConfig> {
 export async function updateSamlConfig(input: UpdateSamlConfigInput): Promise<SamlConfig> {
   const { data } = await apiClient.put<SamlConfig>(SAML_CONFIG_BASE, input);
   return data;
+}
+
+// ── SCIM provisioning config (#621) ──────────────────────────────────────────
+
+export async function getScimConfig(): Promise<ScimConfig> {
+  const { data } = await apiClient.get<ScimConfig>(SCIM_CONFIG_BASE);
+  return data;
+}
+
+export async function updateScimConfig(input: UpdateScimConfigInput): Promise<ScimConfig> {
+  const { data } = await apiClient.put<ScimConfig>(SCIM_CONFIG_BASE, input);
+  return data;
+}
+
+export async function listScimTokens(): Promise<ScimToken[]> {
+  const { data } = await apiClient.get<ScimToken[]>(SCIM_TOKENS_BASE);
+  return data;
+}
+
+export async function createScimToken(input: CreateScimTokenInput): Promise<CreatedScimToken> {
+  const { data } = await apiClient.post<CreatedScimToken>(SCIM_TOKENS_BASE, input);
+  return data;
+}
+
+export async function revokeScimToken(id: string): Promise<void> {
+  await apiClient.delete(`${SCIM_TOKENS_BASE}/${id}`);
 }
 
 // ── Langfuse config ──────────────────────────────────────────────────────────

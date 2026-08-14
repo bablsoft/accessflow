@@ -54,6 +54,7 @@
     "ai_analyses": "KI-Analysen",
     "notifications": "Benachrichtigungen",
     "saml": "SAML / SSO",
+    "scim": "SCIM-Provisionierung",
     "oauth2": "OAuth-Anbieter",
     "languages": "Sprachen",
     "custom_drivers": "Benutzerdefinierte JDBC-Treiber",
@@ -1837,6 +1838,44 @@
       "save_button": "Speichern",
       "error_metadata_url_invalid": "Bitte eine gültige URL eingeben (https://…)"
     },
+    "scim": {
+      "title": "SCIM-Provisionierung",
+      "subtitle": "Lassen Sie Ihren Identity Provider Benutzer automatisch anlegen, aktualisieren und deaktivieren sowie Gruppen synchronisieren.",
+      "load_error": "SCIM-Konfiguration konnte nicht geladen werden",
+      "save_success": "SCIM-Konfiguration gespeichert",
+      "save_button": "Speichern",
+      "section_endpoint": "SCIM-Endpunkt",
+      "label_base_url": "Basis-URL (im IdP konfigurieren)",
+      "label_enabled": "Aktiviert",
+      "section_mapping": "Attributzuordnung",
+      "label_attr_email": "Quellattribut für E-Mail",
+      "label_attr_display_name": "Quellattribut für Anzeigename",
+      "label_default_role": "Standardrolle für provisionierte Benutzer",
+      "section_tokens": "Bearer-Token",
+      "tokens_description": "Langlebige Token, mit denen sich Ihr IdP authentifiziert. Der Rohwert wird nur einmal angezeigt.",
+      "tokens_empty": "Noch keine SCIM-Token",
+      "tokens_load_error": "SCIM-Token konnten nicht geladen werden",
+      "token_create": "Token erstellen",
+      "token_create_title": "SCIM-Token erstellen",
+      "token_name_label": "Token-Name",
+      "token_name_placeholder": "z. B. okta-prod",
+      "token_name_required": "Token-Name ist erforderlich",
+      "token_name_size": "Token-Name darf höchstens 100 Zeichen lang sein",
+      "token_issued_title": "SCIM-Token erstellt",
+      "token_copy_once_warning": "Kopieren Sie dieses Token jetzt — es wird nicht erneut angezeigt.",
+      "token_raw_label": "Bearer-Token",
+      "token_revoked": "Token widerrufen",
+      "token_revoke": "Widerrufen",
+      "token_revoke_confirm": "Token „{{name}}“ widerrufen? Ihr IdP verliert sofort den Zugriff.",
+      "token_revoke_aria": "Token {{name}} widerrufen",
+      "token_column_name": "Name",
+      "token_column_prefix": "Präfix",
+      "token_column_created_at": "Erstellt",
+      "token_column_last_used_at": "Zuletzt verwendet",
+      "token_column_status": "Status",
+      "token_status_active": "Aktiv",
+      "token_status_revoked": "Widerrufen"
+    },
     "languages": {
       "title": "Sprachen",
       "subtitle": "Lege fest, welche Sprachen Benutzer wählen können, die Standardsprache für neue Konten und die Sprache, in der die KI antwortet.",
@@ -1968,7 +2007,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2191,7 +2231,8 @@
       "save": "Passwort aktualisieren",
       "saved": "Passwort aktualisiert. Andere Sitzungen werden abgemeldet.",
       "saml_disabled": "Das Passwort wird von deinem SAML-Identitätsanbieter verwaltet.",
-      "oauth2_disabled": "Das Passwort wird von deinem OAuth-Anbieter verwaltet. Aktualisiere es in den Kontoeinstellungen dieses Anbieters."
+      "oauth2_disabled": "Das Passwort wird von deinem OAuth-Anbieter verwaltet. Aktualisiere es in den Kontoeinstellungen dieses Anbieters.",
+      "scim_disabled": "Das Passwort wird von Ihrem Identity Provider über SCIM verwaltet."
     },
     "totp": {
       "title": "Zwei-Faktor-Authentifizierung",
@@ -2202,6 +2243,7 @@
       "disable": "2FA deaktivieren",
       "saml_disabled": "Die Zwei-Faktor-Authentifizierung wird von deinem SAML-Identitätsanbieter verwaltet.",
       "oauth2_disabled": "Die Zwei-Faktor-Authentifizierung wird von deinem OAuth-Anbieter verwaltet. Aktiviere sie in den Kontoeinstellungen dieses Anbieters.",
+      "scim_disabled": "Die Zwei-Faktor-Authentifizierung wird von Ihrem Identity Provider verwaltet.",
       "enroll_title": "Zwei-Faktor-Authentifizierung aktivieren",
       "step_scan": "QR-Code scannen",
       "step_scan_help": "Öffne Google Authenticator, 1Password oder eine andere TOTP-App und scanne diesen Code.",
@@ -2423,7 +2465,8 @@
     "auth_provider": {
       "LOCAL": "Lokal",
       "SAML": "SAML",
-      "OAUTH2": "OAuth 2.0"
+      "OAUTH2": "OAuth 2.0",
+      "SCIM": "SCIM"
     },
     "oauth2_provider": {
       "GOOGLE": "Google",

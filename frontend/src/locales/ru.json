@@ -54,6 +54,7 @@
     "ai_analyses": "Анализы ИИ",
     "notifications": "Уведомления",
     "saml": "SAML / SSO",
+    "scim": "SCIM-провижининг",
     "oauth2": "Провайдеры OAuth",
     "languages": "Языки",
     "custom_drivers": "Пользовательские JDBC-драйверы",
@@ -1837,6 +1838,44 @@
       "save_button": "Сохранить",
       "error_metadata_url_invalid": "Введите корректный URL (https://…)"
     },
+    "scim": {
+      "title": "SCIM-провижининг",
+      "subtitle": "Позвольте вашему провайдеру идентификации автоматически создавать, обновлять и деактивировать пользователей и синхронизировать группы.",
+      "load_error": "Не удалось загрузить конфигурацию SCIM",
+      "save_success": "Конфигурация SCIM сохранена",
+      "save_button": "Сохранить",
+      "section_endpoint": "Конечная точка SCIM",
+      "label_base_url": "Базовый URL (настройте в вашем IdP)",
+      "label_enabled": "Включено",
+      "section_mapping": "Сопоставление атрибутов",
+      "label_attr_email": "Атрибут-источник email",
+      "label_attr_display_name": "Атрибут-источник отображаемого имени",
+      "label_default_role": "Роль по умолчанию для созданных пользователей",
+      "section_tokens": "Bearer-токены",
+      "tokens_description": "Долгоживущие токены, которыми аутентифицируется ваш IdP. Значение показывается только один раз.",
+      "tokens_empty": "SCIM-токенов пока нет",
+      "tokens_load_error": "Не удалось загрузить SCIM-токены",
+      "token_create": "Создать токен",
+      "token_create_title": "Создать SCIM-токен",
+      "token_name_label": "Имя токена",
+      "token_name_placeholder": "напр. okta-prod",
+      "token_name_required": "Имя токена обязательно",
+      "token_name_size": "Имя токена должно содержать не более 100 символов",
+      "token_issued_title": "SCIM-токен создан",
+      "token_copy_once_warning": "Скопируйте этот токен сейчас — он больше не будет показан.",
+      "token_raw_label": "Bearer-токен",
+      "token_revoked": "Токен отозван",
+      "token_revoke": "Отозвать",
+      "token_revoke_confirm": "Отозвать токен «{{name}}»? Ваш IdP немедленно потеряет доступ.",
+      "token_revoke_aria": "Отозвать токен {{name}}",
+      "token_column_name": "Имя",
+      "token_column_prefix": "Префикс",
+      "token_column_created_at": "Создан",
+      "token_column_last_used_at": "Последнее использование",
+      "token_column_status": "Статус",
+      "token_status_active": "Активен",
+      "token_status_revoked": "Отозван"
+    },
     "languages": {
       "title": "Языки",
       "subtitle": "Выберите языки для пользователей, язык по умолчанию для новых учётных записей и язык, на котором отвечает ИИ.",
@@ -1968,7 +2007,8 @@
       },
       "source": {
         "MANUAL": "Manual",
-        "IDP": "IdP"
+        "IDP": "IdP",
+        "SCIM": "SCIM"
       },
       "empty": {
         "title": "No groups yet",
@@ -2191,7 +2231,8 @@
       "save": "Обновить пароль",
       "saved": "Пароль обновлён. Другие сеансы будут завершены.",
       "saml_disabled": "Пароль управляется вашим поставщиком SAML.",
-      "oauth2_disabled": "Пароль управляется вашим провайдером OAuth. Обновите его в настройках учётной записи этого провайдера."
+      "oauth2_disabled": "Пароль управляется вашим провайдером OAuth. Обновите его в настройках учётной записи этого провайдера.",
+      "scim_disabled": "Пароль управляется вашим провайдером идентификации через SCIM."
     },
     "totp": {
       "title": "Двухфакторная аутентификация",
@@ -2202,6 +2243,7 @@
       "disable": "Отключить 2FA",
       "saml_disabled": "Двухфакторная аутентификация управляется вашим поставщиком SAML.",
       "oauth2_disabled": "Двухфакторная аутентификация управляется вашим провайдером OAuth. Включите её в настройках учётной записи этого провайдера.",
+      "scim_disabled": "Двухфакторная аутентификация управляется вашим провайдером идентификации.",
       "enroll_title": "Включить двухфакторную аутентификацию",
       "step_scan": "Отсканируйте QR-код",
       "step_scan_help": "Откройте Google Authenticator, 1Password или любое TOTP-приложение и отсканируйте этот код.",
@@ -2423,7 +2465,8 @@
     "auth_provider": {
       "LOCAL": "Локальный",
       "SAML": "SAML",
-      "OAUTH2": "OAuth 2.0"
+      "OAUTH2": "OAuth 2.0",
+      "SCIM": "SCIM"
     },
     "oauth2_provider": {
       "GOOGLE": "Google",

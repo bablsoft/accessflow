@@ -1,5 +1,5 @@
 export type Role = 'READONLY' | 'ANALYST' | 'REVIEWER' | 'ADMIN' | 'AUDITOR';
-export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2';
+export type AuthProvider = 'LOCAL' | 'SAML' | 'OAUTH2' | 'SCIM';
 export type OAuth2Provider =
   | 'GOOGLE'
   | 'GITHUB'
@@ -456,6 +456,45 @@ export interface UpdateSamlConfigInput {
   group_mappings?: Record<string, string> | null;
   default_role?: Role;
   active?: boolean;
+}
+
+export type ScimAttrEmail = 'userName' | 'emails.primary';
+export type ScimAttrDisplayName = 'displayName' | 'name.formatted' | 'userName';
+
+export interface ScimConfig {
+  id: string | null;
+  organization_id: string;
+  enabled: boolean;
+  attr_email: ScimAttrEmail;
+  attr_display_name: ScimAttrDisplayName;
+  default_role: Role;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface UpdateScimConfigInput {
+  enabled?: boolean;
+  attr_email?: ScimAttrEmail;
+  attr_display_name?: ScimAttrDisplayName;
+  default_role?: Role;
+}
+
+export interface ScimToken {
+  id: string;
+  name: string;
+  token_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface CreateScimTokenInput {
+  name: string;
+}
+
+export interface CreatedScimToken {
+  token: ScimToken;
+  raw_token: string;
 }
 
 export interface LangfuseConfig {
@@ -2123,7 +2162,7 @@ export interface ReplicaHealth {
 export type DatasourceHealthPage = PageEnvelope<DatasourceHealth>;
 
 // ── User groups (AF-353) ─────────────────────────────────────────────────────
-export type GroupMembershipSource = 'MANUAL' | 'IDP';
+export type GroupMembershipSource = 'MANUAL' | 'IDP' | 'SCIM';
 
 export interface UserGroup {
   id: string;

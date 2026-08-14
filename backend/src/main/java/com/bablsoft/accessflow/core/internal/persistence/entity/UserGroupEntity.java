@@ -35,6 +35,10 @@ public class UserGroupEntity {
     @Column(length = 512)
     private String description;
 
+    // IdP-side identifier (SCIM externalId, #621); unique per org when set.
+    @Column(name = "scim_external_id", length = 255)
+    private String scimExternalId;
+
     @Version
     @Column(nullable = false)
     private long version;

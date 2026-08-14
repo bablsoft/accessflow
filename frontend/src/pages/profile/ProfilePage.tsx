@@ -19,15 +19,21 @@ export function ProfilePage() {
   });
 
   const isExternal =
-    profile?.auth_provider === 'SAML' || profile?.auth_provider === 'OAUTH2';
+    profile?.auth_provider === 'SAML' ||
+    profile?.auth_provider === 'OAUTH2' ||
+    profile?.auth_provider === 'SCIM';
   const externalPasswordMessage =
     profile?.auth_provider === 'OAUTH2'
       ? t('profile.password.oauth2_disabled')
-      : t('profile.password.saml_disabled');
+      : profile?.auth_provider === 'SCIM'
+        ? t('profile.password.scim_disabled')
+        : t('profile.password.saml_disabled');
   const externalTotpMessage =
     profile?.auth_provider === 'OAUTH2'
       ? t('profile.totp.oauth2_disabled')
-      : t('profile.totp.saml_disabled');
+      : profile?.auth_provider === 'SCIM'
+        ? t('profile.totp.scim_disabled')
+        : t('profile.totp.saml_disabled');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

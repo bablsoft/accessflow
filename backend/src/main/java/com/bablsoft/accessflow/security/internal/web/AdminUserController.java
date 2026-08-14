@@ -9,7 +9,6 @@ import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.UpdateUserCommand;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
-import com.bablsoft.accessflow.security.internal.token.RefreshTokenStore;
 import com.bablsoft.accessflow.security.internal.web.model.AdminUserResponse;
 import com.bablsoft.accessflow.security.internal.web.model.CreateUserRequest;
 import com.bablsoft.accessflow.security.internal.web.model.UpdateUserRequest;
@@ -51,7 +50,6 @@ class AdminUserController {
 
     private final UserAdminService userAdminService;
     private final PasswordEncoder passwordEncoder;
-    private final RefreshTokenStore refreshTokenStore;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -130,8 +128,8 @@ class AdminUserController {
     ResponseEntity<Void> deactivateUser(@PathVariable UUID id, Authentication authentication,
                                         RequestAuditContext auditContext) {
         var caller = currentClaims(authentication);
+        // Refresh-token + JIT-grant revocation fan out from UserDeactivatedEvent listeners.
         userAdminService.deactivateUser(id, caller.organizationId(), caller.userId());
-        refreshTokenStore.revokeAllForUser(id.toString());
         recordAudit(AuditAction.USER_DEACTIVATED, id, caller, auditContext, Map.of());
 
         return ResponseEntity.noContent().build();

@@ -60,7 +60,12 @@ import type {
   UserInvitation,
 } from '@/types/api';
 
-const AUTH_PROVIDER_VALUES: readonly AuthProvider[] = ['LOCAL', 'SAML', 'OAUTH2'] as const;
+const AUTH_PROVIDER_VALUES: readonly AuthProvider[] = [
+  'LOCAL',
+  'SAML',
+  'OAUTH2',
+  'SCIM',
+] as const;
 
 /** Display name of a user's role — custom-role users carry it in role_name (AF-522). */
 function roleNameOf(u: Pick<User, 'role' | 'role_name'>): string | null {

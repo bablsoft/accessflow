@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-13",
       "url": "https://accessflow.bablsoft.com/docs/configuration/auth/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/auth/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -216,6 +216,7 @@
             <p class="docs-toc-label">On this page</p>
             <a href="#cfg-oauth">OAuth 2.0 / OIDC</a>
             <a href="#cfg-saml">SAML 2.0 SSO</a>
+            <a href="#cfg-scim">SCIM 2.0 provisioning</a>
             <a href="/docs/configuration/notifications/">Notifications</a>
             <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
             <a href="/docs/workflows/">End-user workflows</a>
@@ -229,7 +230,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Authentication & SSO.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-13">13 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -333,6 +334,83 @@
             <code>ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM</code> and
             <code>ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM</code>.
           </p>
+
+          <!-- SCIM -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-scim">SCIM 2.0 provisioning</h2>
+          <p>
+            <strong>What it is.</strong> SSO answers "can this person sign in?" — SCIM answers "does
+            this person still have an account at all?". With SCIM enabled, your identity provider
+            (Okta, Microsoft Entra ID, Keycloak, OneLogin) creates, updates, and deactivates
+            AccessFlow users and syncs group memberships automatically, so joiner/mover/leaver flows
+            are driven from the IdP. Deactivating a user over SCIM disables login, revokes all their
+            refresh tokens, and immediately revokes their active just-in-time access grants.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Open <code>/admin/scim</code>:
+          </p>
+          <ol>
+            <li><strong>Copy the base URL</strong> shown at the top of the page
+              (<code>https://&lt;your-host&gt;/scim/v2</code>) — you will paste it into the IdP.</li>
+            <li><strong>Attribute mapping.</strong> Pick which SCIM attribute the user's email is read
+              from (<code>userName</code>, the default, or <code>emails.primary</code>) and which one
+              carries the display name (<code>displayName</code>, <code>name.formatted</code>, or
+              <code>userName</code>). Choose the default role provisioned users receive.</li>
+            <li><strong>Create a bearer token.</strong> Give it a name per IdP
+              (e.g. <code>okta-prod</code>) and copy the value — it is shown exactly once; only a
+              SHA-256 hash is stored. Rotate by creating a second token, switching the IdP over, then
+              revoking the old one.</li>
+            <li><strong>Flip <em>Enabled</em> on</strong> and save.</li>
+          </ol>
+          <p><strong>Okta setup.</strong></p>
+          <ol>
+            <li>In Okta Admin, open your AccessFlow app integration (or add an app that
+              <em>supports SCIM provisioning</em>) and go to <em>Provisioning → Integration</em>.</li>
+            <li>Set <em>SCIM connector base URL</em> to <code>https://&lt;your-host&gt;/scim/v2</code>,
+              <em>Unique identifier field for users</em> to <code>userName</code>, and
+              <em>Authentication Mode</em> to <em>HTTP Header</em> with the bearer token you created.</li>
+            <li>Click <em>Test Connector Configuration</em>, then enable
+              <em>Create Users</em>, <em>Update User Attributes</em>, and <em>Deactivate Users</em>
+              under <em>Provisioning → To App</em>. Use <em>Push Groups</em> to sync groups.</li>
+          </ol>
+          <p><strong>Microsoft Entra ID setup.</strong></p>
+          <ol>
+            <li>In the Entra admin center, open your enterprise application and go to
+              <em>Provisioning → New configuration</em>.</li>
+            <li>Set <em>Tenant URL</em> to <code>https://&lt;your-host&gt;/scim/v2</code> and
+              <em>Secret token</em> to the bearer token, then <em>Test connection</em>.</li>
+            <li>Review the default attribute mappings (Entra sends <code>userName</code> as the UPN —
+              keep the email mapping at <code>userName</code>, or map <code>emails.primary</code> if
+              you provision the mail attribute), assign users/groups in scope, and turn provisioning
+              <em>On</em>. Entra syncs on a ~40-minute cycle.</li>
+          </ol>
+          <p>
+            Keycloak (via a SCIM extension) and OneLogin follow the same shape: base URL + bearer
+            token. AccessFlow supports the SCIM 2.0 core <code>/Users</code> and <code>/Groups</code>
+            resources with <code>eq</code> filtering and PATCH; bulk operations, sorting, and ETags
+            are not supported (the IdPs above do not need them).
+          </p>
+          <p>
+            <strong>Worth knowing.</strong> SCIM-provisioned users have no password — they sign in
+            through your SSO. SCIM never writes roles, platform-admin flags, or TOTP settings.
+            Group memberships pushed over SCIM are tracked separately from memberships an admin
+            added manually and from SSO-login group mapping, so the three sources never overwrite
+            each other. Deleting a group at the IdP deletes it in AccessFlow — including any
+            group-based grants attached to it. Every SCIM mutation lands in the audit log
+            (<code>SCIM_USER_PROVISIONED</code>, <code>SCIM_USER_DEACTIVATED</code>,
+            <code>SCIM_GROUP_SYNCED</code>, …) with the token identity in the metadata.
+          </p>
+          <p><strong>Troubleshooting.</strong></p>
+          <ul>
+            <li><em>401 from the IdP's connection test</em> — the token was revoked, SCIM is not
+              enabled on <code>/admin/scim</code>, or the organization is disabled.</li>
+            <li><em>409 on user create</em> — a user with that email already exists (emails are
+              globally unique). The IdP links to the existing user via its
+              <code>userName eq</code> lookup instead.</li>
+            <li><em>403 on user create</em> — the organization's user quota is exhausted.</li>
+          </ul>
 
           <!-- Audit log -->
         </section>

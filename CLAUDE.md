@@ -31,7 +31,7 @@ Each plugin has its own version line, pinned by URL + SHA-256 in `connectors/<id
 > Touching an engine? Read `.claude/patterns/engine-plugin.md` first, and
 > `.claude/patterns/engine-fanout.md` before adding any `core.api` enum value.
 
-AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab; a generic `OIDC` provider type covers other IdPs — Keycloak, Auth0, Okta, Authentik, Zitadel — with admin-editable endpoint URLs persisted on the `oauth2_config` row).
+AccessFlow ships as a single open-source product under Apache 2.0. Authentication uses JWT (RS256) with optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, and self-managed GitLab; a generic `OIDC` provider type covers other IdPs — Keycloak, Auth0, Okta, Authentik, Zitadel — with admin-editable endpoint URLs persisted on the `oauth2_config` row). User and group lifecycle can be IdP-driven over SCIM 2.0 (`scim` module, `/scim/v2` with per-org bearer tokens — #621).
 
 **Full design docs:** `docs/` — read them before implementing any feature. The authoritative references are:
 - `docs/02-architecture.md` — system architecture and request flow
@@ -145,6 +145,9 @@ com.bablsoft.accessflow/
 ├── discovery/      # Automated sensitive-data discovery (AF-623): DiscoveryScanJob samples column data via the engine sampling path, regex+checksum detectors (email, PAN+Luhn, SSN, IBAN, phone) + optional fail-safe AI pass propose classification tags an admin confirms (AF-447 derivation) or dismisses
 │   ├── api/
 │   └── internal/   # config, persistence, detect (pure detectors), scheduled, web
+├── scim/           # SCIM 2.0 provisioning server (#621): /scim/v2 Users+Groups behind a per-org bearer-token filter chain (@Order(0), SCIM error envelope), attribute-mapping config, show-once tokens; deactivation fans out via core.events.UserDeactivatedEvent (security revokes sessions, access revokes JIT grants)
+│   ├── api/
+│   └── internal/   # config (own SecurityFilterChain), persistence, protocol (wire records, filter/patch parsing), web (scim + admin controllers)
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/

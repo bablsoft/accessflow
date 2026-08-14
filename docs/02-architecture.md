@@ -57,7 +57,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 | Frontend Framework | React 18, Vite 5, TypeScript |
 | UI Component Library | Ant Design 5.x |
 | SQL Editor | CodeMirror 6 with SQL language plugin |
-| Auth | JWT (RS256) with refresh token rotation + optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, Microsoft, and GitLab; additional providers via DB-driven `oauth2_config` rows — see [07-security.md](07-security.md)) |
+| Auth | JWT (RS256) with refresh token rotation + optional SAML 2.0 SSO and OAuth 2.0 / OIDC sign-in (built-in templates for Google, GitHub, Microsoft, and GitLab; additional providers via DB-driven `oauth2_config` rows — see [07-security.md](07-security.md)). User/group lifecycle can be IdP-driven over SCIM 2.0 (`/scim/v2`, per-org bearer tokens, #621). |
 | Containerization | Docker, Docker Compose 2.x |
 | Kubernetes | Helm 3 chart with ConfigMap/Secret templating |
 | Cache / Locks | Redis (JWT refresh-token revocation, ShedLock distributed locks for `@Scheduled` jobs) |

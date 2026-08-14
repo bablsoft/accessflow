@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -97,8 +98,21 @@ public class UserEntity {
     @Column(name = "attributes", nullable = false, columnDefinition = "jsonb")
     private String attributes = "{}";
 
+    // IdP-side identifier (SCIM externalId, #621); unique per org when set.
+    @Column(name = "scim_external_id", length = 255)
+    private String scimExternalId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
+    // Feeds SCIM meta.lastModified (#621).
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt = Instant.now();
+
+    @PreUpdate
+    void onUpdate() {
+        this.updatedAt = Instant.now();
+    }
 
     /**
      * The user's role name — the custom role's name when one is assigned, otherwise the legacy

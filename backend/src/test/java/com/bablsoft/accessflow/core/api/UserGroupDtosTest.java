@@ -50,10 +50,11 @@ class UserGroupDtosTest {
     }
 
     @Test
-    void userGroupMembershipSourceTypeHasTwoValues() {
+    void userGroupMembershipSourceTypeHasThreeValues() {
         assertThat(UserGroupMembershipSourceType.values())
                 .containsExactly(UserGroupMembershipSourceType.MANUAL,
-                        UserGroupMembershipSourceType.IDP);
+                        UserGroupMembershipSourceType.IDP,
+                        UserGroupMembershipSourceType.SCIM);
         assertThat(UserGroupMembershipSourceType.valueOf("MANUAL"))
                 .isEqualTo(UserGroupMembershipSourceType.MANUAL);
     }
