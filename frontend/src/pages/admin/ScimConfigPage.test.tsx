@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
@@ -165,8 +165,16 @@ describe('ScimConfigPage', () => {
     render(wrap(<ScimConfigPage />));
     await screen.findByText('okta-prod');
 
-    fireEvent.click(screen.getByRole('button', { name: /Revoke token okta-prod/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Revoke' }));
+    // AntD renders the Popconfirm into a portal; flushing the open inside act() means the OK
+    // button is there on the first role scan. Polling for it re-scans this whole page (form +
+    // token table) on every motion mutation, which made this the slowest test in the suite.
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('Revoke token okta-prod'));
+    });
+    const confirmBtn = await screen.findByRole('button', { name: 'Revoke' });
+    await act(async () => {
+      fireEvent.click(confirmBtn);
+    });
 
     await waitFor(() => expect(revokeScimTokenMock).toHaveBeenCalledWith('tok-1'));
   });
