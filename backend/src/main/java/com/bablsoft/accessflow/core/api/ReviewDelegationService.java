@@ -29,6 +29,13 @@ public interface ReviewDelegationService {
      */
     void revoke(UUID delegationId, UUID organizationId, UUID actingUserId);
 
+    /**
+     * Active colleagues the caller may delegate to — everyone in the organization except
+     * themselves, ordered by display name. See {@link ReviewDelegateCandidate} for why this exists
+     * separately from the admin user listing.
+     */
+    List<ReviewDelegateCandidate> listDelegateCandidates(UUID organizationId, UUID callerId);
+
     /** Delegations this user granted to others, newest first, including revoked and expired ones. */
     List<ReviewDelegationView> listGrantedBy(UUID organizationId, UUID delegatorUserId);
 

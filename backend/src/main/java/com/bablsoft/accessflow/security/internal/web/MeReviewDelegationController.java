@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.CreateReviewDelegationCommand;
 import com.bablsoft.accessflow.core.api.ReviewDelegationService;
 import com.bablsoft.accessflow.security.internal.web.model.CreateReviewDelegationRequest;
+import com.bablsoft.accessflow.security.internal.web.model.DelegateCandidateResponse;
 import com.bablsoft.accessflow.security.internal.web.model.ReviewDelegationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,6 +55,16 @@ class MeReviewDelegationController {
                         .map(ReviewDelegationResponse::from).toList(),
                 reviewDelegationService.listReceivedBy(organizationId, userId).stream()
                         .map(ReviewDelegationResponse::from).toList());
+    }
+
+    @GetMapping("/candidates")
+    @Operation(summary = "List colleagues the caller may name as their delegate")
+    @ApiResponse(responseCode = "200", description = "Candidates returned")
+    List<DelegateCandidateResponse> candidates(
+            @AuthenticationPrincipal(expression = "userId") UUID userId,
+            @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
+        return reviewDelegationService.listDelegateCandidates(organizationId, userId).stream()
+                .map(DelegateCandidateResponse::from).toList();
     }
 
     @PostMapping

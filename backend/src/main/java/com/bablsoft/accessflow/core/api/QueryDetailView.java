@@ -152,7 +152,15 @@ public record QueryDetailView(
             DecisionType decision,
             String comment,
             int stage,
-            Instant decidedAt) {
+            Instant decidedAt,
+            /** The delegator whose authority was borrowed (#622); null for an own-authority vote. */
+            ReviewerRef onBehalfOf) {
+
+        /** Convenience constructor for a decision taken under the reviewer's own authority. */
+        public ReviewDecisionView(UUID id, ReviewerRef reviewer, DecisionType decision,
+                                  String comment, int stage, Instant decidedAt) {
+            this(id, reviewer, decision, comment, stage, decidedAt, null);
+        }
     }
 
     public record ReviewerRef(

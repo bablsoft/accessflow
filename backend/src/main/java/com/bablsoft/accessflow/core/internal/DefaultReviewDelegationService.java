@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.DelegationScopeKind;
 import com.bablsoft.accessflow.core.api.IllegalReviewDelegationException;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.ReviewDelegateCandidate;
 import com.bablsoft.accessflow.core.api.ReviewDelegationFilter;
 import com.bablsoft.accessflow.core.api.ReviewDelegationNotFoundException;
 import com.bablsoft.accessflow.core.api.ReviewDelegationScopeResolver;
@@ -103,6 +104,20 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
         entity.setRevokedBy(actingUserId);
         entity.setUpdatedAt(clock.instant());
         delegationRepository.save(entity);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReviewDelegateCandidate> listDelegateCandidates(UUID organizationId, UUID callerId) {
+        return userRepository.findAllByOrganization_Id(organizationId).stream()
+                .filter(UserEntity::isActive)
+                .filter(user -> !user.getId().equals(callerId))
+                .map(user -> new ReviewDelegateCandidate(user.getId(), user.getEmail(),
+                        user.getDisplayName()))
+                .sorted((left, right) -> String.CASE_INSENSITIVE_ORDER.compare(
+                        left.displayName() == null ? left.email() : left.displayName(),
+                        right.displayName() == null ? right.email() : right.displayName()))
+                .toList();
     }
 
     @Override

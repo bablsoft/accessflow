@@ -195,6 +195,18 @@ export function ReviewQueuePage() {
         ),
       },
       {
+        title: t('reviews.col_delegated'),
+        key: 'delegated',
+        render: (_: unknown, item: PendingReviewItem) =>
+          item.delegated_for ? (
+            <Tooltip title={t('reviews.delegated_tooltip')}>
+              <Tag color="blue" data-testid="delegated-tag">
+                {t('reviews.delegated')}
+              </Tag>
+            </Tooltip>
+          ) : null,
+      },
+      {
         title: t('reviews.col_created'),
         dataIndex: 'created_at',
         key: 'created_at',

@@ -807,7 +807,10 @@
       "own_query": "Vous ne pouvez pas examiner votre propre requête.",
       "not_pending": "Cette requête n'est plus en attente d'examen.",
       "not_found": "Requête introuvable."
-    }
+    },
+    "col_delegated": "Délégué",
+    "delegated": "Délégué",
+    "delegated_tooltip": "Vous pouvez la revoir car un collègue vous a délégué ses revues."
   },
   "timeline": {
     "title": "Chronologie d'approbation"
@@ -2305,6 +2308,35 @@
       "generate_code": "Générer un code de liaison",
       "code_ready": "Exécutez cette commande dans Slack pour terminer la liaison :",
       "code_instructions": "Le code expire bientôt. Générez-en un nouveau si nécessaire."
+    },
+    "delegation": {
+      "title": "Délégation d'absence",
+      "explainer": "Désignez un délégué pour assurer vos revues pendant votre absence. Il devient éligible partout où vous l'êtes — revue de requêtes, appels d'API et demandes groupées — et chaque décision consigne les deux noms. Il ne pourra jamais statuer sur une demande que vous avez soumise, et une délégation n'accorde aucune permission qu'il n'a déjà.",
+      "label_delegate": "Délégué",
+      "select_delegate": "Choisir un collègue",
+      "label_scope_kind": "Portée",
+      "label_scope": "Source de données",
+      "scope_all": "Toutes les files de revue",
+      "label_window": "Période",
+      "submit": "Déléguer la revue",
+      "created": "Délégation créée",
+      "revoked": "Délégation révoquée",
+      "revoke": "Révoquer",
+      "revoke_confirm": "Révoquer cette délégation ?",
+      "granted_title": "Délégations que vous avez accordées",
+      "granted_empty": "Vous n'avez pas délégué vos revues.",
+      "received_title": "Délégué à vous",
+      "received_empty": "Personne ne vous a délégué ses revues.",
+      "col_delegate": "Délégué",
+      "col_delegator": "Délégant",
+      "col_scope": "Portée",
+      "col_window": "Période",
+      "col_status": "Statut",
+      "col_actions": "Actions",
+      "validation_delegate": "Choisissez un délégué",
+      "validation_scope": "Choisissez une source de données",
+      "validation_window": "Choisissez une date de début et de fin",
+      "error_generic": "Impossible d'enregistrer la délégation"
     }
   },
   "totp_login": {
@@ -2819,6 +2851,16 @@
       "PENDING": "En attente",
       "CONFIRMED": "Confirmée",
       "DISMISSED": "Rejetée"
+    },
+    "delegation_scope": {
+      "DATASOURCE": "Source de données",
+      "API_CONNECTOR": "Connecteur d'API"
+    },
+    "delegation_status": {
+      "SCHEDULED": "Planifiée",
+      "ACTIVE": "Active",
+      "EXPIRED": "Expirée",
+      "REVOKED": "Révoquée"
     }
   },
   "access": {

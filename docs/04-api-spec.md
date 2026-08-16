@@ -2199,6 +2199,7 @@ acting reviewer in `reviewer_id` and the delegator in `on_behalf_of_user_id`.
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/me/review-delegations` | Delegations the caller granted **and** delegations granted to the caller |
+| `GET` | `/me/review-delegations/candidates` | Colleagues the caller may name as their delegate |
 | `POST` | `/me/review-delegations` | Create a delegation naming a delegate and a window |
 | `DELETE` | `/me/review-delegations/{id}` | Revoke a delegation the caller granted |
 | `GET` | `/admin/review-delegations` | Org-wide read for oversight *(`QUERY_ADMIN`)* |
@@ -2223,6 +2224,19 @@ These are enforced in the service layer, not the UI:
   the delegate is deactivated, without waiting for a cleanup job.
 - **Revocation is not deletion.** `DELETE` sets `revoked_at`; the row survives for the audit trail
   and still appears in the `GET` responses with `"status": "REVOKED"`.
+
+### GET /me/review-delegations/candidates — Response 200
+
+```json
+[{ "id": "uuid", "email": "bob@company.com", "display_name": "Bob" }]
+```
+
+Active users in the caller's organization, excluding the caller, ordered by display name. This
+exists separately from `GET /admin/users` because that listing requires `USER_MANAGE`, which most
+reviewers do not hold — without it the delegate picker would be empty for exactly the people the
+feature is for. It is a deliberately narrow disclosure: id, email and display name only, with no
+role, permission, or activity information, and within an organization reviewers already see each
+other's names on approval timelines and review queues.
 
 ### POST /me/review-delegations — Request Body
 

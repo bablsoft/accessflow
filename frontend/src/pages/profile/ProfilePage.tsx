@@ -9,6 +9,7 @@ import { DisplayNameForm } from './sections/DisplayNameForm';
 import { ChangePasswordForm } from './sections/ChangePasswordForm';
 import { TwoFactorSection } from './sections/TwoFactorSection';
 import { ApiKeysSection } from './sections/ApiKeysSection';
+import { ReviewDelegationSection } from './sections/ReviewDelegationSection';
 import { SlackLinkSection } from './sections/SlackLinkSection';
 
 export function ProfilePage() {
@@ -75,6 +76,10 @@ export function ProfilePage() {
               ) : (
                 <TwoFactorSection profile={profile} />
               )}
+            </Card>
+
+            <Card title={t('profile.delegation.title')}>
+              {isLoading || !profile ? <Skeleton active /> : <ReviewDelegationSection />}
             </Card>
 
             <Card title={t('profile.api_keys.title')}>

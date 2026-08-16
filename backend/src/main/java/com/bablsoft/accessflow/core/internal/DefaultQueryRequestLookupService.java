@@ -15,19 +15,24 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.ApprovalPredicti
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryEstimateEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDecisionEntity;
+import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ApprovalPredictionRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryEstimateRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.QueryRequestRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDecisionRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.function.Consumer;
 
 @Service
@@ -39,6 +44,7 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     private final ReviewDecisionRepository reviewDecisionRepository;
     private final QueryEstimateRepository queryEstimateRepository;
     private final ApprovalPredictionRepository approvalPredictionRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -232,10 +238,13 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 ? aiAnalysisRepository.findById(entity.getAiAnalysisId()).orElse(null)
                 : null;
         var plan = entity.getDatasource().getReviewPlan();
-        var decisions = reviewDecisionRepository
-                .findAllByQueryRequest_IdOrderByDecidedAtAsc(entity.getId())
-                .stream()
-                .map(DefaultQueryRequestLookupService::toReviewDecisionView)
+        var decisionEntities = reviewDecisionRepository
+                .findAllByQueryRequest_IdOrderByDecidedAtAsc(entity.getId());
+        // One batch lookup for the delegators named across this query's decisions (#622) — a
+        // per-row fetch would be an N+1 on every detail render.
+        var delegators = delegatorRefs(decisionEntities);
+        var decisions = decisionEntities.stream()
+                .map(decision -> toReviewDecisionView(decision, delegators))
                 .toList();
         return new QueryDetailView(
                 entity.getId(),
@@ -277,7 +286,23 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getUpdatedAt());
     }
 
-    private static QueryDetailView.ReviewDecisionView toReviewDecisionView(ReviewDecisionEntity entity) {
+    private Map<UUID, QueryDetailView.ReviewerRef> delegatorRefs(
+            List<ReviewDecisionEntity> decisions) {
+        var ids = decisions.stream()
+                .map(ReviewDecisionEntity::getOnBehalfOfUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(UserEntity::getId, user -> new QueryDetailView.ReviewerRef(
+                        user.getId(), user.getEmail(), user.getDisplayName())));
+    }
+
+    private static QueryDetailView.ReviewDecisionView toReviewDecisionView(
+            ReviewDecisionEntity entity, Map<UUID, QueryDetailView.ReviewerRef> delegators) {
         var reviewer = entity.getReviewer();
         return new QueryDetailView.ReviewDecisionView(
                 entity.getId(),
@@ -288,7 +313,9 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getDecision(),
                 entity.getComment(),
                 entity.getStage(),
-                entity.getDecidedAt());
+                entity.getDecidedAt(),
+                entity.getOnBehalfOfUserId() == null
+                        ? null : delegators.get(entity.getOnBehalfOfUserId()));
     }
 
     private static QueryDetailView.AiAnalysisDetail toAnalysisDetail(AiAnalysisEntity entity) {

@@ -807,7 +807,10 @@
       "own_query": "No puedes revisar tu propia consulta.",
       "not_pending": "Esta consulta ya no está pendiente de revisión.",
       "not_found": "Consulta no encontrada."
-    }
+    },
+    "col_delegated": "Delegado",
+    "delegated": "Delegado",
+    "delegated_tooltip": "Puedes revisarlo porque un compañero te delegó su deber de revisión."
   },
   "timeline": {
     "title": "Cronología de aprobación"
@@ -2305,6 +2308,35 @@
       "generate_code": "Generar código de vinculación",
       "code_ready": "Ejecuta este comando en Slack para completar la vinculación:",
       "code_instructions": "El código caduca pronto. Genera uno nuevo si deja de funcionar."
+    },
+    "delegation": {
+      "title": "Delegación por ausencia",
+      "explainer": "Designa a alguien que cubra tu deber de revisión mientras no estás. Será elegible allí donde lo seas tú — revisión de consultas, solicitudes de API y solicitudes agrupadas — y cada decisión registrará ambos nombres. Nunca podrá actuar sobre una solicitud que hayas enviado tú, y una delegación no concede permisos que no tenga ya.",
+      "label_delegate": "Delegado",
+      "select_delegate": "Elige a un compañero",
+      "label_scope_kind": "Alcance",
+      "label_scope": "Fuente de datos",
+      "scope_all": "Todas las colas de revisión",
+      "label_window": "Periodo",
+      "submit": "Delegar la revisión",
+      "created": "Delegación creada",
+      "revoked": "Delegación revocada",
+      "revoke": "Revocar",
+      "revoke_confirm": "¿Revocar esta delegación?",
+      "granted_title": "Delegaciones que concediste",
+      "granted_empty": "No has delegado tu deber de revisión.",
+      "received_title": "Delegado a ti",
+      "received_empty": "Nadie te ha delegado su deber de revisión.",
+      "col_delegate": "Delegado",
+      "col_delegator": "Delegante",
+      "col_scope": "Alcance",
+      "col_window": "Periodo",
+      "col_status": "Estado",
+      "col_actions": "Acciones",
+      "validation_delegate": "Elige un delegado",
+      "validation_scope": "Elige una fuente de datos",
+      "validation_window": "Elige la fecha de inicio y fin",
+      "error_generic": "No se pudo guardar la delegación"
     }
   },
   "totp_login": {
@@ -2819,6 +2851,16 @@
       "PENDING": "Pendiente",
       "CONFIRMED": "Confirmado",
       "DISMISSED": "Descartado"
+    },
+    "delegation_scope": {
+      "DATASOURCE": "Fuente de datos",
+      "API_CONNECTOR": "Conector de API"
+    },
+    "delegation_status": {
+      "SCHEDULED": "Programada",
+      "ACTIVE": "Activa",
+      "EXPIRED": "Expirada",
+      "REVOKED": "Revocada"
     }
   },
   "access": {
