@@ -58,8 +58,11 @@ class DefaultReviewDelegationServiceTest {
     @BeforeEach
     void setUp() {
         when(datasourceResolver.supportedKind()).thenReturn(DelegationScopeKind.DATASOURCE);
+        // Echo the key back so assertions can name the rule that failed without pinning copy.
+        var messageSource = new org.springframework.context.support.StaticMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
         service = new DefaultReviewDelegationService(delegationRepository, userRepository,
-                List.of(datasourceResolver), Clock.fixed(NOW, ZoneOffset.UTC), 10);
+                List.of(datasourceResolver), Clock.fixed(NOW, ZoneOffset.UTC), messageSource, 10);
         activeUser(delegatorId);
         activeUser(delegateId);
         when(delegationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -109,7 +112,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(command(DelegationScopeKind.DATASOURCE, datasourceId)))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("does not resolve");
+                .hasMessageContaining("scope_unresolved");
         verify(delegationRepository, never()).save(any());
     }
 
@@ -128,7 +131,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(half))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("both a scope kind and a scope id");
+                .hasMessageContaining("scope_incomplete");
     }
 
     @Test
@@ -138,7 +141,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(toSelf))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("yourself");
+                .hasMessageContaining("review_delegation.self");
     }
 
     @Test
@@ -148,7 +151,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(inverted))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("end after it starts");
+                .hasMessageContaining("window_inverted");
     }
 
     @Test
@@ -158,7 +161,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(past))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("already closed");
+                .hasMessageContaining("window_closed");
     }
 
     @Test
@@ -173,7 +176,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(command(null, null)))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("delegate must be an active member");
+                .hasMessageContaining("delegate_not_member");
     }
 
     @Test
@@ -193,7 +196,7 @@ class DefaultReviewDelegationServiceTest {
 
         assertThatThrownBy(() -> service.create(command(null, null)))
                 .isInstanceOf(IllegalReviewDelegationException.class)
-                .hasMessageContaining("open delegations");
+                .hasMessageContaining("cap_reached");
     }
 
     @Test

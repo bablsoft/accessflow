@@ -16,6 +16,8 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDelegationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
     private final UserRepository userRepository;
     private final Map<DelegationScopeKind, ReviewDelegationScopeResolver> scopeResolvers;
     private final Clock clock;
+    private final MessageSource messageSource;
     private final int maxOpenPerDelegator;
 
     DefaultReviewDelegationService(
@@ -49,12 +52,14 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
             UserRepository userRepository,
             List<ReviewDelegationScopeResolver> scopeResolvers,
             Clock clock,
+            MessageSource messageSource,
             @Value("${accessflow.review.delegation.max-open-per-delegator:10}") int maxOpenPerDelegator) {
         this.delegationRepository = delegationRepository;
         this.userRepository = userRepository;
         this.scopeResolvers = new EnumMap<>(DelegationScopeKind.class);
         scopeResolvers.forEach(resolver -> this.scopeResolvers.put(resolver.supportedKind(), resolver));
         this.clock = clock;
+        this.messageSource = messageSource;
         this.maxOpenPerDelegator = maxOpenPerDelegator;
     }
 
@@ -127,21 +132,23 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
                 page.getTotalPages());
     }
 
+    private String msg(String key, Object... args) {
+        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
+    }
+
     private void validateWindow(CreateReviewDelegationCommand command) {
         if (command.startsAt() == null || command.endsAt() == null
                 || !command.endsAt().isAfter(command.startsAt())) {
-            throw new IllegalReviewDelegationException(
-                    "Delegation window must end after it starts");
+            throw new IllegalReviewDelegationException(msg("error.review_delegation.window_inverted"));
         }
         if (!command.endsAt().isAfter(clock.instant())) {
-            throw new IllegalReviewDelegationException(
-                    "Delegation window has already closed");
+            throw new IllegalReviewDelegationException(msg("error.review_delegation.window_closed"));
         }
     }
 
     private void validateParties(CreateReviewDelegationCommand command) {
         if (command.delegatorUserId().equals(command.delegateUserId())) {
-            throw new IllegalReviewDelegationException("You cannot delegate review duty to yourself");
+            throw new IllegalReviewDelegationException(msg("error.review_delegation.self"));
         }
         requireActiveMember(command.organizationId(), command.delegatorUserId(), "delegator");
         requireActiveMember(command.organizationId(), command.delegateUserId(), "delegate");
@@ -153,8 +160,7 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
                 .filter(candidate -> candidate.getOrganization() != null
                         && organizationId.equals(candidate.getOrganization().getId()));
         if (user.isEmpty()) {
-            throw new IllegalReviewDelegationException(
-                    "The " + label + " must be an active member of this organization");
+            throw new IllegalReviewDelegationException(msg("error.review_delegation." + label + "_not_member"));
         }
     }
 
@@ -166,12 +172,11 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
             return null;
         }
         if (kind == null || scopeId == null) {
-            throw new IllegalReviewDelegationException(
-                    "A scoped delegation needs both a scope kind and a scope id");
+            throw new IllegalReviewDelegationException(msg("error.review_delegation.scope_incomplete"));
         }
         return resolveScopeName(command.organizationId(), kind, scopeId)
                 .orElseThrow(() -> new IllegalReviewDelegationException(
-                        "Delegation scope does not resolve to a " + kind + " in this organization"));
+                        msg("error.review_delegation.scope_unresolved", kind.name())));
     }
 
     private void validateCap(CreateReviewDelegationCommand command) {
@@ -179,7 +184,7 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
                 command.delegatorUserId(), clock.instant());
         if (open >= maxOpenPerDelegator) {
             throw new IllegalReviewDelegationException(
-                    "You already have " + maxOpenPerDelegator + " open delegations");
+                    msg("error.review_delegation.cap_reached", maxOpenPerDelegator));
         }
     }
 

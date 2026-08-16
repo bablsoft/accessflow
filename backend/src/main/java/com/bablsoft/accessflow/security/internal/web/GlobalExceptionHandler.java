@@ -46,6 +46,8 @@ import com.bablsoft.accessflow.core.api.RoleNotFoundException;
 import com.bablsoft.accessflow.core.api.SystemRoleImmutableException;
 import com.bablsoft.accessflow.core.api.ReviewPlanInUseException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNameAlreadyExistsException;
+import com.bablsoft.accessflow.core.api.IllegalReviewDelegationException;
+import com.bablsoft.accessflow.core.api.ReviewDelegationNotFoundException;
 import com.bablsoft.accessflow.core.api.ReviewPlanNotFoundException;
 import com.bablsoft.accessflow.core.api.SetupAlreadyCompletedException;
 import com.bablsoft.accessflow.core.api.SystemSmtpDeliveryException;
@@ -459,6 +461,25 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 msg("error.role_in_use"));
         pd.setProperty("error", "ROLE_IN_USE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ReviewDelegationNotFoundException.class)
+    ProblemDetail handleReviewDelegationNotFound(ReviewDelegationNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.review_delegation_not_found"));
+        pd.setProperty("error", "REVIEW_DELEGATION_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalReviewDelegationException.class)
+    ProblemDetail handleIllegalReviewDelegation(IllegalReviewDelegationException ex) {
+        // The message is already localized by the service, which builds it from the specific rule
+        // that failed — echoing it is more useful than a generic "invalid delegation".
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_REVIEW_DELEGATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
