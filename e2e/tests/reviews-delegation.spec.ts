@@ -1,13 +1,24 @@
 import { test, expect, type APIRequestContext } from '@playwright/test';
-import { loginViaApi } from '../helpers/datasources';
+import {
+  acceptInvitationViaApi,
+  findUserByEmailViaApi,
+  inviteUserViaApi,
+  loginViaApi,
+  purgeMailcrab,
+  waitForInviteToken,
+} from '../helpers/datasources';
 import { getCurrentUserIdViaApi } from '../helpers/apiConnectors';
 
-// Out-of-office reviewer delegation (#622). The bootstrap admin is the only guaranteed account, so
-// these tests exercise the delegation lifecycle and its refusals through the self-service API plus
-// the profile UI. Full cross-user eligibility (delegate sees the delegator's queue) needs a second
-// seeded reviewer and is covered by the backend integration tests instead.
+// Out-of-office reviewer delegation (#622). The main stack seeds exactly one account, so this spec
+// mints its own delegate via the invitation flow — without a second user the create path cannot be
+// exercised at all, and the refusals below would be the only coverage.
+//
+// Cross-user *eligibility* (the delegate seeing the delegator's queue and approving with
+// on-behalf-of provenance) needs a datasource, a review plan naming the delegator, and a third
+// submitter; that shape is covered against real Postgres by the backend integration tests.
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
+const DELEGATE_PASSWORD = 'DelegatePassword!123';
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -18,7 +29,10 @@ function apiBase(): string {
 interface DelegationRow {
   id: string;
   status: string;
-  delegate: { id: string };
+  reason: string | null;
+  scope_kind: string | null;
+  delegate: { id: string; email: string | null };
+  delegator: { id: string };
 }
 
 async function listDelegations(
@@ -32,7 +46,25 @@ async function listDelegations(
   return res.json();
 }
 
-/** Leave no active delegations behind — they would widen eligibility for later specs. */
+function window(offsetMinutes = 1, days = 7) {
+  return {
+    starts_at: new Date(Date.now() + offsetMinutes * 60_000).toISOString(),
+    ends_at: new Date(Date.now() + days * 86_400_000).toISOString(),
+  };
+}
+
+async function createDelegation(
+  request: APIRequestContext,
+  token: string,
+  body: Record<string, unknown>,
+) {
+  return request.post(`${apiBase()}/api/v1/me/review-delegations`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { scope_kind: null, scope_id: null, reason: null, ...window(), ...body },
+  });
+}
+
+/** Leave no open delegations behind — they would widen eligibility for later specs. */
 async function revokeAll(request: APIRequestContext, token: string): Promise<void> {
   const { granted } = await listDelegations(request, token);
   for (const row of granted) {
@@ -45,100 +77,158 @@ async function revokeAll(request: APIRequestContext, token: string): Promise<voi
 }
 
 test.describe('reviewer delegation', () => {
+  let adminToken = '';
+  let delegateEmail = '';
+  let delegateId = '';
+
+  test.beforeAll(async ({ request }) => {
+    adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    delegateEmail = `af622-delegate-${Date.now()}@accessflow.test`;
+    await purgeMailcrab(request);
+    await inviteUserViaApi(request, adminToken, delegateEmail, 'AF-622 Delegate', 'REVIEWER');
+    const token = await waitForInviteToken(request, delegateEmail);
+    await acceptInvitationViaApi(request, token, DELEGATE_PASSWORD, 'AF-622 Delegate');
+    const delegate = await findUserByEmailViaApi(request, adminToken, delegateEmail);
+    delegateId = delegate.id;
+  });
+
   test.afterEach(async ({ request }) => {
-    const token = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await revokeAll(request, token);
+    await revokeAll(request, await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD));
+  });
+
+  test('create surfaces on both sides, then revoke retires it', async ({ request }) => {
+    const created = await createDelegation(request, adminToken, {
+      delegate_user_id: delegateId,
+      reason: 'Annual leave',
+    });
+    expect(created.status()).toBe(201);
+    const body = (await created.json()) as DelegationRow;
+    expect(body.status).toBe('SCHEDULED');
+    expect(body.reason).toBe('Annual leave');
+    expect(body.delegate.id).toBe(delegateId);
+
+    // The delegator sees it as granted...
+    const mine = await listDelegations(request, adminToken);
+    expect(mine.granted.map((d) => d.id)).toContain(body.id);
+
+    // ...and the delegate sees the same row as received.
+    const delegateToken = await loginViaApi(request, delegateEmail, DELEGATE_PASSWORD);
+    const theirs = await listDelegations(request, delegateToken);
+    expect(theirs.received.map((d) => d.id)).toContain(body.id);
+    expect(theirs.granted).toHaveLength(0);
+
+    // Revocation is soft — the row survives as evidence, with a REVOKED status.
+    const revoked = await request.delete(
+      `${apiBase()}/api/v1/me/review-delegations/${body.id}`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+    expect(revoked.status()).toBe(204);
+    const after = await listDelegations(request, adminToken);
+    expect(after.granted.find((d) => d.id === body.id)?.status).toBe('REVOKED');
+  });
+
+  test('the delegate cannot revoke a delegation granted to them', async ({ request }) => {
+    const created = await createDelegation(request, adminToken, { delegate_user_id: delegateId });
+    expect(created.status()).toBe(201);
+    const { id } = (await created.json()) as DelegationRow;
+
+    const delegateToken = await loginViaApi(request, delegateEmail, DELEGATE_PASSWORD);
+    const res = await request.delete(`${apiBase()}/api/v1/me/review-delegations/${id}`, {
+      headers: { Authorization: `Bearer ${delegateToken}` },
+    });
+
+    // 404, not 403 — the endpoint never confirms someone else's delegation exists.
+    expect(res.status()).toBe(404);
+  });
+
+  test('revoking twice is idempotent', async ({ request }) => {
+    const created = await createDelegation(request, adminToken, { delegate_user_id: delegateId });
+    const { id } = (await created.json()) as DelegationRow;
+    const url = `${apiBase()}/api/v1/me/review-delegations/${id}`;
+    const headers = { Authorization: `Bearer ${adminToken}` };
+
+    expect((await request.delete(url, { headers })).status()).toBe(204);
+    expect((await request.delete(url, { headers })).status()).toBe(204);
   });
 
   test('rejects delegating to yourself', async ({ request }) => {
-    const token = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    const selfId = await getCurrentUserIdViaApi(request, token);
+    const selfId = await getCurrentUserIdViaApi(request, adminToken);
 
-    const res = await request.post(`${apiBase()}/api/v1/me/review-delegations`, {
-      headers: { Authorization: `Bearer ${token}` },
-      data: {
-        delegate_user_id: selfId,
-        scope_kind: null,
-        scope_id: null,
-        reason: 'nope',
-        starts_at: new Date(Date.now() + 60_000).toISOString(),
-        ends_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-      },
-    });
+    const res = await createDelegation(request, adminToken, { delegate_user_id: selfId });
 
     expect(res.status()).toBe(422);
     expect((await res.json()).error).toBe('ILLEGAL_REVIEW_DELEGATION');
   });
 
   test('rejects a window that ends before it starts', async ({ request }) => {
-    const token = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    const candidates = await request.get(
-      `${apiBase()}/api/v1/me/review-delegations/candidates`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    expect(candidates.ok()).toBeTruthy();
-    const others = (await candidates.json()) as Array<{ id: string }>;
-    test.skip(others.length === 0, 'needs a second user in the organization');
-
-    const res = await request.post(`${apiBase()}/api/v1/me/review-delegations`, {
-      headers: { Authorization: `Bearer ${token}` },
-      data: {
-        delegate_user_id: others[0]!.id,
-        scope_kind: null,
-        scope_id: null,
-        reason: null,
-        starts_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-        ends_at: new Date(Date.now() + 60_000).toISOString(),
-      },
+    const res = await createDelegation(request, adminToken, {
+      delegate_user_id: delegateId,
+      starts_at: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      ends_at: new Date(Date.now() + 60_000).toISOString(),
     });
 
     expect(res.status()).toBe(422);
   });
 
-  test('the candidate list never includes the caller', async ({ request }) => {
-    const token = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    const selfId = await getCurrentUserIdViaApi(request, token);
+  test('rejects a scope that does not resolve', async ({ request }) => {
+    const res = await createDelegation(request, adminToken, {
+      delegate_user_id: delegateId,
+      scope_kind: 'DATASOURCE',
+      scope_id: '00000000-0000-0000-0000-000000000000',
+    });
+
+    expect(res.status()).toBe(422);
+  });
+
+  test('the candidate list includes the delegate but never the caller', async ({ request }) => {
+    const selfId = await getCurrentUserIdViaApi(request, adminToken);
 
     const res = await request.get(`${apiBase()}/api/v1/me/review-delegations/candidates`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${adminToken}` },
     });
 
     expect(res.ok()).toBeTruthy();
-    const candidates = (await res.json()) as Array<{ id: string }>;
-    expect(candidates.map((c) => c.id)).not.toContain(selfId);
+    const ids = ((await res.json()) as Array<{ id: string }>).map((c) => c.id);
+    expect(ids).toContain(delegateId);
+    expect(ids).not.toContain(selfId);
   });
 
-  test('the profile page shows the out-of-office card with its empty states', async ({ page }) => {
+  test('an admin can read the org-wide delegation listing', async ({ request }) => {
+    const created = await createDelegation(request, adminToken, { delegate_user_id: delegateId });
+    const { id } = (await created.json()) as DelegationRow;
+
+    const res = await request.get(
+      `${apiBase()}/api/v1/admin/review-delegations?active_only=false`,
+      { headers: { Authorization: `Bearer ${adminToken}` } },
+    );
+
+    expect(res.ok()).toBeTruthy();
+    const body = (await res.json()) as { content: DelegationRow[] };
+    expect(body.content.map((d) => d.id)).toContain(id);
+  });
+
+  test('the profile page lists a delegation and can revoke it', async ({ page, request }) => {
+    const created = await createDelegation(request, adminToken, {
+      delegate_user_id: delegateId,
+      reason: 'Annual leave',
+    });
+    expect(created.status()).toBe(201);
+
     await page.goto('/login');
     await page.locator('#login-email').fill(ADMIN_EMAIL);
     await page.locator('#login-password').fill(ADMIN_PASSWORD);
     await page.locator('button[type="submit"]').click();
     await page.waitForURL('**/dashboard', { timeout: 15_000 });
-
     await page.goto('/profile');
 
-    const card = page
-      .locator('.ant-card')
-      .filter({ hasText: 'Out-of-office delegation' })
-      .first();
+    const card = page.locator('.ant-card').filter({ hasText: 'Out-of-office delegation' }).first();
     await expect(card).toBeVisible();
-    await expect(card.getByText(/never act on a request you submitted/i)).toBeVisible();
-    await expect(card.getByText("You haven't delegated your review duty.")).toBeVisible();
-    await expect(
-      card.getByText('Nobody has delegated their review duty to you.'),
-    ).toBeVisible();
-  });
+    await expect(card.getByText('AF-622 Delegate').first()).toBeVisible();
+    await expect(card.getByText('All review queues').first()).toBeVisible();
 
-  test('an admin can read the org-wide delegation listing', async ({ request }) => {
-    const token = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await card.getByRole('button', { name: 'Revoke' }).first().click();
+    await page.getByRole('button', { name: 'OK' }).click();
 
-    const res = await request.get(`${apiBase()}/api/v1/admin/review-delegations`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    expect(res.ok()).toBeTruthy();
-    const body = await res.json();
-    expect(body).toHaveProperty('content');
-    expect(Array.isArray(body.content)).toBeTruthy();
+    await expect(card.getByText('Revoked').first()).toBeVisible({ timeout: 10_000 });
   });
 });

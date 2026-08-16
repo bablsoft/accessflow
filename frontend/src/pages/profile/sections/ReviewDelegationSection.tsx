@@ -24,7 +24,13 @@ import {
   revokeReviewDelegation,
 } from '@/api/reviewDelegations';
 import { datasourceKeys, listDatasources } from '@/api/datasources';
+import { apiConnectorKeys, listApiConnectors } from '@/api/apiConnectors';
 import type { DelegationScopeKind, ReviewDelegation } from '@/types/api';
+import {
+  DELEGATION_SCOPE_KINDS,
+  delegationScopeKindLabel,
+  delegationStatusLabel,
+} from '@/utils/enumLabels';
 import { apiErrorMessage, apiErrorTraceId } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { fmtDate } from '@/utils/dateFormat';
@@ -60,12 +66,23 @@ export function ReviewDelegationSection() {
     queryKey: reviewDelegationKeys.candidates(),
     queryFn: listDelegateCandidates,
   });
-  // Only fetched once a datasource scope is actually chosen — most delegations are unscoped.
+  // Both scope pickers stay disabled until their kind is chosen — most delegations are unscoped,
+  // so neither list is worth fetching up front.
   const datasources = useQuery({
     queryKey: datasourceKeys.list({ size: 100 }),
     queryFn: () => listDatasources({ size: 100 }),
     enabled: scopeKind === 'DATASOURCE',
   });
+  const connectors = useQuery({
+    queryKey: apiConnectorKeys.list({ size: 100 }),
+    queryFn: () => listApiConnectors({ size: 100 }),
+    enabled: scopeKind === 'API_CONNECTOR',
+  });
+
+  const scopeOptions =
+    scopeKind === 'API_CONNECTOR'
+      ? (connectors.data?.content ?? []).map((c) => ({ value: c.id, label: c.name }))
+      : (datasources.data?.content ?? []).map((ds) => ({ value: ds.id, label: ds.name }));
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: reviewDelegationKeys.all });
@@ -114,29 +131,35 @@ export function ReviewDelegationSection() {
     label: candidate.display_name ?? candidate.email ?? candidate.id,
   }));
 
+  const scopeColumn: ColumnsType<ReviewDelegation>[number] = {
+    title: t('profile.delegation.col_scope'),
+    key: 'scope',
+    render: (_, row) => row.scope_name ?? t('profile.delegation.scope_all'),
+  };
+
+  const windowColumn: ColumnsType<ReviewDelegation>[number] = {
+    title: t('profile.delegation.col_window'),
+    key: 'window',
+    render: (_, row) => `${fmtDate(row.starts_at)} – ${fmtDate(row.ends_at)}`,
+  };
+
+  const statusColumn: ColumnsType<ReviewDelegation>[number] = {
+    title: t('profile.delegation.col_status'),
+    key: 'status',
+    render: (_, row) => (
+      <Tag color={STATUS_COLOR[row.status]}>{delegationStatusLabel(t, row.status)}</Tag>
+    ),
+  };
+
   const grantedColumns: ColumnsType<ReviewDelegation> = [
     {
       title: t('profile.delegation.col_delegate'),
       key: 'delegate',
       render: (_, row) => row.delegate.display_name ?? row.delegate.email,
     },
-    {
-      title: t('profile.delegation.col_scope'),
-      key: 'scope',
-      render: (_, row) => row.scope_name ?? t('profile.delegation.scope_all'),
-    },
-    {
-      title: t('profile.delegation.col_window'),
-      key: 'window',
-      render: (_, row) => `${fmtDate(row.starts_at)} – ${fmtDate(row.ends_at)}`,
-    },
-    {
-      title: t('profile.delegation.col_status'),
-      key: 'status',
-      render: (_, row) => (
-        <Tag color={STATUS_COLOR[row.status]}>{t(`enums.delegation_status.${row.status}`)}</Tag>
-      ),
-    },
+    scopeColumn,
+    windowColumn,
+    statusColumn,
     {
       title: t('profile.delegation.col_actions'),
       key: 'actions',
@@ -146,7 +169,12 @@ export function ReviewDelegationSection() {
             title={t('profile.delegation.revoke_confirm')}
             onConfirm={() => revokeMutation.mutate(row.id)}
           >
-            <Button size="small" danger loading={revokeMutation.isPending}>
+            <Button
+              size="small"
+              danger
+              // Scoped to the row being revoked — a shared flag spins every button at once.
+              loading={revokeMutation.isPending && revokeMutation.variables === row.id}
+            >
               {t('profile.delegation.revoke')}
             </Button>
           </Popconfirm>
@@ -160,9 +188,9 @@ export function ReviewDelegationSection() {
       key: 'delegator',
       render: (_, row) => row.delegator.display_name ?? row.delegator.email,
     },
-    grantedColumns[1] as ColumnsType<ReviewDelegation>[number],
-    grantedColumns[2] as ColumnsType<ReviewDelegation>[number],
-    grantedColumns[3] as ColumnsType<ReviewDelegation>[number],
+    scopeColumn,
+    windowColumn,
+    statusColumn,
   ];
 
   return (
@@ -204,24 +232,24 @@ export function ReviewDelegationSection() {
             allowClear
             onChange={() => form.setFieldValue('scope_id', undefined)}
             placeholder={t('profile.delegation.scope_all')}
-            options={[{ value: 'DATASOURCE', label: t('enums.delegation_scope.DATASOURCE') }]}
+            options={DELEGATION_SCOPE_KINDS.map((kind) => ({
+              value: kind,
+              label: delegationScopeKindLabel(t, kind),
+            }))}
           />
         </Form.Item>
 
-        {scopeKind === 'DATASOURCE' && (
+        {scopeKind && (
           <Form.Item
             name="scope_id"
-            label={t('profile.delegation.label_scope')}
+            label={delegationScopeKindLabel(t, scopeKind)}
             rules={[{ required: true, message: t('profile.delegation.validation_scope') }]}
           >
             <Select
               showSearch
               optionFilterProp="label"
-              loading={datasources.isLoading}
-              options={(datasources.data?.content ?? []).map((ds) => ({
-                value: ds.id,
-                label: ds.name,
-              }))}
+              loading={datasources.isLoading || connectors.isLoading}
+              options={scopeOptions}
             />
           </Form.Item>
         )}

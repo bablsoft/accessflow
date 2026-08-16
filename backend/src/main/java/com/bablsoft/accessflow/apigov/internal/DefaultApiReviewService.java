@@ -166,8 +166,11 @@ public class DefaultApiReviewService implements ApiReviewService {
      * delegation only reaches the connector it names.
      */
     private List<ApiRequestSpecifications.ReviewReach> reviewReaches(ReviewerContext context) {
-        var connectors = connectorRepository
-                .findByOrganizationIdAndActiveTrueOrderByNameAsc(context.organizationId());
+        // Every connector, not just active ones: deactivating a connector must not make its
+        // already-submitted PENDING_REVIEW requests vanish from the queue. The decision path does
+        // not filter on active either, so a filtered queue would leave them decidable-but-hidden
+        // until they time out.
+        var connectors = connectorRepository.findAllByOrganizationId(context.organizationId());
         var plans = new HashMap<UUID, ReviewPlanSnapshot>();
         for (var connector : connectors) {
             if (connector.getReviewPlanId() != null) {
@@ -223,8 +226,13 @@ public class DefaultApiReviewService implements ApiReviewService {
                 && request.getSubmittedBy().equals(candidate.onBehalfOfUserId()));
         // One authority, one vote. The unique index only stops the acting user voting twice; it
         // cannot see that a delegator already voted personally, or the reverse.
-        candidates.removeIf(candidate -> decided.stream().anyMatch(decision ->
-                candidate.userId().equals(decision.getReviewerId())
+        //
+        // Decisions the acting user cast themselves are excluded: that is a replay, answered
+        // idempotently by the existing-decision check in approve/reject. Without the exclusion a
+        // retry would be rejected as ineligible before ever reaching it.
+        candidates.removeIf(candidate -> decided.stream()
+                .filter(decision -> !context.userId().equals(decision.getReviewerId()))
+                .anyMatch(decision -> candidate.userId().equals(decision.getReviewerId())
                         || candidate.userId().equals(decision.getOnBehalfOfUserId())));
         return candidates;
     }

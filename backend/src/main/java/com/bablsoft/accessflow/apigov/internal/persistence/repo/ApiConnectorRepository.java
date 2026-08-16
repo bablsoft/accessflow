@@ -15,6 +15,12 @@ public interface ApiConnectorRepository extends JpaRepository<ApiConnectorEntity
 
     List<ApiConnectorEntity> findByOrganizationIdAndActiveTrueOrderByNameAsc(UUID organizationId);
 
+    /**
+     * Every connector in the org, active or not — the review-queue reach (#622) must still cover
+     * requests submitted before a connector was deactivated.
+     */
+    List<ApiConnectorEntity> findAllByOrganizationId(UUID organizationId);
+
     Page<ApiConnectorEntity> findByOrganizationId(UUID organizationId, Pageable pageable);
 
     boolean existsByOrganizationIdAndName(UUID organizationId, String name);

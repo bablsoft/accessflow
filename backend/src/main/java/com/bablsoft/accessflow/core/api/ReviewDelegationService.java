@@ -23,11 +23,14 @@ public interface ReviewDelegationService {
     /**
      * Revokes a delegation, which is a soft state change: the row survives as the evidence that
      * decisions already recorded against it were validly authorised. Only the delegator may revoke.
-     * Revoking an already-revoked or expired delegation is a no-op, so a retry is safe.
+     * Revoking an already-revoked delegation is a no-op, so a retry is safe.
+     *
+     * @return true when this call performed the revocation, false when it was already revoked —
+     *         so the caller can skip auditing an event that did not happen
      *
      * @throws ReviewDelegationNotFoundException when the delegation is absent or in another org
      */
-    void revoke(UUID delegationId, UUID organizationId, UUID actingUserId);
+    boolean revoke(UUID delegationId, UUID organizationId, UUID actingUserId);
 
     /**
      * Active colleagues the caller may delegate to — everyone in the organization except

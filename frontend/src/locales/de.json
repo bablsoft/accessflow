@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (kollaborativ)",
       "approved_by_grant_title": "Automatisch genehmigt unter einer Zugriffsgewährung",
       "approved_by_grant_body": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt, genehmigt von {{approver}} am {{when}}.",
-      "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt."
+      "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt.",
+      "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})"
     }
   },
   "reviews": {

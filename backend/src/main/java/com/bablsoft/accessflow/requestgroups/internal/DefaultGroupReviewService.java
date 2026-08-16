@@ -172,9 +172,14 @@ public class DefaultGroupReviewService implements GroupReviewService {
                 continue;
             }
             // One authority, one vote — the unique index cannot see the delegator's own vote.
-            if (decided.stream().anyMatch(decision ->
-                    delegation.delegatorUserId().equals(decision.getReviewerId())
-                            || delegation.delegatorUserId().equals(decision.getOnBehalfOfUserId()))) {
+            // Decisions the acting user cast themselves are excluded: that is a replay, answered
+            // idempotently by the existing-decision check in approve/reject.
+            if (decided.stream()
+                    .filter(decision -> !context.userId().equals(decision.getReviewerId()))
+                    .anyMatch(decision ->
+                            delegation.delegatorUserId().equals(decision.getReviewerId())
+                                    || delegation.delegatorUserId()
+                                            .equals(decision.getOnBehalfOfUserId()))) {
                 continue;
             }
             var borrowed = ReviewCandidate.borrowed(delegation);

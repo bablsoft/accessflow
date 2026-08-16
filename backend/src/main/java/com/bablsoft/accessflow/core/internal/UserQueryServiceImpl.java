@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +30,15 @@ class UserQueryServiceImpl implements UserQueryService {
     @Transactional(readOnly = true)
     public Optional<UserView> findById(UUID id) {
         return userRepository.findById(id).map(this::toView);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserView> findByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllById(ids).stream().map(this::toView).toList();
     }
 
     @Override

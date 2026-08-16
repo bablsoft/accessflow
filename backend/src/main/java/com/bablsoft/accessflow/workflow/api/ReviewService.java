@@ -74,7 +74,10 @@ public interface ReviewService {
              * when the reviewer is eligible in their own right — even if a delegation would also
              * have covered it.
              */
-            UUID delegatedForUserId) {
+            UUID delegatedForUserId,
+            /** The delegator's email, for rendering the queue badge without a second round trip. */
+            String delegatedForEmail,
+            String delegatedForDisplayName) {
 
         /** Convenience constructor for callers that predate reviewer delegation. */
         public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,
@@ -84,7 +87,7 @@ public interface ReviewService {
                              Double approvalProbability, int currentStage, Instant createdAt) {
             this(queryRequestId, datasourceId, datasourceName, submittedByUserId, submittedByEmail,
                     sqlText, queryType, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
-                    aiSummary, approvalProbability, currentStage, createdAt, null);
+                    aiSummary, approvalProbability, currentStage, createdAt, null, null, null);
         }
     }
 

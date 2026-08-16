@@ -20,7 +20,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -148,15 +147,5 @@ class DefaultReviewDelegationLookupServiceTest {
         assertThat(service.findActiveForDelegate(orgId, delegateId, null, null))
                 .singleElement()
                 .satisfies(identity -> assertThat(identity.delegatorRoleName()).isEqualTo("ADMIN"));
-    }
-
-    @Test
-    void findActiveDelegateIdsDelegatesToTheRepositoryWithTheInjectedClock() {
-        var covering = UUID.randomUUID();
-        when(delegationRepository.findActiveDelegateIds(orgId, delegatorId, NOW))
-                .thenReturn(List.of(covering));
-
-        assertThat(service.findActiveDelegateIds(orgId, delegatorId)).containsExactly(covering);
-        verify(delegationRepository).findActiveDelegateIds(eq(orgId), eq(delegatorId), eq(NOW));
     }
 }

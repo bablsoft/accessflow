@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (collaboratif)",
       "approved_by_grant_title": "Approuvée automatiquement au titre d’un octroi d’accès",
       "approved_by_grant_body": "Cette requête était couverte par l’octroi d’accès {{grantId}}, approuvé par {{approver}} le {{when}}.",
-      "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}."
+      "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}.",
+      "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})"
     }
   },
   "reviews": {

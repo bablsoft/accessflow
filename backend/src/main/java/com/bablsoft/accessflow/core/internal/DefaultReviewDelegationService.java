@@ -12,11 +12,11 @@ import com.bablsoft.accessflow.core.api.ReviewDelegationScopeResolver;
 import com.bablsoft.accessflow.core.api.ReviewDelegationService;
 import com.bablsoft.accessflow.core.api.ReviewDelegationStatus;
 import com.bablsoft.accessflow.core.api.ReviewDelegationView;
+import com.bablsoft.accessflow.core.internal.config.ReviewDelegationProperties;
 import com.bablsoft.accessflow.core.internal.persistence.entity.ReviewDelegationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewDelegationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Create / revoke / list for out-of-office reviewer delegations (#622).
@@ -54,14 +56,14 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
             List<ReviewDelegationScopeResolver> scopeResolvers,
             Clock clock,
             MessageSource messageSource,
-            @Value("${accessflow.review.delegation.max-open-per-delegator:10}") int maxOpenPerDelegator) {
+            ReviewDelegationProperties properties) {
         this.delegationRepository = delegationRepository;
         this.userRepository = userRepository;
         this.scopeResolvers = new EnumMap<>(DelegationScopeKind.class);
         scopeResolvers.forEach(resolver -> this.scopeResolvers.put(resolver.supportedKind(), resolver));
         this.clock = clock;
         this.messageSource = messageSource;
-        this.maxOpenPerDelegator = maxOpenPerDelegator;
+        this.maxOpenPerDelegator = properties.maxOpenPerDelegator();
     }
 
     @Override
@@ -89,7 +91,7 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
 
     @Override
     @Transactional
-    public void revoke(UUID delegationId, UUID organizationId, UUID actingUserId) {
+    public boolean revoke(UUID delegationId, UUID organizationId, UUID actingUserId) {
         var entity = delegationRepository.findByIdAndOrganizationId(delegationId, organizationId)
                 .orElseThrow(() -> new ReviewDelegationNotFoundException(delegationId));
         // Only the delegator may revoke: the delegate declining cover is a different action, and
@@ -98,12 +100,13 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
             throw new ReviewDelegationNotFoundException(delegationId);
         }
         if (entity.getRevokedAt() != null) {
-            return;
+            return false;
         }
         entity.setRevokedAt(clock.instant());
         entity.setRevokedBy(actingUserId);
         entity.setUpdatedAt(clock.instant());
         delegationRepository.save(entity);
+        return true;
     }
 
     @Override
@@ -211,17 +214,36 @@ public class DefaultReviewDelegationService implements ReviewDelegationService {
         return resolver == null ? Optional.empty() : resolver.resolveName(organizationId, scopeId);
     }
 
+    /** One user query for the whole page rather than two per row. */
     private List<ReviewDelegationView> toViews(List<ReviewDelegationEntity> rows) {
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        var userIds = rows.stream()
+                .flatMap(row -> Stream.of(row.getDelegatorId(), row.getDelegateId()))
+                .distinct()
+                .toList();
+        var users = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(UserEntity::getId, user -> user));
         return rows.stream()
                 .map(row -> toView(row, row.getScopeKind() == null ? null
                         : resolveScopeName(row.getOrganizationId(), row.getScopeKind(),
-                                row.getScopeId()).orElse(null)))
+                                row.getScopeId()).orElse(null), users))
                 .toList();
     }
 
     private ReviewDelegationView toView(ReviewDelegationEntity row, String scopeName) {
-        var delegator = userRepository.findById(row.getDelegatorId()).orElse(null);
-        var delegate = userRepository.findById(row.getDelegateId()).orElse(null);
+        return toView(row, scopeName, Map.of());
+    }
+
+    private ReviewDelegationView toView(ReviewDelegationEntity row, String scopeName,
+                                        Map<UUID, UserEntity> cached) {
+        var delegator = cached.containsKey(row.getDelegatorId())
+                ? cached.get(row.getDelegatorId())
+                : userRepository.findById(row.getDelegatorId()).orElse(null);
+        var delegate = cached.containsKey(row.getDelegateId())
+                ? cached.get(row.getDelegateId())
+                : userRepository.findById(row.getDelegateId()).orElse(null);
         return new ReviewDelegationView(
                 row.getId(),
                 row.getOrganizationId(),

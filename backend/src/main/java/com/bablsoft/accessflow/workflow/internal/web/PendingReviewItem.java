@@ -40,8 +40,10 @@ public record PendingReviewItem(
                 pending.approvalProbability(),
                 pending.currentStage(),
                 pending.createdAt(),
-                pending.delegatedForUserId() == null
-                        ? null : new DelegatorSummary(pending.delegatedForUserId()));
+                pending.delegatedForUserId() == null ? null : new DelegatorSummary(
+                        pending.delegatedForUserId(),
+                        pending.delegatedForEmail(),
+                        pending.delegatedForDisplayName()));
     }
 
     public record DatasourceSummary(UUID id, String name) {
@@ -50,7 +52,7 @@ public record PendingReviewItem(
     public record SubmitterSummary(UUID id, String email) {
     }
 
-    public record DelegatorSummary(UUID id) {
+    public record DelegatorSummary(UUID id, String email, String displayName) {
     }
 
     public record AiAnalysisSummary(UUID id, RiskLevel riskLevel, Integer riskScore,

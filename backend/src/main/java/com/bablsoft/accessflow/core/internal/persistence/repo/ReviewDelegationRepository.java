@@ -51,23 +51,6 @@ public interface ReviewDelegationRepository extends JpaRepository<ReviewDelegati
                                                        @Param("delegateId") UUID delegateId,
                                                        @Param("at") Instant at);
 
-    /** Reverse direction of {@link #findActiveForDelegate} — who is currently covering this user. */
-    @Query("""
-            select d.delegateId from ReviewDelegationEntity d
-              join UserEntity delegator on delegator.id = d.delegatorId
-              join UserEntity delegate on delegate.id = d.delegateId
-            where d.organizationId = :orgId
-              and d.delegatorId = :delegatorId
-              and d.revokedAt is null
-              and d.startsAt <= :at
-              and d.endsAt > :at
-              and delegator.active = true
-              and delegate.active = true
-            order by d.createdAt asc
-            """)
-    List<UUID> findActiveDelegateIds(@Param("orgId") UUID organizationId,
-                                     @Param("delegatorId") UUID delegatorId,
-                                     @Param("at") Instant at);
 
     /** Cap check: how many delegations this user currently has open. */
     @Query("""

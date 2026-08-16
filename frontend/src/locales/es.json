@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (colaborativo)",
       "approved_by_grant_title": "Aprobada automáticamente bajo una concesión de acceso",
       "approved_by_grant_body": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}, aprobada por {{approver}} el {{when}}.",
-      "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}."
+      "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}.",
+      "timeline_on_behalf_of": "{{actor}} (en nombre de {{delegator}})"
     }
   },
   "reviews": {

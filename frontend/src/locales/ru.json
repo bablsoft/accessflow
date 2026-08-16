@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (совместно)",
       "approved_by_grant_title": "Автоматически одобрено в рамках гранта доступа",
       "approved_by_grant_body": "Этот запрос покрывался грантом доступа {{grantId}}, одобренным {{approver}} {{when}}.",
-      "approved_by_grant_body_no_approver": "Этот запрос покрывался грантом доступа {{grantId}}."
+      "approved_by_grant_body_no_approver": "Этот запрос покрывался грантом доступа {{grantId}}.",
+      "timeline_on_behalf_of": "{{actor}} (от имени {{delegator}})"
     }
   },
   "reviews": {

@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL（协作）",
       "approved_by_grant_title": "已根据访问授权自动批准",
       "approved_by_grant_body": "此查询由访问授权 {{grantId}} 覆盖，由 {{approver}} 于 {{when}} 批准。",
-      "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。"
+      "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。",
+      "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）"
     }
   },
   "reviews": {

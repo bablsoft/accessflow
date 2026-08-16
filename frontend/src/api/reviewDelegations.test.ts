@@ -4,7 +4,6 @@ import {
   createReviewDelegation,
   listDelegateCandidates,
   listMyReviewDelegations,
-  listOrganizationReviewDelegations,
   reviewDelegationKeys,
   revokeReviewDelegation,
 } from './reviewDelegations';
@@ -25,11 +24,6 @@ describe('reviewDelegations api', () => {
   it('exposes hierarchical query keys', () => {
     expect(reviewDelegationKeys.mine()).toEqual(['reviewDelegations', 'mine']);
     expect(reviewDelegationKeys.candidates()).toEqual(['reviewDelegations', 'candidates']);
-    expect(reviewDelegationKeys.admin({ activeOnly: true })).toEqual([
-      'reviewDelegations',
-      'admin',
-      { activeOnly: true },
-    ]);
   });
 
   it('reads both directions from /me/review-delegations', async () => {
@@ -89,21 +83,5 @@ describe('reviewDelegations api', () => {
     await revokeReviewDelegation('d1');
 
     expect(mockedDelete.mock.calls[0]?.[0]).toBe('/api/v1/me/review-delegations/d1');
-  });
-
-  it('passes admin filters as snake_case params', async () => {
-    mockedGet.mockResolvedValueOnce({ data: { content: [] } } as never);
-
-    await listOrganizationReviewDelegations({ delegatorId: 'a', activeOnly: true, page: 1 });
-
-    expect(mockedGet.mock.calls[0]?.[1]).toEqual({
-      params: {
-        delegator_id: 'a',
-        delegate_id: undefined,
-        active_only: true,
-        page: 1,
-        size: undefined,
-      },
-    });
   });
 });

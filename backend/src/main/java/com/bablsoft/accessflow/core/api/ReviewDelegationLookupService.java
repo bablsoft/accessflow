@@ -35,10 +35,4 @@ public interface ReviewDelegationLookupService {
      */
     List<DelegatedIdentity> findActiveForDelegate(UUID organizationId, UUID actingUserId,
                                                   DelegationScopeKind resourceKind, UUID resourceId);
-
-    /**
-     * Ids of the users currently covering {@code delegatorUserId}. Used for notification fan-out
-     * and "who is covering me" read surfaces.
-     */
-    List<UUID> findActiveDelegateIds(UUID organizationId, UUID delegatorUserId);
 }

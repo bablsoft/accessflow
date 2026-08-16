@@ -64,6 +64,7 @@ class DefaultReviewServiceTest {
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock com.bablsoft.accessflow.core.api.ReviewerEligibilityService reviewerEligibilityService;
     @Mock com.bablsoft.accessflow.core.api.ReviewDelegationLookupService reviewDelegationLookupService;
+    @Mock com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
     @Mock RoutingDecisionService routingDecisionService;
     @Mock ApprovalPredictionLookupService approvalPredictionLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
@@ -234,8 +235,12 @@ class DefaultReviewServiceTest {
     @Test
     void approveIdempotentReplayDoesNotPublishEvent() {
         givenPendingReview();
-        givenSingleStagePlan();
-        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        givenSingleStagePlanWithMinApprovals(2);
+        // A replay means a decision by THIS reviewer at this stage already exists — the previous
+        // empty stub described a state a replay cannot occur in, and so never exercised the
+        // one-authority-one-vote guard sitting in front of the replay path.
+        when(queryRequestStateService.listDecisions(queryId))
+                .thenReturn(List.of(decisionAt(1, DecisionType.APPROVED, reviewerId)));
         when(queryRequestStateService.recordApprovalAndAdvance(any()))
                 .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, true));
 
@@ -755,10 +760,59 @@ class DefaultReviewServiceTest {
                 .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorId, null, 1)))));
         when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
 
+        when(userQueryService.findByIds(List.of(delegatorId))).thenReturn(List.of(
+                new com.bablsoft.accessflow.core.api.UserView(delegatorId, "alice@example.com",
+                        "Alice", UserRoleType.REVIEWER, organizationId, true,
+                        com.bablsoft.accessflow.core.api.AuthProviderType.LOCAL, null, null, null,
+                        false, Instant.parse("2025-01-15T10:00:00Z"))));
+
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
                 PageRequest.of(0, 20));
 
-        assertThat(page.content()).singleElement()
-                .satisfies(row -> assertThat(row.delegatedForUserId()).isEqualTo(delegatorId));
+        assertThat(page.content()).singleElement().satisfies(row -> {
+            assertThat(row.delegatedForUserId()).isEqualTo(delegatorId);
+            // Resolved in one batch lookup so the queue badge needs no second round trip.
+            assertThat(row.delegatedForDisplayName()).isEqualTo("Alice");
+            assertThat(row.delegatedForEmail()).isEqualTo("alice@example.com");
+        });
+    }
+
+    @Test
+    void aReviewersOwnPriorVoteDoesNotBlockTheirRetry() {
+        // The one-authority-one-vote guard must not swallow a replay: with min_approvals = 2 the
+        // query is still PENDING_REVIEW after the first vote, so a retry reaches prepareDecision.
+        givenPendingReview();
+        givenSingleStagePlanWithMinApprovals(2);
+        when(queryRequestStateService.listDecisions(queryId))
+                .thenReturn(List.of(decisionAt(1, DecisionType.APPROVED, reviewerId)));
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
+                        QueryStatus.PENDING_REVIEW, true));
+
+        var outcome = service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "again");
+
+        assertThat(outcome.wasIdempotentReplay()).isTrue();
+    }
+
+    @Test
+    void aDelegateRetryingTheirOwnDelegatedVoteAlsoReplays() {
+        var delegatorId = UUID.randomUUID();
+        givenPendingReview();
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(new ReviewPlanSnapshot(
+                        UUID.randomUUID(), organizationId, true, true, 2, false, 1,
+                        List.of(new ApproverRule(delegatorId, null, 1)), List.of())));
+        // Their earlier vote carries on_behalf_of = delegator; it must not lock them out of a retry.
+        when(queryRequestStateService.listDecisions(queryId))
+                .thenReturn(List.of(new ReviewDecisionSnapshot(UUID.randomUUID(), queryId,
+                        reviewerId, DecisionType.APPROVED, "ok", 1, Instant.now(),
+                        delegatorId, UUID.randomUUID())));
+        givenDelegationFrom(delegatorId, "REVIEWER");
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
+                        QueryStatus.PENDING_REVIEW, true));
+
+        assertThat(service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "again")
+                .wasIdempotentReplay()).isTrue();
     }
 }

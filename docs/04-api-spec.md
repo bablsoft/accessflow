@@ -2259,8 +2259,9 @@ other's names on approval timelines and review queues.
 | `starts_at` / `ends_at` | Both required; `ends_at` must be strictly after `starts_at`. |
 | `reason` | Optional, ≤ 500 characters. |
 
-A **grouped request mixes datasources and API connectors**, so it is covered only by an *unscoped*
-delegation — a `DATASOURCE`-scoped delegation never confers eligibility on a group.
+A **grouped request mixes datasources and API connectors**, so a scoped delegation covers a bundle
+when its resource is one of the bundle's members — consistent with the union-over-members
+eligibility a group already uses, and never broader than what the delegator could do alone.
 
 Overlapping delegations are permitted: a reviewer may delegate different resources to different
 people over the same window, and the resolved eligibility is their union.
@@ -2282,6 +2283,7 @@ people over the same window, and the resolved eligibility is their union.
       "starts_at": "2026-08-20T00:00:00Z",
       "ends_at": "2026-08-30T00:00:00Z",
       "reason": "Annual leave",
+      "revoked_at": null,
       "status": "ACTIVE",
       "created_at": "2026-08-16T09:00:00Z"
     }
@@ -2296,8 +2298,10 @@ display and is `null` for an unscoped delegation.
 
 ### DELETE /me/review-delegations/{id} — Response 204
 
-Only the **delegator** may revoke; the delegate cannot revoke a delegation granted to them
-(HTTP 403). Revoking an already-revoked or expired delegation is idempotent and still returns 204.
+Only the **delegator** may revoke; a delegate attempting to revoke a delegation granted to them
+gets HTTP 404, not 403 — the endpoint never confirms that someone else's delegation exists.
+Revoking an already-revoked delegation is idempotent, still returns 204, and writes no second audit
+row.
 
 ### GET /admin/review-delegations — Query Parameters
 
@@ -2309,20 +2313,21 @@ whose `content` entries have the same shape as the `granted` rows above.
 
 | Status | `error` code | Cause |
 |--------|--------------|-------|
-| 400 | `VALIDATION_ERROR` | Bean Validation failure — missing field, `ends_at` ≤ `starts_at`, `scope_kind`/`scope_id` set inconsistently |
-| 403 | `FORBIDDEN` | Caller is not the delegation's delegator (revoke), or lacks `QUERY_ADMIN` (admin list) |
-| 404 | `REVIEW_DELEGATION_NOT_FOUND` | Delegation does not exist or belongs to another organization |
-| 404 | `USER_NOT_FOUND` | `delegate_user_id` does not resolve to an active user in the organization |
-| 422 | `ILLEGAL_REVIEW_DELEGATION` | Delegate is the caller, or `scope_id` does not resolve to a resource of `scope_kind` |
+| 400 | `VALIDATION_ERROR` | Bean Validation failure — a missing `delegate_user_id` / `starts_at` / `ends_at`, or a `reason` over 500 characters |
+| 403 | `FORBIDDEN` | Caller lacks `QUERY_ADMIN` (admin list only) |
+| 404 | `REVIEW_DELEGATION_NOT_FOUND` | Delegation does not exist, belongs to another organization, **or the caller is not its delegator** — revoke deliberately returns 404 rather than 403, so the endpoint cannot be used to enumerate other people's delegations |
+| 422 | `ILLEGAL_REVIEW_DELEGATION` | Every other rule, all service-side: delegate is the caller, delegate or delegator is not an active member, `ends_at` ≤ `starts_at`, a window that has already closed, `scope_kind`/`scope_id` set inconsistently, a `scope_id` that does not resolve to a resource of that kind, or the caller's open-delegation cap |
 
 ### Effect on existing review responses
 
-- `GET /reviews/pending`, `GET /api-reviews`, and `GET /request-groups/reviews` gain a nullable
-  `delegated_for` object (`{ "id": "uuid", "email": "…", "display_name": "…" }`) on each row —
-  present when the caller is only eligible for that row through a delegation, naming the delegator.
-  It is `null` when the caller is eligible in their own right, even if a delegation also covers it.
-- Every review-decision entry (`review_decisions[]` on `GET /queries/{id}` and the equivalents for
-  API and grouped requests) gains a nullable `on_behalf_of` object of the same shape.
+- `GET /reviews/pending` gains a nullable `delegated_for` object
+  (`{ "id": "uuid", "email": "…", "display_name": "…" }`) on each row — present when the caller is
+  only eligible for that row through a delegation, naming the delegator. It is `null` when the
+  caller is eligible in their own right, even if a delegation also covers it. The API-request and
+  grouped-request queues honour delegations for *eligibility* but do not yet carry this field.
+- `review_decisions[]` on `GET /queries/{id}` gains a nullable `on_behalf_of` object of the same
+  shape. `api_review_decisions` and `group_review_decisions` persist the same provenance columns,
+  but their read models do not expose them yet.
 
 ---
 

@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (collaborative)",
       "approved_by_grant_title": "Auto-approved under an access grant",
       "approved_by_grant_body": "This query was covered by access grant {{grantId}}, approved by {{approver}} on {{when}}.",
-      "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}."
+      "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
+      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})"
     }
   },
   "reviews": {

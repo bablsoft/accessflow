@@ -4,27 +4,16 @@ import type {
   DelegateCandidate,
   MyReviewDelegations,
   ReviewDelegation,
-  ReviewDelegationPage,
 } from '@/types/api';
 
 const BASE = '/api/v1/me/review-delegations';
-const ADMIN_BASE = '/api/v1/admin/review-delegations';
 
 export const reviewDelegationKeys = {
   all: ['reviewDelegations'] as const,
   mine: () => ['reviewDelegations', 'mine'] as const,
-  admin: (filters: AdminReviewDelegationFilters) =>
-    ['reviewDelegations', 'admin', filters] as const,
   candidates: () => ['reviewDelegations', 'candidates'] as const,
 };
 
-export interface AdminReviewDelegationFilters {
-  delegatorId?: string;
-  delegateId?: string;
-  activeOnly?: boolean;
-  page?: number;
-  size?: number;
-}
 
 /** Delegations the caller granted, plus those granted to them (#622). */
 export async function listMyReviewDelegations(): Promise<MyReviewDelegations> {
@@ -58,19 +47,4 @@ export async function createReviewDelegation(
 /** Soft revoke — the row survives as evidence for decisions already taken under it. */
 export async function revokeReviewDelegation(id: string): Promise<void> {
   await apiClient.delete(`${BASE}/${id}`);
-}
-
-export async function listOrganizationReviewDelegations(
-  filters: AdminReviewDelegationFilters,
-): Promise<ReviewDelegationPage> {
-  const { data } = await apiClient.get<ReviewDelegationPage>(ADMIN_BASE, {
-    params: {
-      delegator_id: filters.delegatorId,
-      delegate_id: filters.delegateId,
-      active_only: filters.activeOnly,
-      page: filters.page,
-      size: filters.size,
-    },
-  });
-  return data;
 }

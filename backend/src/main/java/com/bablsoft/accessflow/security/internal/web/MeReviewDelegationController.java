@@ -93,8 +93,11 @@ class MeReviewDelegationController {
             @PathVariable UUID id,
             @AuthenticationPrincipal(expression = "userId") UUID userId,
             @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
-        reviewDelegationService.revoke(id, organizationId, userId);
-        audit(AuditAction.REVIEW_DELEGATION_REVOKED, id, organizationId, userId, Map.of());
+        // Only audit a revocation that actually happened — a retry of an already-revoked
+        // delegation is a documented no-op and must not write a second row for it.
+        if (reviewDelegationService.revoke(id, organizationId, userId)) {
+            audit(AuditAction.REVIEW_DELEGATION_REVOKED, id, organizationId, userId, Map.of());
+        }
         return ResponseEntity.noContent().build();
     }
 

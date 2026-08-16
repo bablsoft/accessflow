@@ -62,7 +62,8 @@ class DefaultReviewDelegationServiceTest {
         var messageSource = new org.springframework.context.support.StaticMessageSource();
         messageSource.setUseCodeAsDefaultMessage(true);
         service = new DefaultReviewDelegationService(delegationRepository, userRepository,
-                List.of(datasourceResolver), Clock.fixed(NOW, ZoneOffset.UTC), messageSource, 10);
+                List.of(datasourceResolver), Clock.fixed(NOW, ZoneOffset.UTC), messageSource,
+                new com.bablsoft.accessflow.core.internal.config.ReviewDelegationProperties(10));
         activeUser(delegatorId);
         activeUser(delegateId);
         when(delegationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -118,9 +119,19 @@ class DefaultReviewDelegationServiceTest {
 
     @Test
     void failsClosedWhenNoResolverIsRegisteredForTheScopeKind() {
+        // Every kind has a resolver in production (core supplies DATASOURCE, apigov supplies
+        // API_CONNECTOR), so this asserts the defensive branch explicitly rather than relying on a
+        // gap: a future scope kind added without its resolver must be refused, not accepted blind.
+        var messageSource = new org.springframework.context.support.StaticMessageSource();
+        messageSource.setUseCodeAsDefaultMessage(true);
+        var withoutResolvers = new DefaultReviewDelegationService(delegationRepository,
+                userRepository, List.of(), Clock.fixed(NOW, ZoneOffset.UTC), messageSource,
+                new com.bablsoft.accessflow.core.internal.config.ReviewDelegationProperties(10));
+
         assertThatThrownBy(() ->
-                service.create(command(DelegationScopeKind.API_CONNECTOR, UUID.randomUUID())))
-                .isInstanceOf(IllegalReviewDelegationException.class);
+                withoutResolvers.create(command(DelegationScopeKind.DATASOURCE, datasourceId)))
+                .isInstanceOf(IllegalReviewDelegationException.class)
+                .hasMessageContaining("scope_unresolved");
     }
 
     @Test
@@ -205,7 +216,7 @@ class DefaultReviewDelegationServiceTest {
         when(delegationRepository.findByIdAndOrganizationId(entity.getId(), orgId))
                 .thenReturn(Optional.of(entity));
 
-        service.revoke(entity.getId(), orgId, delegatorId);
+        assertThat(service.revoke(entity.getId(), orgId, delegatorId)).isTrue();
 
         assertThat(entity.getRevokedAt()).isEqualTo(NOW);
         assertThat(entity.getRevokedBy()).isEqualTo(delegatorId);
@@ -219,7 +230,8 @@ class DefaultReviewDelegationServiceTest {
         when(delegationRepository.findByIdAndOrganizationId(entity.getId(), orgId))
                 .thenReturn(Optional.of(entity));
 
-        service.revoke(entity.getId(), orgId, delegatorId);
+        // Returns false so the caller can skip auditing an event that did not happen.
+        assertThat(service.revoke(entity.getId(), orgId, delegatorId)).isFalse();
 
         assertThat(entity.getRevokedAt()).isEqualTo(NOW.minus(1, ChronoUnit.DAYS));
         verify(delegationRepository, never()).save(any());

@@ -63,12 +63,6 @@ public class DefaultReviewDelegationLookupService implements ReviewDelegationLoo
                 .toList();
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<UUID> findActiveDelegateIds(UUID organizationId, UUID delegatorUserId) {
-        return delegationRepository.findActiveDelegateIds(organizationId, delegatorUserId,
-                clock.instant());
-    }
 
     /**
      * A scoped delegation matches only its own resource; an unrestricted one matches everything.

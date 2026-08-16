@@ -39,10 +39,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -58,6 +61,7 @@ class DefaultReviewService implements ReviewService {
     private final ReviewDelegationLookupService reviewDelegationLookupService;
     private final RoutingDecisionService routingDecisionService;
     private final ApprovalPredictionLookupService approvalPredictionLookupService;
+    private final com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -87,14 +91,20 @@ class DefaultReviewService implements ReviewService {
                 .forEach(roleNames::add);
         var page = queryRequestLookupService.findPendingForReviewer(context.organizationId(),
                 context.userId(), principalIds, roleNames, pageRequest);
-        var actionable = page.content().stream()
-                .filter(view -> isCurrentlyActionable(view, context, delegations))
-                .toList();
+        var actionable = new ArrayList<PendingReviewView>();
+        var matchedIdentity = new HashMap<UUID, ReviewCandidate>();
+        for (var view : page.content()) {
+            actionableAs(view, context, delegations).ifPresent(candidate -> {
+                actionable.add(view);
+                matchedIdentity.put(view.queryRequestId(), candidate);
+            });
+        }
         var probabilities = approvalProbabilities(actionable);
+        var delegators = delegatorRefs(matchedIdentity.values());
         var visible = actionable.stream()
                 .map(view -> toPendingReview(view, context,
                         probabilities.get(view.queryRequestId()),
-                        delegatedFor(view, context, delegations)))
+                        matchedIdentity.get(view.queryRequestId()), delegators))
                 .toList();
         return new PageResponse<>(visible, page.page(), page.size(), page.totalElements(),
                 page.totalPages());
@@ -280,15 +290,26 @@ class DefaultReviewService implements ReviewService {
         // One authority, one vote. The unique index only stops the acting user voting twice; it
         // cannot see that a delegator already voted personally, or that a different delegate
         // already voted for them.
-        candidates.removeIf(candidate -> hasVotedAtStage(decisions, currentStage, candidate.userId()));
+        //
+        // Decisions the acting user cast themselves are excluded from this guard: that is a
+        // replay, which the state service answers idempotently downstream. Without the exclusion a
+        // retry — or any bulk re-run — would be rejected as ineligible instead, breaking the
+        // documented wasIdempotentReplay contract for exactly the multi-approver plans where a
+        // second attempt is reachable.
+        candidates.removeIf(candidate ->
+                votedByAnotherActorAtStage(decisions, currentStage, candidate.userId(),
+                        context.userId()));
         return candidates;
     }
 
-    private static boolean hasVotedAtStage(List<ReviewDecisionSnapshot> decisions, int stage,
-                                           UUID userId) {
-        return decisions.stream().anyMatch(decision -> decision.stage() == stage
-                && (userId.equals(decision.reviewerId())
-                    || userId.equals(decision.onBehalfOfUserId())));
+    private static boolean votedByAnotherActorAtStage(List<ReviewDecisionSnapshot> decisions,
+                                                      int stage, UUID authorityUserId,
+                                                      UUID actingUserId) {
+        return decisions.stream()
+                .filter(decision -> decision.stage() == stage)
+                .filter(decision -> !actingUserId.equals(decision.reviewerId()))
+                .anyMatch(decision -> authorityUserId.equals(decision.reviewerId())
+                        || authorityUserId.equals(decision.onBehalfOfUserId()));
     }
 
     /**
@@ -347,41 +368,21 @@ class DefaultReviewService implements ReviewService {
     }
 
     /**
-     * Exact per-row re-check behind the deliberately over-approximating queue query, which
-     * flattens delegated identities into one id list and so cannot tell which identity matched
-     * what. Resolving the delegations once per page and passing them in keeps this off the N+1
-     * path.
+     * Exact per-row re-check behind the deliberately over-approximating queue query, which flattens
+     * delegated identities into one id list and so cannot tell which identity matched what.
+     *
+     * <p>Returns the matching identity rather than a boolean so the caller gets the queue filter and
+     * the "delegated" badge from one pass — recomputing the plan, decisions, routing override and
+     * datasource scope a second time per row would be a needless N+1 on every queue render.
      */
-    private boolean isCurrentlyActionable(PendingReviewView view, ReviewerContext context,
-                                          List<DelegatedIdentity> delegations) {
+    private Optional<ReviewCandidate> actionableAs(PendingReviewView view, ReviewerContext context,
+                                                   List<DelegatedIdentity> delegations) {
         if (view.submittedByUserId().equals(context.userId())) {
-            return false;
+            return Optional.empty();
         }
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElse(null);
         if (plan == null) {
-            return false;
-        }
-        var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
-        var stage = currentStage(plan, decisions,
-                effectiveMinApprovals(view.queryRequestId(), plan));
-        var applicable = delegations.stream()
-                .filter(identity -> identity.covers(DelegationScopeKind.DATASOURCE,
-                        view.datasourceId()))
-                .toList();
-        return candidates(context, view.submittedByUserId(), applicable, decisions, stage).stream()
-                .filter(candidate -> isApproverAtStage(plan, stage, candidate))
-                .anyMatch(candidate -> isInDatasourceScope(view.datasourceId(), candidate.userId()));
-    }
-
-    /**
-     * The delegator whose identity made this row visible, for the queue's "delegated" badge, or
-     * null when the caller is eligible in their own right.
-     */
-    private UUID delegatedFor(PendingReviewView view, ReviewerContext context,
-                              List<DelegatedIdentity> delegations) {
-        var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElse(null);
-        if (plan == null) {
-            return null;
+            return Optional.empty();
         }
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
         var stage = currentStage(plan, decisions,
@@ -393,9 +394,7 @@ class DefaultReviewService implements ReviewService {
         return candidates(context, view.submittedByUserId(), applicable, decisions, stage).stream()
                 .filter(candidate -> isApproverAtStage(plan, stage, candidate))
                 .filter(candidate -> isInDatasourceScope(view.datasourceId(), candidate.userId()))
-                .findFirst()
-                .map(ReviewCandidate::onBehalfOfUserId)
-                .orElse(null);
+                .findFirst();
     }
 
     /**
@@ -416,12 +415,31 @@ class DefaultReviewService implements ReviewService {
                         ApprovalPredictionSnapshot::probability));
     }
 
+    /** One batch lookup for the delegators named across the page — not one per row. */
+    private Map<UUID, com.bablsoft.accessflow.core.api.UserView> delegatorRefs(
+            Collection<ReviewCandidate> matched) {
+        var ids = matched.stream()
+                .map(ReviewCandidate::onBehalfOfUserId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return userQueryService.findByIds(ids).stream()
+                .collect(Collectors.toMap(com.bablsoft.accessflow.core.api.UserView::id,
+                        user -> user));
+    }
+
     private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context,
-                                          Double approvalProbability, UUID delegatedForUserId) {
+                                          Double approvalProbability, ReviewCandidate matched,
+                                          Map<UUID, com.bablsoft.accessflow.core.api.UserView> delegators) {
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElseThrow();
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
         var stage = currentStage(plan, decisions,
                 effectiveMinApprovals(view.queryRequestId(), plan));
+        var delegator = matched.onBehalfOfUserId() == null
+                ? null : delegators.get(matched.onBehalfOfUserId());
         return new PendingReview(
                 view.queryRequestId(),
                 view.datasourceId(),
@@ -438,7 +456,9 @@ class DefaultReviewService implements ReviewService {
                 approvalProbability,
                 stage,
                 view.createdAt(),
-                delegatedForUserId);
+                matched.onBehalfOfUserId(),
+                delegator == null ? null : delegator.email(),
+                delegator == null ? null : delegator.displayName());
     }
 
     private static <T> T mapTransitionFailure(UUID queryRequestId,

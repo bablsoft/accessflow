@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (համատեղ)",
       "approved_by_grant_title": "Ինքնաշխատ հաստատվել է մուտքի թույլտվության ներքո",
       "approved_by_grant_body": "Այս հարցումը ծածկված էր {{grantId}} մուտքի թույլտվությամբ, որը {{when}}-ին հաստատել է {{approver}}-ը:",
-      "approved_by_grant_body_no_approver": "Այս հարցումը ծածկված էր {{grantId}} մուտքի թույլտվությամբ:"
+      "approved_by_grant_body_no_approver": "Այս հարցումը ծածկված էր {{grantId}} մուտքի թույլտվությամբ:",
+      "timeline_on_behalf_of": "{{actor}} ({{delegator}}-ի անունից)"
     }
   },
   "reviews": {

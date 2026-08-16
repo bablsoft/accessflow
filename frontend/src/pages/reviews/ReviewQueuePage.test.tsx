@@ -297,4 +297,23 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     expect(await screen.findByTestId('approval-likelihood-empty')).toHaveTextContent('—');
     expect(screen.queryByTestId('approval-prediction-badge')).toBeNull();
   });
+
+  it('tags a row the caller can only review through a delegation (#622)', async () => {
+    const page = pendingPage();
+    page.content[0]!.delegated_for = { id: 'delegator-1' };
+    listPendingReviewsMock.mockResolvedValue(page);
+
+    render(wrap(<ReviewQueuePage />));
+
+    expect(await screen.findByTestId('delegated-tag')).toHaveTextContent('Delegated');
+  });
+
+  it('leaves the delegated column empty when the caller is eligible in their own right', async () => {
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+
+    render(wrap(<ReviewQueuePage />));
+
+    await screen.findByRole('columnheader', { name: 'Delegated' });
+    expect(screen.queryByTestId('delegated-tag')).toBeNull();
+  });
 });

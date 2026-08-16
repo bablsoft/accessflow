@@ -18,6 +18,7 @@ import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
 import com.bablsoft.accessflow.apigov.api.DuplicateApiConnectorNameException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiConnectorVariableException;
 import com.bablsoft.accessflow.apigov.api.IllegalApiRequestStateException;
+import com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException;
 import com.bablsoft.accessflow.apigov.api.SelfApprovalNotAllowedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
@@ -108,6 +109,12 @@ class ApiGovExceptionHandler {
     ProblemDetail handleSelfApproval(SelfApprovalNotAllowedException ex) {
         return problem(HttpStatus.FORBIDDEN, msg("error.api_request_self_approval"),
                 "API_REQUEST_SELF_APPROVAL");
+    }
+
+    @ExceptionHandler(ApiReviewerNotEligibleException.class)
+    ProblemDetail handleReviewerNotEligible(ApiReviewerNotEligibleException ex) {
+        return problem(HttpStatus.FORBIDDEN, msg("error.api_reviewer_not_eligible"),
+                "API_REVIEWER_NOT_ELIGIBLE");
     }
 
     @ExceptionHandler(ApiRequestPermissionException.class)
