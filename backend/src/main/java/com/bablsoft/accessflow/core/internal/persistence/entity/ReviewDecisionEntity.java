@@ -48,6 +48,19 @@ public class ReviewDecisionEntity {
     @Column(nullable = false)
     private int stage;
 
+    /**
+     * The delegator whose authority the reviewer borrowed under an out-of-office delegation
+     * (#622), or null when they were eligible in their own right. {@link #reviewer} always stays
+     * the acting human, which is what the {@code UNIQUE (query_request_id, reviewer_id, stage)}
+     * index relies on to keep one human to one vote.
+     */
+    @Column(name = "on_behalf_of_user_id")
+    private UUID onBehalfOfUserId;
+
+    /** The delegation that authorised this decision, pinned so a later revoke cannot erase it. */
+    @Column(name = "delegation_id")
+    private UUID delegationId;
+
     @Column(name = "decided_at", nullable = false)
     private Instant decidedAt = Instant.now();
 }

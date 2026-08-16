@@ -7,6 +7,8 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 final class ApiRequestSpecifications {
@@ -48,11 +50,31 @@ final class ApiRequestSpecifications {
     }
 
     /**
+     * The connectors one identity may review, and — for a borrowed identity — the delegator whose
+     * submissions that identity must not be used against (#622).
+     */
+    record ReviewReach(UUID onBehalfOfUserId, Set<UUID> connectorIds) {
+    }
+
+    /**
      * Pending-review queue for one reviewer: org-scoped, fixed to {@code PENDING_REVIEW}, and excludes
      * the reviewer's own submissions (self-approval is forbidden) so the page count is accurate.
+     *
+     * <p>Unlike the query-review queue this specification must be <strong>exact</strong> — there is
+     * no in-memory re-filter behind it. Approver eligibility therefore arrives pre-resolved as one
+     * {@link ReviewReach} per identity, because {@code apigov} cannot reference {@code core}'s
+     * approver entities to compute it in SQL. Each borrowed identity carries its own submitter
+     * exclusion, so the delegator-is-submitter rule is enforced per-identity.
+     *
+     * <p>The {@code reviewerId} exclusion stays a scalar {@code notEqual}. Widening it to cover the
+     * reviewer's delegators would hide requests they are eligible for in their own right.
+     *
+     * @param unrestricted true when the caller holds {@code REVIEW_OVERRIDE} and no reach applies
      */
     static Specification<ApiRequestEntity> forPendingReview(UUID organizationId, UUID reviewerId,
-                                                            UUID connectorId, String verb) {
+                                                            UUID connectorId, String verb,
+                                                            boolean unrestricted,
+                                                            List<ReviewReach> reaches) {
         return (root, cq, cb) -> {
             cq.orderBy(cb.desc(root.get("createdAt")));
             var predicates = new ArrayList<Predicate>();
@@ -64,6 +86,24 @@ final class ApiRequestSpecifications {
             }
             if (verb != null && !verb.isBlank()) {
                 predicates.add(cb.equal(root.get("verb"), verb));
+            }
+            if (!unrestricted) {
+                var branches = new ArrayList<Predicate>();
+                for (var reach : reaches) {
+                    if (reach.connectorIds().isEmpty()) {
+                        continue;
+                    }
+                    Predicate reachable = root.get("connectorId").in(reach.connectorIds());
+                    branches.add(reach.onBehalfOfUserId() == null
+                            ? reachable
+                            : cb.and(reachable, cb.notEqual(root.get("submittedBy"),
+                                    reach.onBehalfOfUserId())));
+                }
+                if (branches.isEmpty()) {
+                    // Eligible for nothing — an always-false predicate rather than an unfiltered page.
+                    return cb.disjunction();
+                }
+                predicates.add(cb.or(branches.toArray(new Predicate[0])));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

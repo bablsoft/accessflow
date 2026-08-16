@@ -627,17 +627,18 @@ class DefaultQueryRequestLookupServiceTest {
                 "alice@example.com", QueryStatus.PENDING_REVIEW);
         var pageable = PageRequest.of(0, 20);
         when(queryRequestRepository.findPendingForReviewer(eq(orgId), eq(reviewerId),
-                eq("REVIEWER"), eq(QueryStatus.PENDING_REVIEW), any()))
+                eq(List.of(reviewerId)), eq(List.of("reviewer")),
+                eq(QueryStatus.PENDING_REVIEW), any()))
                 .thenReturn(new PageImpl<>(List.of(entity), pageable, 1));
 
-        var page = service.findPendingForReviewer(orgId, reviewerId, "REVIEWER",
-                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+        var page = service.findPendingForReviewer(orgId, reviewerId, List.of(reviewerId),
+                List.of("reviewer"), com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
 
         assertThat(page.totalElements()).isEqualTo(1);
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).queryRequestId()).isEqualTo(entity.getId());
         verify(queryRequestRepository).findPendingForReviewer(orgId, reviewerId,
-                "REVIEWER", QueryStatus.PENDING_REVIEW, pageable);
+                List.of(reviewerId), List.of("reviewer"), QueryStatus.PENDING_REVIEW, pageable);
     }
 
     @Test

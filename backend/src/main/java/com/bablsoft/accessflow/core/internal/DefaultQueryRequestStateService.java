@@ -76,7 +76,8 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
             return new RecordDecisionResult(existing.getId(), entity.getStatus(), true);
         }
         var inserted = persistDecision(entity, command.reviewerId(), DecisionType.APPROVED,
-                command.comment(), command.stage());
+                command.comment(), command.stage(), command.onBehalfOfUserId(),
+                command.delegationId());
         var stageApproved = countApprovalsAtStage(command.queryRequestId(), command.stage());
         if (stageApproved >= command.minApprovalsRequired() && command.isLastStage()) {
             var previous = entity.getStatus();
@@ -92,6 +93,14 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
     @Transactional
     public RecordDecisionResult recordRejection(UUID queryRequestId, UUID reviewerId, int stage,
                                                 String comment) {
+        return recordRejection(queryRequestId, reviewerId, stage, comment, null, null);
+    }
+
+    @Override
+    @Transactional
+    public RecordDecisionResult recordRejection(UUID queryRequestId, UUID reviewerId, int stage,
+                                                String comment, UUID onBehalfOfUserId,
+                                                UUID delegationId) {
         var entity = lockOrThrow(queryRequestId);
         if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {
             throw new IllegalQueryStatusTransitionException(queryRequestId, entity.getStatus(),
@@ -101,7 +110,8 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         if (existing != null) {
             return new RecordDecisionResult(existing.getId(), entity.getStatus(), true);
         }
-        var inserted = persistDecision(entity, reviewerId, DecisionType.REJECTED, comment, stage);
+        var inserted = persistDecision(entity, reviewerId, DecisionType.REJECTED, comment, stage,
+                onBehalfOfUserId, delegationId);
         var previous = entity.getStatus();
         entity.setStatus(QueryStatus.REJECTED);
         queryRequestRepository.save(entity);
@@ -113,6 +123,14 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
     @Transactional
     public RecordDecisionResult recordChangesRequested(UUID queryRequestId, UUID reviewerId,
                                                        int stage, String comment) {
+        return recordChangesRequested(queryRequestId, reviewerId, stage, comment, null, null);
+    }
+
+    @Override
+    @Transactional
+    public RecordDecisionResult recordChangesRequested(UUID queryRequestId, UUID reviewerId,
+                                                       int stage, String comment,
+                                                       UUID onBehalfOfUserId, UUID delegationId) {
         var entity = lockOrThrow(queryRequestId);
         if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {
             throw new IllegalQueryStatusTransitionException(queryRequestId, entity.getStatus(),
@@ -123,7 +141,7 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
             return new RecordDecisionResult(existing.getId(), entity.getStatus(), true);
         }
         var inserted = persistDecision(entity, reviewerId, DecisionType.REQUESTED_CHANGES, comment,
-                stage);
+                stage, onBehalfOfUserId, delegationId);
         return new RecordDecisionResult(inserted.getId(), QueryStatus.PENDING_REVIEW, false);
     }
 
@@ -190,7 +208,8 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
 
     private ReviewDecisionEntity persistDecision(QueryRequestEntity query, UUID reviewerId,
                                                  DecisionType decision, String comment,
-                                                 int stage) {
+                                                 int stage, UUID onBehalfOfUserId,
+                                                 UUID delegationId) {
         var reviewer = userRepository.findById(reviewerId)
                 .orElseThrow(() -> new IllegalStateException("User not found: " + reviewerId));
         var entity = new ReviewDecisionEntity();
@@ -200,6 +219,9 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         entity.setDecision(decision);
         entity.setComment(comment);
         entity.setStage(stage);
+        // #622: the acting reviewer stays in reviewer_id; these name the borrowed authority.
+        entity.setOnBehalfOfUserId(onBehalfOfUserId);
+        entity.setDelegationId(delegationId);
         return reviewDecisionRepository.save(entity);
     }
 
@@ -230,6 +252,8 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
                 entity.getDecision(),
                 entity.getComment(),
                 entity.getStage(),
-                entity.getDecidedAt());
+                entity.getDecidedAt(),
+                entity.getOnBehalfOfUserId(),
+                entity.getDelegationId());
     }
 }

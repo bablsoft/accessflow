@@ -63,6 +63,7 @@ class DefaultReviewServiceTest {
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock com.bablsoft.accessflow.core.api.ReviewerEligibilityService reviewerEligibilityService;
+    @Mock com.bablsoft.accessflow.core.api.ReviewDelegationLookupService reviewDelegationLookupService;
     @Mock RoutingDecisionService routingDecisionService;
     @Mock ApprovalPredictionLookupService approvalPredictionLookupService;
     @Mock ApplicationEventPublisher eventPublisher;
@@ -249,7 +250,8 @@ class DefaultReviewServiceTest {
         givenPendingReview();
         givenSingleStagePlan();
         when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
-        when(queryRequestStateService.recordRejection(eq(queryId), eq(reviewerId), eq(1), any()))
+        when(queryRequestStateService.recordRejection(eq(queryId), eq(reviewerId), eq(1), any(),
+                any(), any()))
                 .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.REJECTED, false));
 
         var outcome = service.reject(queryId, reviewerContext(UserRoleType.REVIEWER),
@@ -275,7 +277,7 @@ class DefaultReviewServiceTest {
         givenSingleStagePlan();
         when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
         when(queryRequestStateService.recordChangesRequested(eq(queryId), eq(reviewerId), eq(1),
-                any()))
+                any(), any(), any()))
                 .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
                         QueryStatus.PENDING_REVIEW, false));
 
@@ -295,14 +297,14 @@ class DefaultReviewServiceTest {
 
         assertThat(page.content()).isEmpty();
         verify(queryRequestLookupService, never()).findPendingForReviewer(any(), any(), any(),
-                any());
+                any(), any());
     }
 
     @Test
     void listPendingFiltersOutQueriesWhereCallerIsSubmitter() {
         var view = view(QueryStatus.PENDING_REVIEW, reviewerId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq("REVIEWER"), any()))
+                any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
 
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
@@ -315,7 +317,7 @@ class DefaultReviewServiceTest {
     void listPendingIncludesActionableQueries() {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq("REVIEWER"), any()))
+                any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
@@ -341,7 +343,7 @@ class DefaultReviewServiceTest {
         var first = view(QueryStatus.PENDING_REVIEW, submitterId);
         var second = viewFor(secondQueryId, QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq("REVIEWER"), any()))
+                any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(first, second), 0, 20, 2, 1));
         when(reviewPlanLookupService.findForDatasource(datasourceId))
                 .thenReturn(Optional.of(planWith(List.of(
@@ -367,7 +369,7 @@ class DefaultReviewServiceTest {
     void listPendingSkipsThePredictionLookupWhenNothingIsActionable() {
         var view = view(QueryStatus.PENDING_REVIEW, reviewerId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq("REVIEWER"), any()))
+                any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
 
         var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
@@ -390,7 +392,7 @@ class DefaultReviewServiceTest {
     void listPendingFiltersOutQueriesWhereCallerIsNotApproverAtCurrentStage() {
         var view = view(QueryStatus.PENDING_REVIEW, submitterId);
         when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
-                eq("REVIEWER"), any()))
+                any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
         // Caller is approver only at stage 2; stage 1 still pending
         when(reviewPlanLookupService.findForDatasource(datasourceId))
@@ -469,7 +471,8 @@ class DefaultReviewServiceTest {
         assertThat(outcome.rows()).hasSize(1);
         assertThat(outcome.rows().get(0).status()).isEqualTo(RowStatus.FORBIDDEN);
         assertThat(outcome.rows().get(0).errorCode()).isEqualTo("REVIEWER_NOT_ELIGIBLE");
-        verify(queryRequestStateService, never()).recordRejection(any(), any(), anyInt(), any());
+        verify(queryRequestStateService, never()).recordRejection(any(), any(), anyInt(), any(),
+                any(), any());
     }
 
     @Test
@@ -478,7 +481,7 @@ class DefaultReviewServiceTest {
         givenSingleStagePlan();
         when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
         when(queryRequestStateService.recordChangesRequested(eq(queryId), eq(reviewerId), eq(1),
-                any()))
+                any(), any(), any()))
                 .thenReturn(new RecordDecisionResult(UUID.randomUUID(),
                         QueryStatus.PENDING_REVIEW, false));
 
@@ -490,7 +493,7 @@ class DefaultReviewServiceTest {
         assertThat(outcome.rows().get(0).outcome().decision())
                 .isEqualTo(DecisionType.REQUESTED_CHANGES);
         verify(queryRequestStateService).recordChangesRequested(eq(queryId), eq(reviewerId),
-                eq(1), eq("please narrow"));
+                eq(1), eq("please narrow"), eq(null), eq(null));
     }
 
     @Test
@@ -582,5 +585,180 @@ class DefaultReviewServiceTest {
     private ReviewDecisionSnapshot decisionAt(int stage, DecisionType decision, UUID reviewer) {
         return new ReviewDecisionSnapshot(UUID.randomUUID(), queryId, reviewer, decision, "ok",
                 stage, Instant.now());
+    }
+
+    // ---------------------------------------------------------------- delegation (#622)
+
+    /** A delegation from someone eligible by user rule, covering the query's datasource. */
+    private void givenDelegationFrom(UUID delegatorId, String delegatorRole) {
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(organizationId), eq(reviewerId),
+                any(), any()))
+                .thenReturn(List.of(new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                        UUID.randomUUID(), delegatorId, delegatorRole, null, null)));
+    }
+
+    @Test
+    void delegateApprovesUnderTheDelegatorsRuleAndRecordsBothIdentities() {
+        var delegatorId = UUID.randomUUID();
+        givenPendingReview();
+        // The plan names the DELEGATOR by id; the acting reviewer matches no rule of their own.
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorId, null, 1)))));
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        givenDelegationFrom(delegatorId, "REVIEWER");
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, false));
+
+        service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "covering for you");
+
+        var captor = ArgumentCaptor.forClass(RecordApprovalCommand.class);
+        verify(queryRequestStateService).recordApprovalAndAdvance(captor.capture());
+        // reviewer_id stays the acting human — that is what keeps one human to one vote.
+        assertThat(captor.getValue().reviewerId()).isEqualTo(reviewerId);
+        assertThat(captor.getValue().onBehalfOfUserId()).isEqualTo(delegatorId);
+        assertThat(captor.getValue().delegationId()).isNotNull();
+    }
+
+    @Test
+    void ownEligibilityWinsOverADelegationSoNoProvenanceIsRecorded() {
+        var delegatorId = UUID.randomUUID();
+        givenPendingReview();
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        givenDelegationFrom(delegatorId, "REVIEWER");
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, false));
+
+        service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok");
+
+        var captor = ArgumentCaptor.forClass(RecordApprovalCommand.class);
+        verify(queryRequestStateService).recordApprovalAndAdvance(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+        assertThat(captor.getValue().delegationId()).isNull();
+    }
+
+    @Test
+    void aDelegateCannotActOnARequestTheDelegatorSubmitted() {
+        var delegatorId = UUID.randomUUID();
+        // The delegator submitted this query, so their authority must not be borrowable for it.
+        givenPendingReviewSubmittedBy(delegatorId);
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorId, null, 1)))));
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        givenDelegationFrom(delegatorId, "REVIEWER");
+
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok"))
+                .isInstanceOf(ReviewerNotEligibleException.class);
+        verify(queryRequestStateService, never()).recordApprovalAndAdvance(any());
+    }
+
+    @Test
+    void delegatorAsSubmitterOnlyDropsThatIdentityNotTheReviewersOwn() {
+        var delegatorId = UUID.randomUUID();
+        // Same as above, but the acting reviewer independently matches the REVIEWER role rule —
+        // dropping the borrowed identity must not cost them their own eligibility.
+        givenPendingReviewSubmittedBy(delegatorId);
+        givenSingleStagePlan();
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        givenDelegationFrom(delegatorId, "REVIEWER");
+        when(queryRequestStateService.recordApprovalAndAdvance(any()))
+                .thenReturn(new RecordDecisionResult(UUID.randomUUID(), QueryStatus.APPROVED, false));
+
+        service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok");
+
+        var captor = ArgumentCaptor.forClass(RecordApprovalCommand.class);
+        verify(queryRequestStateService).recordApprovalAndAdvance(captor.capture());
+        assertThat(captor.getValue().onBehalfOfUserId()).isNull();
+    }
+
+    @Test
+    void aDelegateCannotAddASecondVoteForADelegatorWhoAlreadyDecided() {
+        var delegatorId = UUID.randomUUID();
+        givenPendingReview();
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorId, null, 1)))));
+        // The delegator already voted personally. The unique index cannot see this — the acting
+        // user differs — so the service guard has to.
+        when(queryRequestStateService.listDecisions(queryId))
+                .thenReturn(List.of(decisionAt(1, DecisionType.APPROVED, delegatorId)));
+        givenDelegationFrom(delegatorId, "REVIEWER");
+
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok"))
+                .isInstanceOf(ReviewerNotEligibleException.class);
+    }
+
+    @Test
+    void aDelegatorCannotVoteAgainAfterTheirDelegateAlreadyActedForThem() {
+        // The mirror case: the borrowed vote landed first, so the delegator's own vote must be
+        // refused. Here the acting user IS the delegator.
+        var delegateWhoActed = UUID.randomUUID();
+        givenPendingReview();
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(reviewerId, null, 1)))));
+        when(queryRequestStateService.listDecisions(queryId))
+                .thenReturn(List.of(new ReviewDecisionSnapshot(UUID.randomUUID(), queryId,
+                        delegateWhoActed, DecisionType.APPROVED, "ok", 1, Instant.now(),
+                        reviewerId, UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok"))
+                .isInstanceOf(ReviewerNotEligibleException.class);
+    }
+
+    @Test
+    void delegationNeverSubstitutesForTheReviewPermission() {
+        givenPendingReview();
+
+        // An ANALYST holds no QUERY_REVIEW, so the permission gate rejects them before delegation
+        // is ever resolved — stubbing the lookup here would be unnecessary, which is the point.
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.ANALYST), "ok"))
+                .isInstanceOf(ReviewerNotEligibleException.class);
+        verify(reviewDelegationLookupService, never()).findActiveForDelegate(any(), any(), any(), any());
+    }
+
+    @Test
+    void eligibilityIsEvaluatedPerIdentityNotAcrossIdentities() {
+        // Delegator A matches the approver rule; delegator B is the only one in the datasource
+        // reviewer scope. Neither identity satisfies BOTH, so the caller must be rejected rather
+        // than credited with a mix of the two.
+        var delegatorA = UUID.randomUUID();
+        var delegatorB = UUID.randomUUID();
+        givenPendingReview();
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorA, null, 1)))));
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(organizationId), eq(reviewerId),
+                any(), any()))
+                .thenReturn(List.of(
+                        new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                                UUID.randomUUID(), delegatorA, "ANALYST", null, null),
+                        new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                                UUID.randomUUID(), delegatorB, "ANALYST", null, null)));
+        when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
+                .thenReturn(Optional.of(java.util.Set.of(delegatorB)));
+
+        assertThatThrownBy(() -> service.approve(queryId, reviewerContext(UserRoleType.REVIEWER), "ok"))
+                .isInstanceOf(ReviewerNotEligibleException.class);
+    }
+
+    @Test
+    void aDelegatedRowSurfacesInTheQueueTaggedWithItsDelegator() {
+        var delegatorId = UUID.randomUUID();
+        var view = view(QueryStatus.PENDING_REVIEW, submitterId);
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(organizationId), eq(reviewerId),
+                any(), any()))
+                .thenReturn(List.of(new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                        UUID.randomUUID(), delegatorId, "REVIEWER", null, null)));
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(view), 0, 20, 1, 1));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(new ApproverRule(delegatorId, null, 1)))));
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of());
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content()).singleElement()
+                .satisfies(row -> assertThat(row.delegatedForUserId()).isEqualTo(delegatorId));
     }
 }

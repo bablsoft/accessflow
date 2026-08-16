@@ -68,7 +68,24 @@ public interface ReviewService {
             String aiSummary,
             Double approvalProbability,
             int currentStage,
-            Instant createdAt) {
+            Instant createdAt,
+            /**
+             * The delegator whose out-of-office delegation made this row visible (#622), or null
+             * when the reviewer is eligible in their own right — even if a delegation would also
+             * have covered it.
+             */
+            UUID delegatedForUserId) {
+
+        /** Convenience constructor for callers that predate reviewer delegation. */
+        public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,
+                             UUID submittedByUserId, String submittedByEmail, String sqlText,
+                             QueryType queryType, String justification, UUID aiAnalysisId,
+                             RiskLevel aiRiskLevel, Integer aiRiskScore, String aiSummary,
+                             Double approvalProbability, int currentStage, Instant createdAt) {
+            this(queryRequestId, datasourceId, datasourceName, submittedByUserId, submittedByEmail,
+                    sqlText, queryType, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
+                    aiSummary, approvalProbability, currentStage, createdAt, null);
+        }
     }
 
     record DecisionOutcome(UUID decisionId, DecisionType decision, QueryStatus resultingStatus,

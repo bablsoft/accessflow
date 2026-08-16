@@ -106,10 +106,12 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
     @Transactional(readOnly = true)
     public PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
                                                                   UUID reviewerUserId,
-                                                                  String roleName,
+                                                                  List<UUID> principalIds,
+                                                                  List<String> lowerRoleNames,
                                                                   PageRequest pageRequest) {
         var page = queryRequestRepository
-                .findPendingForReviewer(organizationId, reviewerUserId, roleName,
+                .findPendingForReviewer(organizationId, reviewerUserId, principalIds,
+                        lowerRoleNames.isEmpty() ? List.of("") : lowerRoleNames,
                         QueryStatus.PENDING_REVIEW, PageAdapter.toSpringPageable(pageRequest));
         return PageAdapter.toPageResponse(page.map(this::toPendingReviewView));
     }

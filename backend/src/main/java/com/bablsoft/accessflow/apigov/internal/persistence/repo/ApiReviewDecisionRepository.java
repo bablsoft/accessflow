@@ -16,4 +16,7 @@ public interface ApiReviewDecisionRepository extends JpaRepository<ApiReviewDeci
                                                                              UUID reviewerId, int stage);
 
     long countByApiRequestIdAndStageAndDecision(UUID apiRequestId, int stage, DecisionType decision);
+
+    /** Every decision recorded at a stage — used for the one-authority-one-vote guard (#622). */
+    List<ApiReviewDecisionEntity> findAllByApiRequestIdAndStage(UUID apiRequestId, int stage);
 }
