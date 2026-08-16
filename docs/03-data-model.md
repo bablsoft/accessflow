@@ -476,6 +476,69 @@ ShedLock-on-Redis so only one node in a cluster runs each tick. See
 
 ---
 
+## review_delegations (#622)
+
+Out-of-office reviewer delegation (Flyway `V142`). While the window is open and the row is not
+revoked, `delegate_id` is an eligible approver everywhere `delegator_id` was — query review
+(`workflow`), governed API-request review (`apigov`), and grouped requests (`requestgroups`).
+
+Owned by `core` rather than `workflow`: all three review modules already depend on `core.api`, and
+`QueryRequestRepository.findPendingForReviewer` — which must filter on these rows — lives in `core`.
+A workflow-owned entity would still resolve in that JPQL (one persistence unit, and JPQL is a string
+rather than an import), so Spring Modulith would not catch the coupling.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `delegator_id` | FK → `users` — the reviewer handing over duty |
+| `delegate_id` | FK → `users` — the person covering. `CHECK (delegator_id <> delegate_id)` |
+| `scope_kind` | ENUM `review_delegation_scope_kind`: `DATASOURCE` \| `API_CONNECTOR`, nullable |
+| `scope_id` | UUID nullable — polymorphic over `datasources` / `api_connectors` by `scope_kind`, so no FK. `CHECK (num_nonnulls(scope_kind, scope_id) IN (0, 2))`; both null = every review queue |
+| `reason` | TEXT nullable |
+| `starts_at` / `ends_at` | TIMESTAMPTZ. Half-open `[starts_at, ends_at)`; `CHECK (ends_at > starts_at)` |
+| `revoked_at` / `revoked_by` | TIMESTAMPTZ / UUID nullable — soft revocation; the row is never deleted |
+| `created_by` | FK → `users` |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Partial indexes on `(organization_id, delegate_id, starts_at, ends_at)` and
+`(organization_id, delegator_id, starts_at, ends_at)`, both `WHERE revoked_at IS NULL`, back the
+eligibility hot path; `(organization_id, created_at DESC)` backs the admin listing.
+
+**The delegator's role name is deliberately not stored** — it is resolved by joining `users` at
+lookup time, so a role change or role removal mid-window takes effect immediately. A delegation is a
+pointer to an identity, never a frozen copy of its powers. For the same reason both parties'
+`is_active` flags are re-checked on every read rather than cleaned up by a listener, so a
+deactivation fails closed at once.
+
+**Status is derived, never stored:** `SCHEDULED` → `ACTIVE` → `EXPIRED` from the window, or
+`REVOKED`. No job ages a delegation.
+
+**Grouped requests** mix datasources and API connectors, so a scoped delegation covers a bundle when
+its resource is one of the bundle's members — consistent with `GroupReviewPlanResolver`'s
+union-over-members eligibility, and never broader than what the delegator could do alone.
+
+**Delegation is not transitive.** The lookup reads this table exactly once and never follows a
+delegator's own delegations, so A→B→C confers nothing on C. Enforcing that by construction rather
+than on write matters: a creation-time check is defeated by creating the two rows in the other order.
+
+### Decision provenance
+
+`review_decisions`, `api_review_decisions` and `group_review_decisions` each gain nullable
+`on_behalf_of_user_id` and `delegation_id` (Flyway `V143`). `reviewer_id` stays the **acting** human;
+these name whose authority was borrowed and under which grant, so a revoke cannot erase the evidence.
+
+The existing `UNIQUE (request, reviewer_id, stage)` index is deliberately left keyed on the acting
+reviewer — that is what keeps **one human to one vote**: a delegate holding delegations from two
+absent approvers cannot single-handedly satisfy `min_approvals = 2`, because the second insert
+collides. **Do not widen that index to include `on_behalf_of_user_id`.** It does not cover the case
+where a delegator votes personally and their delegate then votes for them (different `reviewer_id`);
+a service-layer guard handles both orders and returns 403 rather than surfacing a constraint
+violation as a 500.
+
+---
+
 ## review_plan_approvers
 
 Maps users or roles to a review plan, with support for multi-stage sequential approval.

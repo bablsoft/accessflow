@@ -314,6 +314,35 @@ role; admin notification fan-outs (anomaly alerts, break-glass alerts) and setup
 target the system `ADMIN` role — custom-role users with admin-like permissions do not receive
 them.
 
+### Reviewer delegation (#622)
+
+A reviewer may name a delegate to cover their review duty for a window. Three properties are
+enforced in the service layer, not the UI:
+
+1. **A delegation never grants a permission.** The delegate still needs `QUERY_REVIEW` /
+   `API_REQUEST_REVIEW` in their own right — the permission check runs before delegation is ever
+   resolved. Delegation widens *which requests* an already-permitted reviewer may act on.
+2. **The self-approval ban covers both identities.** A delegate can never decide their own request,
+   and can never use a delegation from A to decide a request **A** submitted. Such a request does
+   not appear in their queue and returns 403 if decided directly.
+3. **No transitivity.** Resolution is exactly one hop: A→B→C confers nothing on C. Enforced by
+   construction (the lookup never traverses) rather than by validation on write, which creating the
+   two delegations in the other order would defeat.
+
+Both parties' `is_active` flags are re-checked on every resolution, so deactivating either one — by
+an admin or by SCIM deprovisioning — stops the delegation conferring eligibility immediately,
+without waiting for a cleanup job. Every decision taken under a delegation records both identities
+plus the delegation id, and `GET /admin/review-delegations` (`QUERY_ADMIN`) is the oversight surface
+that lets an auditor interpret an `on_behalf_of` entry.
+
+**Governance change in this release:** API-request review previously had *no* approver check — any
+holder of `API_REQUEST_REVIEW` could decide any pending request in the organization. It now honours
+the connector review plan's approver rules. This is opt-in by configuration: a connector with no
+review plan, or a plan with no approver rules, behaves exactly as before. Only a connector whose plan
+an admin actually configured with approvers now restricts who may decide its requests.
+
+---
+
 ### System-role matrix
 
 The matrix below defines the **system roles'** permission sets (the pre-AF-522 behaviour,
@@ -325,6 +354,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 
 | Capability | READONLY | ANALYST | REVIEWER | ADMIN | AUDITOR |
 |-----------|----------|---------|----------|-------|---------|
+| Delegate own review duty (#622) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Submit SELECT queries | ✓ | ✓ | ✓ | ✓ | — |
 | Submit DML queries (INSERT/UPDATE/DELETE) | — | ✓ | ✓ | ✓ | — |
 | Submit DDL queries | — | — | — | ✓ | — |

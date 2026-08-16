@@ -193,6 +193,8 @@
 
 **Theme:** Candidate features not yet scheduled into a milestone.
 
+- **Reviewer delegation & escalation** — a reviewer sets an out-of-office window naming a delegate, who becomes an eligible approver everywhere the delegator was (query review, governed API requests, and grouped requests) with every decision recording both identities and the delegation that authorised it. Structurally safe by construction: the permission check runs before delegation is resolved so it can never grant a permission, the self-approval ban covers both parties, resolution is one hop only (no A→B→C chains), both parties' active flags are re-checked on every read, and the existing per-stage unique index keeps one human to one vote. Ships with an out-of-office card on the profile page, a "Delegated" tag on the review queue, on-behalf-of attribution in the approval timeline, and an admin oversight listing. Idle-reviewer escalation and nudge reminders follow in a second change (#622)
+
 - **REST API access governance** — extend AccessFlow concept to HTTP API calls (not just SQL), for teams using internal REST services
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
 - **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
