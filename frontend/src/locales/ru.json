@@ -2336,7 +2336,10 @@
       "validation_delegate": "Выберите заместителя",
       "validation_scope": "Выберите источник данных",
       "validation_window": "Выберите время начала и окончания",
-      "error_generic": "Не удалось сохранить делегирование"
+      "error_generic": "Не удалось сохранить делегирование",
+      "label_reason": "Причина (необязательно)",
+      "reason_placeholder": "Ежегодный отпуск",
+      "validation_reason": "Причина не должна превышать 500 символов"
     }
   },
   "totp_login": {

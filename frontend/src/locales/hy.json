@@ -2336,7 +2336,10 @@
       "validation_delegate": "Ընտրեք փոխարինող",
       "validation_scope": "Ընտրեք տվյալների աղբյուր",
       "validation_window": "Ընտրեք սկզբի և ավարտի ժամանակը",
-      "error_generic": "Չհաջողվեց պահպանել պատվիրակումը"
+      "error_generic": "Չհաջողվեց պահպանել պատվիրակումը",
+      "label_reason": "Պատճառ (ըստ ցանկության)",
+      "reason_placeholder": "Ամենամյա արձակուրդ",
+      "validation_reason": "Պատճառը պետք է լինի առավելագույնը 500 նիշ"
     }
   },
   "totp_login": {

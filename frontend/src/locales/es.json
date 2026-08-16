@@ -2336,7 +2336,10 @@
       "validation_delegate": "Elige un delegado",
       "validation_scope": "Elige una fuente de datos",
       "validation_window": "Elige la fecha de inicio y fin",
-      "error_generic": "No se pudo guardar la delegación"
+      "error_generic": "No se pudo guardar la delegación",
+      "label_reason": "Motivo (opcional)",
+      "reason_placeholder": "Vacaciones",
+      "validation_reason": "El motivo debe tener como máximo 500 caracteres"
     }
   },
   "totp_login": {

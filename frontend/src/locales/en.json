@@ -2336,7 +2336,10 @@
       "validation_delegate": "Choose a delegate",
       "validation_scope": "Choose a datasource",
       "validation_window": "Choose a start and end time",
-      "error_generic": "Could not save the delegation"
+      "error_generic": "Could not save the delegation",
+      "label_reason": "Reason (optional)",
+      "reason_placeholder": "Annual leave",
+      "validation_reason": "The reason must be at most 500 characters"
     }
   },
   "totp_login": {

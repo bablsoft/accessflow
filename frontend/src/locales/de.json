@@ -2336,7 +2336,10 @@
       "validation_delegate": "Wählen Sie eine Vertretung",
       "validation_scope": "Wählen Sie eine Datenquelle",
       "validation_window": "Wählen Sie Start- und Endzeit",
-      "error_generic": "Die Delegation konnte nicht gespeichert werden"
+      "error_generic": "Die Delegation konnte nicht gespeichert werden",
+      "label_reason": "Grund (optional)",
+      "reason_placeholder": "Jahresurlaub",
+      "validation_reason": "Der Grund darf höchstens 500 Zeichen lang sein"
     }
   },
   "totp_login": {

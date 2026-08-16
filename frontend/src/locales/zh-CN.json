@@ -2336,7 +2336,10 @@
       "validation_delegate": "请选择被委派人",
       "validation_scope": "请选择数据源",
       "validation_window": "请选择开始和结束时间",
-      "error_generic": "无法保存委派"
+      "error_generic": "无法保存委派",
+      "label_reason": "原因（可选）",
+      "reason_placeholder": "年假",
+      "validation_reason": "原因最多 500 个字符"
     }
   },
   "totp_login": {

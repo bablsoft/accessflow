@@ -1,5 +1,17 @@
 import { useState } from 'react';
-import { Alert, App, Button, DatePicker, Form, Popconfirm, Select, Space, Table, Tag } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+} from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -220,6 +232,19 @@ export function ReviewDelegationSection() {
           rules={[{ required: true, message: t('profile.delegation.validation_window') }]}
         >
           <DatePicker.RangePicker showTime style={{ width: '100%' }} />
+        </Form.Item>
+
+        <Form.Item
+          name="reason"
+          label={t('profile.delegation.label_reason')}
+          rules={[{ max: 500, message: t('profile.delegation.validation_reason') }]}
+        >
+          <Input.TextArea
+            rows={2}
+            maxLength={500}
+            showCount
+            placeholder={t('profile.delegation.reason_placeholder')}
+          />
         </Form.Item>
 
         <Form.Item>

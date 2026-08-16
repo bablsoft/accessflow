@@ -2336,7 +2336,10 @@
       "validation_delegate": "Choisissez un délégué",
       "validation_scope": "Choisissez une source de données",
       "validation_window": "Choisissez une date de début et de fin",
-      "error_generic": "Impossible d'enregistrer la délégation"
+      "error_generic": "Impossible d'enregistrer la délégation",
+      "label_reason": "Motif (facultatif)",
+      "reason_placeholder": "Congés annuels",
+      "validation_reason": "Le motif ne doit pas dépasser 500 caractères"
     }
   },
   "totp_login": {
