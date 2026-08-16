@@ -11,11 +11,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # PG18+ keeps the cluster in a major-version subdirectory
-      # ($PGDATA=/var/lib/postgresql/18/docker), so the mount goes one level up — see
-      # docker-library/postgres#1259. Mounting /var/lib/postgresql/data instead leaves the
-      # volume unused and makes the image refuse to start.
-      - accessflow_dev_postgres_data:/var/lib/postgresql
+      - accessflow_dev_postgres_data:/var/lib/postgresql/data
       # Provisions the accessflow_audit role that V38__audit_log_role_separation.sql
       # transfers audit_log ownership to. Runs once on first init of the data volume.
       - ../deploy/postgres-init:/docker-entrypoint-initdb.d:ro

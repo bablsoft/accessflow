@@ -50,17 +50,13 @@ compose) and use a real `.env`:
 ```yaml
 services:
   postgres:
-    # pgvector-enabled image — 02-pgvector.sql below runs CREATE EXTENSION vector, which
-    # aborts init on a plain postgres image (init scripts run under ON_ERROR_STOP=1).
-    image: pgvector/pgvector:pg18
+    image: postgres:18
     environment:
       POSTGRES_DB: accessflow
       POSTGRES_USER: accessflow
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      # PG18+ keeps the cluster in /var/lib/postgresql/18/docker, so the mount goes one
-      # level up (docker-library/postgres#1259) — mounting .../data leaves it unused.
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
       # Provisions the accessflow_audit role used by V38 (audit_log role separation).
       - ./deploy/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
