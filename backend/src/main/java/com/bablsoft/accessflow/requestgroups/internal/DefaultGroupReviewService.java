@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -48,7 +49,16 @@ public class DefaultGroupReviewService implements GroupReviewService {
         var page = groupRepository.findAll(
                 RequestGroupSpecifications.forPendingReview(context.organizationId(), context.userId()),
                 pageable);
-        var content = page.getContent().stream().map(this::toPending).toList();
+        // The specification is an over-approximation — it knows nothing about approver rules, which
+        // are a union over each member's review plan and cannot be expressed as a flat predicate.
+        // Filtering here keeps the queue consistent with the decision guard, so a caller is never
+        // shown a group they would be rejected for. Consequence: totalElements is an upper bound,
+        // the same trade-off the query-review queue already makes.
+        var content = hasReviewPermission(context)
+                ? page.getContent().stream()
+                        .filter(group -> isEligible(group, context))
+                        .map(this::toPending).toList()
+                : List.<PendingGroupReview>of();
         var rebased = new PageImpl<>(content, pageable, page.getTotalElements());
         return new PageResponse<>(content, rebased.getNumber(),
                 rebased.getSize() <= 0 ? 1 : rebased.getSize(),
@@ -107,20 +117,36 @@ public class DefaultGroupReviewService implements GroupReviewService {
     }
 
     private void requireEligible(RequestGroupEntity group, ReviewerContext context) {
+        if (!hasReviewPermission(context)) {
+            throw new RequestGroupPermissionException("You may not review request groups");
+        }
+        if (!isEligible(group, context)) {
+            throw new RequestGroupPermissionException("You are not an eligible approver for this group");
+        }
+    }
+
+    /**
+     * Whether the caller may act on this bundle. Shared by the decision guard and the pending
+     * queue, so the queue can never list a group the caller would be rejected for.
+     */
+    private boolean isEligible(RequestGroupEntity group, ReviewerContext context) {
         // REVIEW_OVERRIDE holders (system ADMIN) can always act on the bundle — matches the
         // per-query review machinery.
         if (context.permissions() != null
                 && context.permissions().contains(Permission.REVIEW_OVERRIDE)) {
-            return;
+            return true;
         }
         var items = itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId());
         var resolution = reviewPlanResolver.resolve(group, items);
-        var eligible = resolution.eligibleRoleNames().stream()
+        return resolution.eligibleRoleNames().stream()
                 .anyMatch(name -> name.equalsIgnoreCase(context.roleName()))
                 || resolution.eligibleUserIds().contains(context.userId());
-        if (!eligible) {
-            throw new RequestGroupPermissionException("You are not an eligible approver for this group");
-        }
+    }
+
+    private static boolean hasReviewPermission(ReviewerContext context) {
+        return context.permissions() != null
+                && (context.permissions().contains(Permission.QUERY_REVIEW)
+                    || context.permissions().contains(Permission.REVIEW_OVERRIDE));
     }
 
     private GroupReviewDecisionEntity saveDecision(RequestGroupEntity group, ReviewerContext context,

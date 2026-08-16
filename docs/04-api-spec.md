@@ -1838,6 +1838,9 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
 | `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
 
+Out-of-office delegation of review duty is documented separately under
+[Review Delegation Endpoints](#review-delegation-endpoints-622).
+
 All `/reviews/*` endpoints require `REVIEWER` or `ADMIN` role. The submitter of a query is **never** allowed to approve, reject, or request changes on it (HTTP 403, regardless of role). Reviewers must additionally match a `review_plan_approvers` row at the query's *current* stage.
 
 `min_approvals_required` on the review plan is interpreted **per stage**: each stage must collect that many `APPROVED` decisions before the next stage's approvers are considered current. A single `REJECTED` decision at any stage transitions the query to `REJECTED`. `REQUESTED_CHANGES` is recorded but does not transition the query — it remains in `PENDING_REVIEW` until another decision is made.
@@ -2182,6 +2185,130 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 | 409 | `REVIEW_PLAN_IN_USE` | One or more datasources still reference the plan |
 | 409 | `REVIEW_PLAN_NAME_ALREADY_EXISTS` | Another plan in the organization already uses that name |
 | 422 | `ILLEGAL_REVIEW_PLAN` | Approver configuration invalid, etc. |
+
+---
+
+## Review Delegation Endpoints (#622)
+
+Out-of-office delegation. A reviewer names a **delegate** for a time window; while the window is
+open the delegate is an eligible approver **everywhere the delegator was** — query review
+(`/reviews`), governed API-request review (`/api-reviews`), and grouped requests
+(`/request-groups/reviews`). Decisions taken under a delegation record **both** identities: the
+acting reviewer in `reviewer_id` and the delegator in `on_behalf_of_user_id`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/me/review-delegations` | Delegations the caller granted **and** delegations granted to the caller |
+| `POST` | `/me/review-delegations` | Create a delegation naming a delegate and a window |
+| `DELETE` | `/me/review-delegations/{id}` | Revoke a delegation the caller granted |
+| `GET` | `/admin/review-delegations` | Org-wide read for oversight *(`QUERY_ADMIN`)* |
+
+The `/me/*` endpoints require no role or permission — delegating your own review duty is a
+self-service action available to any authenticated user. Holding a review permission is what makes a
+delegation *do* anything; a delegation from a user who has none simply resolves to no eligibility.
+
+### Invariants
+
+These are enforced in the service layer, not the UI:
+
+- **A delegation never grants a permission.** The delegate still needs `QUERY_REVIEW` /
+  `API_REQUEST_REVIEW` in their own right. Delegation widens *which requests* an already-permitted
+  reviewer may act on, never *whether* they may review at all.
+- **The self-approval ban covers both identities.** A delegate can never decide their own request,
+  and can never use a delegation from user A to decide a request **A** submitted. Such a request
+  does not appear in the delegate's queue and returns HTTP 403 if decided directly.
+- **No transitivity.** Delegation resolves exactly one hop: if A delegates to B and B delegates to
+  C, C gains nothing from A.
+- **Both parties must be active.** A delegation stops resolving the moment either the delegator or
+  the delegate is deactivated, without waiting for a cleanup job.
+- **Revocation is not deletion.** `DELETE` sets `revoked_at`; the row survives for the audit trail
+  and still appears in the `GET` responses with `"status": "REVOKED"`.
+
+### POST /me/review-delegations — Request Body
+
+```json
+{
+  "delegate_user_id": "uuid",
+  "scope_kind": "DATASOURCE",
+  "scope_id": "uuid",
+  "starts_at": "2026-08-20T00:00:00Z",
+  "ends_at": "2026-08-30T00:00:00Z",
+  "reason": "Annual leave"
+}
+```
+
+| Field | Rules |
+|---|---|
+| `delegate_user_id` | Required. Must be an active user in the caller's organization, and **not** the caller. |
+| `scope_kind` | Optional. `DATASOURCE` \| `API_CONNECTOR`. Omit (with `scope_id`) to delegate across every review queue. |
+| `scope_id` | Required **iff** `scope_kind` is set, and must resolve to a resource of that kind in the caller's org. |
+| `starts_at` / `ends_at` | Both required; `ends_at` must be strictly after `starts_at`. |
+| `reason` | Optional, ≤ 500 characters. |
+
+A **grouped request mixes datasources and API connectors**, so it is covered only by an *unscoped*
+delegation — a `DATASOURCE`-scoped delegation never confers eligibility on a group.
+
+Overlapping delegations are permitted: a reviewer may delegate different resources to different
+people over the same window, and the resolved eligibility is their union.
+
+**Response 201 Created** with a `Location` header, body as in `GET` below.
+
+### GET /me/review-delegations — Response 200
+
+```json
+{
+  "granted": [
+    {
+      "id": "uuid",
+      "delegator": { "id": "uuid", "email": "alice@company.com", "display_name": "Alice" },
+      "delegate": { "id": "uuid", "email": "bob@company.com", "display_name": "Bob" },
+      "scope_kind": "DATASOURCE",
+      "scope_id": "uuid",
+      "scope_name": "Production PostgreSQL",
+      "starts_at": "2026-08-20T00:00:00Z",
+      "ends_at": "2026-08-30T00:00:00Z",
+      "reason": "Annual leave",
+      "status": "ACTIVE",
+      "created_at": "2026-08-16T09:00:00Z"
+    }
+  ],
+  "received": []
+}
+```
+
+`status` is derived, never stored: `SCHEDULED` (window not yet open), `ACTIVE`, `EXPIRED`
+(`ends_at` passed), or `REVOKED`. `scope_name` resolves the datasource or connector name for
+display and is `null` for an unscoped delegation.
+
+### DELETE /me/review-delegations/{id} — Response 204
+
+Only the **delegator** may revoke; the delegate cannot revoke a delegation granted to them
+(HTTP 403). Revoking an already-revoked or expired delegation is idempotent and still returns 204.
+
+### GET /admin/review-delegations — Query Parameters
+
+Standard pagination (`page`, `size`), plus optional `delegator_id`, `delegate_id`, and
+`active_only` (boolean, default `false`). Requires `QUERY_ADMIN`. Response is a paginated envelope
+whose `content` entries have the same shape as the `granted` rows above.
+
+### Review-delegation Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure — missing field, `ends_at` ≤ `starts_at`, `scope_kind`/`scope_id` set inconsistently |
+| 403 | `FORBIDDEN` | Caller is not the delegation's delegator (revoke), or lacks `QUERY_ADMIN` (admin list) |
+| 404 | `REVIEW_DELEGATION_NOT_FOUND` | Delegation does not exist or belongs to another organization |
+| 404 | `USER_NOT_FOUND` | `delegate_user_id` does not resolve to an active user in the organization |
+| 422 | `ILLEGAL_REVIEW_DELEGATION` | Delegate is the caller, or `scope_id` does not resolve to a resource of `scope_kind` |
+
+### Effect on existing review responses
+
+- `GET /reviews/pending`, `GET /api-reviews`, and `GET /request-groups/reviews` gain a nullable
+  `delegated_for` object (`{ "id": "uuid", "email": "…", "display_name": "…" }`) on each row —
+  present when the caller is only eligible for that row through a delegation, naming the delegator.
+  It is `null` when the caller is eligible in their own right, even if a delegation also covers it.
+- Every review-decision entry (`review_decisions[]` on `GET /queries/{id}` and the equivalents for
+  API and grouped requests) gains a nullable `on_behalf_of` object of the same shape.
 
 ---
 
@@ -3810,6 +3937,9 @@ Available to any authenticated user. Returns the org allow-list plus the caller'
 
 Self-service profile, password, and TOTP endpoints. Available to any authenticated user — no role check.
 
+Out-of-office review delegation is also self-service and lives under the same prefix — see
+[Review Delegation Endpoints](#review-delegation-endpoints-622) for `/me/review-delegations`.
+
 #### GET /me
 
 Returns the caller's profile.
@@ -5285,6 +5415,15 @@ do not create `query_requests` / `api_requests` rows.
 | `GET` | `/request-groups/reviews` | **Reviewer/Admin.** List groups awaiting the caller's review. Paginated. Excludes the caller's own submissions (self-approval is forbidden). Eligible reviewers = the **union** of every member plan's approvers. |
 | `POST` | `/request-groups/{id}/approve` | **Reviewer/Admin.** Approve the whole group at the current stage (`{comment?}`). The group advances to `APPROVED` only when **every** member plan's per-stage `min_approvals_required` is satisfied; **the submitter can never approve their own group**. |
 | `POST` | `/request-groups/{id}/reject` | **Reviewer/Admin.** Reject the group (`{comment?}`) → `REJECTED`. |
+
+All three require the **`QUERY_REVIEW`** permission (`REVIEW_OVERRIDE` also satisfies it), enforced
+both by `@PreAuthorize` on the controller and in `DefaultGroupReviewService` — a caller without it
+gets HTTP 403 on the decision endpoints and an empty page from the queue. The queue is additionally
+filtered to groups the caller is actually an eligible approver for, using the same predicate as the
+decision guard, so it never lists a group whose approval would be rejected. Because approver
+eligibility is a union over each member's review plan and cannot be expressed as a SQL predicate,
+that filtering happens after paging: **`total_elements` is an upper bound**, matching the behaviour
+of `GET /reviews/pending`.
 
 State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTING → EXECUTED`, plus `REJECTED`,
 `TIMED_OUT` (review timeout), `PARTIALLY_EXECUTED` (stopped mid-sequence), `FAILED`, and `CANCELLED`

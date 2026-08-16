@@ -185,6 +185,56 @@ class DefaultGroupReviewServiceTest {
     }
 
     @Test
+    void reviewerWithoutQueryReviewPermissionIsRejected() {
+        var analystContext = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), analystContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class)
+                .hasMessageContaining("may not review");
+    }
+
+    @Test
+    void listPendingIsEmptyWithoutQueryReviewPermission() {
+        var analystContext = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+
+        var page = service.listPending(analystContext,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void listPendingOmitsGroupsTheCallerCannotApprove() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of());
+        // The group routes to ADMIN only; a REVIEWER is not an eligible approver for it.
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(), java.util.Set.of("ADMIN")));
+
+        var page = service.listPending(reviewerContext,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
     void ineligibleReviewerIsRejected() {
         var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
                 SystemRolePermissions.of(UserRoleType.REVIEWER));
