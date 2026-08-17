@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Approuvée automatiquement au titre d’un octroi d’accès",
       "approved_by_grant_body": "Cette requête était couverte par l’octroi d’accès {{grantId}}, approuvé par {{approver}} le {{when}}.",
       "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}.",
-      "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})",
+      "escalated_title": "Escaladé — toujours sans décision",
+      "escalated_body": "Personne n'a statué dans le délai d'escalade de {{hours}} heures du plan de revue ; la demande a donc été remontée à l'étape suivante et à vos administrateurs {{when}}. Elle n'est ni approuvée ni rejetée, et l'escalade ne change pas qui peut décider."
     }
   },
   "reviews": {
@@ -1963,7 +1965,11 @@
           "name": "Standard — IA + 1 relecteur",
           "description": "IA plus un relecteur unique ; les lectures à risque faible/moyen sont approuvées automatiquement."
         }
-      }
+      },
+      "label_escalation_h": "Escalader après (heures)",
+      "label_nudge_h": "Relancer toutes les (heures)",
+      "tooltip_escalation": "Prévient l'étape suivante et vos administrateurs si personne n'a statué dans ce délai. Laissez vide pour désactiver. L'escalade ne change jamais qui peut approuver.",
+      "tooltip_nudge": "Relance les relecteurs qui n'ont pas statué, à cette cadence. Laissez vide pour désactiver."
     },
     "groups": {
       "title": "User groups",

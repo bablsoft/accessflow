@@ -504,6 +504,19 @@ export function QueryDetailPage() {
               }
             />
           )}
+          {query.escalated_at && query.status === 'PENDING_REVIEW' && (
+            <Alert
+              type="warning"
+              showIcon
+              icon={<ClockCircleOutlined />}
+              data-testid="escalation-banner"
+              message={t('queries.detail.escalated_title')}
+              description={t('queries.detail.escalated_body', {
+                hours: query.escalation_after_hours ?? '?',
+                when: timeAgo(query.escalated_at),
+              })}
+            />
+          )}
           {query.matched_policy && (
             <Alert
               type="info"

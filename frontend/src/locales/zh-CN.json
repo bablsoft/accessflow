@@ -748,7 +748,9 @@
       "approved_by_grant_title": "已根据访问授权自动批准",
       "approved_by_grant_body": "此查询由访问授权 {{grantId}} 覆盖，由 {{approver}} 于 {{when}} 批准。",
       "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。",
-      "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）"
+      "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）",
+      "escalated_title": "已升级 — 仍未作出决定",
+      "escalated_body": "在审核方案的 {{hours}} 小时升级时限内无人处理，因此已于{{when}}升级至下一阶段及您的管理员。该请求尚未被批准或拒绝，升级也不会改变谁有权决定。"
     }
   },
   "reviews": {
@@ -1963,7 +1965,11 @@
           "name": "标准 — AI + 1 位审核者",
           "description": "AI 加一位审核者；低/中风险读操作自动批准。"
         }
-      }
+      },
+      "label_escalation_h": "升级时限（小时）",
+      "label_nudge_h": "提醒间隔（小时）",
+      "tooltip_escalation": "若在此时间内无人处理，则通知下一阶段及您的管理员。留空表示停用。升级不会改变谁有权批准。",
+      "tooltip_nudge": "按此频率再次提醒尚未处理的审核人。留空表示停用。"
     },
     "groups": {
       "title": "User groups",

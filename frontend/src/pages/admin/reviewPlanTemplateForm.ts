@@ -14,6 +14,10 @@ export interface ReviewPlanFormValues {
   requires_human_approval: boolean;
   min_approvals_required: number;
   approval_timeout_hours: number;
+  /** Null/undefined disables escalation for the plan (#622). */
+  escalation_after_hours?: number | null;
+  /** Null/undefined disables nudges for the plan. */
+  nudge_interval_hours?: number | null;
   auto_approve_reads: boolean;
   approvers: ReviewPlanFormApproverRow[];
 }
@@ -25,6 +29,10 @@ export const REVIEW_PLAN_DEFAULT_VALUES: ReviewPlanFormValues = {
   requires_human_approval: true,
   min_approvals_required: 1,
   approval_timeout_hours: 24,
+  // Both off by default: a plan that starts nagging without an admin asking would be
+  // a surprise, and null is the documented 'disabled' value.
+  escalation_after_hours: null,
+  nudge_interval_hours: null,
   auto_approve_reads: false,
   approvers: [{ user_id: null, role: 'REVIEWER', stage: 1 }],
 };
@@ -46,6 +54,8 @@ export function reviewPlanFormFromTemplate(
     requires_human_approval: template.defaults.requires_human_approval,
     min_approvals_required: template.defaults.min_approvals_required,
     approval_timeout_hours: template.defaults.approval_timeout_hours,
+    escalation_after_hours: null,
+    nudge_interval_hours: null,
     auto_approve_reads: template.defaults.auto_approve_reads,
     approvers,
   };

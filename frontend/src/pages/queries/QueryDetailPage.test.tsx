@@ -1148,3 +1148,47 @@ describe('QueryDetailPage — recurring series (#627)', () => {
     expect(screen.queryByTestId('occurrences-card')).toBeNull();
   });
 });
+
+describe('QueryDetailPage — escalation banner (#622)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+    setUser('REVIEWER');
+  });
+
+  function escalated(status: QueryDetail['status']): QueryDetail {
+    const q = pendingReviewQuery();
+    q.status = status;
+    q.escalated_at = '2026-08-17T09:00:00Z';
+    q.escalation_after_hours = 4;
+    return q;
+  }
+
+  it('shows the banner while the request is still awaiting a decision', async () => {
+    getQueryMock.mockResolvedValue(escalated('PENDING_REVIEW'));
+
+    render(wrap(<QueryDetailPage />));
+
+    expect(await screen.findByTestId('escalation-banner')).toBeInTheDocument();
+    // The copy must not imply a decision was made — escalation is advisory only.
+    expect(screen.getByText(/does not change who may decide/i)).toBeInTheDocument();
+  });
+
+  it('hides the banner once the request has been decided', async () => {
+    getQueryMock.mockResolvedValue(escalated('APPROVED'));
+
+    render(wrap(<QueryDetailPage />));
+
+    await waitFor(() => expect(getQueryMock).toHaveBeenCalled());
+    expect(screen.queryByTestId('escalation-banner')).toBeNull();
+  });
+
+  it('shows nothing for a request that was never escalated', async () => {
+    getQueryMock.mockResolvedValue(pendingReviewQuery());
+
+    render(wrap(<QueryDetailPage />));
+
+    await waitFor(() => expect(getQueryMock).toHaveBeenCalled());
+    expect(screen.queryByTestId('escalation-banner')).toBeNull();
+  });
+});

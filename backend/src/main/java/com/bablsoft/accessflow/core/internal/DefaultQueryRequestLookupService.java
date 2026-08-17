@@ -287,6 +287,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getApprovedByGrantId(),
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
+                entity.getEscalatedAt(),
+                plan != null ? plan.getEscalationAfterHours() : null,
                 decisions,
                 entity.getScheduledFor(),
                 entity.getRecurrenceRule(),

@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Auto-approved under an access grant",
       "approved_by_grant_body": "This query was covered by access grant {{grantId}}, approved by {{approver}} on {{when}}.",
       "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
-      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})",
+      "escalated_title": "Escalated — still awaiting a decision",
+      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so this was raised to the next stage and your admins {{when}}. It has not been approved or rejected, and escalating does not change who may decide."
     }
   },
   "reviews": {
@@ -2021,7 +2023,11 @@
           "name": "Standard — AI + 1 reviewer",
           "description": "AI plus a single reviewer; low/medium-risk reads auto-approved."
         }
-      }
+      },
+      "label_escalation_h": "Escalate after (hours)",
+      "label_nudge_h": "Nudge every (hours)",
+      "tooltip_escalation": "Notify the next stage and your admins when nobody has decided in this time. Leave empty to disable. Escalating never changes who may approve.",
+      "tooltip_nudge": "Re-notify reviewers who have not decided, on this cadence. Leave empty to disable."
     },
     "datasource_health": {
       "title": "Datasource health",

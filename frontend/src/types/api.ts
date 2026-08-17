@@ -853,6 +853,10 @@ export interface ReviewPlan {
   requires_human_approval: boolean;
   min_approvals_required: number;
   approval_timeout_hours: number;
+  /** Hours before an idle request is escalated (#622); null disables escalation. */
+  escalation_after_hours: number | null;
+  /** Hours between reminders to undecided reviewers; null disables nudges. */
+  nudge_interval_hours: number | null;
   auto_approve_reads: boolean;
   notify_channels: string[];
   approvers: ReviewPlanApprover[];
@@ -866,6 +870,8 @@ export interface ReviewPlanWriteRequest {
   requires_human_approval?: boolean;
   min_approvals_required?: number;
   approval_timeout_hours?: number;
+  escalation_after_hours?: number | null;
+  nudge_interval_hours?: number | null;
   auto_approve_reads?: boolean;
   notify_channels?: string[];
   approvers?: ReviewPlanApprover[];
@@ -1268,6 +1274,10 @@ export interface QueryDetail {
   previous_run_id: string | null;
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
+  /** When the escalation job raised this request (#622); null when never escalated. */
+  escalated_at?: string | null;
+  /** The plan's escalation window in hours; null when escalation is off for the plan. */
+  escalation_after_hours?: number | null;
   matched_policy: MatchedRoutingPolicy | null;
   approved_by_grant: ApprovedByGrant | null;
   review_decisions: ReviewDecisionDetail[];

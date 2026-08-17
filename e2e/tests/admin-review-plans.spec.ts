@@ -210,11 +210,18 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     // role Select via the UI.
     await modal.getByRole('button', { name: 'Add approver' }).click();
 
-    // Bump row 2's stage to 2. `.ant-input-number-input` is AntD's internal
-    // class for the actual <input>; the four occurrences in this modal map to:
-    //   [0] Minimum approvals    [1] Approval timeout (hours)
-    //   [2] stage row 1          [3] stage row 2  (after add)
+    // Bump row 2's stage to 2. `.ant-input-number-input` is AntD's internal class for the actual
+    // <input>; after #622 the six occurrences in this modal are, in document order:
+    //   [0] Minimum approvals      [1] Approval timeout (hours)
+    //   [2] Escalate after (hours) [3] Nudge every (hours)
+    //   [4] stage row 1            [5] stage row 2  (after add)
+    // Only `.last()` is used, so the stage row stays correct as settings are added above it — but
+    // any future numeric field placed BELOW the approver list would silently break this.
     const numberInputs = modal.locator('.ant-input-number-input');
+    await expect(numberInputs).toHaveCount(6);
+    // #622: escalate after 4h, nudge every 2h — both optional, both must round-trip.
+    await numberInputs.nth(2).fill('4');
+    await numberInputs.nth(3).fill('2');
     await numberInputs.last().fill('2');
 
     const createResponsePromise = page.waitForResponse(
@@ -229,10 +236,15 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     const body = (await createResponse.json()) as {
       id: string;
       name: string;
+      escalation_after_hours: number | null;
+      nudge_interval_hours: number | null;
       approvers: Array<{ role: string | null; stage: number }>;
     };
     planId = body.id;
     expect(body.name).toBe(TWO_STAGE_PLAN_NAME);
+    // #622 — the two optional knobs persist as entered rather than being dropped on the way through.
+    expect(body.escalation_after_hours).toBe(4);
+    expect(body.nudge_interval_hours).toBe(2);
     expect(body.approvers).toHaveLength(2);
     expect(body.approvers.map((a) => a.stage).sort()).toEqual([1, 2]);
     expect(body.approvers.every((a) => a.role === 'REVIEWER')).toBe(true);

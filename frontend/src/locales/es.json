@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Aprobada automáticamente bajo una concesión de acceso",
       "approved_by_grant_body": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}, aprobada por {{approver}} el {{when}}.",
       "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}.",
-      "timeline_on_behalf_of": "{{actor}} (en nombre de {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (en nombre de {{delegator}})",
+      "escalated_title": "Escalado: aún sin decisión",
+      "escalated_body": "Nadie decidió dentro del periodo de escalado de {{hours}} horas del plan de revisión, por lo que se escaló a la siguiente etapa y a tus administradores {{when}}. No se ha aprobado ni rechazado, y escalar no cambia quién puede decidir."
     }
   },
   "reviews": {
@@ -1963,7 +1965,11 @@
           "name": "Estándar — IA + 1 revisor",
           "description": "IA más un único revisor; las lecturas de riesgo bajo/medio se aprueban automáticamente."
         }
-      }
+      },
+      "label_escalation_h": "Escalar tras (horas)",
+      "label_nudge_h": "Recordar cada (horas)",
+      "tooltip_escalation": "Avisa a la siguiente etapa y a tus administradores cuando nadie haya decidido en ese tiempo. Déjalo vacío para desactivarlo. Escalar nunca cambia quién puede aprobar.",
+      "tooltip_nudge": "Vuelve a avisar a los revisores que no han decidido, con esta cadencia. Déjalo vacío para desactivarlo."
     },
     "groups": {
       "title": "User groups",

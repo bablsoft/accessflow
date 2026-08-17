@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Automatisch genehmigt unter einer Zugriffsgewährung",
       "approved_by_grant_body": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt, genehmigt von {{approver}} am {{when}}.",
       "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt.",
-      "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})",
+      "escalated_title": "Eskaliert — noch keine Entscheidung",
+      "escalated_body": "Innerhalb des {{hours}}-Stunden-Eskalationsfensters des Prüfplans hat niemand entschieden, daher wurde dies {{when}} an die nächste Stufe und Ihre Administratoren eskaliert. Es wurde weder genehmigt noch abgelehnt, und die Eskalation ändert nicht, wer entscheiden darf."
     }
   },
   "reviews": {
@@ -1963,7 +1965,11 @@
           "name": "Standard — KI + 1 Prüfer",
           "description": "KI plus ein einzelner Prüfer; Lesevorgänge mit niedrigem/mittlerem Risiko werden automatisch genehmigt."
         }
-      }
+      },
+      "label_escalation_h": "Eskalieren nach (Stunden)",
+      "label_nudge_h": "Erinnern alle (Stunden)",
+      "tooltip_escalation": "Benachrichtigt die nächste Stufe und Ihre Administratoren, wenn in dieser Zeit niemand entschieden hat. Leer lassen zum Deaktivieren. Eine Eskalation ändert nie, wer genehmigen darf.",
+      "tooltip_nudge": "Benachrichtigt Prüfende, die noch nicht entschieden haben, in diesem Takt erneut. Leer lassen zum Deaktivieren."
     },
     "groups": {
       "title": "User groups",
