@@ -105,6 +105,39 @@ public interface QueryRequestRepository
             """, nativeQuery = true)
     List<UUID> findTimedOutPendingReviewIds(@Param("now") Instant now);
 
+    /**
+     * Requests past their plan's {@code escalation_after_hours} that have not been escalated yet
+     * (#622). Backed by idx_query_requests_escalation_scan. A null column means the plan has
+     * escalation switched off, so it never matches.
+     */
+    @Query(value = """
+            SELECT q.id
+            FROM query_requests q
+            JOIN datasources d ON d.id = q.datasource_id
+            JOIN review_plans rp ON rp.id = d.review_plan_id
+            WHERE q.status = 'PENDING_REVIEW'::query_status
+              AND q.escalated_at IS NULL
+              AND rp.escalation_after_hours IS NOT NULL
+              AND q.created_at + (rp.escalation_after_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findEscalationDueIds(@Param("now") Instant now);
+
+    /**
+     * Requests due a nudge (#622): never nudged and past one interval since submission, or nudged
+     * longer than one interval ago. Backed by idx_query_requests_nudge_scan.
+     */
+    @Query(value = """
+            SELECT q.id
+            FROM query_requests q
+            JOIN datasources d ON d.id = q.datasource_id
+            JOIN review_plans rp ON rp.id = d.review_plan_id
+            WHERE q.status = 'PENDING_REVIEW'::query_status
+              AND rp.nudge_interval_hours IS NOT NULL
+              AND COALESCE(q.last_nudged_at, q.created_at)
+                  + (rp.nudge_interval_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findNudgeDueIds(@Param("now") Instant now);
+
     @Query(value = """
             SELECT q.id
             FROM query_requests q

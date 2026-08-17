@@ -75,6 +75,18 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> findEscalationDueIds(Instant now) {
+        return queryRequestRepository.findEscalationDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findNudgeDueIds(Instant now) {
+        return queryRequestRepository.findNudgeDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UUID> findScheduledDueIds(Instant now) {
         return queryRequestRepository.findScheduledDueIds(now);
     }

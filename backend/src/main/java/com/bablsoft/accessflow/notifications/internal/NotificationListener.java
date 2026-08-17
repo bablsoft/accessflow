@@ -2,6 +2,8 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.attestation.events.AttestationCampaignOpenedEvent;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.events.QueryReviewEscalatedEvent;
+import com.bablsoft.accessflow.core.events.QueryReviewNudgedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
@@ -46,6 +48,18 @@ class NotificationListener {
             safeDispatch(NotificationEventType.QUERY_ESCALATED, event.queryRequestId(),
                     null, null, null);
         }
+    }
+
+    @ApplicationModuleListener
+    void onReviewEscalated(QueryReviewEscalatedEvent event) {
+        safeDispatch(NotificationEventType.REVIEW_ESCALATED, event.queryRequestId(),
+                null, null, null);
+    }
+
+    @ApplicationModuleListener
+    void onReviewNudged(QueryReviewNudgedEvent event) {
+        safeDispatch(NotificationEventType.REVIEW_NUDGE, event.queryRequestId(),
+                null, null, null);
     }
 
     @ApplicationModuleListener

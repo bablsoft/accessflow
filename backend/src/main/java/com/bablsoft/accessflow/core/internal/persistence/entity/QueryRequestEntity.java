@@ -136,6 +136,14 @@ public class QueryRequestEntity {
     private boolean ciCdOrigin = false;
 
     @Version
+    /** Set once when ReviewEscalationJob raises an idle request (#622). */
+    @Column(name = "escalated_at")
+    private Instant escalatedAt;
+
+    /** Cursor for the nudge cadence (#622); null until the first reminder goes out. */
+    @Column(name = "last_nudged_at")
+    private Instant lastNudgedAt;
+
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt = Instant.now();
 
