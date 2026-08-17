@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.CreateReviewDelegationCommand;
 import com.bablsoft.accessflow.core.api.DelegationScopeKind;
+import com.bablsoft.accessflow.core.api.ReviewDelegateCandidate;
 import com.bablsoft.accessflow.core.api.ReviewDelegationService;
 import com.bablsoft.accessflow.core.api.ReviewDelegationStatus;
 import com.bablsoft.accessflow.core.api.ReviewDelegationView;
@@ -132,5 +133,26 @@ class MeReviewDelegationControllerTest {
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
         verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void candidatesMapTheServiceViewOntoTheWireShape() {
+        when(service.listDelegateCandidates(orgId, userId)).thenReturn(List.of(
+                new ReviewDelegateCandidate(delegateId, "bob@example.com", "Bob")));
+
+        var body = controller.candidates(userId, orgId);
+
+        assertThat(body).singleElement().satisfies(candidate -> {
+            assertThat(candidate.id()).isEqualTo(delegateId);
+            assertThat(candidate.email()).isEqualTo("bob@example.com");
+            assertThat(candidate.displayName()).isEqualTo("Bob");
+        });
+    }
+
+    @Test
+    void candidatesAreEmptyWhenTheOrganizationHasNoOtherMembers() {
+        when(service.listDelegateCandidates(orgId, userId)).thenReturn(List.of());
+
+        assertThat(controller.candidates(userId, orgId)).isEmpty();
     }
 }

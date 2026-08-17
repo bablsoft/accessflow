@@ -303,4 +303,69 @@ class DefaultReviewDelegationServiceTest {
         entity.setCreatedBy(delegatorId);
         return entity;
     }
+
+    // ------------------------------------------------- delegate candidates
+
+    private UserEntity member(UUID id, String displayName, String email, boolean active) {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var user = new UserEntity();
+        user.setId(id);
+        user.setDisplayName(displayName);
+        user.setEmail(email);
+        user.setActive(active);
+        user.setOrganization(org);
+        return user;
+    }
+
+    @Test
+    void delegateCandidatesExcludeTheCallerAndAnyoneDeactivated() {
+        var other = UUID.randomUUID();
+        var inactive = UUID.randomUUID();
+        when(userRepository.findAllByOrganization_Id(orgId)).thenReturn(List.of(
+                member(delegatorId, "Me", "me@example.com", true),
+                member(other, "Bob", "bob@example.com", true),
+                member(inactive, "Gone", "gone@example.com", false)));
+
+        var candidates = service.listDelegateCandidates(orgId, delegatorId);
+
+        assertThat(candidates).extracting(c -> c.id()).containsExactly(other);
+    }
+
+    @Test
+    void delegateCandidatesSortByDisplayNameCaseInsensitively() {
+        var a = UUID.randomUUID();
+        var b = UUID.randomUUID();
+        var c = UUID.randomUUID();
+        when(userRepository.findAllByOrganization_Id(orgId)).thenReturn(List.of(
+                member(a, "zoe", "zoe@example.com", true),
+                member(b, "Alice", "alice@example.com", true),
+                member(c, "bob", "bob@example.com", true)));
+
+        assertThat(service.listDelegateCandidates(orgId, delegatorId))
+                .extracting(candidate -> candidate.displayName())
+                .containsExactly("Alice", "bob", "zoe");
+    }
+
+    @Test
+    void delegateCandidatesSortByEmailWhenAUserHasNoDisplayName() {
+        var withName = UUID.randomUUID();
+        var withoutName = UUID.randomUUID();
+        when(userRepository.findAllByOrganization_Id(orgId)).thenReturn(List.of(
+                member(withName, "Zoe", "zoe@example.com", true),
+                // Invited users can have a null display name — sorting must not NPE on them.
+                member(withoutName, null, "alice@example.com", true)));
+
+        assertThat(service.listDelegateCandidates(orgId, delegatorId))
+                .extracting(candidate -> candidate.id())
+                .containsExactly(withoutName, withName);
+    }
+
+    @Test
+    void delegateCandidatesAreEmptyForAnOrganizationOfOne() {
+        when(userRepository.findAllByOrganization_Id(orgId))
+                .thenReturn(List.of(member(delegatorId, "Me", "me@example.com", true)));
+
+        assertThat(service.listDelegateCandidates(orgId, delegatorId)).isEmpty();
+    }
 }
