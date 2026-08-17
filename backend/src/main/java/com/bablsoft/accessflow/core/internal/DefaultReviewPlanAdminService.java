@@ -64,6 +64,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 || command.requiresHumanApproval();
         validateApprovers(command.approvers(), requiresHuman, command.minApprovalsRequired(),
                 command.organizationId());
+        validateEscalationWindow(command.escalationAfterHours(), command.approvalTimeoutHours());
 
         var entity = new ReviewPlanEntity();
         entity.setId(UUID.randomUUID());
@@ -131,6 +132,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (command.notifyChannels() != null) {
             entity.setNotifyChannels(command.notifyChannels().toArray(new String[0]));
         }
+        validateEscalationWindow(entity.getEscalationAfterHours(),
+                entity.getApprovalTimeoutHours());
         if (command.approvers() != null) {
             validateApprovers(command.approvers(), entity.isRequiresHumanApproval(),
                     entity.getMinApprovalsRequired(), organizationId);
@@ -191,6 +194,25 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (autoApproveReads != null) entity.setAutoApproveReads(autoApproveReads);
         if (notifyChannels != null) {
             entity.setNotifyChannels(notifyChannels.toArray(new String[0]));
+        }
+    }
+
+    /**
+     * An escalation window at or past the approval timeout can never fire — {@code QueryTimeoutJob}
+     * auto-rejects the request first — so it is a setting that silently does nothing. Rejecting it
+     * is the only way an admin finds out; every doc frames escalation as the warning shot
+     * <em>before</em> the timeout.
+     */
+    private static void validateEscalationWindow(Integer escalationAfterHours,
+                                                 Integer approvalTimeoutHours) {
+        if (escalationAfterHours == null || approvalTimeoutHours == null) {
+            return;
+        }
+        if (escalationAfterHours >= approvalTimeoutHours) {
+            throw new IllegalReviewPlanException(
+                    "Escalation window must be shorter than the approval timeout ("
+                            + escalationAfterHours + "h vs " + approvalTimeoutHours + "h), "
+                            + "otherwise the request is auto-rejected before it can escalate");
         }
     }
 
