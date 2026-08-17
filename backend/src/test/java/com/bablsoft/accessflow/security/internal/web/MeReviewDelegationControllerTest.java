@@ -20,6 +20,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -110,6 +111,8 @@ class MeReviewDelegationControllerTest {
 
     @Test
     void revokeReturns204AndAudits() {
+        when(service.revoke(delegationId, orgId, userId)).thenReturn(true);
+
         var response = controller.revoke(delegationId, userId, orgId);
 
         assertThat(response.getStatusCode().value()).isEqualTo(204);
@@ -117,5 +120,17 @@ class MeReviewDelegationControllerTest {
         var captor = ArgumentCaptor.forClass(AuditEntry.class);
         verify(auditLogService).record(captor.capture());
         assertThat(captor.getValue().action()).isEqualTo(AuditAction.REVIEW_DELEGATION_REVOKED);
+    }
+
+    @Test
+    void revokingAnAlreadyRevokedDelegationReturns204ButWritesNoAuditRow() {
+        // The service reports that it did nothing; auditing anyway would record an event that
+        // never happened, once per retry.
+        when(service.revoke(delegationId, orgId, userId)).thenReturn(false);
+
+        var response = controller.revoke(delegationId, userId, orgId);
+
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        verify(auditLogService, never()).record(any());
     }
 }
