@@ -8,10 +8,12 @@ import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGr
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -80,6 +82,41 @@ public class RequestGroupStateService {
             return false;
         }
         apply(group, RequestGroupStatus.TIMED_OUT);
+        return true;
+    }
+
+    /**
+     * Stamps {@code escalated_at} (#622), which surfaces the bundle as escalated in the review
+     * queue. Re-checks status and the prior stamp before writing, so a decision racing the scan
+     * cannot re-escalate and replicas cannot double-stamp.
+     *
+     * <p>No event is published: the {@code requestgroups} module has no notification path at all —
+     * there is no group notification listener and no group notification context, so grouped
+     * requests have never produced a submitted/approved/rejected message either. Escalating a
+     * bundle therefore raises the flag the UI reads, and channel fan-out arrives when grouped-request
+     * notifications do.
+     */
+    @Transactional
+    public boolean markEscalated(UUID requestGroupId, Instant at) {
+        var group = requestGroupRepository.findById(requestGroupId).orElse(null);
+        if (group == null || group.getStatus() != RequestGroupStatus.PENDING_REVIEW
+                || group.getEscalatedAt() != null) {
+            return false;
+        }
+        group.setEscalatedAt(at);
+        requestGroupRepository.save(group);
+        return true;
+    }
+
+    /** Stamps {@code last_nudged_at} (#622); a no-op once the bundle has left review. */
+    @Transactional
+    public boolean markNudged(UUID requestGroupId, Instant at) {
+        var group = requestGroupRepository.findById(requestGroupId).orElse(null);
+        if (group == null || group.getStatus() != RequestGroupStatus.PENDING_REVIEW) {
+            return false;
+        }
+        group.setLastNudgedAt(at);
+        requestGroupRepository.save(group);
         return true;
     }
 }
