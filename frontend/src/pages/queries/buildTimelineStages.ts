@@ -1,12 +1,15 @@
 import type { TimelineStage } from '@/components/review/ApprovalTimeline';
-import type { QueryDetail } from '@/types/api';
+import type { QueryDetail, ReviewDecisionDetail } from '@/types/api';
 import { fmtDate, fmtNum } from '@/utils/dateFormat';
 import { userDisplay } from '@/utils/userDisplay';
+
+/** i18next's `t`, narrowed to what this builder needs — key plus optional interpolation. */
+type Translate = (key: string, options?: Record<string, unknown>) => string;
 
 export function buildTimelineStages(
   query: QueryDetail,
   aiSkipped: boolean,
-  t: (key: string) => string,
+  t: Translate,
 ): TimelineStage[] {
   const out: TimelineStage[] = [
     {
@@ -65,14 +68,12 @@ export function buildTimelineStages(
       const lastReject = [...decisions]
         .reverse()
         .find((d) => d.decision === 'REJECTED');
-      reviewerWho = lastReject
-        ? userDisplay(lastReject.reviewer.display_name, lastReject.reviewer.email)
-        : '—';
+      reviewerWho = lastReject ? decisionWho(lastReject, t) : '—';
       rejectionDetail = lastReject?.comment ? `"${lastReject.comment}"` : null;
     } else if (reviewDone) {
       const approvers = (query.review_decisions ?? [])
         .filter((d) => d.decision === 'APPROVED')
-        .map((d) => userDisplay(d.reviewer.display_name, d.reviewer.email));
+        .map((decision) => decisionWho(decision, t));
       reviewerWho = approvers.length > 0 ? approvers.join(', ') : '—';
     } else {
       reviewerWho = 'awaiting reviewer';
@@ -153,4 +154,18 @@ export function buildTimelineStages(
     });
   }
   return out;
+}
+
+/**
+ * Who a decision is attributed to. A decision taken under an out-of-office delegation (#622) names
+ * both parties, so the timeline never implies the delegator acted themselves.
+ */
+function decisionWho(decision: ReviewDecisionDetail, t: Translate): string {
+  const actor = userDisplay(decision.reviewer.display_name, decision.reviewer.email);
+  if (!decision.on_behalf_of) return actor;
+  const delegator = userDisplay(
+    decision.on_behalf_of.display_name,
+    decision.on_behalf_of.email,
+  );
+  return t('queries.detail.timeline_on_behalf_of', { actor, delegator });
 }

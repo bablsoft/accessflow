@@ -257,11 +257,19 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
     await dupResponsePromise;
 
     // ApiKeysSection closes its create modal on success only; on error it stays
-    // open and surfaces the message via the section-level Alert. Scope to the
-    // page (not the dialog) and only require a non-empty alert — the exact
-    // wording flows through profileErrorMessage → ProblemDetail.detail, so we
-    // avoid coupling the spec to the i18n string.
-    const alert = page.getByRole('alert').filter({ hasText: /\S/ });
+    // open and surfaces the message via the section-level Alert. Only require a
+    // non-empty alert — the exact wording flows through profileErrorMessage →
+    // ProblemDetail.detail, so we avoid coupling the spec to the i18n string.
+    //
+    // Scoped to the API-keys card, not the page: the out-of-office delegation card
+    // (#622) renders an unconditional info Alert, which AntD gives role="alert", so a
+    // page-wide .first() would resolve to that and pass whether or not this error
+    // ever rendered.
+    const apiKeysCard = page
+      .locator('.ant-card')
+      .filter({ has: page.getByRole('button', { name: 'Create API key', exact: true }) })
+      .first();
+    const alert = apiKeysCard.getByRole('alert').filter({ hasText: /\S/ });
     await expect(alert.first()).toBeVisible({ timeout: 5_000 });
 
     // No second issued-key dialog appeared.

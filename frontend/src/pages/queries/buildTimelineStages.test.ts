@@ -7,7 +7,9 @@ import type {
   ReviewDecisionType,
 } from '@/types/api';
 
-const t = (key: string) => key;
+// Echoes the key plus its interpolation, so tests assert the shape without pinning English copy.
+const t = (key: string, options?: Record<string, unknown>) =>
+  options ? `${key}:${Object.entries(options).map(([k, v]) => `${k}=${String(v)}`).join(',')}` : key;
 
 function reviewer(id: string, displayName: string | null, email: string) {
   return { id, email, display_name: displayName as string };
@@ -340,5 +342,71 @@ describe('buildTimelineStages — recurring series stage (#627)', () => {
     expect(recurring).toBeDefined();
     expect(recurring!.cancelled).toBe(true);
     expect(recurring!.done).toBe(false);
+  });
+});
+
+describe('buildTimelineStages — delegated decisions (#622)', () => {
+  it('attributes an own-authority decision to the reviewer alone', () => {
+    const alice = reviewer('r1', 'Alice', 'alice@example.com');
+    const q = makeQuery({
+      status: 'APPROVED',
+      review_decisions: [decision(alice, 'APPROVED')],
+    });
+
+    const review = buildTimelineStages(q, false, t).find((s) => s.label === 'Human review');
+
+    expect(review!.who).toBe('Alice');
+  });
+
+  it('names both parties when a decision was taken under a delegation', () => {
+    const bob = reviewer('r2', 'Bob', 'bob@example.com');
+    const q = makeQuery({
+      status: 'APPROVED',
+      review_decisions: [
+        {
+          ...decision(bob, 'APPROVED'),
+          on_behalf_of: reviewer('r1', 'Alice', 'alice@example.com'),
+        },
+      ],
+    });
+
+    const review = buildTimelineStages(q, false, t).find((s) => s.label === 'Human review');
+
+    // Routed through t() so all seven locales render it — never a hardcoded English string.
+    expect(review!.who).toBe('queries.detail.timeline_on_behalf_of:actor=Bob,delegator=Alice');
+  });
+
+  it('names both parties on a rejection too', () => {
+    const bob = reviewer('r2', 'Bob', 'bob@example.com');
+    const q = makeQuery({
+      status: 'REJECTED',
+      review_decisions: [
+        {
+          ...decision(bob, 'REJECTED'),
+          on_behalf_of: reviewer('r1', 'Alice', 'alice@example.com'),
+        },
+      ],
+    });
+
+    const review = buildTimelineStages(q, false, t).find((s) => s.label === 'Rejected');
+
+    expect(review!.who).toBe('queries.detail.timeline_on_behalf_of:actor=Bob,delegator=Alice');
+  });
+
+  it('falls back to the delegator email when they have no display name', () => {
+    const bob = reviewer('r2', 'Bob', 'bob@example.com');
+    const q = makeQuery({
+      status: 'APPROVED',
+      review_decisions: [
+        {
+          ...decision(bob, 'APPROVED'),
+          on_behalf_of: reviewer('r1', null, 'alice@example.com'),
+        },
+      ],
+    });
+
+    const review = buildTimelineStages(q, false, t).find((s) => s.label === 'Human review');
+
+    expect(review!.who).toContain('delegator=alice@example.com');
   });
 });

@@ -154,7 +154,8 @@ class ApiRequestSpecificationsTest {
         var reviewerId = UUID.randomUUID();
         var connectorId = UUID.randomUUID();
 
-        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, connectorId, "POST")
+        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, connectorId, "POST", true,
+                        java.util.List.of())
                 .toPredicate(root, cq, cb);
 
         verify(cq).orderBy(order);
@@ -170,7 +171,8 @@ class ApiRequestSpecificationsTest {
         var orgId = UUID.randomUUID();
         var reviewerId = UUID.randomUUID();
 
-        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, null, null)
+        ApiRequestSpecifications.forPendingReview(orgId, reviewerId, null, null, true,
+                        java.util.List.of())
                 .toPredicate(root, cq, cb);
 
         verify(cb).notEqual(submittedByPath, reviewerId);

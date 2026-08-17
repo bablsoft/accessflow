@@ -62,9 +62,26 @@ public interface QueryRequestLookupService {
      * the reviewer themselves submitted. The current-stage filter is applied by the caller
      * (workflow module) using the embedded review-plan and decision data.
      */
+    /**
+     * Rows the reviewer may plausibly act on. Deliberately an <strong>over-approximation</strong>:
+     * {@code principalIds} and {@code lowerRoleNames} flatten the caller's own identity together
+     * with any borrowed through an out-of-office delegation (#622), so this cannot tell which
+     * identity matched the approver rule and which matched the datasource-reviewer scope. The
+     * caller re-checks each row per-identity before showing it. Never under-broad; sometimes
+     * over-broad; exact where it counts.
+     *
+     * <p>{@code reviewerUserId} still excludes only the caller's own submissions. It must
+     * <em>not</em> be widened to exclude their delegators too — that would hide requests the
+     * reviewer is eligible for in their own right. The delegator-is-submitter rule is per-identity
+     * and belongs in the caller's re-check.
+     *
+     * @param principalIds    the caller's id plus every active delegator's; never empty
+     * @param lowerRoleNames  the same set of identities' role names, already lower-cased
+     */
     PageResponse<PendingReviewView> findPendingForReviewer(UUID organizationId,
                                                            UUID reviewerUserId,
-                                                           String roleName,
+                                                           List<UUID> principalIds,
+                                                           List<String> lowerRoleNames,
                                                            PageRequest pageRequest);
 
     /**

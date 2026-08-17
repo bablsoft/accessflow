@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (collaborative)",
       "approved_by_grant_title": "Auto-approved under an access grant",
       "approved_by_grant_body": "This query was covered by access grant {{grantId}}, approved by {{approver}} on {{when}}.",
-      "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}."
+      "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
+      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})"
     }
   },
   "reviews": {
@@ -807,7 +808,10 @@
       "own_query": "You can't review your own query.",
       "not_pending": "This query is no longer awaiting review.",
       "not_found": "Query not found."
-    }
+    },
+    "col_delegated": "Delegated",
+    "delegated": "Delegated",
+    "delegated_tooltip": "You can review this because a colleague delegated their review duty to you."
   },
   "timeline": {
     "title": "Approval timeline"
@@ -2305,6 +2309,38 @@
       "generate_code": "Generate link code",
       "code_ready": "Run this command in Slack to finish linking:",
       "code_instructions": "The code expires shortly. Generate a new one if it stops working."
+    },
+    "delegation": {
+      "title": "Out-of-office delegation",
+      "explainer": "Name a delegate to cover your review duty while you're away. They become eligible wherever you are — query review, API requests, and grouped requests — and every decision they take records both names. They can never act on a request you submitted, and a delegation cannot grant a permission they don't already have.",
+      "label_delegate": "Delegate",
+      "select_delegate": "Choose a colleague",
+      "label_scope_kind": "Scope",
+      "label_scope": "Datasource",
+      "scope_all": "All review queues",
+      "label_window": "Window",
+      "submit": "Delegate review duty",
+      "created": "Delegation created",
+      "revoked": "Delegation revoked",
+      "revoke": "Revoke",
+      "revoke_confirm": "Revoke this delegation?",
+      "granted_title": "Delegations you granted",
+      "granted_empty": "You haven't delegated your review duty.",
+      "received_title": "Delegated to you",
+      "received_empty": "Nobody has delegated their review duty to you.",
+      "col_delegate": "Delegate",
+      "col_delegator": "Delegator",
+      "col_scope": "Scope",
+      "col_window": "Window",
+      "col_status": "Status",
+      "col_actions": "Actions",
+      "validation_delegate": "Choose a delegate",
+      "validation_scope": "Choose a datasource",
+      "validation_window": "Choose a start and end time",
+      "error_generic": "Could not save the delegation",
+      "label_reason": "Reason (optional)",
+      "reason_placeholder": "Annual leave",
+      "validation_reason": "The reason must be at most 500 characters"
     }
   },
   "totp_login": {
@@ -2843,6 +2879,16 @@
       "PENDING": "Pending",
       "CONFIRMED": "Confirmed",
       "DISMISSED": "Dismissed"
+    },
+    "delegation_scope": {
+      "DATASOURCE": "Datasource",
+      "API_CONNECTOR": "API connector"
+    },
+    "delegation_status": {
+      "SCHEDULED": "Scheduled",
+      "ACTIVE": "Active",
+      "EXPIRED": "Expired",
+      "REVOKED": "Revoked"
     }
   },
   "access": {

@@ -43,11 +43,26 @@ public interface QueryRequestStateService {
                                          String comment);
 
     /**
+     * As {@link #recordRejection(UUID, UUID, int, String)}, additionally recording that the
+     * reviewer acted under an out-of-office delegation (#622).
+     */
+    RecordDecisionResult recordRejection(UUID queryRequestId, UUID reviewerId, int stage,
+                                         String comment, UUID onBehalfOfUserId, UUID delegationId);
+
+    /**
      * Inserts a {@code REQUESTED_CHANGES} decision for the given reviewer/stage and leaves the
      * status at {@code PENDING_REVIEW}.
      */
     RecordDecisionResult recordChangesRequested(UUID queryRequestId, UUID reviewerId, int stage,
                                                 String comment);
+
+    /**
+     * As {@link #recordChangesRequested(UUID, UUID, int, String)}, additionally recording that the
+     * reviewer acted under an out-of-office delegation (#622).
+     */
+    RecordDecisionResult recordChangesRequested(UUID queryRequestId, UUID reviewerId, int stage,
+                                                String comment, UUID onBehalfOfUserId,
+                                                UUID delegationId);
 
     List<ReviewDecisionSnapshot> listDecisions(UUID queryRequestId);
 

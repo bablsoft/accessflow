@@ -8,6 +8,8 @@ import type {
   ApiVariableEncoding,
   ApiVariableKind,
   ApiProtocol,
+  DelegationScopeKind,
+  ReviewDelegationStatus,
   ApiSchemaType,
   ErasureConditionOperator,
   ErasureStatus,
@@ -588,3 +590,23 @@ export const DISCOVERY_FINDING_STATUSES: readonly DiscoveryFindingStatus[] = [
 
 export const discoveryFindingStatusLabel = (t: TFunction, v: DiscoveryFindingStatus): string =>
   t(`enums.discovery_finding_status.${v}` as const);
+
+// ── Reviewer delegation (#622) ──────────────────────────────────────────────
+
+export const DELEGATION_SCOPE_KINDS: readonly DelegationScopeKind[] = [
+  'DATASOURCE',
+  'API_CONNECTOR',
+] as const;
+
+export const delegationScopeKindLabel = (t: TFunction, v: DelegationScopeKind): string =>
+  t(`enums.delegation_scope.${v}` as const);
+
+export const DELEGATION_STATUSES: readonly ReviewDelegationStatus[] = [
+  'SCHEDULED',
+  'ACTIVE',
+  'EXPIRED',
+  'REVOKED',
+] as const;
+
+export const delegationStatusLabel = (t: TFunction, v: ReviewDelegationStatus): string =>
+  t(`enums.delegation_status.${v}` as const);

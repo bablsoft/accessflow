@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.apigov.internal.web;
 import com.bablsoft.accessflow.apigov.api.ApiConnectionTestException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorPermissionNotFoundException;
+import com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaFetchException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaNotFoundException;
 import com.bablsoft.accessflow.apigov.api.ApiSchemaParseException;
@@ -75,5 +76,16 @@ class ApiGovExceptionHandlerTest {
         var pd = handler.handleConnectionTest(new ApiConnectionTestException("refused"));
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY.value());
         assertThat(pd.getProperties()).containsEntry("reason", "refused");
+    }
+
+    @Test
+    void reviewerNotEligibleIs403() {
+        // Without this mapping the feature's own authorization check falls through to the global
+        // catch-all and answers 500 with an ERROR-level log on every denial (#622).
+        var pd = handler.handleReviewerNotEligible(
+                new ApiReviewerNotEligibleException(UUID.randomUUID(), UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_REVIEWER_NOT_ELIGIBLE");
     }
 }

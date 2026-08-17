@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL (kollaborativ)",
       "approved_by_grant_title": "Automatisch genehmigt unter einer Zugriffsgewährung",
       "approved_by_grant_body": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt, genehmigt von {{approver}} am {{when}}.",
-      "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt."
+      "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt.",
+      "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})"
     }
   },
   "reviews": {
@@ -807,7 +808,10 @@
       "own_query": "Du kannst deine eigene Abfrage nicht prüfen.",
       "not_pending": "Diese Abfrage wartet nicht mehr auf eine Prüfung.",
       "not_found": "Abfrage nicht gefunden."
-    }
+    },
+    "col_delegated": "Delegiert",
+    "delegated": "Delegiert",
+    "delegated_tooltip": "Sie können dies prüfen, weil eine Kollegin oder ein Kollege Ihnen die Prüfungspflicht delegiert hat."
   },
   "timeline": {
     "title": "Genehmigungs-Zeitleiste"
@@ -2305,6 +2309,38 @@
       "generate_code": "Verknüpfungscode erstellen",
       "code_ready": "Führen Sie diesen Befehl in Slack aus, um die Verknüpfung abzuschließen:",
       "code_instructions": "Der Code läuft bald ab. Erstellen Sie bei Bedarf einen neuen."
+    },
+    "delegation": {
+      "title": "Abwesenheitsvertretung",
+      "explainer": "Benennen Sie eine Vertretung für Ihre Prüfungspflicht während Ihrer Abwesenheit. Sie wird überall dort berechtigt, wo Sie es sind — Abfrageprüfung, API-Anfragen und gebündelte Anfragen — und jede Entscheidung hält beide Namen fest. Sie kann nie über eine von Ihnen eingereichte Anfrage entscheiden, und eine Delegation verleiht keine Berechtigung, die sie nicht bereits hat.",
+      "label_delegate": "Vertretung",
+      "select_delegate": "Kollegin oder Kollegen wählen",
+      "label_scope_kind": "Geltungsbereich",
+      "label_scope": "Datenquelle",
+      "scope_all": "Alle Prüfungswarteschlangen",
+      "label_window": "Zeitraum",
+      "submit": "Prüfungspflicht delegieren",
+      "created": "Delegation erstellt",
+      "revoked": "Delegation widerrufen",
+      "revoke": "Widerrufen",
+      "revoke_confirm": "Diese Delegation widerrufen?",
+      "granted_title": "Von Ihnen erteilte Delegationen",
+      "granted_empty": "Sie haben Ihre Prüfungspflicht nicht delegiert.",
+      "received_title": "An Sie delegiert",
+      "received_empty": "Niemand hat Ihnen seine Prüfungspflicht delegiert.",
+      "col_delegate": "Vertretung",
+      "col_delegator": "Delegierende Person",
+      "col_scope": "Geltungsbereich",
+      "col_window": "Zeitraum",
+      "col_status": "Status",
+      "col_actions": "Aktionen",
+      "validation_delegate": "Wählen Sie eine Vertretung",
+      "validation_scope": "Wählen Sie eine Datenquelle",
+      "validation_window": "Wählen Sie Start- und Endzeit",
+      "error_generic": "Die Delegation konnte nicht gespeichert werden",
+      "label_reason": "Grund (optional)",
+      "reason_placeholder": "Jahresurlaub",
+      "validation_reason": "Der Grund darf höchstens 500 Zeichen lang sein"
     }
   },
   "totp_login": {
@@ -2819,6 +2855,16 @@
       "PENDING": "Ausstehend",
       "CONFIRMED": "Bestätigt",
       "DISMISSED": "Verworfen"
+    },
+    "delegation_scope": {
+      "DATASOURCE": "Datenquelle",
+      "API_CONNECTOR": "API-Konnektor"
+    },
+    "delegation_status": {
+      "SCHEDULED": "Geplant",
+      "ACTIVE": "Aktiv",
+      "EXPIRED": "Abgelaufen",
+      "REVOKED": "Widerrufen"
     }
   },
   "access": {

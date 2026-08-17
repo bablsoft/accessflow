@@ -44,31 +44,54 @@ public interface QueryRequestRepository
             """)
     long countByOrganizationSince(@Param("orgId") UUID organizationId, @Param("since") Instant since);
 
+    /**
+     * Pending rows the reviewer may plausibly act on.
+     *
+     * <p>{@code principalIds} / {@code lowerRoleNames} carry the caller's own identity plus any
+     * borrowed through an out-of-office delegation (#622), so this query is a deliberate
+     * over-approximation — it cannot tell which identity satisfied which branch. DefaultReviewService
+     * re-checks every row per-identity before it reaches the user; do not "optimise away" that pass.
+     *
+     * <p>{@code userId} excludes only the caller's own submissions and must stay a scalar. Widening
+     * it to exclude their delegators as well would hide requests the reviewer is eligible for in
+     * their own right; that exclusion is per-identity and lives in the in-memory re-check.
+     *
+     * <p>The approver match is an {@code exists} subquery rather than a join: a join fans out one
+     * row per matching approver rule, which is why this once needed {@code select distinct} and a
+     * {@code count(distinct q)} count query. With a collection on both sides the fan-out would
+     * multiply, and the count would still be wrong.
+     *
+     * <p>Both collections always contain the caller's own values, so neither is ever empty.
+     */
     @Query("""
-            select distinct q from QueryRequestEntity q
+            select q from QueryRequestEntity q
               join q.datasource d
               join d.reviewPlan rp
-              join ReviewPlanApproverEntity rpa on rpa.reviewPlan = rp
             where q.status = :status
               and d.organization.id = :orgId
               and q.submittedBy.id <> :userId
-              and (rpa.user.id = :userId or lower(rpa.role) = lower(:roleName))
+              and exists (
+                select 1 from ReviewPlanApproverEntity rpa
+                 where rpa.reviewPlan = rp
+                   and (rpa.user.id in :principalIds or lower(rpa.role) in :lowerRoleNames)
+              )
               and (
                 not exists (select 1 from DatasourceReviewerEntity dr where dr.datasource = d)
                 or exists (
                   select 1 from DatasourceReviewerEntity dr
-                   where dr.datasource = d and dr.user.id = :userId
+                   where dr.datasource = d and dr.user.id in :principalIds
                 )
                 or exists (
                   select 1 from DatasourceReviewerEntity dr
                     join UserGroupMembershipEntity m on m.group = dr.group
-                   where dr.datasource = d and m.user.id = :userId
+                   where dr.datasource = d and m.user.id in :principalIds
                 )
               )
             """)
     Page<QueryRequestEntity> findPendingForReviewer(@Param("orgId") UUID orgId,
                                                     @Param("userId") UUID userId,
-                                                    @Param("roleName") String roleName,
+                                                    @Param("principalIds") Collection<UUID> principalIds,
+                                                    @Param("lowerRoleNames") Collection<String> lowerRoleNames,
                                                     @Param("status") QueryStatus status,
                                                     Pageable pageable);
 

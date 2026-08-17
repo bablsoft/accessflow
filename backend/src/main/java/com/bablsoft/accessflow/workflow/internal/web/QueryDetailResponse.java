@@ -297,7 +297,8 @@ public record QueryDetailResponse(
             DecisionType decision,
             String comment,
             int stage,
-            Instant decidedAt) {
+            Instant decidedAt,
+            ReviewerRef onBehalfOf) {
 
         static ReviewDecisionDetail from(QueryDetailView.ReviewDecisionView src) {
             return new ReviewDecisionDetail(
@@ -309,7 +310,11 @@ public record QueryDetailResponse(
                     src.decision(),
                     src.comment(),
                     src.stage(),
-                    src.decidedAt());
+                    src.decidedAt(),
+                    src.onBehalfOf() == null ? null : new ReviewerRef(
+                            src.onBehalfOf().id(),
+                            src.onBehalfOf().email(),
+                            src.onBehalfOf().displayName()));
         }
     }
 

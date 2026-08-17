@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,8 +29,10 @@ class GroupReviewController {
     private final GroupReviewService groupReviewService;
 
     @GetMapping("/reviews")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "List grouped requests pending the caller's review")
     @ApiResponse(responseCode = "200", description = "Page of pending group reviews")
+    @ApiResponse(responseCode = "403", description = "Caller lacks QUERY_REVIEW")
     PendingGroupReviewResponse.Page pending(Authentication authentication, Pageable pageable) {
         var caller = claims(authentication);
         return PendingGroupReviewResponse.Page.from(groupReviewService.listPending(context(caller),
@@ -37,9 +40,10 @@ class GroupReviewController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Approve a grouped request (submitter can never self-approve)")
     @ApiResponse(responseCode = "200", description = "Decision recorded")
-    @ApiResponse(responseCode = "403", description = "Self-approval or ineligible reviewer")
+    @ApiResponse(responseCode = "403", description = "Self-approval, ineligible reviewer, or missing QUERY_REVIEW")
     GroupDecisionResponse approve(@PathVariable UUID id, @Valid @RequestBody GroupDecisionRequest body,
                                   Authentication authentication) {
         var caller = claims(authentication);
@@ -47,8 +51,10 @@ class GroupReviewController {
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAuthority('PERM_QUERY_REVIEW')")
     @Operation(summary = "Reject a grouped request")
     @ApiResponse(responseCode = "200", description = "Decision recorded")
+    @ApiResponse(responseCode = "403", description = "Self-rejection, ineligible reviewer, or missing QUERY_REVIEW")
     GroupDecisionResponse reject(@PathVariable UUID id, @Valid @RequestBody GroupDecisionRequest body,
                                  Authentication authentication) {
         var caller = claims(authentication);

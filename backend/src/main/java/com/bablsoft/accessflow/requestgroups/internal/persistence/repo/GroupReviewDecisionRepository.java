@@ -12,6 +12,9 @@ public interface GroupReviewDecisionRepository extends JpaRepository<GroupReview
 
     List<GroupReviewDecisionEntity> findByRequestGroupIdOrderByStageAscDecidedAtAsc(UUID requestGroupId);
 
+    /** Every decision recorded at a stage — used for the one-authority-one-vote guard (#622). */
+    List<GroupReviewDecisionEntity> findByRequestGroupIdAndStage(UUID requestGroupId, int stage);
+
     Optional<GroupReviewDecisionEntity> findByRequestGroupIdAndReviewerIdAndStage(
             UUID requestGroupId, UUID reviewerId, int stage);
 

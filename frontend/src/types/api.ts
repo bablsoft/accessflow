@@ -907,6 +907,11 @@ export interface PendingReviewItem {
   } | null;
   /** Advisory approval-outcome prediction in [0,1] (AF-645); absent when unscored or a sentinel. */
   approval_probability?: number | null;
+  /**
+   * The delegator whose out-of-office delegation made this row visible (#622), or null when the
+   * reviewer is eligible in their own right — even if a delegation would also have covered it.
+   */
+  delegated_for?: { id: string } | null;
   current_stage: number;
   created_at: string;
 }
@@ -1238,6 +1243,11 @@ export interface ReviewDecisionDetail {
   comment: string | null;
   stage: number;
   decided_at: string;
+  /**
+   * The delegator whose authority the reviewer borrowed under an out-of-office delegation (#622),
+   * or null for a decision taken under the reviewer's own authority.
+   */
+  on_behalf_of?: UserRef | null;
 }
 
 export interface QueryDetail {
@@ -3451,3 +3461,52 @@ export interface OverProvisionedGrant {
 }
 
 export type OverProvisionedGrantPage = PageEnvelope<OverProvisionedGrant>;
+
+// --- Reviewer delegation (#622) ---
+
+/** Resource kinds a delegation can be narrowed to. Null scope = every review queue. */
+export type DelegationScopeKind = 'DATASOURCE' | 'API_CONNECTOR';
+
+/** Derived from the window and revoked_at — never stored. */
+export type ReviewDelegationStatus = 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+
+export interface ReviewDelegationParty {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+}
+
+export interface ReviewDelegation {
+  id: string;
+  delegator: ReviewDelegationParty;
+  delegate: ReviewDelegationParty;
+  scope_kind: DelegationScopeKind | null;
+  scope_id: string | null;
+  scope_name: string | null;
+  reason: string | null;
+  starts_at: string;
+  ends_at: string;
+  revoked_at: string | null;
+  status: ReviewDelegationStatus;
+  created_at: string;
+}
+
+export interface MyReviewDelegations {
+  granted: ReviewDelegation[];
+  received: ReviewDelegation[];
+}
+
+export interface DelegateCandidate {
+  id: string;
+  email: string | null;
+  display_name: string | null;
+}
+
+export interface CreateReviewDelegationInput {
+  delegateUserId: string;
+  scopeKind?: DelegationScopeKind | null;
+  scopeId?: string | null;
+  reason?: string | null;
+  startsAt: string;
+  endsAt: string;
+}

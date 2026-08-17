@@ -44,6 +44,8 @@ class DefaultGroupReviewServiceTest {
     @Mock
     private GroupReviewPlanResolver reviewPlanResolver;
     @Mock
+    private com.bablsoft.accessflow.core.api.ReviewDelegationLookupService reviewDelegationLookupService;
+    @Mock
     private UserQueryService userQueryService;
     @Mock
     private AuditLogService auditLogService;
@@ -185,6 +187,56 @@ class DefaultGroupReviewServiceTest {
     }
 
     @Test
+    void reviewerWithoutQueryReviewPermissionIsRejected() {
+        var analystContext = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), analystContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class)
+                .hasMessageContaining("may not review");
+    }
+
+    @Test
+    void listPendingIsEmptyWithoutQueryReviewPermission() {
+        var analystContext = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+
+        var page = service.listPending(analystContext,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
+    void listPendingOmitsGroupsTheCallerCannotApprove() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of());
+        // The group routes to ADMIN only; a REVIEWER is not an eligible approver for it.
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(), java.util.Set.of("ADMIN")));
+
+        var page = service.listPending(reviewerContext,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+    }
+
+    @Test
     void ineligibleReviewerIsRejected() {
         var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
                 SystemRolePermissions.of(UserRoleType.REVIEWER));
@@ -210,5 +262,158 @@ class DefaultGroupReviewServiceTest {
         org.assertj.core.api.Assertions
                 .assertThatThrownBy(() -> service.approve(group.getId(), adminContext(), "ok"))
                 .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException.class);
+    }
+
+    // ------------------------------------------------- delegation (#622)
+
+    private final UUID delegatorId = UUID.randomUUID();
+    private final UUID datasourceId = UUID.randomUUID();
+
+    private com.bablsoft.accessflow.core.api.DelegatedIdentity delegation(
+            com.bablsoft.accessflow.core.api.DelegationScopeKind kind, UUID scopeId) {
+        return new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                UUID.randomUUID(), delegatorId, "REVIEWER", kind, scopeId);
+    }
+
+    private com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity
+            queryItem(UUID datasource) {
+        var item = new com.bablsoft.accessflow.requestgroups.internal.persistence.entity
+                .RequestGroupItemEntity();
+        item.setDatasourceId(datasource);
+        return item;
+    }
+
+    /** The bundle routes to the DELEGATOR by id; the acting reviewer matches nothing themselves. */
+    private void givenBundleRoutedToDelegator() {
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId))
+                .thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of(queryItem(datasourceId)));
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(delegatorId), java.util.Set.of()));
+    }
+
+    @Test
+    void aDelegateApprovesABundleUnderTheDelegatorsRuleAndRecordsBothIdentities() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        givenBundleRoutedToDelegator();
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(null, null)));
+        when(decisionRepository.findByRequestGroupIdAndReviewerIdAndStage(group.getId(), reviewerId, 1))
+                .thenReturn(Optional.empty());
+        var saved = new java.util.concurrent.atomic.AtomicReference<GroupReviewDecisionEntity>();
+        when(decisionRepository.save(any())).thenAnswer(inv -> {
+            GroupReviewDecisionEntity d = inv.getArgument(0);
+            d.setId(UUID.randomUUID());
+            saved.set(d);
+            return d;
+        });
+        when(decisionRepository.countByRequestGroupIdAndStageAndDecision(
+                group.getId(), 1, DecisionType.APPROVED)).thenReturn(1L);
+
+        service.approve(group.getId(), reviewerContext, "covering");
+
+        assertThat(saved.get().getReviewerId()).isEqualTo(reviewerId);
+        assertThat(saved.get().getOnBehalfOfUserId()).isEqualTo(delegatorId);
+        assertThat(saved.get().getDelegationId()).isNotNull();
+    }
+
+    @Test
+    void aScopedDelegationCoversABundleWhenItNamesOneOfItsMembers() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        givenBundleRoutedToDelegator();
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(
+                        com.bablsoft.accessflow.core.api.DelegationScopeKind.DATASOURCE, datasourceId)));
+        when(decisionRepository.findByRequestGroupIdAndReviewerIdAndStage(group.getId(), reviewerId, 1))
+                .thenReturn(Optional.empty());
+        when(decisionRepository.save(any())).thenAnswer(inv -> {
+            GroupReviewDecisionEntity d = inv.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+        when(decisionRepository.countByRequestGroupIdAndStageAndDecision(
+                group.getId(), 1, DecisionType.APPROVED)).thenReturn(1L);
+
+        assertThat(service.approve(group.getId(), reviewerContext, "ok").resultingStatus())
+                .isEqualTo(RequestGroupStatus.APPROVED);
+    }
+
+    @Test
+    void aScopedDelegationNamingSomeOtherResourceDoesNotCoverTheBundle() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        givenBundleRoutedToDelegator();
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(
+                        com.bablsoft.accessflow.core.api.DelegationScopeKind.DATASOURCE,
+                        UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), reviewerContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class);
+    }
+
+    @Test
+    void aDelegateCannotActOnABundleTheDelegatorSubmitted() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        group.setSubmittedBy(delegatorId);
+        givenBundleRoutedToDelegator();
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(null, null)));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), reviewerContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class);
+    }
+
+    @Test
+    void aDelegateCannotAddASecondVoteForADelegatorWhoAlreadyDecided() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        givenBundleRoutedToDelegator();
+        var alreadyVoted = new GroupReviewDecisionEntity();
+        alreadyVoted.setReviewerId(delegatorId);
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of(alreadyVoted));
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(null, null)));
+
+        assertThatThrownBy(() -> service.approve(group.getId(), reviewerContext, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException.class);
+    }
+
+    @Test
+    void aDelegatedBundleSurfacesInTheQueue() {
+        var reviewerContext = new ReviewerContext(reviewerId, orgId, "REVIEWER",
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+        when(groupRepository.findAll(
+                org.mockito.ArgumentMatchers.<org.springframework.data.jpa.domain.Specification<
+                        com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity>>any(),
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(group)));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(java.util.List.of(queryItem(datasourceId)));
+        when(reviewPlanResolver.resolve(any(), any())).thenReturn(
+                new GroupReviewPlanResolver.GroupReviewResolution(true, 1,
+                        java.util.Set.of(delegatorId), java.util.Set.of()));
+        when(decisionRepository.findByRequestGroupIdAndStage(group.getId(), 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(delegation(null, null)));
+        when(userQueryService.findById(submitterId)).thenReturn(Optional.empty());
+
+        assertThat(service.listPending(reviewerContext,
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20)).content()).hasSize(1);
     }
 }

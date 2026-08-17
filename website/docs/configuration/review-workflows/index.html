@@ -357,6 +357,65 @@ APPROVED → FAILED (execution error)</pre>
         </section>
 
 <section class="docs-section">
+<h2 id="cfg-review-delegation">Out-of-office delegation</h2>
+          <p>
+            <strong>What it is.</strong> An approval chain moves at the speed of its slowest human.
+            When a named reviewer goes on holiday, a request sits in <code>PENDING_REVIEW</code>
+            until the approval timeout auto-rejects it. Delegation lets a reviewer hand their review
+            duty to a named colleague for a set window instead.
+          </p>
+          <p>
+            <strong>Where.</strong> Any reviewer sets this themselves on <em>Profile settings</em>
+            &rarr; <em>Out-of-office delegation</em>. No admin involvement, and no permission is
+            required to delegate &mdash; a delegation from someone with no review rights simply
+            confers nothing.
+          </p>
+          <p>
+            <strong>How to set one up.</strong> Choose a colleague, optionally narrow the delegation
+            to a single datasource, pick a start and end time, and save. During the window the
+            delegate becomes an eligible approver everywhere you were &mdash; query review, governed
+            API requests, and grouped requests &mdash; and the requests show up in their review queue
+            with a <em>Delegated</em> tag. Revoking is immediate and takes effect on the next
+            decision; the record itself is kept as evidence for anything already approved under it.
+          </p>
+          <p>
+            <strong>What it cannot do.</strong> These limits are enforced by the server, not the
+            interface:
+          </p>
+          <ul>
+            <li>
+              A delegation <strong>never grants a permission</strong>. The delegate still needs
+              review rights of their own; delegation only widens <em>which</em> requests they may act
+              on.
+            </li>
+            <li>
+              The delegate can <strong>never act on a request the delegator submitted</strong>
+              &mdash; the no-self-approval rule follows the borrowed identity, not just the person
+              clicking.
+            </li>
+            <li>
+              Delegation does <strong>not chain</strong>. If A delegates to B and B delegates to C, C
+              gains nothing from A.
+            </li>
+            <li>
+              One human still gets <strong>one vote</strong>. Covering for two absent approvers at
+              once does not let someone satisfy a two-approval requirement alone.
+            </li>
+            <li>
+              It stops the moment either party is <strong>deactivated</strong>, including via SCIM
+              deprovisioning.
+            </li>
+          </ul>
+          <p>
+            <strong>Audit.</strong> Every decision made under a delegation records both people
+            &mdash; who clicked approve, and whose authority they used &mdash; so the trail never
+            implies the absent reviewer acted. Admins can see every delegation in the organization
+            under <em>Admin</em>, which is what makes an &ldquo;on behalf of&rdquo; entry
+            interpretable months later.
+          </p>
+        </section>
+
+<section class="docs-section">
 <h2 id="cfg-routing-policies">Routing policies</h2>
           <p>
             <strong>What it is.</strong> Policy-as-code that decides a query's path automatically,

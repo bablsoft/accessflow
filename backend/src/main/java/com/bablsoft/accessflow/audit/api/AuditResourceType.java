@@ -12,6 +12,7 @@ public enum AuditResourceType {
     API_KEY("api_key"),
     PERMISSION("permission"),
     REVIEW_PLAN("review_plan"),
+    REVIEW_DELEGATION("review_delegation"),
     NOTIFICATION_CHANNEL("notification_channel"),
     AI_CONFIG("ai_config"),
     KNOWLEDGE_DOCUMENT("knowledge_document"),

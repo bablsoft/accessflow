@@ -33,6 +33,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateCrtKey;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,7 +98,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                "REVIEWER", QueryStatus.PENDING_REVIEW,
+                List.of(reviewer.getId()), List.of("reviewer"), QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -112,7 +113,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                "REVIEWER", QueryStatus.PENDING_REVIEW,
+                List.of(reviewer.getId()), List.of("reviewer"), QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -127,7 +128,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                "REVIEWER", QueryStatus.PENDING_REVIEW,
+                List.of(reviewer.getId()), List.of("reviewer"), QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isZero();
@@ -141,7 +142,7 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
 
         var page = queryRequestRepository.findPendingForReviewer(
                 organization.getId(), reviewer.getId(),
-                "REVIEWER", QueryStatus.PENDING_REVIEW,
+                List.of(reviewer.getId()), List.of("reviewer"), QueryStatus.PENDING_REVIEW,
                 PageRequest.of(0, 20));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -225,5 +226,94 @@ class QueryRequestRepositoryReviewQueueIntegrationTest {
         query.setQueryType(QueryType.SELECT);
         query.setStatus(status);
         return queryRequestRepository.save(query);
+    }
+
+    // ------------------------------------------------- delegated identities (#622)
+
+    @Test
+    void findPendingForReviewerSurfacesRowsMatchedOnlyByADelegatorsUserRule() {
+        // The plan names the DELEGATOR by id; the acting reviewer matches no rule of their own.
+        var delegator = saveUser("delegator", UserRoleType.REVIEWER);
+        saveApprover(plan, delegator, null, 1);
+        var pending = saveQuery(QueryStatus.PENDING_REVIEW, submitter);
+
+        var page = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId(), delegator.getId()), List.of("reviewer"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).extracting(QueryRequestEntity::getId)
+                .containsExactly(pending.getId());
+    }
+
+    @Test
+    void findPendingForReviewerSurfacesRowsMatchedOnlyByADelegatorsRoleRule() {
+        saveApprover(plan, null, "AUDITOR", 1);
+        saveQuery(QueryStatus.PENDING_REVIEW, submitter);
+
+        // Without the delegator's role in the list the row is invisible...
+        var withoutDelegation = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId()), List.of("reviewer"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+        assertThat(withoutDelegation.getContent()).isEmpty();
+
+        // ...and visible once the delegator's role joins it. Role matching is case-insensitive,
+        // so the caller lower-cases and the query compares against lower(rpa.role).
+        var withDelegation = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId()), List.of("reviewer", "auditor"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+        assertThat(withDelegation.getContent()).hasSize(1);
+    }
+
+    @Test
+    void findPendingForReviewerStillHidesTheCallersOwnSubmissions() {
+        // The submitter exclusion is scalar on the acting user and must stay that way.
+        saveApprover(plan, null, "REVIEWER", 1);
+        saveQuery(QueryStatus.PENDING_REVIEW, reviewer);
+
+        var page = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId()), List.of("reviewer"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+    }
+
+    @Test
+    void findPendingForReviewerStillShowsRequestsSubmittedByADelegator() {
+        // Widening the submitter exclusion to cover delegators would wrongly hide this row: the
+        // reviewer matches the REVIEWER rule in their own right, with no delegation involved.
+        var delegator = saveUser("delegator", UserRoleType.REVIEWER);
+        saveApprover(plan, null, "REVIEWER", 1);
+        var pending = saveQuery(QueryStatus.PENDING_REVIEW, delegator);
+
+        var page = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId(), delegator.getId()), List.of("reviewer"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).extracting(QueryRequestEntity::getId)
+                .containsExactly(pending.getId());
+    }
+
+    @Test
+    void findPendingForReviewerReportsAnAccurateTotalWhenSeveralRulesMatchTheSameQuery() {
+        // Two matching approver rules used to fan the join out to two rows per query, which is why
+        // the query needed select distinct and a count(distinct q). The exists form has no fan-out.
+        var delegator = saveUser("delegator", UserRoleType.REVIEWER);
+        saveApprover(plan, null, "REVIEWER", 1);
+        saveApprover(plan, delegator, null, 1);
+        var pending = saveQuery(QueryStatus.PENDING_REVIEW, submitter);
+
+        var page = queryRequestRepository.findPendingForReviewer(
+                organization.getId(), reviewer.getId(),
+                List.of(reviewer.getId(), delegator.getId()), List.of("reviewer"),
+                QueryStatus.PENDING_REVIEW, PageRequest.of(0, 20));
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent()).extracting(QueryRequestEntity::getId)
+                .containsExactly(pending.getId());
     }
 }

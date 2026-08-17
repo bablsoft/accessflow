@@ -17,7 +17,12 @@ public record PendingReviewItem(
         AiAnalysisSummary aiAnalysis,
         Double approvalProbability,
         int currentStage,
-        Instant createdAt) {
+        Instant createdAt,
+        /**
+         * The delegator whose out-of-office delegation made this row visible (#622), or null when
+         * the reviewer is eligible in their own right — even if a delegation would also cover it.
+         */
+        DelegatorSummary delegatedFor) {
 
     public static PendingReviewItem from(PendingReview pending) {
         return new PendingReviewItem(
@@ -34,13 +39,20 @@ public record PendingReviewItem(
                         pending.aiSummary()),
                 pending.approvalProbability(),
                 pending.currentStage(),
-                pending.createdAt());
+                pending.createdAt(),
+                pending.delegatedForUserId() == null ? null : new DelegatorSummary(
+                        pending.delegatedForUserId(),
+                        pending.delegatedForEmail(),
+                        pending.delegatedForDisplayName()));
     }
 
     public record DatasourceSummary(UUID id, String name) {
     }
 
     public record SubmitterSummary(UUID id, String email) {
+    }
+
+    public record DelegatorSummary(UUID id, String email, String displayName) {
     }
 
     public record AiAnalysisSummary(UUID id, RiskLevel riskLevel, Integer riskScore,

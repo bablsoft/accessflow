@@ -747,7 +747,8 @@
       "card_sql_collab": "SQL（协作）",
       "approved_by_grant_title": "已根据访问授权自动批准",
       "approved_by_grant_body": "此查询由访问授权 {{grantId}} 覆盖，由 {{approver}} 于 {{when}} 批准。",
-      "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。"
+      "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。",
+      "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）"
     }
   },
   "reviews": {
@@ -807,7 +808,10 @@
       "own_query": "您不能审核自己的查询。",
       "not_pending": "此查询已不再等待审核。",
       "not_found": "未找到查询。"
-    }
+    },
+    "col_delegated": "受托",
+    "delegated": "受托",
+    "delegated_tooltip": "您可以审核此项，因为有同事将审核职责委派给了您。"
   },
   "timeline": {
     "title": "审批时间线"
@@ -2305,6 +2309,38 @@
       "generate_code": "生成关联代码",
       "code_ready": "在 Slack 中运行此命令以完成关联：",
       "code_instructions": "该代码很快过期。如失效请重新生成。"
+    },
+    "delegation": {
+      "title": "外出委派",
+      "explainer": "指定一位同事在您外出期间代为审核。他们将在您具备审核资格的所有场景中获得资格——查询审核、API 请求和分组请求——每项决定都会同时记录两个人的姓名。他们永远无法处理由您提交的请求，委派也不会授予他们本就没有的权限。",
+      "label_delegate": "被委派人",
+      "select_delegate": "选择同事",
+      "label_scope_kind": "范围",
+      "label_scope": "数据源",
+      "scope_all": "所有审核队列",
+      "label_window": "时间段",
+      "submit": "委派审核职责",
+      "created": "已创建委派",
+      "revoked": "已撤销委派",
+      "revoke": "撤销",
+      "revoke_confirm": "确定撤销此委派？",
+      "granted_title": "您发出的委派",
+      "granted_empty": "您尚未委派审核职责。",
+      "received_title": "委派给您的",
+      "received_empty": "尚无人将审核职责委派给您。",
+      "col_delegate": "被委派人",
+      "col_delegator": "委派人",
+      "col_scope": "范围",
+      "col_window": "时间段",
+      "col_status": "状态",
+      "col_actions": "操作",
+      "validation_delegate": "请选择被委派人",
+      "validation_scope": "请选择数据源",
+      "validation_window": "请选择开始和结束时间",
+      "error_generic": "无法保存委派",
+      "label_reason": "原因（可选）",
+      "reason_placeholder": "年假",
+      "validation_reason": "原因最多 500 个字符"
     }
   },
   "totp_login": {
@@ -2819,6 +2855,16 @@
       "PENDING": "待处理",
       "CONFIRMED": "已确认",
       "DISMISSED": "已忽略"
+    },
+    "delegation_scope": {
+      "DATASOURCE": "数据源",
+      "API_CONNECTOR": "API 连接器"
+    },
+    "delegation_status": {
+      "SCHEDULED": "已计划",
+      "ACTIVE": "生效中",
+      "EXPIRED": "已过期",
+      "REVOKED": "已撤销"
     }
   },
   "access": {

@@ -1055,6 +1055,7 @@ Tuning for approval-outcome prediction: a per-organization logistic model retrai
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
+| `ACCESSFLOW_CORE_REVIEW_DELEGATION_MAX_OPEN_PER_DELEGATOR` | Optional | `10` | Maximum out-of-office review delegations one user may have open at once (#622). Creating another returns HTTP 422 `ILLEGAL_REVIEW_DELEGATION`. Bounds the per-identity OR-tree the API-review queue builds, so a pathological delegation set cannot produce an unbounded query. |
 | `ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL` | Optional | `PT5M` | ISO-8601 duration. Cadence at which `QueryTimeoutJob` scans for `PENDING_REVIEW` queries past their plan's `approval_timeout_hours`. ShedLock makes this safe under horizontal scaling. |
 | `ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL` | Optional | `PT1M` | ISO-8601 duration. Cadence at which `ScheduledQueryRunJob` scans for `APPROVED` queries whose `scheduled_for` timestamp has been reached and triggers their execution via the workflow's lifecycle service. ShedLock makes this safe under horizontal scaling. |
 | `ACCESSFLOW_WORKFLOW_RECURRING_RUN_POLL_INTERVAL` | Optional | `PT1M` | ISO-8601 duration. Cadence at which `RecurringQueryRunJob` (#627) scans for `APPROVED` recurring-series parents whose `recurrence_next_run_at` cursor has been reached and executes the next occurrence. ShedLock makes this safe under horizontal scaling. |

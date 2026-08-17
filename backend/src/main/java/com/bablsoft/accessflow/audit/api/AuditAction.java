@@ -31,6 +31,9 @@ public enum AuditAction {
     REVIEW_PLAN_CREATED,
     REVIEW_PLAN_UPDATED,
     REVIEW_PLAN_DELETED,
+    /** #622: a reviewer delegated their review duty for an out-of-office window. */
+    REVIEW_DELEGATION_CREATED,
+    REVIEW_DELEGATION_REVOKED,
     USER_LOGIN,
     USER_LOGIN_FAILED,
     USER_LOGIN_TOTP_FAILED,

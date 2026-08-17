@@ -39,6 +39,8 @@ class DefaultApiReviewServiceTest {
     @Mock private ApiConnectorRepository connectorRepository;
     @Mock private ApiRequestStateService stateService;
     @Mock private AiAnalysisLookupService aiAnalysisLookupService;
+    @Mock private com.bablsoft.accessflow.core.api.ReviewPlanLookupService reviewPlanLookupService;
+    @Mock private com.bablsoft.accessflow.core.api.ReviewDelegationLookupService reviewDelegationLookupService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private DefaultApiReviewService service;
@@ -51,7 +53,8 @@ class DefaultApiReviewServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultApiReviewService(requestRepository, decisionRepository, connectorRepository,
-                stateService, aiAnalysisLookupService, eventPublisher,
+                stateService, aiAnalysisLookupService, reviewPlanLookupService,
+                reviewDelegationLookupService, eventPublisher,
                 tools.jackson.databind.json.JsonMapper.builder().build());
     }
 
@@ -155,5 +158,177 @@ class DefaultApiReviewServiceTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).submittedByUserId()).isEqualTo(other.getSubmittedBy());
+    }
+
+    // ------------------------------------- approver eligibility + delegation (#622)
+
+    private final UUID connectorId = UUID.randomUUID();
+    private final UUID delegatorId = UUID.randomUUID();
+
+    private ApiRequestEntity pendingOnConnector() {
+        var e = pending();
+        e.setConnectorId(connectorId);
+        return e;
+    }
+
+    private void givenConnectorPlan(com.bablsoft.accessflow.core.api.ApproverRule... rules) {
+        var planId = UUID.randomUUID();
+        var connector = new com.bablsoft.accessflow.apigov.internal.persistence.entity
+                .ApiConnectorEntity();
+        connector.setId(connectorId);
+        connector.setReviewPlanId(planId);
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.of(connector));
+        when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.of(
+                new com.bablsoft.accessflow.core.api.ReviewPlanSnapshot(planId, orgId, true, true,
+                        1, false, 1, java.util.List.of(rules), java.util.List.of())));
+    }
+
+    @Test
+    void aConnectorWithNoReviewPlanStaysOpenToAnyPermittedReviewer() {
+        // The pre-#622 behaviour, deliberately preserved: treating "no plan" as "nobody is an
+        // approver" would make every un-planned connector unreviewable on upgrade.
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        when(connectorRepository.findById(connectorId)).thenReturn(Optional.empty());
+        when(decisionRepository.findByApiRequestIdAndReviewerIdAndStage(requestId, reviewerId, 1))
+                .thenReturn(Optional.empty());
+        when(decisionRepository.save(any())).thenAnswer(i -> {
+            var d = (ApiReviewDecisionEntity) i.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+        when(decisionRepository.countByApiRequestIdAndStageAndDecision(requestId, 1,
+                DecisionType.APPROVED)).thenReturn(1L);
+
+        assertThat(service.approve(requestId, reviewer(), "ok").resultingStatus())
+                .isEqualTo(QueryStatus.APPROVED);
+    }
+
+    @Test
+    void aPlanWithApproverRulesNowGatesWhoMayDecide() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        // The plan routes to ADMIN only; the caller is a REVIEWER holding API_REQUEST_REVIEW.
+        givenConnectorPlan(new com.bablsoft.accessflow.core.api.ApproverRule(null, "ADMIN", 1));
+        when(decisionRepository.findAllByApiRequestIdAndStage(requestId, 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(any(), any(), any(), any()))
+                .thenReturn(java.util.List.of());
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(), "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException.class);
+        verify(decisionRepository, never()).save(any());
+    }
+
+    @Test
+    void aDelegateApprovesUnderTheDelegatorsRuleAndRecordsBothIdentities() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        givenConnectorPlan(new com.bablsoft.accessflow.core.api.ApproverRule(delegatorId, null, 1));
+        when(decisionRepository.findAllByApiRequestIdAndStage(requestId, 1))
+                .thenReturn(java.util.List.of());
+        var delegationId = UUID.randomUUID();
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                        delegationId, delegatorId, "REVIEWER", null, null)));
+        when(decisionRepository.findByApiRequestIdAndReviewerIdAndStage(requestId, reviewerId, 1))
+                .thenReturn(Optional.empty());
+        var saved = new java.util.concurrent.atomic.AtomicReference<ApiReviewDecisionEntity>();
+        when(decisionRepository.save(any())).thenAnswer(i -> {
+            var d = (ApiReviewDecisionEntity) i.getArgument(0);
+            d.setId(UUID.randomUUID());
+            saved.set(d);
+            return d;
+        });
+        when(decisionRepository.countByApiRequestIdAndStageAndDecision(requestId, 1,
+                DecisionType.APPROVED)).thenReturn(1L);
+
+        service.approve(requestId, reviewer(), "covering");
+
+        assertThat(saved.get().getReviewerId()).isEqualTo(reviewerId);
+        assertThat(saved.get().getOnBehalfOfUserId()).isEqualTo(delegatorId);
+        assertThat(saved.get().getDelegationId()).isEqualTo(delegationId);
+    }
+
+    @Test
+    void aDelegateCannotActOnARequestTheDelegatorSubmitted() {
+        var request = pendingOnConnector();
+        request.setSubmittedBy(delegatorId);
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(request));
+        givenConnectorPlan(new com.bablsoft.accessflow.core.api.ApproverRule(delegatorId, null, 1));
+        when(decisionRepository.findAllByApiRequestIdAndStage(requestId, 1))
+                .thenReturn(java.util.List.of());
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                        UUID.randomUUID(), delegatorId, "REVIEWER", null, null)));
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(), "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException.class);
+    }
+
+    @Test
+    void aDelegateCannotAddASecondVoteForADelegatorWhoAlreadyDecided() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        givenConnectorPlan(new com.bablsoft.accessflow.core.api.ApproverRule(delegatorId, null, 1));
+        var alreadyVoted = new ApiReviewDecisionEntity();
+        alreadyVoted.setReviewerId(delegatorId);
+        when(decisionRepository.findAllByApiRequestIdAndStage(requestId, 1))
+                .thenReturn(java.util.List.of(alreadyVoted));
+        when(reviewDelegationLookupService.findActiveForDelegate(eq(orgId), eq(reviewerId), any(), any()))
+                .thenReturn(java.util.List.of(new com.bablsoft.accessflow.core.api.DelegatedIdentity(
+                        UUID.randomUUID(), delegatorId, "REVIEWER", null, null)));
+
+        assertThatThrownBy(() -> service.approve(requestId, reviewer(), "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException.class);
+    }
+
+    @Test
+    void reviewOverrideBypassesApproverRules() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        when(decisionRepository.findByApiRequestIdAndReviewerIdAndStage(requestId, reviewerId, 1))
+                .thenReturn(Optional.empty());
+        when(decisionRepository.save(any())).thenAnswer(i -> {
+            var d = (ApiReviewDecisionEntity) i.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+        when(decisionRepository.countByApiRequestIdAndStageAndDecision(requestId, 1,
+                DecisionType.APPROVED)).thenReturn(1L);
+        var admin = new ReviewerContext(reviewerId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+
+        assertThat(service.approve(requestId, admin, "ok").resultingStatus())
+                .isEqualTo(QueryStatus.APPROVED);
+        // The plan is never consulted for an override holder.
+        verify(connectorRepository, never()).findById(any());
+    }
+
+    @Test
+    void aCallerWithoutTheReviewPermissionIsRejectedInTheServiceNotJustTheController() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pendingOnConnector()));
+        var analyst = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+
+        assertThatThrownBy(() -> service.approve(requestId, analyst, "ok"))
+                .isInstanceOf(com.bablsoft.accessflow.apigov.api.ApiReviewerNotEligibleException.class);
+        verify(reviewDelegationLookupService, never()).findActiveForDelegate(any(), any(), any(), any());
+    }
+
+    @Test
+    void listPendingIsEmptyWithoutTheReviewPermission() {
+        var analyst = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+
+        var page = service.listPending(analyst,
+                new com.bablsoft.accessflow.apigov.api.ApiReviewService.PendingApiReviewFilter(null, null),
+                com.bablsoft.accessflow.core.api.PageRequest.of(0, 20));
+
+        assertThat(page.content()).isEmpty();
+        verify(requestRepository, never()).findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class));
     }
 }

@@ -1187,6 +1187,54 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 
 `AttestationCampaignOpenJob` / `AttestationCampaignCloseJob` drive recertification campaigns (AF-384) — see [§ Access recertification campaigns](#access-recertification-campaigns-af-384). The open job scans `SCHEDULED` campaigns past `scheduled_open_at`; the close job scans `OPEN` campaigns past `due_at`. Both delegate to the idempotent `AttestationLifecycleService` and swallow per-campaign `RuntimeException`s. System-driven `ATTESTATION_CAMPAIGN_OPENED` / `_CLOSED` and the auto-default item audits are written inline by the lifecycle service (no reverse `audit → attestation` dependency).
 
+### Reviewer delegation (#622)
+
+A reviewer sets an out-of-office window naming a delegate; during it the delegate is an eligible
+approver everywhere the delegator was. Resolution lives in `core.api.ReviewDelegationLookupService`
+and is consumed by `workflow`, `apigov` and `requestgroups` — see
+[03-data-model.md → review_delegations](03-data-model.md#review_delegations-622) for the schema and
+its invariants.
+
+**Eligibility is evaluated per identity as a whole.** Each flow builds a list of
+`core.api.ReviewCandidate` — the caller's own identity first, then any borrowed, ordered by
+`(created_at, id)` so a replayed decision records the same provenance — and a candidate must satisfy
+*every* predicate the flow applies. Satisfying the approver rule as delegator A while satisfying the
+datasource-reviewer scope as delegator B would synthesize an identity nobody holds, so the
+predicates are never OR-ed across candidates.
+
+**Ordering matters.** The `Permission` check (`QUERY_REVIEW` / `API_REQUEST_REVIEW`) runs *before*
+delegation is resolved, so a delegation can never confer a permission — it widens which requests an
+already-permitted reviewer may act on, never whether they may review at all.
+
+**The self-approval ban covers both identities.** A delegator who submitted the request is dropped
+from the candidate set rather than rejecting the call outright, so a reviewer who is independently
+eligible keeps their own authority.
+
+**One authority, one vote.** Beyond the unique index, each flow rejects a candidate when a decision
+already exists at the current stage whose `reviewer_id` *or* `on_behalf_of_user_id` is that
+candidate — covering both "delegator voted, then delegate voted for them" and the reverse.
+
+**Queue visibility.** `QueryRequestRepository.findPendingForReviewer` takes collections of principal
+ids and lower-cased role names and is a deliberate **over-approximation**: it flattens identities, so
+`DefaultReviewService.isCurrentlyActionable` re-checks every row per-candidate before the user sees
+it. Its approver match is an `exists` subquery rather than a join — the join fanned out one row per
+matching approver rule, which is why it once needed `select distinct` and a `count(distinct q)`. The
+`submittedBy <> :userId` exclusion stays scalar in all three queues: widening it to cover delegators
+would hide requests the reviewer is eligible for in their own right, and that rule is per-identity.
+The grouped-request queue filters in memory for the same reason (its eligibility is a union over
+member plans), so `total_elements` is an upper bound there too.
+
+**API-request review gained approver eligibility.** Before this, `DefaultApiReviewService` checked
+only self-approval and status: any holder of `API_REQUEST_REVIEW` could decide any pending request in
+the org. It now honours the connector review plan's `approvers()`, **opt-in by configuration** — a
+connector with no review plan, or a plan carrying no approver rules, stays open to any permitted
+reviewer. Treating "no plan" as "nobody is an approver" would make every un-planned connector
+unreviewable on upgrade. Its permission check also moved into the service, since `listPending` is
+reachable from the `dashboard` module rather than only through the controller. ⚠️ `apigov` still
+hard-codes `STAGE = 1`, so an approver rule with `stage > 1` on a connector's plan is unreachable.
+
+---
+
 ### Access recertification campaigns (AF-384)
 
 The `attestation` module adds recurring **access-recertification campaigns** so datasource owners
