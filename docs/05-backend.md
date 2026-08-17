@@ -1215,7 +1215,8 @@ second replica cannot double-fire. This is why the jobs are safe to run on every
 **Recipients follow intent.** An escalation goes to the plan's reviewers **plus** every active org
 admin — the whole point is that those reviewers did not act, so re-telling only them would be a
 nudge. A nudge goes to the reviewers already on the hook and deliberately does not copy admins.
-PagerDuty pages on `REVIEW_ESCALATED` but not on `REVIEW_NUDGE`: a reminder is not an incident.
+PagerDuty pages on `REVIEW_ESCALATED` via the `REVIEW_STALLED` trigger, and has no trigger at
+all for `REVIEW_NUDGE`: a reminder is not an incident.
 
 **Grouped requests take the minimum** non-null `escalation_after_hours` across their members' plans
 — see [03-data-model.md](03-data-model.md#escalation-and-nudges-622) — and stamp without notifying,

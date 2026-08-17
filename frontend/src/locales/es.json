@@ -1724,7 +1724,8 @@
         "test_to_placeholder": "Destinatario (por defecto, la dirección de remitente)",
         "test_success": "El servidor SMTP aceptó el correo de prueba",
         "not_configured": "El SMTP del sistema no está configurado. Configúralo para habilitar las invitaciones de usuarios y el envío de correo por defecto."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Revisión estancada (nadie decidió a tiempo)"
     },
     "oauth2": {
       "title": "Proveedores de OAuth",

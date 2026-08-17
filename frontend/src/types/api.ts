@@ -1740,7 +1740,7 @@ export interface NotificationChannelWebhookConfig {
 export interface NotificationChannelPagerDutyConfig {
   routing_key?: string;
   default_severity: 'critical' | 'error' | 'warning' | 'info';
-  triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT'>;
+  triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT' | 'ESCALATION' | 'REVIEW_STALLED'>;
 }
 export type TicketingTrigger = 'QUERY_REJECTED' | 'REVIEW_TIMEOUT' | 'QUERY_ESCALATED';
 export interface NotificationChannelServiceNowConfig {

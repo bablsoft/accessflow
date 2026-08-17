@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-17",
       "url": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/notifications/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -266,7 +266,7 @@
                 <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
                 <li><strong>Telegram</strong> — create a bot via <a href="https://core.telegram.org/bots/tutorial">@BotFather</a>, add it to the target group/channel, and configure the <em>bot token</em> plus numeric <em>chat ID</em>. Messages use MarkdownV2 formatting.</li>
                 <li><strong>Microsoft Teams</strong> — paste the channel's Incoming Webhook (or Power Automate webhook) URL. Messages render as an Adaptive Card with a <em>View in AccessFlow</em> action button.</li>
-                <li><strong>PagerDuty</strong> — paste an Events API v2 <em>integration routing key</em>, pick a default <em>severity</em> (critical / error / warning / info), and choose which <em>triggers</em> page the channel: <em>AI critical-risk query</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Other events never fire it. AccessFlow sends a <code>trigger</code> event with a query-stable dedup key so repeat events fold into one incident.</li>
+                <li><strong>PagerDuty</strong> — paste an Events API v2 <em>integration routing key</em>, pick a default <em>severity</em> (critical / error / warning / info), and choose which <em>triggers</em> page the channel: <em>AI critical-risk query</em>, <em>review timeout</em>, <em>routing-policy escalation</em>, and/or <em>review stalled</em> (nobody decided within the plan&rsquo;s escalation window). Other events never fire it &mdash; a nudge reminder in particular never pages. AccessFlow sends a <code>trigger</code> event with a query-stable dedup key so repeat events fold into one incident.</li>
                 <li><strong>ServiceNow</strong> — supply the <em>instance URL</em> plus a <em>username / password</em> allowed to create incidents via the Table API, optionally an <em>assignment group</em> and <em>urgency</em> (1–3), and choose which <em>triggers</em> open an incident: <em>query rejected</em>, <em>review timeout</em>, and/or <em>routing-policy escalation</em>. Created incidents link back onto the query detail page.</li>
                 <li><strong>Jira</strong> — supply the <em>site URL</em>, an <em>account email + API token</em>, the target <em>project key</em>, and optionally an <em>issue type</em> (default <em>Task</em>); pick the same trigger set. Issues are created via REST v2 with an <code>accessflow</code> label and link back onto the query detail page.</li>
               </ul>

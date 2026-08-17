@@ -1724,7 +1724,8 @@
         "test_to_placeholder": "Destinataire (l'adresse d'expéditeur par défaut)",
         "test_success": "E-mail de test accepté par le serveur SMTP",
         "not_configured": "Le SMTP système n'est pas configuré. Configurez-le pour activer les invitations d'utilisateurs et le repli par e-mail."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Revue bloquée (personne n'a statué à temps)"
     },
     "oauth2": {
       "title": "Fournisseurs OAuth",

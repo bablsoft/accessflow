@@ -1724,7 +1724,8 @@
         "test_to_placeholder": "收件人(默认为发件人地址)",
         "test_success": "SMTP 服务器已接受测试邮件",
         "not_configured": "系统 SMTP 尚未配置。请配置以启用用户邀请和邮件备用发送。"
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "审核停滞（无人及时处理）"
     },
     "oauth2": {
       "title": "OAuth 服务商",

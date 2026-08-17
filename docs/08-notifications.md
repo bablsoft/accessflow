@@ -30,7 +30,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_EXECUTED` | A **recurring occurrence** completes (#627) — fired for both `EXECUTED` and `FAILED` occurrence outcomes; one-off executions do not notify | Query submitter, via the review plan's channels. Email carries the occurrence results as a `results.csv` attachment (successful SELECT occurrences only; post-mask values; capped at 10,000 rows with a truncation note row); chat channels get a summary with a link to the occurrence. PagerDuty and ticketing not-applicable (no trigger mapping). | implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
 | `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter and every active ADMIN user in the org (de-duplicated when the submitter is themselves an admin) | implemented |
-| `REVIEW_ESCALATED` | A request has sat in `PENDING_REVIEW` past its plan's `escalation_after_hours` (#622). Fired **once** per request, before the hard timeout — `escalated_at` is stamped in the same transaction, so restarts and replicas cannot duplicate it. Distinct from `QUERY_ESCALATED`, which means a routing policy raised the approval bar at submission | Reviewers eligible at the lowest stage **plus** all active org admins — the original reviewers not acting is the whole point, so re-telling only them would be a nudge. Pages via PagerDuty; opens no ticket | implemented |
+| `REVIEW_ESCALATED` | A request has sat in `PENDING_REVIEW` past its plan's `escalation_after_hours` (#622). Fired **once** per request, before the hard timeout — `escalated_at` is stamped in the same transaction, so restarts and replicas cannot duplicate it. Distinct from `QUERY_ESCALATED`, which means a routing policy raised the approval bar at submission | Reviewers eligible at the lowest stage **plus** all active org admins — the original reviewers not acting is the whole point, so re-telling only them would be a nudge. Pages via PagerDuty on the `REVIEW_STALLED` trigger; opens no ticket | implemented |
 | `REVIEW_NUDGE` | A reminder on the plan's `nudge_interval_hours` cadence for a request still awaiting review (#622). `last_nudged_at` is the cursor | Reviewers eligible at the lowest stage — the people already on the hook. Deliberately does **not** copy admins, and never pages: a reminder is not an incident | implemented |
 | `ACCESS_REQUEST_SUBMITTED` | JIT access request enters `PENDING` | Eligible approvers at the lowest stage of the datasource's review plan (excluding the requester); **falls back to all active ADMIN users in the org** when the plan resolves no eligible approver (no plan, empty approver list, or datasource scope filtered everyone out) so the request is never silently orphaned | implemented |
 | `ACCESS_REQUEST_APPROVED` | JIT access request fully approved and grant materialised | Requester | implemented |
@@ -297,7 +297,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
 {
   "routing_key": "R0ABCD1234567890ABCDEF",
   "default_severity": "critical",
-  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY", "BREAK_GLASS"]
+  "triggers": ["CRITICAL_RISK", "REVIEW_TIMEOUT", "ANOMALY", "BREAK_GLASS", "REVIEW_STALLED"]
 }
 ```
 
@@ -309,6 +309,7 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
   - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385).
   - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
+  - `REVIEW_STALLED` → the `REVIEW_ESCALATED` event (nobody decided within the plan's `escalation_after_hours`, #622). There is deliberately **no** trigger for `REVIEW_NUDGE` — a reminder is not an incident and must never page.
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
 The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.

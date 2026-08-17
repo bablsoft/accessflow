@@ -1782,7 +1782,8 @@
         "test_to_placeholder": "Recipient (defaults to From address)",
         "test_success": "Test email accepted by the SMTP server",
         "not_configured": "System SMTP is not configured. Configure it to enable user invitations and the email fallback."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Review stalled (nobody decided in time)"
     },
     "oauth2": {
       "title": "OAuth providers",

@@ -1724,7 +1724,8 @@
         "test_to_placeholder": "Empfänger (standardmäßig die Absenderadresse)",
         "test_success": "Test-E-Mail vom SMTP-Server angenommen",
         "not_configured": "Das System-SMTP ist nicht konfiguriert. Konfigurieren Sie es, um Benutzereinladungen und den E-Mail-Fallback zu aktivieren."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Prüfung ins Stocken geraten (niemand hat rechtzeitig entschieden)"
     },
     "oauth2": {
       "title": "OAuth-Anbieter",

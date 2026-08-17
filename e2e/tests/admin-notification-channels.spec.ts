@@ -275,6 +275,10 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     await dialog.getByLabel('Integration routing key').fill(`R0UT1NG-${UNIQUE_SUFFIX}`);
     await selectAntdOption(dialog, 'Default severity', 'Critical');
     await dialog.getByRole('checkbox', { name: 'AI critical-risk query' }).check();
+    // #622 — proves the REVIEW_STALLED trigger round-trips through the backend config codec.
+    await dialog
+      .getByRole('checkbox', { name: 'Review stalled (nobody decided in time)' })
+      .check();
 
     const createResponsePromise = page.waitForResponse(
       (r) =>
