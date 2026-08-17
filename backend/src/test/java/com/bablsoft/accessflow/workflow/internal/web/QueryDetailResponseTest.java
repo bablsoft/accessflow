@@ -110,6 +110,8 @@ class QueryDetailResponseTest {
                 "SELECT 1", QueryType.SELECT, QueryStatus.APPROVED,
                 "weekly report", null, null, null, null, null, null, null, null,
                 null, null,
+                // #622 escalatedAt / escalationAfterHours
+                null, null,
                 List.of(),
                 null,
                 "0 0 8 * * MON", until, nextRun, "permission revoked", parentId,
