@@ -31,6 +31,10 @@ public record QueryDetailView(
         UUID approvedByGrantId,
         String reviewPlanName,
         Integer approvalTimeoutHours,
+        /** When the escalation job raised this request (#622); null when never escalated. */
+        Instant escalatedAt,
+        /** The plan's escalation window, for the banner copy. Null when escalation is off. */
+        Integer escalationAfterHours,
         List<ReviewDecisionView> reviewDecisions,
         Instant scheduledFor,
         String recurrenceRule,
@@ -72,8 +76,8 @@ public record QueryDetailView(
                 submittedByEmail, submittedByDisplayName, sqlText, queryType, status, justification,
                 aiAnalysis, costEstimate, approvalPrediction, rowsAffected, durationMs,
                 errorMessage, previousRunId, approvedByGrantId, reviewPlanName,
-                approvalTimeoutHours, reviewDecisions, scheduledFor, null, null, null, null, null,
-                createdAt, updatedAt);
+                approvalTimeoutHours, null, null, reviewDecisions, scheduledFor, null, null, null,
+                null, null, createdAt, updatedAt);
     }
 
     /**

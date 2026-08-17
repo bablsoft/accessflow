@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.api;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -86,4 +87,17 @@ public interface QueryRequestStateService {
      * {@code QueryTimedOutEvent} and the standard {@code QueryStatusChangedEvent}.
      */
     boolean markTimedOut(UUID queryRequestId);
+
+    /**
+     * Stamps {@code escalated_at} (#622). Returns false when the request already left
+     * {@code PENDING_REVIEW} or was already escalated — a decision may have raced the job, and the
+     * stamp is what keeps escalation to exactly one notification per request across replicas.
+     */
+    boolean markEscalated(UUID queryRequestId, Instant at);
+
+    /**
+     * Stamps {@code last_nudged_at} (#622). Returns false when the request already left
+     * {@code PENDING_REVIEW}, so a decision racing the job cannot produce a stray reminder.
+     */
+    boolean markNudged(UUID queryRequestId, Instant at);
 }

@@ -123,7 +123,12 @@ class PagerDutyPayloadFactory {
         var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
                 : ctx.anomalyId() != null ? ctx.anomalyId()
                 : ctx.datasourceId() != null ? ctx.datasourceId() : "none";
-        return "accessflow-" + ctx.organizationId() + "-" + subject;
+        // The event type is part of the key (#622) because one subject can raise genuinely
+        // different incidents: a CRITICAL-risk query that then stalls in review would otherwise
+        // fold its REVIEW_ESCALATED into the still-open AI_HIGH_RISK incident and page nobody —
+        // and a stalled critical query is precisely the case REVIEW_STALLED exists for. Repeats of
+        // the same event on the same subject still dedupe, which is what dedup is for.
+        return "accessflow-" + ctx.organizationId() + "-" + ctx.eventType().name() + "-" + subject;
     }
 
     private static String source(NotificationContext ctx) {
@@ -139,6 +144,11 @@ class PagerDutyPayloadFactory {
         return switch (ctx.eventType()) {
             case AI_HIGH_RISK -> "AccessFlow: AI flagged a CRITICAL-risk query on " + datasource;
             case QUERY_ESCALATED -> "AccessFlow: a routing policy escalated a query on " + datasource;
+            // #622: distinct from QUERY_ESCALATED — this one means nobody decided in time.
+            // (REVIEW_NUDGE has no PagerDutyTrigger and so never reaches here: a reminder is not
+            // an incident.)
+            case REVIEW_ESCALATED ->
+                    "AccessFlow: a query on " + datasource + " has had no review decision";
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
             case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             case BREAK_GLASS_EXECUTED -> "AccessFlow: break-glass query executed on " + datasource;

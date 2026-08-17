@@ -111,6 +111,8 @@ export function ReviewPlansPage() {
         requires_human_approval: editing.requires_human_approval,
         min_approvals_required: editing.min_approvals_required,
         approval_timeout_hours: editing.approval_timeout_hours,
+        escalation_after_hours: editing.escalation_after_hours,
+        nudge_interval_hours: editing.nudge_interval_hours,
         auto_approve_reads: editing.auto_approve_reads,
         approvers: editing.approvers.length
           ? editing.approvers.map((a) => ({ user_id: a.user_id, role: a.role, stage: a.stage }))
@@ -169,6 +171,10 @@ export function ReviewPlansPage() {
       requires_human_approval: values.requires_human_approval,
       min_approvals_required: values.min_approvals_required,
       approval_timeout_hours: values.approval_timeout_hours,
+      // Cleared field sends null, not undefined — null is the documented "off" value, and
+      // undefined would leave the previous setting in place on update.
+      escalation_after_hours: values.escalation_after_hours ?? null,
+      nudge_interval_hours: values.nudge_interval_hours ?? null,
       auto_approve_reads: values.auto_approve_reads,
       approvers: values.approvers.map((row) => ({
         user_id: row.user_id ?? null,
@@ -408,6 +414,22 @@ export function ReviewPlansPage() {
               name="approval_timeout_hours"
               label={t('admin.review_plans.label_timeout_h')}
               rules={[{ required: true, type: 'number', min: 1, max: 8760 }]}
+            >
+              <InputNumber min={1} max={8760} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="escalation_after_hours"
+              label={t('admin.review_plans.label_escalation_h')}
+              tooltip={t('admin.review_plans.tooltip_escalation')}
+              rules={[{ type: 'number', min: 1, max: 8760 }]}
+            >
+              <InputNumber min={1} max={8760} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item
+              name="nudge_interval_hours"
+              label={t('admin.review_plans.label_nudge_h')}
+              tooltip={t('admin.review_plans.tooltip_nudge')}
+              rules={[{ type: 'number', min: 1, max: 8760 }]}
             >
               <InputNumber min={1} max={8760} style={{ width: '100%' }} />
             </Form.Item>

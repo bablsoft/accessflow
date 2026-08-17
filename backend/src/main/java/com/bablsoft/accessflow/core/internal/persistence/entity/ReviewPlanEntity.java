@@ -48,6 +48,17 @@ public class ReviewPlanEntity {
     @Column(name = "approval_timeout_hours", nullable = false)
     private int approvalTimeoutHours = 24;
 
+    /**
+     * Hours a request may sit in {@code PENDING_REVIEW} before it is escalated. Null disables
+     * escalation. Notify-only — it never widens who may approve (#622).
+     */
+    @Column(name = "escalation_after_hours")
+    private Integer escalationAfterHours;
+
+    /** Hours between reminders to reviewers who have not yet decided. Null disables nudges. */
+    @Column(name = "nudge_interval_hours")
+    private Integer nudgeIntervalHours;
+
     @Column(name = "auto_approve_reads", nullable = false)
     private boolean autoApproveReads = false;
 

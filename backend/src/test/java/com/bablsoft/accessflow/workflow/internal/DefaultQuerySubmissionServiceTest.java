@@ -76,7 +76,7 @@ class DefaultQuerySubmissionServiceTest {
                 eventPublisher,
                 messageSource,
                 new com.bablsoft.accessflow.workflow.internal.config.WorkflowProperties(
-                        null, null, null, null),
+                        null, null, null, null, null),
                 fixedClock);
     }
 

@@ -21,6 +21,8 @@ final class TicketDescriptionBuilder {
         var headline = switch (ctx.eventType()) {
             case QUERY_REJECTED -> "Query rejected on " + datasource;
             case QUERY_ESCALATED -> "Query escalated for review on " + datasource;
+            case REVIEW_ESCALATED -> "Review escalated — no decision yet on " + datasource;
+            case REVIEW_NUDGE -> "Reminder: query awaiting review on " + datasource;
             case REVIEW_TIMEOUT -> "Query review timed out on " + datasource;
             default -> ctx.eventType().name() + " on " + datasource;
         };

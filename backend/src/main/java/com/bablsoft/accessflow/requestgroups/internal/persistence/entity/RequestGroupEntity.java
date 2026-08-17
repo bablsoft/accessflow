@@ -91,6 +91,14 @@ public class RequestGroupEntity {
     @Column(nullable = false)
     private long version;
 
+    /**
+     * Set once when GroupReviewEscalationJob raises an idle bundle (#622). There is no
+     * {@code lastNudgedAt} twin — grouped requests have no notification path, so there is nobody
+     * for a reminder to reach and nothing for a cursor to track.
+     */
+    @Column(name = "escalated_at")
+    private Instant escalatedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Auto-approved under an access grant",
       "approved_by_grant_body": "This query was covered by access grant {{grantId}}, approved by {{approver}} on {{when}}.",
       "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
-      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})",
+      "escalated_title": "Escalated — still awaiting a decision",
+      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so {{when}} this was raised to the reviewers it is waiting on and your admins. It has not been approved or rejected, and escalating does not change who may decide."
     }
   },
   "reviews": {
@@ -1780,7 +1782,10 @@
         "test_to_placeholder": "Recipient (defaults to From address)",
         "test_success": "Test email accepted by the SMTP server",
         "not_configured": "System SMTP is not configured. Configure it to enable user invitations and the email fallback."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Review stalled (nobody decided in time)",
+      "label_pagerduty_trigger_anomaly": "Behavioral anomaly detected",
+      "label_pagerduty_trigger_break_glass": "Break-glass query executed"
     },
     "oauth2": {
       "title": "OAuth providers",
@@ -2021,7 +2026,11 @@
           "name": "Standard — AI + 1 reviewer",
           "description": "AI plus a single reviewer; low/medium-risk reads auto-approved."
         }
-      }
+      },
+      "label_escalation_h": "Escalate after (hours)",
+      "label_nudge_h": "Nudge every (hours)",
+      "tooltip_escalation": "Notify the reviewers the request is waiting on, plus your admins, when nobody has decided in this time. Leave empty to disable. Escalating never changes who may approve.",
+      "tooltip_nudge": "Re-notify reviewers who have not decided, on this cadence. Leave empty to disable."
     },
     "datasource_health": {
       "title": "Datasource health",
@@ -2212,7 +2221,9 @@
       "ACCESS_GRANT_EXPIRED": "Your access grant on {{datasource}} expired",
       "ACCESS_GRANT_REVOKED": "Your access grant on {{datasource}} was revoked",
       "GRANT_STALE": "Access to {{datasource}} looks unused — review it",
-      "fallback": "New notification"
+      "fallback": "New notification",
+      "REVIEW_ESCALATED": "No decision yet on {{datasource}} — escalated to you",
+      "REVIEW_NUDGE": "Reminder: a query on {{datasource}} awaits your review"
     }
   },
   "profile": {

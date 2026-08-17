@@ -11,7 +11,8 @@ import java.time.Duration;
 public record WorkflowProperties(@NotNull Duration timeoutPollInterval,
                                  @NotNull Duration scheduledRunPollInterval,
                                  @NotNull Duration recurringRunPollInterval,
-                                 @NotNull Duration recurrenceMinInterval) {
+                                 @NotNull Duration recurrenceMinInterval,
+                                 @NotNull Duration escalationPollInterval) {
 
     public WorkflowProperties {
         if (timeoutPollInterval == null) {
@@ -25,6 +26,9 @@ public record WorkflowProperties(@NotNull Duration timeoutPollInterval,
         }
         if (recurrenceMinInterval == null) {
             recurrenceMinInterval = Duration.ofMinutes(5);
+        }
+        if (escalationPollInterval == null) {
+            escalationPollInterval = Duration.ofMinutes(5);
         }
     }
 }

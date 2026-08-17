@@ -104,6 +104,8 @@ class ReviewPlanController {
                 request.requiresHumanApproval(),
                 request.minApprovalsRequired(),
                 request.approvalTimeoutHours(),
+                request.escalationAfterHours(),
+                request.nudgeIntervalHours(),
                 request.autoApproveReads(),
                 request.notifyChannels(),
                 toRules(request.approvers()));
@@ -137,6 +139,12 @@ class ReviewPlanController {
                 request.requiresHumanApproval(),
                 request.minApprovalsRequired(),
                 request.approvalTimeoutHours(),
+                request.escalationAfterHours(),
+                request.nudgeIntervalHours(),
+                // An explicit null in the body means "turn it off"; the flags carry that through
+                // a partial-update command that cannot otherwise tell absent from null.
+                request.escalationAfterHours() == null,
+                request.nudgeIntervalHours() == null,
                 request.autoApproveReads(),
                 request.notifyChannels(),
                 toRules(request.approvers()));

@@ -88,6 +88,22 @@ class DiscordPayloadFactoryTest {
     }
 
     @Test
+    void reviewEscalationAndNudgeHeadersAreDistinctFromTheRoutingPolicyEscalation() {
+        // #622 — REVIEW_ESCALATED means nobody decided in time; QUERY_ESCALATED means a routing
+        // policy raised the approval bar at submission. Sharing a headline would conflate them.
+        var config = new DiscordChannelConfig(
+                URI.create("https://discord.com/api/webhooks/x"), null, null);
+
+        var escalated = factory.buildEventBody(
+                ctx(NotificationEventType.REVIEW_ESCALATED, null), config);
+        var nudge = factory.buildEventBody(ctx(NotificationEventType.REVIEW_NUDGE, null), config);
+
+        assertThat(escalated).contains("Review Escalated");
+        assertThat(escalated).doesNotContain("Query Escalated for Review");
+        assertThat(nudge).contains("Reminder");
+    }
+
+    @Test
     void queryExecutedHeaderReflectsSuccessAndFailure() {
         var config = new DiscordChannelConfig(
                 URI.create("https://discord.com/api/webhooks/x"), null, null);

@@ -259,6 +259,98 @@ class DefaultReviewPlanAdminServiceTest {
         verify(approverRepository).save(any(ReviewPlanApproverEntity.class));
     }
 
+    // --- #622 escalation knobs ------------------------------------------------------------
+    //
+    // These two are the only fields on this resource where null is a MEANINGFUL value rather than
+    // "leave unchanged" — it is how a plan turns escalation back off. Getting that wrong makes the
+    // setting one-way, which is exactly the regression a prior review caught.
+
+    @Test
+    void updateSetsTheEscalationKnobs() {
+        var entity = buildPlan();
+        // Not the subject here: the human-approval guard needs approvers to exist.
+        entity.setRequiresHumanApproval(false);
+        when(reviewPlanRepository.findById(planId)).thenReturn(Optional.of(entity));
+        when(approverRepository.findAllByReviewPlan_IdOrderByStageAsc(planId)).thenReturn(List.of());
+
+        var command = new UpdateReviewPlanCommand(null, null, null, null, null, null,
+                4, 2, false, false, null, null, null);
+        var view = service.update(planId, orgId, command);
+
+        assertThat(view.escalationAfterHours()).isEqualTo(4);
+        assertThat(view.nudgeIntervalHours()).isEqualTo(2);
+    }
+
+    @Test
+    void updateLeavesTheEscalationKnobsAloneWhenAbsent() {
+        var entity = buildPlan();
+        // Not the subject here: the human-approval guard needs approvers to exist.
+        entity.setRequiresHumanApproval(false);
+        entity.setEscalationAfterHours(4);
+        entity.setNudgeIntervalHours(2);
+        when(reviewPlanRepository.findById(planId)).thenReturn(Optional.of(entity));
+        when(approverRepository.findAllByReviewPlan_IdOrderByStageAsc(planId)).thenReturn(List.of());
+
+        var command = new UpdateReviewPlanCommand(null, null, null, null, null, null,
+                null, null, false, false, null, null, null);
+        var view = service.update(planId, orgId, command);
+
+        assertThat(view.escalationAfterHours()).isEqualTo(4);
+        assertThat(view.nudgeIntervalHours()).isEqualTo(2);
+    }
+
+    @Test
+    void updateClearsTheEscalationKnobsWhenTheClearFlagsAreSet() {
+        var entity = buildPlan();
+        // Not the subject here: the human-approval guard needs approvers to exist.
+        entity.setRequiresHumanApproval(false);
+        entity.setEscalationAfterHours(4);
+        entity.setNudgeIntervalHours(2);
+        when(reviewPlanRepository.findById(planId)).thenReturn(Optional.of(entity));
+        when(approverRepository.findAllByReviewPlan_IdOrderByStageAsc(planId)).thenReturn(List.of());
+
+        var command = new UpdateReviewPlanCommand(null, null, null, null, null, null,
+                null, null, true, true, null, null, null);
+        var view = service.update(planId, orgId, command);
+
+        assertThat(view.escalationAfterHours()).isNull();
+        assertThat(view.nudgeIntervalHours()).isNull();
+    }
+
+    @Test
+    void updateClearWinsOverAValueOnTheSameField() {
+        var entity = buildPlan();
+        // Not the subject here: the human-approval guard needs approvers to exist.
+        entity.setRequiresHumanApproval(false);
+        entity.setEscalationAfterHours(4);
+        when(reviewPlanRepository.findById(planId)).thenReturn(Optional.of(entity));
+        when(approverRepository.findAllByReviewPlan_IdOrderByStageAsc(planId)).thenReturn(List.of());
+
+        // Contradictory input should not silently keep the old value: clear is the explicit intent.
+        var command = new UpdateReviewPlanCommand(null, null, null, null, null, null,
+                8, null, true, false, null, null, null);
+        var view = service.update(planId, orgId, command);
+
+        assertThat(view.escalationAfterHours()).isNull();
+    }
+
+    @Test
+    void updateRejectsAnEscalationWindowThatCanNeverFire() {
+        var entity = buildPlan();
+        entity.setRequiresHumanApproval(false);
+        entity.setApprovalTimeoutHours(24);
+        when(reviewPlanRepository.findById(planId)).thenReturn(Optional.of(entity));
+
+        // 48h escalation on a 24h timeout: QueryTimeoutJob auto-rejects first, so escalation is
+        // dead config. Silently accepting it is how an admin ends up believing it works.
+        var command = new UpdateReviewPlanCommand(null, null, null, null, null, null,
+                48, null, false, false, null, null, null);
+
+        assertThatThrownBy(() -> service.update(planId, orgId, command))
+                .isInstanceOf(IllegalReviewPlanException.class)
+                .hasMessageContaining("shorter than the approval timeout");
+    }
+
     @Test
     void updateRejectsRenameToConflictingName() {
         var entity = buildPlan();

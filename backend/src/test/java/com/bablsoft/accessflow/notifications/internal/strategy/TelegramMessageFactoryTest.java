@@ -72,6 +72,19 @@ class TelegramMessageFactoryTest {
     }
 
     @Test
+    void reviewEscalationAndNudgeHeadersAreDistinctFromTheRoutingPolicyEscalation() {
+        // #622 — REVIEW_ESCALATED means nobody decided in time; QUERY_ESCALATED means a routing
+        // policy raised the approval bar at submission. Sharing a headline would conflate them.
+        var escalated = factory.buildEventBody(
+                ctx(NotificationEventType.REVIEW_ESCALATED, null), "-100");
+        var nudge = factory.buildEventBody(ctx(NotificationEventType.REVIEW_NUDGE, null), "-100");
+
+        assertThat(escalated).contains("Review Escalated");
+        assertThat(escalated).doesNotContain("Query Escalated for Review");
+        assertThat(nudge).contains("Reminder");
+    }
+
+    @Test
     void queryExecutedHeaderReflectsSuccessAndFailure() {
         assertThat(factory.buildEventBody(executedCtx(QueryStatus.EXECUTED), "-100"))
                 .contains("Recurring Query Results Ready");

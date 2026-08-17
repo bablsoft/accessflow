@@ -9,14 +9,17 @@ import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DbType;
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigView;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
+import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
+import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -47,6 +50,7 @@ import static org.mockito.Mockito.when;
 class NotificationContextBuilderTest {
 
     private QueryRequestLookupService queryRequestLookup;
+    private QueryRequestStateService queryRequestStateService;
     private ReviewPlanLookupService reviewPlanLookup;
     private AiAnalysisLookupService aiLookup;
     private DatasourceAdminService datasourceAdmin;
@@ -66,6 +70,9 @@ class NotificationContextBuilderTest {
     @BeforeEach
     void setUp() {
         queryRequestLookup = mock(QueryRequestLookupService.class);
+        queryRequestStateService = mock(QueryRequestStateService.class);
+        when(queryRequestStateService.listDecisions(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of());
         reviewPlanLookup = mock(ReviewPlanLookupService.class);
         aiLookup = mock(AiAnalysisLookupService.class);
         datasourceAdmin = mock(DatasourceAdminService.class);
@@ -80,7 +87,8 @@ class NotificationContextBuilderTest {
                 NotificationsProperties.Retry.defaults(),
                 null,
                 null);
-        builder = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
+        builder = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
+                reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
                 attestationLookup, apiRequestLookup, apiConnectorLookup, props);
 
@@ -366,7 +374,8 @@ class NotificationContextBuilderTest {
                 NotificationsProperties.Retry.defaults(),
                 null,
                 null);
-        var b = new NotificationContextBuilder(queryRequestLookup, reviewPlanLookup,
+        var b = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
+                reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
                 attestationLookup, apiRequestLookup, apiConnectorLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
@@ -613,6 +622,72 @@ class NotificationContextBuilderTest {
                 "host", 5432, "db", "user", SslMode.DISABLE, 5, 1000,
                 false, true, UUID.randomUUID(), true, null, false, null, null, null,
                 null, null, true, Instant.now());
+    }
+
+    // ------------------------------------------------------- #622 escalation / nudge recipients
+
+    @Test
+    void escalationAndNudgeTargetTheStageTheRequestIsBlockedOn() {
+        var stageOne = UUID.randomUUID();
+        var stageTwo = UUID.randomUUID();
+        when(reviewPlanLookup.findForDatasource(datasourceId)).thenReturn(Optional.of(plan(
+                List.of(new ApproverRule(stageOne, null, 1), new ApproverRule(stageTwo, null, 2)),
+                List.of())));
+        when(userQuery.findById(stageOne)).thenReturn(Optional.of(user(stageOne,
+                "one@example.com", UserRoleType.REVIEWER)));
+        when(userQuery.findById(stageTwo)).thenReturn(Optional.of(user(stageTwo,
+                "two@example.com", UserRoleType.REVIEWER)));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN)).thenReturn(List.of());
+        // Stage 1 has approved, so the request is now waiting on stage 2.
+        when(queryRequestStateService.listDecisions(queryId)).thenReturn(List.of(
+                new ReviewDecisionSnapshot(UUID.randomUUID(), queryId, stageOne,
+                        DecisionType.APPROVED, null, 1, Instant.now())));
+
+        var escalated = builder.build(NotificationEventType.REVIEW_ESCALATED, queryId, null, null,
+                null).orElseThrow();
+        var nudged = builder.build(NotificationEventType.REVIEW_NUDGE, queryId, null, null, null)
+                .orElseThrow();
+
+        // The stage-1 reviewer already did their job; reminding them and not the stage-2 approver
+        // holding the request up is the exact failure this feature exists to prevent.
+        assertThat(escalated.recipients()).extracting(RecipientView::email)
+                .containsExactly("two@example.com");
+        assertThat(nudged.recipients()).extracting(RecipientView::email)
+                .containsExactly("two@example.com");
+    }
+
+    @Test
+    void escalationAddsOrgAdminsAndDeduplicates() {
+        var reviewerAdmin = UUID.randomUUID();
+        var otherAdmin = UUID.randomUUID();
+        when(reviewPlanLookup.findForDatasource(datasourceId)).thenReturn(Optional.of(plan(
+                List.of(new ApproverRule(reviewerAdmin, null, 1)), List.of())));
+        when(userQuery.findById(reviewerAdmin)).thenReturn(Optional.of(user(reviewerAdmin,
+                "both@example.com", UserRoleType.ADMIN)));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN)).thenReturn(List.of(
+                user(reviewerAdmin, "both@example.com", UserRoleType.ADMIN),
+                user(otherAdmin, "admin@example.com", UserRoleType.ADMIN)));
+
+        var ctx = builder.build(NotificationEventType.REVIEW_ESCALATED, queryId, null, null, null)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("both@example.com", "admin@example.com");
+    }
+
+    @Test
+    void nudgeDeliberatelyDoesNotCopyAdmins() {
+        var reviewer = UUID.randomUUID();
+        when(reviewPlanLookup.findForDatasource(datasourceId)).thenReturn(Optional.of(plan(
+                List.of(new ApproverRule(reviewer, null, 1)), List.of())));
+        when(userQuery.findById(reviewer)).thenReturn(Optional.of(user(reviewer,
+                "rev@example.com", UserRoleType.REVIEWER)));
+
+        var ctx = builder.build(NotificationEventType.REVIEW_NUDGE, queryId, null, null, null)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::email)
+                .containsExactly("rev@example.com");
     }
 
     private ReviewPlanSnapshot plan(List<ApproverRule> rules, List<UUID> notifyChannelIds) {

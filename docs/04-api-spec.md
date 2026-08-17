@@ -1537,6 +1537,11 @@ The top-level `error_message` (distinct from `ai_analysis.error_message`) is `nu
 
 Authorization: per the [docs/07-security.md role matrix](07-security.md#authorization--role-matrix), `ADMIN` and `REVIEWER` may read any query in the organization, while `ANALYST` and `READONLY` may only read queries they submitted themselves. Non-matching callers receive `404 QUERY_REQUEST_NOT_FOUND` (the response is identical to the "row does not exist" case, so callers cannot probe other users' query ids).
 
+`GET /queries/{id}` additionally carries `escalated_at` (nullable timestamp — when the escalation
+job raised the request, null if never) and `escalation_after_hours` (the plan's configured window,
+null when escalation is off). The frontend renders an escalation banner while the request is still
+`PENDING_REVIEW`.
+
 ### POST /queries/{id}/cancel — Response 204
 
 Cancels a query that is still pending AI analysis or human review. The request body is empty.
@@ -1837,6 +1842,20 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 | `POST` | `/review-plans` | Create a new review plan *(ADMIN only)* |
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
 | `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
+
+Review-plan bodies additionally accept two optional escalation knobs (#622), both nullable with
+**null meaning off** so existing plans are unaffected:
+
+| Field | Rules |
+|---|---|
+| `escalation_after_hours` | Optional, 1–8760, and must be **strictly less than** `approval_timeout_hours` — a longer window can never fire, because `QueryTimeoutJob` auto-rejects first (HTTP 400 `ILLEGAL_REVIEW_PLAN`). Hours a request may sit in `PENDING_REVIEW` before it is escalated to the reviewers at its current stage plus org admins. Omit or send `null` to disable. |
+| `nudge_interval_hours` | Optional, 1–8760. Hours between reminders to the reviewers at the request's current stage. Omit or send `null` to disable. |
+
+Both are echoed on every review-plan response. On `PUT`, an explicit `null` **clears** the setting —
+these are the only two review-plan fields where null is meaningful rather than "leave unchanged", so
+escalation can be switched back off. Escalation is **notify-only** — neither field is read by any
+eligibility path, so a request that has been escalated is still decidable by exactly the same people
+as before.
 
 Out-of-office delegation of review duty is documented separately under
 [Review Delegation Endpoints](#review-delegation-endpoints-622).

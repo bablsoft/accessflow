@@ -34,6 +34,12 @@ public interface QueryRequestLookupService {
      */
     List<UUID> findTimedOutPendingReviewIds(Instant now);
 
+    /** Requests past their plan's escalation window that have not been escalated yet (#622). */
+    List<UUID> findEscalationDueIds(Instant now);
+
+    /** Requests due a reminder on their plan's nudge cadence (#622). */
+    List<UUID> findNudgeDueIds(Instant now);
+
     /**
      * Returns the ids of {@code APPROVED} queries that carry a non-null {@code scheduled_for}
      * value at or before {@code now}. The caller (workflow's {@code ScheduledQueryRunJob})

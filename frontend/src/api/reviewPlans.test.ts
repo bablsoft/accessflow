@@ -22,6 +22,8 @@ const planFixture = {
   requires_human_approval: true,
   min_approvals_required: 1,
   approval_timeout_hours: 24,
+  escalation_after_hours: null,
+  nudge_interval_hours: null,
   auto_approve_reads: false,
   notify_channels: [],
   approvers: [{ user_id: null, role: 'REVIEWER', stage: 1 }],
@@ -91,6 +93,8 @@ describe('api/reviewPlans', () => {
         requires_human_approval: true,
         min_approvals_required: 2,
         approval_timeout_hours: 24,
+        escalation_after_hours: null,
+        nudge_interval_hours: null,
         auto_approve_reads: false,
         approvers: [
           { role: 'REVIEWER' as const, stage: 1 },

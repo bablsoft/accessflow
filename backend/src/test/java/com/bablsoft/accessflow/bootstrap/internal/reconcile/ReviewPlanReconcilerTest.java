@@ -55,7 +55,7 @@ class ReviewPlanReconcilerTest {
         when(reviewPlanAdminService.create(any(CreateReviewPlanCommand.class)))
                 .thenAnswer(inv -> view(planId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", "desc", true, true, 1, 24, false,
+        var spec = new ReviewPlanSpec("standard", "desc", true, true, 1, 24, null, null, false,
                 List.of("ops"), List.of("admin@acme.com"));
 
         var result = reconciler().reconcile(ORG_ID, List.of(spec), Map.of("ops", channelId));
@@ -77,7 +77,7 @@ class ReviewPlanReconcilerTest {
                 any(UpdateReviewPlanCommand.class)))
                 .thenReturn(view(existingId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
 
         var result = reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
@@ -90,7 +90,7 @@ class ReviewPlanReconcilerTest {
     void skipsUpdateAndEventWhenFingerprintMatches() {
         var existingId = UUID.randomUUID();
         when(reviewPlanAdminService.list(ORG_ID)).thenReturn(List.of(view(existingId, "standard")));
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
         // Real fingerprinter — pre-compute the same map the reconciler builds
         var specMap = new java.util.LinkedHashMap<String, Object>();
@@ -100,6 +100,8 @@ class ReviewPlanReconcilerTest {
         specMap.put("requires_human_approval", null);
         specMap.put("min_approvals_required", null);
         specMap.put("approval_timeout_hours", null);
+        specMap.put("escalation_after_hours", null);
+        specMap.put("nudge_interval_hours", null);
         specMap.put("auto_approve_reads", null);
         specMap.put("notify_channels", List.of());
         specMap.put("approvers", List.of());
@@ -120,7 +122,7 @@ class ReviewPlanReconcilerTest {
         when(reviewPlanAdminService.create(any(CreateReviewPlanCommand.class)))
                 .thenAnswer(inv -> view(planId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
 
         reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
@@ -135,7 +137,7 @@ class ReviewPlanReconcilerTest {
 
     @Test
     void throwsWhenNotifyChannelMissing() {
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of("missing-channel"), List.of());
 
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
@@ -147,7 +149,7 @@ class ReviewPlanReconcilerTest {
     void throwsWhenApproverEmailMissing() {
         when(adminUserReconciler.lookupId(ORG_ID, "missing@acme.com"))
                 .thenThrow(new IllegalStateException("missing"));
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of("missing@acme.com"));
 
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
@@ -156,7 +158,7 @@ class ReviewPlanReconcilerTest {
 
     @Test
     void throwsWhenNameMissing() {
-        var spec = new ReviewPlanSpec(" ", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec(" ", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
                 .isInstanceOf(IllegalStateException.class)
@@ -166,5 +168,37 @@ class ReviewPlanReconcilerTest {
     private ReviewPlanView view(UUID id, String name) {
         return new ReviewPlanView(id, ORG_ID, name, "", true, true, 1, 24, false,
                 List.of(), List.of(), Instant.now());
+    }
+
+    @Test
+    void reconcilesWhenOnlyTheEscalationDelayChanged() {
+        // The fingerprint must cover escalation_after_hours and nudge_interval_hours (#622).
+        // If it does not, an operator changing only those in ACCESSFLOW_BOOTSTRAP_* config would
+        // see the plan silently never update, forever.
+        var existingId = UUID.randomUUID();
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, 4, null, null,
+                List.of(), List.of());
+        when(reviewPlanAdminService.list(ORG_ID)).thenReturn(List.of(view(existingId, "standard")));
+        when(reviewPlanAdminService.update(any(), any(), any()))
+                .thenAnswer(inv -> view(existingId, "standard"));
+
+        var withoutEscalation = new java.util.LinkedHashMap<String, Object>();
+        withoutEscalation.put("name", "standard");
+        withoutEscalation.put("description", null);
+        withoutEscalation.put("requires_ai_review", null);
+        withoutEscalation.put("requires_human_approval", null);
+        withoutEscalation.put("min_approvals_required", null);
+        withoutEscalation.put("approval_timeout_hours", null);
+        withoutEscalation.put("escalation_after_hours", null);
+        withoutEscalation.put("nudge_interval_hours", null);
+        withoutEscalation.put("auto_approve_reads", null);
+        withoutEscalation.put("notify_channels", List.of());
+        withoutEscalation.put("approvers", List.of());
+        when(stateTracker.findFingerprint(ORG_ID, BootstrapResourceType.REVIEW_PLAN, existingId))
+                .thenReturn(Optional.of(fingerprinter.fingerprint(withoutEscalation)));
+
+        reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
+
+        verify(reviewPlanAdminService).update(any(), any(), any());
     }
 }

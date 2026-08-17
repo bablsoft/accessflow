@@ -17,6 +17,8 @@ class PagerDutyTriggerTest {
                 .isEqualTo(NotificationEventType.REVIEW_TIMEOUT);
         assertThat(PagerDutyTrigger.ESCALATION.eventType())
                 .isEqualTo(NotificationEventType.QUERY_ESCALATED);
+        assertThat(PagerDutyTrigger.REVIEW_STALLED.eventType())
+                .isEqualTo(NotificationEventType.REVIEW_ESCALATED);
     }
 
     @Test
@@ -27,6 +29,8 @@ class PagerDutyTriggerTest {
                 .contains(PagerDutyTrigger.REVIEW_TIMEOUT);
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.QUERY_ESCALATED))
                 .contains(PagerDutyTrigger.ESCALATION);
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.REVIEW_ESCALATED))
+                .contains(PagerDutyTrigger.REVIEW_STALLED);
     }
 
     @Test
@@ -35,6 +39,8 @@ class PagerDutyTriggerTest {
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.QUERY_APPROVED)).isEmpty();
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.QUERY_REJECTED)).isEmpty();
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.TEST)).isEmpty();
+        // A reminder is not an incident: REVIEW_NUDGE deliberately has no trigger (#622).
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.REVIEW_NUDGE)).isEmpty();
     }
 
     @Test
@@ -45,6 +51,8 @@ class PagerDutyTriggerTest {
                 .isEqualTo(PagerDutyTrigger.REVIEW_TIMEOUT);
         assertThat(PagerDutyTrigger.fromConfig("escalation"))
                 .isEqualTo(PagerDutyTrigger.ESCALATION);
+        assertThat(PagerDutyTrigger.fromConfig("review_stalled"))
+                .isEqualTo(PagerDutyTrigger.REVIEW_STALLED);
     }
 
     @Test

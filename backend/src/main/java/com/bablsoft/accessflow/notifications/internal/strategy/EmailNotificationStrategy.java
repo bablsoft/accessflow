@@ -67,8 +67,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             return;
         }
         var template = templateName(ctx.eventType());
-        if (template == null) {
-            log.debug("No email template for event {}; skipping delivery", ctx.eventType());
+        if (template == null || ctx.apiRequestId() != null) {
+            log.debug("No email template for event {} on this request kind; skipping delivery",
+                    ctx.eventType());
             return;
         }
         var sender = mailSenderFactory.create(config);
@@ -101,6 +102,18 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
      */
     public static boolean hasTemplateFor(NotificationEventType eventType) {
         return templateName(eventType) != null;
+    }
+
+    /**
+     * Whether this specific context should produce an email. Distinct from the by-event check
+     * because {@code REVIEW_ESCALATED} / {@code REVIEW_NUDGE} (#622) are the first event types
+     * shared between queries and API requests: they carry an email template on the query path, but
+     * API-request events deliver in-app and over chat only (AF-500). Without this the recipient
+     * would get a query-shaped mail with an empty SQL-preview block and "Query type: —", because
+     * {@code buildApiRequest} has no SQL to put there.
+     */
+    public static boolean hasTemplateFor(NotificationContext ctx) {
+        return ctx.apiRequestId() == null && hasTemplateFor(ctx.eventType());
     }
 
     @Override
@@ -209,6 +222,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_APPROVED -> "email/query-approved";
             case QUERY_REJECTED -> "email/query-rejected";
             case QUERY_ESCALATED -> "email/query-escalated";
+            case REVIEW_ESCALATED -> "email/review-escalated";
+            case REVIEW_NUDGE -> "email/review-nudge";
             // #627: recurring occurrence result delivery (successful runs carry a results.csv).
             case QUERY_EXECUTED -> "email/query-executed";
             case REVIEW_TIMEOUT -> "email/query-review-timeout";
@@ -239,6 +254,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // default below is already correct — spelled out so the choice is deliberate
             // rather than an accident of this switch having a default branch.
             case GRANT_STALE -> new Object[]{ctx.datasourceName()};
+            // #622: same shape as the default, spelled out so this switch's silent default is a
+            // deliberate choice for these two rather than something nobody looked at.
+            case REVIEW_ESCALATED, REVIEW_NUDGE -> new Object[]{ctx.datasourceName()};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -250,6 +268,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case QUERY_APPROVED -> "notification.email.subject.query_approved";
             case QUERY_REJECTED -> "notification.email.subject.query_rejected";
             case QUERY_ESCALATED -> "notification.email.subject.query_escalated";
+            case REVIEW_ESCALATED -> "notification.email.subject.review_escalated";
+            case REVIEW_NUDGE -> "notification.email.subject.review_nudge";
             case QUERY_EXECUTED -> "notification.email.subject.query_executed";
             case REVIEW_TIMEOUT -> "notification.email.subject.review_timeout";
             case AI_HIGH_RISK -> "notification.email.subject.ai_high_risk";

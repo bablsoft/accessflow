@@ -75,6 +75,18 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<UUID> findEscalationDueIds(Instant now) {
+        return queryRequestRepository.findEscalationDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> findNudgeDueIds(Instant now) {
+        return queryRequestRepository.findNudgeDueIds(now);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<UUID> findScheduledDueIds(Instant now) {
         return queryRequestRepository.findScheduledDueIds(now);
     }
@@ -275,6 +287,8 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
                 entity.getApprovedByGrantId(),
                 plan != null ? plan.getName() : null,
                 plan != null ? plan.getApprovalTimeoutHours() : null,
+                entity.getEscalatedAt(),
+                plan != null ? plan.getEscalationAfterHours() : null,
                 decisions,
                 entity.getScheduledFor(),
                 entity.getRecurrenceRule(),

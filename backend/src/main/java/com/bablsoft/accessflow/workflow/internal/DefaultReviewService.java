@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewDelegationLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
+import com.bablsoft.accessflow.core.api.ReviewStages;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
@@ -329,22 +330,8 @@ class DefaultReviewService implements ReviewService {
     private static int currentStage(ReviewPlanSnapshot plan,
                                     List<ReviewDecisionSnapshot> decisions,
                                     int minApprovalsRequired) {
-        var stages = plan.approvers().stream()
-                .map(ApproverRule::stage)
-                .distinct()
-                .sorted()
-                .toList();
-        for (int stage : stages) {
-            long approvedAtStage = decisions.stream()
-                    .filter(d -> d.stage() == stage && d.decision() == DecisionType.APPROVED)
-                    .count();
-            if (approvedAtStage < minApprovalsRequired) {
-                return stage;
-            }
-        }
-        // All stages have met threshold — defensive: fall back to max stage so the caller's
-        // PENDING_REVIEW guard surfaces an illegal-transition error.
-        return plan.maxStage();
+        // Shared with the notification layer (#622) so who may act and who is told cannot drift.
+        return ReviewStages.current(plan, decisions, minApprovalsRequired);
     }
 
     private static boolean isApproverAtStage(ReviewPlanSnapshot plan, int stage,

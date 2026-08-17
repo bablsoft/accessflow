@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.core.api.QueryRequestNotFoundException;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RecordApprovalCommand;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
+import com.bablsoft.accessflow.core.events.QueryReviewEscalatedEvent;
+import com.bablsoft.accessflow.core.events.QueryReviewNudgedEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
@@ -44,6 +46,9 @@ class DefaultQueryRequestStateServiceTest {
     @Mock UserRepository userRepository;
     @Mock ApplicationEventPublisher eventPublisher;
     @InjectMocks DefaultQueryRequestStateService service;
+
+    private static final java.time.Instant ESCALATED_AT =
+            java.time.Instant.parse("2026-08-17T12:00:00Z");
 
     private final UUID queryId = UUID.randomUUID();
     private final UUID reviewerId = UUID.randomUUID();
@@ -453,6 +458,75 @@ class DefaultQueryRequestStateServiceTest {
         assertThat(decisions).hasSize(1);
         assertThat(decisions.get(0).queryRequestId()).isEqualTo(queryId);
         assertThat(decisions.get(0).decision()).isEqualTo(DecisionType.APPROVED);
+    }
+
+    // --- #622 escalation / nudge stamping -------------------------------------------------
+
+    @Test
+    void markEscalatedStampsAndPublishesOnce() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThat(service.markEscalated(queryId, ESCALATED_AT)).isTrue();
+
+        assertThat(query.getEscalatedAt()).isEqualTo(ESCALATED_AT);
+        verify(queryRequestRepository).save(query);
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue()).isInstanceOf(QueryReviewEscalatedEvent.class);
+    }
+
+    @Test
+    void markEscalatedIsANoOpWhenAlreadyEscalated() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        query.setEscalatedAt(ESCALATED_AT.minusSeconds(3600));
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThat(service.markEscalated(queryId, ESCALATED_AT)).isFalse();
+
+        // The earlier stamp survives — escalation is once per request, not once per scan.
+        assertThat(query.getEscalatedAt()).isEqualTo(ESCALATED_AT.minusSeconds(3600));
+        verify(queryRequestRepository, never()).save(query);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markEscalatedIsANoOpWhenTheQueryLeftReview() {
+        // A decision landing between the scan and the stamp must not resurrect an escalation.
+        query.setStatus(QueryStatus.APPROVED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThat(service.markEscalated(queryId, ESCALATED_AT)).isFalse();
+
+        assertThat(query.getEscalatedAt()).isNull();
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markNudgedAdvancesTheCursorAndPublishes() {
+        query.setStatus(QueryStatus.PENDING_REVIEW);
+        query.setLastNudgedAt(ESCALATED_AT.minusSeconds(7200));
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThat(service.markNudged(queryId, ESCALATED_AT)).isTrue();
+
+        // Unlike escalation, a nudge repeats — the cursor moves forward every time.
+        assertThat(query.getLastNudgedAt()).isEqualTo(ESCALATED_AT);
+        verify(queryRequestRepository).save(query);
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue()).isInstanceOf(QueryReviewNudgedEvent.class);
+    }
+
+    @Test
+    void markNudgedIsANoOpWhenTheQueryLeftReview() {
+        query.setStatus(QueryStatus.REJECTED);
+        when(queryRequestRepository.findByIdForUpdate(queryId)).thenReturn(Optional.of(query));
+
+        assertThat(service.markNudged(queryId, ESCALATED_AT)).isFalse();
+
+        assertThat(query.getLastNudgedAt()).isNull();
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     private ReviewDecisionEntity approvedAt(int stage) {

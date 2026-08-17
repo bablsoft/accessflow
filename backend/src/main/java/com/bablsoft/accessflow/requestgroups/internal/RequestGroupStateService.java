@@ -8,10 +8,12 @@ import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGr
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -82,4 +84,29 @@ public class RequestGroupStateService {
         apply(group, RequestGroupStatus.TIMED_OUT);
         return true;
     }
+
+    /**
+     * Stamps {@code escalated_at} (#622). The column is write-only for now — nothing reads it
+     * back: there is no group escalation flag in the queue response and no notification. It exists
+     * so the idle bundles are already on record when either arrives. Re-checks status and the
+     * prior stamp before writing, so a decision racing the scan cannot re-escalate and replicas
+     * cannot double-stamp.
+     *
+     * <p>No event is published: the {@code requestgroups} module has no notification path at all —
+     * there is no group notification listener and no group notification context, so grouped
+     * requests have never produced a submitted/approved/rejected message either. Publishing an
+     * event nothing consumes would be worse than publishing none.
+     */
+    @Transactional
+    public boolean markEscalated(UUID requestGroupId, Instant at) {
+        var group = requestGroupRepository.findByIdForUpdate(requestGroupId).orElse(null);
+        if (group == null || group.getStatus() != RequestGroupStatus.PENDING_REVIEW
+                || group.getEscalatedAt() != null) {
+            return false;
+        }
+        group.setEscalatedAt(at);
+        requestGroupRepository.save(group);
+        return true;
+    }
+
 }

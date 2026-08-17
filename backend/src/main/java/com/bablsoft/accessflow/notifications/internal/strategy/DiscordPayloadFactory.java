@@ -133,6 +133,8 @@ class DiscordPayloadFactory {
             case QUERY_APPROVED -> "✅ Query Approved";
             case QUERY_REJECTED -> "❌ Query Rejected";
             case QUERY_ESCALATED -> "⚠️ Query Escalated for Review";
+            case REVIEW_ESCALATED -> "⏫ Review Escalated (no decision yet)";
+            case REVIEW_NUDGE -> "🔔 Reminder: Query Awaiting Your Review";
             // #627: recurring occurrence result delivery to the submitter.
             case QUERY_EXECUTED -> ctx.executionStatus() == QueryStatus.FAILED
                     ? "❌ Recurring Query Run Failed"

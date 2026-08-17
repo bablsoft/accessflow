@@ -1162,6 +1162,9 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | Job | Module | Lock name | Cadence property | Default |
 |-----|--------|-----------|------------------|---------|
 | `QueryTimeoutJob` | workflow | `queryTimeoutJob` | `accessflow.workflow.timeout-poll-interval` | `PT5M` |
+| `ReviewEscalationJob` | workflow | `reviewEscalationJob` | `accessflow.workflow.escalation-poll-interval` | `PT5M` |
+| `ApiReviewEscalationJob` | apigov | `apiReviewEscalationJob` | `accessflow.apigov.escalation-poll-interval` | `PT5M` |
+| `GroupReviewEscalationJob` | requestgroups | `groupReviewEscalationJob` | `accessflow.requestgroups.escalation-poll-interval` | `PT5M` |
 | `ScheduledQueryRunJob` | workflow | `scheduledQueryRunJob` | `accessflow.workflow.scheduled-run-poll-interval` | `PT1M` |
 | `RecurringQueryRunJob` | workflow | `recurringQueryRunJob` | `accessflow.workflow.recurring-run-poll-interval` | `PT1M` |
 | `AccessGrantExpiryJob` | access | `accessGrantExpiryJob` | `accessflow.access.grant-expiry-poll-interval` | `PT5M` |
@@ -1186,6 +1189,59 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 `AccessGrantExpiryJob` implements JIT access-grant expiry (AF-378): it scans for `access_grant_request` rows in `APPROVED` with `expires_at ≤ now()` (a partial index backs the scan) and, per row, revokes the materialised `datasource_user_permissions` row and transitions the request to `EXPIRED`. It is idempotent (`AccessGrantExpiryService.expireAndRevoke` returns `false` if the row is no longer `APPROVED` — an admin revoke may have raced) and swallows per-row `RuntimeException`s so one bad row cannot abort the batch. The system-driven `ACCESS_GRANT_EXPIRED` audit row is written by the `access` module itself (not the audit-module listener) so there is no reverse `audit → access` module dependency.
 
 `AttestationCampaignOpenJob` / `AttestationCampaignCloseJob` drive recertification campaigns (AF-384) — see [§ Access recertification campaigns](#access-recertification-campaigns-af-384). The open job scans `SCHEDULED` campaigns past `scheduled_open_at`; the close job scans `OPEN` campaigns past `due_at`. Both delegate to the idempotent `AttestationLifecycleService` and swallow per-campaign `RuntimeException`s. System-driven `ATTESTATION_CAMPAIGN_OPENED` / `_CLOSED` and the auto-default item audits are written inline by the lifecycle service (no reverse `audit → attestation` dependency).
+
+### Review escalation and nudges (#622)
+
+Until a request is decided, the only thing that ever happened to it was the hard
+`approval_timeout_hours` auto-reject — so a stalled approval chain was silent right up to the point
+the submitter was rejected. Three jobs close that gap, one per request type because each table is
+owned by a different module (the same reason `ApiRequestTimeoutJob` sits beside `QueryTimeoutJob`):
+`ReviewEscalationJob`, `ApiReviewEscalationJob`, `GroupReviewEscalationJob`.
+
+Each pass does two things against the request's review plan: **escalate** once past
+`escalation_after_hours`, and **nudge** undecided reviewers every `nudge_interval_hours`. Both
+columns are nullable and null means off, so an upgraded deployment behaves exactly as before until
+an admin opts in.
+
+**Notify-only, structurally.** Neither path touches the decision or eligibility code, and the job
+tests assert it — they verify the job never calls `markTimedOut`, `recordApprovalAndAdvance`, or
+`recordRejection`. Idleness must never become a route around the configured approver set.
+
+**Idempotency lives in the stamp, not the scan.** `markEscalated` / `markNudged` re-check status and
+the prior stamp under a row lock and publish their event inside that same transaction. A reviewer
+who decides between the scan and the lock yields a no-op rather than a stray notification, and a
+second replica cannot double-fire. This is why the jobs are safe to run on every node.
+
+**Recipients follow intent, at the stage that is actually blocked.** Both events resolve reviewers
+through `core.api.ReviewStages.current` — the same definition `DefaultReviewService` uses to decide
+who *may* act, deliberately shared so the two cannot drift. Using the plan's lowest stage instead
+would, on a multi-stage plan whose first stage has already approved, remind the people who are done
+and say nothing to the ones holding it up. An escalation adds **every active org admin** on top —
+the whole point is that the assigned reviewers did not act, so re-telling only them would be a
+nudge. A nudge goes to those reviewers alone and deliberately does not copy admins.
+PagerDuty pages on `REVIEW_ESCALATED` via the `REVIEW_STALLED` trigger, and has no trigger at
+all for `REVIEW_NUDGE`: a reminder is not an incident.
+
+**Grouped requests take the minimum** non-null `escalation_after_hours` across their members' plans
+— see [03-data-model.md](03-data-model.md#escalation-and-nudges-622) — and stamp without notifying,
+because `requestgroups` has no notification path at all. They have **no nudge half** for the same
+reason: a reminder needs somebody to remind, so a group nudge could only advance a cursor nobody
+reads, rewriting every pending bundle on every interval. `request_groups` therefore has
+`escalated_at` and no `last_nudged_at`.
+
+**API-request escalations do not email.** `REVIEW_ESCALATED` / `REVIEW_NUDGE` are the first event
+types shared between queries and API requests, and the query path has an email template while
+API-request events deliver in-app and over chat only (AF-500). `EmailNotificationStrategy` therefore
+gates on the context, not just the event type — otherwise an API escalation would render a
+query-shaped mail with an empty SQL-preview block. Note the pre-existing consequence: because plan
+channels are resolved by *datasource*, an API-request context resolves none, so those escalations
+reach the in-app bell and the system-SMTP fallback but not a configured Slack/PagerDuty channel.
+
+All three jobs inject `java.time.Clock` rather than calling `Instant.now()`, per
+`.claude/patterns/scheduled-job.md`. `QueryTimeoutJob` and `ScheduledQueryRunJob` predate that rule
+and still deviate, which is precisely why their "is it due yet" logic cannot be unit-tested.
+
+---
 
 ### Reviewer delegation (#622)
 

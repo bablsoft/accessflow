@@ -457,9 +457,46 @@ Defines an approval policy. Assigned to datasources.
 | `requires_human_approval` | BOOLEAN DEFAULT true |
 | `min_approvals_required` | INTEGER DEFAULT 1 |
 | `approval_timeout_hours` | INTEGER DEFAULT 24 — see *Approval timeout* below |
+| `escalation_after_hours` | INTEGER nullable (#622) — hours a request may sit in `PENDING_REVIEW` before `ReviewEscalationJob` notifies the reviewers at its **current** stage (`core.api.ReviewStages`) plus every org admin. **NULL disables escalation**, so every pre-existing plan keeps its current behaviour on upgrade. Validated to be strictly less than `approval_timeout_hours`: a longer window is auto-rejected before it can fire |
+| `nudge_interval_hours` | INTEGER nullable (#622) — hours between reminders to the reviewers at the request's **current** stage. **NULL disables nudges** |
 | `auto_approve_reads` | BOOLEAN DEFAULT false — bypass review for SELECT |
 | `notify_channels` | TEXT[] — values: `email` \| `slack` \| `webhook` |
 | `created_at` | TIMESTAMPTZ |
+
+### Escalation and nudges (#622)
+
+Between submission and the hard `approval_timeout_hours` auto-reject, nothing used to happen: a
+stalled chain was silent until the submitter was rejected. These two nullable columns add the
+warning shots, and three clustered-safe jobs act on them — `ReviewEscalationJob` (query requests),
+`ApiReviewEscalationJob` (API requests), and `GroupReviewEscalationJob` (grouped requests).
+
+Per-request state lives on the request, not the plan: `escalated_at` and `last_nudged_at` on
+`query_requests` and `api_requests`, backed by partial indexes covering only rows still in
+`PENDING_REVIEW`. `request_groups` gets `escalated_at` **and no `last_nudged_at`** — a nudge needs
+somebody to remind, and grouped requests have no notification path, so a cursor there could only be
+written and never acted on. Stamping is what makes the jobs idempotent — each mark re-checks
+status and the prior stamp **under a row lock**, so a decision racing the scan produces no stray
+notification and a second replica cannot double-fire.
+
+**Recipients are the stage the request is blocked on**, resolved through
+`core.api.ReviewStages.current` — the same definition the workflow module uses to decide who may
+act, shared rather than copied. An escalation adds every active org admin; a nudge does not.
+
+**Escalation is notify-only.** Neither column is read by any eligibility path. Idleness never widens
+who may approve — that would let waiting bypass the configured approver set.
+
+**A grouped request has no plan of its own**, so its window is the **minimum** non-null
+`escalation_after_hours` across its members' plans: the strictest member decides, matching the
+weakest-link union `GroupReviewPlanResolver` already applies to approvers. A member whose plan has
+escalation off contributes nothing to that minimum rather than disabling it for the bundle — which
+is why the scan pairs `MIN(...)` with an `EXISTS` guard, since `COALESCE(MIN(...), 0)` alone would
+make every bundle instantly due.
+
+⚠️ For grouped requests the stamp is **write-only today**: nothing reads `request_groups.escalated_at`
+back. There is no notification — the `requestgroups` module has no notification path at all (no
+listener, no context builder), so it has never emitted a submitted or approved message either — and
+the group review queue carries no escalated flag. The column records which bundles went idle so the
+history is already there when either surface arrives.
 
 ### Approval timeout
 

@@ -45,6 +45,10 @@ describe('reviewPlanFormFromTemplate', () => {
       requires_human_approval: true,
       min_approvals_required: 2,
       approval_timeout_hours: 48,
+      // Templates never prefill escalation or nudges — a plan created from a template must not
+      // start notifying without an admin asking for it (#622).
+      escalation_after_hours: null,
+      nudge_interval_hours: null,
       auto_approve_reads: false,
       approvers: [
         { user_id: null, role: 'REVIEWER', stage: 1 },

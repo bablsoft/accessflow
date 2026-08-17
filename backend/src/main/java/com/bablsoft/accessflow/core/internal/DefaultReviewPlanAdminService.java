@@ -64,6 +64,7 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 || command.requiresHumanApproval();
         validateApprovers(command.approvers(), requiresHuman, command.minApprovalsRequired(),
                 command.organizationId());
+        validateEscalationWindow(command.escalationAfterHours(), command.approvalTimeoutHours());
 
         var entity = new ReviewPlanEntity();
         entity.setId(UUID.randomUUID());
@@ -75,6 +76,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 command.requiresHumanApproval(),
                 command.minApprovalsRequired(),
                 command.approvalTimeoutHours(),
+                command.escalationAfterHours(),
+                command.nudgeIntervalHours(),
                 command.autoApproveReads(),
                 command.notifyChannels());
         var saved = reviewPlanRepository.save(entity);
@@ -109,12 +112,28 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (command.approvalTimeoutHours() != null) {
             entity.setApprovalTimeoutHours(command.approvalTimeoutHours());
         }
+        // Unlike every other field here, null is a MEANINGFUL value for these two — it is how a
+        // plan turns escalation off — so "absent means leave unchanged" would make the setting
+        // one-way. The explicit clear flags carry that distinction, since a partial-update record
+        // cannot tell absent from null on its own.
+        if (command.clearEscalationAfterHours()) {
+            entity.setEscalationAfterHours(null);
+        } else if (command.escalationAfterHours() != null) {
+            entity.setEscalationAfterHours(command.escalationAfterHours());
+        }
+        if (command.clearNudgeIntervalHours()) {
+            entity.setNudgeIntervalHours(null);
+        } else if (command.nudgeIntervalHours() != null) {
+            entity.setNudgeIntervalHours(command.nudgeIntervalHours());
+        }
         if (command.autoApproveReads() != null) {
             entity.setAutoApproveReads(command.autoApproveReads());
         }
         if (command.notifyChannels() != null) {
             entity.setNotifyChannels(command.notifyChannels().toArray(new String[0]));
         }
+        validateEscalationWindow(entity.getEscalationAfterHours(),
+                entity.getApprovalTimeoutHours());
         if (command.approvers() != null) {
             validateApprovers(command.approvers(), entity.isRequiresHumanApproval(),
                     entity.getMinApprovalsRequired(), organizationId);
@@ -158,6 +177,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                               Boolean requiresHuman,
                               Integer minApprovals,
                               Integer timeoutHours,
+                              Integer escalationAfterHours,
+                              Integer nudgeIntervalHours,
                               Boolean autoApproveReads,
                               List<String> notifyChannels) {
         entity.setName(name);
@@ -166,9 +187,32 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (requiresHuman != null) entity.setRequiresHumanApproval(requiresHuman);
         if (minApprovals != null) entity.setMinApprovalsRequired(minApprovals);
         if (timeoutHours != null) entity.setApprovalTimeoutHours(timeoutHours);
+        // Null means "leave as configured" on create too — the columns are nullable and null is a
+        // meaningful value there (escalation off), so there is no default to fall back to.
+        entity.setEscalationAfterHours(escalationAfterHours);
+        entity.setNudgeIntervalHours(nudgeIntervalHours);
         if (autoApproveReads != null) entity.setAutoApproveReads(autoApproveReads);
         if (notifyChannels != null) {
             entity.setNotifyChannels(notifyChannels.toArray(new String[0]));
+        }
+    }
+
+    /**
+     * An escalation window at or past the approval timeout can never fire — {@code QueryTimeoutJob}
+     * auto-rejects the request first — so it is a setting that silently does nothing. Rejecting it
+     * is the only way an admin finds out; every doc frames escalation as the warning shot
+     * <em>before</em> the timeout.
+     */
+    private static void validateEscalationWindow(Integer escalationAfterHours,
+                                                 Integer approvalTimeoutHours) {
+        if (escalationAfterHours == null || approvalTimeoutHours == null) {
+            return;
+        }
+        if (escalationAfterHours >= approvalTimeoutHours) {
+            throw new IllegalReviewPlanException(
+                    "Escalation window must be shorter than the approval timeout ("
+                            + escalationAfterHours + "h vs " + approvalTimeoutHours + "h), "
+                            + "otherwise the request is auto-rejected before it can escalate");
         }
     }
 
@@ -281,6 +325,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 entity.isRequiresHumanApproval(),
                 entity.getMinApprovalsRequired(),
                 entity.getApprovalTimeoutHours(),
+                entity.getEscalationAfterHours(),
+                entity.getNudgeIntervalHours(),
                 entity.isAutoApproveReads(),
                 new ArrayList<>(notifyChannels),
                 approvers,

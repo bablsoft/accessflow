@@ -9,6 +9,8 @@ import com.bablsoft.accessflow.core.api.RecordApprovalCommand;
 import com.bablsoft.accessflow.core.api.RecordDecisionResult;
 import com.bablsoft.accessflow.core.api.RecordExecutionCommand;
 import com.bablsoft.accessflow.core.api.ReviewDecisionSnapshot;
+import com.bablsoft.accessflow.core.events.QueryReviewEscalatedEvent;
+import com.bablsoft.accessflow.core.events.QueryReviewNudgedEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
 import com.bablsoft.accessflow.core.events.QueryTimedOutEvent;
 import com.bablsoft.accessflow.core.internal.persistence.entity.QueryRequestEntity;
@@ -21,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -180,6 +183,37 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         queryRequestRepository.save(entity);
         publishStatusChanged(entity, previous, QueryStatus.TIMED_OUT);
         eventPublisher.publishEvent(new QueryTimedOutEvent(queryRequestId, timeoutHours));
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean markEscalated(UUID queryRequestId, Instant at) {
+        var entity = lockOrThrow(queryRequestId);
+        // Re-checked under the row lock: a reviewer may have decided between the scan and here, and
+        // a sibling replica may have escalated it. Either way this must be a no-op, not a second
+        // notification.
+        if (entity.getStatus() != QueryStatus.PENDING_REVIEW || entity.getEscalatedAt() != null) {
+            return false;
+        }
+        entity.setEscalatedAt(at);
+        queryRequestRepository.save(entity);
+        // Published inside the same transaction as the stamp, so the AFTER_COMMIT listener in
+        // notifications only ever sees an escalation that actually took.
+        eventPublisher.publishEvent(new QueryReviewEscalatedEvent(queryRequestId));
+        return true;
+    }
+
+    @Override
+    @Transactional
+    public boolean markNudged(UUID queryRequestId, Instant at) {
+        var entity = lockOrThrow(queryRequestId);
+        if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {
+            return false;
+        }
+        entity.setLastNudgedAt(at);
+        queryRequestRepository.save(entity);
+        eventPublisher.publishEvent(new QueryReviewNudgedEvent(queryRequestId));
         return true;
     }
 

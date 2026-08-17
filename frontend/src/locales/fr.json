@@ -748,7 +748,9 @@
       "approved_by_grant_title": "Approuvée automatiquement au titre d’un octroi d’accès",
       "approved_by_grant_body": "Cette requête était couverte par l’octroi d’accès {{grantId}}, approuvé par {{approver}} le {{when}}.",
       "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}.",
-      "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})"
+      "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})",
+      "escalated_title": "Escaladé — toujours sans décision",
+      "escalated_body": "Personne n'a statué dans le délai d'escalade de {{hours}} heures du plan de revue ; la demande a donc été remontée {{when}} aux relecteurs attendus et à vos administrateurs. Elle n'est ni approuvée ni rejetée, et l'escalade ne change pas qui peut décider."
     }
   },
   "reviews": {
@@ -1722,7 +1724,10 @@
         "test_to_placeholder": "Destinataire (l'adresse d'expéditeur par défaut)",
         "test_success": "E-mail de test accepté par le serveur SMTP",
         "not_configured": "Le SMTP système n'est pas configuré. Configurez-le pour activer les invitations d'utilisateurs et le repli par e-mail."
-      }
+      },
+      "label_pagerduty_trigger_review_stalled": "Revue bloquée (personne n'a statué à temps)",
+      "label_pagerduty_trigger_anomaly": "Anomalie comportementale détectée",
+      "label_pagerduty_trigger_break_glass": "Requête d'urgence exécutée"
     },
     "oauth2": {
       "title": "Fournisseurs OAuth",
@@ -1963,7 +1968,11 @@
           "name": "Standard — IA + 1 relecteur",
           "description": "IA plus un relecteur unique ; les lectures à risque faible/moyen sont approuvées automatiquement."
         }
-      }
+      },
+      "label_escalation_h": "Escalader après (heures)",
+      "label_nudge_h": "Relancer toutes les (heures)",
+      "tooltip_escalation": "Prévient les relecteurs attendus et vos administrateurs si personne n'a statué dans ce délai. Laissez vide pour désactiver. L'escalade ne change jamais qui peut approuver.",
+      "tooltip_nudge": "Relance les relecteurs qui n'ont pas statué, à cette cadence. Laissez vide pour désactiver."
     },
     "groups": {
       "title": "User groups",
@@ -2212,7 +2221,9 @@
       "ACCESS_GRANT_EXPIRED": "Ton accès à {{datasource}} a expiré",
       "ACCESS_GRANT_REVOKED": "Ton accès à {{datasource}} a été révoqué",
       "GRANT_STALE": "L'accès à {{datasource}} semble inutilisé — à examiner",
-      "fallback": "Nouvelle notification"
+      "fallback": "Nouvelle notification",
+      "REVIEW_ESCALATED": "Toujours sans décision sur {{datasource}} — remonté à vous",
+      "REVIEW_NUDGE": "Rappel : une requête sur {{datasource}} attend votre revue"
     }
   },
   "profile": {

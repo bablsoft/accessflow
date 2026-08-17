@@ -25,6 +25,12 @@ class TicketDescriptionBuilderTest {
                 .isEqualTo("[AccessFlow] Query escalated for review on Production");
         assertThat(TicketDescriptionBuilder.summary(ctx(NotificationEventType.REVIEW_TIMEOUT)))
                 .isEqualTo("[AccessFlow] Query review timed out on Production");
+        // #622. This switch carries a default, so a missing arm would compile and silently produce
+        // "[AccessFlow] REVIEW_ESCALATED on Production" in a real ServiceNow/Jira ticket.
+        assertThat(TicketDescriptionBuilder.summary(ctx(NotificationEventType.REVIEW_ESCALATED)))
+                .isEqualTo("[AccessFlow] Review escalated — no decision yet on Production");
+        assertThat(TicketDescriptionBuilder.summary(ctx(NotificationEventType.REVIEW_NUDGE)))
+                .isEqualTo("[AccessFlow] Reminder: query awaiting review on Production");
     }
 
     @Test

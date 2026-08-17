@@ -328,6 +328,10 @@ accessflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.
     timeout-poll-interval: ${ACCESSFLOW_WORKFLOW_TIMEOUT_POLL_INTERVAL:PT5M}
+    # Cadence at which ReviewEscalationJob (#622) escalates requests past their plan's
+    # escalation_after_hours and re-nudges undecided reviewers. Notify-only — it never changes
+    # who may approve. ShedLock makes this safe under horizontal scaling.
+    escalation-poll-interval: ${ACCESSFLOW_WORKFLOW_ESCALATION_POLL_INTERVAL:PT5M}
     # Cadence at which ScheduledQueryRunJob scans for APPROVED queries whose scheduled_for
     # timestamp has been reached. ShedLock makes this safe under horizontal scaling.
     scheduled-run-poll-interval: ${ACCESSFLOW_WORKFLOW_SCHEDULED_RUN_POLL_INTERVAL:PT1M}
@@ -398,7 +402,17 @@ accessflow:
     datasource:
       username: ${AUDIT_DB_USER:accessflow_audit}
       password: ${AUDIT_DB_PASSWORD:accessflow_audit}
+  requestgroups:
+    # Cadence at which GroupReviewEscalationJob (#622) stamps escalated_at on bundles past the
+    # minimum escalation_after_hours across their members' plans. Escalation only: grouped requests
+    # have no notification path, so there is no nudge half. ShedLock makes this safe under
+    # horizontal scaling.
+    escalation-poll-interval: ${ACCESSFLOW_REQUESTGROUPS_ESCALATION_POLL_INTERVAL:PT5M}
   apigov:
+    # Cadence at which ApiReviewEscalationJob (#622) escalates API requests past their connector
+    # plan's escalation_after_hours and re-nudges undecided reviewers. Notify-only — it never
+    # changes who may approve. ShedLock makes this safe under horizontal scaling.
+    escalation-poll-interval: ${ACCESSFLOW_APIGOV_ESCALATION_POLL_INTERVAL:PT5M}
     # Outbound OAuth2 token sourcing for API connectors (#506). Per-connector token endpoint,
     # credentials, scopes, grant type and client-auth live on the api_connectors row; these are the
     # deployment-wide knobs: a safety skew subtracted from the token's expires_in before caching, a

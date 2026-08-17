@@ -13,8 +13,10 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
+import com.bablsoft.accessflow.core.api.QueryRequestStateService;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
+import com.bablsoft.accessflow.core.api.ReviewStages;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -41,6 +43,7 @@ import java.util.UUID;
 class NotificationContextBuilder {
 
     private final QueryRequestLookupService queryRequestLookupService;
+    private final QueryRequestStateService queryRequestStateService;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final DatasourceAdminService datasourceAdminService;
@@ -144,6 +147,13 @@ class NotificationContextBuilder {
                     ? List.of(toRecipient(submitter))
                     : List.of();
             case REVIEW_TIMEOUT -> reviewTimeoutRecipients(snapshot, submitter);
+            // #622: an idle request escalates to the plan's reviewers PLUS every org admin — the
+            // point of escalating is that the original reviewers have not acted, so telling only
+            // them again would be a nudge, not an escalation.
+            case REVIEW_ESCALATED -> escalationRecipients(plan, snapshot);
+            // A nudge reminds exactly the people currently on the hook — the stage the request is
+            // blocked on, not the plan's first stage — and deliberately does not copy admins.
+            case REVIEW_NUDGE -> reviewersForCurrentStage(plan, snapshot);
             // AI_HIGH_RISK and BREAK_GLASS_EXECUTED both fan out to every active org admin (AF-385).
             case AI_HIGH_RISK, BREAK_GLASS_EXECUTED -> userQueryService
                     .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
@@ -386,7 +396,12 @@ class NotificationContextBuilder {
     private List<RecipientView> apiRecipients(NotificationEventType eventType, ApiRequestNotificationView view) {
         boolean breakGlassExecuted = eventType == NotificationEventType.API_REQUEST_EXECUTED
                 && view.submissionReason() == com.bablsoft.accessflow.core.api.SubmissionReason.EMERGENCY_ACCESS;
-        if (eventType == NotificationEventType.API_REQUEST_SUBMITTED || breakGlassExecuted) {
+        // #622: a nudge reminds the same people API_REQUEST_SUBMITTED alerted; an escalation adds
+        // admins, because the point is that those reviewers did not act.
+        var escalation = eventType == NotificationEventType.REVIEW_ESCALATED;
+        var nudge = eventType == NotificationEventType.REVIEW_NUDGE;
+        if (eventType == NotificationEventType.API_REQUEST_SUBMITTED || breakGlassExecuted
+                || escalation || nudge) {
             var roles = breakGlassExecuted
                     ? List.of(UserRoleType.ADMIN)
                     : List.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);
@@ -496,6 +511,27 @@ class NotificationContextBuilder {
         return List.copyOf(byUserId.values());
     }
 
+    /**
+     * Escalation recipients (#622): the plan's current reviewers, then every active org admin, in
+     * that order and de-duplicated — an admin who is also a named reviewer appears once.
+     */
+    private List<RecipientView> escalationRecipients(ReviewPlanSnapshot plan,
+                                                     QueryRequestSnapshot snapshot) {
+        var byUserId = new LinkedHashMap<UUID, RecipientView>();
+        reviewersForCurrentStage(plan, snapshot)
+                .forEach(recipient -> byUserId.putIfAbsent(recipient.userId(), recipient));
+        userQueryService
+                .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .forEach(user -> byUserId.putIfAbsent(user.id(), toRecipient(user)));
+        return List.copyOf(byUserId.values());
+    }
+
+    /**
+     * Reviewers at the plan's lowest stage. Correct for events that fire at submission, when the
+     * lowest stage is by definition the one being waited on.
+     */
     private List<RecipientView> reviewersForLowestStage(ReviewPlanSnapshot plan,
                                                         QueryRequestSnapshot snapshot) {
         if (plan == null || plan.approvers() == null || plan.approvers().isEmpty()) {
@@ -505,8 +541,30 @@ class NotificationContextBuilder {
                 .mapToInt(ApproverRule::stage)
                 .min()
                 .orElse(0);
+        return reviewersAtStage(plan, snapshot, lowestStage);
+    }
+
+    /**
+     * Reviewers at the stage the request is actually blocked on (#622). Escalations and nudges fire
+     * hours or days after submission, by which time a multi-stage request may have moved on — so
+     * unlike the submission-time events these must not assume the lowest stage. Getting this wrong
+     * is not a near miss: it reminds the reviewers who already decided and leaves the ones who have
+     * to act uninformed, which is the exact failure the feature exists to prevent.
+     */
+    private List<RecipientView> reviewersForCurrentStage(ReviewPlanSnapshot plan,
+                                                         QueryRequestSnapshot snapshot) {
+        if (plan == null || plan.approvers() == null || plan.approvers().isEmpty()) {
+            return List.of();
+        }
+        var decisions = queryRequestStateService.listDecisions(snapshot.id());
+        return reviewersAtStage(plan, snapshot,
+                ReviewStages.current(plan, decisions, plan.minApprovalsRequired()));
+    }
+
+    private List<RecipientView> reviewersAtStage(ReviewPlanSnapshot plan,
+                                                 QueryRequestSnapshot snapshot, int stage) {
         var rules = plan.approvers().stream()
-                .filter(r -> r.stage() == lowestStage)
+                .filter(r -> r.stage() == stage)
                 .toList();
         var byUserId = new LinkedHashMap<UUID, RecipientView>();
         for (ApproverRule rule : rules) {

@@ -886,6 +886,18 @@ function ChannelFormModal({
                     value: 'ESCALATION',
                     label: t('admin.notifications.label_pagerduty_trigger_escalation'),
                   },
+                  {
+                    value: 'REVIEW_STALLED',
+                    label: t('admin.notifications.label_pagerduty_trigger_review_stalled'),
+                  },
+                  {
+                    value: 'ANOMALY',
+                    label: t('admin.notifications.label_pagerduty_trigger_anomaly'),
+                  },
+                  {
+                    value: 'BREAK_GLASS',
+                    label: t('admin.notifications.label_pagerduty_trigger_break_glass'),
+                  },
                 ]}
               />
             </Form.Item>

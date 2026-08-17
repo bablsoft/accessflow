@@ -15,14 +15,19 @@ import java.util.Optional;
  * {@link NotificationEventType#ANOMALY_DETECTED} (behavioural anomaly detection, AF-383), and
  * {@code BREAK_GLASS} → {@link NotificationEventType#BREAK_GLASS_EXECUTED} (emergency access,
  * AF-385), and {@code ESCALATION} → {@link NotificationEventType#QUERY_ESCALATED} (routing-policy
- * escalation, AF-453).
+ * escalation, AF-453), and {@code REVIEW_STALLED} →
+ * {@link NotificationEventType#REVIEW_ESCALATED} (nobody decided within the plan's escalation
+ * window, #622 — distinct from {@code ESCALATION}, which fires at submission when a routing
+ * policy raises the approval bar). {@code REVIEW_NUDGE} deliberately has no trigger: a reminder
+ * is not an incident and must never page.
  */
 public enum PagerDutyTrigger {
     CRITICAL_RISK(NotificationEventType.AI_HIGH_RISK),
     REVIEW_TIMEOUT(NotificationEventType.REVIEW_TIMEOUT),
     ANOMALY(NotificationEventType.ANOMALY_DETECTED),
     BREAK_GLASS(NotificationEventType.BREAK_GLASS_EXECUTED),
-    ESCALATION(NotificationEventType.QUERY_ESCALATED);
+    ESCALATION(NotificationEventType.QUERY_ESCALATED),
+    REVIEW_STALLED(NotificationEventType.REVIEW_ESCALATED);
 
     private final NotificationEventType eventType;
 
@@ -54,7 +59,7 @@ public enum PagerDutyTrigger {
             throw new NotificationChannelConfigException(
                     "Config key '" + ChannelConfigCodec.KEY_TRIGGERS
                             + "' must contain only CRITICAL_RISK, REVIEW_TIMEOUT, ANOMALY, "
-                            + "BREAK_GLASS or ESCALATION", ex);
+                            + "BREAK_GLASS, ESCALATION or REVIEW_STALLED", ex);
         }
     }
 }

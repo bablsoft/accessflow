@@ -853,6 +853,10 @@ export interface ReviewPlan {
   requires_human_approval: boolean;
   min_approvals_required: number;
   approval_timeout_hours: number;
+  /** Hours before an idle request is escalated (#622); null disables escalation. */
+  escalation_after_hours: number | null;
+  /** Hours between reminders to undecided reviewers; null disables nudges. */
+  nudge_interval_hours: number | null;
   auto_approve_reads: boolean;
   notify_channels: string[];
   approvers: ReviewPlanApprover[];
@@ -866,6 +870,8 @@ export interface ReviewPlanWriteRequest {
   requires_human_approval?: boolean;
   min_approvals_required?: number;
   approval_timeout_hours?: number;
+  escalation_after_hours?: number | null;
+  nudge_interval_hours?: number | null;
   auto_approve_reads?: boolean;
   notify_channels?: string[];
   approvers?: ReviewPlanApprover[];
@@ -1268,6 +1274,10 @@ export interface QueryDetail {
   previous_run_id: string | null;
   review_plan_name: string | null;
   approval_timeout_hours: number | null;
+  /** When the escalation job raised this request (#622); null when never escalated. */
+  escalated_at?: string | null;
+  /** The plan's escalation window in hours; null when escalation is off for the plan. */
+  escalation_after_hours?: number | null;
   matched_policy: MatchedRoutingPolicy | null;
   approved_by_grant: ApprovedByGrant | null;
   review_decisions: ReviewDecisionDetail[];
@@ -1730,7 +1740,16 @@ export interface NotificationChannelWebhookConfig {
 export interface NotificationChannelPagerDutyConfig {
   routing_key?: string;
   default_severity: 'critical' | 'error' | 'warning' | 'info';
-  triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT'>;
+  // Mirrors the backend PagerDutyTrigger enum exactly — a value the form cannot represent is a
+  // channel an admin can provision via bootstrap or the API but never edit here.
+  triggers: Array<
+    | 'CRITICAL_RISK'
+    | 'REVIEW_TIMEOUT'
+    | 'ANOMALY'
+    | 'BREAK_GLASS'
+    | 'ESCALATION'
+    | 'REVIEW_STALLED'
+  >;
 }
 export type TicketingTrigger = 'QUERY_REJECTED' | 'REVIEW_TIMEOUT' | 'QUERY_ESCALATED';
 export interface NotificationChannelServiceNowConfig {
@@ -1842,6 +1861,8 @@ export type UserNotificationEventType =
   | 'QUERY_ESCALATED'
   | 'QUERY_EXECUTED'
   | 'REVIEW_TIMEOUT'
+  | 'REVIEW_ESCALATED'
+  | 'REVIEW_NUDGE'
   | 'AI_HIGH_RISK'
   | 'API_REQUEST_SUBMITTED'
   | 'API_REQUEST_APPROVED'

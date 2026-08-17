@@ -39,7 +39,7 @@ class PagerDutyPayloadFactoryTest {
         assertThat(tree.get("routing_key").asString()).isEqualTo("R0UT1NGKEY");
         assertThat(tree.get("event_action").asString()).isEqualTo("trigger");
         assertThat(tree.get("dedup_key").asString())
-                .isEqualTo("accessflow-" + orgId + "-" + queryId);
+                .isEqualTo("accessflow-" + orgId + "-AI_HIGH_RISK-" + queryId);
         assertThat(tree.get("client").asString()).isEqualTo("AccessFlow");
         assertThat(tree.get("client_url").asString()).isEqualTo(ctx.reviewUrl().toString());
 
@@ -97,6 +97,22 @@ class PagerDutyPayloadFactoryTest {
         assertThat(tree.get("payload").get("summary").asString())
                 .isEqualTo("AccessFlow: a routing policy escalated a query on Production");
         assertThat(tree.get("payload").get("class").asString()).isEqualTo("QUERY_ESCALATED");
+    }
+
+    @Test
+    void differentEventsOnOneQueryAreSeparateIncidents() {
+        var config = new PagerDutyChannelConfig("R0UT1NGKEY", PagerDutySeverity.CRITICAL,
+                EnumSet.of(PagerDutyTrigger.CRITICAL_RISK, PagerDutyTrigger.REVIEW_STALLED));
+
+        var risk = objectMapper.readTree(factory.buildEventBody(
+                sampleContext(NotificationEventType.AI_HIGH_RISK, null), config));
+        var stalled = objectMapper.readTree(factory.buildEventBody(
+                sampleContext(NotificationEventType.REVIEW_ESCALATED, null), config));
+
+        // A CRITICAL-risk query that then stalls must page again (#622) rather than folding into
+        // the incident its risk score already opened.
+        assertThat(stalled.get("dedup_key").asString())
+                .isNotEqualTo(risk.get("dedup_key").asString());
     }
 
     @Test

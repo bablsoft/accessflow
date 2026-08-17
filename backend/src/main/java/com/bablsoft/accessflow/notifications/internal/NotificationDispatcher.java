@@ -198,7 +198,7 @@ class NotificationDispatcher {
         if (ctx.recipients() == null || ctx.recipients().isEmpty()) {
             return;
         }
-        if (!EmailNotificationStrategy.hasTemplateFor(ctx.eventType())) {
+        if (!EmailNotificationStrategy.hasTemplateFor(ctx)) {
             return;
         }
         systemEmailFallback.deliverIfPossible(ctx);
