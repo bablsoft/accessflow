@@ -223,12 +223,21 @@ test.describe('reviewer delegation', () => {
 
     const card = page.locator('.ant-card').filter({ hasText: 'Out-of-office delegation' }).first();
     await expect(card).toBeVisible();
-    await expect(card.getByText('AF-622 Delegate').first()).toBeVisible();
+    // Assert on the email, not the display name: inviteUserViaApi's no-roleId path posts a
+    // camelCase `displayName` the snake_case API ignores, so invited users have none.
+    await expect(card.getByText(delegateEmail).first()).toBeVisible();
     await expect(card.getByText('All review queues').first()).toBeVisible();
 
-    await card.getByRole('button', { name: 'Revoke' }).first().click();
-    await page.getByRole('button', { name: 'OK' }).click();
+    // Exactly one revocable row exists — afterEach retires the rest, and revoked/expired rows
+    // render no action.
+    const revoke = card.getByRole('button', { name: 'Revoke' });
+    await expect(revoke).toHaveCount(1);
+    await revoke.click();
+    // AntD Popconfirm renders detached in a portal — confirm via its primary button, matching
+    // the idiom in access-requests.spec.ts rather than a bare OK role lookup.
+    await page.locator('.ant-popconfirm-buttons .ant-btn-primary').click();
 
-    await expect(card.getByText('Revoked').first()).toBeVisible({ timeout: 10_000 });
+    // The row survives as evidence; only its action goes away.
+    await expect(revoke).toHaveCount(0, { timeout: 10_000 });
   });
 });
