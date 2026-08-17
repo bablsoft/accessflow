@@ -403,6 +403,10 @@ accessflow:
       username: ${AUDIT_DB_USER:accessflow_audit}
       password: ${AUDIT_DB_PASSWORD:accessflow_audit}
   apigov:
+    # Cadence at which ApiReviewEscalationJob (#622) escalates API requests past their connector
+    # plan's escalation_after_hours and re-nudges undecided reviewers. Notify-only — it never
+    # changes who may approve. ShedLock makes this safe under horizontal scaling.
+    escalation-poll-interval: ${ACCESSFLOW_APIGOV_ESCALATION_POLL_INTERVAL:PT5M}
     # Outbound OAuth2 token sourcing for API connectors (#506). Per-connector token endpoint,
     # credentials, scopes, grant type and client-auth live on the api_connectors row; these are the
     # deployment-wide knobs: a safety skew subtracted from the token's expires_in before caching, a

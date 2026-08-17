@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.apigov.events.ApiConnectorTokenFailureEvent;
+import com.bablsoft.accessflow.apigov.events.ApiReviewEscalatedEvent;
+import com.bablsoft.accessflow.apigov.events.ApiReviewNudgedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -32,6 +34,16 @@ class ApiNotificationListener {
         if (type != null) {
             dispatcher.dispatchApiRequest(type, event.apiRequestId());
         }
+    }
+
+    @ApplicationModuleListener
+    void onReviewEscalated(ApiReviewEscalatedEvent event) {
+        dispatcher.dispatchApiRequest(NotificationEventType.REVIEW_ESCALATED, event.apiRequestId());
+    }
+
+    @ApplicationModuleListener
+    void onReviewNudged(ApiReviewNudgedEvent event) {
+        dispatcher.dispatchApiRequest(NotificationEventType.REVIEW_NUDGE, event.apiRequestId());
     }
 
     @ApplicationModuleListener

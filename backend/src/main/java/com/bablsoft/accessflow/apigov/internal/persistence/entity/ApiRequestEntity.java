@@ -147,6 +147,14 @@ public class ApiRequestEntity {
     @Column(nullable = false)
     private long version;
 
+    /** Set once when ApiReviewEscalationJob raises an idle request (#622). */
+    @Column(name = "escalated_at")
+    private Instant escalatedAt;
+
+    /** Cursor for the nudge cadence (#622); null until the first reminder goes out. */
+    @Column(name = "last_nudged_at")
+    private Instant lastNudgedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

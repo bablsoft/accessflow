@@ -393,7 +393,12 @@ class NotificationContextBuilder {
     private List<RecipientView> apiRecipients(NotificationEventType eventType, ApiRequestNotificationView view) {
         boolean breakGlassExecuted = eventType == NotificationEventType.API_REQUEST_EXECUTED
                 && view.submissionReason() == com.bablsoft.accessflow.core.api.SubmissionReason.EMERGENCY_ACCESS;
-        if (eventType == NotificationEventType.API_REQUEST_SUBMITTED || breakGlassExecuted) {
+        // #622: a nudge reminds the same people API_REQUEST_SUBMITTED alerted; an escalation adds
+        // admins, because the point is that those reviewers did not act.
+        var escalation = eventType == NotificationEventType.REVIEW_ESCALATED;
+        var nudge = eventType == NotificationEventType.REVIEW_NUDGE;
+        if (eventType == NotificationEventType.API_REQUEST_SUBMITTED || breakGlassExecuted
+                || escalation || nudge) {
             var roles = breakGlassExecuted
                     ? List.of(UserRoleType.ADMIN)
                     : List.of(UserRoleType.REVIEWER, UserRoleType.ADMIN);

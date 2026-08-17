@@ -33,4 +33,30 @@ public interface ApiRequestRepository extends JpaRepository<ApiRequestEntity, UU
               AND created_at <= :cutoff
             """, nativeQuery = true)
     List<UUID> findStalePendingReviewIds(@Param("cutoff") Instant cutoff);
+
+    /** API requests past their connector plan's escalation window, not yet escalated (#622). */
+    @Query(value = """
+            SELECT r.id
+            FROM api_requests r
+            JOIN api_connectors c ON c.id = r.connector_id
+            JOIN review_plans rp ON rp.id = c.review_plan_id
+            WHERE r.status = 'PENDING_REVIEW'::query_status
+              AND r.escalated_at IS NULL
+              AND rp.escalation_after_hours IS NOT NULL
+              AND r.created_at + (rp.escalation_after_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findEscalationDueIds(@Param("now") Instant now);
+
+    /** API requests due a reminder on their connector plan's nudge cadence (#622). */
+    @Query(value = """
+            SELECT r.id
+            FROM api_requests r
+            JOIN api_connectors c ON c.id = r.connector_id
+            JOIN review_plans rp ON rp.id = c.review_plan_id
+            WHERE r.status = 'PENDING_REVIEW'::query_status
+              AND rp.nudge_interval_hours IS NOT NULL
+              AND COALESCE(r.last_nudged_at, r.created_at)
+                  + (rp.nudge_interval_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findNudgeDueIds(@Param("now") Instant now);
 }
