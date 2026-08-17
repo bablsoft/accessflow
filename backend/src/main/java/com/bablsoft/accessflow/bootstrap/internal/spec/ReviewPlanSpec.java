@@ -2,6 +2,14 @@ package com.bablsoft.accessflow.bootstrap.internal.spec;
 
 import java.util.List;
 
+/**
+ * A bootstrap-declared review plan.
+ *
+ * <p>Exactly one constructor, deliberately: Spring Boot binds {@code @ConfigurationProperties}
+ * records as value objects by picking a single constructor, and a second (convenience) one makes
+ * that choice ambiguous — the binder then silently selects the wrong arity and leaves every
+ * property unbound, so bootstrap review plans quietly stop being applied.
+ */
 public record ReviewPlanSpec(
         String name,
         String description,
@@ -19,15 +27,5 @@ public record ReviewPlanSpec(
     public ReviewPlanSpec {
         notifyChannelNames = notifyChannelNames == null ? List.of() : List.copyOf(notifyChannelNames);
         approverEmails = approverEmails == null ? List.of() : List.copyOf(approverEmails);
-    }
-
-    /** Convenience constructor for specs that predate escalation and nudges (#622). */
-    public ReviewPlanSpec(String name, String description, Boolean requiresAiReview,
-                          Boolean requiresHumanApproval, Integer minApprovalsRequired,
-                          Integer approvalTimeoutHours, Boolean autoApproveReads,
-                          List<String> notifyChannelNames, List<String> approverEmails) {
-        this(name, description, requiresAiReview, requiresHumanApproval, minApprovalsRequired,
-                approvalTimeoutHours, null, null, autoApproveReads, notifyChannelNames,
-                approverEmails);
     }
 }

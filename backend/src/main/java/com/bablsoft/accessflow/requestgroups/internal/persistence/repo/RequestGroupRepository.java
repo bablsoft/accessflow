@@ -52,7 +52,7 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
                     LEFT JOIN api_connectors c ON c.id = i.api_connector_id
                     JOIN review_plans rp
                       ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.request_group_id = g.id
+                    WHERE i.group_id = g.id
                   ), 0) || ' hours')::interval < :now
               AND EXISTS (
                     SELECT 1
@@ -61,7 +61,7 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
                     LEFT JOIN api_connectors c ON c.id = i.api_connector_id
                     JOIN review_plans rp
                       ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.request_group_id = g.id
+                    WHERE i.group_id = g.id
                       AND rp.escalation_after_hours IS NOT NULL
                   )
             """, nativeQuery = true)
@@ -79,7 +79,7 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
                     LEFT JOIN api_connectors c ON c.id = i.api_connector_id
                     JOIN review_plans rp
                       ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.request_group_id = g.id
+                    WHERE i.group_id = g.id
                   ), 0) || ' hours')::interval < :now
               AND EXISTS (
                     SELECT 1
@@ -88,7 +88,7 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
                     LEFT JOIN api_connectors c ON c.id = i.api_connector_id
                     JOIN review_plans rp
                       ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.request_group_id = g.id
+                    WHERE i.group_id = g.id
                       AND rp.nudge_interval_hours IS NOT NULL
                   )
             """, nativeQuery = true)

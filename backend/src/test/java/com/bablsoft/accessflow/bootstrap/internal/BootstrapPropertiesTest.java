@@ -98,6 +98,8 @@ class BootstrapPropertiesTest {
         values.put("accessflow.bootstrap.review-plans[0].notify-channel-names[0]", "ops");
         values.put("accessflow.bootstrap.review-plans[0].notify-channel-names[1]", "security");
         values.put("accessflow.bootstrap.review-plans[0].approver-emails[0]", "admin@acme.com");
+        values.put("accessflow.bootstrap.review-plans[0].escalation-after-hours", "4");
+        values.put("accessflow.bootstrap.review-plans[0].nudge-interval-hours", "2");
 
         var props = bind(values);
 
@@ -105,6 +107,10 @@ class BootstrapPropertiesTest {
         var rp = props.reviewPlans().get(0);
         assertThat(rp.notifyChannelNames()).containsExactly("ops", "security");
         assertThat(rp.approverEmails()).containsExactly("admin@acme.com");
+        // #622. Also a guard on ReviewPlanSpec keeping exactly one constructor: a second one makes
+        // Spring's value-object binding ambiguous, and every property here silently goes unbound.
+        assertThat(rp.escalationAfterHours()).isEqualTo(4);
+        assertThat(rp.nudgeIntervalHours()).isEqualTo(2);
     }
 
     private static BootstrapProperties bind(Map<String, Object> values) {

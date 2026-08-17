@@ -119,6 +119,11 @@ public class ReviewPlanReconciler {
                         spec.approvalTimeoutHours(),
                         spec.escalationAfterHours(),
                         spec.nudgeIntervalHours(),
+                        // Bootstrap config is declarative: a spec that omits the value means OFF,
+                        // so dropping it from config must actually clear it — otherwise the
+                        // fingerprint would flag drift forever while the write silently no-ops.
+                        spec.escalationAfterHours() == null,
+                        spec.nudgeIntervalHours() == null,
                         spec.autoApproveReads(),
                         notifyChannelIds,
                         approverRules));

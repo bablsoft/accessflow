@@ -111,10 +111,18 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (command.approvalTimeoutHours() != null) {
             entity.setApprovalTimeoutHours(command.approvalTimeoutHours());
         }
-        if (command.escalationAfterHours() != null) {
+        // Unlike every other field here, null is a MEANINGFUL value for these two — it is how a
+        // plan turns escalation off — so "absent means leave unchanged" would make the setting
+        // one-way. The explicit clear flags carry that distinction, since a partial-update record
+        // cannot tell absent from null on its own.
+        if (command.clearEscalationAfterHours()) {
+            entity.setEscalationAfterHours(null);
+        } else if (command.escalationAfterHours() != null) {
             entity.setEscalationAfterHours(command.escalationAfterHours());
         }
-        if (command.nudgeIntervalHours() != null) {
+        if (command.clearNudgeIntervalHours()) {
+            entity.setNudgeIntervalHours(null);
+        } else if (command.nudgeIntervalHours() != null) {
             entity.setNudgeIntervalHours(command.nudgeIntervalHours());
         }
         if (command.autoApproveReads() != null) {

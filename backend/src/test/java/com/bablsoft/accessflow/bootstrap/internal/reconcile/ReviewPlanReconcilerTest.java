@@ -55,7 +55,7 @@ class ReviewPlanReconcilerTest {
         when(reviewPlanAdminService.create(any(CreateReviewPlanCommand.class)))
                 .thenAnswer(inv -> view(planId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", "desc", true, true, 1, 24, false,
+        var spec = new ReviewPlanSpec("standard", "desc", true, true, 1, 24, null, null, false,
                 List.of("ops"), List.of("admin@acme.com"));
 
         var result = reconciler().reconcile(ORG_ID, List.of(spec), Map.of("ops", channelId));
@@ -77,7 +77,7 @@ class ReviewPlanReconcilerTest {
                 any(UpdateReviewPlanCommand.class)))
                 .thenReturn(view(existingId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
 
         var result = reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
@@ -90,7 +90,7 @@ class ReviewPlanReconcilerTest {
     void skipsUpdateAndEventWhenFingerprintMatches() {
         var existingId = UUID.randomUUID();
         when(reviewPlanAdminService.list(ORG_ID)).thenReturn(List.of(view(existingId, "standard")));
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
         // Real fingerprinter — pre-compute the same map the reconciler builds
         var specMap = new java.util.LinkedHashMap<String, Object>();
@@ -122,7 +122,7 @@ class ReviewPlanReconcilerTest {
         when(reviewPlanAdminService.create(any(CreateReviewPlanCommand.class)))
                 .thenAnswer(inv -> view(planId, "standard"));
 
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
 
         reconciler().reconcile(ORG_ID, List.of(spec), Map.of());
@@ -137,7 +137,7 @@ class ReviewPlanReconcilerTest {
 
     @Test
     void throwsWhenNotifyChannelMissing() {
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of("missing-channel"), List.of());
 
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
@@ -149,7 +149,7 @@ class ReviewPlanReconcilerTest {
     void throwsWhenApproverEmailMissing() {
         when(adminUserReconciler.lookupId(ORG_ID, "missing@acme.com"))
                 .thenThrow(new IllegalStateException("missing"));
-        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec("standard", null, null, null, null, null, null, null, null,
                 List.of(), List.of("missing@acme.com"));
 
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
@@ -158,7 +158,7 @@ class ReviewPlanReconcilerTest {
 
     @Test
     void throwsWhenNameMissing() {
-        var spec = new ReviewPlanSpec(" ", null, null, null, null, null, null,
+        var spec = new ReviewPlanSpec(" ", null, null, null, null, null, null, null, null,
                 List.of(), List.of());
         assertThatThrownBy(() -> reconciler().reconcile(ORG_ID, List.of(spec), Map.of()))
                 .isInstanceOf(IllegalStateException.class)
