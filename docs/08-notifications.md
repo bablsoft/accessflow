@@ -30,6 +30,8 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `QUERY_EXECUTED` | A **recurring occurrence** completes (#627) — fired for both `EXECUTED` and `FAILED` occurrence outcomes; one-off executions do not notify | Query submitter, via the review plan's channels. Email carries the occurrence results as a `results.csv` attachment (successful SELECT occurrences only; post-mask values; capped at 10,000 rows with a truncation note row); chat channels get a summary with a link to the occurrence. PagerDuty and ticketing not-applicable (no trigger mapping). | implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
 | `REVIEW_TIMEOUT` | Query has been `PENDING_REVIEW` past `approval_timeout_hours` (auto-rejected by `QueryTimeoutJob`) | Query submitter and every active ADMIN user in the org (de-duplicated when the submitter is themselves an admin) | implemented |
+| `REVIEW_ESCALATED` | A request has sat in `PENDING_REVIEW` past its plan's `escalation_after_hours` (#622). Fired **once** per request, before the hard timeout — `escalated_at` is stamped in the same transaction, so restarts and replicas cannot duplicate it. Distinct from `QUERY_ESCALATED`, which means a routing policy raised the approval bar at submission | Reviewers eligible at the lowest stage **plus** all active org admins — the original reviewers not acting is the whole point, so re-telling only them would be a nudge. Pages via PagerDuty; opens no ticket | implemented |
+| `REVIEW_NUDGE` | A reminder on the plan's `nudge_interval_hours` cadence for a request still awaiting review (#622). `last_nudged_at` is the cursor | Reviewers eligible at the lowest stage — the people already on the hook. Deliberately does **not** copy admins, and never pages: a reminder is not an incident | implemented |
 | `ACCESS_REQUEST_SUBMITTED` | JIT access request enters `PENDING` | Eligible approvers at the lowest stage of the datasource's review plan (excluding the requester); **falls back to all active ADMIN users in the org** when the plan resolves no eligible approver (no plan, empty approver list, or datasource scope filtered everyone out) so the request is never silently orphaned | implemented |
 | `ACCESS_REQUEST_APPROVED` | JIT access request fully approved and grant materialised | Requester | implemented |
 | `ACCESS_REQUEST_REJECTED` | Reviewer/admin rejects a JIT access request | Requester | implemented |
@@ -70,6 +72,8 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/break-glass-executed.html` — `BREAK_GLASS_EXECUTED` (AF-385; red emergency banner, the executing user, datasource, and SQL preview, with a CTA to the executed query / break-glass log)
 - `email/weekly-digest.html` — `WEEKLY_DIGEST` (AF-498; the week range, the four headline metrics — queries submitted, pending approvals, open anomalies, open suggestions — and a CTA to the dashboard)
 - `email/attestation-campaign-opened.html` — `ATTESTATION_CAMPAIGN_OPENED` (AF-384; the campaign name, due date, and a CTA to the recertification queue)
+- `email/review-escalated.html` — `REVIEW_ESCALATED` (#622; the plan's escalation window and how long the request has waited, with a CTA into the review queue)
+- `email/review-nudge.html` — `REVIEW_NUDGE` (#622; the same query summary as the ready-for-review mail, framed as a reminder)
 - `email/grant-stale.html` — `GRANT_STALE` (#625; the grant holder, the granted resource and its kind, the recommendation, and either the idle-days count or an explicit "never used" line — the two are rendered differently because null days is not a large number of days — with a CTA to the over-provisioned access report)
 - `email/api-connector-token-failed.html` — `API_CONNECTOR_OAUTH2_TOKEN_FAILED` (AF-500 / #506; red alert banner, the connector name, and a CTA to the connector settings — never the token/secret)
 
@@ -492,6 +496,8 @@ in `NotificationContextBuilder`:
 | `AI_HIGH_RISK` | All active org admins |
 | `ANOMALY_DETECTED` | All active org admins plus the flagged user |
 | `GRANT_STALE` | All active org admins (never the grant holder) |
+| `REVIEW_ESCALATED` | Lowest-stage reviewers + all active org admins, de-duplicated |
+| `REVIEW_NUDGE` | Lowest-stage reviewers only |
 | `ACCESS_REQUEST_SUBMITTED` | Eligible plan approvers at the lowest stage (excluding the requester), falling back to all active org admins when the plan resolves no one |
 | `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | The requester |
 | `ATTESTATION_CAMPAIGN_OPENED` | The campaign's eligible reviewers (datasource reviewers) plus all active org admins |

@@ -357,6 +357,47 @@ APPROVED → FAILED (execution error)</pre>
         </section>
 
 <section class="docs-section">
+<h2 id="cfg-review-escalation">Escalation &amp; reminders</h2>
+          <p>
+            <strong>What it is.</strong> Between a request arriving and the approval timeout
+            auto-rejecting it, nothing used to happen &mdash; a stalled chain was silent until the
+            submitter found out by being rejected. Two optional settings on a review plan add the
+            warning shots.
+          </p>
+          <p>
+            <strong>Where.</strong> <em>Admin</em> &rarr; <em>Review plans</em>, alongside
+            <em>Approval timeout</em>: <em>Escalate after (hours)</em> and
+            <em>Nudge every (hours)</em>. Both are blank by default, and blank means off &mdash; an
+            existing plan behaves exactly as it did before you set them.
+          </p>
+          <ul>
+            <li>
+              <strong>Escalate after</strong> &mdash; when nobody has decided within this window, the
+              request is raised to the next approval stage <em>and</em> your organization's admins,
+              once. It appears with an escalation notice on the request page and goes out over the
+              plan's notification channels; PagerDuty pages for it.
+            </li>
+            <li>
+              <strong>Nudge every</strong> &mdash; re-notifies the reviewers who still have not
+              decided, on this cadence. It reaches only the people already on the hook, never
+              admins, and never pages: a reminder is not an incident.
+            </li>
+          </ul>
+          <p>
+            <strong>What it does not do.</strong> Escalation is <strong>notify-only</strong>. It
+            never changes who is allowed to approve, and it never approves, rejects, or times out
+            anything &mdash; waiting must not become a way around the approvers you configured.
+            The request stays exactly where it was, with the same people able to act on it.
+          </p>
+          <p>
+            <strong>Grouped requests</strong> have no plan of their own, so a bundle uses the
+            <em>shortest</em> escalation window among its members' plans. A member whose plan has
+            escalation switched off simply does not contribute one. Bundles are flagged as escalated
+            in the review queue but do not yet send a notification.
+          </p>
+        </section>
+
+<section class="docs-section">
 <h2 id="cfg-review-delegation">Out-of-office delegation</h2>
           <p>
             <strong>What it is.</strong> An approval chain moves at the speed of its slowest human.
