@@ -67,8 +67,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             return;
         }
         var template = templateName(ctx.eventType());
-        if (template == null) {
-            log.debug("No email template for event {}; skipping delivery", ctx.eventType());
+        if (template == null || ctx.apiRequestId() != null) {
+            log.debug("No email template for event {} on this request kind; skipping delivery",
+                    ctx.eventType());
             return;
         }
         var sender = mailSenderFactory.create(config);
@@ -101,6 +102,18 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
      */
     public static boolean hasTemplateFor(NotificationEventType eventType) {
         return templateName(eventType) != null;
+    }
+
+    /**
+     * Whether this specific context should produce an email. Distinct from the by-event check
+     * because {@code REVIEW_ESCALATED} / {@code REVIEW_NUDGE} (#622) are the first event types
+     * shared between queries and API requests: they carry an email template on the query path, but
+     * API-request events deliver in-app and over chat only (AF-500). Without this the recipient
+     * would get a query-shaped mail with an empty SQL-preview block and "Query type: —", because
+     * {@code buildApiRequest} has no SQL to put there.
+     */
+    public static boolean hasTemplateFor(NotificationContext ctx) {
+        return ctx.apiRequestId() == null && hasTemplateFor(ctx.eventType());
     }
 
     @Override

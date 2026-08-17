@@ -123,7 +123,12 @@ class PagerDutyPayloadFactory {
         var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
                 : ctx.anomalyId() != null ? ctx.anomalyId()
                 : ctx.datasourceId() != null ? ctx.datasourceId() : "none";
-        return "accessflow-" + ctx.organizationId() + "-" + subject;
+        // The event type is part of the key (#622) because one subject can raise genuinely
+        // different incidents: a CRITICAL-risk query that then stalls in review would otherwise
+        // fold its REVIEW_ESCALATED into the still-open AI_HIGH_RISK incident and page nobody —
+        // and a stalled critical query is precisely the case REVIEW_STALLED exists for. Repeats of
+        // the same event on the same subject still dedupe, which is what dedup is for.
+        return "accessflow-" + ctx.organizationId() + "-" + ctx.eventType().name() + "-" + subject;
     }
 
     private static String source(NotificationContext ctx) {

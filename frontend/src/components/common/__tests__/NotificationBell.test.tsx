@@ -127,6 +127,45 @@ describe('NotificationBell', () => {
     expect(navigateMock).not.toHaveBeenCalledWith('/queries/q-99');
   });
 
+  it.each([
+    ['REVIEW_ESCALATED' as const, null, '/reviews'],
+    ['REVIEW_ESCALATED' as const, 'api-77', '/api-reviews'],
+    ['REVIEW_NUDGE' as const, null, '/reviews'],
+    ['REVIEW_NUDGE' as const, 'api-88', '/api-reviews'],
+  ])(
+    'routes a %s row by request kind, not by event name (api_request_id=%s)',
+    async (eventType, apiRequestId, expected) => {
+      // #622 — these are the only two event types raised for BOTH queries and API requests, so
+      // the event name alone cannot pick the queue. Sending a stalled API request to /reviews
+      // lands the reviewer where it does not appear.
+      fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+      markNotificationReadMock.mockResolvedValue(undefined);
+      listNotificationsMock.mockResolvedValue(
+        page([
+          {
+            id: 'n-esc',
+            event_type: eventType,
+            query_request_id: apiRequestId ? null : 'q-55',
+            api_request_id: apiRequestId,
+            payload: { datasource: 'orders-prod' },
+            read: false,
+            created_at: new Date().toISOString(),
+            read_at: null,
+          },
+        ]),
+      );
+
+      render(wrap(<NotificationBell />));
+      fireEvent.click(screen.getByLabelText('Notifications'));
+      const text = await screen.findByText(/orders-prod/);
+      const row = text.closest('.ant-list-item');
+      if (!row) throw new Error('list row not found');
+      fireEvent.click(row);
+
+      await waitFor(() => expect(navigateMock).toHaveBeenCalledWith(expected));
+    },
+  );
+
   it('clicking an unread row marks it read and navigates to the linked query', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });
     markNotificationReadMock.mockResolvedValue(undefined);

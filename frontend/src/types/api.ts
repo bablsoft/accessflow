@@ -1740,7 +1740,16 @@ export interface NotificationChannelWebhookConfig {
 export interface NotificationChannelPagerDutyConfig {
   routing_key?: string;
   default_severity: 'critical' | 'error' | 'warning' | 'info';
-  triggers: Array<'CRITICAL_RISK' | 'REVIEW_TIMEOUT' | 'ESCALATION' | 'REVIEW_STALLED'>;
+  // Mirrors the backend PagerDutyTrigger enum exactly — a value the form cannot represent is a
+  // channel an admin can provision via bootstrap or the API but never edit here.
+  triggers: Array<
+    | 'CRITICAL_RISK'
+    | 'REVIEW_TIMEOUT'
+    | 'ANOMALY'
+    | 'BREAK_GLASS'
+    | 'ESCALATION'
+    | 'REVIEW_STALLED'
+  >;
 }
 export type TicketingTrigger = 'QUERY_REJECTED' | 'REVIEW_TIMEOUT' | 'QUERY_ESCALATED';
 export interface NotificationChannelServiceNowConfig {
