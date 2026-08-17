@@ -40,7 +40,6 @@ class GroupReviewEscalationJobTest {
         job = new GroupReviewEscalationJob(groupRepository, stateService,
                 Clock.fixed(NOW, ZoneOffset.UTC));
         when(groupRepository.findEscalationDueIds(any())).thenReturn(List.of());
-        when(groupRepository.findNudgeDueIds(any())).thenReturn(List.of());
     }
 
     @Test
@@ -48,39 +47,30 @@ class GroupReviewEscalationJobTest {
         job.run();
 
         verify(groupRepository).findEscalationDueIds(NOW);
-        verify(groupRepository).findNudgeDueIds(NOW);
     }
 
     @Test
-    void escalatesAndNudgesDueBundles() {
+    void escalatesDueBundles() {
         var escalate = UUID.randomUUID();
-        var nudge = UUID.randomUUID();
         when(groupRepository.findEscalationDueIds(NOW)).thenReturn(List.of(escalate));
-        when(groupRepository.findNudgeDueIds(NOW)).thenReturn(List.of(nudge));
         when(stateService.markEscalated(any(), any())).thenReturn(true);
-        when(stateService.markNudged(any(), any())).thenReturn(true);
 
         job.run();
 
         verify(stateService).markEscalated(escalate, NOW);
-        verify(stateService).markNudged(nudge, NOW);
     }
 
     @Test
-    void oneFailingBundleDoesNotAbortTheBatchOrTheNudgePass() {
+    void oneFailingBundleDoesNotAbortTheBatch() {
         var bad = UUID.randomUUID();
         var good = UUID.randomUUID();
-        var nudge = UUID.randomUUID();
         when(groupRepository.findEscalationDueIds(NOW)).thenReturn(List.of(bad, good));
-        when(groupRepository.findNudgeDueIds(NOW)).thenReturn(List.of(nudge));
         when(stateService.markEscalated(eq(bad), any())).thenThrow(new IllegalStateException("boom"));
         when(stateService.markEscalated(eq(good), any())).thenReturn(true);
-        when(stateService.markNudged(any(), any())).thenReturn(true);
 
         job.run();
 
         verify(stateService).markEscalated(good, NOW);
-        verify(stateService).markNudged(nudge, NOW);
     }
 
     @Test

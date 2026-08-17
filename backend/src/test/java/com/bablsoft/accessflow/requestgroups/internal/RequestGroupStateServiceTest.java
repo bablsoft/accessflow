@@ -100,4 +100,49 @@ class RequestGroupStateServiceTest {
         assertThat(RequestGroupStateService.isLegal(
                 RequestGroupStatus.DRAFT, RequestGroupStatus.DRAFT)).isTrue();
     }
+
+    // --- #622 escalation stamping -----------------------------------------------------------
+    //
+    // There is no markNudged twin: grouped requests have no notification path, so a nudge cursor
+    // could only be written and never acted on.
+
+    @Test
+    void markEscalatedStampsIdleBundlesOnce() {
+        var at = java.time.Instant.parse("2026-08-17T12:00:00Z");
+        group.setStatus(RequestGroupStatus.PENDING_REVIEW);
+        when(repository.findByIdForUpdate(group.getId()))
+                .thenReturn(java.util.Optional.of(group));
+
+        assertThat(service.markEscalated(group.getId(), at)).isTrue();
+        assertThat(group.getEscalatedAt()).isEqualTo(at);
+
+        // Second pass: already stamped, so nothing changes and the earlier stamp survives.
+        assertThat(service.markEscalated(group.getId(), at.plusSeconds(3600))).isFalse();
+        assertThat(group.getEscalatedAt()).isEqualTo(at);
+    }
+
+    @Test
+    void markEscalatedIsANoOpOnceTheBundleLeavesReview() {
+        var at = java.time.Instant.parse("2026-08-17T12:00:00Z");
+        group.setStatus(RequestGroupStatus.APPROVED);
+        when(repository.findByIdForUpdate(group.getId()))
+                .thenReturn(java.util.Optional.of(group));
+
+        assertThat(service.markEscalated(group.getId(), at)).isFalse();
+        assertThat(group.getEscalatedAt()).isNull();
+    }
+
+    @Test
+    void markEscalatedPublishesNothing() {
+        var at = java.time.Instant.parse("2026-08-17T12:00:00Z");
+        group.setStatus(RequestGroupStatus.PENDING_REVIEW);
+        when(repository.findByIdForUpdate(group.getId()))
+                .thenReturn(java.util.Optional.of(group));
+
+        service.markEscalated(group.getId(), at);
+
+        // Deliberate: requestgroups has no notification listener, so an event here would have no
+        // consumer. Asserted so adding one is a conscious act rather than an accident.
+        verify(eventPublisher, never()).publishEvent(any());
+    }
 }

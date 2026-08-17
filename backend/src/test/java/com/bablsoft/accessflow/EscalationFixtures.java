@@ -115,16 +115,19 @@ public final class EscalationFixtures {
         return id;
     }
 
-    /** A {@code PENDING_REVIEW} bundle with no members yet — add them with {@link #queryMember}. */
+    /**
+     * A {@code PENDING_REVIEW} bundle with no members yet — add them with {@link #queryMember}.
+     * No nudge cursor: {@code request_groups} has no {@code last_nudged_at}, because grouped
+     * requests have no notification path for a reminder to travel down.
+     */
     public static UUID pendingGroup(JdbcTemplate jdbc, UUID organizationId, UUID submittedBy,
-                                    Instant createdAt, Instant lastNudgedAt) {
+                                    Instant createdAt) {
         var id = UUID.randomUUID();
         jdbc.update("INSERT INTO request_groups (id, organization_id, name, status, submitted_by, "
-                        + "created_at, last_nudged_at) VALUES (?, ?, ?, "
-                        + "'PENDING_REVIEW'::request_group_status, ?, ?, ?)",
+                        + "created_at) VALUES (?, ?, ?, "
+                        + "'PENDING_REVIEW'::request_group_status, ?, ?)",
                 id, organizationId, "group-" + id, submittedBy,
-                java.sql.Timestamp.from(createdAt),
-                lastNudgedAt == null ? null : java.sql.Timestamp.from(lastNudgedAt));
+                java.sql.Timestamp.from(createdAt));
         return id;
     }
 

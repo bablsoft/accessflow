@@ -21,7 +21,10 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The #622 escalation and nudge scans on {@code request_groups}, against real PostgreSQL.
+ * The #622 escalation scan on {@code request_groups}, against real PostgreSQL.
+ *
+ * <p>There is only an escalation scan here — grouped requests have no notification path, so the
+ * nudge half exists for queries and API requests only.
  *
  * <p>This is the most intricate of the three: a bundle has no plan of its own, so the window is the
  * <strong>minimum</strong> non-null value across its members' plans, reached through two optional
@@ -69,7 +72,7 @@ class RequestGroupEscalationQueriesIntegrationTest {
 
     @Test
     void escalationWindowIsTheMinimumAcrossMemberPlans() {
-        var group = pendingGroup(NOW.minusSeconds(5 * 3600), null);
+        var group = pendingGroup(NOW.minusSeconds(5 * 3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(4, null));
         EscalationFixtures.queryMember(jdbc, group, 2, datasourceWithPlan(48, null));
 
@@ -79,7 +82,7 @@ class RequestGroupEscalationQueriesIntegrationTest {
 
     @Test
     void escalationWindowSpansDatasourceAndConnectorMembers() {
-        var group = pendingGroup(NOW.minusSeconds(5 * 3600), null);
+        var group = pendingGroup(NOW.minusSeconds(5 * 3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(48, null));
         EscalationFixtures.apiMember(jdbc, group, 2, connectorWithPlan(4, null));
 
@@ -88,7 +91,7 @@ class RequestGroupEscalationQueriesIntegrationTest {
 
     @Test
     void aBundleWhoseMembersAllHaveEscalationOffIsNeverDue() {
-        var group = pendingGroup(NOW.minusSeconds(5000 * 3600), null);
+        var group = pendingGroup(NOW.minusSeconds(5000 * 3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(null, null));
 
         // Without the EXISTS guard the COALESCE(..., 0) would make this instantly due.
@@ -97,15 +100,14 @@ class RequestGroupEscalationQueriesIntegrationTest {
 
     @Test
     void aBundleWithNoMembersIsNeverDue() {
-        pendingGroup(NOW.minusSeconds(5000 * 3600), null);
+        pendingGroup(NOW.minusSeconds(5000 * 3600));
 
         assertThat(repository.findEscalationDueIds(NOW)).isEmpty();
-        assertThat(repository.findNudgeDueIds(NOW)).isEmpty();
     }
 
     @Test
     void aBundleInsideItsWindowIsNotDue() {
-        var group = pendingGroup(NOW.minusSeconds(3600), null);
+        var group = pendingGroup(NOW.minusSeconds(3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(4, null));
 
         assertThat(repository.findEscalationDueIds(NOW)).isEmpty();
@@ -113,7 +115,7 @@ class RequestGroupEscalationQueriesIntegrationTest {
 
     @Test
     void escalationFiresOncePerBundle() {
-        var group = pendingGroup(NOW.minusSeconds(5 * 3600), null);
+        var group = pendingGroup(NOW.minusSeconds(5 * 3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(1, null));
         jdbc.update("UPDATE request_groups SET escalated_at = ? WHERE id = ?",
                 java.sql.Timestamp.from(NOW), group);
@@ -122,39 +124,17 @@ class RequestGroupEscalationQueriesIntegrationTest {
     }
 
     @Test
-    void nudgeCadenceIsTheMinimumAcrossMemberPlansAndRunsFromTheLastReminder() {
-        var reminded = pendingGroup(NOW.minusSeconds(900 * 3600), NOW.minusSeconds(60));
-        EscalationFixtures.queryMember(jdbc, reminded, 1, datasourceWithPlan(null, 2));
-
-        var due = pendingGroup(NOW.minusSeconds(900 * 3600), NOW.minusSeconds(3 * 3600));
-        EscalationFixtures.queryMember(jdbc, due, 1, datasourceWithPlan(null, 24));
-        EscalationFixtures.queryMember(jdbc, due, 2, datasourceWithPlan(null, 2));
-
-        assertThat(repository.findNudgeDueIds(NOW)).containsExactly(due);
-    }
-
-    @Test
-    void aBundleWhoseMembersAllHaveNudgesOffIsNeverDue() {
-        var group = pendingGroup(NOW.minusSeconds(5000 * 3600), null);
-        EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(4, null));
-
-        assertThat(repository.findNudgeDueIds(NOW)).isEmpty();
-    }
-
-    @Test
-    void neitherScanSeesBundlesThatAreNoLongerPendingReview() {
-        var group = pendingGroup(NOW.minusSeconds(900 * 3600), null);
+    void theScanDoesNotSeeBundlesThatAreNoLongerPendingReview() {
+        var group = pendingGroup(NOW.minusSeconds(900 * 3600));
         EscalationFixtures.queryMember(jdbc, group, 1, datasourceWithPlan(1, 1));
         jdbc.update("UPDATE request_groups SET status = 'APPROVED'::request_group_status "
                 + "WHERE id = ?", group);
 
         assertThat(repository.findEscalationDueIds(NOW)).isEmpty();
-        assertThat(repository.findNudgeDueIds(NOW)).isEmpty();
     }
 
-    private UUID pendingGroup(Instant createdAt, Instant lastNudgedAt) {
-        return EscalationFixtures.pendingGroup(jdbc, organizationId, submitter, createdAt,
-                lastNudgedAt);
+    private UUID pendingGroup(Instant createdAt) {
+        return EscalationFixtures.pendingGroup(jdbc, organizationId, submitter, createdAt);
     }
 
     private UUID datasourceWithPlan(Integer escalationAfterHours, Integer nudgeIntervalHours) {

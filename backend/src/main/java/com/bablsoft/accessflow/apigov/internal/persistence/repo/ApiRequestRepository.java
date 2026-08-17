@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.apigov.internal.persistence.repo;
 
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiRequestEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +17,13 @@ public interface ApiRequestRepository extends JpaRepository<ApiRequestEntity, UU
         JpaSpecificationExecutor<ApiRequestEntity> {
 
     Optional<ApiRequestEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    // #622: the escalation scan and a human reviewer can touch the same row in the same instant.
+    // Taking the row lock makes the loser wait rather than fail — without it the loser is whichever
+    // writer commits second, which can be the human, and @Version surfaces that as a raw 500.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from ApiRequestEntity r where r.id = :id")
+    Optional<ApiRequestEntity> findByIdForUpdate(@Param("id") UUID id);
 
     // Native queries with an explicit ::query_status cast — the same pattern QueryRequestRepository
     // uses for its scheduled/timeout scans. A JPQL enum literal makes Hibernate emit a cast to a

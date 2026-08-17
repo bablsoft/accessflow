@@ -94,13 +94,12 @@ public class RequestGroupStateService {
      *
      * <p>No event is published: the {@code requestgroups} module has no notification path at all —
      * there is no group notification listener and no group notification context, so grouped
-     * requests have never produced a submitted/approved/rejected message either. Escalating a
-     * bundle therefore raises the flag the UI reads, and channel fan-out arrives when grouped-request
-     * notifications do.
+     * requests have never produced a submitted/approved/rejected message either. Publishing an
+     * event nothing consumes would be worse than publishing none.
      */
     @Transactional
     public boolean markEscalated(UUID requestGroupId, Instant at) {
-        var group = requestGroupRepository.findById(requestGroupId).orElse(null);
+        var group = requestGroupRepository.findByIdForUpdate(requestGroupId).orElse(null);
         if (group == null || group.getStatus() != RequestGroupStatus.PENDING_REVIEW
                 || group.getEscalatedAt() != null) {
             return false;
@@ -110,15 +109,4 @@ public class RequestGroupStateService {
         return true;
     }
 
-    /** Stamps {@code last_nudged_at} (#622); a no-op once the bundle has left review. */
-    @Transactional
-    public boolean markNudged(UUID requestGroupId, Instant at) {
-        var group = requestGroupRepository.findById(requestGroupId).orElse(null);
-        if (group == null || group.getStatus() != RequestGroupStatus.PENDING_REVIEW) {
-            return false;
-        }
-        group.setLastNudgedAt(at);
-        requestGroupRepository.save(group);
-        return true;
-    }
 }

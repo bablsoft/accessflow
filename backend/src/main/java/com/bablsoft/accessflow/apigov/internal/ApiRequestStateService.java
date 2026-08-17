@@ -50,7 +50,7 @@ public class ApiRequestStateService {
      */
     @Transactional
     public boolean markEscalated(UUID apiRequestId, Instant at) {
-        var entity = repository.findById(apiRequestId).orElse(null);
+        var entity = repository.findByIdForUpdate(apiRequestId).orElse(null);
         if (entity == null || entity.getStatus() != QueryStatus.PENDING_REVIEW
                 || entity.getEscalatedAt() != null) {
             return false;
@@ -64,7 +64,7 @@ public class ApiRequestStateService {
     /** Stamps {@code last_nudged_at} (#622); a no-op once the request has left review. */
     @Transactional
     public boolean markNudged(UUID apiRequestId, Instant at) {
-        var entity = repository.findById(apiRequestId).orElse(null);
+        var entity = repository.findByIdForUpdate(apiRequestId).orElse(null);
         if (entity == null || entity.getStatus() != QueryStatus.PENDING_REVIEW) {
             return false;
         }

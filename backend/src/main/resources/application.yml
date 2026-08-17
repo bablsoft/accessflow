@@ -402,6 +402,12 @@ accessflow:
     datasource:
       username: ${AUDIT_DB_USER:accessflow_audit}
       password: ${AUDIT_DB_PASSWORD:accessflow_audit}
+  requestgroups:
+    # Cadence at which GroupReviewEscalationJob (#622) stamps escalated_at on bundles past the
+    # minimum escalation_after_hours across their members' plans. Escalation only: grouped requests
+    # have no notification path, so there is no nudge half. ShedLock makes this safe under
+    # horizontal scaling.
+    escalation-poll-interval: ${ACCESSFLOW_REQUESTGROUPS_ESCALATION_POLL_INTERVAL:PT5M}
   apigov:
     # Cadence at which ApiReviewEscalationJob (#622) escalates API requests past their connector
     # plan's escalation_after_hours and re-nudges undecided reviewers. Notify-only — it never

@@ -9,10 +9,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.BiPredicate;
 
 /**
  * The grouped-request twin of {@code ReviewEscalationJob} (#622).
@@ -23,7 +19,13 @@ import java.util.function.BiPredicate;
  * member whose plan has escalation switched off contributes nothing to that minimum rather than
  * disabling escalation for the whole bundle.
  *
- * <p>Notify-only: neither path touches the decision or eligibility code.
+ * <p>There is deliberately <strong>no nudge half</strong>, unlike the query and API-request twins.
+ * A nudge is a reminder sent to someone, and {@code requestgroups} has no notification path at all
+ * — so a group nudge could only advance a cursor nobody reads, re-writing every pending bundle on
+ * every interval for no observable effect. The escalation stamp earns its keep by being once-only
+ * and recording which bundles went idle; a repeating no-op write does not.
+ *
+ * <p>Notify-only: this touches no decision or eligibility code.
  */
 @Component
 @RequiredArgsConstructor
@@ -39,27 +41,19 @@ public class GroupReviewEscalationJob {
             lockAtLeastFor = "PT30S")
     public void run() {
         var now = clock.instant();
-        var escalated = process("escalate", groupRepository.findEscalationDueIds(now),
-                stateService::markEscalated, now);
-        var nudged = process("nudge", groupRepository.findNudgeDueIds(now),
-                stateService::markNudged, now);
-        if (escalated > 0 || nudged > 0) {
-            log.info("Group review escalation pass: escalated {}, nudged {}", escalated, nudged);
-        }
-    }
-
-    private int process(String what, List<UUID> ids, BiPredicate<UUID, Instant> mark, Instant now) {
-        var applied = 0;
-        for (var id : ids) {
+        var escalated = 0;
+        for (var id : groupRepository.findEscalationDueIds(now)) {
             try {
-                if (mark.test(id, now)) {
-                    applied++;
+                if (stateService.markEscalated(id, now)) {
+                    escalated++;
                 }
             } catch (RuntimeException ex) {
                 // One bad row must not abort the batch; the next tick retries it.
-                log.error("Failed to {} request group {}", what, id, ex);
+                log.error("Failed to escalate request group {}", id, ex);
             }
         }
-        return applied;
+        if (escalated > 0) {
+            log.info("Group review escalation pass: escalated {}", escalated);
+        }
     }
 }

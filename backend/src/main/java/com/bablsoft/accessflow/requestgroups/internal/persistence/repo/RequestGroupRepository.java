@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.requestgroups.internal.persistence.repo;
 
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,6 +17,12 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
         JpaSpecificationExecutor<RequestGroupEntity> {
 
     Optional<RequestGroupEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
+
+    // #622: see ApiRequestRepository.findByIdForUpdate — the escalation scan must not make a
+    // concurrent human decision lose an optimistic-lock race.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select g from RequestGroupEntity g where g.id = :id")
+    Optional<RequestGroupEntity> findByIdForUpdate(@Param("id") UUID id);
 
     // Native queries with an explicit ::request_group_status cast — the same pattern
     // ApiRequestRepository / QueryRequestRepository use for their scheduled/timeout scans.
@@ -66,31 +74,4 @@ public interface RequestGroupRepository extends JpaRepository<RequestGroupEntity
                   )
             """, nativeQuery = true)
     List<UUID> findEscalationDueIds(@Param("now") Instant now);
-
-    /** Bundles due a reminder, on the minimum non-null nudge cadence across member plans (#622). */
-    @Query(value = """
-            SELECT g.id
-            FROM request_groups g
-            WHERE g.status = 'PENDING_REVIEW'::request_group_status
-              AND COALESCE(g.last_nudged_at, g.created_at) + (COALESCE((
-                    SELECT MIN(rp.nudge_interval_hours)
-                    FROM request_group_items i
-                    LEFT JOIN datasources d ON d.id = i.datasource_id
-                    LEFT JOIN api_connectors c ON c.id = i.api_connector_id
-                    JOIN review_plans rp
-                      ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.group_id = g.id
-                  ), 0) || ' hours')::interval < :now
-              AND EXISTS (
-                    SELECT 1
-                    FROM request_group_items i
-                    LEFT JOIN datasources d ON d.id = i.datasource_id
-                    LEFT JOIN api_connectors c ON c.id = i.api_connector_id
-                    JOIN review_plans rp
-                      ON rp.id = COALESCE(d.review_plan_id, c.review_plan_id)
-                    WHERE i.group_id = g.id
-                      AND rp.nudge_interval_hours IS NOT NULL
-                  )
-            """, nativeQuery = true)
-    List<UUID> findNudgeDueIds(@Param("now") Instant now);
 }
