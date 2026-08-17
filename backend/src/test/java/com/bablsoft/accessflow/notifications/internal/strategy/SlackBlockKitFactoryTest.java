@@ -285,4 +285,20 @@ class SlackBlockKitFactoryTest {
                 "en",
                 approvalTimeoutHours);
     }
+
+    @Test
+    void escalationAndNudgeHeadersAreDistinctFromTheRoutingPolicyEscalation() {
+        // REVIEW_ESCALATED (#622) means nobody decided in time; QUERY_ESCALATED means a routing
+        // policy raised the approval bar. Sharing a headline would conflate the two.
+        var escalated = (HeaderBlock) factory
+                .buildEventPayload(ctxWith(NotificationEventType.REVIEW_ESCALATED), null)
+                .getBlocks().get(0);
+        var nudge = (HeaderBlock) factory
+                .buildEventPayload(ctxWith(NotificationEventType.REVIEW_NUDGE), null)
+                .getBlocks().get(0);
+
+        assertThat(escalated.getText().getText()).contains("Review Escalated");
+        assertThat(nudge.getText().getText()).contains("Reminder");
+        assertThat(escalated.getText().getText()).isNotEqualTo(nudge.getText().getText());
+    }
 }

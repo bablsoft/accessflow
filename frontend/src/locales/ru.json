@@ -2212,7 +2212,9 @@
       "ACCESS_GRANT_EXPIRED": "Срок вашего доступа к {{datasource}} истёк",
       "ACCESS_GRANT_REVOKED": "Ваш доступ к {{datasource}} был отозван",
       "GRANT_STALE": "Доступ к {{datasource}} не используется — проверьте",
-      "fallback": "Новое уведомление"
+      "fallback": "Новое уведомление",
+      "REVIEW_ESCALATED": "Решения по {{datasource}} всё ещё нет — передано вам",
+      "REVIEW_NUDGE": "Напоминание: запрос к {{datasource}} ждёт вашей проверки"
     }
   },
   "profile": {

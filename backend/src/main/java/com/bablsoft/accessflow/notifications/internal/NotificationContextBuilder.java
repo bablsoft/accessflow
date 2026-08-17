@@ -144,6 +144,13 @@ class NotificationContextBuilder {
                     ? List.of(toRecipient(submitter))
                     : List.of();
             case REVIEW_TIMEOUT -> reviewTimeoutRecipients(snapshot, submitter);
+            // #622: an idle request escalates to the plan's reviewers PLUS every org admin — the
+            // point of escalating is that the original reviewers have not acted, so telling only
+            // them again would be a nudge, not an escalation.
+            case REVIEW_ESCALATED -> escalationRecipients(plan, snapshot);
+            // A nudge is a reminder to exactly the people already on the hook, so it targets the
+            // same set as QUERY_SUBMITTED and deliberately does not copy admins.
+            case REVIEW_NUDGE -> reviewersForLowestStage(plan, snapshot);
             // AI_HIGH_RISK and BREAK_GLASS_EXECUTED both fan out to every active org admin (AF-385).
             case AI_HIGH_RISK, BREAK_GLASS_EXECUTED -> userQueryService
                     .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
@@ -493,6 +500,23 @@ class NotificationContextBuilder {
                 .stream()
                 .filter(UserView::active)
                 .forEach(u -> byUserId.putIfAbsent(u.id(), toRecipient(u)));
+        return List.copyOf(byUserId.values());
+    }
+
+    /**
+     * Escalation recipients (#622): the plan's current reviewers, then every active org admin, in
+     * that order and de-duplicated — an admin who is also a named reviewer appears once.
+     */
+    private List<RecipientView> escalationRecipients(ReviewPlanSnapshot plan,
+                                                     QueryRequestSnapshot snapshot) {
+        var byUserId = new LinkedHashMap<UUID, RecipientView>();
+        reviewersForLowestStage(plan, snapshot)
+                .forEach(recipient -> byUserId.putIfAbsent(recipient.userId(), recipient));
+        userQueryService
+                .findByOrganizationAndRole(snapshot.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .forEach(user -> byUserId.putIfAbsent(user.id(), toRecipient(user)));
         return List.copyOf(byUserId.values());
     }
 

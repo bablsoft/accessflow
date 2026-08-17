@@ -2212,7 +2212,9 @@
       "ACCESS_GRANT_EXPIRED": "Tu permiso de acceso en {{datasource}} expiró",
       "ACCESS_GRANT_REVOKED": "Tu permiso de acceso en {{datasource}} fue revocado",
       "GRANT_STALE": "El acceso a {{datasource}} parece sin usar: revísalo",
-      "fallback": "Nueva notificación"
+      "fallback": "Nueva notificación",
+      "REVIEW_ESCALATED": "Aún sin decisión sobre {{datasource}}: escalado a ti",
+      "REVIEW_NUDGE": "Recordatorio: una consulta en {{datasource}} espera tu revisión"
     }
   },
   "profile": {

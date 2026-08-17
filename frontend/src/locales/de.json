@@ -2212,7 +2212,9 @@
       "ACCESS_GRANT_EXPIRED": "Deine Zugriffsberechtigung auf {{datasource}} ist abgelaufen",
       "ACCESS_GRANT_REVOKED": "Deine Zugriffsberechtigung auf {{datasource}} wurde widerrufen",
       "GRANT_STALE": "Zugriff auf {{datasource}} scheint ungenutzt — bitte prüfen",
-      "fallback": "Neue Benachrichtigung"
+      "fallback": "Neue Benachrichtigung",
+      "REVIEW_ESCALATED": "Noch keine Entscheidung zu {{datasource}} — an Sie eskaliert",
+      "REVIEW_NUDGE": "Erinnerung: Eine Abfrage zu {{datasource}} wartet auf Ihre Prüfung"
     }
   },
   "profile": {

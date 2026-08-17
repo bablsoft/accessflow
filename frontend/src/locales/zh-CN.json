@@ -2212,7 +2212,9 @@
       "ACCESS_GRANT_EXPIRED": "您对 {{datasource}} 的访问授权已过期",
       "ACCESS_GRANT_REVOKED": "您对 {{datasource}} 的访问授权已被撤销",
       "GRANT_STALE": "对 {{datasource}} 的访问似乎未被使用 — 请审阅",
-      "fallback": "新通知"
+      "fallback": "新通知",
+      "REVIEW_ESCALATED": "{{datasource}} 上的请求仍未处理 — 已升级给您",
+      "REVIEW_NUDGE": "提醒：{{datasource}} 上的查询等待您审核"
     }
   },
   "profile": {

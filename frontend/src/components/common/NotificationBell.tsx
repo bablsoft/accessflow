@@ -199,6 +199,12 @@ function renderMessage(
       return t('notifications.events.QUERY_EXECUTED', { datasource });
     case 'REVIEW_TIMEOUT':
       return t('notifications.events.REVIEW_TIMEOUT', { datasource });
+    // #622 — without these cases the bell renders a contentless "New notification", since the
+    // backend records an in-app row for every event regardless of what the UI knows about.
+    case 'REVIEW_ESCALATED':
+      return t('notifications.events.REVIEW_ESCALATED', { datasource });
+    case 'REVIEW_NUDGE':
+      return t('notifications.events.REVIEW_NUDGE', { datasource });
     case 'AI_HIGH_RISK':
       return t('notifications.events.AI_HIGH_RISK', { datasource });
     case 'API_REQUEST_SUBMITTED':
@@ -241,7 +247,13 @@ function renderMessage(
 
 export function routeForNotification(item: UserNotification): string | null {
   // Reviewer-targeted: lands on the review queue, not the submitter-only detail page.
-  if (item.event_type === 'QUERY_SUBMITTED') {
+  // #622 escalations and nudges are reviewer-targeted, like QUERY_SUBMITTED — the queue is where
+  // the recipient can actually act, not the submitter-only detail page.
+  if (
+    item.event_type === 'QUERY_SUBMITTED' ||
+    item.event_type === 'REVIEW_ESCALATED' ||
+    item.event_type === 'REVIEW_NUDGE'
+  ) {
     return '/reviews';
   }
   if (item.event_type === 'API_REQUEST_SUBMITTED') {

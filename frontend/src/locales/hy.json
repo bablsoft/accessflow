@@ -2212,7 +2212,9 @@
       "ACCESS_GRANT_EXPIRED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում ժամկետանց է",
       "ACCESS_GRANT_REVOKED": "Ձեր մուտքի թույլտվությունը {{datasource}}-ում հետ է կանչվել",
       "GRANT_STALE": "{{datasource}}-ի մուտքը անօգտագործված է թվում — դիտարկեք",
-      "fallback": "Նոր ծանուցում"
+      "fallback": "Նոր ծանուցում",
+      "REVIEW_ESCALATED": "{{datasource}}-ի համար դեռ որոշում չկա — բարձրացվել է Ձեզ",
+      "REVIEW_NUDGE": "Հիշեցում. {{datasource}}-ի հարցումը սպասում է Ձեր ստուգմանը"
     }
   },
   "profile": {
