@@ -3496,14 +3496,6 @@ export interface MyReviewDelegations {
   received: ReviewDelegation[];
 }
 
-export interface ReviewDelegationPage {
-  content: ReviewDelegation[];
-  page: number;
-  size: number;
-  total_elements: number;
-  total_pages: number;
-}
-
 export interface DelegateCandidate {
   id: string;
   email: string | null;
