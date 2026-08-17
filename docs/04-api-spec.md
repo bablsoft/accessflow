@@ -1841,6 +1841,7 @@ for a `db.coll.find({…})` draft or `json` for a JSON command document.
 | `GET` | `/review-plans/templates` | List built-in review plan templates |
 | `POST` | `/review-plans` | Create a new review plan *(ADMIN only)* |
 | `PUT` | `/review-plans/{id}` | Update a review plan *(ADMIN only)* |
+| `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
 
 Review-plan bodies additionally accept two optional escalation knobs (#622), both nullable with
 **null meaning off** so existing plans are unaffected:
@@ -1850,10 +1851,11 @@ Review-plan bodies additionally accept two optional escalation knobs (#622), bot
 | `escalation_after_hours` | Optional, 1–8760. Hours a request may sit in `PENDING_REVIEW` before it is escalated to the next stage and org admins. Omit or send `null` to disable. |
 | `nudge_interval_hours` | Optional, 1–8760. Hours between reminders to reviewers who have not decided. Omit or send `null` to disable. |
 
-Both are echoed on every review-plan response. Escalation is **notify-only** — neither field is read
-by any eligibility path, so a request that has been escalated is still decidable by exactly the same
-people as before.
-| `DELETE` | `/review-plans/{id}` | Delete a review plan *(ADMIN only)* |
+Both are echoed on every review-plan response. On `PUT`, an explicit `null` **clears** the setting —
+these are the only two review-plan fields where null is meaningful rather than "leave unchanged", so
+escalation can be switched back off. Escalation is **notify-only** — neither field is read by any
+eligibility path, so a request that has been escalated is still decidable by exactly the same people
+as before.
 
 Out-of-office delegation of review duty is documented separately under
 [Review Delegation Endpoints](#review-delegation-endpoints-622).

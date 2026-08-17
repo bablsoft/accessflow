@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-12",
+      "dateModified": "2026-08-17",
       "url": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -375,7 +375,8 @@ APPROVED → FAILED (execution error)</pre>
               <strong>Escalate after</strong> &mdash; when nobody has decided within this window, the
               request is raised to the next approval stage <em>and</em> your organization's admins,
               once. It appears with an escalation notice on the request page and goes out over the
-              plan's notification channels; PagerDuty pages for it.
+              plan's notification channels; PagerDuty pages for it on channels that enable the
+              <code>REVIEW_STALLED</code> trigger.
             </li>
             <li>
               <strong>Nudge every</strong> &mdash; re-notifies the reviewers who still have not
@@ -392,8 +393,9 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             <strong>Grouped requests</strong> have no plan of their own, so a bundle uses the
             <em>shortest</em> escalation window among its members' plans. A member whose plan has
-            escalation switched off simply does not contribute one. Bundles are flagged as escalated
-            in the review queue but do not yet send a notification.
+            escalation switched off simply does not contribute one. For bundles the escalation is
+            recorded on the request group and nothing more — no notification and no queue badge
+            yet, since grouped requests have no notification path at all.
           </p>
         </section>
 

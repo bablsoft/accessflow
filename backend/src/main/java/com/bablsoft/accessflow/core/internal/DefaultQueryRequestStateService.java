@@ -198,12 +198,9 @@ class DefaultQueryRequestStateService implements QueryRequestStateService {
         }
         entity.setEscalatedAt(at);
         queryRequestRepository.save(entity);
-        var plan = entity.getDatasource().getReviewPlan();
-        var window = plan != null && plan.getEscalationAfterHours() != null
-                ? plan.getEscalationAfterHours() : 0;
         // Published inside the same transaction as the stamp, so the AFTER_COMMIT listener in
         // notifications only ever sees an escalation that actually took.
-        eventPublisher.publishEvent(new QueryReviewEscalatedEvent(queryRequestId, window));
+        eventPublisher.publishEvent(new QueryReviewEscalatedEvent(queryRequestId));
         return true;
     }
 

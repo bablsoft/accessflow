@@ -486,10 +486,11 @@ escalation off contributes nothing to that minimum rather than disabling it for 
 is why the scan pairs `MIN(...)` with an `EXISTS` guard, since `COALESCE(MIN(...), 0)` alone would
 make every bundle instantly due.
 
-⚠️ Grouped requests stamp `escalated_at` but send **no notification**: the `requestgroups` module
-has no notification path at all — no listener, no context builder — so it has never emitted a
-submitted or approved message either. The stamp drives the review-queue flag; channel fan-out
-arrives when grouped-request notifications do.
+⚠️ For grouped requests the stamp is **write-only today**: nothing reads `request_groups.escalated_at`
+back. There is no notification — the `requestgroups` module has no notification path at all (no
+listener, no context builder), so it has never emitted a submitted or approved message either — and
+the group review queue carries no escalated flag. The column records which bundles went idle so the
+history is already there when either surface arrives.
 
 ### Approval timeout
 

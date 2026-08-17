@@ -35,8 +35,9 @@ ALTER TABLE request_groups ADD COLUMN escalated_at   TIMESTAMPTZ;
 ALTER TABLE request_groups ADD COLUMN last_nudged_at TIMESTAMPTZ;
 
 -- The job scans only rows still awaiting review, so the partial indexes stay tiny regardless of how
--- much history the table accumulates. created_at is the escalation clock (the request has been
--- waiting since it entered review); last_nudged_at is the reminder cursor.
+-- much history the table accumulates. created_at is the escalation clock, measured from submission
+-- exactly like approval_timeout_hours already is — so escalate-after is always read against the
+-- same baseline as the timeout it is meant to precede; last_nudged_at is the reminder cursor.
 CREATE INDEX idx_query_requests_escalation_scan
     ON query_requests (created_at)
     WHERE status = 'PENDING_REVIEW' AND escalated_at IS NULL;

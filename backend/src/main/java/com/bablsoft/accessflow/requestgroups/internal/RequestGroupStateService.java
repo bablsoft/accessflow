@@ -86,9 +86,11 @@ public class RequestGroupStateService {
     }
 
     /**
-     * Stamps {@code escalated_at} (#622), which surfaces the bundle as escalated in the review
-     * queue. Re-checks status and the prior stamp before writing, so a decision racing the scan
-     * cannot re-escalate and replicas cannot double-stamp.
+     * Stamps {@code escalated_at} (#622). The column is write-only for now — nothing reads it
+     * back: there is no group escalation flag in the queue response and no notification. It exists
+     * so the idle bundles are already on record when either arrives. Re-checks status and the
+     * prior stamp before writing, so a decision racing the scan cannot re-escalate and replicas
+     * cannot double-stamp.
      *
      * <p>No event is published: the {@code requestgroups} module has no notification path at all —
      * there is no group notification listener and no group notification context, so grouped
