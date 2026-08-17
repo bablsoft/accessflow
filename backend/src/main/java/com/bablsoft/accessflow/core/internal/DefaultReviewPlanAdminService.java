@@ -75,6 +75,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 command.requiresHumanApproval(),
                 command.minApprovalsRequired(),
                 command.approvalTimeoutHours(),
+                command.escalationAfterHours(),
+                command.nudgeIntervalHours(),
                 command.autoApproveReads(),
                 command.notifyChannels());
         var saved = reviewPlanRepository.save(entity);
@@ -108,6 +110,12 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         }
         if (command.approvalTimeoutHours() != null) {
             entity.setApprovalTimeoutHours(command.approvalTimeoutHours());
+        }
+        if (command.escalationAfterHours() != null) {
+            entity.setEscalationAfterHours(command.escalationAfterHours());
+        }
+        if (command.nudgeIntervalHours() != null) {
+            entity.setNudgeIntervalHours(command.nudgeIntervalHours());
         }
         if (command.autoApproveReads() != null) {
             entity.setAutoApproveReads(command.autoApproveReads());
@@ -158,6 +166,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                               Boolean requiresHuman,
                               Integer minApprovals,
                               Integer timeoutHours,
+                              Integer escalationAfterHours,
+                              Integer nudgeIntervalHours,
                               Boolean autoApproveReads,
                               List<String> notifyChannels) {
         entity.setName(name);
@@ -166,6 +176,10 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
         if (requiresHuman != null) entity.setRequiresHumanApproval(requiresHuman);
         if (minApprovals != null) entity.setMinApprovalsRequired(minApprovals);
         if (timeoutHours != null) entity.setApprovalTimeoutHours(timeoutHours);
+        // Null means "leave as configured" on create too — the columns are nullable and null is a
+        // meaningful value there (escalation off), so there is no default to fall back to.
+        entity.setEscalationAfterHours(escalationAfterHours);
+        entity.setNudgeIntervalHours(nudgeIntervalHours);
         if (autoApproveReads != null) entity.setAutoApproveReads(autoApproveReads);
         if (notifyChannels != null) {
             entity.setNotifyChannels(notifyChannels.toArray(new String[0]));
@@ -281,6 +295,8 @@ class DefaultReviewPlanAdminService implements ReviewPlanAdminService {
                 entity.isRequiresHumanApproval(),
                 entity.getMinApprovalsRequired(),
                 entity.getApprovalTimeoutHours(),
+                entity.getEscalationAfterHours(),
+                entity.getNudgeIntervalHours(),
                 entity.isAutoApproveReads(),
                 new ArrayList<>(notifyChannels),
                 approvers,

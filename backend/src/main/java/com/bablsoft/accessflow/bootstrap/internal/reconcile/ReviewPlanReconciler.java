@@ -81,6 +81,8 @@ public class ReviewPlanReconciler {
                     spec.requiresHumanApproval(),
                     spec.minApprovalsRequired(),
                     spec.approvalTimeoutHours(),
+                    spec.escalationAfterHours(),
+                    spec.nudgeIntervalHours(),
                     spec.autoApproveReads(),
                     notifyChannelIds,
                     approverRules));
@@ -115,6 +117,8 @@ public class ReviewPlanReconciler {
                         spec.requiresHumanApproval(),
                         spec.minApprovalsRequired(),
                         spec.approvalTimeoutHours(),
+                        spec.escalationAfterHours(),
+                        spec.nudgeIntervalHours(),
                         spec.autoApproveReads(),
                         notifyChannelIds,
                         approverRules));
@@ -147,6 +151,8 @@ public class ReviewPlanReconciler {
         map.put("requires_human_approval", spec.requiresHumanApproval());
         map.put("min_approvals_required", spec.minApprovalsRequired());
         map.put("approval_timeout_hours", spec.approvalTimeoutHours());
+        map.put("escalation_after_hours", spec.escalationAfterHours());
+        map.put("nudge_interval_hours", spec.nudgeIntervalHours());
         map.put("auto_approve_reads", spec.autoApproveReads());
         map.put("notify_channels", notifyChannelIds);
         map.put("approvers", approverRules.stream()
@@ -166,6 +172,8 @@ public class ReviewPlanReconciler {
         map.put("requires_human_approval", view.requiresHumanApproval());
         map.put("min_approvals_required", view.minApprovalsRequired());
         map.put("approval_timeout_hours", view.approvalTimeoutHours());
+        map.put("escalation_after_hours", view.escalationAfterHours());
+        map.put("nudge_interval_hours", view.nudgeIntervalHours());
         map.put("auto_approve_reads", view.autoApproveReads());
         map.put("notify_channels", view.notifyChannels());
         map.put("approvers", view.approvers().stream()

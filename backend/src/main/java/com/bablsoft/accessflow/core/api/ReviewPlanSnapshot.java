@@ -19,5 +19,18 @@ public record ReviewPlanSnapshot(
         boolean autoApproveReads,
         int maxStage,
         List<ApproverRule> approvers,
-        List<UUID> notifyChannelIds) {
+        List<UUID> notifyChannelIds,
+        /** Hours before an idle request is escalated; null disables escalation (#622). */
+        Integer escalationAfterHours,
+        /** Hours between reminders to undecided reviewers; null disables nudges. */
+        Integer nudgeIntervalHours) {
+
+    /** Convenience constructor for callers that predate escalation and nudges. */
+    public ReviewPlanSnapshot(UUID id, UUID organizationId, boolean requiresAiReview,
+                              boolean requiresHumanApproval, int minApprovalsRequired,
+                              boolean autoApproveReads, int maxStage,
+                              List<ApproverRule> approvers, List<UUID> notifyChannelIds) {
+        this(id, organizationId, requiresAiReview, requiresHumanApproval, minApprovalsRequired,
+                autoApproveReads, maxStage, approvers, notifyChannelIds, null, null);
+    }
 }

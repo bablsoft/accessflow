@@ -18,6 +18,14 @@ public record UpdateReviewPlanRequest(
         @Min(value = 1, message = "{validation.review_plan_timeout.range}")
         @Max(value = 8760, message = "{validation.review_plan_timeout.range}")
         Integer approvalTimeoutHours,
+        /** Hours before an idle request is escalated (#622). Null/absent disables escalation. */
+        @Min(value = 1, message = "{validation.review_plan_escalation.range}")
+        @Max(value = 8760, message = "{validation.review_plan_escalation.range}")
+        Integer escalationAfterHours,
+        /** Hours between reminders to undecided reviewers. Null/absent disables nudges. */
+        @Min(value = 1, message = "{validation.review_plan_nudge.range}")
+        @Max(value = 8760, message = "{validation.review_plan_nudge.range}")
+        Integer nudgeIntervalHours,
         Boolean autoApproveReads,
         List<String> notifyChannels,
         @Valid List<ReviewPlanApproverDto> approvers

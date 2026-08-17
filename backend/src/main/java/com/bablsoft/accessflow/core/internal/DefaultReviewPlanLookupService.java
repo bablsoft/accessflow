@@ -66,7 +66,9 @@ class DefaultReviewPlanLookupService implements ReviewPlanLookupService {
                 plan.isAutoApproveReads(),
                 maxStage,
                 List.copyOf(approvers),
-                parseNotifyChannelIds(plan.getNotifyChannels()));
+                parseNotifyChannelIds(plan.getNotifyChannels()),
+                plan.getEscalationAfterHours(),
+                plan.getNudgeIntervalHours());
     }
 
     private List<UUID> parseNotifyChannelIds(String[] raw) {

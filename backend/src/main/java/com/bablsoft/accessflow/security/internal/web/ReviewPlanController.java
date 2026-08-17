@@ -104,6 +104,8 @@ class ReviewPlanController {
                 request.requiresHumanApproval(),
                 request.minApprovalsRequired(),
                 request.approvalTimeoutHours(),
+                request.escalationAfterHours(),
+                request.nudgeIntervalHours(),
                 request.autoApproveReads(),
                 request.notifyChannels(),
                 toRules(request.approvers()));
@@ -137,6 +139,8 @@ class ReviewPlanController {
                 request.requiresHumanApproval(),
                 request.minApprovalsRequired(),
                 request.approvalTimeoutHours(),
+                request.escalationAfterHours(),
+                request.nudgeIntervalHours(),
                 request.autoApproveReads(),
                 request.notifyChannels(),
                 toRules(request.approvers()));
