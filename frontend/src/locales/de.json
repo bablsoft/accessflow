@@ -750,7 +750,7 @@
       "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt.",
       "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})",
       "escalated_title": "Eskaliert — noch keine Entscheidung",
-      "escalated_body": "Innerhalb des {{hours}}-Stunden-Eskalationsfensters des Prüfplans hat niemand entschieden, daher wurde dies {{when}} an die nächste Stufe und Ihre Administratoren eskaliert. Es wurde weder genehmigt noch abgelehnt, und die Eskalation ändert nicht, wer entscheiden darf."
+      "escalated_body": "Innerhalb des {{hours}}-Stunden-Eskalationsfensters des Prüfplans hat niemand entschieden, daher wurde dies {{when}} an die zuständigen Prüfer und Ihre Administratoren eskaliert. Es wurde weder genehmigt noch abgelehnt, und die Eskalation ändert nicht, wer entscheiden darf."
     }
   },
   "reviews": {
@@ -1725,7 +1725,9 @@
         "test_success": "Test-E-Mail vom SMTP-Server angenommen",
         "not_configured": "Das System-SMTP ist nicht konfiguriert. Konfigurieren Sie es, um Benutzereinladungen und den E-Mail-Fallback zu aktivieren."
       },
-      "label_pagerduty_trigger_review_stalled": "Prüfung ins Stocken geraten (niemand hat rechtzeitig entschieden)"
+      "label_pagerduty_trigger_review_stalled": "Prüfung ins Stocken geraten (niemand hat rechtzeitig entschieden)",
+      "label_pagerduty_trigger_anomaly": "Verhaltensanomalie erkannt",
+      "label_pagerduty_trigger_break_glass": "Break-Glass-Abfrage ausgeführt"
     },
     "oauth2": {
       "title": "OAuth-Anbieter",
@@ -1969,7 +1971,7 @@
       },
       "label_escalation_h": "Eskalieren nach (Stunden)",
       "label_nudge_h": "Erinnern alle (Stunden)",
-      "tooltip_escalation": "Benachrichtigt die nächste Stufe und Ihre Administratoren, wenn in dieser Zeit niemand entschieden hat. Leer lassen zum Deaktivieren. Eine Eskalation ändert nie, wer genehmigen darf.",
+      "tooltip_escalation": "Benachrichtigt die zuständigen Prüfer und Ihre Administratoren, wenn in dieser Zeit niemand entschieden hat. Leer lassen zum Deaktivieren. Eine Eskalation ändert nie, wer genehmigen darf.",
       "tooltip_nudge": "Benachrichtigt Prüfende, die noch nicht entschieden haben, in diesem Takt erneut. Leer lassen zum Deaktivieren."
     },
     "groups": {

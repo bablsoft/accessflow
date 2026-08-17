@@ -750,7 +750,7 @@
       "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
       "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})",
       "escalated_title": "Escalated — still awaiting a decision",
-      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so this was raised to the next stage and your admins {{when}}. It has not been approved or rejected, and escalating does not change who may decide."
+      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so {{when}} this was raised to the reviewers it is waiting on and your admins. It has not been approved or rejected, and escalating does not change who may decide."
     }
   },
   "reviews": {
@@ -1783,7 +1783,9 @@
         "test_success": "Test email accepted by the SMTP server",
         "not_configured": "System SMTP is not configured. Configure it to enable user invitations and the email fallback."
       },
-      "label_pagerduty_trigger_review_stalled": "Review stalled (nobody decided in time)"
+      "label_pagerduty_trigger_review_stalled": "Review stalled (nobody decided in time)",
+      "label_pagerduty_trigger_anomaly": "Behavioral anomaly detected",
+      "label_pagerduty_trigger_break_glass": "Break-glass query executed"
     },
     "oauth2": {
       "title": "OAuth providers",
@@ -2027,7 +2029,7 @@
       },
       "label_escalation_h": "Escalate after (hours)",
       "label_nudge_h": "Nudge every (hours)",
-      "tooltip_escalation": "Notify the next stage and your admins when nobody has decided in this time. Leave empty to disable. Escalating never changes who may approve.",
+      "tooltip_escalation": "Notify the reviewers the request is waiting on, plus your admins, when nobody has decided in this time. Leave empty to disable. Escalating never changes who may approve.",
       "tooltip_nudge": "Re-notify reviewers who have not decided, on this cadence. Leave empty to disable."
     },
     "datasource_health": {

@@ -1212,15 +1212,30 @@ the prior stamp under a row lock and publish their event inside that same transa
 who decides between the scan and the lock yields a no-op rather than a stray notification, and a
 second replica cannot double-fire. This is why the jobs are safe to run on every node.
 
-**Recipients follow intent.** An escalation goes to the plan's reviewers **plus** every active org
-admin — the whole point is that those reviewers did not act, so re-telling only them would be a
-nudge. A nudge goes to the reviewers already on the hook and deliberately does not copy admins.
+**Recipients follow intent, at the stage that is actually blocked.** Both events resolve reviewers
+through `core.api.ReviewStages.current` — the same definition `DefaultReviewService` uses to decide
+who *may* act, deliberately shared so the two cannot drift. Using the plan's lowest stage instead
+would, on a multi-stage plan whose first stage has already approved, remind the people who are done
+and say nothing to the ones holding it up. An escalation adds **every active org admin** on top —
+the whole point is that the assigned reviewers did not act, so re-telling only them would be a
+nudge. A nudge goes to those reviewers alone and deliberately does not copy admins.
 PagerDuty pages on `REVIEW_ESCALATED` via the `REVIEW_STALLED` trigger, and has no trigger at
 all for `REVIEW_NUDGE`: a reminder is not an incident.
 
 **Grouped requests take the minimum** non-null `escalation_after_hours` across their members' plans
 — see [03-data-model.md](03-data-model.md#escalation-and-nudges-622) — and stamp without notifying,
-because `requestgroups` has no notification path at all.
+because `requestgroups` has no notification path at all. They have **no nudge half** for the same
+reason: a reminder needs somebody to remind, so a group nudge could only advance a cursor nobody
+reads, rewriting every pending bundle on every interval. `request_groups` therefore has
+`escalated_at` and no `last_nudged_at`.
+
+**API-request escalations do not email.** `REVIEW_ESCALATED` / `REVIEW_NUDGE` are the first event
+types shared between queries and API requests, and the query path has an email template while
+API-request events deliver in-app and over chat only (AF-500). `EmailNotificationStrategy` therefore
+gates on the context, not just the event type — otherwise an API escalation would render a
+query-shaped mail with an empty SQL-preview block. Note the pre-existing consequence: because plan
+channels are resolved by *datasource*, an API-request context resolves none, so those escalations
+reach the in-app bell and the system-SMTP fallback but not a configured Slack/PagerDuty channel.
 
 All three jobs inject `java.time.Clock` rather than calling `Instant.now()`, per
 `.claude/patterns/scheduled-job.md`. `QueryTimeoutJob` and `ScheduledQueryRunJob` predate that rule

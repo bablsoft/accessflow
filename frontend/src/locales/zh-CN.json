@@ -750,7 +750,7 @@
       "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。",
       "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）",
       "escalated_title": "已升级 — 仍未作出决定",
-      "escalated_body": "在审核方案的 {{hours}} 小时升级时限内无人处理，因此已于{{when}}升级至下一阶段及您的管理员。该请求尚未被批准或拒绝，升级也不会改变谁有权决定。"
+      "escalated_body": "在审核方案的 {{hours}} 小时升级时限内无人处理，因此已于{{when}}升级至当前待处理的审核人及您的管理员。该请求尚未被批准或拒绝，升级也不会改变谁有权决定。"
     }
   },
   "reviews": {
@@ -1725,7 +1725,9 @@
         "test_success": "SMTP 服务器已接受测试邮件",
         "not_configured": "系统 SMTP 尚未配置。请配置以启用用户邀请和邮件备用发送。"
       },
-      "label_pagerduty_trigger_review_stalled": "审核停滞（无人及时处理）"
+      "label_pagerduty_trigger_review_stalled": "审核停滞（无人及时处理）",
+      "label_pagerduty_trigger_anomaly": "检测到行为异常",
+      "label_pagerduty_trigger_break_glass": "已执行紧急break-glass查询"
     },
     "oauth2": {
       "title": "OAuth 服务商",
@@ -1969,7 +1971,7 @@
       },
       "label_escalation_h": "升级时限（小时）",
       "label_nudge_h": "提醒间隔（小时）",
-      "tooltip_escalation": "若在此时间内无人处理，则通知下一阶段及您的管理员。留空表示停用。升级不会改变谁有权批准。",
+      "tooltip_escalation": "若在此时间内无人处理，则通知当前待处理的审核人及您的管理员。留空表示停用。升级不会改变谁有权批准。",
       "tooltip_nudge": "按此频率再次提醒尚未处理的审核人。留空表示停用。"
     },
     "groups": {

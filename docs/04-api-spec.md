@@ -1848,8 +1848,8 @@ Review-plan bodies additionally accept two optional escalation knobs (#622), bot
 
 | Field | Rules |
 |---|---|
-| `escalation_after_hours` | Optional, 1–8760. Hours a request may sit in `PENDING_REVIEW` before it is escalated to the next stage and org admins. Omit or send `null` to disable. |
-| `nudge_interval_hours` | Optional, 1–8760. Hours between reminders to reviewers who have not decided. Omit or send `null` to disable. |
+| `escalation_after_hours` | Optional, 1–8760, and must be **strictly less than** `approval_timeout_hours` — a longer window can never fire, because `QueryTimeoutJob` auto-rejects first (HTTP 400 `ILLEGAL_REVIEW_PLAN`). Hours a request may sit in `PENDING_REVIEW` before it is escalated to the reviewers at its current stage plus org admins. Omit or send `null` to disable. |
+| `nudge_interval_hours` | Optional, 1–8760. Hours between reminders to the reviewers at the request's current stage. Omit or send `null` to disable. |
 
 Both are echoed on every review-plan response. On `PUT`, an explicit `null` **clears** the setting —
 these are the only two review-plan fields where null is meaningful rather than "leave unchanged", so

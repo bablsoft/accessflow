@@ -750,7 +750,7 @@
       "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}.",
       "timeline_on_behalf_of": "{{actor}} (en nombre de {{delegator}})",
       "escalated_title": "Escalado: aún sin decisión",
-      "escalated_body": "Nadie decidió dentro del periodo de escalado de {{hours}} horas del plan de revisión, por lo que se escaló a la siguiente etapa y a tus administradores {{when}}. No se ha aprobado ni rechazado, y escalar no cambia quién puede decidir."
+      "escalated_body": "Nadie decidió dentro del periodo de escalado de {{hours}} horas del plan de revisión, por lo que {{when}} se escaló a los revisores pendientes y a tus administradores. No se ha aprobado ni rechazado, y escalar no cambia quién puede decidir."
     }
   },
   "reviews": {
@@ -1725,7 +1725,9 @@
         "test_success": "El servidor SMTP aceptó el correo de prueba",
         "not_configured": "El SMTP del sistema no está configurado. Configúralo para habilitar las invitaciones de usuarios y el envío de correo por defecto."
       },
-      "label_pagerduty_trigger_review_stalled": "Revisión estancada (nadie decidió a tiempo)"
+      "label_pagerduty_trigger_review_stalled": "Revisión estancada (nadie decidió a tiempo)",
+      "label_pagerduty_trigger_anomaly": "Anomalía de comportamiento detectada",
+      "label_pagerduty_trigger_break_glass": "Consulta de emergencia ejecutada"
     },
     "oauth2": {
       "title": "Proveedores de OAuth",
@@ -1969,7 +1971,7 @@
       },
       "label_escalation_h": "Escalar tras (horas)",
       "label_nudge_h": "Recordar cada (horas)",
-      "tooltip_escalation": "Avisa a la siguiente etapa y a tus administradores cuando nadie haya decidido en ese tiempo. Déjalo vacío para desactivarlo. Escalar nunca cambia quién puede aprobar.",
+      "tooltip_escalation": "Avisa a los revisores pendientes y a tus administradores cuando nadie haya decidido en ese tiempo. Déjalo vacío para desactivarlo. Escalar nunca cambia quién puede aprobar.",
       "tooltip_nudge": "Vuelve a avisar a los revisores que no han decidido, con esta cadencia. Déjalo vacío para desactivarlo."
     },
     "groups": {

@@ -373,10 +373,12 @@ APPROVED → FAILED (execution error)</pre>
           <ul>
             <li>
               <strong>Escalate after</strong> &mdash; when nobody has decided within this window, the
-              request is raised to the next approval stage <em>and</em> your organization's admins,
+              request is raised to the reviewers it is waiting on <em>and</em> your organization's admins,
               once. It appears with an escalation notice on the request page and goes out over the
               plan's notification channels; PagerDuty pages for it on channels that enable the
-              <code>REVIEW_STALLED</code> trigger.
+              <code>REVIEW_STALLED</code> trigger. It must be shorter than the approval timeout
+              &mdash; a longer window could never fire, so AccessFlow rejects it rather than
+              letting you save a setting that quietly does nothing.
             </li>
             <li>
               <strong>Nudge every</strong> &mdash; re-notifies the reviewers who still have not
