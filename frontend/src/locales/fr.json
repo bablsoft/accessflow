@@ -750,7 +750,14 @@
       "approved_by_grant_body_no_approver": "Cette requête était couverte par l’octroi d’accès {{grantId}}.",
       "timeline_on_behalf_of": "{{actor}} (au nom de {{delegator}})",
       "escalated_title": "Escaladé — toujours sans décision",
-      "escalated_body": "Personne n'a statué dans le délai d'escalade de {{hours}} heures du plan de revue ; la demande a donc été remontée {{when}} aux relecteurs attendus et à vos administrateurs. Elle n'est ni approuvée ni rejetée, et l'escalade ne change pas qui peut décider."
+      "escalated_body": "Personne n'a statué dans le délai d'escalade de {{hours}} heures du plan de revue ; la demande a donc été remontée {{when}} aux relecteurs attendus et à vos administrateurs. Elle n'est ni approuvée ni rejetée, et l'escalade ne change pas qui peut décider.",
+      "export": "Exporter",
+      "export_csv": "Exporter en CSV",
+      "export_pdf": "Exporter en PDF",
+      "export_failed": "Impossible d'exporter les résultats",
+      "export_truncated": "L'export a été tronqué au plafond de lignes configuré",
+      "export_denied_tooltip": "L'export de ces résultats est refusé par la politique d'export de votre organisation",
+      "export_denied_classified_tooltip": "Export refusé : ce résultat contient des colonnes classifiées {{classifications}}"
     }
   },
   "reviews": {
@@ -1156,6 +1163,7 @@
         "state_disabled": "Désactivée"
       },
       "tab_row_security": "Sécurité des lignes · {{count}}",
+      "tab_export_policy": "Export · {{count}}",
       "tab_classification": "Classification · {{count}}",
       "tab_discovery": "Découverte · {{count}}",
       "row_security": {
@@ -1323,6 +1331,48 @@
         "bulk_action_bar_count_other": "{{count}} sélectionnés",
         "bulk_toast_summary_one": "{{count}} découverte décidée",
         "bulk_toast_summary_other": "{{count}} découvertes décidées"
+      },
+      "export_policies": {
+        "title": "Politiques d'export des résultats",
+        "description": "Contrôle la façon dont les résultats de requêtes quittent AccessFlow — autoriser, filigraner, plafonner ou refuser les exports des résultats de cette source de données. Les politiques sans cibles s'appliquent à tous les exportateurs, administrateurs compris ; si plusieurs s'appliquent, la plus restrictive l'emporte.",
+        "add": "Ajouter une politique",
+        "empty_title": "Aucune politique d'export",
+        "empty_description": "Sans politique, les résultats peuvent être exportés librement et sans filigrane. Chaque export reste néanmoins audité.",
+        "col_mode": "Mode",
+        "col_details": "Détails",
+        "col_applies_to": "S'applique à",
+        "col_enabled": "Activée",
+        "col_actions": "Actions",
+        "label_enabled": "Activée",
+        "state_disabled": "Désactivée",
+        "edit": "Modifier la politique",
+        "delete": "Supprimer la politique",
+        "delete_confirm_title": "Supprimer cette politique d'export ?",
+        "delete_confirm_body": "Les exports régis par cette politique retomberont sur les politiques restantes (ou sur un export sans restriction si aucune ne s'applique).",
+        "delete_success": "Politique d'export supprimée",
+        "delete_error": "Impossible de supprimer la politique d'export",
+        "save_success": "Politique d'export enregistrée",
+        "save_error": "Impossible d'enregistrer la politique d'export",
+        "create_title": "Ajouter une politique d'export",
+        "edit_title": "Modifier la politique d'export",
+        "label_mode": "Mode",
+        "mode_required": "Le mode est requis",
+        "label_row_cap": "Plafond de lignes",
+        "row_cap_required": "Une politique ROW_CAP doit définir un plafond de lignes",
+        "row_cap_range": "Le plafond de lignes doit être compris entre 1 et 1 000 000",
+        "label_deny_classifications": "Refuser selon les classifications",
+        "deny_classifications_hint": "Laissez vide pour refuser dès que le résultat contient une colonne classifiée.",
+        "label_applies_roles": "S'applique aux rôles",
+        "applies_hint": "Laissez les trois listes vides pour appliquer la politique à tous les exportateurs (pas d'exception admin).",
+        "label_applies_groups": "S'applique aux groupes",
+        "label_applies_users": "S'applique aux utilisateurs",
+        "preview_label": "Aperçu du filigrane",
+        "detail_row_cap": "Plafonné à {{count}} lignes",
+        "detail_deny_any": "Refuse dès la moindre colonne classifiée",
+        "applies_roles": "{{count}} rôles",
+        "applies_groups": "{{count}} groupes",
+        "applies_users": "{{count}} utilisateurs",
+        "applies_everyone": "Tout le monde"
       }
     }
   },
@@ -2223,7 +2273,8 @@
       "GRANT_STALE": "L'accès à {{datasource}} semble inutilisé — à examiner",
       "fallback": "Nouvelle notification",
       "REVIEW_ESCALATED": "Toujours sans décision sur {{datasource}} — remonté à vous",
-      "REVIEW_NUDGE": "Rappel : une requête sur {{datasource}} attend votre revue"
+      "REVIEW_NUDGE": "Rappel : une requête sur {{datasource}} attend votre revue",
+      "SENSITIVE_RESULT_EXPORTED": "Données sensibles ({{classifications}}) exportées depuis {{datasource}}"
     }
   },
   "profile": {
@@ -2831,7 +2882,8 @@
       "SSO_CONFIGURE": "Configurer le SSO",
       "SMTP_CONFIGURE": "Configurer le SMTP",
       "LOCALIZATION_CONFIGURE": "Configurer la localisation",
-      "SETUP_PROGRESS_VIEW": "Voir la progression de la configuration"
+      "SETUP_PROGRESS_VIEW": "Voir la progression de la configuration",
+      "EXPORT_POLICY_MANAGE": "Gérer les politiques d'export"
     },
     "api_variable_kind": {
       "CONSTANT": "Constante",
@@ -2876,6 +2928,12 @@
       "ACTIVE": "Active",
       "EXPIRED": "Expirée",
       "REVOKED": "Révoquée"
+    },
+    "export_policy_mode": {
+      "ALLOW": "Autoriser",
+      "WATERMARK": "Filigrane",
+      "ROW_CAP": "Plafond de lignes",
+      "DENY_CLASSIFIED": "Refuser si classifié"
     }
   },
   "access": {

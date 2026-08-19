@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-19",
       "url": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/datasources/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -376,6 +376,20 @@
             </picture>
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
           </figure>
+          <p>
+            <strong>Export policies.</strong> Masking and row security govern what a user
+            <em>sees</em>; the datasource <em>Export policy</em> tab governs what <em>leaves</em>.
+            Each policy sets a mode — <em>allow</em>, <em>watermark</em>, <em>row cap</em>, or
+            <em>deny when classified</em> (optionally scoped to specific classifications) — and an
+            <em>applies to</em> roles / groups / users target (empty = every exporter, no implicit
+            admin bypass). When several policies apply, the most restrictive wins. The policies gate
+            the signed CSV/PDF result download on the query detail page and the results attachment
+            on recurring-run emails: a denied exporter sees a disabled export button with the
+            reason, a watermarked download carries the exporter, timestamp, and query id baked into
+            the signed bytes (the modal previews the exact stamp), and every export lands in the
+            audit log as <code>RESULT_EXPORTED</code> — with an admin notification whenever a
+            classified result leaves.
+          </p>
           <h3 id="cfg-data-classifications">Data classification</h3>
           <p>
             The datasource <em>Classification</em> tab tags

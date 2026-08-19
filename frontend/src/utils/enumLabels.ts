@@ -33,6 +33,7 @@ import type {
   DataClassification,
   DbType,
   InvitationStatus,
+  ExportPolicyMode,
   MaskingStrategy,
   OAuth2Provider,
   OptimizationType,
@@ -182,6 +183,16 @@ export const MASKING_STRATEGIES: readonly MaskingStrategy[] = [
 
 export const maskingStrategyLabel = (t: TFunction, v: MaskingStrategy): string =>
   t(`enums.masking_strategy.${v}` as const);
+
+export const EXPORT_POLICY_MODES: readonly ExportPolicyMode[] = [
+  'ALLOW',
+  'WATERMARK',
+  'ROW_CAP',
+  'DENY_CLASSIFIED',
+] as const;
+
+export const exportPolicyModeLabel = (t: TFunction, v: ExportPolicyMode): string =>
+  t(`enums.export_policy_mode.${v}` as const);
 
 export const ROW_SECURITY_OPERATORS: readonly RowSecurityOperator[] = [
   'EQUALS',

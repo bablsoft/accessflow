@@ -56,6 +56,8 @@ public enum Permission {
     ROW_SECURITY_MANAGE(PermissionGroup.DATA_POLICIES),
     /** Manage data-classification tags. */
     DATA_CLASSIFICATION_MANAGE(PermissionGroup.DATA_POLICIES),
+    /** Manage result-export governance policies (#626). */
+    EXPORT_POLICY_MANAGE(PermissionGroup.DATA_POLICIES),
 
     /** Manage review plans. */
     REVIEW_PLAN_MANAGE(PermissionGroup.WORKFLOW_ADMIN),

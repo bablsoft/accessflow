@@ -376,6 +376,40 @@ describe('NotificationBell', () => {
     expect(navigateMock).toHaveBeenCalledWith('/access-requests');
   });
 
+  it('renders SENSITIVE_RESULT_EXPORTED with classifications and navigates to the query', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'sre1',
+          event_type: 'SENSITIVE_RESULT_EXPORTED',
+          query_request_id: 'q-626',
+          api_request_id: null,
+          payload: {
+            datasource: 'billing-prod',
+            submitter: 'analyst@acme.com',
+            export_classifications: 'PCI, PHI',
+            export_format: 'CSV',
+          },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/Sensitive data \(PCI, PHI\) exported from billing-prod/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('sre1'));
+    expect(navigateMock).toHaveBeenCalledWith('/queries/q-626');
+  });
+
   it('delete button calls deleteNotification and does not navigate', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 0 });
     deleteNotificationMock.mockResolvedValue(undefined);

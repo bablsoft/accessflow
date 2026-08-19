@@ -750,7 +750,14 @@
       "approved_by_grant_body_no_approver": "This query was covered by access grant {{grantId}}.",
       "timeline_on_behalf_of": "{{actor}} (on behalf of {{delegator}})",
       "escalated_title": "Escalated — still awaiting a decision",
-      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so {{when}} this was raised to the reviewers it is waiting on and your admins. It has not been approved or rejected, and escalating does not change who may decide."
+      "escalated_body": "Nobody decided within the review plan's {{hours}}-hour escalation window, so {{when}} this was raised to the reviewers it is waiting on and your admins. It has not been approved or rejected, and escalating does not change who may decide.",
+      "export": "Export",
+      "export_csv": "Export CSV",
+      "export_pdf": "Export PDF",
+      "export_failed": "Failed to export results",
+      "export_truncated": "The export was truncated at the configured row cap",
+      "export_denied_tooltip": "Exporting these results is denied by your organization's export policy",
+      "export_denied_classified_tooltip": "Export denied: this result contains columns classified as {{classifications}}"
     }
   },
   "reviews": {
@@ -1156,6 +1163,7 @@
       "not_found_message": "Datasource not found.",
       "back_to_list": "Back to list",
       "tab_row_security": "Row security · {{count}}",
+      "tab_export_policy": "Exports · {{count}}",
       "tab_classification": "Classification · {{count}}",
       "tab_discovery": "Discovery · {{count}}",
       "row_security": {
@@ -1323,6 +1331,48 @@
         "bulk_action_bar_count_other": "{{count}} selected",
         "bulk_toast_summary_one": "{{count}} finding decided",
         "bulk_toast_summary_other": "{{count}} findings decided"
+      },
+      "export_policies": {
+        "title": "Result-export policies",
+        "description": "Govern how query results leave AccessFlow — allow, watermark, cap, or deny exports of this datasource's result sets. Policies with no applies-to targets apply to every exporter, admins included; when several apply, the most restrictive wins.",
+        "add": "Add policy",
+        "empty_title": "No export policies",
+        "empty_description": "Without a policy, results can be exported freely and unwatermarked. Every export is still audited.",
+        "col_mode": "Mode",
+        "col_details": "Details",
+        "col_applies_to": "Applies to",
+        "col_enabled": "Enabled",
+        "col_actions": "Actions",
+        "label_enabled": "Enabled",
+        "state_disabled": "Disabled",
+        "edit": "Edit policy",
+        "delete": "Delete policy",
+        "delete_confirm_title": "Delete this export policy?",
+        "delete_confirm_body": "Exports currently governed by this policy will fall back to the remaining policies (or to unrestricted export when none apply).",
+        "delete_success": "Export policy deleted",
+        "delete_error": "Failed to delete the export policy",
+        "save_success": "Export policy saved",
+        "save_error": "Failed to save the export policy",
+        "create_title": "Add export policy",
+        "edit_title": "Edit export policy",
+        "label_mode": "Mode",
+        "mode_required": "Mode is required",
+        "label_row_cap": "Row cap",
+        "row_cap_required": "A ROW_CAP policy must set a row cap",
+        "row_cap_range": "Row cap must be between 1 and 1,000,000",
+        "label_deny_classifications": "Deny on classifications",
+        "deny_classifications_hint": "Leave empty to deny whenever the result contains any classified column.",
+        "label_applies_roles": "Applies to roles",
+        "applies_hint": "Leave all three lists empty to apply the policy to every exporter (no admin bypass).",
+        "label_applies_groups": "Applies to groups",
+        "label_applies_users": "Applies to users",
+        "preview_label": "Watermark preview",
+        "detail_row_cap": "Capped at {{count}} rows",
+        "detail_deny_any": "Denies on any classified column",
+        "applies_roles": "{{count}} roles",
+        "applies_groups": "{{count}} groups",
+        "applies_users": "{{count}} users",
+        "applies_everyone": "Everyone"
       }
     }
   },
@@ -2223,7 +2273,8 @@
       "GRANT_STALE": "Access to {{datasource}} looks unused — review it",
       "fallback": "New notification",
       "REVIEW_ESCALATED": "No decision yet on {{datasource}} — escalated to you",
-      "REVIEW_NUDGE": "Reminder: a query on {{datasource}} awaits your review"
+      "REVIEW_NUDGE": "Reminder: a query on {{datasource}} awaits your review",
+      "SENSITIVE_RESULT_EXPORTED": "Sensitive data ({{classifications}}) exported from {{datasource}}"
     }
   },
   "profile": {
@@ -2855,7 +2906,8 @@
       "SSO_CONFIGURE": "Configure SSO",
       "SMTP_CONFIGURE": "Configure SMTP",
       "LOCALIZATION_CONFIGURE": "Configure localization",
-      "SETUP_PROGRESS_VIEW": "View setup progress"
+      "SETUP_PROGRESS_VIEW": "View setup progress",
+      "EXPORT_POLICY_MANAGE": "Manage export policies"
     },
     "api_variable_kind": {
       "CONSTANT": "Constant",
@@ -2900,6 +2952,12 @@
       "ACTIVE": "Active",
       "EXPIRED": "Expired",
       "REVOKED": "Revoked"
+    },
+    "export_policy_mode": {
+      "ALLOW": "Allow",
+      "WATERMARK": "Watermark",
+      "ROW_CAP": "Row cap",
+      "DENY_CLASSIFIED": "Deny when classified"
     }
   },
   "access": {

@@ -101,6 +101,15 @@ class MsTeamsPayloadFactory {
                 && ctx.approvalTimeoutHours() != null) {
             facts.add(fact("Auto-rejected after", ctx.approvalTimeoutHours() + " hours"));
         }
+        // #626: sensitive result export — classification list and format/row-count summary.
+        if (ctx.exportClassifications() != null && !ctx.exportClassifications().isBlank()) {
+            facts.add(fact("Classifications", ctx.exportClassifications()));
+        }
+        if (ctx.exportFormat() != null) {
+            facts.add(fact("Export", ctx.executionRowsAffected() != null
+                    ? ctx.exportFormat() + " · " + ctx.executionRowsAffected() + " rows"
+                    : ctx.exportFormat()));
+        }
         body.add(factSet(facts));
 
         if (ctx.fullSqlText() != null && !ctx.fullSqlText().isBlank()) {
@@ -192,6 +201,7 @@ class MsTeamsPayloadFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case GRANT_STALE -> "🧹 Unused Access Grant";
+            case SENSITIVE_RESULT_EXPORTED -> "📤 Sensitive Data Exported";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";

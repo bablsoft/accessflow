@@ -345,6 +345,44 @@ unfiltered. Applied policy ids ride on the `QUERY_EXECUTED` audit metadata
 
 ---
 
+## export_policy
+
+Per-datasource **result-export governance / DLP** policies (#626). Each row governs how a query's
+persisted result set may leave AccessFlow — via `GET /queries/{id}/results/export` (CSV/PDF) and via
+the results-CSV attachment on recurring-execution emails. Resolution runs at **export time**, not
+execution time: the exporter's applicable policies are combined most-restrictive-wins
+(`ALLOW < WATERMARK < ROW_CAP < DENY_CLASSIFIED`), classification presence is computed by matching the
+persisted result's column names and the query's referenced tables against `data_classification_tag`
+(table-level tags classify every returned column of the table; column-level tags match by name,
+case-insensitively). Created by `V145__create_export_policy.sql`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` |
+| `datasource_id` | FK → `datasources` (ON DELETE CASCADE) |
+| `mode` | ENUM `export_policy_mode`: `ALLOW` \| `WATERMARK` \| `ROW_CAP` \| `DENY_CLASSIFIED` |
+| `row_cap` | INT nullable — required when `mode = ROW_CAP` (service-validated); effective cap is the minimum across applicable `ROW_CAP` policies |
+| `deny_classifications` | TEXT[] nullable — `data_classification` values; only meaningful for `DENY_CLASSIFIED`, empty/NULL = deny on **any** classified column |
+| `applies_to_roles` | TEXT[] nullable — role names (system or custom, matched case-insensitively) |
+| `applies_to_group_ids` | UUID[] nullable — user-group ids the policy applies to |
+| `applies_to_user_ids` | UUID[] nullable — individual user ids the policy applies to |
+| `enabled` | BOOLEAN DEFAULT true — disabled policies are ignored during resolution |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Indexed by `(organization_id, datasource_id, enabled)` to back the per-export resolution scan.
+
+**Polarity.** Same as `row_security_policy.applies_to_*`: all three lists empty ⇒ the policy applies
+to **every** exporter (governance-safe default); non-empty narrows by role / group / user id. There is
+**no implicit ADMIN bypass**. A `DENY_CLASSIFIED` policy only participates in the combination when the
+result actually contains a matching classified column — otherwise it drops out and the remaining
+policies decide. No applicable policy ⇒ `ALLOW`, unwatermarked. `WATERMARK` and `ROW_CAP` exports are
+both watermarked (a capped file must carry its cap provenance); the watermark (exporter email, UTC
+timestamp, query request id) is baked into the bytes **before** signing.
+
+---
+
 ## data_classification_tag
 
 Data-classification tags on datasource tables/columns (AF-447). Each row binds one classification to
@@ -1523,6 +1561,8 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
 | `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED` | Admin confirms (tag applied via the AF-447 service, masking derived) or dismisses (permanently suppressed) a discovery finding via `/datasources/{id}/discovery/findings/bulk-decision`. Resource: `discovery_finding`. Metadata: table, column, classification, detector, confidence, and `tagConflict` when the tag already existed. |
 | `COMPLIANCE_REPORT_EXPORTED` | AUDITOR/ADMIN exported a signed compliance report via `GET /admin/compliance/reports/export` (AF-459). Resource: `compliance_report`, no resource id. Metadata captures `report_type`, `format`, `period_from`, `period_to`, optional `datasource_id`, `row_count`, `truncated`, and the export's `content_sha256` + `signature` + `signature_algorithm` — chaining the export's hash into the tamper-evident log. |
+| `EXPORT_POLICY_CREATED` / `EXPORT_POLICY_UPDATED` / `EXPORT_POLICY_DELETED` | Admin creates / updates / deletes a result-export policy via the `/datasources/{id}/export-policies` CRUD endpoints (#626). Resource: `export_policy`. |
+| `RESULT_EXPORTED` | A query's persisted result set left AccessFlow — via `GET /queries/{id}/results/export` (`metadata.trigger = "endpoint"`, actor = the exporter) or as the results-CSV attachment on a recurring-execution email (`metadata.trigger = "email_attachment"`, actor = the recipient). Resource: `query_request`. Metadata captures `format`, `row_count`, `truncated`, `watermarked`, `policy_ids`, `classifications_present`, and for endpoint exports the `content_sha256` + `signature_algorithm` chaining the signed bytes into the tamper-evident log. Written fail-hard on the endpoint path (no audit row ⇒ no download). |
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 | `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |
 
@@ -1532,7 +1572,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 

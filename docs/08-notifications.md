@@ -21,6 +21,7 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `AI_HIGH_RISK` | AI analysis returns `risk_level = CRITICAL` | All ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook), since per-channel routing rules are not yet modeled. | implemented |
 | `ANOMALY_DETECTED` | `BehaviorAnomalyDetectionJob` flags a behavioural anomaly (UBA, AF-383) | All ADMIN users in the org plus the flagged user. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `GRANT_STALE` | `GrantUsageAggregationJob` finds a standing grant whose recommendation is `NEVER_USED` or `STALE` and which is outside `accessflow.access.usage.nudge-cooldown` (#625) | All active ADMIN users in the org — **not** the grant holder: admins are the party who can act on it, and telling one user about another's inactivity would leak activity data across the tenant. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram) mirroring the `ANOMALY_DETECTED` fanout. Advisory: it never pages (no `PagerDutyTrigger` maps to it) and never opens a ticket (no `TicketingTrigger` does). | implemented |
+| `SENSITIVE_RESULT_EXPORTED` | A query result containing classified columns left AccessFlow (#626) — via `GET /queries/{id}/results/export` or as the results-CSV attachment on a recurring-execution email. Fired only when the export actually produced data AND ≥1 classified column was present (a policy deny is audited + 403'd, not notified) | All active ADMIN users in the org — the export was already permitted by policy, so this is oversight, not an approval loop. Fanned out to **all** active org channels mirroring `GRANT_STALE`. Advisory: it never pages (no `PagerDutyTrigger` maps to it) and never opens a ticket (no `TicketingTrigger` does). | implemented |
 | `BREAK_GLASS_EXECUTED` | A break-glass / emergency-access query executes, bypassing review (AF-385) | All active ADMIN users in the org. Fanned out to **all** active org channels (Email/Slack/Webhook/PagerDuty) mirroring the `AI_HIGH_RISK` fanout. | implemented |
 | `WEEKLY_DIGEST` | `WeeklyDigestJob` fires for a user opted into the weekly dashboard digest (AF-498) | The single opted-in user (digest owner). Delivered via the user's email + active org chat channels (Email/Slack/Discord/Teams/Telegram); PagerDuty treats it as not-applicable (never pages). | implemented |
 | `ATTESTATION_CAMPAIGN_OPENED` | An access-recertification campaign opens (AF-384) | The campaign's eligible reviewers (datasource reviewers) plus active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram) mirroring the `ANOMALY_DETECTED` fanout; PagerDuty treats it as not-applicable (never pages). | implemented |
@@ -75,6 +76,7 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/review-escalated.html` — `REVIEW_ESCALATED` (#622; the plan's escalation window and how long the request has waited, with a CTA into the review queue)
 - `email/review-nudge.html` — `REVIEW_NUDGE` (#622; the same query summary as the ready-for-review mail, framed as a reminder)
 - `email/grant-stale.html` — `GRANT_STALE` (#625; the grant holder, the granted resource and its kind, the recommendation, and either the idle-days count or an explicit "never used" line — the two are rendered differently because null days is not a large number of days — with a CTA to the over-provisioned access report)
+- `email/sensitive-result-exported.html` — `SENSITIVE_RESULT_EXPORTED` (#626; the exporter, the datasource, the classification list, format + row count, an extra line when the egress was a recurring-email attachment, and a CTA to the query detail page)
 - `email/api-connector-token-failed.html` — `API_CONNECTOR_OAUTH2_TOKEN_FAILED` (AF-500 / #506; red alert banner, the connector name, and a CTA to the connector settings — never the token/secret)
 
 Templates include:
@@ -497,6 +499,7 @@ in `NotificationContextBuilder`:
 | `AI_HIGH_RISK` | All active org admins |
 | `ANOMALY_DETECTED` | All active org admins plus the flagged user |
 | `GRANT_STALE` | All active org admins (never the grant holder) |
+| `SENSITIVE_RESULT_EXPORTED` | All active org admins (never the exporter alone) |
 | `REVIEW_ESCALATED` | Current-stage reviewers + all active org admins, de-duplicated |
 | `REVIEW_NUDGE` | Current-stage reviewers only |
 | `ACCESS_REQUEST_SUBMITTED` | Eligible plan approvers at the lowest stage (excluding the requester), falling back to all active org admins when the plan resolves no one |

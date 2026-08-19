@@ -35,6 +35,13 @@ import java.util.UUID;
  * {@code submittedByUserId}/{@code submitterEmail} for the grant holder.
  * {@code grantDaysSinceLastUse} is null when the grant has never been used, which the templates
  * render differently from a large number of days.
+ *
+ * <p>The {@code export*} fields are only populated for
+ * {@link NotificationEventType#SENSITIVE_RESULT_EXPORTED} (#626). That event reuses
+ * {@code submittedByUserId}/{@code submitterEmail} for the <em>exporter</em> (who may not be the
+ * query's submitter) and {@code executionRowsAffected} for the exported row count;
+ * {@code exportClassifications} is the preformatted classification list (e.g. {@code "PCI, PHI"})
+ * and {@code exportTrigger} is {@code "endpoint"} or {@code "email_attachment"}.
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -77,7 +84,67 @@ public record NotificationContext(
         Long executionDurationMs,
         GrantResourceKind grantResourceKind,
         Long grantDaysSinceLastUse,
-        GrantUsageRecommendation grantRecommendation) {
+        GrantUsageRecommendation grantRecommendation,
+        String exportFormat,
+        String exportClassifications,
+        String exportTrigger) {
+
+    /**
+     * Compatibility constructor without the #626 result-export fields — every path other than
+     * {@code SENSITIVE_RESULT_EXPORTED}.
+     */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest,
+            UUID attestationCampaignId,
+            String attestationCampaignName,
+            Instant attestationDueAt,
+            UUID apiRequestId,
+            QueryStatus executionStatus,
+            Long executionRowsAffected,
+            Long executionDurationMs,
+            GrantResourceKind grantResourceKind,
+            Long grantDaysSinceLastUse,
+            GrantUsageRecommendation grantRecommendation) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                attestationCampaignId, attestationCampaignName, attestationDueAt, apiRequestId,
+                executionStatus, executionRowsAffected, executionDurationMs, grantResourceKind,
+                grantDaysSinceLastUse, grantRecommendation, null, null, null);
+    }
 
     /**
      * Compatibility constructor without the #625 grant-staleness fields — every path other than

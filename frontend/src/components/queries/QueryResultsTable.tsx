@@ -1,12 +1,20 @@
 import { useState } from 'react';
-import { Alert, Segmented, Skeleton, Table, Tooltip } from 'antd';
+import { Alert, App, Button, Dropdown, Segmented, Skeleton, Table, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { LockOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { DownloadOutlined, LockOutlined } from '@ant-design/icons';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { getQueryResults, queryKeys } from '@/api/queries';
-import type { TruncatedReason } from '@/types/api';
+import {
+  downloadResultExport,
+  fetchExportDecision,
+  resultExportKeys,
+} from '@/api/resultExport';
+import type { ResultExportFormat, TruncatedReason } from '@/types/api';
 import { documentsToJson } from '@/utils/resultDocuments';
+import { downloadBlob } from '@/utils/downloadBlob';
+import { apiErrorMessage } from '@/utils/apiErrors';
+import { showApiError } from '@/utils/showApiError';
 
 type ResultView = 'table' | 'json';
 
@@ -20,12 +28,34 @@ const DEFAULT_SIZE = 50;
 
 export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
   const { t } = useTranslation();
+  const { message } = App.useApp();
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(DEFAULT_SIZE);
   const [view, setView] = useState<ResultView>(defaultView);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: queryKeys.results(queryId, page, size),
     queryFn: () => getQueryResults(queryId, page, size),
+  });
+  // Server-computed export decision (AF-626): drives the export button state. Not fatal when it
+  // fails — the button simply hides, and the backend enforces the policy regardless.
+  const decisionQuery = useQuery({
+    queryKey: resultExportKeys.decision(queryId),
+    queryFn: () => fetchExportDecision(queryId),
+    retry: false,
+  });
+  const exportMutation = useMutation({
+    mutationFn: (format: ResultExportFormat) => downloadResultExport(queryId, format),
+    onSuccess: (result) => {
+      downloadBlob({ blob: result.blob, filename: result.filename });
+      if (result.truncated) {
+        message.warning(t('queries.detail.export_truncated'));
+      }
+    },
+    onError: (err) => {
+      showApiError(message, err, (e) =>
+        apiErrorMessage(e, () => t('queries.detail.export_failed')),
+      );
+    },
   });
 
   if (isLoading) {
@@ -76,8 +106,59 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
     return record;
   });
 
+  const decision = decisionQuery.data;
+  const exportDenied = decision != null && !decision.allowed;
+  const deniedTooltip = exportDenied
+    ? decision.classifications_present.length > 0
+      ? t('queries.detail.export_denied_classified_tooltip', {
+          classifications: decision.classifications_present.join(', '),
+        })
+      : t('queries.detail.export_denied_tooltip')
+    : '';
+  // AntD requires the Tooltip to wrap the disabled Button directly for the tooltip to fire,
+  // so the denied state drops the Dropdown entirely (QueryEditorPage break-glass idiom).
+  const exportButton = decision ? (
+    exportDenied ? (
+      <Tooltip title={deniedTooltip}>
+        <Button size="small" icon={<DownloadOutlined />} disabled aria-label={deniedTooltip}>
+          {t('queries.detail.export')}
+        </Button>
+      </Tooltip>
+    ) : (
+      <Dropdown
+        trigger={['click']}
+        menu={{
+          items: [
+            {
+              key: 'csv',
+              label: t('queries.detail.export_csv'),
+              onClick: () => exportMutation.mutate('CSV'),
+            },
+            {
+              key: 'pdf',
+              label: t('queries.detail.export_pdf'),
+              onClick: () => exportMutation.mutate('PDF'),
+            },
+          ],
+        }}
+      >
+        <Button size="small" icon={<DownloadOutlined />} loading={exportMutation.isPending}>
+          {t('queries.detail.export')}
+        </Button>
+      </Dropdown>
+    )
+  ) : null;
+
   const toggle = (
-    <div style={{ marginBottom: 8 }}>
+    <div
+      style={{
+        marginBottom: 8,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 8,
+      }}
+    >
       <Segmented<ResultView>
         size="small"
         value={view}
@@ -88,6 +169,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
           { label: t('queries.detail.view_json'), value: 'json' },
         ]}
       />
+      {exportButton}
     </div>
   );
 

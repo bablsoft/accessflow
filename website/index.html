@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.1.1",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-17",
+        "dateModified": "2026-08-19",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "isAccessibleForFree": true,
@@ -79,6 +79,7 @@
           "Configurable multi-stage review and approval workflows",
           "Workforce-ready auth — JWT, SAML 2.0, OAuth 2.0 / OIDC, SCIM 2.0 provisioning, TOTP",
           "Tamper-evident audit log and signed compliance reports",
+          "Result-export governance with watermarked, policy-gated downloads",
           "Personalized dashboard and weekly digest",
           "Cloud-native deploy via Docker Compose and Helm",
           "Infrastructure as Code with a Terraform / OpenTofu provider",
@@ -125,7 +126,7 @@
         "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-17"
+        "dateModified": "2026-08-19"
       }
     ]
   }
@@ -406,7 +407,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <h3>Tamper-evident audit &amp; compliance reports</h3>
-            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role.</p>
+            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role. And once a permitted query returns, <strong>result-export governance</strong> decides what may leave: per-datasource policies allow, <strong>watermark</strong>, row-cap, or deny downloads of classified results — the watermark (who, when, which query) is baked into the signed bytes, every export is audited, and "who downloaded this data" always has an answer.</p>
             <span class="tag">HMAC-SHA256 chain · signed exports</span>
           </div>
 
@@ -1373,6 +1374,7 @@
               <ul>
                 <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
                 <li>Compliance reports &amp; signed exports · Auditor role</li>
+                <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
                 <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
                 <li>Access recertification campaigns</li>
               </ul>

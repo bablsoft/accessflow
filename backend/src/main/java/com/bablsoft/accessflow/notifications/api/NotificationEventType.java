@@ -31,6 +31,7 @@ public enum NotificationEventType {
      * pages, never opens a ticket, and never revokes anything.
      */
     GRANT_STALE,
+    SENSITIVE_RESULT_EXPORTED,
     BREAK_GLASS_EXECUTED,
     WEEKLY_DIGEST,
     ATTESTATION_CAMPAIGN_OPENED,

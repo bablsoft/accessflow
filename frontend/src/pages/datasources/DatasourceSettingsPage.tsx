@@ -70,6 +70,8 @@ import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { ErDiagramTab } from '@/components/datasources/ErDiagramTab';
 import { MaskingTab } from '@/components/datasources/MaskingTab';
 import { listMaskingPolicies, maskingPolicyKeys } from '@/api/maskingPolicies';
+import { ExportPolicyTab } from '@/components/datasources/ExportPolicyTab';
+import { exportPolicyKeys, listExportPolicies } from '@/api/exportPolicies';
 import { RowSecurityTab } from '@/components/datasources/RowSecurityTab';
 import {
   listRowSecurityPolicies,
@@ -118,6 +120,11 @@ export function DatasourceSettingsPage() {
   const maskingPoliciesQuery = useQuery({
     queryKey: id ? maskingPolicyKeys.list(id) : ['masking-policies', 'list', 'idle'],
     queryFn: () => listMaskingPolicies(id!),
+    enabled: !!id,
+  });
+  const exportPoliciesQuery = useQuery({
+    queryKey: id ? exportPolicyKeys.list(id) : ['export-policies', 'list', 'idle'],
+    queryFn: () => listExportPolicies(id!),
     enabled: !!id,
   });
 
@@ -210,6 +217,7 @@ export function DatasourceSettingsPage() {
   const permissionsCount = permissionsQuery.data?.length ?? 0;
   const maskingCount = maskingPoliciesQuery.data?.length ?? 0;
   const rowSecurityCount = rowSecurityPoliciesQuery.data?.length ?? 0;
+  const exportPolicyCount = exportPoliciesQuery.data?.length ?? 0;
   const classificationCount = classificationTagsQuery.data?.length ?? 0;
   const discoveryPendingCount = discoveryPendingQuery.data?.total_elements ?? 0;
   const testIcon =
@@ -266,6 +274,10 @@ export function DatasourceSettingsPage() {
             label: t('datasources.settings.tab_row_security', { count: rowSecurityCount }),
           },
           {
+            key: 'export-policy',
+            label: t('datasources.settings.tab_export_policy', { count: exportPolicyCount }),
+          },
+          {
             key: 'classification',
             label: t('datasources.settings.tab_classification', { count: classificationCount }),
           },
@@ -283,6 +295,7 @@ export function DatasourceSettingsPage() {
         {tab === 'schema' && <SchemaTab dsId={ds.id} />}
         {tab === 'masking' && <MaskingTab dsId={ds.id} />}
         {tab === 'row-security' && <RowSecurityTab dsId={ds.id} />}
+        {tab === 'export-policy' && <ExportPolicyTab dsId={ds.id} />}
         {tab === 'classification' && <ClassificationTab dsId={ds.id} />}
         {tab === 'discovery' && <DiscoveryTab dsId={ds.id} />}
         {tab === 'er-diagram' && <ErDiagramTab dsId={ds.id} />}

@@ -424,6 +424,18 @@ why it is an admin/auditor surface and not something a grant holder can read abo
 anyone else. The recommendation it carries is **advisory only** — no authorization decision anywhere
 reads it, and nothing is revoked on its strength.
 
+**Result-export governance (#626):** `EXPORT_POLICY_MANAGE` gates the per-datasource export-policy
+CRUD (`/api/v1/datasources/{id}/export-policies`,
+`@PreAuthorize("hasAuthority('PERM_EXPORT_POLICY_MANAGE')")`); it sits in the `DATA_POLICIES` group
+beside masking / row security and is held by `ADMIN` (seeded by `V146`, same `VARCHAR`-catalog
+convention as `V134`). The **export endpoints themselves are not admin surfaces**:
+`GET /queries/{id}/results/export` and `/export-decision` carry the results endpoint's own
+authorization — `QUERY_ADMIN` or the query's submitter, anyone else receiving an indistinguishable
+404. Policy enforcement has **no implicit ADMIN bypass**: a policy whose `applies_to_*` lists are
+empty denies, caps, or watermarks admins exactly as it does everyone else. Every export writes a
+`RESULT_EXPORTED` audit row (fail-hard on the download path — no audit row, no bytes), and the
+watermark is baked into the signed bytes, so removing it invalidates the RS256 signature.
+
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
 `users.platform_admin` is an **orthogonal boolean flag, not a fifth role** — the four roles above are

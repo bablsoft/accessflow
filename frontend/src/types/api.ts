@@ -1604,6 +1604,48 @@ export interface CreateRowSecurityPolicyInput {
 
 export type UpdateRowSecurityPolicyInput = CreateRowSecurityPolicyInput;
 
+// --- AF-626: result-export governance & DLP ---
+
+export type ExportPolicyMode = 'ALLOW' | 'WATERMARK' | 'ROW_CAP' | 'DENY_CLASSIFIED';
+
+export type ResultExportFormat = 'CSV' | 'PDF';
+
+export interface ExportPolicy {
+  id: string;
+  datasource_id: string;
+  mode: ExportPolicyMode;
+  row_cap: number | null;
+  deny_classifications: DataClassification[];
+  applies_to_roles: string[];
+  applies_to_group_ids: string[];
+  applies_to_user_ids: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateExportPolicyInput {
+  mode: ExportPolicyMode;
+  row_cap?: number;
+  deny_classifications?: DataClassification[];
+  applies_to_roles?: string[];
+  applies_to_group_ids?: string[];
+  applies_to_user_ids?: string[];
+  enabled?: boolean;
+}
+
+export type UpdateExportPolicyInput = CreateExportPolicyInput;
+
+/** Server-computed export decision for the caller on one query's results. */
+export interface ExportDecision {
+  allowed: boolean;
+  effective_mode: ExportPolicyMode;
+  row_cap: number | null;
+  watermark: boolean;
+  policy_ids: string[];
+  classifications_present: DataClassification[];
+}
+
 export type DataClassification = 'PII' | 'PCI' | 'PHI' | 'GDPR' | 'FINANCIAL' | 'SENSITIVE';
 
 export interface DataClassificationTag {
@@ -1873,7 +1915,8 @@ export type UserNotificationEventType =
   | 'ACCESS_REQUEST_REJECTED'
   | 'ACCESS_GRANT_EXPIRED'
   | 'ACCESS_GRANT_REVOKED'
-  | 'GRANT_STALE';
+  | 'GRANT_STALE'
+  | 'SENSITIVE_RESULT_EXPORTED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -1891,6 +1934,8 @@ export interface UserNotificationPayload {
   requested_duration?: string;
   status?: AccessGrantStatus;
   expires_at?: string;
+  export_classifications?: string;
+  export_format?: string;
 }
 
 export interface UserNotification {

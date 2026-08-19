@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.compliance.api.ExportDecision;
+import com.bablsoft.accessflow.compliance.api.ResultExportGovernanceService;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.notifications.api.NotificationDeliveryException;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
@@ -23,6 +25,8 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Properties;
 
@@ -36,6 +40,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
     private final MailSenderFactory mailSenderFactory;
     private final MessageSource messageSource;
     private final QueryResultCsvRenderer queryResultCsvRenderer;
+    private final ResultExportGovernanceService resultExportGovernanceService;
+    private final Clock clock;
 
     @Override
     public NotificationChannelType supports() {
@@ -74,26 +80,51 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         }
         var sender = mailSenderFactory.create(config);
         var subject = subject(ctx);
-        var attachment = resolveAttachment(ctx);
-        var html = renderHtml(template, ctx, attachment != null);
         for (RecipientView recipient : ctx.recipients()) {
-            sendOne(sender, config, recipient.email(), subject, html, attachment);
+            var governed = resolveAttachment(ctx, recipient);
+            var html = renderHtml(template, ctx, governed != null);
+            sendOne(sender, config, recipient.email(), subject, html,
+                    governed != null ? governed.csv() : null);
+            if (governed != null) {
+                // Only after a successful send: the RESULT_EXPORTED audit row records that the
+                // data actually left, attributed to the recipient (#626).
+                resultExportGovernanceService.recordAttachmentExport(ctx.organizationId(),
+                        ctx.queryRequestId(), recipient.userId(), recipient.email(),
+                        governed.decision(), governed.csv().rowCount(),
+                        governed.csv().truncated());
+            }
         }
+    }
+
+    private record GovernedAttachment(QueryResultCsvRenderer.Csv csv, ExportDecision decision) {
     }
 
     /**
      * The results-CSV attachment for a successful recurring occurrence (#627); {@code null} for
      * every other event, for failed occurrences, and for occurrences with no stored result
      * (non-SELECT). The stored rows are post-mask, so nothing the in-app table would redact can
-     * leak into the attachment.
+     * leak into the attachment. Since #626 the attachment is governed per recipient by the
+     * datasource's export policies: a DENY decision suppresses the attachment (the email still
+     * delivers — the recipient can view results in-app, where the same policy governs the export
+     * button), a row cap truncates it, and WATERMARK/ROW_CAP stamp it.
      */
-    private QueryResultCsvRenderer.Csv resolveAttachment(NotificationContext ctx) {
+    private GovernedAttachment resolveAttachment(NotificationContext ctx, RecipientView recipient) {
         if (ctx.eventType() != NotificationEventType.QUERY_EXECUTED
                 || ctx.executionStatus() != com.bablsoft.accessflow.core.api.QueryStatus.EXECUTED
                 || ctx.queryRequestId() == null) {
             return null;
         }
-        return queryResultCsvRenderer.render(ctx.queryRequestId()).orElse(null);
+        var decision = resultExportGovernanceService.decide(ctx.organizationId(),
+                ctx.queryRequestId(), recipient.userId());
+        if (!decision.allowed()) {
+            log.info("Suppressing results attachment for query {} to {} — export denied by policy",
+                    ctx.queryRequestId(), recipient.userId());
+            return null;
+        }
+        return queryResultCsvRenderer
+                .render(ctx.queryRequestId(), decision, recipient.email(), Instant.now(clock))
+                .map(csv -> new GovernedAttachment(csv, decision))
+                .orElse(null);
     }
 
     /**
@@ -213,6 +244,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("attestationDueAt", ctx.attestationDueAt());
         context.setVariable("attestationUrl",
                 ctx.reviewUrl() != null ? ctx.reviewUrl().toString() : null);
+        context.setVariable("exportFormat", ctx.exportFormat());
+        context.setVariable("exportClassifications", ctx.exportClassifications());
+        context.setVariable("exportTrigger", ctx.exportTrigger());
         return templateEngine.process(template, context);
     }
 
@@ -234,6 +268,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case ATTESTATION_CAMPAIGN_OPENED -> "email/attestation-campaign-opened";
             // #625: staleness nudge to org admins.
             case GRANT_STALE -> "email/grant-stale";
+            // #626: sensitive result export oversight to org admins.
+            case SENSITIVE_RESULT_EXPORTED -> "email/sensitive-result-exported";
             // A connector whose OAuth2 token keeps failing is effectively down — alert admins by email.
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "email/api-connector-token-failed";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
@@ -254,6 +290,9 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // default below is already correct — spelled out so the choice is deliberate
             // rather than an accident of this switch having a default branch.
             case GRANT_STALE -> new Object[]{ctx.datasourceName()};
+            // #626: subject carries the datasource — same as the default, spelled out so the
+            // silent default is a deliberate choice.
+            case SENSITIVE_RESULT_EXPORTED -> new Object[]{ctx.datasourceName()};
             // #622: same shape as the default, spelled out so this switch's silent default is a
             // deliberate choice for these two rather than something nobody looked at.
             case REVIEW_ESCALATED, REVIEW_NUDGE -> new Object[]{ctx.datasourceName()};
@@ -279,6 +318,8 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case ATTESTATION_CAMPAIGN_OPENED ->
                     "notification.email.subject.attestation_campaign_opened";
             case GRANT_STALE -> "notification.email.subject.grant_stale";
+            case SENSITIVE_RESULT_EXPORTED ->
+                    "notification.email.subject.sensitive_result_exported";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "notification.email.subject.api_connector_token_failed";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.

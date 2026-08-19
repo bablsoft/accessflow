@@ -123,7 +123,7 @@ com.bablsoft.accessflow/
 ├── audit/          # Audit log service, ApplicationEvent consumers
 │   ├── api/
 │   └── internal/
-├── compliance/     # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459)
+├── compliance/     # Compliance reports + signed PDF/CSV exports over query snapshots (AF-459); result-export governance & DLP — export policies, watermarked result exports, RESULT_EXPORTED audit (#626)
 │   ├── api/
 │   └── internal/
 ├── dashboard/      # Personalized self-scoped dashboard: summary, query trends, AI-suggestion backlog, weekly digest/export (AF-498)

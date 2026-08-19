@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.compliance.api.ExportDecision;
+import com.bablsoft.accessflow.compliance.api.ResultExportWatermark;
 import com.bablsoft.accessflow.core.api.QueryResultPersistenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,31 +32,46 @@ public class QueryResultCsvRenderer {
     private final QueryResultPersistenceService queryResultPersistenceService;
     private final ObjectMapper objectMapper;
 
-    public record Csv(byte[] content, String filename) {
+    public record Csv(byte[] content, String filename, long rowCount, boolean truncated) {
     }
 
     /**
+     * Renders the stored result governed by the recipient's export decision (#626): the row cap
+     * is the minimum of {@link #MAX_ATTACHMENT_ROWS} and the decision's cap, and a
+     * WATERMARK/ROW_CAP decision stamps the {@code ResultExportWatermark} header/footer records
+     * onto the CSV (single-cell first/last rows, matching the export endpoint's CSV shape).
+     *
      * @return the rendered CSV, or empty when the query has no stored result snapshot (non-SELECT
      *         occurrences, failed executions) or the stored JSON cannot be parsed.
      */
-    public Optional<Csv> render(UUID queryRequestId) {
+    public Optional<Csv> render(UUID queryRequestId, ExportDecision decision,
+                                String recipientEmail, Instant timestamp) {
         var snapshot = queryResultPersistenceService.find(queryRequestId).orElse(null);
         if (snapshot == null) {
             return Optional.empty();
         }
+        int rowCap = decision.rowCap() != null
+                ? Math.min(decision.rowCap(), MAX_ATTACHMENT_ROWS)
+                : MAX_ATTACHMENT_ROWS;
         try {
             JsonNode columns = objectMapper.readTree(snapshot.columnsJson());
             JsonNode rows = objectMapper.readTree(snapshot.rowsJson());
             var sb = new StringBuilder();
+            if (decision.watermark()) {
+                writeRow(sb, List.of(ResultExportWatermark.header(recipientEmail, timestamp,
+                        queryRequestId)));
+            }
             var header = new java.util.ArrayList<String>(columns.size());
             for (JsonNode column : columns) {
                 header.add(column.path("name").asString());
             }
             writeRow(sb, header);
             int written = 0;
+            boolean truncated = false;
             for (JsonNode row : rows) {
-                if (written >= MAX_ATTACHMENT_ROWS) {
-                    writeRow(sb, List.of("… truncated at " + MAX_ATTACHMENT_ROWS + " rows"));
+                if (written >= rowCap) {
+                    truncated = true;
+                    writeRow(sb, List.of("… truncated at " + rowCap + " rows"));
                     break;
                 }
                 var cells = new java.util.ArrayList<String>(row.size());
@@ -65,8 +83,15 @@ public class QueryResultCsvRenderer {
                 writeRow(sb, cells);
                 written++;
             }
+            if (decision.watermark()) {
+                // Cap provenance names the applied cap (policy cap or the attachment ceiling,
+                // whichever bound) — and only when the attachment was actually truncated.
+                writeRow(sb, List.of(ResultExportWatermark.footer(written,
+                        truncated ? rowCap : null)));
+            }
             return Optional.of(new Csv(sb.toString().getBytes(StandardCharsets.UTF_8),
-                    "results-" + queryRequestId + ".csv"));
+                    "results-" + queryRequestId + ".csv", written,
+                    truncated || snapshot.truncated()));
         } catch (RuntimeException ex) {
             log.error("Failed to render results CSV for query {}", queryRequestId, ex);
             return Optional.empty();
