@@ -21,6 +21,7 @@ import {
   type CreatedReviewPlan,
   type InvitedUser,
 } from '../helpers/datasources';
+import { clickTab } from '../helpers/ui';
 import type { APIRequestContext } from '@playwright/test';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
@@ -204,7 +205,7 @@ test.describe.serial('result-export governance (#626)', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
-    await page.getByRole('tab', { name: /Export policy/ }).click();
+    await clickTab(page, /Exports/);
 
     // The two API-seeded policies are listed.
     await expect(page.getByText('Deny when classified').first()).toBeVisible({
@@ -233,7 +234,7 @@ test.describe.serial('result-export governance (#626)', () => {
 
     await expect(page.getByText('Export policy saved')).toBeVisible({ timeout: 10_000 });
     // Three policies now: the two seeded + the new row-cap row.
-    await expect(page.getByRole('tab', { name: /Export policy · 3/ })).toBeVisible({
+    await expect(page.getByRole('tab', { name: /Exports · 3/ })).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText('Capped at 500 rows').first()).toBeVisible({ timeout: 10_000 });

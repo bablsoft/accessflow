@@ -1163,7 +1163,7 @@
         "state_disabled": "已禁用"
       },
       "tab_row_security": "行级安全 · {{count}}",
-      "tab_export_policy": "导出策略 · {{count}}",
+      "tab_export_policy": "导出 · {{count}}",
       "tab_classification": "分类 · {{count}}",
       "tab_discovery": "发现 · {{count}}",
       "row_security": {

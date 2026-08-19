@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { clickTab } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -42,7 +43,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
-    await page.getByRole('tab', { name: /Classification/ }).click();
+    await clickTab(page, /Classification/);
     await page.getByRole('button', { name: 'Add tag' }).click();
 
     const dialog = page.getByRole('dialog');
@@ -70,7 +71,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
     await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 10_000 });
 
     // The PII column tag auto-applied a masking policy — visible on the Masking tab.
-    await page.getByRole('tab', { name: /Masking/ }).click();
+    await clickTab(page, /Masking/);
     await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -80,7 +81,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
     await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
-    await page.getByRole('tab', { name: /Classification/ }).click();
+    await clickTab(page, /Classification/);
     await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole('button', { name: 'Delete' }).first().click();
@@ -89,7 +90,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
     await expect(page.getByText('Classification tag removed')).toBeVisible({ timeout: 10_000 });
 
     // Non-cascade: the derived masking policy survives.
-    await page.getByRole('tab', { name: /Masking/ }).click();
+    await clickTab(page, /Masking/);
     await expect(page.getByText('public.users.email').first()).toBeVisible({ timeout: 10_000 });
   });
 });

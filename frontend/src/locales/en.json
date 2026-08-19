@@ -1163,7 +1163,7 @@
       "not_found_message": "Datasource not found.",
       "back_to_list": "Back to list",
       "tab_row_security": "Row security · {{count}}",
-      "tab_export_policy": "Export policy · {{count}}",
+      "tab_export_policy": "Exports · {{count}}",
       "tab_classification": "Classification · {{count}}",
       "tab_discovery": "Discovery · {{count}}",
       "row_security": {

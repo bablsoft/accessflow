@@ -1163,7 +1163,7 @@
         "state_disabled": "Отключена"
       },
       "tab_row_security": "Безопасность строк · {{count}}",
-      "tab_export_policy": "Политика экспорта · {{count}}",
+      "tab_export_policy": "Экспорт · {{count}}",
       "tab_classification": "Классификация · {{count}}",
       "tab_discovery": "Обнаружение · {{count}}",
       "row_security": {

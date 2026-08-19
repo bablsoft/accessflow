@@ -1163,7 +1163,7 @@
         "state_disabled": "Անջատված"
       },
       "tab_row_security": "Տողերի անվտանգություն · {{count}}",
-      "tab_export_policy": "Արտահանման քաղաքականություն · {{count}}",
+      "tab_export_policy": "Արտահանում · {{count}}",
       "tab_classification": "Դասակարգում · {{count}}",
       "tab_discovery": "Հայտնաբերում · {{count}}",
       "row_security": {

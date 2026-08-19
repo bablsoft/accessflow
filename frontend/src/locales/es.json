@@ -1163,7 +1163,7 @@
         "state_disabled": "Desactivada"
       },
       "tab_row_security": "Seguridad de filas · {{count}}",
-      "tab_export_policy": "Política de exportación · {{count}}",
+      "tab_export_policy": "Exportación · {{count}}",
       "tab_classification": "Clasificación · {{count}}",
       "tab_discovery": "Descubrimiento · {{count}}",
       "row_security": {
