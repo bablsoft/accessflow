@@ -9,9 +9,10 @@ function user(permissions: string[]): Pick<AuthUser, 'permissions'> {
 }
 
 describe('permissions', () => {
-  it('exposes the full 39-entry catalog mirror', () => {
-    expect(PERMISSIONS).toHaveLength(39);
+  it('exposes the full 40-entry catalog mirror', () => {
+    expect(PERMISSIONS).toHaveLength(40);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
+    expect(PERMISSIONS).toContain('EXPORT_POLICY_MANAGE');
   });
 
   describe('hasPermission', () => {

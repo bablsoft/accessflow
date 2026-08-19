@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiRequestNotificationView;
 import com.bablsoft.accessflow.attestation.api.AttestationCampaignLookupService;
+import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
@@ -24,6 +25,7 @@ import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
@@ -33,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Builds a {@link NotificationContext} from a query request id by composing the public-facing
@@ -40,6 +43,7 @@ import java.util.UUID;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 class NotificationContextBuilder {
 
     private final QueryRequestLookupService queryRequestLookupService;
@@ -166,11 +170,13 @@ class NotificationContextBuilder {
             // Anomaly events are built via buildAnomaly(...); weekly digests via buildWeeklyDigest(...).
             // Access (JIT), anomaly, digest, attestation, and API-request events are not query-backed
             // and are built/dispatched by their own listeners (AF-500: ApiNotificationListener).
+            // Sensitive-export events are built via buildSensitiveResultExported(...).
             case ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, ANOMALY_DETECTED, GRANT_STALE,
-                 WEEKLY_DIGEST, ATTESTATION_CAMPAIGN_OPENED, API_REQUEST_SUBMITTED,
-                 API_REQUEST_APPROVED, API_REQUEST_EXECUTED, API_REQUEST_FAILED,
-                 API_CONNECTOR_OAUTH2_TOKEN_FAILED, ERASURE_APPROVED -> List.of();
+                 SENSITIVE_RESULT_EXPORTED, WEEKLY_DIGEST, ATTESTATION_CAMPAIGN_OPENED,
+                 API_REQUEST_SUBMITTED, API_REQUEST_APPROVED, API_REQUEST_EXECUTED,
+                 API_REQUEST_FAILED, API_CONNECTOR_OAUTH2_TOKEN_FAILED,
+                 ERASURE_APPROVED -> List.of();
         };
     }
 
@@ -285,6 +291,66 @@ class NotificationContextBuilder {
                 event.resourceKind(),
                 event.daysSinceLastUse(),
                 event.recommendation()));
+    }
+
+    /**
+     * Builds the context for a sensitive result export (#626): a query result containing
+     * classified columns left AccessFlow. The exporter (who may not be the query's submitter)
+     * rides in the {@code submitter*} fields, the exported row count in
+     * {@code executionRowsAffected}, and the preformatted classification list / format / trigger
+     * in the {@code export*} fields. Recipients are the organization's active ADMINs, mirroring
+     * {@code GRANT_STALE}: the export was already permitted by policy, so this is oversight, not
+     * an approval loop. Returns empty when the organization has no active admin.
+     */
+    Optional<NotificationContext> buildSensitiveResultExported(SensitiveResultExportedEvent event) {
+        var recipients = userQueryService
+                .findByOrganizationAndRole(event.organizationId(), UserRoleType.ADMIN)
+                .stream()
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
+        if (recipients.isEmpty()) {
+            return Optional.empty();
+        }
+        String datasourceName = null;
+        if (event.datasourceId() != null) {
+            try {
+                datasourceName = datasourceAdminService
+                        .getForAdmin(event.datasourceId(), event.organizationId()).name();
+            } catch (RuntimeException ex) {
+                // The datasource may have been deleted since execution; the id still renders.
+                log.debug("Datasource {} not resolvable for sensitive-export notification",
+                        event.datasourceId(), ex);
+            }
+        }
+        var classifications = event.classifications().stream()
+                .map(Enum::name)
+                .collect(Collectors.joining(", "));
+        var locale = localizationConfigService.getOrDefault(event.organizationId())
+                .defaultLanguage();
+        return Optional.of(new NotificationContext(
+                NotificationEventType.SENSITIVE_RESULT_EXPORTED,
+                event.organizationId(),
+                event.queryRequestId(),
+                null, null, null, null, null, null, null,
+                event.datasourceId(),
+                datasourceName,
+                event.exporterUserId(),
+                event.exporterEmail(),
+                null,
+                null, null, null, null,
+                buildReviewUrl(event.queryRequestId()),
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null, null,
+                null, null, null, null,
+                null, event.rowCount(), null,
+                null, null, null,
+                event.format(),
+                classifications,
+                event.trigger()));
     }
 
     /**

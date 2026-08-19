@@ -750,7 +750,14 @@
       "approved_by_grant_body_no_approver": "此查询由访问授权 {{grantId}} 覆盖。",
       "timeline_on_behalf_of": "{{actor}}（代表 {{delegator}}）",
       "escalated_title": "已升级 — 仍未作出决定",
-      "escalated_body": "在审核方案的 {{hours}} 小时升级时限内无人处理，因此已于{{when}}升级至当前待处理的审核人及您的管理员。该请求尚未被批准或拒绝，升级也不会改变谁有权决定。"
+      "escalated_body": "在审核方案的 {{hours}} 小时升级时限内无人处理，因此已于{{when}}升级至当前待处理的审核人及您的管理员。该请求尚未被批准或拒绝，升级也不会改变谁有权决定。",
+      "export": "导出",
+      "export_csv": "导出 CSV",
+      "export_pdf": "导出 PDF",
+      "export_failed": "导出结果失败",
+      "export_truncated": "导出已在配置的行数上限处截断",
+      "export_denied_tooltip": "组织的导出策略拒绝导出这些结果",
+      "export_denied_classified_tooltip": "导出被拒绝：此结果包含分类为 {{classifications}} 的列"
     }
   },
   "reviews": {
@@ -1156,6 +1163,7 @@
         "state_disabled": "已禁用"
       },
       "tab_row_security": "行级安全 · {{count}}",
+      "tab_export_policy": "导出策略 · {{count}}",
       "tab_classification": "分类 · {{count}}",
       "tab_discovery": "发现 · {{count}}",
       "row_security": {
@@ -1323,6 +1331,48 @@
         "bulk_action_bar_count_other": "已选择 {{count}} 项",
         "bulk_toast_summary_one": "已决定 {{count}} 个发现项",
         "bulk_toast_summary_other": "已决定 {{count}} 个发现项"
+      },
+      "export_policies": {
+        "title": "结果导出策略",
+        "description": "管控查询结果如何离开 AccessFlow — 允许、加水印、限制或拒绝导出此数据源的结果集。未设置适用对象的策略适用于所有导出者（包括管理员）；多条策略同时适用时，以最严格者为准。",
+        "add": "添加策略",
+        "empty_title": "暂无导出策略",
+        "empty_description": "没有策略时，结果可自由导出且不带水印。每次导出仍会被审计。",
+        "col_mode": "模式",
+        "col_details": "详情",
+        "col_applies_to": "适用于",
+        "col_enabled": "已启用",
+        "col_actions": "操作",
+        "label_enabled": "已启用",
+        "state_disabled": "已禁用",
+        "edit": "编辑策略",
+        "delete": "删除策略",
+        "delete_confirm_title": "删除此导出策略？",
+        "delete_confirm_body": "当前受此策略管控的导出将回退到其余策略（若无适用策略，则不受限制地导出）。",
+        "delete_success": "导出策略已删除",
+        "delete_error": "删除导出策略失败",
+        "save_success": "导出策略已保存",
+        "save_error": "保存导出策略失败",
+        "create_title": "添加导出策略",
+        "edit_title": "编辑导出策略",
+        "label_mode": "模式",
+        "mode_required": "模式为必填项",
+        "label_row_cap": "行数上限",
+        "row_cap_required": "ROW_CAP 策略必须设置行数上限",
+        "row_cap_range": "行数上限必须介于 1 和 1,000,000 之间",
+        "label_deny_classifications": "按分类拒绝",
+        "deny_classifications_hint": "留空表示只要结果包含任何已分类的列即拒绝。",
+        "label_applies_roles": "适用角色",
+        "applies_hint": "三个列表全部留空时，策略适用于所有导出者（管理员亦不例外）。",
+        "label_applies_groups": "适用组",
+        "label_applies_users": "适用用户",
+        "preview_label": "水印预览",
+        "detail_row_cap": "上限 {{count}} 行",
+        "detail_deny_any": "存在任何已分类列即拒绝",
+        "applies_roles": "{{count}} 个角色",
+        "applies_groups": "{{count}} 个组",
+        "applies_users": "{{count}} 个用户",
+        "applies_everyone": "所有人"
       }
     }
   },
@@ -2223,7 +2273,8 @@
       "GRANT_STALE": "对 {{datasource}} 的访问似乎未被使用 — 请审阅",
       "fallback": "新通知",
       "REVIEW_ESCALATED": "{{datasource}} 上的请求仍未处理 — 已升级给您",
-      "REVIEW_NUDGE": "提醒：{{datasource}} 上的查询等待您审核"
+      "REVIEW_NUDGE": "提醒：{{datasource}} 上的查询等待您审核",
+      "SENSITIVE_RESULT_EXPORTED": "敏感数据（{{classifications}}）已从 {{datasource}} 导出"
     }
   },
   "profile": {
@@ -2831,7 +2882,8 @@
       "SSO_CONFIGURE": "配置 SSO",
       "SMTP_CONFIGURE": "配置 SMTP",
       "LOCALIZATION_CONFIGURE": "配置本地化",
-      "SETUP_PROGRESS_VIEW": "查看设置进度"
+      "SETUP_PROGRESS_VIEW": "查看设置进度",
+      "EXPORT_POLICY_MANAGE": "管理导出策略"
     },
     "api_variable_kind": {
       "CONSTANT": "常量",
@@ -2876,6 +2928,12 @@
       "ACTIVE": "生效中",
       "EXPIRED": "已过期",
       "REVOKED": "已撤销"
+    },
+    "export_policy_mode": {
+      "ALLOW": "允许",
+      "WATERMARK": "水印",
+      "ROW_CAP": "行数上限",
+      "DENY_CLASSIFIED": "包含分类时拒绝"
     }
   },
   "access": {

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
+import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
@@ -127,6 +128,19 @@ class NotificationDispatcher {
             return;
         }
         deliver(NotificationEventType.GRANT_STALE, contextOpt.get());
+    }
+
+    /** Dispatch a sensitive result export (#626) — a query result containing classified columns
+     *  left AccessFlow. Fans out to all active org channels, mirroring {@code GRANT_STALE}.
+     *  Advisory only: it never pages (no PagerDutyTrigger maps to it) and never opens a ticket
+     *  (no TicketingTrigger does). */
+    void dispatchSensitiveResultExported(SensitiveResultExportedEvent event) {
+        var contextOpt = contextBuilder.buildSensitiveResultExported(event);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping SENSITIVE_RESULT_EXPORTED for query {}", event.queryRequestId());
+            return;
+        }
+        deliver(NotificationEventType.SENSITIVE_RESULT_EXPORTED, contextOpt.get());
     }
 
     /** Dispatch an approved-erasure notification to the submitter (AF-499). */
@@ -266,6 +280,12 @@ class NotificationDispatcher {
         if (ctx.executionRowsAffected() != null) {
             payload.put("rows_affected", ctx.executionRowsAffected());
         }
+        if (ctx.exportClassifications() != null && !ctx.exportClassifications().isBlank()) {
+            payload.put("export_classifications", ctx.exportClassifications());
+        }
+        if (ctx.exportFormat() != null) {
+            payload.put("export_format", ctx.exportFormat());
+        }
         return payload.toString();
     }
 
@@ -277,6 +297,7 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.WEEKLY_DIGEST
                 || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED
                 || eventType == NotificationEventType.GRANT_STALE
+                || eventType == NotificationEventType.SENSITIVE_RESULT_EXPORTED
                 || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }

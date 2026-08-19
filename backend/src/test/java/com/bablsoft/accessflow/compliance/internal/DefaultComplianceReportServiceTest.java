@@ -62,7 +62,7 @@ class DefaultComplianceReportServiceTest {
     @BeforeEach
     void setUp() {
         var clock = Clock.fixed(generatedAt, ZoneOffset.UTC);
-        var properties = new ComplianceProperties(Duration.ofDays(366), 2);
+        var properties = new ComplianceProperties(Duration.ofDays(366), 2, 0, 0);
         service = new DefaultComplianceReportService(snapshotService, dataClassificationAdminService,
                 datasourceAdminService, userAdminService, reviewDecisionsParser,
                 lifecycleRunLookupService, properties, clock);

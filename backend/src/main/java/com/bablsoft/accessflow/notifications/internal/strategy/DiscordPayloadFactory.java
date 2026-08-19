@@ -102,6 +102,15 @@ class DiscordPayloadFactory {
                 && ctx.approvalTimeoutHours() != null) {
             addField(fields, "Auto-rejected after", ctx.approvalTimeoutHours() + " hours");
         }
+        // #626: sensitive result export — classification list and format/row-count summary.
+        if (ctx.exportClassifications() != null && !ctx.exportClassifications().isBlank()) {
+            addField(fields, "Classifications", ctx.exportClassifications());
+        }
+        if (ctx.exportFormat() != null) {
+            addField(fields, "Export", ctx.executionRowsAffected() != null
+                    ? ctx.exportFormat() + " · " + ctx.executionRowsAffected() + " rows"
+                    : ctx.exportFormat());
+        }
         if (ctx.reviewUrl() != null) {
             addField(fields, "Review URL", ctx.reviewUrl().toString());
             embed.put("url", ctx.reviewUrl().toString());
@@ -144,6 +153,7 @@ class DiscordPayloadFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case GRANT_STALE -> "🧹 Unused Access Grant";
+            case SENSITIVE_RESULT_EXPORTED -> "📤 Sensitive Data Exported";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";

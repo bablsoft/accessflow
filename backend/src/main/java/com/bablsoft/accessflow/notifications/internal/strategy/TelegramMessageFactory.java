@@ -83,6 +83,15 @@ class TelegramMessageFactory {
                 && ctx.approvalTimeoutHours() != null) {
             appendField(sb, "Auto-rejected after", ctx.approvalTimeoutHours() + " hours");
         }
+        // #626: sensitive result export — classification list and format/row-count summary.
+        if (ctx.exportClassifications() != null && !ctx.exportClassifications().isBlank()) {
+            appendField(sb, "Classifications", ctx.exportClassifications());
+        }
+        if (ctx.exportFormat() != null) {
+            appendField(sb, "Export", ctx.executionRowsAffected() != null
+                    ? ctx.exportFormat() + " - " + ctx.executionRowsAffected() + " rows"
+                    : ctx.exportFormat());
+        }
         if (ctx.fullSqlText() != null && !ctx.fullSqlText().isBlank()) {
             var preview = ctx.sqlPreview300() != null ? ctx.sqlPreview300() : "";
             sb.append("\n*").append(escape("SQL Preview")).append("*\n");
@@ -116,6 +125,7 @@ class TelegramMessageFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case GRANT_STALE -> "🧹 Unused Access Grant";
+            case SENSITIVE_RESULT_EXPORTED -> "📤 Sensitive Data Exported";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";

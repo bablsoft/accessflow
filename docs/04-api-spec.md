@@ -174,6 +174,10 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `POST` | `/datasources/{id}/row-security-policies` | ADMIN | Create a row-security policy on a datasource table |
 | `PUT` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Update a row-security policy |
 | `DELETE` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Delete a row-security policy |
+| `GET` | `/datasources/{id}/export-policies` | ADMIN | List result-export policies for a datasource (#626) |
+| `POST` | `/datasources/{id}/export-policies` | ADMIN | Create a result-export policy |
+| `PUT` | `/datasources/{id}/export-policies/{policyId}` | ADMIN | Update a result-export policy |
+| `DELETE` | `/datasources/{id}/export-policies/{policyId}` | ADMIN | Delete a result-export policy |
 | `GET` | `/datasources/{id}/classification-tags` | ADMIN | List data-classification tags for a datasource (AF-447) |
 | `POST` | `/datasources/{id}/classification-tags` | ADMIN | Tag a table/column with one or more data classifications |
 | `DELETE` | `/datasources/{id}/classification-tags/{tagId}` | ADMIN | Remove a classification tag (keeps the derived masking policy) |
@@ -843,6 +847,80 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 
 ---
 
+### Result-export policies (#626)
+
+Admin-only, organization-scoped result-export governance (DLP) per datasource. A policy governs how a
+query's persisted result set may leave AccessFlow — via `GET /queries/{id}/results/export` and via the
+results-CSV attachment on recurring-execution emails. Targeting uses the row-security polarity: the
+`applies_to_*` lists are optional and **all empty ⇒ applies to every exporter** (non-empty narrows by
+role name / group / user id); there is **no implicit ADMIN bypass**. When several policies apply, the
+most restrictive mode wins (`ALLOW < WATERMARK < ROW_CAP < DENY_CLASSIFIED`); the effective row cap is
+the minimum across applicable `ROW_CAP` policies; a `DENY_CLASSIFIED` policy only participates when the
+result actually contains a column classified with one of its `deny_classifications` (empty list = any
+classification). No applicable policy ⇒ exports are allowed, unwatermarked.
+
+#### POST /datasources/{id}/export-policies — Request Body
+
+```json
+{
+  "mode": "ROW_CAP",
+  "row_cap": 1000,
+  "deny_classifications": [],
+  "applies_to_roles": ["ANALYST"],
+  "applies_to_group_ids": ["uuid"],
+  "applies_to_user_ids": ["uuid"],
+  "enabled": true
+}
+```
+
+`mode` is required: `ALLOW`, `WATERMARK`, `ROW_CAP`, or `DENY_CLASSIFIED`. `row_cap` (1 – 1 000 000) is
+required for `ROW_CAP` and rejected for any other mode. `deny_classifications` (values of
+`data_classification`: `PII`, `PCI`, `PHI`, `GDPR`, `FINANCIAL`, `SENSITIVE`) is only accepted for
+`DENY_CLASSIFIED` — empty or omitted means the policy denies on **any** classified column. The
+`applies_to_*` lists follow the row-security semantics above; targets must belong to the caller's
+organization.
+
+**Response 201:** Export policy object. `Location` header points to
+`/api/v1/datasources/{id}/export-policies/{policyId}`.
+**Response 404:** Datasource does not exist in the caller's organization. `error: DATASOURCE_NOT_FOUND`.
+**Response 422:** Missing/extra `row_cap`, `deny_classifications` on a non-deny mode, an unknown
+applies-to role, or an applies-to user/group outside the organization. `error: ILLEGAL_EXPORT_POLICY`.
+
+#### GET /datasources/{id}/export-policies — Response 200
+
+```json
+{
+  "content": [
+    {
+      "id": "uuid",
+      "datasource_id": "uuid",
+      "mode": "ROW_CAP",
+      "row_cap": 1000,
+      "deny_classifications": [],
+      "applies_to_roles": ["ANALYST"],
+      "applies_to_group_ids": [],
+      "applies_to_user_ids": [],
+      "enabled": true,
+      "created_at": "2026-08-01T10:00:00Z",
+      "updated_at": "2026-08-01T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### PUT /datasources/{id}/export-policies/{policyId}
+
+Same body as `POST`; replaces the policy. **Response 200:** updated policy object. **Response 404:**
+`EXPORT_POLICY_NOT_FOUND` when the policy is missing or belongs to a different datasource.
+
+#### DELETE /datasources/{id}/export-policies/{policyId}
+
+**Response 204:** No content. **Response 404:** `EXPORT_POLICY_NOT_FOUND`.
+
+Every mutation is audited (`EXPORT_POLICY_CREATED` / `…_UPDATED` / `…_DELETED`).
+
+---
+
 ### Data classification tags (AF-447)
 
 Tag datasource tables and columns with one or more data classifications — `PII`, `PCI`, `PHI`,
@@ -1214,6 +1292,8 @@ Synchronous.
 | `POST` | `/queries/{id}/execute` | Manually trigger execution of an approved query |
 | `POST` | `/queries/{id}/replay` | Replay an executed query's immutable snapshot against a test datasource (`?targetDatasourceId=`), re-entering the full review workflow (AF-449) |
 | `GET` | `/queries/{id}/results` | Stream paginated query results (SELECT only) |
+| `GET` | `/queries/{id}/results/export` | Download the persisted result set as a signed, watermark-governed CSV or PDF file (#626) |
+| `GET` | `/queries/{id}/results/export-decision` | The caller's effective export-policy decision for this query's results — backs the export button state (#626) |
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
 | `POST` | `/queries/dry-run` | Return a non-committing execution plan + estimated row impact for the SQL without executing or mutating data (AF-445); no review created. Engines without a plan concept degrade gracefully |
@@ -1650,6 +1730,63 @@ The replay is **distinctly audited**: a `QUERY_SUBMITTED` audit row is written o
 `truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit the per-result byte cap (`ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES`, #49), and `null` when the result was not truncated (or was persisted before the field existed).
 
 `columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
+
+### GET /queries/{id}/results/export — Signed result-set export (#626)
+
+Downloads the persisted result snapshot (`query_request_results`) as a file, governed by the
+datasource's result-export policies. Query parameter `format` is `CSV` (default) or `PDF`.
+Authorization mirrors `GET /queries/{id}/results`: `QUERY_ADMIN` holders or the submitter; anyone else
+receives `404 QUERY_REQUEST_NOT_FOUND`. Only `SELECT` queries with a persisted result are exportable —
+`422 RESULTS_NOT_AVAILABLE` otherwise.
+
+**Response 200:** the file bytes, `Content-Type: text/csv` or `application/pdf`,
+`Content-Disposition: attachment; filename="query-results-<first8-of-id>-<yyyyMMddTHHmmssZ>.<ext>"`.
+Like the compliance report export, the payload is signed — the response carries
+`X-AccessFlow-Signature` (Base64 detached signature over the exact bytes),
+`X-AccessFlow-Signature-Algorithm` (`SHA256withRSA`), `X-AccessFlow-Content-SHA256`, and
+`X-AccessFlow-Export-Truncated: true` when the export hit the configured row cap
+(`ACCESSFLOW_COMPLIANCE_RESULT_EXPORT_MAX_ROWS`, default 50 000 for CSV;
+`ACCESSFLOW_COMPLIANCE_RESULT_EXPORT_MAX_PDF_ROWS`, default 5 000 for PDF) or a policy `row_cap`.
+
+When the effective policy mode is `WATERMARK` or `ROW_CAP`, the export is watermarked with the
+exporter's email, the UTC timestamp, and the query request id — as a header and footer record in CSV,
+and as document metadata plus a visible stamp in PDF. The watermark is baked into the bytes **before**
+signing, so a stripped watermark invalidates the signature.
+
+Every successful export writes a `RESULT_EXPORTED` audit row (format, row count, truncation,
+watermark flag, applied policy ids, classifications present, content SHA-256). Exports whose result
+contains classified columns additionally raise a `SENSITIVE_RESULT_EXPORTED` notification to
+organization admins.
+
+**Response 403:** the effective policy denies the export. `error: RESULT_EXPORT_DENIED`; the
+`ProblemDetail` `detail` names the matched classifications when the deny was classification-driven.
+**Response 404:** unknown query, foreign organization, caller not allowed to read it, or no
+persisted result snapshot (mirrors `GET /queries/{id}/results`).
+**Response 422:** the query is not a SELECT. `error: RESULTS_NOT_AVAILABLE`.
+
+### GET /queries/{id}/results/export-decision — Response 200 (#626)
+
+The caller's effective export decision for this query's results, server-computed from the datasource's
+export policies and the classifications present in the persisted result. Backs the export button state
+on the query detail page (disabled + tooltip when denied). Same authorization and 404/422 semantics as
+the export endpoint.
+
+```json
+{
+  "allowed": true,
+  "effective_mode": "ROW_CAP",
+  "row_cap": 1000,
+  "watermark": true,
+  "policy_ids": ["uuid"],
+  "classifications_present": ["PCI"]
+}
+```
+
+`effective_mode` is the winning mode after most-restrictive-wins combination (`ALLOW` when no policy
+applies). `row_cap` is `null` unless `effective_mode` is `ROW_CAP`. `watermark` is `true` for
+`WATERMARK` and `ROW_CAP`. `classifications_present` lists the distinct `data_classification` values
+matching the result's columns (table-level tags on the query's referenced tables classify every
+returned column of that table; column-level tags match returned columns by name, case-insensitively).
 
 ### GET /queries/{id}/diff — Response 200
 

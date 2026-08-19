@@ -240,6 +240,13 @@ function renderMessage(
     // #625 — the resource name rides in the `datasource` payload field for both grant kinds.
     case 'GRANT_STALE':
       return t('notifications.events.GRANT_STALE', { datasource: accessResource });
+    // #626 — the exporter rides in `submitter`, the classification list in
+    // `export_classifications`.
+    case 'SENSITIVE_RESULT_EXPORTED':
+      return t('notifications.events.SENSITIVE_RESULT_EXPORTED', {
+        datasource: accessResource,
+        classifications: payload.export_classifications ?? '—',
+      });
     default:
       return t('notifications.events.fallback');
   }

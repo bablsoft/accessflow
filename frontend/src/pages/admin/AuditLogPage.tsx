@@ -70,6 +70,10 @@ const ACTIONS = [
   'USER_LOGIN_FAILED',
   'USER_CREATED',
   'USER_DEACTIVATED',
+  'RESULT_EXPORTED',
+  'EXPORT_POLICY_CREATED',
+  'EXPORT_POLICY_UPDATED',
+  'EXPORT_POLICY_DELETED',
 ];
 
 const actionColor = (a: string): string => {

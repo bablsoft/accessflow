@@ -22,6 +22,8 @@ import com.bablsoft.accessflow.core.api.IllegalDatasourcePermissionException;
 import com.bablsoft.accessflow.core.api.DataClassificationTagNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalDataClassificationTagException;
 import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
+import com.bablsoft.accessflow.core.api.ExportPolicyNotFoundException;
+import com.bablsoft.accessflow.core.api.IllegalExportPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
@@ -552,6 +554,24 @@ class GlobalExceptionHandler {
         // Message is resolved at the throw site via MessageSource — see DefaultRowSecurityPolicyAdminService.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_ROW_SECURITY_POLICY");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ExportPolicyNotFoundException.class)
+    ProblemDetail handleExportPolicyNotFound(ExportPolicyNotFoundException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.export_policy_not_found"));
+        pd.setProperty("error", "EXPORT_POLICY_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(IllegalExportPolicyException.class)
+    ProblemDetail handleIllegalExportPolicy(IllegalExportPolicyException ex) {
+        // Message is resolved at the throw site via MessageSource — see DefaultExportPolicyAdminService.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        pd.setProperty("error", "ILLEGAL_EXPORT_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

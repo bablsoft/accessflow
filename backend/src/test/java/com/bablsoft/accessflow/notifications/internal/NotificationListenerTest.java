@@ -148,6 +148,27 @@ class NotificationListenerTest {
     }
 
     @Test
+    void sensitiveResultExportedDispatches() {
+        var event = new com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "analyst@example.com", "CSV", 10L, true,
+                java.util.List.of(com.bablsoft.accessflow.core.api.DataClassification.PCI),
+                "endpoint");
+        listener.onSensitiveResultExported(event);
+        verify(dispatcher).dispatchSensitiveResultExported(event);
+    }
+
+    @Test
+    void sensitiveResultExportedDispatchExceptionIsSwallowed() {
+        doThrow(new RuntimeException("boom"))
+                .when(dispatcher).dispatchSensitiveResultExported(any());
+        listener.onSensitiveResultExported(
+                new com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent(
+                        UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                        "a@example.com", "PDF", 1L, false, java.util.List.of(), "endpoint"));
+    }
+
+    @Test
     void executedDispatchExceptionIsSwallowed() {
         doThrow(new RuntimeException("boom"))
                 .when(dispatcher).dispatchQueryExecuted(any(), any(), any(), any());

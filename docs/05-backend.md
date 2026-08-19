@@ -936,6 +936,50 @@ introduces no module cycle. (It cannot live in `audit`: `workflow` already depen
   (`/api/v1/admin/compliance/*`, `hasAnyRole('AUDITOR','ADMIN')`) sets the signature / algorithm /
   content-hash response headers and exposes the verification public key at `GET /signing-certificate`.
 
+### Result-export governance & DLP (#626)
+
+Masking and row security govern what a user *sees*; export governance governs what *leaves*. Two
+egress paths for a query's persisted result snapshot (`query_request_results`) are policy-governed:
+`GET /api/v1/queries/{id}/results/export` (signed CSV/PDF download) and the results-CSV attachment
+on recurring-execution emails (#627). The MCP `get_query_result` tool remains view-parity (the same
+data the in-app table shows) and is deliberately not export-governed.
+
+- **Policies** (`export_policy`, V145) live in `core` beside the masking/row-security policies:
+  per-datasource rows with a `mode` (`ALLOW < WATERMARK < ROW_CAP < DENY_CLASSIFIED` — the enum
+  order is load-bearing), an optional `row_cap`, optional `deny_classifications`, and the
+  row-security `applies_to_*` polarity (all empty ⇒ every exporter, **no implicit ADMIN bypass**).
+  CRUD via `security/internal/web/ExportPolicyController`
+  (`PERM_EXPORT_POLICY_MANAGE`), resolution via `core.api.ExportPolicyResolutionService`.
+- **Decision** (`compliance/internal/DefaultResultExportGovernanceService`): resolved policies are
+  combined most-restrictive-wins; a `DENY_CLASSIFIED` row participates only when the result
+  actually contains a matching classified column. Classification presence is computed **at export
+  time** — the persisted result's column names and the snapshot's `referenced_tables` matched
+  against `data_classification_tag` via `TableNameNormalizer` (table-level tags classify every
+  returned column of the table; column-level tags match returned columns by name,
+  case-insensitively — best-effort for document engines whose result columns are field unions).
+  `WATERMARK` and `ROW_CAP` both watermark (a capped file must carry its cap provenance); no
+  applicable policy ⇒ `ALLOW`, unwatermarked.
+- **Export pipeline** (`compliance/internal/DefaultResultExportService`) mirrors the compliance
+  export: visibility check (`QUERY_ADMIN` or submitter, 404-hiding via the immutable
+  `query_snapshots` row) → decision (deny ⇒ 403 `RESULT_EXPORT_DENIED`) → row cap
+  (min of the policy cap and `accessflow.compliance.result-export-max[-pdf]-rows`) → render with
+  the `ResultExportWatermark` header/footer baked in (exporter email, UTC timestamp, query request
+  id — CSV: single-cell first/last records; PDF: document metadata + visible stamp) → SHA-256 →
+  `ExportSignatureService` sign → **fail-hard** `RESULT_EXPORTED` audit (no audit row, no
+  download) → `SensitiveResultExportedEvent` when classified columns were present. Because the
+  watermark is baked in before signing, stripping it invalidates the signature.
+- **Email attachments**: `EmailNotificationStrategy` calls
+  `compliance.api.ResultExportGovernanceService.decide` **per recipient** — deny suppresses the
+  attachment (the email still delivers; results stay viewable in-app), a row cap truncates it, and
+  watermark decisions stamp it. After a successful send, `recordAttachmentExport` writes a
+  best-effort `RESULT_EXPORTED` row (`trigger=email_attachment`, actor = recipient) and raises the
+  sensitive-export event when classified.
+- **Events**: `SensitiveResultExportedEvent` is published from `compliance/events/` outside any
+  transaction — the notifications bridge consumes it with a plain `@EventListener`
+  (an `@ApplicationModuleListener` would silently never fire, the `QuerySnapshotListener` trap).
+  The new module edge is `notifications → compliance.api/events`; nothing depends back on
+  `notifications`, so no cycle.
+
 ### Personalized dashboard (AF-498)
 
 The `dashboard` module is a self-scoped read-aggregation module: every endpoint is bound to the

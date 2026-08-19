@@ -750,7 +750,14 @@
       "approved_by_grant_body_no_approver": "Esta consulta estaba cubierta por la concesión de acceso {{grantId}}.",
       "timeline_on_behalf_of": "{{actor}} (en nombre de {{delegator}})",
       "escalated_title": "Escalado: aún sin decisión",
-      "escalated_body": "Nadie decidió dentro del periodo de escalado de {{hours}} horas del plan de revisión, por lo que {{when}} se escaló a los revisores pendientes y a tus administradores. No se ha aprobado ni rechazado, y escalar no cambia quién puede decidir."
+      "escalated_body": "Nadie decidió dentro del periodo de escalado de {{hours}} horas del plan de revisión, por lo que {{when}} se escaló a los revisores pendientes y a tus administradores. No se ha aprobado ni rechazado, y escalar no cambia quién puede decidir.",
+      "export": "Exportar",
+      "export_csv": "Exportar CSV",
+      "export_pdf": "Exportar PDF",
+      "export_failed": "No se pudieron exportar los resultados",
+      "export_truncated": "La exportación se truncó en el límite de filas configurado",
+      "export_denied_tooltip": "La política de exportación de tu organización deniega exportar estos resultados",
+      "export_denied_classified_tooltip": "Exportación denegada: este resultado contiene columnas clasificadas como {{classifications}}"
     }
   },
   "reviews": {
@@ -1156,6 +1163,7 @@
         "state_disabled": "Desactivada"
       },
       "tab_row_security": "Seguridad de filas · {{count}}",
+      "tab_export_policy": "Política de exportación · {{count}}",
       "tab_classification": "Clasificación · {{count}}",
       "tab_discovery": "Descubrimiento · {{count}}",
       "row_security": {
@@ -1323,6 +1331,48 @@
         "bulk_action_bar_count_other": "{{count}} seleccionados",
         "bulk_toast_summary_one": "{{count}} hallazgo decidido",
         "bulk_toast_summary_other": "{{count}} hallazgos decididos"
+      },
+      "export_policies": {
+        "title": "Políticas de exportación de resultados",
+        "description": "Controla cómo los resultados de consultas salen de AccessFlow: permite, añade marca de agua, limita o deniega las exportaciones de esta fuente de datos. Las políticas sin destinatarios se aplican a todos los exportadores, incluidos los administradores; cuando se aplican varias, gana la más restrictiva.",
+        "add": "Añadir política",
+        "empty_title": "Sin políticas de exportación",
+        "empty_description": "Sin una política, los resultados pueden exportarse libremente y sin marca de agua. Cada exportación se audita igualmente.",
+        "col_mode": "Modo",
+        "col_details": "Detalles",
+        "col_applies_to": "Se aplica a",
+        "col_enabled": "Activada",
+        "col_actions": "Acciones",
+        "label_enabled": "Activada",
+        "state_disabled": "Desactivada",
+        "edit": "Editar política",
+        "delete": "Eliminar política",
+        "delete_confirm_title": "¿Eliminar esta política de exportación?",
+        "delete_confirm_body": "Las exportaciones regidas por esta política pasarán a las políticas restantes (o a exportación sin restricciones si no se aplica ninguna).",
+        "delete_success": "Política de exportación eliminada",
+        "delete_error": "No se pudo eliminar la política de exportación",
+        "save_success": "Política de exportación guardada",
+        "save_error": "No se pudo guardar la política de exportación",
+        "create_title": "Añadir política de exportación",
+        "edit_title": "Editar política de exportación",
+        "label_mode": "Modo",
+        "mode_required": "El modo es obligatorio",
+        "label_row_cap": "Límite de filas",
+        "row_cap_required": "Una política ROW_CAP debe fijar un límite de filas",
+        "row_cap_range": "El límite de filas debe estar entre 1 y 1.000.000",
+        "label_deny_classifications": "Denegar según clasificaciones",
+        "deny_classifications_hint": "Déjalo vacío para denegar siempre que el resultado contenga alguna columna clasificada.",
+        "label_applies_roles": "Se aplica a roles",
+        "applies_hint": "Deja las tres listas vacías para aplicar la política a todos los exportadores (sin excepción para administradores).",
+        "label_applies_groups": "Se aplica a grupos",
+        "label_applies_users": "Se aplica a usuarios",
+        "preview_label": "Vista previa de la marca de agua",
+        "detail_row_cap": "Limitado a {{count}} filas",
+        "detail_deny_any": "Deniega ante cualquier columna clasificada",
+        "applies_roles": "{{count}} roles",
+        "applies_groups": "{{count}} grupos",
+        "applies_users": "{{count}} usuarios",
+        "applies_everyone": "Todos"
       }
     }
   },
@@ -2223,7 +2273,8 @@
       "GRANT_STALE": "El acceso a {{datasource}} parece sin usar: revísalo",
       "fallback": "Nueva notificación",
       "REVIEW_ESCALATED": "Aún sin decisión sobre {{datasource}}: escalado a ti",
-      "REVIEW_NUDGE": "Recordatorio: una consulta en {{datasource}} espera tu revisión"
+      "REVIEW_NUDGE": "Recordatorio: una consulta en {{datasource}} espera tu revisión",
+      "SENSITIVE_RESULT_EXPORTED": "Datos sensibles ({{classifications}}) exportados desde {{datasource}}"
     }
   },
   "profile": {
@@ -2831,7 +2882,8 @@
       "SSO_CONFIGURE": "Configurar SSO",
       "SMTP_CONFIGURE": "Configurar SMTP",
       "LOCALIZATION_CONFIGURE": "Configurar la localización",
-      "SETUP_PROGRESS_VIEW": "Ver el progreso de configuración"
+      "SETUP_PROGRESS_VIEW": "Ver el progreso de configuración",
+      "EXPORT_POLICY_MANAGE": "Gestionar políticas de exportación"
     },
     "api_variable_kind": {
       "CONSTANT": "Constante",
@@ -2876,6 +2928,12 @@
       "ACTIVE": "Activa",
       "EXPIRED": "Expirada",
       "REVOKED": "Revocada"
+    },
+    "export_policy_mode": {
+      "ALLOW": "Permitir",
+      "WATERMARK": "Marca de agua",
+      "ROW_CAP": "Límite de filas",
+      "DENY_CLASSIFIED": "Denegar si está clasificado"
     }
   },
   "access": {

@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.events.QueryReviewEscalatedEvent;
 import com.bablsoft.accessflow.core.events.QueryReviewNudgedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
+import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
@@ -125,6 +126,22 @@ class NotificationListener {
                     event.rowsAffected(), event.durationMs());
         } catch (RuntimeException ex) {
             log.error("Notification dispatch failed for QUERY_EXECUTED on query {}",
+                    event.queryRequestId(), ex);
+        }
+    }
+
+    /**
+     * Sensitive result export (#626). A plain {@link EventListener}, NOT an
+     * {@code @ApplicationModuleListener}: {@link SensitiveResultExportedEvent} is published from
+     * the export pipeline outside any transaction, so an AFTER_COMMIT listener would silently
+     * never fire (the {@code QuerySnapshotListener} Javadoc documents the same trap).
+     */
+    @EventListener
+    void onSensitiveResultExported(SensitiveResultExportedEvent event) {
+        try {
+            dispatcher.dispatchSensitiveResultExported(event);
+        } catch (RuntimeException ex) {
+            log.error("Notification dispatch failed for SENSITIVE_RESULT_EXPORTED on query {}",
                     event.queryRequestId(), ex);
         }
     }

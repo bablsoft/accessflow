@@ -29,6 +29,8 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
 import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
+import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
+import com.bablsoft.accessflow.core.api.DataClassification;
 import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
@@ -758,6 +760,80 @@ class NotificationContextBuilderTest {
                 GrantUsageRecommendation.NEVER_USED)).orElseThrow();
 
         assertThat(ctx.grantDaysSinceLastUse()).isNull();
+    }
+
+    // ------------------------------------------------------------- #626 sensitive result export
+
+    /**
+     * Same positional-constructor trap as GRANT_STALE (now 44 components): pin every field the
+     * templates and payload builder actually read.
+     */
+    @Test
+    void buildSensitiveResultExportedTargetsAdminsAndCarriesTheExportFields() {
+        var admin = new UserView(UUID.randomUUID(), "admin@example.test", "Admin",
+                UserRoleType.ADMIN, orgId, true, AuthProviderType.LOCAL, null, null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+        var queryRequestId = UUID.randomUUID();
+        var exporterId = UUID.randomUUID();
+
+        var ctx = builder.buildSensitiveResultExported(new SensitiveResultExportedEvent(
+                orgId, queryRequestId, datasourceId, exporterId, "analyst@example.test",
+                "CSV", 128L, true,
+                List.of(DataClassification.PCI, DataClassification.PHI),
+                "endpoint")).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.SENSITIVE_RESULT_EXPORTED);
+        assertThat(ctx.organizationId()).isEqualTo(orgId);
+        assertThat(ctx.queryRequestId()).isEqualTo(queryRequestId);
+        assertThat(ctx.datasourceId()).isEqualTo(datasourceId);
+        assertThat(ctx.datasourceName()).isEqualTo("Production");
+        // The exporter (not necessarily the query's submitter) rides in the submitter* fields.
+        assertThat(ctx.submittedByUserId()).isEqualTo(exporterId);
+        assertThat(ctx.submitterEmail()).isEqualTo("analyst@example.test");
+        assertThat(ctx.exportFormat()).isEqualTo("CSV");
+        assertThat(ctx.exportClassifications()).isEqualTo("PCI, PHI");
+        assertThat(ctx.exportTrigger()).isEqualTo("endpoint");
+        assertThat(ctx.executionRowsAffected()).isEqualTo(128L);
+        assertThat(ctx.reviewUrl())
+                .hasToString("https://app.example.test/queries/" + queryRequestId);
+        assertThat(ctx.recipients()).singleElement()
+                .satisfies(r -> assertThat(r.email()).isEqualTo("admin@example.test"));
+        // Not built through the query path: nothing query-shaped may leak in.
+        assertThat(ctx.queryType()).isNull();
+        assertThat(ctx.fullSqlText()).isNull();
+        assertThat(ctx.apiRequestId()).isNull();
+    }
+
+    @Test
+    void buildSensitiveResultExportedSurvivesADeletedDatasource() {
+        var admin = new UserView(UUID.randomUUID(), "admin@example.test", "Admin",
+                UserRoleType.ADMIN, orgId, true, AuthProviderType.LOCAL, null, null, null, false,
+                Instant.now());
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+        var goneDatasource = UUID.randomUUID();
+        when(datasourceAdmin.getForAdmin(goneDatasource, orgId))
+                .thenThrow(new RuntimeException("gone"));
+
+        var ctx = builder.buildSensitiveResultExported(new SensitiveResultExportedEvent(
+                orgId, UUID.randomUUID(), goneDatasource, UUID.randomUUID(), "a@example.test",
+                "PDF", 1L, false, List.of(DataClassification.PII),
+                "email_attachment")).orElseThrow();
+
+        assertThat(ctx.datasourceName()).isNull();
+        assertThat(ctx.exportTrigger()).isEqualTo("email_attachment");
+    }
+
+    @Test
+    void buildSensitiveResultExportedReturnsEmptyWithoutActiveAdmins() {
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of());
+
+        assertThat(builder.buildSensitiveResultExported(new SensitiveResultExportedEvent(
+                orgId, UUID.randomUUID(), datasourceId, UUID.randomUUID(), "a@example.test",
+                "CSV", 1L, false, List.of(DataClassification.PII), "endpoint"))).isEmpty();
     }
 
     @Test

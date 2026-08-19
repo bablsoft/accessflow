@@ -589,6 +589,81 @@ export async function createMaskingPolicyViaApi(
   return (await res.json()) as CreatedMaskingPolicy;
 }
 
+export interface CreatedExportPolicy {
+  id: string;
+  mode: string;
+  row_cap: number | null;
+}
+
+// POST /api/v1/datasources/{id}/export-policies (#626) — creates a result-export
+// governance policy. Requires an ADMIN token. Every boolean is sent explicitly
+// (Jackson 3 rejects an absent primitive boolean with a 500).
+export async function createExportPolicyViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    mode: string;
+    rowCap?: number;
+    denyClassifications?: string[];
+    appliesToRoles?: string[];
+    appliesToGroupIds?: string[];
+    appliesToUserIds?: string[];
+    enabled?: boolean;
+  },
+): Promise<CreatedExportPolicy> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/export-policies`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        mode: opts.mode,
+        row_cap: opts.rowCap ?? null,
+        deny_classifications: opts.denyClassifications ?? [],
+        applies_to_roles: opts.appliesToRoles ?? [],
+        applies_to_group_ids: opts.appliesToGroupIds ?? [],
+        applies_to_user_ids: opts.appliesToUserIds ?? [],
+        enabled: opts.enabled ?? true,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Create export policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as CreatedExportPolicy;
+}
+
+// POST /api/v1/datasources/{id}/classification-tags (AF-447) — tags a table or
+// column with data classifications. apply_masking=false keeps the tag from
+// auto-deriving a masking policy, so classification tests see raw values.
+export async function createClassificationTagViaApi(
+  request: APIRequestContext,
+  adminAccessToken: string,
+  datasourceId: string,
+  opts: {
+    tableName: string;
+    columnName?: string;
+    classifications: string[];
+    applyMasking?: boolean;
+  },
+): Promise<void> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/classification-tags`,
+    {
+      headers: { Authorization: `Bearer ${adminAccessToken}` },
+      data: {
+        table_name: opts.tableName,
+        column_name: opts.columnName ?? null,
+        classifications: opts.classifications,
+        apply_masking: opts.applyMasking ?? false,
+      },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Create classification tag failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
 export interface CreatedRowSecurityPolicy {
   id: string;
   table_name: string;

@@ -109,6 +109,16 @@ class SlackBlockKitFactory {
                     : ctx.anomalyFeature();
             fields.add(mrkdwn("*Anomaly:*\n" + anomaly));
         }
+        // #626: sensitive result export — classification list and format/row-count summary.
+        if (ctx.exportClassifications() != null && !ctx.exportClassifications().isBlank()) {
+            fields.add(mrkdwn("*Classifications:*\n" + ctx.exportClassifications()));
+        }
+        if (ctx.exportFormat() != null) {
+            var export = ctx.executionRowsAffected() != null
+                    ? ctx.exportFormat() + " · " + ctx.executionRowsAffected() + " rows"
+                    : ctx.exportFormat();
+            fields.add(mrkdwn("*Export:*\n" + export));
+        }
         return SectionBlock.builder().fields(fields).build();
     }
 
@@ -195,6 +205,7 @@ class SlackBlockKitFactory {
             case TEST -> "AccessFlow Test";
             case ANOMALY_DETECTED -> "🚨 Behavioral Anomaly Detected";
             case GRANT_STALE -> "🧹 Unused Access Grant";
+            case SENSITIVE_RESULT_EXPORTED -> "📤 Sensitive Data Exported";
             case BREAK_GLASS_EXECUTED -> "🚨 Break-glass Query Executed";
             case WEEKLY_DIGEST -> "📊 Weekly Digest";
             case ATTESTATION_CAMPAIGN_OPENED -> "📋 Access Recertification Campaign Opened";

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
+  EXPORT_POLICY_MODES,
+  exportPolicyModeLabel,
   GRANT_RESOURCE_KINDS,
   GRANT_USAGE_RECOMMENDATIONS,
   grantResourceKindLabel,
@@ -25,6 +27,18 @@ import {
 } from './enumLabels';
 
 const t = ((key: string) => key) as unknown as TFunction;
+
+describe('exportPolicyModeLabel', () => {
+  it('exposes every export policy mode', () => {
+    expect(EXPORT_POLICY_MODES).toEqual(['ALLOW', 'WATERMARK', 'ROW_CAP', 'DENY_CLASSIFIED']);
+  });
+
+  it('maps each mode to its enum translation key', () => {
+    for (const mode of EXPORT_POLICY_MODES) {
+      expect(exportPolicyModeLabel(t, mode)).toBe(`enums.export_policy_mode.${mode}`);
+    }
+  });
+});
 
 describe('apiMaskingMatcherTypeLabel', () => {
   it('exposes every matcher type', () => {

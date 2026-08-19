@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.notifications.internal.strategy;
 
+import com.bablsoft.accessflow.compliance.api.ExportDecision;
+import com.bablsoft.accessflow.compliance.api.ResultExportGovernanceService;
+import com.bablsoft.accessflow.core.api.DataClassification;
+import com.bablsoft.accessflow.core.api.ExportPolicyMode;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
@@ -24,7 +28,9 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
@@ -50,7 +56,14 @@ class EmailNotificationStrategyTest {
     private JavaMailSender sender;
     private MessageSource messageSource;
     private QueryResultCsvRenderer csvRenderer;
+    private ResultExportGovernanceService governanceService;
     private EmailNotificationStrategy strategy;
+
+    private static final ExportDecision ALLOW_DECISION = new ExportDecision(
+            true, ExportPolicyMode.ALLOW, null, false, List.of(), List.of());
+    private static final ExportDecision DENY_DECISION = new ExportDecision(
+            false, ExportPolicyMode.DENY_CLASSIFIED, null, false, List.of(),
+            List.of(DataClassification.PCI));
 
     @BeforeEach
     void setUp() {
@@ -60,8 +73,11 @@ class EmailNotificationStrategyTest {
         sender = mock(JavaMailSender.class);
         messageSource = mock(MessageSource.class);
         csvRenderer = mock(QueryResultCsvRenderer.class);
+        governanceService = mock(ResultExportGovernanceService.class);
         strategy = new EmailNotificationStrategy(codec, templateEngine, factory, messageSource,
-                csvRenderer);
+                csvRenderer, governanceService,
+                Clock.fixed(Instant.parse("2026-08-18T09:30:00Z"), ZoneOffset.UTC));
+        when(governanceService.decide(any(), any(), any())).thenReturn(ALLOW_DECISION);
 
         when(factory.create(any())).thenReturn(sender);
         when(sender.createMimeMessage()).thenAnswer(inv -> {
@@ -87,7 +103,8 @@ class EmailNotificationStrategyTest {
 
         strategy.deliver(ctx, channel());
 
-        verify(templateEngine).process(eq("email/query-ready-for-review"), any());
+        // Since #626 the body renders per recipient (the attachment decision is per recipient).
+        verify(templateEngine, times(2)).process(eq("email/query-ready-for-review"), any());
         verify(sender, times(2)).send(any(MimeMessage.class));
     }
 
@@ -298,7 +315,6 @@ class EmailNotificationStrategyTest {
 
     @Test
     void deliverUsesExecutedTemplateAndSubjectForQueryExecutedEvent() throws Exception {
-        when(csvRenderer.render(any())).thenReturn(java.util.Optional.empty());
         var ctx = execCtx(QueryStatus.FAILED, List.of(
                 new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
 
@@ -313,15 +329,18 @@ class EmailNotificationStrategyTest {
 
     @Test
     void deliverAttachesResultsCsvForSuccessfulQueryExecuted() throws Exception {
-        var ctx = execCtx(QueryStatus.EXECUTED, List.of(
-                new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
-        when(csvRenderer.render(ctx.queryRequestId())).thenReturn(java.util.Optional.of(
-                new QueryResultCsvRenderer.Csv("id\r\n1\r\n".getBytes(StandardCharsets.UTF_8),
-                        "results-" + ctx.queryRequestId() + ".csv")));
+        var recipient = new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice");
+        var ctx = execCtx(QueryStatus.EXECUTED, List.of(recipient));
+        when(csvRenderer.render(eq(ctx.queryRequestId()), eq(ALLOW_DECISION),
+                eq("alice@example.com"), any(Instant.class)))
+                .thenReturn(java.util.Optional.of(new QueryResultCsvRenderer.Csv(
+                        "id\r\n1\r\n".getBytes(StandardCharsets.UTF_8),
+                        "results-" + ctx.queryRequestId() + ".csv", 1, false)));
 
         strategy.deliver(ctx, channel());
 
-        verify(csvRenderer).render(ctx.queryRequestId());
+        verify(governanceService).decide(ctx.organizationId(), ctx.queryRequestId(),
+                recipient.userId());
         var contextCaptor = ArgumentCaptor.forClass(Context.class);
         verify(templateEngine).process(eq("email/query-executed"), contextCaptor.capture());
         assertThat(contextCaptor.getValue().getVariable("resultsAttached")).isEqualTo(true);
@@ -332,6 +351,29 @@ class EmailNotificationStrategyTest {
         assertThat(multipart.getCount()).isEqualTo(2);
         assertThat(multipart.getBodyPart(1).getFileName())
                 .isEqualTo("results-" + ctx.queryRequestId() + ".csv");
+        // The export is audited per recipient once the mail actually went out (#626).
+        verify(governanceService).recordAttachmentExport(ctx.organizationId(),
+                ctx.queryRequestId(), recipient.userId(), "alice@example.com",
+                ALLOW_DECISION, 1L, false);
+    }
+
+    @Test
+    void deliverSuppressesAttachmentWhenExportDenied() {
+        var recipient = new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice");
+        var ctx = execCtx(QueryStatus.EXECUTED, List.of(recipient));
+        when(governanceService.decide(any(), any(), any())).thenReturn(DENY_DECISION);
+
+        strategy.deliver(ctx, channel());
+
+        // The email still delivers — only the attachment is withheld, and nothing is audited.
+        verify(csvRenderer, never()).render(any(), any(), any(), any());
+        verify(sender, times(1)).send(any(MimeMessage.class));
+        verify(governanceService, never()).recordAttachmentExport(any(), any(), any(), any(),
+                any(), org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.anyBoolean());
+        var contextCaptor = ArgumentCaptor.forClass(Context.class);
+        verify(templateEngine).process(eq("email/query-executed"), contextCaptor.capture());
+        assertThat(contextCaptor.getValue().getVariable("resultsAttached")).isEqualTo(false);
     }
 
     @Test
@@ -341,8 +383,9 @@ class EmailNotificationStrategyTest {
 
         strategy.deliver(ctx, channel());
 
-        verify(csvRenderer, never()).render(any());
+        verify(csvRenderer, never()).render(any(), any(), any(), any());
         verify(sender, times(1)).send(any(MimeMessage.class));
+        verify(governanceService, never()).decide(any(), any(), any());
     }
 
     @Test

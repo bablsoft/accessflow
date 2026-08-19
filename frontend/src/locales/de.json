@@ -750,7 +750,14 @@
       "approved_by_grant_body_no_approver": "Diese Abfrage war durch die Zugriffsgewährung {{grantId}} abgedeckt.",
       "timeline_on_behalf_of": "{{actor}} (im Auftrag von {{delegator}})",
       "escalated_title": "Eskaliert — noch keine Entscheidung",
-      "escalated_body": "Innerhalb des {{hours}}-Stunden-Eskalationsfensters des Prüfplans hat niemand entschieden, daher wurde dies {{when}} an die zuständigen Prüfer und Ihre Administratoren eskaliert. Es wurde weder genehmigt noch abgelehnt, und die Eskalation ändert nicht, wer entscheiden darf."
+      "escalated_body": "Innerhalb des {{hours}}-Stunden-Eskalationsfensters des Prüfplans hat niemand entschieden, daher wurde dies {{when}} an die zuständigen Prüfer und Ihre Administratoren eskaliert. Es wurde weder genehmigt noch abgelehnt, und die Eskalation ändert nicht, wer entscheiden darf.",
+      "export": "Exportieren",
+      "export_csv": "CSV exportieren",
+      "export_pdf": "PDF exportieren",
+      "export_failed": "Ergebnisse konnten nicht exportiert werden",
+      "export_truncated": "Der Export wurde am konfigurierten Zeilenlimit abgeschnitten",
+      "export_denied_tooltip": "Der Export dieser Ergebnisse wird durch die Exportrichtlinie Ihrer Organisation verweigert",
+      "export_denied_classified_tooltip": "Export verweigert: dieses Ergebnis enthält Spalten mit der Klassifizierung {{classifications}}"
     }
   },
   "reviews": {
@@ -1156,6 +1163,7 @@
         "state_disabled": "Deaktiviert"
       },
       "tab_row_security": "Zeilensicherheit · {{count}}",
+      "tab_export_policy": "Exportrichtlinie · {{count}}",
       "tab_classification": "Klassifizierung · {{count}}",
       "tab_discovery": "Discovery · {{count}}",
       "row_security": {
@@ -1323,6 +1331,48 @@
         "bulk_action_bar_count_other": "{{count}} ausgewählt",
         "bulk_toast_summary_one": "{{count}} Fund entschieden",
         "bulk_toast_summary_other": "{{count}} Funde entschieden"
+      },
+      "export_policies": {
+        "title": "Ergebnisexport-Richtlinien",
+        "description": "Steuert, wie Abfrageergebnisse AccessFlow verlassen — Exporte der Ergebnismengen dieser Datenquelle erlauben, mit Wasserzeichen versehen, begrenzen oder verweigern. Richtlinien ohne Anwenden-auf-Ziele gelten für alle Exportierenden, auch Admins; gelten mehrere, gewinnt die restriktivste.",
+        "add": "Richtlinie hinzufügen",
+        "empty_title": "Keine Exportrichtlinien",
+        "empty_description": "Ohne Richtlinie können Ergebnisse frei und ohne Wasserzeichen exportiert werden. Jeder Export wird dennoch auditiert.",
+        "col_mode": "Modus",
+        "col_details": "Details",
+        "col_applies_to": "Gilt für",
+        "col_enabled": "Aktiviert",
+        "col_actions": "Aktionen",
+        "label_enabled": "Aktiviert",
+        "state_disabled": "Deaktiviert",
+        "edit": "Richtlinie bearbeiten",
+        "delete": "Richtlinie löschen",
+        "delete_confirm_title": "Diese Exportrichtlinie löschen?",
+        "delete_confirm_body": "Aktuell von dieser Richtlinie erfasste Exporte fallen auf die verbleibenden Richtlinien zurück (oder auf uneingeschränkten Export, wenn keine gilt).",
+        "delete_success": "Exportrichtlinie gelöscht",
+        "delete_error": "Exportrichtlinie konnte nicht gelöscht werden",
+        "save_success": "Exportrichtlinie gespeichert",
+        "save_error": "Exportrichtlinie konnte nicht gespeichert werden",
+        "create_title": "Exportrichtlinie hinzufügen",
+        "edit_title": "Exportrichtlinie bearbeiten",
+        "label_mode": "Modus",
+        "mode_required": "Modus ist erforderlich",
+        "label_row_cap": "Zeilenlimit",
+        "row_cap_required": "Eine ROW_CAP-Richtlinie muss ein Zeilenlimit setzen",
+        "row_cap_range": "Zeilenlimit muss zwischen 1 und 1.000.000 liegen",
+        "label_deny_classifications": "Verweigern bei Klassifizierungen",
+        "deny_classifications_hint": "Leer lassen, um zu verweigern, sobald das Ergebnis eine klassifizierte Spalte enthält.",
+        "label_applies_roles": "Gilt für Rollen",
+        "applies_hint": "Alle drei Listen leer lassen, damit die Richtlinie für alle Exportierenden gilt (kein Admin-Bypass).",
+        "label_applies_groups": "Gilt für Gruppen",
+        "label_applies_users": "Gilt für Benutzer",
+        "preview_label": "Wasserzeichen-Vorschau",
+        "detail_row_cap": "Begrenzt auf {{count}} Zeilen",
+        "detail_deny_any": "Verweigert bei jeder klassifizierten Spalte",
+        "applies_roles": "{{count}} Rollen",
+        "applies_groups": "{{count}} Gruppen",
+        "applies_users": "{{count}} Benutzer",
+        "applies_everyone": "Alle"
       }
     }
   },
@@ -2223,7 +2273,8 @@
       "GRANT_STALE": "Zugriff auf {{datasource}} scheint ungenutzt — bitte prüfen",
       "fallback": "Neue Benachrichtigung",
       "REVIEW_ESCALATED": "Noch keine Entscheidung zu {{datasource}} — an Sie eskaliert",
-      "REVIEW_NUDGE": "Erinnerung: Eine Abfrage zu {{datasource}} wartet auf Ihre Prüfung"
+      "REVIEW_NUDGE": "Erinnerung: Eine Abfrage zu {{datasource}} wartet auf Ihre Prüfung",
+      "SENSITIVE_RESULT_EXPORTED": "Sensible Daten ({{classifications}}) aus {{datasource}} exportiert"
     }
   },
   "profile": {
@@ -2831,7 +2882,8 @@
       "SSO_CONFIGURE": "SSO konfigurieren",
       "SMTP_CONFIGURE": "SMTP konfigurieren",
       "LOCALIZATION_CONFIGURE": "Lokalisierung konfigurieren",
-      "SETUP_PROGRESS_VIEW": "Einrichtungsfortschritt anzeigen"
+      "SETUP_PROGRESS_VIEW": "Einrichtungsfortschritt anzeigen",
+      "EXPORT_POLICY_MANAGE": "Exportrichtlinien verwalten"
     },
     "api_variable_kind": {
       "CONSTANT": "Konstante",
@@ -2876,6 +2928,12 @@
       "ACTIVE": "Aktiv",
       "EXPIRED": "Abgelaufen",
       "REVOKED": "Widerrufen"
+    },
+    "export_policy_mode": {
+      "ALLOW": "Erlauben",
+      "WATERMARK": "Wasserzeichen",
+      "ROW_CAP": "Zeilenlimit",
+      "DENY_CLASSIFIED": "Bei Klassifizierung verweigern"
     }
   },
   "access": {
