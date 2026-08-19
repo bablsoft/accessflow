@@ -1,0 +1,43 @@
+{{- if .Values.route.enabled -}}
+{{- $fullName := include "accessflow.fullname" . }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "accessflow.labels" . | nindent 4 }}
+  {{- with .Values.route.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- /* Reference to the Gateway(s) this HTTPRoute attaches to. Required when route.enabled=true */}}
+  parentRefs:
+    {{- with .Values.route.parentRefs }}
+    {{- toYaml . | nindent 4 }}
+    {{- else }}
+    - name: {{ required "route.parentRefs[0].name required when route.enabled=true" .Values.route.parentRefs }}
+    {{- end }}
+  {{- /* List of hostnames. Optional — when omitted, HTTPRoute matches all hosts on parent Gateway */}}
+  {{- with .Values.route.hostnames }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  {{- /* HTTPRoute rules with matches */}}
+  rules:
+    {{- $defaultMatches := list
+        (dict "path" "/api/" "pathType" "PathPrefix" "service" "backend")
+        (dict "path" "/ws"  "pathType" "PathPrefix" "service" "backend")
+        (dict "path" "/"    "pathType" "PathPrefix" "service" "frontend") }}
+    {{- range (default $defaultMatches .Values.route.matches) }}
+    - matches:
+        - path:
+            type: {{ .pathType }}
+            value: {{ .path | quote }}
+      backendRefs:
+        - name: {{ if eq .service "backend" }}{{ include "accessflow.backend.fullname" $ }}{{ else }}{{ include "accessflow.frontend.fullname" $ }}{{ end }}
+          port: {{ if eq .service "backend" }}{{ $.Values.backend.service.port }}{{ else }}{{ $.Values.frontend.service.port }}{{ end }}
+    {{- end }}
+{{- end }}

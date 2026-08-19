@@ -323,6 +323,40 @@ ingress:
     # Secret holding tls.crt and tls.key. Required when enabled=true.
     secretName: accessflow-tls
 
+# --- Gateway API HTTPRoute configuration
+route:
+  enabled: false
+  # Reference to the Gateway(s) this HTTPRoute attaches to.
+  # Required when route.enabled=true.
+  parentRefs: []
+  #   - name: main-gateway
+  # List of hostnames this HTTPRoute matches.
+  # Optional — when omitted, the route will match all hosts on the parent Gateway listeners.
+  hostnames: []
+  #   - accessflow.company.com
+  # HTTPRoute annotations.
+  annotations: {}
+  # HTTPRoute lables
+  labels: {}
+  # `matches` is optional. When omitted, the chart wires in the standard 3-path routing:
+  # /api/ + /ws → backend service, / → frontend service.
+  # To override, provide custom matches. Note: pathType must be "PathPrefix" (not "Prefix").
+  # The trailing slash on /api/ is deliberate: Gateway API matches PathPrefix paths
+  # literally, so a bare /api would swallow SPA routes like /api-requests and /api-editor
+  # instead of letting them fall through to the frontend.
+  matches: []
+  # Example custom matches override:
+  # matches:
+  #   - path: /api/
+  #     pathType: PathPrefix
+  #     service: backend
+  #   - path: /ws
+  #     pathType: PathPrefix
+  #     service: backend
+  #   - path: /
+  #     pathType: PathPrefix
+  #     service: frontend
+
 # --- Resource requests / limits
 resources:
   backend:
