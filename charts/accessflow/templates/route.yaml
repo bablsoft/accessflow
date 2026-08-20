@@ -1,32 +1,47 @@
 {{- if .Values.route.enabled -}}
-{{- $fullName := include "accessflow.fullname" . }}
+{{- /*
+Fail-fast on the one mandatory field. `required` is deliberately NOT used here: it
+errors only on nil or the empty *string*, so the chart's own `parentRefs: []` default
+slips straight through it and renders `- name: []`, which the API server then rejects
+with an opaque type error. `not` is correctly falsey for an empty list.
+Same idiom as accessflow.config.validateUrls in _helpers.tpl.
+*/}}
+{{- if not .Values.route.parentRefs }}
+{{- fail "route.parentRefs is required when route.enabled=true — set at least route.parentRefs[0].name to the Gateway this HTTPRoute attaches to." }}
+{{- end }}
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ $fullName }}
+  name: {{ include "accessflow.fullname" . }}
   labels:
     {{- include "accessflow.labels" . | nindent 4 }}
+    {{- with .Values.route.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- with .Values.route.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  {{- /* Reference to the Gateway(s) this HTTPRoute attaches to. Required when route.enabled=true */}}
+  {{- /* The Gateway(s) this HTTPRoute attaches to. Guarded above. */}}
   parentRefs:
-    {{- with .Values.route.parentRefs }}
-    {{- toYaml . | nindent 4 }}
-    {{- else }}
-    - name: {{ required "route.parentRefs[0].name required when route.enabled=true" .Values.route.parentRefs }}
-    {{- end }}
-  {{- /* List of hostnames. Optional — when omitted, HTTPRoute matches all hosts on parent Gateway */}}
+    {{- toYaml .Values.route.parentRefs | nindent 4 }}
+  {{- /*
+  Optional. When omitted, the route matches every hostname on every listener of the
+  parent Gateway — set route.hostnames to scope it to the hosts you actually own.
+  */}}
   {{- with .Values.route.hostnames }}
   hostnames:
     {{- range . }}
     - {{ . | quote }}
     {{- end }}
   {{- end }}
-  {{- /* HTTPRoute rules with matches */}}
   rules:
+    {{- /*
+    Default routing, kept in step with ingress.yaml's $defaultPaths. The pathType
+    spelling differs between the two APIs: Gateway API uses PathPrefix where the
+    Ingress API uses Prefix, so the two `matches`/`paths` lists are not interchangeable.
+    */}}
     {{- $defaultMatches := list
         (dict "path" "/api/" "pathType" "PathPrefix" "service" "backend")
         (dict "path" "/ws"  "pathType" "PathPrefix" "service" "backend")
@@ -34,10 +49,17 @@ spec:
     {{- range (default $defaultMatches .Values.route.matches) }}
     - matches:
         - path:
-            type: {{ .pathType }}
+            type: {{ default "PathPrefix" .pathType }}
             value: {{ .path | quote }}
       backendRefs:
-        - name: {{ if eq .service "backend" }}{{ include "accessflow.backend.fullname" $ }}{{ else }}{{ include "accessflow.frontend.fullname" $ }}{{ end }}
-          port: {{ if eq .service "backend" }}{{ $.Values.backend.service.port }}{{ else }}{{ $.Values.frontend.service.port }}{{ end }}
+        {{- if eq .service "backend" }}
+        - name: {{ include "accessflow.backend.fullname" $ }}
+          port: {{ $.Values.backend.service.port }}
+        {{- else if eq .service "frontend" }}
+        - name: {{ include "accessflow.frontend.fullname" $ }}
+          port: {{ $.Values.frontend.service.port }}
+        {{- else }}
+        {{- fail (printf "route.matches[].service must be \"backend\" or \"frontend\", got %q" .service) }}
+        {{- end }}
     {{- end }}
 {{- end }}

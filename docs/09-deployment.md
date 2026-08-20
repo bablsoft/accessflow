@@ -349,6 +349,29 @@ ingress:
     enabled: false
     secretName: accessflow-tls
 
+# Gateway API alternative. On a cluster running Gateway API (gateway.networking.k8s.io/v1
+# CRDs + a Gateway controller), render an HTTPRoute attached to an existing Gateway
+# instead of an Ingress. Set ingress.enabled=false above when you do — the two are
+# independent switches, so leaving both on publishes the app twice.
+#
+# TLS is NOT set here: an HTTPRoute does not terminate TLS. HTTPS belongs to the parent
+# Gateway's listener, which the chart does not own — attach to an HTTPS listener, since
+# /ws?token=<JWT> carries an access token in the request line.
+# route:
+#   enabled: true
+#   parentRefs:
+#     - name: main-gateway
+#       namespace: gateway-system   # optional
+#       sectionName: https          # optional — pin a specific listener
+#   # Optional, but recommended: when omitted the route matches every hostname on every
+#   # listener of the parent Gateway.
+#   hostnames:
+#     - accessflow.company.com
+#   # `matches` is optional — omit it to inherit the standard 3-path routing
+#   # (`/api/` + `/ws` → backend, `/` → frontend). Note pathType is "PathPrefix"
+#   # here, not the Ingress API's "Prefix".
+#   matches: []
+
 # Resource limits
 resources:
   backend:

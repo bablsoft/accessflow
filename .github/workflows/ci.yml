@@ -242,6 +242,28 @@ jobs:
             --set ingress.tls.secretName=accessflow-tls \
             > /tmp/rendered-ingress-tls.yaml
 
+      - name: Render with Gateway API HTTPRoute enabled
+        run: |
+          helm template accessflow charts/accessflow \
+            --set ingress.enabled=false \
+            --set route.enabled=true \
+            --set 'route.parentRefs[0].name=main-gateway' \
+            --set 'route.hostnames[0]=accessflow.example.com' \
+            > /tmp/rendered-route.yaml
+          grep -q "kind: HTTPRoute" /tmp/rendered-route.yaml
+          # The parentRefs guard must emit a real Gateway name, never an empty list.
+          if grep -q "name: \[\]" /tmp/rendered-route.yaml; then
+            echo "route.yaml rendered an empty parentRefs name" >&2; exit 1
+          fi
+
+      - name: Reject route.enabled=true without parentRefs
+        run: |
+          if helm template accessflow charts/accessflow \
+               --set route.enabled=true > /tmp/rendered-route-bad.yaml 2>/tmp/route-err.txt; then
+            echo "expected the render to fail when route.parentRefs is empty" >&2; exit 1
+          fi
+          grep -q "route.parentRefs is required" /tmp/route-err.txt
+
       - name: Render with bootstrap.* fixture (every *SecretRef path)
         run: |
           helm template accessflow charts/accessflow \
