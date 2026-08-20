@@ -323,6 +323,64 @@ ingress:
     # Secret holding tls.crt and tls.key. Required when enabled=true.
     secretName: accessflow-tls
 
+# --- Gateway API HTTPRoute configuration
+#
+# An alternative to the `ingress:` block above, for clusters running Gateway API.
+# Requires the Gateway API v1 CRDs (gateway.networking.k8s.io/v1) and a Gateway
+# controller to be installed; without them `route.enabled=true` fails at apply time
+# with `resource mapping not found for kind "HTTPRoute"`.
+#
+# NOTE: `route` and `ingress` are independent switches, and `ingress.enabled`
+# defaults to true. Enabling the route alone publishes the app twice — set
+# `ingress.enabled: false` when migrating to Gateway API.
+#
+# TLS: unlike the Ingress, an HTTPRoute does not terminate TLS. HTTPS is configured
+# on the parent Gateway's listener, which the cluster/platform team owns — this chart
+# cannot set it. Attach the route to an HTTPS listener: `/ws?token=<JWT>` carries a
+# full-privilege access token in the request line, so it must never traverse a
+# plaintext listener.
+route:
+  enabled: false
+  # Reference to the Gateway(s) this HTTPRoute attaches to.
+  # Required when route.enabled=true — the chart fails at template time if unset.
+  parentRefs: []
+  #   - name: main-gateway
+  #     namespace: gateway-system   # optional, when the Gateway lives elsewhere
+  #     sectionName: https          # optional, to pin a specific listener
+  # List of hostnames this HTTPRoute matches.
+  # Optional, but recommended: when omitted, the route matches every hostname on
+  # every listener of the parent Gateway — including listeners you may consider
+  # internal-only — and its `/` rule absorbs any hostname no other route claims.
+  hostnames: []
+  #   - accessflow.company.com
+  # HTTPRoute annotations.
+  annotations: {}
+  # Extra HTTPRoute labels, merged on top of the chart's common labels.
+  labels: {}
+  # `matches` is optional. When omitted, the chart wires in the standard 3-path routing:
+  # /api/ + /ws → backend service, / → frontend service.
+  # To override, provide custom matches. Note: pathType must be "PathPrefix" (not
+  # "Prefix" — that is the Ingress API's spelling), and `service` must be exactly
+  # "backend" or "frontend"; anything else fails the render.
+  #
+  # The trailing slash on /api/ is carried over from the Ingress path list so the two
+  # stay in step. It is not load-bearing here: Gateway API matches PathPrefix on whole
+  # path elements and ignores a trailing slash, so /api/ and /api are equivalent and
+  # neither one swallows SPA routes like /api-requests or /api-editor. (On the Ingress
+  # side the slash *is* load-bearing — see the ingress.hosts comment above.)
+  matches: []
+  # Example custom matches override — this reproduces the built-in default exactly:
+  # matches:
+  #   - path: /api/
+  #     pathType: PathPrefix
+  #     service: backend
+  #   - path: /ws
+  #     pathType: PathPrefix
+  #     service: backend
+  #   - path: /
+  #     pathType: PathPrefix
+  #     service: frontend
+
 # --- Resource requests / limits
 resources:
   backend:

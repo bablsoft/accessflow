@@ -98,6 +98,7 @@ from the packaged chart (`.helmignore`) so the `.tgz` stays lean.
 - Kubernetes ≥ 1.27
 - Helm ≥ 3.14
 - An Ingress controller (default values target `ingress-nginx` but the chart is agnostic — set `ingress.className` to `traefik`, `alb`, etc., or `ingress.enabled=false` to expose via port-forward / your own routing)
+- **Or** a Gateway API setup instead of an Ingress: the `gateway.networking.k8s.io/v1` CRDs, a Gateway controller (Istio, Envoy Gateway, Cilium, Traefik v3, NGINX Gateway Fabric), and an existing `Gateway` to attach to — see [Gateway API (HTTPRoute)](#gateway-api-httproute)
 - An external PostgreSQL **or** the bundled subchart (`postgresql.enabled=true`, default)
 - An external Redis **or** the bundled subchart (`redis.enabled=true`, default)
 
@@ -185,6 +186,42 @@ ingress:
 
 When you set `ingress.tls.enabled=true`, the chart will fail-fast at template time if `secretName` is empty.
 
+## Gateway API (HTTPRoute)
+
+On clusters running [Gateway API](https://gateway-api.sigs.k8s.io/), the chart can render an
+`HTTPRoute` attached to an existing `Gateway` instead of an Ingress. It is off by default:
+
+```yaml
+ingress:
+  enabled: false          # the two are independent switches — turn the Ingress off
+route:
+  enabled: true
+  parentRefs:
+    - name: main-gateway
+      namespace: gateway-system   # optional
+      sectionName: https          # optional — pin a specific listener
+  hostnames:
+    - accessflow.company.com
+```
+
+This renders the same three-path split the Ingress uses — `/api/` and `/ws` to the backend
+Service, `/` to the frontend — so `route.matches` only needs setting if you want something else.
+Note the `pathType` spelling differs from the Ingress API: Gateway API uses `PathPrefix`, not
+`Prefix`.
+
+Two things behave differently from the Ingress path and are worth knowing before you enable it:
+
+- **TLS is not configured here.** An HTTPRoute does not terminate TLS — HTTPS belongs to the
+  parent Gateway's listener, which this chart does not own. Attach the route to an HTTPS
+  listener: `/ws?token=<JWT>` carries a full-privilege access token in the request line and must
+  not traverse a plaintext listener.
+- **`hostnames` is optional but you should set it.** When omitted, the route matches every
+  hostname on every listener of the parent Gateway, and its `/` rule absorbs any hostname no
+  other route claims — on a shared Gateway that is more exposure than you probably intend.
+
+The chart fails at template time if `route.parentRefs` is empty, or if a `route.matches[].service`
+is anything other than `backend` or `frontend`.
+
 ## Selected values
 
 The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md). The most commonly tuned keys:
@@ -206,6 +243,11 @@ The full reference lives in [`values.yaml`](values.yaml) and [`docs/09-deploymen
 | `ingress.enabled` / `.className` / `.hosts` | enabled, `nginx` | Single Ingress dispatches `/api`+`/ws` → backend, `/` → frontend. `paths` is optional; when omitted, the chart fills in the standard 3-path routing. |
 | `ingress.tls.enabled` / `.secretName` | `false` / `accessflow-tls` | TLS termination at the Ingress. Off by default. |
 | `ingress.annotations` | `{}` | Free-form Ingress annotations (cert-manager, nginx, ALB, …). No cert-manager annotation is set by default. |
+| `route.enabled` | `false` | Render a Gateway API `HTTPRoute` instead of / alongside the Ingress. Requires the `gateway.networking.k8s.io/v1` CRDs. |
+| `route.parentRefs` | `[]` | Gateway(s) the route attaches to. **Required** when `route.enabled=true` — template-time failure if empty. Supports `name`, `namespace`, `sectionName`. |
+| `route.hostnames` | `[]` | Hostnames the route matches. Empty = every hostname on the parent Gateway's listeners; set it to scope the route. |
+| `route.matches` | `[]` | Optional path override. When empty, the chart fills in `/api/` + `/ws` → backend, `/` → frontend. `pathType` is `PathPrefix` (not `Prefix`). |
+| `route.annotations` / `.labels` | `{}` | Free-form HTTPRoute annotations and extra labels (merged over the chart's common labels). |
 | `resources.backend.*` / `resources.frontend.*` | see `values.yaml` | Pod-level requests / limits. |
 | `autoscaling.backend.enabled` | `false` | Horizontal Pod Autoscaler for backend (CPU-based). Off by default so `replicaCount.backend` is the single source of truth on first install. |
 | `podDisruptionBudget.backend.enabled` | `false` | PDB protecting backend during rolling updates. Off by default — enable on production deployments running ≥ 2 replicas. |
