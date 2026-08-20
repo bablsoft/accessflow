@@ -8,7 +8,11 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
+
+import java.time.Duration;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -30,12 +34,27 @@ import java.util.HexFormat;
  * proceed with a missing chain key.
  */
 @Configuration
-@EnableConfigurationProperties(AuditHmacProperties.class)
+@EnableConfigurationProperties({AuditHmacProperties.class, AuditSinkProperties.class})
 @Slf4j
 class AuditConfiguration {
 
     static final String DERIVATION_INFO = "accessflow-audit-hmac-v1";
     private static final int KEY_LENGTH = 32;
+
+    /**
+     * HTTP client for the Splunk HEC and HTTPS batch sinks (#628), with short timeouts so a hung
+     * destination cannot exhaust the drain job's scheduler lock. Qualified, never {@code @Primary}
+     * — the notifications module's {@code notificationsRestClient} owns by-type injection.
+     */
+    @Bean("auditSinkRestClient")
+    RestClient auditSinkRestClient() {
+        var httpClient = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        var factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofSeconds(10));
+        return RestClient.builder().requestFactory(factory).build();
+    }
 
     @Bean
     AuditChainHasher auditChainHasher(AuditHmacProperties properties,

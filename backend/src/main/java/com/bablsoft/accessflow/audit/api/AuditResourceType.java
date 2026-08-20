@@ -52,7 +52,8 @@ public enum AuditResourceType {
     DISCOVERY_FINDING("discovery_finding"),
     SCIM_CONFIG("scim_config"),
     SCIM_TOKEN("scim_token"),
-    EXPORT_POLICY("export_policy");
+    EXPORT_POLICY("export_policy"),
+    AUDIT_SINK("audit_sink");
 
     private final String dbValue;
 
