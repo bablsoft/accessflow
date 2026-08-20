@@ -46,6 +46,8 @@
       "Bash(git merge-base *)",
       "Bash(git cat-file *)",
       "Bash(git fetch *)",
+      "Bash(git worktree *)",
+      "Bash(pbcopy)",
       "Bash(docker info)",
       "Bash(docker compose config *)",
       "Bash(helm lint *)",
