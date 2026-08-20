@@ -12,7 +12,7 @@
       (connectors/dynamodb/connector.json) pins this version + the SHA-256 of the shaded JAR; bump
       them together whenever the engine (or a core.api type it compiles against) changes.
     -->
-    <version>1.0.2</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
 
     <name>AccessFlow DynamoDB Query Engine</name>
@@ -69,6 +69,21 @@
             <artifactId>accessflow</artifactId>
             <version>${accessflow.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <!--
+                  The backend's own AWS SDK dependencies (secretsmanager, s3, …) must not enter
+                  this build's dependency graph: even at provided scope they perturb Maven's
+                  artifact resolution ORDER for the software.amazon.awssdk:* artifacts the shade
+                  whitelists, which reorders shaded-jar entries and silently drifts the
+                  connector.json SHA-256 pin without a single content byte changing (#628 hit
+                  this when the backend gained awssdk:s3). This plugin pins its own SDK line via
+                  its aws-sdk.version BOM import.
+                -->
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
