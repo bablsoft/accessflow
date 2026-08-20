@@ -88,6 +88,8 @@ public enum Permission {
     ANOMALY_VIEW(PermissionGroup.COMPLIANCE),
     /** Manage behavioural anomalies (acknowledge/resolve) and detection settings. */
     ANOMALY_MANAGE(PermissionGroup.COMPLIANCE),
+    /** Manage external audit sinks: SIEM streaming and WORM archival (#628). */
+    AUDIT_SINK_MANAGE(PermissionGroup.COMPLIANCE),
 
     /** Manage users: create, update, deactivate, invite. */
     USER_MANAGE(PermissionGroup.USERS),
