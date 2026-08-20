@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-20",
       "url": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/audit-compliance/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -217,6 +217,7 @@
             <a href="/docs/configuration/audit-compliance/" class="docs-toc-current" aria-current="page">Audit & compliance</a>
             <p class="docs-toc-label">On this page</p>
             <a href="#cfg-audit-log">Audit log</a>
+            <a href="#cfg-audit-sinks">Audit sinks (SIEM &amp; WORM)</a>
             <a href="#compliance-reports">Compliance reports & signed exports</a>
             <a href="#cfg-lifecycle">Data lifecycle & right-to-erasure</a>
             <a href="#cfg-dashboard">Personalized dashboard & weekly digest</a>
@@ -231,7 +232,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Audit & compliance.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-20">20 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -272,6 +273,55 @@
             <code>AUDIT_DB_USER</code> / <code>AUDIT_DB_PASSWORD</code> role that has no UPDATE / DELETE
             rights on the log.
           </p>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-audit-sinks">Audit sinks (SIEM &amp; WORM streaming)</h2>
+          <p>
+            <strong>What it is.</strong> External audit sinks stream the tamper-evident audit log to
+            the systems your SOC already watches — a SIEM, a syslog collector, your own HTTPS
+            endpoint — and archive it to write-once (WORM) object storage. Delivery is
+            <strong>at-least-once</strong> off a durable per-sink cursor: a slow or dead destination
+            never blocks audit writes, and each sink retries forever with backoff, so nothing is
+            lost while a receiver is down (receivers de-duplicate on the immutable event id). Every
+            streamed event carries its hash-chain links, so an exported window can be verified
+            independently of the database.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Manage sinks at <code>/admin/audit-sinks</code> (requires
+            the <code>AUDIT_SINK_MANAGE</code> permission; admins hold it). Pick one of four types —
+            secret fields are write-only: encrypted at rest and shown masked as
+            <code>********</code> afterwards:
+          </p>
+          <ul>
+            <li><strong>Splunk HEC</strong> — <code>url</code> (the full HTTP Event Collector endpoint) and <code>token</code> (masked); optional <code>index</code> and <code>source</code>.</li>
+            <li><strong>Syslog / CEF</strong> — <code>host</code>, <code>port</code>, and <code>protocol</code> (<code>TCP</code> or <code>TLS</code>; TLS validates against the system truststore — there is deliberately no skip-verify option). Events arrive as RFC 5424 syslog frames carrying CEF.</li>
+            <li><strong>Signed HTTPS batches</strong> — <code>url</code> and <code>secret</code> (masked). Batches are JSON arrays signed with the same <code>X-AccessFlow-Signature</code> HMAC-SHA256 contract as webhook notifications.</li>
+            <li><strong>S3 Object Lock (WORM)</strong> — <code>bucket</code>, <code>region</code>, <code>access_key_id</code>, <code>secret_access_key</code> (masked), and <code>retention_days</code>; optional <code>prefix</code>, custom S3-compatible <code>endpoint</code>, <code>retention_mode</code> (<code>COMPLIANCE</code>, the immutable default, or <code>GOVERNANCE</code>), and <code>segment_max_age</code>. Audit rows are written as periodic JSONL segments under an Object Lock retention, each with a sibling <code>.sig</code> digital signature you can verify offline against the published signing certificate.</li>
+          </ul>
+          <p>
+            The list shows per-sink delivery health — cursor position, last success, last error,
+            consecutive failures, next retry, and how many events the sink is behind — and a
+            <em>Test</em> button that synchronously pushes one synthetic event through the sink (for
+            S3 it uploads a small unlocked test object, so trying a sink never creates immutable
+            data).
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_AUDIT_SINKS_DRAIN_INTERVAL</code> (streaming
+            cadence, default <code>PT30S</code>), <code>ACCESSFLOW_AUDIT_SINKS_BATCH_SIZE</code>
+            (rows per delivery, default <code>500</code>), and
+            <code>ACCESSFLOW_AUDIT_SINKS_MAX_BATCHES_PER_TICK</code> (per-sink catch-up cap per
+            tick, default <code>5</code>).
+          </p>
+          <div class="docs-callout info">
+            <strong>S3 bucket prerequisite.</strong> The bucket must be created with versioning and
+            Object Lock enabled (<code>aws s3api create-bucket
+            --object-lock-enabled-for-bucket</code>) — Object Lock cannot be enabled on an existing
+            plain bucket — and the IAM principal needs <code>s3:PutObject</code> and
+            <code>s3:PutObjectRetention</code>. <code>COMPLIANCE</code> mode is immutable for
+            everyone until the retention expires; <code>GOVERNANCE</code> allows privileged
+            override.
+          </div>
         </section>
 
 <section class="docs-section">

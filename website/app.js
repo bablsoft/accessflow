@@ -201,6 +201,7 @@
       'cfg-anomalies': '/docs/configuration/ai/',
       'cfg-langfuse': '/docs/configuration/ai/',
       'cfg-audit-log': '/docs/configuration/audit-compliance/',
+      'cfg-audit-sinks': '/docs/configuration/audit-compliance/',
       'cfg-dashboard': '/docs/configuration/audit-compliance/',
       'cfg-lifecycle': '/docs/configuration/audit-compliance/',
       'compliance-reports': '/docs/configuration/audit-compliance/',
