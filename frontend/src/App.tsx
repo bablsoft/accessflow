@@ -40,6 +40,7 @@ const AiConfigCreateWizardPage = lazy(
 const AiConfigEditPage = lazy(() => import('@/pages/admin/ai-configs/AiConfigEditPage'));
 const AiAnalysesPage = lazy(() => import('@/pages/admin/AiAnalysesPage'));
 const AnomaliesPage = lazy(() => import('@/pages/admin/AnomaliesPage'));
+const AuditSinksPage = lazy(() => import('@/pages/admin/AuditSinksPage'));
 const BreakGlassLogPage = lazy(() => import('@/pages/admin/BreakGlassLogPage'));
 const DataClassificationsPage = lazy(() => import('@/pages/admin/DataClassificationsPage'));
 const DatasourceHealthPage = lazy(() => import('@/pages/admin/DatasourceHealthPage'));
@@ -551,6 +552,16 @@ export function App() {
             element={
               <AuthGuard requirePermission={'NOTIFICATION_CHANNEL_MANAGE'}>
                 <NotificationsPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/audit-sinks"
+            element={
+              <AuthGuard requirePermission={'AUDIT_SINK_MANAGE'}>
+                <Suspense fallback={null}>
+                  <AuditSinksPage />
+                </Suspense>
               </AuthGuard>
             }
           />

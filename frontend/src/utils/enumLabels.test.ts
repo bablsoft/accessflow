@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
+  AUDIT_SINK_TYPES,
+  auditSinkTypeLabel,
   EXPORT_POLICY_MODES,
   exportPolicyModeLabel,
   GRANT_RESOURCE_KINDS,
@@ -36,6 +38,23 @@ describe('exportPolicyModeLabel', () => {
   it('maps each mode to its enum translation key', () => {
     for (const mode of EXPORT_POLICY_MODES) {
       expect(exportPolicyModeLabel(t, mode)).toBe(`enums.export_policy_mode.${mode}`);
+    }
+  });
+});
+
+describe('auditSinkTypeLabel (#628)', () => {
+  it('exposes every audit sink type', () => {
+    expect(AUDIT_SINK_TYPES).toEqual([
+      'SPLUNK_HEC',
+      'SYSLOG_CEF',
+      'HTTPS_BATCH',
+      'S3_OBJECT_LOCK',
+    ]);
+  });
+
+  it('maps each sink type to its enum translation key', () => {
+    for (const v of AUDIT_SINK_TYPES) {
+      expect(auditSinkTypeLabel(t, v)).toBe(`enums.audit_sink_type.${v}`);
     }
   });
 });

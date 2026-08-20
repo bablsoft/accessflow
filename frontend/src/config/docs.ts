@@ -46,6 +46,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-slack': 'configuration/notifications/',
   'cfg-smtp': 'configuration/notifications/',
   'cfg-audit-log': 'configuration/audit-compliance/',
+  'cfg-audit-sinks': 'configuration/audit-compliance/',
   'compliance-reports': 'configuration/audit-compliance/',
   'cfg-lifecycle': 'configuration/audit-compliance/',
 } as const;

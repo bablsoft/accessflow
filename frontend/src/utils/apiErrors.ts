@@ -203,6 +203,35 @@ export function adminErrorMessage(err: unknown): string {
   return i18n.t('errors.admin_generic');
 }
 
+// External audit sinks (#628). Config/test failures carry a backend-localized,
+// occurrence-specific `detail` — prefer it over the static fallback.
+export function auditSinkErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'AUDIT_SINK_NAME_EXISTS') {
+      return i18n.t('errors.audit_sink_name_exists');
+    }
+    if (code === 'AUDIT_SINK_NOT_FOUND') {
+      return i18n.t('errors.audit_sink_not_found');
+    }
+    if (code === 'AUDIT_SINK_CONFIG_INVALID') {
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.audit_sink_config_invalid');
+    }
+    if (code === 'AUDIT_SINK_TEST_FAILED') {
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.audit_sink_test_failed');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.audit_sink_generic');
+}
+
 export function datasourceGrantErrorMessage(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const ax = err as AxiosError<ProblemDetail>;

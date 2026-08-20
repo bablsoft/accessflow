@@ -45,6 +45,7 @@ const RESOURCE_TYPES = [
   'permission',
   'review_plan',
   'notification_channel',
+  'audit_sink',
 ];
 
 const ACTIONS = [
@@ -74,6 +75,9 @@ const ACTIONS = [
   'EXPORT_POLICY_CREATED',
   'EXPORT_POLICY_UPDATED',
   'EXPORT_POLICY_DELETED',
+  'AUDIT_SINK_CREATED',
+  'AUDIT_SINK_UPDATED',
+  'AUDIT_SINK_DELETED',
 ];
 
 const actionColor = (a: string): string => {

@@ -146,6 +146,7 @@ accessflow-ui/
 │   │   └── admin/
 │   │       ├── UsersPage.tsx
 │   │       ├── AuditLogPage.tsx
+│   │       ├── AuditSinksPage.tsx    # External SIEM/WORM audit sinks (#628)
 │   │       ├── AnomaliesPage.tsx     # Behavioural anomaly detection (UBA — AF-383)
 │   │       ├── BreakGlassLogPage.tsx # Break-glass / emergency-access log (AF-385)
 │   │       ├── AIConfigPage.tsx
@@ -840,6 +841,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/groups                       → GroupsListPage (lazy; user groups — AF-353)
 /admin/groups/:id                   → GroupDetailPage (lazy; group membership — AF-353)
 /admin/audit-log                    → AuditLogPage
+/admin/audit-sinks                  → AuditSinksPage (lazy; external SIEM/WORM audit sinks with per-sink delivery health — #628)
 /admin/auditor                      → AuditorDashboardPage (lazy; AUDITOR or ADMIN — compliance reports + signed exports, AF-459)
 /admin/anomalies                    → AnomaliesPage (lazy; AUDITOR or ADMIN — behavioural anomaly detection / UBA, AF-383)
 /admin/attestation                  → CampaignListPage (lazy; ADMIN — access-recertification campaign list + create, AF-384)

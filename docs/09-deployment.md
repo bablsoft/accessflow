@@ -883,6 +883,26 @@ Two layers exist:
 | `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM` | Optional | — | PEM-encoded RSA private key for the SP. When set together with `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM`, takes precedence over the auto-generated keypair persisted in `saml_config`. The operator owns rotation. |
 | `ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM` | Optional | — | PEM-encoded SP X.509 certificate (paired with `ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM`). When unset, AccessFlow auto-generates a self-signed RSA-2048 keypair on first SAML flow and persists the encrypted private key + cleartext cert into `saml_config` so it survives restarts. |
 
+#### External Audit Sinks (SIEM & WORM, #628)
+
+External audit sinks stream `audit_log` rows to SIEM / WORM destinations (Splunk HEC, syslog/CEF,
+HMAC-signed HTTPS, S3 Object Lock). Sinks themselves are per-organization rows managed at
+`/admin/audit-sinks`, not env config — these variables only tune the clustered-safe drain job.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_AUDIT_SINKS_DRAIN_INTERVAL` | Optional | `PT30S` | ISO-8601 duration (`accessflow.audit.sinks.drain-interval`) — cadence of `AuditSinkDrainJob`, which drains pending audit rows to every enabled, due sink. |
+| `ACCESSFLOW_AUDIT_SINKS_BATCH_SIZE` | Optional | `500` | Rows per delivery batch (`accessflow.audit.sinks.batch-size`); also the maximum row count of an S3 Object Lock segment. |
+| `ACCESSFLOW_AUDIT_SINKS_MAX_BATCHES_PER_TICK` | Optional | `5` | Per-sink cap on batches drained in one tick (`accessflow.audit.sinks.max-batches-per-tick`), bounding how long one tick can spend on a sink with a large backlog. |
+
+**S3 Object Lock prerequisite.** An `S3_OBJECT_LOCK` sink requires a bucket created with
+versioning **and** Object Lock enabled — Object Lock cannot be switched on for an existing plain
+bucket (`aws s3api create-bucket --object-lock-enabled-for-bucket ...`). The IAM principal behind
+the sink's credentials needs `s3:PutObject` and `s3:PutObjectRetention`. Retention mode
+`GOVERNANCE` allows privileged principals (`s3:BypassGovernanceRetention`) to override the lock;
+`COMPLIANCE` (the default) is immutable for everyone — including the bucket owner and AWS — until
+the retention period expires, so size `retention_days` deliberately.
+
 #### Secrets Manager (AF-448)
 
 Optional external secret stores for datasource credentials. All providers are **off by default**

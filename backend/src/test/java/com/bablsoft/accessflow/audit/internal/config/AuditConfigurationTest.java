@@ -103,6 +103,14 @@ class AuditConfigurationTest {
     }
 
     @Test
+    void auditSinkRestClientIsBuiltWithAJdkRequestFactory() {
+        // The 10s connect/read timeouts on this client are load-bearing for the drain job's
+        // scheduler-lock budget; at minimum the bean must construct with the JDK factory.
+        var client = new AuditConfiguration().auditSinkRestClient();
+        assertThat(client).isNotNull();
+    }
+
+    @Test
     void hkdfOutputLengthMatchesRequest() {
         var ikm = new byte[]{1, 2, 3, 4, 5};
         var info = "test-info".getBytes(java.nio.charset.StandardCharsets.UTF_8);

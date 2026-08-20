@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.1.1",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-19",
+        "dateModified": "2026-08-20",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "isAccessibleForFree": true,
@@ -79,6 +79,7 @@
           "Configurable multi-stage review and approval workflows",
           "Workforce-ready auth — JWT, SAML 2.0, OAuth 2.0 / OIDC, SCIM 2.0 provisioning, TOTP",
           "Tamper-evident audit log and signed compliance reports",
+          "SIEM audit streaming and WORM archival to S3 Object Lock",
           "Result-export governance with watermarked, policy-gated downloads",
           "Personalized dashboard and weekly digest",
           "Cloud-native deploy via Docker Compose and Helm",
@@ -126,7 +127,7 @@
         "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-19"
+        "dateModified": "2026-08-20"
       }
     ]
   }
@@ -407,8 +408,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
             </div>
             <h3>Tamper-evident audit &amp; compliance reports</h3>
-            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role. And once a permitted query returns, <strong>result-export governance</strong> decides what may leave: per-datasource policies allow, <strong>watermark</strong>, row-cap, or deny downloads of classified results — the watermark (who, when, which query) is baked into the signed bytes, every export is audited, and "who downloaded this data" always has an answer.</p>
-            <span class="tag">HMAC-SHA256 chain · signed exports</span>
+            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role. And once a permitted query returns, <strong>result-export governance</strong> decides what may leave: per-datasource policies allow, <strong>watermark</strong>, row-cap, or deny downloads of classified results — the watermark (who, when, which query) is baked into the signed bytes, every export is audited, and "who downloaded this data" always has an answer. Need it in your SIEM? <strong>External audit sinks</strong> stream every audit event to <strong>Splunk HEC</strong>, <strong>syslog/CEF</strong> (TCP/TLS), or an HMAC-<strong>signed HTTPS</strong> endpoint, and archive digitally-signed segments to <strong>S3 Object Lock</strong> for WORM retention — at-least-once off a durable per-sink cursor, a dead sink never blocks the log, and every exported event carries its chain links so the external copy verifies on its own.</p>
+            <span class="tag">HMAC-SHA256 chain · signed exports · SIEM streaming · WORM archival</span>
           </div>
 
           <div class="feat">
@@ -1406,6 +1407,7 @@
                 <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
                 <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
                 <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
+                <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
               </ul>
             </div>
             <div class="rm-group">
