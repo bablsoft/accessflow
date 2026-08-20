@@ -23,6 +23,7 @@ import type {
   AttestationCampaignStatus,
   AttestationItemDecision,
   AttestationPendingDefault,
+  AuditSinkType,
   AuthProvider,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
@@ -129,6 +130,16 @@ export const sslModeLabel = (t: TFunction, v: SslMode): string =>
 
 export const channelTypeLabel = (t: TFunction, v: ChannelType): string =>
   t(`enums.channel_type.${v}` as const);
+
+export const AUDIT_SINK_TYPES: readonly AuditSinkType[] = [
+  'SPLUNK_HEC',
+  'SYSLOG_CEF',
+  'HTTPS_BATCH',
+  'S3_OBJECT_LOCK',
+] as const;
+
+export const auditSinkTypeLabel = (t: TFunction, v: AuditSinkType): string =>
+  t(`enums.audit_sink_type.${v}` as const);
 
 export const aiProviderLabel = (t: TFunction, v: AiProvider): string =>
   t(`enums.ai_provider.${v}` as const);

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { AxiosError, type AxiosResponse } from 'axios';
 import '@/i18n';
-import { adminErrorMessage, queryReplayErrorMessage, rolesErrorMessage } from './apiErrors';
+import {
+  adminErrorMessage,
+  auditSinkErrorMessage,
+  queryReplayErrorMessage,
+  rolesErrorMessage,
+} from './apiErrors';
 
 function axiosError(status: number, data: unknown): AxiosError {
   const response = {
@@ -45,6 +50,60 @@ describe('queryReplayErrorMessage', () => {
   it('returns a generic message for non-axios errors', () => {
     const msg = queryReplayErrorMessage(new Error('boom'));
     expect(msg).toBe('boom');
+  });
+});
+
+describe('auditSinkErrorMessage (#628)', () => {
+  it('maps AUDIT_SINK_NAME_EXISTS to a friendly message', () => {
+    const msg = auditSinkErrorMessage(axiosError(409, { error: 'AUDIT_SINK_NAME_EXISTS' }));
+    expect(msg).toMatch(/name/i);
+  });
+
+  it('maps AUDIT_SINK_NOT_FOUND to a friendly message', () => {
+    const msg = auditSinkErrorMessage(axiosError(404, { error: 'AUDIT_SINK_NOT_FOUND' }));
+    expect(msg).toMatch(/not found/i);
+  });
+
+  it('prefers the backend-localised detail for AUDIT_SINK_CONFIG_INVALID', () => {
+    const msg = auditSinkErrorMessage(
+      axiosError(422, {
+        error: 'AUDIT_SINK_CONFIG_INVALID',
+        title: 'Unprocessable Content',
+        detail: 'Missing required config key: token',
+      }),
+    );
+    expect(msg).toBe('Missing required config key: token');
+  });
+
+  it('falls back to a friendly message when the 422 carries no detail', () => {
+    const msg = auditSinkErrorMessage(
+      axiosError(422, { error: 'AUDIT_SINK_CONFIG_INVALID', title: 'Unprocessable Content' }),
+    );
+    expect(msg).toMatch(/configuration/i);
+  });
+
+  it('prefers the backend detail for AUDIT_SINK_TEST_FAILED', () => {
+    const msg = auditSinkErrorMessage(
+      axiosError(502, {
+        error: 'AUDIT_SINK_TEST_FAILED',
+        title: 'Bad Gateway',
+        detail: 'Splunk HEC returned 403',
+      }),
+    );
+    expect(msg).toBe('Splunk HEC returned 403');
+  });
+
+  it('falls back to a friendly message when the 502 carries no detail', () => {
+    const msg = auditSinkErrorMessage(
+      axiosError(502, { error: 'AUDIT_SINK_TEST_FAILED', title: 'Bad Gateway' }),
+    );
+    expect(msg).toMatch(/test/i);
+  });
+
+  it('falls through to detail, title, and generic fallback', () => {
+    expect(auditSinkErrorMessage(axiosError(500, { detail: 'boom detail' }))).toBe('boom detail');
+    expect(auditSinkErrorMessage(axiosError(500, { title: 'Server Error' }))).toBe('Server Error');
+    expect(auditSinkErrorMessage(new Error('plain boom'))).toBe('plain boom');
   });
 });
 

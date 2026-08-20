@@ -1858,6 +1858,83 @@ export interface TestNotificationResult {
   detail: string;
 }
 
+// ── External audit sinks — SIEM & WORM streaming (#628) ─────────────────────
+
+export type AuditSinkType = 'SPLUNK_HEC' | 'SYSLOG_CEF' | 'HTTPS_BATCH' | 'S3_OBJECT_LOCK';
+
+export interface AuditSinkSplunkHecConfig {
+  url: string;
+  /** Write-only; comes back masked as "********". */
+  token?: string;
+  index?: string;
+  source?: string;
+}
+export interface AuditSinkSyslogCefConfig {
+  host: string;
+  port: number;
+  protocol: 'TCP' | 'TLS';
+}
+export interface AuditSinkHttpsBatchConfig {
+  url: string;
+  /** Write-only; comes back masked as "********". */
+  secret?: string;
+}
+export interface AuditSinkS3ObjectLockConfig {
+  bucket: string;
+  region: string;
+  access_key_id: string;
+  /** Write-only; comes back masked as "********". */
+  secret_access_key?: string;
+  retention_days: number;
+  prefix?: string;
+  endpoint?: string;
+  retention_mode?: 'COMPLIANCE' | 'GOVERNANCE';
+  /** ISO-8601 duration, default PT15M. */
+  segment_max_age?: string;
+}
+
+export type AuditSinkConfig =
+  | AuditSinkSplunkHecConfig
+  | AuditSinkSyslogCefConfig
+  | AuditSinkHttpsBatchConfig
+  | AuditSinkS3ObjectLockConfig;
+
+export interface AuditSink {
+  id: string;
+  organization_id: string;
+  name: string;
+  type: AuditSinkType;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  cursor_created_at: string;
+  last_success_at: string | null;
+  last_error: string | null;
+  consecutive_failures: number;
+  next_attempt_at: string | null;
+  behind_count: number;
+  /** True when behind_count hit the keyset-count cap — display "1000+". */
+  behind_count_capped: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAuditSinkInput {
+  name: string;
+  type: AuditSinkType;
+  config: Record<string, unknown>;
+}
+
+export interface UpdateAuditSinkInput {
+  name?: string;
+  enabled?: boolean;
+  config?: Record<string, unknown>;
+}
+
+export interface TestAuditSinkResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
+}
+
 export interface SchemaColumn {
   name: string;
   type: string;
