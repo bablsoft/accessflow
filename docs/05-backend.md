@@ -1227,6 +1227,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `DiscoveryScanJob` | discovery | `discoveryScanJob` | `accessflow.discovery.scan-poll-interval` | `PT15M` |
 | `ApprovalPredictionTrainingJob` | ai | `approvalPredictionTrainingJob` | `accessflow.ai.approval-prediction.retrain-poll-interval` | `P1D` |
 | `GrantUsageAggregationJob` | access | `grantUsageAggregationJob` | `accessflow.access.usage.aggregation-poll-interval` | `PT1H` |
+| `AuditSinkDrainJob` | audit | `auditSinkDrainJob` | `accessflow.audit.sinks.drain-interval` | `PT30S` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -2398,6 +2399,20 @@ Verification entry points:
   never fails startup. This is the post-restore integrity check in the
   [disaster-recovery runbook](09-deployment.md#disaster-recovery); verification only
   succeeds under the same HMAC key material the rows were written with.
+
+### SIEM & WORM audit streaming (#628)
+
+Admin-configurable **external audit sinks** stream `audit_log` rows to SIEM / WORM destinations, managed on `/admin/audit-sinks` (gated by the `AUDIT_SINK_MANAGE` permission — see [04-api-spec.md → Audit Sinks](04-api-spec.md#audit-sinks-adminaudit-sinks--siem--worm-streaming-628)). Four sink types: `SPLUNK_HEC` (newline-stacked HEC envelopes, `Authorization: Splunk <token>`), `SYSLOG_CEF` (RFC 5424 frames carrying CEF:0 over TCP or TLS with RFC 6587 octet-counting; TLS validates against the system truststore, no skip-verify; severity is a v1 heuristic — 7 for actions containing `BREAK_GLASS`/`DELETED`/`REJECTED`, else 5), `HTTPS_BATCH` (JSON array of events, HMAC-signed with the webhook signature contract: `X-AccessFlow-Signature: sha256=<hex>`, `X-AccessFlow-Event: audit.batch`, `X-AccessFlow-Delivery`), and `S3_OBJECT_LOCK` (periodic signed JSONL segments under a WORM retention lock).
+
+Mechanics:
+
+- **Durable keyset cursor, at-least-once.** Each `audit_sinks` row carries a `(cursor_created_at, cursor_id)` keyset cursor over the append-only `audit_log` (`created_at` is not unique — same rationale as the `grant_usage_watermark`, V135; the range read rides `idx_audit_log_org_created_id`). The cursor advances only after a successful delivery, so receivers dedupe on the immutable event `id`.
+- **Clustered-safe drain.** `AuditSinkDrainJob` (`audit/internal/scheduled/`, `@SchedulerLock(name = "auditSinkDrainJob", lockAtMostFor = "PT10M", lockAtLeastFor = "PT20S")`, cadence `accessflow.audit.sinks.drain-interval`, default `PT30S`) drains, per enabled+due sink, up to `max-batches-per-tick` (default 5) batches of `batch-size` (default 500) rows through the sink's deliverer.
+- **Failure isolation, retry forever.** Export is strictly downstream of the synchronous audit write path — a dead sink never blocks audit writes, and per-sink failures are isolated. On failure: `last_error` recorded (truncated to 500 chars), `consecutive_failures` incremented, retry with backoff 30 s → 2 min → 10 min, then every 10 min forever; the durable cursor makes retry-forever safe (no exhaustion state). Health (cursor position, last success, last error, consecutive failures, next retry, capped behind-count) is embedded in the admin list response.
+- **Canonical event.** Every sink type serializes the same canonical audit event JSON — all `audit_log` columns, metadata embedded, ISO-8601 microsecond `created_at`, lowercase-hex `previous_hash`/`current_hash` — so any exported window is independently chain-verifiable.
+- **WORM segments.** The S3 deliverer flushes a segment when the batch is full or the oldest pending row exceeds `segment_max_age` (default `PT15M`): key `<prefix><yyyy/MM/dd>/audit-<orgId>-<fromCreatedAt>-<toCreatedAt>-<lastRowId>.jsonl`, uploaded with the Object Lock retention (`retention_mode` default `COMPLIANCE`), plus a sibling `<key>.sig` holding the base64 SHA256withRSA signature of the segment bytes (the JWT RSA key — same as compliance exports, verifiable via `GET /admin/compliance/signing-certificate`). The segment's last line carries the org chain head, so the signature covers the chain head — combined with the in-DB HMAC chain, an externally verifiable WORM copy.
+- **Test endpoint.** `POST /admin/audit-sinks/{id}/test` synchronously delivers one synthetic event through the sink's deliverer (for S3: a small test segment **without** a retention lock, named `<prefix>test/…`); destination rejection maps to 502 `AUDIT_SINK_TEST_FAILED`.
+- **Audit of the sinks themselves.** Admin CRUD writes best-effort `AUDIT_SINK_CREATED`/`_UPDATED`/`_DELETED` rows (resource `audit_sink`; metadata name + type, never secrets). Deliveries are deliberately not audited per batch — that would feed back into the stream being drained.
 
 ---
 

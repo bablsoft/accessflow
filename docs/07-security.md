@@ -375,6 +375,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage user permissions | — | — | — | ✓ | — |
 | Create / edit review plans | — | — | — | ✓ | — |
 | View audit log | — | — | — | ✓ | — |
+| Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |
@@ -435,6 +436,18 @@ authorization — `QUERY_ADMIN` or the query's submitter, anyone else receiving 
 empty denies, caps, or watermarks admins exactly as it does everyone else. Every export writes a
 `RESULT_EXPORTED` audit row (fail-hard on the download path — no audit row, no bytes), and the
 watermark is baked into the signed bytes, so removing it invalidates the RS256 signature.
+
+**SIEM & WORM audit streaming (#628):** `AUDIT_SINK_MANAGE` gates the external-audit-sink CRUD and
+test endpoints (`/api/v1/admin/audit-sinks`,
+`@PreAuthorize("hasAuthority('PERM_AUDIT_SINK_MANAGE')")`); it sits in the `COMPLIANCE` group and is
+held by `ADMIN` (seeded by `V148`, same `VARCHAR`-catalog convention as `V134`/`V146`). Sink secrets
+(Splunk HEC token, HTTPS-batch HMAC secret, S3 secret access key) are AES-256-GCM encrypted at rest
+and masked as `********` on read — the notification-channel contract — and never appear in the
+`AUDIT_SINK_*` audit rows. Streaming is read-only over the append-only `audit_log` and strictly
+downstream of the synchronous write path: a compromised or dead sink can never block, mutate, or
+truncate the in-database chain, and every exported event carries its `previous_hash`/`current_hash`
+so an exported window is independently chain-verifiable (the S3 WORM segments are additionally
+RS256-signed with the same key as compliance exports).
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

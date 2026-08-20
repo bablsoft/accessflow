@@ -2790,6 +2790,11 @@ on the CSV export with `row_count` / `truncated` / the applied filters in its me
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
 | `DELETE` | `/admin/notification-channels/{id}` | Delete a notification channel |
 | `POST` | `/admin/notification-channels/{id}/test` | Send a test notification |
+| `GET` | `/admin/audit-sinks` | List external audit sinks with embedded delivery health (#628) *(`AUDIT_SINK_MANAGE`)* |
+| `POST` | `/admin/audit-sinks` | Add an external audit sink (SIEM / WORM destination) *(`AUDIT_SINK_MANAGE`)* |
+| `PUT` | `/admin/audit-sinks/{id}` | Update sink name, enabled flag, or config *(`AUDIT_SINK_MANAGE`)* |
+| `DELETE` | `/admin/audit-sinks/{id}` | Delete an audit sink *(`AUDIT_SINK_MANAGE`)* |
+| `POST` | `/admin/audit-sinks/{id}/test` | Synchronously deliver a synthetic test event through the sink *(`AUDIT_SINK_MANAGE`)* |
 | `GET` | `/admin/ai-config` | Get current AI analyzer configuration |
 | `PUT` | `/admin/ai-config` | Update AI provider, model, API key *(ADMIN only)* |
 | `GET` | `/admin/saml-config` | Get SAML configuration *(ADMIN only)* |
@@ -3499,6 +3504,130 @@ Password must be 8–128 characters. On success the user's password hash is rota
 **Response 400:** Validation error (password length).
 **Response 404:** `PASSWORD_RESET_NOT_FOUND`.
 **Response 422:** `PASSWORD_RESET_EXPIRED`, `PASSWORD_RESET_ALREADY_USED`, or `PASSWORD_RESET_REVOKED`.
+
+### Audit Sinks (`/admin/audit-sinks`) — SIEM & WORM streaming (#628)
+
+External audit sinks stream `audit_log` rows to SIEM / WORM destinations. All five endpoints require the `AUDIT_SINK_MANAGE` permission (`@PreAuthorize("hasAuthority('PERM_AUDIT_SINK_MANAGE')")`) and operate within the caller's organization. Sensitive `config` fields (`token`, `secret`, `secret_access_key`) are AES-256-GCM encrypted at rest and replaced with the literal `"********"` on read; sending the masked value back on `PUT` preserves the existing ciphertext — the same contract as notification channels.
+
+Delivery is **at-least-once**: a durable per-sink `(created_at, id)` keyset cursor over the append-only `audit_log` advances only after a successful delivery, so receivers must dedupe on the immutable event `id`. The clustered-safe `AuditSinkDrainJob` drains batches strictly downstream of the synchronous audit write path — a dead sink never blocks audit writes, and one failing sink never blocks another. On failure the sink records `last_error` (truncated to 500 chars), increments `consecutive_failures`, and retries with backoff 30 s → 2 min → 10 min, then every 10 min forever — no exhaustion; the durable cursor makes retry-forever safe.
+
+**Canonical audit event JSON** — identical for every sink type:
+
+```json
+{
+  "id": "uuid",
+  "organization_id": "uuid",
+  "actor_id": "uuid",
+  "action": "QUERY_EXECUTED",
+  "resource_type": "query_request",
+  "resource_id": "uuid",
+  "metadata": {"datasource_id": "uuid"},
+  "ip_address": "10.0.0.1",
+  "user_agent": "Mozilla/5.0",
+  "created_at": "2026-08-19T09:00:00.123456Z",
+  "previous_hash": "9f2c…",
+  "current_hash": "b41a…"
+}
+```
+
+`metadata` is embedded as a JSON object, `created_at` is ISO-8601 with microsecond precision, and `previous_hash` / `current_hash` are the lowercase-hex HMAC chain bytes (as in the audit CSV export) — so any exported window is independently chain-verifiable.
+
+#### GET /admin/audit-sinks
+
+**Response 200:**
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "name": "SOC Splunk",
+    "type": "SPLUNK_HEC",
+    "config": {
+      "url": "https://splunk.example.com:8088/services/collector/event",
+      "token": "********",
+      "index": "accessflow",
+      "source": "accessflow"
+    },
+    "enabled": true,
+    "cursor_created_at": "2026-08-19T09:00:00.000000Z",
+    "last_success_at": "2026-08-19T09:05:00Z",
+    "last_error": null,
+    "consecutive_failures": 0,
+    "next_attempt_at": null,
+    "behind_count": 0,
+    "behind_count_capped": false,
+    "created_at": "2026-08-19T08:00:00Z",
+    "updated_at": "2026-08-19T09:05:00Z"
+  }
+]
+```
+
+Per-sink delivery health is embedded in the list response: `cursor_created_at` (cursor position), `last_success_at`, `last_error`, `consecutive_failures`, and `next_attempt_at`. `behind_count` is the number of audit rows past the cursor, computed with a capped keyset count (cap 1000); `behind_count_capped: true` means "1000+".
+
+#### POST /admin/audit-sinks
+
+**Request body:**
+```json
+{
+  "name": "SOC Splunk",
+  "type": "SPLUNK_HEC",
+  "config": {
+    "url": "https://splunk.example.com:8088/services/collector/event",
+    "token": "hec-token",
+    "index": "accessflow"
+  }
+}
+```
+
+**Response 201:** The created sink (same shape as GET, secrets replaced with `********`). `Location` header points to `/api/v1/admin/audit-sinks/{id}`.
+**Response 400:** Validation error (missing `name`, `type`, or `config`).
+**Response 409:** Another sink in the organization already uses that name. `error: AUDIT_SINK_NAME_EXISTS`.
+**Response 422:** Sink `config` is missing or invalid required keys for its type. `error: AUDIT_SINK_CONFIG_INVALID`.
+
+Required `config` keys per sink type (secrets marked † are write-only/masked):
+- `SPLUNK_HEC`: `url` (full HEC endpoint), `token`† (optional: `index`, `source` default `accessflow`). Events are sent newline-stacked as HEC envelopes `{"time": <epoch seconds>, "sourcetype": "accessflow:audit", "source", "index"?, "event": <audit event JSON>}` with `Authorization: Splunk <token>`.
+- `SYSLOG_CEF`: `host`, `port`, `protocol` (`TCP` | `TLS`; TLS validates against the system truststore — no skip-verify option). Messages are RFC 5424 syslog frames carrying CEF:0 (`CEF:0|AccessFlow|AccessFlow|<version>|<action>|<action>|<severity>|<extensions>`), sent with RFC 6587 octet-counting framing. Severity mapping is a v1 heuristic: 7 for actions containing `BREAK_GLASS`/`DELETED`/`REJECTED`, else 5.
+- `HTTPS_BATCH`: `url`, `secret`†. Body is a JSON array of audit events; headers `X-AccessFlow-Signature: sha256=<lowercase hex HMAC-SHA256 of the exact body bytes>`, `X-AccessFlow-Event: audit.batch`, `X-AccessFlow-Delivery: <UUID>` — the same signature contract as webhook notifications.
+- `S3_OBJECT_LOCK`: `bucket`, `region`, `access_key_id`, `secret_access_key`†, `retention_days` (integer ≥ 1) (optional: `prefix` default `audit/`, `endpoint` (S3-compatible endpoint override), `retention_mode` (`COMPLIANCE` | `GOVERNANCE`, default `COMPLIANCE`), `segment_max_age` (ISO-8601 duration, default `PT15M`)). A segment flushes when the batch is full (batch-size rows) or the oldest pending row is older than `segment_max_age`. Object key: `<prefix><yyyy/MM/dd>/audit-<orgId>-<fromCreatedAt>-<toCreatedAt>-<lastRowId>.jsonl` (one canonical audit event JSON per line), uploaded with the Object Lock retention; a sibling `<key>.sig` object holds the base64 SHA256withRSA signature of the segment bytes, signed with the deployment's JWT RSA key — verify against [`GET /admin/compliance/signing-certificate`](#get-admincompliancesigning-certificate--response-200), the same key as compliance exports. The segment's last line carries the org chain head (`current_hash`), so the signature covers the chain head; combined with the in-DB HMAC chain this yields an externally verifiable WORM copy.
+
+#### PUT /admin/audit-sinks/{id}
+
+Partial update. Any field omitted is left unchanged; `config` is merged key-wise onto the stored config. `type` is immutable — it is not updatable. Sending a masked secret value (`"********"`) preserves the existing ciphertext.
+
+**Request body:**
+```json
+{
+  "name": "SOC Splunk v2",
+  "enabled": false,
+  "config": {
+    "token": "rotated-token"
+  }
+}
+```
+
+**Response 200:** The updated sink.
+**Response 404:** Sink not found in caller's organization. `error: AUDIT_SINK_NOT_FOUND`.
+**Response 409:** Another sink in the organization already uses the new name. `error: AUDIT_SINK_NAME_EXISTS`.
+**Response 422:** Resulting config is invalid. `error: AUDIT_SINK_CONFIG_INVALID`.
+
+#### DELETE /admin/audit-sinks/{id}
+
+**Response 204:** Deleted (writes an `AUDIT_SINK_DELETED` audit row).
+**Response 404:** Sink not found in caller's organization. `error: AUDIT_SINK_NOT_FOUND`.
+
+#### POST /admin/audit-sinks/{id}/test
+
+Synchronously delivers a single synthetic test event through the sink's deliverer. For `S3_OBJECT_LOCK` it uploads a small test segment **without** a retention lock, named `<prefix>test/…`, so the test never creates an immutable object.
+
+**Response 200:**
+```json
+{ "status": "OK", "detail": "Test event delivered" }
+```
+
+**Response 404:** Sink not found in caller's organization.
+**Response 502:** The destination rejected the delivery or is unreachable. `error: AUDIT_SINK_TEST_FAILED`.
+
+Admin CRUD on sinks is audited best-effort as `AUDIT_SINK_CREATED` / `AUDIT_SINK_UPDATED` / `AUDIT_SINK_DELETED` (resource `audit_sink`; metadata carries the sink name + type, never secrets). There are **no** per-batch delivery audit rows — they would feed back into the stream being drained.
 
 ### GET /admin/audit-log — Query Parameters
 

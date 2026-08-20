@@ -1565,6 +1565,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `RESULT_EXPORTED` | A query's persisted result set left AccessFlow — via `GET /queries/{id}/results/export` (`metadata.trigger = "endpoint"`, actor = the exporter) or as the results-CSV attachment on a recurring-execution email (`metadata.trigger = "email_attachment"`, actor = the recipient). Resource: `query_request`. Metadata captures `format`, `row_count`, `truncated`, `watermarked`, `policy_ids`, `classifications_present`, and for endpoint exports the `content_sha256` + `signature_algorithm` chaining the signed bytes into the tamper-evident log. Written fail-hard on the endpoint path (no audit row ⇒ no download). |
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 | `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |
+| `AUDIT_SINK_CREATED` / `AUDIT_SINK_UPDATED` / `AUDIT_SINK_DELETED` | Admin creates / updates / deletes an external audit sink via the `/admin/audit-sinks` CRUD endpoints (#628). Resource: `audit_sink`. Written best-effort; metadata carries the sink name + type, never secrets. Deliveries themselves are deliberately **not** audited per batch — that would feed back into the stream being drained. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
@@ -1572,9 +1573,34 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
+
+---
+
+## audit_sinks
+
+Admin-configurable external audit sinks (#628, Flyway V147) — SIEM / WORM destinations the `audit` module streams `audit_log` rows to. Owned by the `audit` module; `organization_id` is a bare UUID with no SQL FK (the V14 audit-module convention): the drain job writes cursor/health from a background thread, and an FK's referential-integrity check on `organizations` could deadlock against operations holding an exclusive lock on that table. Orgs are disabled, not deleted, so orphan cleanup is not a real flow.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID — references `organizations(id)` semantically; no SQL FK (see above) |
+| `name` | VARCHAR(255) — human label; `UNIQUE (organization_id, name)` (`uq_audit_sinks_org_name`) |
+| `type` | ENUM `audit_sink_type`: `SPLUNK_HEC` \| `SYSLOG_CEF` \| `HTTPS_BATCH` \| `S3_OBJECT_LOCK` |
+| `config` | JSONB NOT NULL DEFAULT `{}` — type-specific config; sensitive keys (`token`, `secret`, `secret_access_key`) AES-256-GCM encrypted before persistence and masked on read |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true |
+| `cursor_created_at` | TIMESTAMPTZ NOT NULL DEFAULT `'epoch'` — keyset cursor half 1: `created_at` of the last delivered audit row |
+| `cursor_id` | UUID NOT NULL DEFAULT `'00000000-0000-0000-0000-000000000000'` — keyset cursor half 2: id tie-breaker, because `created_at` is not unique (same rationale as [`grant_usage_watermark`](#grant_usage_watermark)) |
+| `consecutive_failures` | INT NOT NULL DEFAULT 0 |
+| `next_attempt_at` | TIMESTAMPTZ nullable — backoff gate; null = due now |
+| `last_success_at` | TIMESTAMPTZ nullable |
+| `last_error` | VARCHAR(500) nullable — last delivery error, truncated |
+| `version` | BIGINT — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP |
+
+Index on `(organization_id)` (`idx_audit_sinks_org`). The durable `(cursor_created_at, cursor_id)` keyset cursor advances only after a successful delivery (at-least-once — receivers dedupe on the immutable event `id`) and its range read rides the existing `idx_audit_log_org_created_id` (V26), which matters because `audit_log` has been owned by the dedicated audit role since V38 and no new index can be added by an application-role migration. V148 seeds the `AUDIT_SINK_MANAGE` permission for the `ADMIN` system role (same `VARCHAR`-catalog convention as V146).
 
 ---
 
