@@ -22,7 +22,7 @@
         <java.version>25</java.version>
         <spring-modulith.version>2.1.0</spring-modulith.version>
         <spring-ai.version>2.0.0</spring-ai.version>
-        <shedlock.version>7.7.0</shedlock.version>
+        <shedlock.version>7.8.0</shedlock.version>
         <slack.sdk.version>1.50.0</slack.sdk.version>
         <springdoc.version>3.1.0</springdoc.version>
         <jsqlparser.version>5.3</jsqlparser.version>
@@ -35,10 +35,10 @@
              steps only, and Checkstyle enforces the CLAUDE.md rules that actually matter. -->
         <spotless.version>3.9.0</spotless.version>
         <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
-        <checkstyle.version>13.9.0</checkstyle.version>
+        <checkstyle.version>13.10.0</checkstyle.version>
         <!-- External secret stores (AF-448). -->
         <spring-vault.version>4.1.0</spring-vault.version>
-        <awssdk.version>2.51.3</awssdk.version>
+        <awssdk.version>2.53.1</awssdk.version>
         <azure-sdk-bom.version>1.3.8</azure-sdk-bom.version>
         <!-- Repo-root connector catalog (issue #334), bundled onto the classpath as connectors/**.
              Local/CI builds run from backend/ so the default resolves to the sibling folder; the
