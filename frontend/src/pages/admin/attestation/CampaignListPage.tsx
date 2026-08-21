@@ -328,8 +328,7 @@ function CreateCampaignModal({
               placeholder={t('attestation.create.datasource_placeholder')}
               loading={datasourcesQuery.isLoading}
               options={datasourceOptions}
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
             />
           </Form.Item>
         )}

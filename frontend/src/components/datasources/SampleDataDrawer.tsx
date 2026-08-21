@@ -13,7 +13,7 @@ export function SampleDataDrawer({ datasourceId, target, onClose }: SampleDataDr
   const { t } = useTranslation();
   return (
     <Drawer
-      width={720}
+      size={720}
       open={target !== null}
       onClose={onClose}
       title={

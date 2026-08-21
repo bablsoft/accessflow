@@ -224,11 +224,11 @@ export function GroupDetailPage() {
           >
             <Select
               loading={usersQuery.isLoading}
-              showSearch
+              showSearch={{
+                filterOption: (input, option) =>
+                String(option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+              }}
               placeholder={t('admin.groups.fields.user_placeholder')}
-              filterOption={(input, option) =>
-                String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-              }
               options={availableUsers.map((u) => ({
                 value: u.id,
                 label: u.display_name ? `${u.display_name} (${u.email})` : u.email,

@@ -80,7 +80,7 @@ export function OAuthCallbackPage() {
               <Alert
                 type="error"
                 showIcon
-                message={t('auth.oauth_callback.error_title')}
+                title={t('auth.oauth_callback.error_title')}
                 description={
                   <>
                     {error.message}

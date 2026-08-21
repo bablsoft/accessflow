@@ -309,7 +309,7 @@ function RoleDrawer({
       open={open}
       title={title}
       onClose={onClose}
-      width={520}
+      size={520}
       destroyOnHidden
       footer={
         readOnly ? null : (

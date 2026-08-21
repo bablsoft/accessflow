@@ -388,7 +388,7 @@ export function QueryDetailPage() {
               type="info"
               showIcon
               icon={<ClockCircleOutlined />}
-              message={
+              title={
                 hasScheduledRun
                   ? t('queries.detail.scheduled_banner_title')
                   : t('queries.detail.scheduled_banner_title_pending')
@@ -410,7 +410,7 @@ export function QueryDetailPage() {
               showIcon
               icon={<SyncOutlined />}
               data-testid="recurrence-banner"
-              message={t(`queries.detail.series_banner_title_${seriesState}`)}
+              title={t(`queries.detail.series_banner_title_${seriesState}`)}
               description={
                 seriesState === 'active'
                   ? t('queries.detail.series_banner_body_active', {
@@ -432,7 +432,7 @@ export function QueryDetailPage() {
               showIcon
               icon={<SyncOutlined />}
               data-testid="occurrence-banner"
-              message={t('queries.detail.occurrence_banner_title')}
+              title={t('queries.detail.occurrence_banner_title')}
               action={
                 <Button
                   size="small"
@@ -448,7 +448,7 @@ export function QueryDetailPage() {
               type="info"
               showIcon
               icon={<EditOutlined />}
-              message={t('queries.detail.changes_requested_banner_title')}
+              title={t('queries.detail.changes_requested_banner_title')}
               description={t('queries.detail.changes_requested_banner_body', {
                 reviewer: userDisplay(
                   latestDecision.reviewer.display_name,
@@ -464,7 +464,7 @@ export function QueryDetailPage() {
               type="warning"
               showIcon
               icon={<ExclamationCircleOutlined />}
-              message={t('queries.detail.ai_failed_banner_title')}
+              title={t('queries.detail.ai_failed_banner_title')}
               description={t('queries.detail.ai_failed_banner_detail', {
                 reason: aiFailureReason || '—',
               })}
@@ -489,7 +489,7 @@ export function QueryDetailPage() {
               type="warning"
               showIcon
               icon={<ClockCircleOutlined />}
-              message={t('queries.detail.timeout_title')}
+              title={t('queries.detail.timeout_title')}
               description={
                 query.review_plan_name
                   ? t('queries.detail.timeout_body_with_plan', {
@@ -510,7 +510,7 @@ export function QueryDetailPage() {
               showIcon
               icon={<ClockCircleOutlined />}
               data-testid="escalation-banner"
-              message={t('queries.detail.escalated_title')}
+              title={t('queries.detail.escalated_title')}
               description={t('queries.detail.escalated_body', {
                 hours: query.escalation_after_hours ?? '?',
                 when: timeAgo(query.escalated_at),
@@ -521,7 +521,7 @@ export function QueryDetailPage() {
             <Alert
               type="info"
               showIcon
-              message={t('queries.detail.matched_policy_title', {
+              title={t('queries.detail.matched_policy_title', {
                 action: routingActionLabel(t, query.matched_policy.action),
               })}
               description={t('queries.detail.matched_policy_body', {
@@ -537,7 +537,7 @@ export function QueryDetailPage() {
             <Alert
               type="success"
               showIcon
-              message={t('queries.detail.approved_by_grant_title')}
+              title={t('queries.detail.approved_by_grant_title')}
               description={
                 query.approved_by_grant.approver_email
                   ? t('queries.detail.approved_by_grant_body', {

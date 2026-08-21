@@ -66,7 +66,7 @@ export function QueryResultsTable({ queryId, defaultView = 'table' }: Props) {
       <Alert
         type="info"
         showIcon
-        message={t('queries.detail.results_unavailable')}
+        title={t('queries.detail.results_unavailable')}
         description={(error as Error).message}
       />
     );

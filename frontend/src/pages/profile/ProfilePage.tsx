@@ -41,13 +41,13 @@ export function ProfilePage() {
       <PageHeader title={t('profile.title')} subtitle={t('profile.subtitle')} />
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="large" style={{ width: '100%' }}>
             {error && (() => {
               const traceId = apiErrorTraceId(error);
               return (
                 <Alert
                   type="error"
-                  message={(error as Error).message}
+                  title={(error as Error).message}
                   description={traceId ? <TraceIdFooter traceId={traceId} /> : undefined}
                   showIcon
                 />
@@ -62,7 +62,7 @@ export function ProfilePage() {
               {isLoading || !profile ? (
                 <Skeleton active />
               ) : isExternal ? (
-                <Alert type="info" message={externalPasswordMessage} showIcon />
+                <Alert type="info" title={externalPasswordMessage} showIcon />
               ) : (
                 <ChangePasswordForm />
               )}
@@ -72,7 +72,7 @@ export function ProfilePage() {
               {isLoading || !profile ? (
                 <Skeleton active />
               ) : isExternal ? (
-                <Alert type="info" message={externalTotpMessage} showIcon />
+                <Alert type="info" title={externalTotpMessage} showIcon />
               ) : (
                 <TwoFactorSection profile={profile} />
               )}

@@ -44,7 +44,7 @@ export function SlackLinkSection() {
 
   if (statusQuery.data?.linked) {
     return (
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Typography.Text>
           {t('profile.slack.linked_as')}{' '}
           <Tag color="green">{statusQuery.data.slack_user_id}</Tag>
@@ -64,15 +64,15 @@ export function SlackLinkSection() {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Typography.Text type="secondary">{t('profile.slack.description')}</Typography.Text>
       {issued ? (
         <Alert
           type="success"
           showIcon
-          message={t('profile.slack.code_ready')}
+          title={t('profile.slack.code_ready')}
           description={
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Typography.Paragraph copyable={{ text: `/accessflow link ${issued.code}` }} code
                 style={{ wordBreak: 'break-all', marginBottom: 0 }}>
                 /accessflow link {issued.code}

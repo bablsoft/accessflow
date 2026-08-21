@@ -14,6 +14,9 @@ export default tseslint.config(
       'test-results',
       'coverage',
       'src/sw.ts',
+      // Ambient module augmentation only — no runtime code to lint, and the
+      // type-aware project service does not treat it as a program root file.
+      'src/i18n.d.ts',
       // Vendored Bklit chart components (shadcn registry) — third-party code, not linted.
       'src/components/charts/**',
       'src/components/shimmering-text.tsx',
@@ -25,6 +28,14 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
+      // Type-aware parsing, enabled solely so @typescript-eslint/no-deprecated
+      // can run. The full recommendedTypeChecked preset is deliberately NOT
+      // adopted — it would also turn on no-floating-promises / no-misused-promises,
+      // which is a separate cleanup.
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -42,6 +53,9 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      // Catches upstream deprecations (antd, React, TanStack Query, …) at lint
+      // time instead of by periodic manual sweep.
+      '@typescript-eslint/no-deprecated': 'error',
     },
   },
 );

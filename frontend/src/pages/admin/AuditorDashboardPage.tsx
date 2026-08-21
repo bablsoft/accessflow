@@ -170,7 +170,7 @@ export default function AuditorDashboardPage() {
         </Space>
 
         {report.data?.truncated && (
-          <Alert type="warning" showIcon message={t('auditor.report_truncated')} />
+          <Alert type="warning" showIcon title={t('auditor.report_truncated')} />
         )}
 
         {report.isLoading ? (

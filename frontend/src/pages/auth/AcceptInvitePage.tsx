@@ -109,7 +109,7 @@ function AcceptInvitePage() {
           ) : loadError ? (
             <Alert
               type="error"
-              message={loadError.message}
+              title={loadError.message}
               description={
                 loadError.traceId ? <TraceIdFooter traceId={loadError.traceId} /> : undefined
               }
@@ -129,7 +129,7 @@ function AcceptInvitePage() {
               {submitError && (
                 <Alert
                   type="error"
-                  message={submitError.message}
+                  title={submitError.message}
                   description={
                     submitError.traceId ? (
                       <TraceIdFooter traceId={submitError.traceId} />
@@ -137,8 +137,7 @@ function AcceptInvitePage() {
                   }
                   style={{ marginBottom: 16 }}
                   showIcon
-                  closable
-                  onClose={() => setSubmitError(null)}
+                  closable={{ closeIcon: true, onClose: () => setSubmitError(null) }}
                 />
               )}
 

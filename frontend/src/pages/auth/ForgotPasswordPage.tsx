@@ -67,12 +67,11 @@ function ForgotPasswordPage() {
           {!submitted && error && (
             <Alert
               type="error"
-              message={error.message}
+              title={error.message}
               description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
               style={{ marginBottom: 16 }}
               showIcon
-              closable
-              onClose={() => setError(null)}
+              closable={{ closeIcon: true, onClose: () => setError(null) }}
             />
           )}
 

@@ -109,8 +109,7 @@ export function ErasureConfigForm({
       >
         {schemaAvailable ? (
           <Select
-            showSearch
-            optionFilterProp="value"
+            showSearch={{ optionFilterProp: 'value' }}
             options={tableOptions}
             placeholder={t('lifecycle.config.target_table_placeholder')}
             onChange={onTableChange}
@@ -119,9 +118,10 @@ export function ErasureConfigForm({
         ) : (
           <AutoComplete
             options={tableOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             placeholder="public.users"
             allowClear
           />
@@ -161,9 +161,10 @@ export function ErasureConfigForm({
                       options={columnOptions}
                       placeholder={t('lifecycle.config.condition_column_placeholder')}
                       style={{ width: 160 }}
-                      filterOption={(input, option) =>
-                        (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-                      }
+                      showSearch={{
+                        filterOption: (input, option) =>
+                        (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+                      }}
                     />
                   </Form.Item>
                   <Form.Item name={[field.name, 'operator']} initialValue="EQUALS" style={{ marginBottom: 0 }}>

@@ -295,7 +295,7 @@ export function ScimConfigPage() {
 
         <div style={{ marginTop: 40 }}>
           <Section title={t('admin.scim.section_tokens')}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <div
                 style={{
                   display: 'flex',
@@ -317,7 +317,7 @@ export function ScimConfigPage() {
                 <Alert
                   type="error"
                   showIcon
-                  message={t('admin.scim.tokens_load_error')}
+                  title={t('admin.scim.tokens_load_error')}
                   description={adminErrorMessage(tokensQuery.error)}
                 />
               ) : tokensQuery.data && tokensQuery.data.length > 0 ? (
@@ -381,8 +381,8 @@ export function ScimConfigPage() {
         destroyOnHidden
       >
         {issuedToken && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Alert type="warning" showIcon message={t('admin.scim.token_copy_once_warning')} />
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert type="warning" showIcon title={t('admin.scim.token_copy_once_warning')} />
             <Typography.Text strong>{t('admin.scim.token_name_label')}</Typography.Text>
             <Typography.Text>{issuedToken.token.name}</Typography.Text>
             <Typography.Text strong>{t('admin.scim.token_raw_label')}</Typography.Text>

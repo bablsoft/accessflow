@@ -109,7 +109,7 @@ function ResetPasswordPage() {
           ) : loadError ? (
             <Alert
               type="error"
-              message={loadError.message}
+              title={loadError.message}
               description={
                 loadError.traceId ? <TraceIdFooter traceId={loadError.traceId} /> : undefined
               }
@@ -120,7 +120,7 @@ function ResetPasswordPage() {
               {submitError && (
                 <Alert
                   type="error"
-                  message={submitError.message}
+                  title={submitError.message}
                   description={
                     submitError.traceId ? (
                       <TraceIdFooter traceId={submitError.traceId} />
@@ -128,8 +128,7 @@ function ResetPasswordPage() {
                   }
                   style={{ marginBottom: 16 }}
                   showIcon
-                  closable
-                  onClose={() => setSubmitError(null)}
+                  closable={{ closeIcon: true, onClose: () => setSubmitError(null) }}
                 />
               )}
 

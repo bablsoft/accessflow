@@ -204,8 +204,7 @@ export function AuditLogPage() {
             setPage(0);
           }}
           style={{ width: 220 }}
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           options={[
             { value: 'all', label: t('admin.audit.filter_all_actions') },
             ...ACTIONS.map((a) => ({ value: a, label: a })),
@@ -218,8 +217,7 @@ export function AuditLogPage() {
             setPage(0);
           }}
           style={{ width: 200 }}
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           options={[
             { value: 'all', label: t('admin.audit.filter_all_resources') },
             ...RESOURCE_TYPES.map((r) => ({ value: r, label: r })),
@@ -266,9 +264,8 @@ export function AuditLogPage() {
             <Alert
               type="error"
               showIcon
-              closable
-              onClose={() => setChainError(null)}
-              message={t('admin.audit.chain_invalid')}
+              closable={{ closeIcon: true, onClose: () => setChainError(null) }}
+              title={t('admin.audit.chain_invalid')}
               description={chainError}
               data-testid="verify-chain-result"
             />
@@ -276,9 +273,8 @@ export function AuditLogPage() {
             <Alert
               type="success"
               showIcon
-              closable
-              onClose={() => setChainResult(null)}
-              message={t('admin.audit.chain_valid')}
+              closable={{ closeIcon: true, onClose: () => setChainResult(null) }}
+              title={t('admin.audit.chain_valid')}
               description={t('admin.audit.chain_rows_checked', {
                 count: chainResult.rows_checked,
               })}
@@ -288,9 +284,8 @@ export function AuditLogPage() {
             <Alert
               type="error"
               showIcon
-              closable
-              onClose={() => setChainResult(null)}
-              message={t('admin.audit.chain_invalid')}
+              closable={{ closeIcon: true, onClose: () => setChainResult(null) }}
+              title={t('admin.audit.chain_invalid')}
               description={t('admin.audit.chain_invalid_detail', {
                 rowId: chainResult.first_bad_row_id ?? '—',
                 reason: chainResult.first_bad_reason ?? '—',
@@ -410,7 +405,7 @@ export function AuditLogPage() {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={t('admin.audit.drawer_title')}
-        width={520}
+        size={520}
       >
         {detail && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

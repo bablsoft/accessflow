@@ -73,7 +73,7 @@ export default function PushDecidePage() {
       )}
       {query && (
         <Card>
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Space wrap>
               <QueryTypePill type={query.query_type} />
               {query.ai_analysis && (
@@ -89,10 +89,10 @@ export default function PushDecidePage() {
             <SqlBlock sql={query.sql_text} style={{ maxHeight: 220 }} />
 
             {isOwnQuery && (
-              <Alert type="warning" showIcon message={t('reviews.decide.own_query')} />
+              <Alert type="warning" showIcon title={t('reviews.decide.own_query')} />
             )}
             {notPending && !isOwnQuery && (
-              <Alert type="info" showIcon message={t('reviews.decide.not_pending')} />
+              <Alert type="info" showIcon title={t('reviews.decide.not_pending')} />
             )}
 
             {!isOwnQuery && !notPending && (

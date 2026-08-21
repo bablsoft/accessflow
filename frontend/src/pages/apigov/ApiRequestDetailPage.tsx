@@ -334,7 +334,7 @@ export default function ApiRequestDetailPage() {
                       type="info"
                       showIcon
                       style={{ marginBottom: 8 }}
-                      message={t('apiGov.requests.previewTruncated')}
+                      title={t('apiGov.requests.previewTruncated')}
                     />
                   )}
                   <pre

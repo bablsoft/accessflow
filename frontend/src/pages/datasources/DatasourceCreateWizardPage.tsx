@@ -372,7 +372,7 @@ export default function DatasourceCreateWizardPage() {
             type="info"
             showIcon
             closable={false}
-            message={t('datasources.create.driver_policy_callout_title')}
+            title={t('datasources.create.driver_policy_callout_title')}
             description={t('datasources.create.driver_policy_callout_body')}
           />
           <DatasourceTypeSelector
@@ -414,7 +414,7 @@ export default function DatasourceCreateWizardPage() {
               type="info"
               showIcon
               style={{ marginBottom: 12 }}
-              message={t('datasources.create.dynamic_mode_notice_title')}
+              title={t('datasources.create.dynamic_mode_notice_title')}
               description={t('datasources.create.dynamic_mode_notice_body')}
             />
           )}
@@ -714,7 +714,7 @@ export default function DatasourceCreateWizardPage() {
               type="warning"
               showIcon
               style={{ marginTop: 8 }}
-              message={t('datasources.create.mysql_public_key_retrieval_title')}
+              title={t('datasources.create.mysql_public_key_retrieval_title')}
               description={t('datasources.create.mysql_public_key_retrieval_body')}
             />
           )}

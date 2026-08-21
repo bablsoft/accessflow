@@ -73,7 +73,7 @@ export function QueryCollaboration({ query, currentUser }: QueryCollaborationPro
         <Alert
           type="warning"
           showIcon
-          message={t('collab.denied_title')}
+          title={t('collab.denied_title')}
           description={t('collab.denied_body')}
           style={{ marginBottom: 12 }}
         />

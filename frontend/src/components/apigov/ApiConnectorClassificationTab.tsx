@@ -277,8 +277,7 @@ function ClassificationTagModal({
             ]}
           >
             <Select
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               options={operationOptions}
               loading={operationsQuery.isLoading}
               placeholder={t('apiGov.settings.classification.operation_placeholder')}

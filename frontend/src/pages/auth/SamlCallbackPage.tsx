@@ -79,7 +79,7 @@ export function SamlCallbackPage() {
               <Alert
                 type="error"
                 showIcon
-                message={t('auth.saml_callback.error_title')}
+                title={t('auth.saml_callback.error_title')}
                 description={
                   <>
                     {error.message}

@@ -346,7 +346,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
             style={{ marginTop: 8 }}
             type="warning"
             showIcon
-            message={t('datasources.settings.discovery.last_scan_error', {
+            title={t('datasources.settings.discovery.last_scan_error', {
               error: config.last_scan_error,
             })}
           />

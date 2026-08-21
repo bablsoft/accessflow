@@ -86,7 +86,7 @@ export function CustomDriverUploadModal({ open, onClose }: Props) {
     <Modal
       open={open}
       onCancel={() => (upload.isPending ? undefined : close())}
-      maskClosable={!upload.isPending}
+      mask={{ closable: !upload.isPending }}
       title={t('drivers.upload.title')}
       width={560}
       footer={[
