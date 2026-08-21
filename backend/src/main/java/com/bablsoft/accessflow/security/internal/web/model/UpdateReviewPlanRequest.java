@@ -28,6 +28,6 @@ public record UpdateReviewPlanRequest(
         Integer nudgeIntervalHours,
         Boolean autoApproveReads,
         List<String> notifyChannels,
-        @Valid List<ReviewPlanApproverDto> approvers
+        List<@Valid ReviewPlanApproverDto> approvers
 ) {
 }
