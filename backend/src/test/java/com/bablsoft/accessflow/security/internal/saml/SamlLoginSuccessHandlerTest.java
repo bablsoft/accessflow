@@ -20,7 +20,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
-import org.springframework.security.saml2.provider.service.authentication.DefaultSaml2AuthenticatedPrincipal;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
+import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertion;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -59,10 +60,9 @@ class SamlLoginSuccessHandlerTest {
 
     @Test
     void happyPathProvisionsUserIssuesCodeAndRedirectsWithCode() throws Exception {
-        var principal = new DefaultSaml2AuthenticatedPrincipal("alice", Map.of(
+        var auth = samlAuth("alice", Map.of(
                 "email", List.<Object>of("alice@example.com"),
                 "displayName", List.<Object>of("Alice")));
-        var auth = new TestingAuthenticationToken(principal, "n/a");
         var request = mockRequest();
         var response = org.mockito.Mockito.mock(HttpServletResponse.class);
 
@@ -82,7 +82,7 @@ class SamlLoginSuccessHandlerTest {
     }
 
     @Test
-    void redirectsWithErrorWhenPrincipalIsNotSamlPrincipal() throws Exception {
+    void redirectsWithErrorWhenAuthenticationIsNotSamlAssertion() throws Exception {
         var auth = new TestingAuthenticationToken("not-a-saml-principal", "n/a");
         var request = mockRequest();
         var response = org.mockito.Mockito.mock(HttpServletResponse.class);
@@ -95,9 +95,8 @@ class SamlLoginSuccessHandlerTest {
 
     @Test
     void redirectsWithErrorWhenEmailMissing() throws Exception {
-        var principal = new DefaultSaml2AuthenticatedPrincipal("opaque", Map.of(
+        var auth = samlAuth("opaque", Map.of(
                 "displayName", List.<Object>of("Anon")));
-        var auth = new TestingAuthenticationToken(principal, "n/a");
         var request = mockRequest();
         var response = org.mockito.Mockito.mock(HttpServletResponse.class);
 
@@ -112,10 +111,9 @@ class SamlLoginSuccessHandlerTest {
 
     @Test
     void mapsExternalLocalConflictToLocalEmailConflictError() throws Exception {
-        var principal = new DefaultSaml2AuthenticatedPrincipal("user", Map.of(
+        var auth = samlAuth("user", Map.of(
                 "email", List.<Object>of("bob@example.com"),
                 "displayName", List.<Object>of("Bob")));
-        var auth = new TestingAuthenticationToken(principal, "n/a");
         var request = mockRequest();
         var response = org.mockito.Mockito.mock(HttpServletResponse.class);
 
@@ -131,10 +129,9 @@ class SamlLoginSuccessHandlerTest {
 
     @Test
     void mapsInactiveUserToAccountDisabledError() throws Exception {
-        var principal = new DefaultSaml2AuthenticatedPrincipal("user", Map.of(
+        var auth = samlAuth("user", Map.of(
                 "email", List.<Object>of("carol@example.com"),
                 "displayName", List.<Object>of("Carol")));
-        var auth = new TestingAuthenticationToken(principal, "n/a");
         var request = mockRequest();
         var response = org.mockito.Mockito.mock(HttpServletResponse.class);
 
@@ -146,6 +143,14 @@ class SamlLoginSuccessHandlerTest {
         handler.onAuthenticationSuccess(request, response, auth);
 
         assertThat(lastRedirect(response)).contains("error=ACCOUNT_DISABLED");
+    }
+
+    private Saml2AssertionAuthentication samlAuth(String nameId, Map<String, List<Object>> attributes) {
+        var assertion = Saml2ResponseAssertion.withResponseValue("response")
+                .nameId(nameId)
+                .attributes(attributes)
+                .build();
+        return new Saml2AssertionAuthentication(assertion, List.of(), "accessflow");
     }
 
     private HttpServletRequest mockRequest() {

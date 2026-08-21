@@ -352,8 +352,7 @@ function CreatePolicyModal({
             placeholder={t('lifecycle.policies.datasource_placeholder')}
             loading={datasourcesQuery.isLoading}
             options={datasourceOptions}
-            showSearch
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
           />
         </Form.Item>
         <Form.Item

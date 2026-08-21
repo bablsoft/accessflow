@@ -316,7 +316,7 @@ export function QueryEditorPage() {
         <Alert
           type="error"
           showIcon
-          message={t('editor.break_glass_modal_warning_title')}
+          title={t('editor.break_glass_modal_warning_title')}
           description={t('editor.break_glass_modal_warning_body')}
           style={{ marginBottom: 12 }}
         />

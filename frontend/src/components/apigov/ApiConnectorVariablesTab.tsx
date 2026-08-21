@@ -469,7 +469,7 @@ function VariableModal({ open, connectorId, variable, onClose }: VariableModalPr
             type="warning"
             showIcon
             style={{ marginBottom: 16 }}
-            message={t('apiGov.settings.variables.md5_warning')}
+            title={t('apiGov.settings.variables.md5_warning')}
           />
         )}
 

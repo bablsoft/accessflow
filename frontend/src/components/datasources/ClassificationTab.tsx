@@ -275,9 +275,10 @@ function ClassificationTagModal({
         >
           <AutoComplete
             options={tableOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             placeholder={t('datasources.settings.classification.placeholder_table')}
           />
         </Form.Item>
@@ -290,9 +291,10 @@ function ClassificationTagModal({
         >
           <AutoComplete
             options={columnOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             allowClear
             placeholder={t('datasources.settings.classification.placeholder_column')}
           />

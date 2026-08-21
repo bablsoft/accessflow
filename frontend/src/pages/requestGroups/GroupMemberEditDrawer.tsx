@@ -46,7 +46,7 @@ export function GroupMemberEditDrawer({
     <Drawer
       open={member != null}
       onClose={onClose}
-      width="min(1080px, 100vw)"
+      size="min(1080px, 100vw)"
       destroyOnHidden
       title={member ? <DrawerTitle member={member} index={index} /> : null}
     >
@@ -117,8 +117,7 @@ function QueryMemberEditor({
           </div>
           <Select
             style={{ width: '100%' }}
-            showSearch
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             placeholder={t('requestGroups.builder.selectDatasource')}
             value={member.datasourceId ?? undefined}
             onChange={(v) => onChange({ ...member, datasourceId: v })}
@@ -227,8 +226,7 @@ function ApiMemberEditor({
               </div>
               <Select
                 style={{ width: '100%' }}
-                showSearch
-                optionFilterProp="label"
+                showSearch={{ optionFilterProp: 'label' }}
                 placeholder={t('requestGroups.builder.selectConnector')}
                 value={member.connectorId ?? undefined}
                 onChange={(v) => onChange({ ...member, connectorId: v, operationId: null })}

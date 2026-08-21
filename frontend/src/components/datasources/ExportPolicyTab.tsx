@@ -480,7 +480,7 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={groupOptions}
             loading={groupsQuery.isLoading}
           />
@@ -493,7 +493,7 @@ function ExportPolicyModal({ open, dsId, policy, onClose }: ExportPolicyModalPro
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
             loading={usersQuery.isLoading}
           />

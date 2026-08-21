@@ -347,7 +347,7 @@ export default function GroupBuilderPage() {
           </Card>
 
           <Card size="small" title={t('requestGroups.builder.submitOptions')}>
-            <Space direction="vertical" style={{ width: '100%' }} size={10}>
+            <Space orientation="vertical" style={{ width: '100%' }} size={10}>
               <label style={{ display: 'block' }}>
                 <div className="muted" style={{ marginBottom: 4 }}>
                   {t('requestGroups.builder.scheduleFor')}

@@ -24,11 +24,13 @@ class SlackBlockKitFactoryTest {
     private final SlackBlockKitFactory factory = new SlackBlockKitFactory();
 
     @Test
+    @SuppressWarnings("deprecation")
     void buildEventPayloadIncludesHeaderSummaryAndAction() {
         var ctx = ctxWith(NotificationEventType.QUERY_SUBMITTED);
 
         var payload = factory.buildEventPayload(ctx, "#review");
 
+        // Payload.channel is deprecated upstream but deliberately retained — see SlackBlockKitFactory.
         assertThat(payload.getChannel()).isEqualTo("#review");
         assertThat(payload.getText()).contains("New Query Awaiting Review");
         var blocks = payload.getBlocks();
@@ -110,6 +112,7 @@ class SlackBlockKitFactoryTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void buildTestPayloadContainsConfirmationText() {
         var payload = factory.buildTestPayload(null);
 

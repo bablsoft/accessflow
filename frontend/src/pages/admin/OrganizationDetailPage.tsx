@@ -119,7 +119,7 @@ export function OrganizationDetailPage() {
           {usageQuery.isLoading || !usageQuery.data ? (
             <Skeleton active paragraph={{ rows: 3 }} />
           ) : (
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+            <Space orientation="vertical" style={{ width: '100%' }} size="middle">
               <UsageBar
                 label={t('admin.organizations.usage_datasources')}
                 used={usageQuery.data.datasource_count}

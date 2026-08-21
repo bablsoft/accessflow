@@ -136,15 +136,14 @@ export function ApiKeysSection() {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       {error && (
         <Alert
           type="error"
-          message={error.message}
+          title={error.message}
           description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
           showIcon
-          closable
-          onClose={() => setError(null)}
+          closable={{ closeIcon: true, onClose: () => setError(null) }}
         />
       )}
 
@@ -212,8 +211,8 @@ export function ApiKeysSection() {
         destroyOnHidden
       >
         {issuedKey && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-            <Alert type="warning" showIcon message={t('profile.api_keys.copy_once_warning')} />
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert type="warning" showIcon title={t('profile.api_keys.copy_once_warning')} />
             <Typography.Text strong>{t('profile.api_keys.name_label')}</Typography.Text>
             <Typography.Text>{issuedKey.api_key.name}</Typography.Text>
             <Typography.Text strong>{t('profile.api_keys.raw_key_label')}</Typography.Text>

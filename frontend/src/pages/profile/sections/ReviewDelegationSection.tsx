@@ -194,17 +194,16 @@ export function ReviewDelegationSection() {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
-      <Alert type="info" showIcon message={t('profile.delegation.explainer')} />
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      <Alert type="info" showIcon title={t('profile.delegation.explainer')} />
 
       {error && (
         <Alert
           type="error"
           showIcon
-          closable
-          message={error.message}
+          closable={{ closeIcon: true, onClose: () => setError(null) }}
+          title={error.message}
           description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
-          onClose={() => setError(null)}
         />
       )}
 
@@ -219,8 +218,7 @@ export function ReviewDelegationSection() {
           rules={[{ required: true, message: t('profile.delegation.validation_delegate') }]}
         >
           <Select
-            showSearch
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             loading={candidates.isLoading}
             options={candidateOptions}
             placeholder={t('profile.delegation.select_delegate')}
@@ -246,8 +244,7 @@ export function ReviewDelegationSection() {
             rules={[{ required: true, message: t('profile.delegation.validation_scope') }]}
           >
             <Select
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               loading={datasources.isLoading || connectors.isLoading}
               options={scopeOptions}
             />

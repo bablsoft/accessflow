@@ -1029,13 +1029,13 @@ function ChannelFormModal({
                     name="approve_statuses"
                     label={t('admin.notifications.label_ticketing_approve_statuses')}
                   >
-                    <Select mode="tags" open={false} suffixIcon={null} placeholder="resolved, done…" />
+                    <Select mode="tags" open={false} suffix={null} placeholder="resolved, done…" />
                   </Form.Item>
                   <Form.Item
                     name="reject_statuses"
                     label={t('admin.notifications.label_ticketing_reject_statuses')}
                   >
-                    <Select mode="tags" open={false} suffixIcon={null} placeholder="rejected, declined…" />
+                    <Select mode="tags" open={false} suffix={null} placeholder="rejected, declined…" />
                   </Form.Item>
                 </div>
               </>

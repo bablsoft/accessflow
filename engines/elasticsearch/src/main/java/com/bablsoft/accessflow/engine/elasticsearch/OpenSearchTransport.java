@@ -64,7 +64,7 @@ final class OpenSearchTransport implements SearchTransport {
                         connectionManager.setTlsStrategy(ClientTlsStrategyBuilder.create()
                                 .setSslContext(EsTls.trustAllContext())
                                 .setHostnameVerifier(NoopHostnameVerifier.INSTANCE)
-                                .build());
+                                .buildAsync());
                     }
                     httpClient.setConnectionManager(connectionManager.build());
                     return httpClient;

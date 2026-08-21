@@ -181,7 +181,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PasswordIncorrectException.class)
     ProblemDetail handlePasswordIncorrect(PasswordIncorrectException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.password_incorrect"));
         pd.setProperty("error", "PASSWORD_INCORRECT");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -190,7 +190,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PasswordChangeNotAllowedException.class)
     ProblemDetail handlePasswordChangeNotAllowed(PasswordChangeNotAllowedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.password_change_not_allowed"));
         pd.setProperty("error", "PASSWORD_CHANGE_NOT_ALLOWED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -199,7 +199,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(TotpNotEnabledException.class)
     ProblemDetail handleTotpNotEnabled(TotpNotEnabledException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.totp_not_enabled"));
         pd.setProperty("error", "TOTP_NOT_ENABLED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -208,7 +208,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(TotpAlreadyEnabledException.class)
     ProblemDetail handleTotpAlreadyEnabled(TotpAlreadyEnabledException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.totp_already_enabled"));
         pd.setProperty("error", "TOTP_ALREADY_ENABLED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -217,7 +217,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(TotpInvalidCodeException.class)
     ProblemDetail handleTotpInvalidCode(TotpInvalidCodeException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.totp_invalid_code"));
         pd.setProperty("error", "TOTP_INVALID_CODE");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -281,7 +281,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalUserOperationException.class)
     ProblemDetail handleIllegalUserOperation(IllegalUserOperationException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_user_operation"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.illegal_user_operation"));
         pd.setProperty("error", "ILLEGAL_USER_OPERATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -340,7 +340,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(DatasourceConnectionTestException.class)
     ProblemDetail handleDatasourceConnectionTest(DatasourceConnectionTestException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.datasource_connection_test_failed"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.datasource_connection_test_failed"));
         pd.setProperty("error", "DATASOURCE_CONNECTION_TEST_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -379,7 +379,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(DriverResolutionException.class)
     ProblemDetail handleDriverResolution(DriverResolutionException ex) {
         // Message is resolved at throw site via MessageSource — see DefaultDriverCatalogService.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "DATASOURCE_DRIVER_UNAVAILABLE");
         pd.setProperty("timestamp", Instant.now().toString());
         pd.setProperty("dbType", ex.dbType().name());
@@ -389,7 +389,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalDatasourcePermissionException.class)
     ProblemDetail handleIllegalDatasourcePermission(IllegalDatasourcePermissionException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_permission"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.illegal_datasource_permission"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_PERMISSION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -407,7 +407,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(IllegalMaskingPolicyException.class)
     ProblemDetail handleIllegalMaskingPolicy(IllegalMaskingPolicyException ex) {
         // Message is resolved at the throw site via MessageSource — see DefaultMaskingPolicyAdminService.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_MASKING_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -425,7 +425,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(IllegalDataClassificationTagException.class)
     ProblemDetail handleIllegalDataClassificationTag(IllegalDataClassificationTagException ex) {
         // Message is resolved at the throw site via MessageSource — see DefaultDataClassificationService.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_DATA_CLASSIFICATION_TAG");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -480,7 +480,7 @@ class GlobalExceptionHandler {
     ProblemDetail handleIllegalReviewDelegation(IllegalReviewDelegationException ex) {
         // The message is already localized by the service, which builds it from the specific rule
         // that failed — echoing it is more useful than a generic "invalid delegation".
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_REVIEW_DELEGATION");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -515,7 +515,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalReviewPlanException.class)
     ProblemDetail handleIllegalReviewPlan(IllegalReviewPlanException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.illegal_review_plan"));
         pd.setProperty("error", "ILLEGAL_REVIEW_PLAN");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -525,7 +525,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(InvalidSqlException.class)
     ProblemDetail handleInvalidSql(InvalidSqlException ex) {
         // Message resolved at throw site via MessageSource
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "INVALID_SQL");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -534,7 +534,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(UnrewritableRowSecurityException.class)
     ProblemDetail handleUnrewritableRowSecurity(UnrewritableRowSecurityException ex) {
         // Message resolved at throw site via MessageSource — see RowSecurityRewriter.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ROW_SECURITY_UNREWRITABLE");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -552,7 +552,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(IllegalRowSecurityPolicyException.class)
     ProblemDetail handleIllegalRowSecurityPolicy(IllegalRowSecurityPolicyException ex) {
         // Message is resolved at the throw site via MessageSource — see DefaultRowSecurityPolicyAdminService.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_ROW_SECURITY_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -570,7 +570,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(IllegalExportPolicyException.class)
     ProblemDetail handleIllegalExportPolicy(IllegalExportPolicyException ex) {
         // Message is resolved at the throw site via MessageSource — see DefaultExportPolicyAdminService.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ILLEGAL_EXPORT_POLICY");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -589,7 +589,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(QueryExecutionFailedException.class)
     ProblemDetail handleQueryExecutionFailed(QueryExecutionFailedException ex) {
         // Message resolved at throw site via MessageSource
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "QUERY_EXECUTION_FAILED");
         pd.setProperty("timestamp", Instant.now().toString());
         if (ex.sqlState() != null) {
@@ -602,7 +602,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(DatasourceUnavailableException.class)
     ProblemDetail handleDatasourceUnavailable(DatasourceUnavailableException ex) {
         // Message resolved at throw site via MessageSource
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "DATASOURCE_UNAVAILABLE");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -679,7 +679,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(MissingAiConfigForDatasourceException.class)
     ProblemDetail handleMissingAiConfigForDatasource(MissingAiConfigForDatasourceException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.datasource.ai_config_required"));
         pd.setProperty("error", "AI_CONFIG_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -728,7 +728,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomDriverChecksumMismatchException.class)
     ProblemDetail handleCustomDriverChecksumMismatch(CustomDriverChecksumMismatchException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.custom_driver.checksum_mismatch", ex.expectedSha256(), ex.actualSha256()));
         pd.setProperty("error", "CUSTOM_DRIVER_CHECKSUM_MISMATCH");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -739,7 +739,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomDriverTooLargeException.class)
     ProblemDetail handleCustomDriverTooLarge(CustomDriverTooLargeException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.PAYLOAD_TOO_LARGE,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE,
                 msg("error.custom_driver.too_large", ex.maxBytes()));
         pd.setProperty("error", "CUSTOM_DRIVER_TOO_LARGE");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -749,7 +749,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(CustomDriverInvalidJarException.class)
     ProblemDetail handleCustomDriverInvalidJar(CustomDriverInvalidJarException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.custom_driver.invalid_jar", ex.driverClass()));
         pd.setProperty("error", "CUSTOM_DRIVER_INVALID_JAR");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -770,7 +770,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(OAuth2ConfigInvalidException.class)
     ProblemDetail handleOAuth2ConfigInvalid(OAuth2ConfigInvalidException ex) {
         // Message resolved at throw site via MessageSource.
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "OAUTH2_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -778,7 +778,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(SystemSmtpNotConfiguredException.class)
     ProblemDetail handleSystemSmtpNotConfigured(SystemSmtpNotConfiguredException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.system_smtp.not_configured"));
         pd.setProperty("error", "SYSTEM_SMTP_NOT_CONFIGURED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -796,7 +796,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(SystemSmtpNotConfiguredForInviteException.class)
     ProblemDetail handleSystemSmtpNotConfiguredForInvite(SystemSmtpNotConfiguredForInviteException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.system_smtp.not_configured_for_invite"));
         pd.setProperty("error", "SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -814,7 +814,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(InvitationExpiredException.class)
     ProblemDetail handleInvitationExpired(InvitationExpiredException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.invitation.expired"));
         pd.setProperty("error", "INVITATION_EXPIRED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -823,7 +823,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(InvitationAlreadyAcceptedException.class)
     ProblemDetail handleInvitationAlreadyAccepted(InvitationAlreadyAcceptedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.invitation.already_accepted"));
         pd.setProperty("error", "INVITATION_ALREADY_ACCEPTED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -832,7 +832,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(InvitationRevokedException.class)
     ProblemDetail handleInvitationRevoked(InvitationRevokedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.invitation.revoked"));
         pd.setProperty("error", "INVITATION_REVOKED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -859,7 +859,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PasswordResetTokenExpiredException.class)
     ProblemDetail handlePasswordResetExpired(PasswordResetTokenExpiredException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.password_reset.expired"));
         pd.setProperty("error", "PASSWORD_RESET_EXPIRED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -868,7 +868,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PasswordResetTokenAlreadyUsedException.class)
     ProblemDetail handlePasswordResetAlreadyUsed(PasswordResetTokenAlreadyUsedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.password_reset.already_used"));
         pd.setProperty("error", "PASSWORD_RESET_ALREADY_USED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -877,7 +877,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(PasswordResetTokenRevokedException.class)
     ProblemDetail handlePasswordResetRevoked(PasswordResetTokenRevokedException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.password_reset.revoked"));
         pd.setProperty("error", "PASSWORD_RESET_REVOKED");
         pd.setProperty("timestamp", Instant.now().toString());
@@ -926,7 +926,7 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalDatasourceReviewerException.class)
     ProblemDetail handleIllegalDatasourceReviewer(IllegalDatasourceReviewerException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.illegal_datasource_reviewer"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.illegal_datasource_reviewer"));
         pd.setProperty("error", "ILLEGAL_DATASOURCE_REVIEWER");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

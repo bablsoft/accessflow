@@ -110,8 +110,7 @@ export function ApiAuthoringPanel({
             <Select
               style={{ width: '100%' }}
               allowClear
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('apiGov.editor.searchOperation')}
               value={value.operationId ?? undefined}
               onChange={authoring.selectOperation}

@@ -154,14 +154,14 @@ public class PostmanCollectionParser implements ApiSchemaParser {
      * origin. A {@code description} object (Postman wraps some strings) collapses to its content.
      */
     private static String pathOf(JsonNode url, Map<String, String> variables) {
-        if (url.isTextual()) {
+        if (url.isString()) {
             return normalizePath(stripOrigin(url.asString("")), variables);
         }
         var segments = url.path("path");
         if (segments.isArray() && !segments.isEmpty()) {
             var joined = new StringBuilder();
             for (var segment : segments) {
-                joined.append('/').append(segment.isTextual() ? segment.asString("") : text(segment));
+                joined.append('/').append(segment.isString() ? segment.asString("") : text(segment));
             }
             return normalizePath(joined.toString(), variables);
         }
@@ -301,7 +301,7 @@ public class PostmanCollectionParser implements ApiSchemaParser {
     }
 
     private static String text(JsonNode node) {
-        if (node.isTextual()) {
+        if (node.isString()) {
             var value = node.asString("");
             return value.isBlank() ? null : value;
         }

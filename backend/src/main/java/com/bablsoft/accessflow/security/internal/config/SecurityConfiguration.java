@@ -71,7 +71,7 @@ class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .saml2Login(s -> s
                         .relyingPartyRegistrationRepository(relyingPartyRegistrations)
-                        .authenticationRequestUri("/api/v1/auth/saml/init/{registrationId}")
+                        .authenticationRequestUriQuery("/api/v1/auth/saml/init/{registrationId}")
                         .loginProcessingUrl("/api/v1/auth/saml/acs/{registrationId}")
                         .successHandler(successHandler)
                         .failureHandler(failureHandler))

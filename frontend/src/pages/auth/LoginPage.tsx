@@ -197,34 +197,31 @@ export function LoginPage() {
           {setupSuccess && (
             <Alert
               type="success"
-              message={t('auth.login.setup_success_banner')}
+              title={t('auth.login.setup_success_banner')}
               style={{ marginBottom: 16 }}
               showIcon
-              closable
-              onClose={() => setSetupSuccess(false)}
+              closable={{ closeIcon: true, onClose: () => setSetupSuccess(false) }}
             />
           )}
 
           {passwordResetSuccess && (
             <Alert
               type="success"
-              message={t('auth.login.password_reset_success_banner')}
+              title={t('auth.login.password_reset_success_banner')}
               style={{ marginBottom: 16 }}
               showIcon
-              closable
-              onClose={() => setPasswordResetSuccess(false)}
+              closable={{ closeIcon: true, onClose: () => setPasswordResetSuccess(false) }}
             />
           )}
 
           {error && (
             <Alert
               type="error"
-              message={error.message}
+              title={error.message}
               description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
               style={{ marginBottom: 16 }}
               showIcon
-              closable
-              onClose={() => setError(null)}
+              closable={{ closeIcon: true, onClose: () => setError(null) }}
             />
           )}
 

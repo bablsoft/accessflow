@@ -53,8 +53,8 @@ class BuildInfoActuatorIntegrationTest {
             var json = objectMapper.readTree(response.body());
             assertThat(json.has("build")).as("build-info goal must populate info.build.*").isTrue();
             var build = json.get("build");
-            assertThat(build.get("version").asText()).isNotBlank();
-            assertThat(build.get("artifact").asText()).isEqualTo("accessflow");
+            assertThat(build.get("version").asString()).isNotBlank();
+            assertThat(build.get("artifact").asString()).isEqualTo("accessflow");
         }
     }
 }

@@ -402,9 +402,10 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
         >
           <AutoComplete
             options={tableOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             placeholder={t('datasources.settings.row_security.placeholder_table')}
           />
         </Form.Item>
@@ -419,9 +420,10 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
         >
           <AutoComplete
             options={columnOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             placeholder={t('datasources.settings.row_security.placeholder_column')}
           />
         </Form.Item>
@@ -496,7 +498,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={groupOptions}
             loading={groupsQuery.isLoading}
           />
@@ -509,7 +511,7 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
             loading={usersQuery.isLoading}
           />

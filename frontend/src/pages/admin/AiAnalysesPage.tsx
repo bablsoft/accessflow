@@ -104,8 +104,7 @@ export default function AiAnalysesPage() {
             value={datasourceId}
             onChange={setDatasourceId}
             style={{ width: 260 }}
-            showSearch
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             loading={datasourcesQuery.isLoading}
             options={[
               { value: 'all', label: t('admin.ai_analyses.filter_datasource_all') },

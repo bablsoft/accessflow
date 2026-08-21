@@ -1335,8 +1335,7 @@ function GrantAccessModal({
             ]}
           >
             <Select<string>
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('datasources.settings.grant_group_placeholder')}
               loading={groupsQuery.isLoading}
               notFoundContent={
@@ -1359,8 +1358,7 @@ function GrantAccessModal({
             ]}
           >
             <Select<string>
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('datasources.settings.grant_user_placeholder')}
               loading={usersQuery.isLoading}
               notFoundContent={
@@ -1435,7 +1433,7 @@ function GrantAccessModal({
             placeholder={t('datasources.settings.grant_schemas_placeholder')}
             loading={schemaQuery.isLoading}
             options={schemaOptions}
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
           />
         </Form.Item>
         <Form.Item
@@ -1449,7 +1447,7 @@ function GrantAccessModal({
             placeholder={t('datasources.settings.grant_tables_placeholder')}
             loading={schemaQuery.isLoading}
             options={tableOptions}
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
           />
         </Form.Item>
         <Form.Item
@@ -1463,7 +1461,7 @@ function GrantAccessModal({
             placeholder={t('datasources.settings.grant_columns_placeholder')}
             loading={schemaQuery.isLoading}
             options={restrictedColumnOptions}
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             allowClear
           />
         </Form.Item>

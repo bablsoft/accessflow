@@ -343,7 +343,7 @@ function OperationFilterFields({ value, onChange }: FilterFieldsProps) {
         allowClear
         tokenSeparators={[',', ' ']}
         open={false}
-        suffixIcon={null}
+        suffix={null}
         value={(value[field] as string[] | undefined) ?? []}
         onChange={(v) => set({ [field]: v } as Partial<ApiOperationFilter>)}
         placeholder={placeholder}
@@ -513,7 +513,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
         <Alert
           type="warning"
           showIcon
-          message={t('apiGov.settings.postmanCaveatTitle')}
+          title={t('apiGov.settings.postmanCaveatTitle')}
           description={
             <>
               <div>{t('apiGov.settings.postmanInferredSchemas')}</div>
@@ -565,7 +565,7 @@ function SchemaTab({ connectorId }: { connectorId: string }) {
             <p className="ant-upload-text">{fileName || t('apiGov.settings.schemaFileDragHint')}</p>
             <p className="ant-upload-hint">{t('apiGov.settings.schemaFileFormats')}</p>
           </Upload.Dragger>
-          {fileError && <Alert type="error" showIcon message={fileError} />}
+          {fileError && <Alert type="error" showIcon title={fileError} />}
         </>
       )}
       {source === 'url' && (

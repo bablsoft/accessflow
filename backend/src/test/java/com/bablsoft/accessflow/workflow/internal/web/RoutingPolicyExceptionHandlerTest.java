@@ -45,7 +45,7 @@ class RoutingPolicyExceptionHandlerTest {
     @Test
     void handleIllegalMapsTo422WithMessage() {
         var pd = handler.handleIllegal(new IllegalRoutingPolicyException("condition malformed"));
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("error", "ROUTING_POLICY_INVALID");
         assertThat(pd.getDetail()).isEqualTo("condition malformed");
     }

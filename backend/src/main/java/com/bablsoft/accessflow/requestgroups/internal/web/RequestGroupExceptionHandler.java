@@ -61,7 +61,7 @@ class RequestGroupExceptionHandler {
 
     @ExceptionHandler(RequestGroupValidationException.class)
     ProblemDetail handleValidation(RequestGroupValidationException ex) {
-        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.request_group_validation"),
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.request_group_validation"),
                 "REQUEST_GROUP_VALIDATION_ERROR");
         pd.setProperty("reason", ex.getMessage());
         return pd;

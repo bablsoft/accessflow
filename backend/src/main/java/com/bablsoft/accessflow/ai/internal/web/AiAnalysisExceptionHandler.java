@@ -89,7 +89,7 @@ class AiAnalysisExceptionHandler {
         // `reason` property so the editor can tell the user why generation/analysis failed — the
         // localized `detail` stays generic.
         log.warn("AI response could not be parsed: {}", ex.getMessage(), ex);
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.ai_response_invalid"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.ai_response_invalid"));
         pd.setProperty("error", "AI_RESPONSE_INVALID");
         pd.setProperty("reason", ex.getMessage());
         pd.setProperty("timestamp", Instant.now().toString());
@@ -159,7 +159,7 @@ class AiAnalysisExceptionHandler {
     @ExceptionHandler(AiGuardrailViolationException.class)
     ProblemDetail handleAiGuardrailViolation(AiGuardrailViolationException ex) {
         log.warn("AI guardrail blocked a prompt before the model call");
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.ai.guardrail_blocked"));
         pd.setProperty("error", "AI_GUARDRAIL_BLOCKED");
         pd.setProperty("timestamp", Instant.now().toString());

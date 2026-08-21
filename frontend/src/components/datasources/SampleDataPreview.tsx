@@ -26,7 +26,7 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
       <Alert
         type="info"
         showIcon
-        message={t('datasources.settings.sample_error')}
+        title={t('datasources.settings.sample_error')}
         description={(error as Error).message}
       />
     );
@@ -68,7 +68,7 @@ export function SampleDataPreview({ datasourceId, schema, table }: SampleDataPre
         type="info"
         showIcon
         style={{ marginBottom: 12 }}
-        message={t('datasources.settings.sample_governed_note')}
+        title={t('datasources.settings.sample_governed_note')}
       />
       <Table
         rowKey="__key"

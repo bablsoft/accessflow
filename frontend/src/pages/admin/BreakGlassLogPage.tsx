@@ -138,8 +138,7 @@ export default function BreakGlassLogPage() {
             setPage(0);
           }}
           style={{ width: 240 }}
-          showSearch
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           loading={datasourcesQuery.isLoading}
           data-testid="breakglass-datasource"
           options={[
@@ -307,7 +306,7 @@ export default function BreakGlassLogPage() {
         open={!!detail}
         onClose={() => setDetail(null)}
         title={t('breakglass.drawer_title')}
-        width={560}
+        size={560}
       >
         {detail && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

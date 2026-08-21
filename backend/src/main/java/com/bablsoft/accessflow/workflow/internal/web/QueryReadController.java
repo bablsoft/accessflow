@@ -444,9 +444,9 @@ class QueryReadController {
 
     @ExceptionHandler(ResultsNotAvailableException.class)
     ResponseEntity<ProblemDetail> handleResultsUnavailable(ResultsNotAvailableException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "RESULTS_NOT_AVAILABLE");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(pd);
     }
 
     @ExceptionHandler(QueryDiffNotAvailableException.class)

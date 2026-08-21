@@ -49,7 +49,7 @@ class AuditSinkExceptionHandler {
 
     @ExceptionHandler(AuditSinkConfigException.class)
     ProblemDetail handleConfig(AuditSinkConfigException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.audit_sink_config_invalid"));
         pd.setProperty("error", "AUDIT_SINK_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());

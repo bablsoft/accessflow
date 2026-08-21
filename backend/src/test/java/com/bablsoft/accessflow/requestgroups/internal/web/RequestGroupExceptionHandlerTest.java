@@ -61,7 +61,7 @@ class RequestGroupExceptionHandlerTest {
     @Test
     void validationMapsTo422WithReason() {
         var pd = handler.handleValidation(new RequestGroupValidationException("empty"));
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("reason", "empty");
     }
 }

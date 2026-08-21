@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Switch, Tabs, Tooltip } from 'antd';
+import { Alert, App, Button, Form, Input, Popconfirm, Select, Skeleton, Space, Switch, Tabs, Tooltip } from 'antd';
 import { CheckOutlined, CopyOutlined, DeleteOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
@@ -252,7 +252,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message={t('admin.oauth2.setup_intro_title', { provider: PROVIDERS.find((p) => p.provider === provider)?.label })}
+        title={t('admin.oauth2.setup_intro_title', { provider: PROVIDERS.find((p) => p.provider === provider)?.label })}
         description={
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div>
@@ -277,21 +277,19 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
               <div style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>
                 {t('admin.oauth2.callback_url_label')}
               </div>
-              <Input
-                value={callbackUrl}
-                readOnly
-                className="mono"
-                onFocus={(e) => e.currentTarget.select()}
-                addonAfter={
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CopyOutlined />}
-                    onClick={onCopyCallback}
-                    aria-label={t('admin.oauth2.callback_url_copy')}
-                  />
-                }
-              />
+              <Space.Compact style={{ width: '100%' }}>
+                <Input
+                  value={callbackUrl}
+                  readOnly
+                  className="mono"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={onCopyCallback}
+                  aria-label={t('admin.oauth2.callback_url_copy')}
+                />
+              </Space.Compact>
               <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                 {t('admin.oauth2.callback_url_help')}
               </div>
@@ -464,7 +462,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
-            message={t('admin.oauth2.help_oidc_attribute_defaults')}
+            title={t('admin.oauth2.help_oidc_attribute_defaults')}
           />
           <Form.Item
             name="user_name_attribute"
@@ -573,7 +571,7 @@ function ProviderForm({ provider, config, onSaved }: ProviderFormProps) {
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
-                message={t('admin.oauth2.github_read_org_scope_warning_title')}
+                title={t('admin.oauth2.github_read_org_scope_warning_title')}
                 description={t('admin.oauth2.github_read_org_scope_warning')}
               />
             );

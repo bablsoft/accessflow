@@ -8,7 +8,6 @@ import org.neo4j.driver.AuthTokens;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.GraphDatabase;
-import org.neo4j.driver.Logging;
 
 import java.util.concurrent.TimeUnit;
 
@@ -72,7 +71,9 @@ final class Neo4jDriverFactory {
         return Config.builder()
                 .withConnectionTimeout(settings.connectTimeout().toMillis(), TimeUnit.MILLISECONDS)
                 .withMaxConnectionPoolSize(settings.maxConnectionPoolSize())
-                .withLogging(Logging.slf4j())
+                // Driver 6.x deprecated Config.withLogging/Logging with no replacement setter: it
+                // logs through System.Logger, which reaches SLF4J via the JDK's java.util.logging
+                // default and Boot's SLF4JBridgeHandler.
                 .build();
     }
 }

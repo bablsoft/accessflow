@@ -271,7 +271,7 @@ export function RequestAccessPage() {
             title={t('access.request.active_title')}
             style={{ marginBottom: 24, maxWidth: 640, borderLeft: '3px solid var(--accent)' }}
           >
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={8} style={{ width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 {kindTag(activeRequest)}
                 <span style={{ fontWeight: 600 }}>{resourceName(activeRequest)}</span>
@@ -347,8 +347,7 @@ export function RequestAccessPage() {
                     value: c.id,
                     label: `${c.name} (${c.protocol})`,
                   }))}
-                  showSearch
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: 'label' }}
                   onChange={() => form.setFieldsValue({ allowed_operations: undefined })}
                 />
               </Form.Item>
@@ -362,8 +361,7 @@ export function RequestAccessPage() {
                   placeholder={t('access.request.datasource_placeholder')}
                   loading={datasources.isLoading}
                   options={(datasources.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
-                  showSearch
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: 'label' }}
                   onChange={() =>
                     form.setFieldsValue({ allowed_schemas: undefined, allowed_tables: undefined })
                   }
@@ -403,7 +401,7 @@ export function RequestAccessPage() {
                   placeholder={t('access.request.operations_placeholder')}
                   options={operationOptions}
                   loading={operations.isLoading}
-                  optionFilterProp="label"
+                  showSearch={{ optionFilterProp: 'label' }}
                 />
               </Form.Item>
             ) : (
@@ -415,7 +413,7 @@ export function RequestAccessPage() {
                     tokenSeparators={[',']}
                     options={schemaOptions}
                     loading={schema.isLoading}
-                    optionFilterProp="label"
+                    showSearch={{ optionFilterProp: 'label' }}
                   />
                 </Form.Item>
 
@@ -426,7 +424,7 @@ export function RequestAccessPage() {
                     tokenSeparators={[',']}
                     options={tableOptions}
                     loading={schema.isLoading}
-                    optionFilterProp="label"
+                    showSearch={{ optionFilterProp: 'label' }}
                   />
                 </Form.Item>
 

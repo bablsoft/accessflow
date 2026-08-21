@@ -26,12 +26,13 @@ import org.springframework.vault.authentication.SessionManager;
 import org.springframework.vault.authentication.SimpleSessionManager;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.ClientHttpRequestFactoryFactory;
-import org.springframework.vault.client.RestTemplateBuilder;
-import org.springframework.vault.client.VaultClients;
+import org.springframework.vault.client.RestClientBuilder;
 import org.springframework.vault.client.VaultEndpoint;
+import org.springframework.vault.client.VaultHttpHeaders;
 import org.springframework.vault.core.VaultTemplate;
 import org.springframework.vault.support.ClientOptions;
 import org.springframework.vault.support.SslConfiguration;
+import org.springframework.web.client.RestClient;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
@@ -68,21 +69,22 @@ class SecretsConfiguration implements DisposableBean {
         var endpoint = VaultEndpoint.from(URI.create(vault.uri()));
         ClientHttpRequestFactory requestFactory =
                 ClientHttpRequestFactoryFactory.create(new ClientOptions(), SslConfiguration.unconfigured());
-        var restTemplateBuilder = RestTemplateBuilder.builder()
+        var restClientBuilder = RestClientBuilder.builder()
                 .endpoint(endpoint)
                 .requestFactory(requestFactory);
-        var authTemplate = VaultClients.createRestTemplate(endpoint, requestFactory);
+        var authClientBuilder = RestClientBuilder.builder()
+                .endpoint(endpoint)
+                .requestFactory(requestFactory);
         if (vault.namespace() != null && !vault.namespace().isBlank()) {
-            var namespaceInterceptor = VaultClients.createNamespaceInterceptor(vault.namespace());
-            restTemplateBuilder.customizers(rt -> rt.getInterceptors().add(namespaceInterceptor));
-            authTemplate.getInterceptors().add(namespaceInterceptor);
+            restClientBuilder.defaultHeader(VaultHttpHeaders.VAULT_NAMESPACE, vault.namespace());
+            authClientBuilder.defaultHeader(VaultHttpHeaders.VAULT_NAMESPACE, vault.namespace());
         }
-        var vaultTemplate = new VaultTemplate(restTemplateBuilder, sessionManager(vault, authTemplate));
+        var vaultTemplate = new VaultTemplate(restClientBuilder,
+                sessionManager(vault, authClientBuilder.build()));
         return new VaultSecretStore(vaultTemplate, vault.kvVersion());
     }
 
-    private SessionManager sessionManager(SecretsProperties.Vault vault,
-                                          org.springframework.web.client.RestTemplate authTemplate) {
+    private SessionManager sessionManager(SecretsProperties.Vault vault, RestClient authClient) {
         return switch (vault.authMethod().toUpperCase(Locale.ROOT)) {
             case "TOKEN" -> {
                 Assert.hasText(vault.token(), "accessflow.secrets.vault.token"
@@ -98,7 +100,7 @@ class SecretsConfiguration implements DisposableBean {
                         .roleId(AppRoleAuthenticationOptions.RoleId.provided(vault.appRoleId()))
                         .secretId(AppRoleAuthenticationOptions.SecretId.provided(vault.appRoleSecretId()))
                         .build();
-                yield lifecycleSessionManager(new AppRoleAuthentication(options, authTemplate), authTemplate);
+                yield lifecycleSessionManager(new AppRoleAuthentication(options, authClient), authClient);
             }
             case "KUBERNETES" -> {
                 Assert.hasText(vault.kubernetesRole(), "accessflow.secrets.vault.kubernetes-role"
@@ -108,7 +110,7 @@ class SecretsConfiguration implements DisposableBean {
                         .path(vault.kubernetesAuthPath())
                         .jwtSupplier(new KubernetesServiceAccountTokenFile())
                         .build();
-                yield lifecycleSessionManager(new KubernetesAuthentication(options, authTemplate), authTemplate);
+                yield lifecycleSessionManager(new KubernetesAuthentication(options, authClient), authClient);
             }
             default -> throw new IllegalStateException(
                     "Unsupported accessflow.secrets.vault.auth-method '" + vault.authMethod()
@@ -123,14 +125,13 @@ class SecretsConfiguration implements DisposableBean {
      * would make Boot's scheduling auto-configuration back off and hijack every
      * {@code @Scheduled} job onto this single-thread pool.
      */
-    private SessionManager lifecycleSessionManager(
-            ClientAuthentication authentication,
-            org.springframework.web.client.RestTemplate authTemplate) {
+    private SessionManager lifecycleSessionManager(ClientAuthentication authentication,
+                                                   RestClient authClient) {
         var scheduler = new ThreadPoolTaskScheduler();
         scheduler.setPoolSize(1);
         scheduler.setThreadNamePrefix("vault-session-");
         scheduler.initialize();
-        var sessionManager = new LifecycleAwareSessionManager(authentication, scheduler, authTemplate);
+        var sessionManager = new LifecycleAwareSessionManager(authentication, scheduler, authClient);
         closeables.add(sessionManager::destroy);
         closeables.add(scheduler::destroy);
         return sessionManager;

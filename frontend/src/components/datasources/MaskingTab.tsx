@@ -384,9 +384,10 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
         >
           <AutoComplete
             options={columnOptions}
-            filterOption={(input, option) =>
-              (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
-            }
+            showSearch={{
+              filterOption: (input, option) =>
+              (option?.value ?? '').toLowerCase().includes(input.toLowerCase()),
+            }}
             placeholder={t('datasources.settings.masking.placeholder_column_ref')}
           />
         </Form.Item>
@@ -439,7 +440,7 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={groupOptions}
             loading={groupsQuery.isLoading}
           />
@@ -452,7 +453,7 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
             loading={usersQuery.isLoading}
           />

@@ -27,6 +27,11 @@ import java.util.List;
 @Component
 class SlackBlockKitFactory {
 
+    // Payload.channel is @Deprecated in the Slack SDK with no replacement: app-managed webhooks
+    // ignore it, but legacy custom integrations still honour it, and AccessFlow exposes the
+    // override as a configurable channel setting. Dropping it would silently remove that feature,
+    // so the call stays until the custom-integration path itself is retired.
+    @SuppressWarnings("deprecation")
     Payload buildEventPayload(NotificationContext ctx, String optionalChannelOverride) {
         return Payload.builder()
                 .channel(blankToNull(optionalChannelOverride))
@@ -59,6 +64,7 @@ class SlackBlockKitFactory {
         return headerLabel(ctx);
     }
 
+    @SuppressWarnings("deprecation") // see buildEventPayload
     Payload buildTestPayload(String optionalChannelOverride) {
         var blocks = List.<LayoutBlock>of(textSection(TEST_TEXT));
         return Payload.builder()

@@ -418,8 +418,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
             rules={[{ required: true, message: t('apiGov.settings.masking.operation_required') }]}
           >
             <Select
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               options={operationOptions}
               loading={operationsQuery.isLoading}
               placeholder={t('apiGov.settings.masking.operation_placeholder')}
@@ -477,7 +476,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={groupOptions}
             loading={groupsQuery.isLoading}
           />
@@ -487,7 +486,7 @@ function MaskingPolicyModal({ open, connectorId, policy, onClose }: MaskingPolic
           <Select<string[]>
             mode="multiple"
             allowClear
-            optionFilterProp="label"
+            showSearch={{ optionFilterProp: 'label' }}
             options={userOptions}
             loading={usersQuery.isLoading}
           />

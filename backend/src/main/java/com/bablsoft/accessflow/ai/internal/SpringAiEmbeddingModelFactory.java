@@ -37,7 +37,9 @@ class SpringAiEmbeddingModelFactory implements EmbeddingModelFactory {
         if (baseUrl != null && !baseUrl.isBlank()) {
             options.baseUrl(baseUrl);
         }
-        return new OpenAiEmbeddingModel(options.build());
+        return OpenAiEmbeddingModel.builder()
+                .options(options.build())
+                .build();
     }
 
     private EmbeddingModel ollama(String model, String baseUrl) {

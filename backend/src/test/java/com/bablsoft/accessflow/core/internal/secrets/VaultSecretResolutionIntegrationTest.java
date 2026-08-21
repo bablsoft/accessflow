@@ -36,7 +36,7 @@ class VaultSecretResolutionIntegrationTest {
 
     private static final VaultContainer<?> VAULT = new VaultContainer<>("hashicorp/vault:2.0")
             .withVaultToken(ROOT_TOKEN)
-            .withSecretInVault("secret/prod/db", "password=s3cret-from-vault", "username=svc");
+            .withInitCommand("kv put secret/prod/db password=s3cret-from-vault username=svc");
 
     private static VaultTemplate vaultTemplate;
 

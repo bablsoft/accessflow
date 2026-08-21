@@ -59,14 +59,14 @@ class ApiGovExceptionHandlerTest {
     @Test
     void schemaParseIs422WithReason() {
         var pd = handler.handleSchemaParse(new ApiSchemaParseException("bad doc"));
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("reason", "bad doc");
     }
 
     @Test
     void schemaFetchIs422WithReason() {
         var pd = handler.handleSchemaFetch(new ApiSchemaFetchException("404"));
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("error", "API_SCHEMA_FETCH_ERROR");
         assertThat(pd.getProperties()).containsEntry("reason", "404");
     }

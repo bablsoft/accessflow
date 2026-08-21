@@ -68,7 +68,7 @@ function PermissionCapabilityFields({ operations }: { operations: ApiOperation[]
         <Select<string[]>
           mode="multiple"
           allowClear
-          optionFilterProp="label"
+          showSearch={{ optionFilterProp: 'label' }}
           placeholder={t('apiGov.settings.allowedOperationsPlaceholder')}
           options={operations.map((op) => ({
             value: op.operation_id,
@@ -315,8 +315,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
             rules={[{ required: true, message: t('apiGov.settings.groupRequired') }]}
           >
             <Select<string>
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('apiGov.settings.groupPlaceholder')}
               style={{ maxWidth: 360 }}
               loading={groupsQuery.isLoading}
@@ -335,8 +334,7 @@ export function ApiConnectorPermissionsTab({ connectorId }: { connectorId: strin
             rules={[{ required: true, message: t('apiGov.settings.userRequired') }]}
           >
             <Select<string>
-              showSearch
-              optionFilterProp="label"
+              showSearch={{ optionFilterProp: 'label' }}
               placeholder={t('apiGov.settings.userPlaceholder')}
               style={{ maxWidth: 360 }}
               loading={usersQuery.isLoading}

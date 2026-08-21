@@ -95,17 +95,16 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       {error && (
         <Alert
           type="error"
-          message={error.message}
+          title={error.message}
           description={error.traceId ? <TraceIdFooter traceId={error.traceId} /> : undefined}
           style={{ marginBottom: 16 }}
           showIcon
-          closable
-          onClose={() => setError(null)}
+          closable={{ closeIcon: true, onClose: () => setError(null) }}
         />
       )}
 
       {step === 0 && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Typography.Paragraph>{t('profile.totp.step_scan_help')}</Typography.Paragraph>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             {enrollment ? (
@@ -148,7 +147,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       )}
 
       {step === 1 && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <Typography.Paragraph>{t('profile.totp.step_verify_help')}</Typography.Paragraph>
           <Input
             placeholder={t('profile.totp.verify_placeholder')}
@@ -175,8 +174,8 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       )}
 
       {step === 2 && (
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Alert type="warning" message={t('profile.totp.backup_codes_help')} showIcon />
+        <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
+          <Alert type="warning" title={t('profile.totp.backup_codes_help')} showIcon />
           <pre
             style={{
               background: 'var(--bg)',

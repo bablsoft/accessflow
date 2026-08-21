@@ -799,7 +799,7 @@ function ConditionValueEditor({ name, operand, groups, roleOptions }: ConditionV
             <InputNumber
               min={0}
               style={{ width: '100%' }}
-              addonAfter={t('admin.routing_policies.minutes_suffix')}
+              suffix={t('admin.routing_policies.minutes_suffix')}
             />
           </Form.Item>
         </div>

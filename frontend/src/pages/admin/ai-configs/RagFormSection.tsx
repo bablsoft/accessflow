@@ -62,7 +62,7 @@ export function RagFormSection({ form }: { form: FormInstance }) {
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message={t('admin.ai_configs.rag.pgvector_unavailable_warning')}
+              title={t('admin.ai_configs.rag.pgvector_unavailable_warning')}
               description={t('admin.ai_configs.rag.pgvector_unavailable_help')}
             />
           )}
