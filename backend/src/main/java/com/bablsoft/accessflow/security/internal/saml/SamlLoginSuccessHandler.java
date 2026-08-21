@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
+import org.springframework.security.saml2.provider.service.authentication.Saml2AssertionAuthentication;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -57,13 +57,14 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
     public void onAuthenticationSuccess(HttpServletRequest request,
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        if (!(authentication.getPrincipal() instanceof Saml2AuthenticatedPrincipal principal)) {
+        if (!(authentication instanceof Saml2AssertionAuthentication samlAuthentication)) {
             redirectWithError(response, "SAML_UNEXPECTED_AUTH");
             return;
         }
+        var assertion = samlAuthentication.getCredentials();
         var organizationId = organizationLookupService.singleOrganization();
         var config = samlConfigService.getOrDefault(organizationId);
-        var mapped = SamlAttributeMapper.map(principal, config);
+        var mapped = SamlAttributeMapper.map(assertion, config);
         if (mapped.email() == null) {
             log.info("SAML login refused — assertion did not include attribute {}", config.attrEmail());
             redirectWithError(response, "SAML_EMAIL_MISSING");
@@ -78,7 +79,7 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
                     mapped.role());
             syncGroups(user.id(), organizationId, config, mapped.groupClaims());
             var code = exchangeCodeStore.issue(user.id());
-            recordAudit(user.id(), organizationId, principal, request);
+            recordAudit(user.id(), organizationId, samlAuthentication, request);
             SecurityContextHolder.clearContext();
             redirectWithCode(response, code);
         } catch (ExternalLocalAccountConflictException ex) {
@@ -135,13 +136,14 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
     }
 
     private void recordAudit(UUID userId, UUID organizationId,
-                             Saml2AuthenticatedPrincipal principal,
+                             Saml2AssertionAuthentication samlAuthentication,
                              HttpServletRequest request) {
         try {
             var metadata = new HashMap<String, Object>();
             metadata.put("provider", "SAML");
-            if (principal.getRelyingPartyRegistrationId() != null) {
-                metadata.put("registration_id", principal.getRelyingPartyRegistrationId());
+            // getRelyingPartyRegistrationId() lives on the authentication, not the assertion.
+            if (samlAuthentication.getRelyingPartyRegistrationId() != null) {
+                metadata.put("registration_id", samlAuthentication.getRelyingPartyRegistrationId());
             }
             auditLogService.record(new AuditEntry(
                     AuditAction.USER_LOGIN,

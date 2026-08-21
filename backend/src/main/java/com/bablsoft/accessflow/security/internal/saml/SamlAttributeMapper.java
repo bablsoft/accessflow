@@ -4,7 +4,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.SamlConfigView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.saml2.provider.service.authentication.Saml2AuthenticatedPrincipal;
+import org.springframework.security.saml2.provider.service.authentication.Saml2ResponseAssertionAccessor;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Maps the attributes carried by an IdP-issued {@link Saml2AuthenticatedPrincipal} onto the
+ * Maps the attributes carried by an IdP-issued {@link Saml2ResponseAssertionAccessor} onto the
  * AccessFlow identity tuple {@code (email, displayName, role, groupClaims)} using the per-org
  * attribute names from {@link SamlConfigView}.
  *
@@ -25,25 +25,25 @@ public final class SamlAttributeMapper {
     private SamlAttributeMapper() {
     }
 
-    public static Mapped map(Saml2AuthenticatedPrincipal principal, SamlConfigView config) {
-        var email = firstAttribute(principal, config.attrEmail());
-        if (email == null && principal.getName() != null && principal.getName().contains("@")) {
-            email = principal.getName();
+    public static Mapped map(Saml2ResponseAssertionAccessor assertion, SamlConfigView config) {
+        var email = firstAttribute(assertion, config.attrEmail());
+        if (email == null && assertion.getNameId() != null && assertion.getNameId().contains("@")) {
+            email = assertion.getNameId();
         }
-        var displayName = firstAttribute(principal, config.attrDisplayName());
+        var displayName = firstAttribute(assertion, config.attrDisplayName());
         if (displayName == null || displayName.isBlank()) {
-            displayName = email != null ? email : principal.getName();
+            displayName = email != null ? email : assertion.getNameId();
         }
-        var role = resolveRole(principal, config);
-        var groupClaims = resolveGroupClaims(principal, config);
+        var role = resolveRole(assertion, config);
+        var groupClaims = resolveGroupClaims(assertion, config);
         return new Mapped(trimToNull(email), trimToNull(displayName), role, groupClaims);
     }
 
-    private static UserRoleType resolveRole(Saml2AuthenticatedPrincipal principal, SamlConfigView config) {
+    private static UserRoleType resolveRole(Saml2ResponseAssertionAccessor assertion, SamlConfigView config) {
         if (config.attrRole() == null || config.attrRole().isBlank()) {
             return config.defaultRole();
         }
-        var asserted = firstAttribute(principal, config.attrRole());
+        var asserted = firstAttribute(assertion, config.attrRole());
         if (asserted == null || asserted.isBlank()) {
             return config.defaultRole();
         }
@@ -56,12 +56,12 @@ public final class SamlAttributeMapper {
         }
     }
 
-    private static Set<String> resolveGroupClaims(Saml2AuthenticatedPrincipal principal,
+    private static Set<String> resolveGroupClaims(Saml2ResponseAssertionAccessor assertion,
                                                   SamlConfigView config) {
         if (config.attrGroups() == null || config.attrGroups().isBlank()) {
             return Set.of();
         }
-        var values = principal.getAttribute(config.attrGroups());
+        var values = assertion.getAttribute(config.attrGroups());
         if (values == null || values.isEmpty()) {
             return Set.of();
         }
@@ -78,15 +78,15 @@ public final class SamlAttributeMapper {
         return out;
     }
 
-    private static String firstAttribute(Saml2AuthenticatedPrincipal principal, String name) {
+    private static String firstAttribute(Saml2ResponseAssertionAccessor assertion, String name) {
         if (name == null || name.isBlank()) {
             return null;
         }
-        List<Object> values = principal.getAttribute(name);
+        List<Object> values = assertion.getAttribute(name);
         if (values != null && !values.isEmpty() && values.get(0) != null) {
             return values.get(0).toString();
         }
-        var value = principal.getFirstAttribute(name);
+        var value = assertion.getFirstAttribute(name);
         return value != null ? value.toString() : null;
     }
 
