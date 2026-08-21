@@ -131,8 +131,8 @@ class SqlParserServiceImpl implements SqlParserService {
         if (parsed == null) {
             return List.of();
         }
-        var statements = parsed.getStatements();
-        return statements == null ? List.of() : statements;
+        // Statements extends ArrayList<Statement> — usable directly as the result list.
+        return parsed;
     }
 
     private static List<String> sliceStatements(List<Statement> statements) {

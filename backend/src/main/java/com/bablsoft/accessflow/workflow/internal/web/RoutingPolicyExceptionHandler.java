@@ -48,7 +48,7 @@ class RoutingPolicyExceptionHandler {
 
     @ExceptionHandler(IllegalRoutingPolicyException.class)
     ProblemDetail handleIllegal(IllegalRoutingPolicyException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage());
         pd.setProperty("error", "ROUTING_POLICY_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

@@ -61,9 +61,9 @@ class SecurityExceptionHandlerTest {
         verify(response).setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         var root = objectMapper.readTree(new String(sink.toByteArray()));
         assertThat(root.get("status").asInt()).isEqualTo(401);
-        assertThat(root.get("detail").asText()).isEqualTo("error.unauthorized");
+        assertThat(root.get("detail").asString()).isEqualTo("error.unauthorized");
         var props = root.get("properties");
-        assertThat(props.get("error").asText()).isEqualTo("UNAUTHORIZED");
+        assertThat(props.get("error").asString()).isEqualTo("UNAUTHORIZED");
         assertThat(hasField(props, "traceId")).isFalse();
     }
 
@@ -78,7 +78,7 @@ class SecurityExceptionHandlerTest {
         var root = objectMapper.readTree(new String(sink.toByteArray()));
         assertThat(root.get("status").asInt()).isEqualTo(403);
         var props = root.get("properties");
-        assertThat(props.get("error").asText()).isEqualTo("FORBIDDEN");
+        assertThat(props.get("error").asString()).isEqualTo("FORBIDDEN");
     }
 
     @Test
@@ -90,7 +90,7 @@ class SecurityExceptionHandlerTest {
                 new AuthenticationException("bad creds") { });
 
         var props = objectMapper.readTree(new String(sink.toByteArray())).get("properties");
-        assertThat(props.get("traceId").asText()).isEqualTo("trace-abc-123");
+        assertThat(props.get("traceId").asString()).isEqualTo("trace-abc-123");
     }
 
     @Test
@@ -102,7 +102,7 @@ class SecurityExceptionHandlerTest {
                 new AccessDeniedException("nope"));
 
         var props = objectMapper.readTree(new String(sink.toByteArray())).get("properties");
-        assertThat(props.get("traceId").asText()).isEqualTo("trace-xyz-789");
+        assertThat(props.get("traceId").asString()).isEqualTo("trace-xyz-789");
     }
 
     @Test

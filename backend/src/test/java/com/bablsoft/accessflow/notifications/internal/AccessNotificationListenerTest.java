@@ -148,9 +148,9 @@ class AccessNotificationListenerTest {
         listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
 
         var payload = capturePayload();
-        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asText())
+        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asString())
                 .isEqualTo("DATASOURCE");
-        org.assertj.core.api.Assertions.assertThat(payload.get("datasource").asText())
+        org.assertj.core.api.Assertions.assertThat(payload.get("datasource").asString())
                 .isEqualTo("db");
         org.assertj.core.api.Assertions.assertThat(payload.has("connector")).isFalse();
     }
@@ -163,9 +163,9 @@ class AccessNotificationListenerTest {
         listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
 
         var payload = capturePayload();
-        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asText())
+        org.assertj.core.api.Assertions.assertThat(payload.get("resource_kind").asString())
                 .isEqualTo("API_CONNECTOR");
-        org.assertj.core.api.Assertions.assertThat(payload.get("connector").asText())
+        org.assertj.core.api.Assertions.assertThat(payload.get("connector").asString())
                 .isEqualTo("billing-api");
         org.assertj.core.api.Assertions.assertThat(payload.has("datasource")).isFalse();
     }

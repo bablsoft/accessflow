@@ -194,7 +194,7 @@ class AdminAuditSinkControllerTest {
                         .content("""
                                 {"name":"x","type":"HTTPS_BATCH","config":{}}
                                 """))
-                .andExpect(status().isUnprocessableEntity())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.error").value("AUDIT_SINK_CONFIG_INVALID"))
                 .andExpect(jsonPath("$.detail").value("error.audit_sink_config_invalid"));
     }

@@ -855,23 +855,23 @@ class DatasourceControllerIntegrationTest {
             var mapper = new tools.jackson.databind.ObjectMapper();
             var root = mapper.readTree(json);
             var erSchema = java.util.stream.StreamSupport.stream(root.get("schemas").spliterator(), false)
-                    .filter(s -> "er_diagram_test".equals(s.get("name").asText()))
+                    .filter(s -> "er_diagram_test".equals(s.get("name").asString()))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("er_diagram_test schema missing"));
 
             var childTable = java.util.stream.StreamSupport.stream(erSchema.get("tables").spliterator(), false)
-                    .filter(t -> "child".equals(t.get("name").asText()))
+                    .filter(t -> "child".equals(t.get("name").asString()))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("child table missing"));
             assertThat(childTable.get("foreign_keys")).isNotNull();
             assertThat(childTable.get("foreign_keys")).hasSize(1);
             var fk = childTable.get("foreign_keys").get(0);
-            assertThat(fk.get("from_column").asText()).isEqualTo("parent_id");
-            assertThat(fk.get("to_table").asText()).isEqualTo("parent");
-            assertThat(fk.get("to_column").asText()).isEqualTo("id");
+            assertThat(fk.get("from_column").asString()).isEqualTo("parent_id");
+            assertThat(fk.get("to_table").asString()).isEqualTo("parent");
+            assertThat(fk.get("to_column").asString()).isEqualTo("id");
 
             var parentTable = java.util.stream.StreamSupport.stream(erSchema.get("tables").spliterator(), false)
-                    .filter(t -> "parent".equals(t.get("name").asText()))
+                    .filter(t -> "parent".equals(t.get("name").asString()))
                     .findFirst()
                     .orElseThrow(() -> new AssertionError("parent table missing"));
             assertThat(parentTable.get("foreign_keys")).isNotNull();

@@ -121,12 +121,12 @@ class QueryReplayController {
                     new Object[]{String.join(", ", ex.missingTables())});
             case TARGET_SCHEMA_UNAVAILABLE -> msg("error.replay_target_schema_unavailable", null);
         };
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, detail);
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, detail);
         pd.setProperty("error", "REPLAY_SCHEMA_INCOMPATIBLE");
         if (!ex.missingTables().isEmpty()) {
             pd.setProperty("missing_tables", ex.missingTables());
         }
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(pd);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT).body(pd);
     }
 
     private String msg(String key, Object[] args) {

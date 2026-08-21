@@ -99,12 +99,12 @@ class RealtimeEventDispatcherTest {
         dispatcher.onQueryStatusChanged(event);
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("query.status_changed");
-        assertThat(envelope.get("timestamp").asText()).isEqualTo("2026-05-07T10:00:00Z");
+        assertThat(envelope.get("event").asString()).isEqualTo("query.status_changed");
+        assertThat(envelope.get("timestamp").asString()).isEqualTo("2026-05-07T10:00:00Z");
         var data = envelope.get("data");
-        assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
-        assertThat(data.get("old_status").asText()).isEqualTo("PENDING_AI");
-        assertThat(data.get("new_status").asText()).isEqualTo("PENDING_REVIEW");
+        assertThat(data.get("query_id").asString()).isEqualTo(queryId.toString());
+        assertThat(data.get("old_status").asString()).isEqualTo("PENDING_AI");
+        assertThat(data.get("new_status").asString()).isEqualTo("PENDING_REVIEW");
     }
 
     @Test
@@ -114,11 +114,11 @@ class RealtimeEventDispatcherTest {
                 RequestGroupStatus.PENDING_REVIEW, RequestGroupStatus.APPROVED));
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("request_group.status_changed");
+        assertThat(envelope.get("event").asString()).isEqualTo("request_group.status_changed");
         var data = envelope.get("data");
-        assertThat(data.get("request_group_id").asText()).isEqualTo(groupId.toString());
-        assertThat(data.get("old_status").asText()).isEqualTo("PENDING_REVIEW");
-        assertThat(data.get("new_status").asText()).isEqualTo("APPROVED");
+        assertThat(data.get("request_group_id").asString()).isEqualTo(groupId.toString());
+        assertThat(data.get("old_status").asString()).isEqualTo("PENDING_REVIEW");
+        assertThat(data.get("new_status").asString()).isEqualTo("APPROVED");
     }
 
     @Test
@@ -129,11 +129,11 @@ class RealtimeEventDispatcherTest {
                 submitterId, 2, RequestGroupItemStatus.EXECUTED));
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("request_group.item_executed");
+        assertThat(envelope.get("event").asString()).isEqualTo("request_group.item_executed");
         var data = envelope.get("data");
-        assertThat(data.get("item_id").asText()).isEqualTo(itemId.toString());
+        assertThat(data.get("item_id").asString()).isEqualTo(itemId.toString());
         assertThat(data.get("sequence_order").asInt()).isEqualTo(2);
-        assertThat(data.get("status").asText()).isEqualTo("EXECUTED");
+        assertThat(data.get("status").asString()).isEqualTo("EXECUTED");
     }
 
     @Test
@@ -144,7 +144,7 @@ class RealtimeEventDispatcherTest {
         dispatcher.onQueryExecuted(event);
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("query.executed");
+        assertThat(envelope.get("event").asString()).isEqualTo("query.executed");
         var data = envelope.get("data");
         assertThat(data.get("rows_affected").asLong()).isEqualTo(42L);
         assertThat(data.get("duration_ms").asLong()).isEqualTo(1234L);
@@ -182,8 +182,8 @@ class RealtimeEventDispatcherTest {
         dispatcher.onAiAnalysisCompleted(event);
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("ai.analysis_complete");
-        assertThat(envelope.get("data").get("risk_level").asText()).isEqualTo("MEDIUM");
+        assertThat(envelope.get("event").asString()).isEqualTo("ai.analysis_complete");
+        assertThat(envelope.get("data").get("risk_level").asString()).isEqualTo("MEDIUM");
         assertThat(envelope.get("data").get("risk_score").asInt()).isEqualTo(55);
     }
 
@@ -209,12 +209,12 @@ class RealtimeEventDispatcherTest {
         verify(sessionRegistry).sendToUser(org.mockito.ArgumentMatchers.eq(reviewerId),
                 captor.capture());
         var envelope = objectMapper.readTree(captor.getValue());
-        assertThat(envelope.get("event").asText()).isEqualTo("review.new_request");
+        assertThat(envelope.get("event").asString()).isEqualTo("review.new_request");
         var data = envelope.get("data");
-        assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
-        assertThat(data.get("risk_level").asText()).isEqualTo("HIGH");
-        assertThat(data.get("submitter").asText()).isEqualTo("sub@example.com");
-        assertThat(data.get("datasource").asText()).isEqualTo("orders-prod");
+        assertThat(data.get("query_id").asString()).isEqualTo(queryId.toString());
+        assertThat(data.get("risk_level").asString()).isEqualTo("HIGH");
+        assertThat(data.get("submitter").asString()).isEqualTo("sub@example.com");
+        assertThat(data.get("datasource").asString()).isEqualTo("orders-prod");
     }
 
     @Test
@@ -245,11 +245,11 @@ class RealtimeEventDispatcherTest {
         dispatcher.onReviewDecisionMade(event);
 
         var envelope = captureEnvelope(submitterId);
-        assertThat(envelope.get("event").asText()).isEqualTo("review.decision_made");
+        assertThat(envelope.get("event").asString()).isEqualTo("review.decision_made");
         var data = envelope.get("data");
-        assertThat(data.get("decision").asText()).isEqualTo("APPROVED");
-        assertThat(data.get("reviewer").asText()).isEqualTo("alice@example.com");
-        assertThat(data.get("comment").asText()).isEqualTo("looks good");
+        assertThat(data.get("decision").asString()).isEqualTo("APPROVED");
+        assertThat(data.get("reviewer").asString()).isEqualTo("alice@example.com");
+        assertThat(data.get("comment").asString()).isEqualTo("looks good");
     }
 
     @Test
@@ -278,12 +278,12 @@ class RealtimeEventDispatcherTest {
                 new UserNotificationCreatedEvent(notificationId, recipientId));
 
         var envelope = captureEnvelope(recipientId);
-        assertThat(envelope.get("event").asText()).isEqualTo("notification.created");
+        assertThat(envelope.get("event").asString()).isEqualTo("notification.created");
         var data = envelope.get("data");
-        assertThat(data.get("notification_id").asText()).isEqualTo(notificationId.toString());
-        assertThat(data.get("event_type").asText()).isEqualTo("QUERY_APPROVED");
-        assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
-        assertThat(data.get("created_at").asText()).isEqualTo("2026-05-08T09:00:00Z");
+        assertThat(data.get("notification_id").asString()).isEqualTo(notificationId.toString());
+        assertThat(data.get("event_type").asString()).isEqualTo("QUERY_APPROVED");
+        assertThat(data.get("query_id").asString()).isEqualTo(queryId.toString());
+        assertThat(data.get("created_at").asString()).isEqualTo("2026-05-08T09:00:00Z");
     }
 
     @Test
@@ -342,10 +342,10 @@ class RealtimeEventDispatcherTest {
                         campaignId, organizationId));
 
         var envelope = captureEnvelope(recipientId);
-        assertThat(envelope.get("event").asText()).isEqualTo("attestation.campaign_opened");
+        assertThat(envelope.get("event").asString()).isEqualTo("attestation.campaign_opened");
         var data = envelope.get("data");
-        assertThat(data.get("campaign_id").asText()).isEqualTo(campaignId.toString());
-        assertThat(data.get("name").asText()).isEqualTo("Q3 review");
+        assertThat(data.get("campaign_id").asString()).isEqualTo(campaignId.toString());
+        assertThat(data.get("name").asString()).isEqualTo("Q3 review");
     }
 
     @Test
@@ -374,8 +374,8 @@ class RealtimeEventDispatcherTest {
                 queryId, UUID.randomUUID(), 0.78));
 
         var reviewerEnvelope = captureEnvelope(reviewerId);
-        assertThat(reviewerEnvelope.get("event").asText()).isEqualTo("query.prediction_complete");
-        assertThat(reviewerEnvelope.get("data").get("query_id").asText())
+        assertThat(reviewerEnvelope.get("event").asString()).isEqualTo("query.prediction_complete");
+        assertThat(reviewerEnvelope.get("data").get("query_id").asString())
                 .isEqualTo(queryId.toString());
         assertThat(reviewerEnvelope.get("data").get("probability").asDouble()).isEqualTo(0.78);
         verify(sessionRegistry, never()).sendToUser(org.mockito.ArgumentMatchers.eq(submitterId),

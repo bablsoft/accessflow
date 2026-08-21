@@ -48,7 +48,7 @@ class AiAnalysisExceptionHandlerTest {
         var pd = handler.handleAiAnalysisParse(new AiAnalysisParseException(
                 "Generated query did not parse for MONGODB: unsupported operation 'mapReduce'"));
 
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("error", "AI_RESPONSE_INVALID");
         assertThat(pd.getProperties()).containsEntry("reason",
                 "Generated query did not parse for MONGODB: unsupported operation 'mapReduce'");
@@ -114,7 +114,7 @@ class AiAnalysisExceptionHandlerTest {
         var pd = handler.handleAiGuardrailViolation(
                 new AiGuardrailViolationException("blocked", "drop\\s+table"));
 
-        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY.value());
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT.value());
         assertThat(pd.getProperties()).containsEntry("error", "AI_GUARDRAIL_BLOCKED");
         assertThat(pd.getDetail()).isEqualTo("This query was blocked by a guardrail");
     }

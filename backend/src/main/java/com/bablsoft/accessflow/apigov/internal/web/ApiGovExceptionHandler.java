@@ -69,7 +69,7 @@ class ApiGovExceptionHandler {
 
     @ExceptionHandler(ApiSchemaParseException.class)
     ProblemDetail handleSchemaParse(ApiSchemaParseException ex) {
-        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.api_schema_parse"),
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_schema_parse"),
                 "API_SCHEMA_PARSE_ERROR");
         pd.setProperty("reason", ex.getMessage());
         return pd;
@@ -77,7 +77,7 @@ class ApiGovExceptionHandler {
 
     @ExceptionHandler(ApiSchemaFetchException.class)
     ProblemDetail handleSchemaFetch(ApiSchemaFetchException ex) {
-        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.api_schema_fetch"),
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_schema_fetch"),
                 "API_SCHEMA_FETCH_ERROR");
         pd.setProperty("reason", ex.getMessage());
         return pd;
@@ -125,7 +125,7 @@ class ApiGovExceptionHandler {
 
     @ExceptionHandler(ApiRequestValidationException.class)
     ProblemDetail handleValidation(ApiRequestValidationException ex) {
-        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.api_request_validation"),
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.api_request_validation"),
                 "API_REQUEST_VALIDATION_ERROR");
         pd.setProperty("reason", ex.getMessage());
         return pd;
@@ -147,7 +147,7 @@ class ApiGovExceptionHandler {
     @ExceptionHandler(IllegalApiConnectorMaskingPolicyException.class)
     ProblemDetail handleIllegalMaskingPolicy(IllegalApiConnectorMaskingPolicyException ex) {
         // Message resolved at the throw site via MessageSource — see DefaultApiConnectorMaskingAdminService.
-        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_MASKING_POLICY");
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), "ILLEGAL_API_MASKING_POLICY");
     }
 
     @ExceptionHandler(ApiConnectorClassificationTagNotFoundException.class)
@@ -159,7 +159,7 @@ class ApiGovExceptionHandler {
     @ExceptionHandler(IllegalApiConnectorClassificationTagException.class)
     ProblemDetail handleIllegalClassificationTag(IllegalApiConnectorClassificationTagException ex) {
         // Message resolved at the throw site via MessageSource — see DefaultApiConnectorClassificationService.
-        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_CLASSIFICATION_TAG");
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), "ILLEGAL_API_CLASSIFICATION_TAG");
     }
 
     @ExceptionHandler(ApiConnectorVariableNotFoundException.class)
@@ -172,7 +172,7 @@ class ApiGovExceptionHandler {
     ProblemDetail handleIllegalVariable(IllegalApiConnectorVariableException ex) {
         // Message resolved at the throw site via MessageSource — see
         // DefaultApiConnectorVariableAdminService. It names variables only, never values or secrets.
-        return problem(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), "ILLEGAL_API_CONNECTOR_VARIABLE");
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), "ILLEGAL_API_CONNECTOR_VARIABLE");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {

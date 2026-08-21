@@ -47,9 +47,9 @@ class ProblemDetailTraceIntegrationTest {
 
         assertThat(response.statusCode()).isEqualTo(401);
         var json = objectMapper.readTree(response.body());
-        assertThat(json.get("error").asText()).isEqualTo("UNAUTHORIZED");
+        assertThat(json.get("error").asString()).isEqualTo("UNAUTHORIZED");
         assertThat(json.has("traceId")).isTrue();
-        assertThat(json.get("traceId").asText()).isNotBlank();
+        assertThat(json.get("traceId").asString()).isNotBlank();
     }
 
     @Test
@@ -58,7 +58,7 @@ class ProblemDetailTraceIntegrationTest {
 
         var json = objectMapper.readTree(response.body());
         assertThat(json.has("traceId")).isTrue();
-        assertThat(json.get("traceId").asText()).isNotBlank();
+        assertThat(json.get("traceId").asString()).isNotBlank();
     }
 
     private HttpResponse<String> get(String path) throws Exception {

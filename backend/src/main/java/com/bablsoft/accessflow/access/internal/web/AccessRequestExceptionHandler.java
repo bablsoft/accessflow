@@ -72,7 +72,7 @@ class AccessRequestExceptionHandler {
     @ExceptionHandler(InvalidAccessOperationsException.class)
     ProblemDetail handleInvalidOperations(InvalidAccessOperationsException ex) {
         // The detail is already locale-resolved at the throw site via MessageSource.
-        return problem(HttpStatus.UNPROCESSABLE_ENTITY,
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT,
                 ex.getMessage() != null ? ex.getMessage() : msg("error.access_operation_unknown"),
                 "INVALID_ACCESS_OPERATIONS");
     }
@@ -80,7 +80,7 @@ class AccessRequestExceptionHandler {
     @ExceptionHandler(InvalidAccessDurationException.class)
     ProblemDetail handleInvalidDuration(InvalidAccessDurationException ex) {
         // The detail is already locale-resolved at the throw site via MessageSource.
-        return problem(HttpStatus.UNPROCESSABLE_ENTITY,
+        return problem(HttpStatus.UNPROCESSABLE_CONTENT,
                 ex.getMessage() != null ? ex.getMessage() : msg("error.access_duration_invalid"),
                 "INVALID_ACCESS_DURATION");
     }

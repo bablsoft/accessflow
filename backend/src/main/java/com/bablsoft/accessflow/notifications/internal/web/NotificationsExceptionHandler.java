@@ -36,7 +36,7 @@ class NotificationsExceptionHandler {
 
     @ExceptionHandler(NotificationChannelConfigException.class)
     ProblemDetail handleConfig(NotificationChannelConfigException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.notification_channel_config_invalid"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.notification_channel_config_invalid"));
         pd.setProperty("error", "NOTIFICATION_CHANNEL_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
@@ -68,7 +68,7 @@ class NotificationsExceptionHandler {
 
     @ExceptionHandler(SlackAppConfigValidationException.class)
     ProblemDetail handleSlackAppConfigValidation(SlackAppConfigValidationException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, msg("error.slack_app_config_invalid"));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, msg("error.slack_app_config_invalid"));
         pd.setProperty("error", "SLACK_APP_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

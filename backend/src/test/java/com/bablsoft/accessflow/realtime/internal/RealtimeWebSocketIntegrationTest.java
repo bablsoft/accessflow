@@ -136,9 +136,9 @@ class RealtimeWebSocketIntegrationTest {
         var raw = received.poll(5, TimeUnit.SECONDS);
         assertThat(raw).as("WS message should arrive within 5 s").isNotNull();
         var envelope = objectMapper.readTree(raw);
-        assertThat(envelope.get("event").asText()).isEqualTo("query.status_changed");
-        assertThat(envelope.get("data").get("old_status").asText()).isEqualTo("PENDING_AI");
-        assertThat(envelope.get("data").get("new_status").asText()).isEqualTo("PENDING_REVIEW");
+        assertThat(envelope.get("event").asString()).isEqualTo("query.status_changed");
+        assertThat(envelope.get("data").get("old_status").asString()).isEqualTo("PENDING_AI");
+        assertThat(envelope.get("data").get("new_status").asString()).isEqualTo("PENDING_REVIEW");
     }
 
     @Test
@@ -166,11 +166,11 @@ class RealtimeWebSocketIntegrationTest {
         var envelope = pollForEvent("review.new_request", 5);
         assertThat(envelope).as("review.new_request should arrive within 5 s").isNotNull();
         var data = envelope.get("data");
-        assertThat(data.get("query_id").asText()).isEqualTo(query.getId().toString());
+        assertThat(data.get("query_id").asString()).isEqualTo(query.getId().toString());
         // No AI analysis persisted — spec allows risk_level to be null in that case.
         assertThat(data.get("risk_level").isNull()).isTrue();
-        assertThat(data.get("submitter").asText()).isEqualTo(submitter.getEmail());
-        assertThat(data.get("datasource").asText()).isEqualTo(datasource.getName());
+        assertThat(data.get("submitter").asString()).isEqualTo(submitter.getEmail());
+        assertThat(data.get("datasource").asString()).isEqualTo(datasource.getName());
     }
 
     @Test
@@ -195,10 +195,10 @@ class RealtimeWebSocketIntegrationTest {
         var envelope = pollForEvent("review.decision_made", 5);
         assertThat(envelope).as("review.decision_made should arrive within 5 s").isNotNull();
         var data = envelope.get("data");
-        assertThat(data.get("query_id").asText()).isEqualTo(queryId.toString());
-        assertThat(data.get("decision").asText()).isEqualTo("APPROVED");
-        assertThat(data.get("reviewer").asText()).isEqualTo(reviewer.getEmail());
-        assertThat(data.get("comment").asText()).isEqualTo("looks good");
+        assertThat(data.get("query_id").asString()).isEqualTo(queryId.toString());
+        assertThat(data.get("decision").asString()).isEqualTo("APPROVED");
+        assertThat(data.get("reviewer").asString()).isEqualTo(reviewer.getEmail());
+        assertThat(data.get("comment").asString()).isEqualTo("looks good");
     }
 
     private WebSocketSession openSession(String token) throws Exception {
@@ -220,7 +220,7 @@ class RealtimeWebSocketIntegrationTest {
                 return null;
             }
             var envelope = objectMapper.readTree(raw);
-            if (expectedEvent.equals(envelope.get("event").asText())) {
+            if (expectedEvent.equals(envelope.get("event").asString())) {
                 return envelope;
             }
         }

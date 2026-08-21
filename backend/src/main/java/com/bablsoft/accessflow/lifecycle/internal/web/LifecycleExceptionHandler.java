@@ -61,7 +61,7 @@ class LifecycleExceptionHandler {
             case EMPTY_REQUEST -> "error.erasure_config_empty_request";
             case TARGET_TABLE_REQUIRED -> "error.erasure_config_target_table_required";
         };
-        var pd = problem(HttpStatus.UNPROCESSABLE_ENTITY, msg(key), "INVALID_ERASURE_CONFIG");
+        var pd = problem(HttpStatus.UNPROCESSABLE_CONTENT, msg(key), "INVALID_ERASURE_CONFIG");
         pd.setProperty("reason", ex.reason().name());
         return pd;
     }

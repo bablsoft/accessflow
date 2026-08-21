@@ -109,7 +109,7 @@ class ResultExportController {
 
     @ExceptionHandler(ResultExportUnavailableException.class)
     ProblemDetail handleUnavailable(ResultExportUnavailableException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT,
                 msg("error.result_export_not_select"));
         pd.setProperty("error", "RESULTS_NOT_AVAILABLE");
         pd.setProperty("timestamp", Instant.now().toString());
