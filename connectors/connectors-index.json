@@ -1,6 +1,17 @@
 {
-  "version": "2.2.0",
+  "version": "2.3.0",
   "connectors": [
+    {
+      "id": "bigquery",
+      "name": "Google BigQuery",
+      "dbType": "BIGQUERY",
+      "vendor": "Google Cloud",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "5c598c7d59c248f77fccee97a2f98d0b6bc4235030c12a870c270a6b38cfac2c"
+      }
+    },
     {
       "id": "cassandra",
       "name": "Apache Cassandra",
@@ -31,7 +42,18 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "8753f5bd9f1f962df5ecb621d10fc8bcec8a65b4338da1e1197f82e8dbc86cb1"
+        "sha256": "bd78c1e8733e28fadf95b01cb82acf6e17be790316c7a5f526aa38899259a085"
+      }
+    },
+    {
+      "id": "databricks",
+      "name": "Databricks SQL",
+      "dbType": "DATABRICKS",
+      "vendor": "Databricks",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "8cbb82300e7335b80ce5f2e2b37d0769bb5911888e96123fde61f6e5677e22e5"
       }
     },
     {
@@ -42,7 +64,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "9a609fc1747e1712a6e0cffa8ce84f935b96154013f868211919da20284761f6"
+        "sha256": "41f6751d610f3a557b0db9c244b476512b02e9f30764954c9c6f25b853bc9b30"
       }
     },
     {
@@ -53,7 +75,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "416568fc8ba21388ae37bc8eeccff7fcd6b656cf29fe1fd8e26fb1f325648886"
+        "sha256": "18e6889b6ca3b9777a23a896e52677dd4ed3fa1e2799a412bbea1566feb24520"
       }
     },
     {
@@ -75,7 +97,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "58236b5f0a8d7111f48a1fa61d58e234d7603192223444551a582940fbde3c51"
+        "sha256": "56922d9da7a6f7ed958a928ac2878c0a5d6d862e4aa235023bb78dce4cecf85f"
       }
     },
     {
@@ -108,7 +130,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "9cf3f86e833e2556b2d07fd52fc0d3cb65cdec64c3e8bc61d1f039ae9afaed02"
+        "sha256": "be6078ffff601e4e4d45a2c03177874345dafb1153da3521536411ad7e0f9870"
       }
     },
     {
@@ -119,7 +141,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "660fc466f090ca3539f20126d45fac9553a0d557a539f44745b08c6da20982ca"
+        "sha256": "18e6889b6ca3b9777a23a896e52677dd4ed3fa1e2799a412bbea1566feb24520"
       }
     },
     {
@@ -161,6 +183,17 @@
       "driver": {
         "type": "url",
         "sha256": "f19f265433e05729c91ae602fbd0617c801fede77664b781629e9219988a79f1"
+      }
+    },
+    {
+      "id": "snowflake",
+      "name": "Snowflake",
+      "dbType": "SNOWFLAKE",
+      "vendor": "Snowflake Inc.",
+      "bundled": false,
+      "driver": {
+        "type": "url",
+        "sha256": "22c5659712072d9c766d27dce57f30b470d17ca8b5c9eb408512d3649a19cd42"
       }
     }
   ]
