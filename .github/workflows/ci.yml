@@ -196,12 +196,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
         with:
           version: latest
-
-      - name: Register chart dependency repos
-        run: helm repo add bitnami https://charts.bitnami.com/bitnami
 
       - name: Build chart dependencies
         run: helm dependency update charts/accessflow
@@ -367,14 +364,14 @@ jobs:
         run: npx playwright install-deps chromium
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build the two images once with a GitHub Actions layer cache so the
       # dependency-resolution layers (mvn dependency:go-offline / npm install)
       # are reused run-to-run. `load: true` puts the tagged image in the local
       # daemon; the stack then starts with `up` (no --build) and reuses it.
       - name: Build backend image (cached)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
@@ -384,7 +381,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=e2e-backend
 
       - name: Build frontend image (cached)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: frontend
           file: frontend/Dockerfile
@@ -498,7 +495,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: terraform-provider/go.mod
           cache-dependency-path: terraform-provider/go.sum
@@ -520,12 +517,12 @@ jobs:
         with:
           terraform_wrapper: false
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       # Build the backend from the working tree (the service-account bootstrap path is new),
       # reusing the e2e layer cache for warmth.
       - name: Build backend image (cached)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
@@ -581,10 +578,10 @@ jobs:
       - name: Shellcheck action scripts
         run: shellcheck .github/actions/*/*.sh
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build backend image (cached)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
