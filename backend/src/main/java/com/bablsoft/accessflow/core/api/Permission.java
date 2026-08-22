@@ -45,6 +45,11 @@ public enum Permission {
     /** Review (approve/reject) governed API requests. */
     API_REQUEST_REVIEW(PermissionGroup.API_GOVERNANCE),
 
+    /** Manage deployment pipelines: CRUD, environments, freeze windows, trigger grants. */
+    DEPLOYMENT_PIPELINE_MANAGE(PermissionGroup.DEPLOYMENT_GOVERNANCE),
+    /** Review (approve/reject) deployment requests. */
+    DEPLOYMENT_REVIEW(PermissionGroup.DEPLOYMENT_GOVERNANCE),
+
     /** Manage datasources: CRUD, connection tests, schema introspection, drivers, health. */
     DATASOURCE_MANAGE(PermissionGroup.DATASOURCES),
     /** Manage per-datasource user/group permissions and datasource reviewers. */

@@ -9,6 +9,7 @@ public enum PermissionGroup {
     QUERIES,
     ACCESS,
     API_GOVERNANCE,
+    DEPLOYMENT_GOVERNANCE,
     DATASOURCES,
     DATA_POLICIES,
     WORKFLOW_ADMIN,

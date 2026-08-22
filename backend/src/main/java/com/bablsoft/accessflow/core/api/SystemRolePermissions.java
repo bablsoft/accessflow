@@ -35,6 +35,7 @@ public final class SystemRolePermissions {
         reviewer.add(Permission.QUERY_REVIEW);
         reviewer.add(Permission.ACCESS_REQUEST_REVIEW);
         reviewer.add(Permission.API_REQUEST_REVIEW);
+        reviewer.add(Permission.DEPLOYMENT_REVIEW);
         reviewer.add(Permission.ERASURE_REVIEW);
         reviewer.add(Permission.ATTESTATION_REVIEW);
 

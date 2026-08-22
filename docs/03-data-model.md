@@ -2354,6 +2354,100 @@ break-glass retro-review can target an API request.
 
 ---
 
+## Deployment governance (`deploygov`, #684 / epic #682)
+
+Migrations **V149** (definitions) and **V150** (request pipeline) lay the persistence foundation of
+the `deploygov` module: gate CI/CD deployments behind AccessFlow approval workflows. New pg enums
+(`snake_case`, no `_enum` suffix): `pipeline_provider`
+(`GITHUB_ACTIONS`/`GITLAB_CI`/`AZURE_PIPELINES`/`JENKINS`/`CIRCLECI`/`BITBUCKET_PIPELINES`/`GENERIC`),
+`freeze_behavior` (`HOLD`/`REJECT`), `deployment_outcome` (`SUCCEEDED`/`FAILED`/`ROLLED_BACK`).
+The shared `query_status` / `submission_reason` / `decision` / `api_routing_action` types are reused
+verbatim, exactly as the apigov tables do. Cross-module references (`organization_id`,
+`review_plan_id`, `ai_config_id`, `submitted_by`, `user_id`, `created_by`) are bare UUIDs (no FK);
+the group-permission table keeps the real FKs of its V111 template. **V151** seeds the
+`DEPLOYMENT_PIPELINE_MANAGE` (ADMIN) and `DEPLOYMENT_REVIEW` (ADMIN + REVIEWER) permissions.
+
+### deployment_pipelines
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` | UUID | Bare UUID. Unique with `name`. |
+| `name` | VARCHAR(255) | |
+| `provider` | `pipeline_provider` | CI/CD system the pipeline runs on. |
+| `repository_url` / `project_ref` | TEXT | Provider-side repository URL and project identifier (owner/repo, GitLab project path, Azure org/project, Jenkins job path, …). |
+| `review_plan_id` | UUID | Nullable — shared `review_plans` row governing approvals. |
+| `ai_analysis_enabled` | BOOLEAN DEFAULT TRUE | |
+| `ai_config_id` | UUID | Nullable per-pipeline AI config override. |
+| `is_active` | BOOLEAN DEFAULT TRUE | |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+### deployment_environments
+
+Promotion environments per pipeline (`pipeline_id` FK `ON DELETE CASCADE`, unique
+`(pipeline_id, name)`, ordered by `sort_order`): `require_review` (default TRUE), nullable
+`required_approvals` / `review_plan_id` per-environment overrides, `allow_break_glass`
+(default FALSE), `created_at`.
+
+### deployment_freeze_windows
+
+Freeze windows scoped by nullable `pipeline_id` / `environment_id` (FK CASCADE; both null =
+org-wide, `organization_id` always set). Either a **one-off** window (`starts_at` + `ends_at`
+TIMESTAMPTZ) or a **recurring** weekly one (`days_of_week SMALLINT[]` in ISO-8601 numbering +
+wall-clock `start_time`/`end_time` TIME + `timezone`) — `chk_deployment_freeze_window_shape`
+enforces exactly one shape. `behavior freeze_behavior` (`HOLD` keeps an approved request
+not-releasable; `REJECT` auto-rejects at submission), `reason`, `enabled` (default TRUE).
+
+### deployment_pipeline_user_permissions / deployment_pipeline_group_permissions
+
+Per-user and group-inherited trigger grants, mirroring the `api_connector_*_permissions` pair
+(AF-530): `can_trigger`, `can_break_glass`, nullable `expires_at`, `created_by`, unique
+`(pipeline_id, user_id)` / `(pipeline_id, group_id)`. The group table adds `organization_id` and a
+`version BIGINT` optimistic lock, with real FKs to `organizations` / `user_groups` / `users`.
+
+### deployment_requests
+
+Governed deployment requests (V150), mirroring `api_requests`. `version` is the semantic artifact
+version being deployed; the `@Version` optimistic-lock column is `version_lock` to avoid the
+collision.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `pipeline_id` / `environment_id` / `organization_id` / `submitted_by` | UUID | Bare UUIDs. |
+| `version` | VARCHAR(255) | Artifact version being deployed ("2.4.1"). |
+| `commit_sha` | VARCHAR(64) | |
+| `artifact_ref` / `run_url` / `external_run_id` | TEXT | CI-side artifact and run identity. |
+| `metadata` | JSONB DEFAULT `'{}'` | Changelog, commit list, diff summary — the AI analysis input. |
+| `status` | `query_status` | Lifecycle, reused verbatim. `EXECUTED` = the gate opened and the pipeline confirmed it proceeded. |
+| `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
+| `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. |
+| `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. |
+| `outcome_reported_at` / `outcome_detail` | — | |
+| `submitted_ip` | VARCHAR(45) | |
+| `version_lock` | BIGINT | `@Version` optimistic lock. |
+| `created_at` / `updated_at` | TIMESTAMPTZ | |
+
+Indexes: `(pipeline_id, version, environment_id)` (the gate lookup), `(status)`,
+`(organization_id, status, created_at DESC)`, a partial `(scheduled_for) WHERE status = 'APPROVED'
+AND scheduled_for IS NOT NULL` backing the deferred-run scan, and the **partial unique**
+`uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version, external_run_id)
+WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates a second request.
+
+### deployment_review_decisions
+
+Per-stage reviewer decisions (mirror of `api_review_decisions`): `decision` reuses the shared
+`decision` enum, `stage` defaults to 1, unique `(deployment_request_id, reviewer_id, stage)`, FK
+`deployment_request_id` → `deployment_requests` `ON DELETE CASCADE`.
+
+### deployment_routing_policies
+
+Attribute-based routing for deployments (mirror of `api_routing_policies`, reusing the
+`api_routing_action` enum): `conditions` JSONB, nullable `pipeline_id` (null = all pipelines),
+nullable `required_approvals`, `priority` (lowest wins, default 100), `enabled`.
+
+---
+
 ## Data Lifecycle Manager (AF-499)
 
 The `lifecycle` module (migration **V103**) adds retention + right-to-erasure governance. New enums
