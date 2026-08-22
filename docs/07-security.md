@@ -453,12 +453,12 @@ RS256-signed with the same key as compliance exports).
 
 **Deployment governance (#684, epic #682):** two permissions in the new `DEPLOYMENT_GOVERNANCE`
 group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`).
-`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) will gate pipeline / environment / freeze-window /
-trigger-grant administration; `DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) will gate
-approving or rejecting deployment requests. #684 lands only the catalog values and the persistence
-layer — the guarded endpoints and the deployment review service (including the same
-never-approve-your-own-request invariant as queries and API requests) arrive with the later
-sub-issues of epic #682.
+`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) gates pipeline / environment / freeze-window /
+trigger-grant administration — since #688 it guards the whole `/api/v1/deployment-pipelines/**`
+and `/api/v1/deployment-freeze-windows/**` admin surface (class-level `@PreAuthorize`).
+`DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) will gate approving or rejecting deployment
+requests — the deployment review service (including the same never-approve-your-own-request
+invariant as queries and API requests) arrives with the later sub-issues of epic #682.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

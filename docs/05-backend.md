@@ -2943,6 +2943,70 @@ record the group lifecycle alongside each member's own query/API audit row. New
 partially-executed / failed over every channel. `RealtimeEventDispatcher` maps the group events to the
 `request_group.status_changed` and `request_group.item_executed` WebSocket events.
 
+## Deployment Governance (deploygov module, epic #682)
+
+The **`deploygov/` module** governs CI/CD deployments the way `apigov` governs outbound API calls.
+#684 landed the persistence foundation (entities, repositories, V149–V151); **#688 adds the
+admin-facing configuration surface** — everything below. The trigger API, AI analysis, state
+machine, review flow, and gate endpoint arrive with #691/#692/#693.
+
+**Admin services (`deploygov/api/`).** Three org-scoped service interfaces, all mirroring the
+`DefaultApiConnectorAdminService` conventions — `findByIdAndOrganizationId` + not-found on every
+entry point (a cross-org id reads as 404, never "exists elsewhere"), duplicate-name guards on
+create and on rename only, `reviewPlanId` validated through `core.api.ReviewPlanLookupService.findById`
+with an org check (cross-org → `REVIEW_PLAN_NOT_FOUND`), `aiConfigId` stored unvalidated exactly
+as apigov does:
+
+- `DeploymentPipelineAdminService` — pipeline CRUD (paginated via `core.api.PageRequest`/`PageResponse`)
+  plus environment CRUD. Environments are listed by `sort_order` then name; per-environment
+  `requiredApprovals`/`reviewPlanId` overrides are cleared with explicit `clearRequiredApprovals`/
+  `clearReviewPlan` flags (the apigov null-means-unchanged update convention).
+- `DeploymentPermissionService` — the per-user and per-group trigger-grant quartets
+  (list/grant/update/revoke; grant upserts by `(pipeline, user)` / `(pipeline, group)`, update
+  preserves `created_by`/`created_at` provenance), plus
+  `effectivePermission(pipelineId, userId)`.
+- `DeploymentFreezeWindowService` — freeze-window CRUD. `update` is a **full replacement** (the
+  one-off ↔ recurring shape CHECK makes partial patch error-prone), and the service re-validates
+  the same rules the DDL enforces: exactly one complete shape, `ends_at` after `starts_at`, a
+  valid IANA `timezone`, ISO day numbers 1–7, `start_time ≠ end_time`, and — a service-level
+  tightening the DDL doesn't have — an `environment_id` scope requires its `pipeline_id`.
+  Violations throw `IllegalDeploymentFreezeWindowException` with the message resolved through
+  `MessageSource` at the throw site → `400 DEPLOYMENT_FREEZE_WINDOW_INVALID`.
+
+**Effective permission resolution.** `deploygov/internal/EffectiveDeploymentPermissionResolver`
+mirrors apigov's `EffectiveApiConnectorPermissionResolver` (AF-530) collapsed to a deployment
+grant's two flags: the most-permissive union of the direct user grant and every unexpired group
+grant — `can_trigger`/`can_break_glass` OR-ed; `expires_at` is `null` when any contributing grant
+never expires, otherwise the latest contributing expiry. The trigger and gate services (#691/#693)
+route through this single point so every enforcement site sees the same answer.
+
+**Freeze-window evaluation.** `deploygov/internal/FreezeWindowEvaluator` (Clock-injected; an
+explicit-`Instant` overload serves the scheduled-deploy path) decides whether a freeze is in
+effect for `(org, pipeline, environment)` at a point in time:
+
+- **Matching.** Candidate windows are the org's `enabled` rows whose scope columns are null or
+  equal (`pipeline_id IS NULL OR = :pipeline` AND `environment_id IS NULL OR = :environment`).
+- **One-off** windows are active when `starts_at <= t < ends_at`. **Recurring** windows evaluate
+  wall-clock in their IANA `timezone`: active when the local day is listed (ISO 1 = Monday …
+  7 = Sunday) and the local time is in `[start_time, end_time)`. An `end_time` before
+  `start_time` **spans midnight**: day membership belongs to the day the window *starts*, so the
+  early-morning tail matches when the *previous* local day is listed.
+- **Precedence.** Among simultaneously active windows the most-specific scope wins
+  (environment > pipeline > org-wide); within a tier `REJECT` beats `HOLD`, then the oldest
+  window, so the result is deterministic.
+- **Fail closed.** A window whose stored definition cannot be evaluated (invalid zone id, day
+  number outside 1–7, an inconsistent shape that slipped past the CHECK) counts as an **active
+  `HOLD`** — never `REJECT`, so a broken definition can hold deployments but can never
+  auto-destroy requests; it recovers as soon as the admin fixes the row. Logged at WARN.
+
+**Web layer.** `DeploymentPipelineController` (`/api/v1/deployment-pipelines`, including the
+environments and `/permissions` + `/permissions/groups` sub-resources) and
+`DeploymentFreezeWindowController` (`/api/v1/deployment-freeze-windows`) both carry a class-level
+`@PreAuthorize("hasAuthority('PERM_DEPLOYMENT_PIPELINE_MANAGE')")`. `DeploygovExceptionHandler`
+(`@Order(HIGHEST_PRECEDENCE)`) maps the module exceptions onto the `DEPLOYMENT_*` ProblemDetail
+codes documented in [docs/04-api-spec.md](04-api-spec.md). Admin-CRUD audit rows are deliberately
+deferred to the audit fan-out sub-issue (#695).
+
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`
