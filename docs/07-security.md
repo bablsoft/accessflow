@@ -376,6 +376,8 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Create / edit review plans | — | — | — | ✓ | — |
 | View audit log | — | — | — | ✓ | — |
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
+| Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
+| Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |
@@ -448,6 +450,15 @@ downstream of the synchronous write path: a compromised or dead sink can never b
 truncate the in-database chain, and every exported event carries its `previous_hash`/`current_hash`
 so an exported window is independently chain-verifiable (the S3 WORM segments are additionally
 RS256-signed with the same key as compliance exports).
+
+**Deployment governance (#684, epic #682):** two permissions in the new `DEPLOYMENT_GOVERNANCE`
+group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`).
+`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) will gate pipeline / environment / freeze-window /
+trigger-grant administration; `DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) will gate
+approving or rejecting deployment requests. #684 lands only the catalog values and the persistence
+layer — the guarded endpoints and the deployment review service (including the same
+never-approve-your-own-request invariant as queries and API requests) arrive with the later
+sub-issues of epic #682.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

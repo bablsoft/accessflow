@@ -44,6 +44,7 @@ class SystemRolePermissionsTest {
                         Permission.QUERY_REVIEW,
                         Permission.ACCESS_REQUEST_REVIEW,
                         Permission.API_REQUEST_REVIEW,
+                        Permission.DEPLOYMENT_REVIEW,
                         Permission.ERASURE_REVIEW,
                         Permission.ATTESTATION_REVIEW);
     }
