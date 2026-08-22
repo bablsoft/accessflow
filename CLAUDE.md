@@ -138,10 +138,10 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/   # persistence, client (per-protocol exec + auth + prober), schema (parsers), routing, scheduled, web
-├── deploygov/      # Deployment approval governance (epic AF-682): gate CI/CD deployments behind approval workflows. #684 lands the persistence foundation — pipelines/environments/freeze windows/requests/decisions/routing/grants (reusing query_status, submission_reason, decision, api_routing_action) + DEPLOYMENT_PIPELINE_MANAGE / DEPLOYMENT_REVIEW permissions; services, trigger/gate APIs, and CI wrappers follow in later sub-issues
+├── deploygov/      # Deployment approval governance (epic AF-682): gate CI/CD deployments behind approval workflows. #684 landed the persistence foundation — pipelines/environments/freeze windows/requests/decisions/routing/grants (reusing query_status, submission_reason, decision, api_routing_action) + DEPLOYMENT_PIPELINE_MANAGE / DEPLOYMENT_REVIEW permissions; #688 adds the admin surface — pipeline/environment/permission/freeze-window CRUD services + controllers, the effective-permission resolver (most-permissive union of direct + unexpired group grants), and the fail-closed FreezeWindowEvaluator; trigger/gate APIs and CI wrappers follow in later sub-issues
 │   ├── api/
 │   ├── events/
-│   └── internal/   # persistence only so far
+│   └── internal/   # persistence, services, resolver/evaluator, web
 ├── requestgroups/  # Request chaining & grouping: bundle ordered query + API-call members into one grouped request — aggregated AI/review/approval (union of approvers, satisfy every plan), ordered executor with NO distributed rollback (AF-501)
 │   ├── api/
 │   ├── events/

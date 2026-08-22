@@ -5734,6 +5734,95 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
+## Deployment Governance (#688, epic #682)
+
+Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
+This section covers the **pipeline + environment + permission + freeze-window administration**
+surface; the deployment request pipeline (`/api/v1/deployment-requests/**` trigger → AI → review →
+gate, break-glass, outcome reporting) lands in later sub-issues of epic #682 and will be documented
+here when it does. Every endpoint below requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission
+and is org-scoped — a resource in another organization reads as `404`, never as `403`.
+
+### Pipelines
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-pipelines` | **Admin.** List the org's deployment pipelines. Paginated (`page`, `size`). |
+| `GET` | `/deployment-pipelines/{id}` | **Admin.** Get one pipeline. `404 DEPLOYMENT_PIPELINE_NOT_FOUND`. |
+| `POST` | `/deployment-pipelines` | **Admin.** Create a pipeline (`201`). `409 DEPLOYMENT_PIPELINE_DUPLICATE_NAME` when the org already has a pipeline with that name. |
+| `PUT` | `/deployment-pipelines/{id}` | **Admin.** Update a pipeline. Omitted/null fields stay unchanged; renaming re-checks the duplicate-name guard. |
+| `DELETE` | `/deployment-pipelines/{id}` | **Admin.** Delete a pipeline (`204`), cascading its environments, freeze windows, and permission grants. |
+
+`CreateDeploymentPipelineRequest` fields: `name` (3–255, required), `provider`
+(`GITHUB_ACTIONS`/`GITLAB_CI`/`AZURE_PIPELINES`/`JENKINS`/`CIRCLECI`/`BITBUCKET_PIPELINES`/`GENERIC`,
+required), `repositoryUrl` (≤2048), `projectRef` (≤512 — the provider-side project/repo identifier),
+`reviewPlanId`, `aiAnalysisEnabled` (default `true`), `aiConfigId`. A new pipeline is always
+created `active`; `active` is a boolean on the **update** body only.
+
+**Review plan assignment.** `reviewPlanId` (on the pipeline and on the per-environment override)
+must reference a review plan belonging to the caller's organization — a non-existent or cross-org
+id is rejected with `404 REVIEW_PLAN_NOT_FOUND` (create and update). On update, `reviewPlanId =
+null` (or omitted) leaves the assignment unchanged; pass `clearReviewPlan: true` to unassign
+(persists `review_plan_id = NULL`) — the flag wins over any `reviewPlanId` sent in the same
+request. `clearAiConfig: true` unassigns `aiConfigId` the same way.
+
+### Environments
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-pipelines/{id}/environments` | **Admin.** List the pipeline's environments, ordered by `sortOrder` then name. |
+| `POST` | `/deployment-pipelines/{id}/environments` | **Admin.** Create an environment (`201`). `409 DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` when the pipeline already has an environment with that name. |
+| `PUT` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Update an environment. `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND` when the environment is missing or belongs to a different pipeline. |
+| `DELETE` | `/deployment-pipelines/{id}/environments/{envId}` | **Admin.** Delete an environment (`204`). |
+
+`CreateDeploymentEnvironmentRequest` fields: `name` (1–255, required), `sortOrder` (promotion
+order, default `0`), `requireReview` (default `true`), `requiredApprovals` (≥1, nullable —
+overrides the pipeline plan's approval count for this environment), `reviewPlanId` (nullable
+per-environment plan override, validated like the pipeline's), `allowBreakGlass` (default
+`false`).
+
+### Trigger permissions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-pipelines/{id}/permissions` | **Admin.** List per-user trigger grants on the pipeline. Each row denormalizes `userEmail`/`userDisplayName`. |
+| `POST` | `/deployment-pipelines/{id}/permissions` | **Admin.** Grant/update a user's access (`201`, upsert by `(pipeline, user)`): `userId`, `canTrigger`, `canBreakGlass`, `expiresAt` (null = standing grant). `404 USER_NOT_FOUND` when the user is missing or in another org. |
+| `PUT` | `/deployment-pipelines/{id}/permissions/{permissionId}` | **Admin.** Update an existing grant in place (`200`): same body as `POST` **minus** `userId` (the target user is fixed by the permission id, so `createdBy`/`createdAt` provenance is preserved). `404 DEPLOYMENT_PERMISSION_NOT_FOUND` when the permission is missing or belongs to a different pipeline. |
+| `DELETE` | `/deployment-pipelines/{id}/permissions/{permissionId}` | **Admin.** Revoke a grant (`204`). |
+| `GET` | `/deployment-pipelines/{id}/permissions/groups` | **Admin.** List group-based grants on the pipeline. Each row carries `groupId`, `groupName`, `memberCount`. |
+| `POST` | `/deployment-pipelines/{id}/permissions/groups` | **Admin.** Grant/update a user group's access (`201`, upsert by `(pipeline, group)`): same body as the per-user grant with `groupId` in place of `userId`. `404 USER_GROUP_NOT_FOUND` when the group is missing or in another org. Members inherit the grant; effective access is the **most-permissive union** of a user's direct grant and every unexpired group grant (`canTrigger`/`canBreakGlass` OR-ed; expiry is `null` if any contributing grant never expires, otherwise the latest). |
+| `PUT` | `/deployment-pipelines/{id}/permissions/groups/{permissionId}` | **Admin.** Update an existing group grant in place (`200`): same body as the group `POST` **minus** `groupId`. `404 DEPLOYMENT_PERMISSION_NOT_FOUND` when the permission is missing or belongs to a different pipeline. |
+| `DELETE` | `/deployment-pipelines/{id}/permissions/groups/{permissionId}` | **Admin.** Revoke a group grant (`204`). |
+
+On the grant and update bodies, an omitted `canTrigger`/`canBreakGlass` reads as `false` —
+omitting a flag can only de-escalate, never widen, a grant.
+
+### Freeze windows
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-freeze-windows` | **Admin.** List the org's freeze windows. Paginated (`page`, `size`). |
+| `GET` | `/deployment-freeze-windows/{id}` | **Admin.** Get one freeze window. `404 DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND`. |
+| `POST` | `/deployment-freeze-windows` | **Admin.** Create a freeze window (`201`). `400 DEPLOYMENT_FREEZE_WINDOW_INVALID` on a shape/scope violation (see below). |
+| `PUT` | `/deployment-freeze-windows/{id}` | **Admin.** **Full replacement** — same body as `POST` (partial patch across the one-off↔recurring shape constraint is deliberately not supported). |
+| `DELETE` | `/deployment-freeze-windows/{id}` | **Admin.** Delete a freeze window (`204`). |
+
+Body fields: `pipelineId` (nullable — null scopes the window to the whole org), `environmentId`
+(nullable — requires `pipelineId` and must belong to it), exactly **one** of the two shapes,
+`behavior` (`HOLD`/`REJECT`, required), `reason` (free text surfaced to submitters), `enabled`
+(default `true`).
+
+**Freeze-window shape.** A window is either **one-off** — `startsAt` + `endsAt` (ISO-8601
+instants, `endsAt` after `startsAt`) — or **recurring weekly** — `daysOfWeek` (non-empty array of
+ISO day numbers, 1 = Monday … 7 = Sunday), `startTime` + `endTime` (wall-clock `HH:mm[:ss]`,
+`startTime ≠ endTime`; `endTime` before `startTime` spans midnight into the following day), and
+`timezone` (a valid IANA zone id, e.g. `Europe/Berlin`). Mixing fields of both shapes, or
+supplying neither completely, is `400 DEPLOYMENT_FREEZE_WINDOW_INVALID` — mirroring the database
+`chk_deployment_freeze_window_shape` constraint. At evaluation time the most-specific active
+window wins (environment > pipeline > org-wide); a window that cannot be evaluated (e.g. its
+stored timezone is no longer a valid zone id) **fails closed** and counts as an active `HOLD`.
+See [docs/05-backend.md → Deployment governance](05-backend.md).
+
 ## Data Lifecycle Manager (AF-499)
 
 Base path `/api/v1/lifecycle`. All retention-policy endpoints are **ADMIN-gated** and org-scoped.
@@ -5818,6 +5907,13 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_EXECUTION_FAILED` | 502 | The upstream API call could not be executed (`reason`). |
 | `SCIM_TOKEN_NOT_FOUND` | 404 | Unknown SCIM token id for the caller's organization (#621). |
 | `SCIM_TOKEN_NAME_CONFLICT` | 409 | A SCIM token with that name already exists in the org (#621). |
+| `DEPLOYMENT_PIPELINE_NOT_FOUND` | 404 | Unknown deployment-pipeline id, or the pipeline is in another organization (#688). |
+| `DEPLOYMENT_PIPELINE_DUPLICATE_NAME` | 409 | A deployment pipeline with that name already exists in the org (#688). |
+| `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | 404 | Unknown environment id, or the environment belongs to a different pipeline (#688). |
+| `DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` | 409 | The pipeline already has an environment with that name (#688). |
+| `DEPLOYMENT_PERMISSION_NOT_FOUND` | 404 | Unknown pipeline-permission id, or the grant belongs to a different pipeline (#688). |
+| `DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND` | 404 | Unknown freeze-window id, or the window is in another organization (#688). |
+| `DEPLOYMENT_FREEZE_WINDOW_INVALID` | 400 | Freeze-window shape/scope violation — mixed one-off and recurring fields, inverted bounds, bad timezone or day numbers, or `environmentId` without a matching `pipelineId` (#688). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|
