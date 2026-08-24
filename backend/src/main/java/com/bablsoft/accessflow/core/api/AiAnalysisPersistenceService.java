@@ -28,9 +28,9 @@ public interface AiAnalysisPersistenceService {
 
     /**
      * Persist an AI analysis row keyed to a governed deployment request (#691). Stored in the same
-     * {@code ai_analyses} table (keeping per-org token-budget accounting unified) with
-     * {@code deployment_request_id} set instead of the other target columns. Returns the new
-     * analysis id; the caller stores it on the deployment request.
+     * {@code ai_analyses} table as every other governed surface, with {@code deployment_request_id}
+     * set instead of the other target columns. Returns the new analysis id; the caller stores it on
+     * the deployment request.
      */
     UUID persistForDeploymentRequest(UUID deploymentRequestId, PersistAiAnalysisCommand command);
 

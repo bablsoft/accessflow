@@ -29,6 +29,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,6 +49,12 @@ class DeploymentRequestControllerTest {
     void setUp() {
         requestService = mock(DeploymentRequestService.class);
         controller = new DeploymentRequestController(requestService);
+        // The controller delegates the visibility question to the service; mirror the real rule.
+        lenient().when(requestService.canViewAll(any())).thenAnswer(invocation -> {
+            Set<Permission> permissions = invocation.getArgument(0);
+            return permissions.contains(Permission.QUERY_ADMIN)
+                    || permissions.contains(Permission.DEPLOYMENT_REVIEW);
+        });
     }
 
     @Test
@@ -145,6 +152,21 @@ class DeploymentRequestControllerTest {
     }
 
     @Test
+    void listDoesNotHardScopeADeploymentReviewer() {
+        var other = UUID.randomUUID();
+        when(requestService.list(any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+
+        controller.list(null, null, null, null, other, null, null,
+                auth(Set.of(Permission.DEPLOYMENT_REVIEW)), Pageable.ofSize(20));
+
+        // A reviewer can read any request by id, so the list must not hide those same requests.
+        var captor = ArgumentCaptor.forClass(DeploymentRequestListFilter.class);
+        verify(requestService).list(captor.capture(), any());
+        assertThat(captor.getValue().submittedByUserId()).isEqualTo(other);
+    }
+
+    @Test
     void getMapsTheDetailView() {
         when(requestService.get(requestId, orgId, userId, Set.of())).thenReturn(view());
 
@@ -178,8 +200,12 @@ class DeploymentRequestControllerTest {
     }
 
     private Authentication auth(boolean admin) {
+        return auth(admin ? Set.of(Permission.QUERY_ADMIN) : Set.of());
+    }
+
+    private Authentication auth(Set<Permission> permissions) {
         var claims = new JwtClaims(userId, "ci@example.com", UserRoleType.ANALYST, UUID.randomUUID(),
-                "ANALYST", admin ? Set.of(Permission.QUERY_ADMIN) : Set.of(), orgId, false);
+                "ANALYST", permissions, orgId, false);
         var authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(claims);
         return authentication;

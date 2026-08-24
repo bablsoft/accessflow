@@ -17,7 +17,7 @@ import com.bablsoft.accessflow.deploygov.internal.routing.DeploymentRoutingCondi
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.Instant;
@@ -166,6 +166,23 @@ class DefaultDeploymentRoutingPolicyServiceTest {
     }
 
     @Test
+    void createRejectsAHalfSpecifiedTimeWindow() {
+        var startOnly = new DeploymentRoutingConditions(null, null, null, null, null,
+                LocalTime.of(22, 0), null, null);
+        var endOnly = new DeploymentRoutingConditions(null, null, null, null, null, null,
+                LocalTime.of(4, 0), null);
+
+        assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
+                "p", startOnly, DeploymentRoutingAction.AUTO_APPROVE, null, 10, true)))
+                .isInstanceOf(IllegalDeploymentRoutingPolicyException.class)
+                .hasMessage("error.deployment_routing_policy_incomplete_times");
+        assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
+                "p", endOnly, DeploymentRoutingAction.AUTO_APPROVE, null, 10, true)))
+                .isInstanceOf(IllegalDeploymentRoutingPolicyException.class)
+                .hasMessage("error.deployment_routing_policy_incomplete_times");
+    }
+
+    @Test
     void createRejectsAPipelineFromAnotherOrganization() {
         var pipelineId = UUID.randomUUID();
         when(pipelineRepository.findByIdAndOrganizationId(pipelineId, ORG)).thenReturn(Optional.empty());
@@ -190,13 +207,26 @@ class DefaultDeploymentRoutingPolicyServiceTest {
 
     @Test
     void aConcurrentWriteLosingTheUniqueIndexBecomesAPriorityConflict() {
-        when(routingPolicyRepository.saveAndFlush(any()))
-                .thenThrow(new DataIntegrityViolationException("uq_deployment_routing_policies_org_priority"));
+        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(new DuplicateKeyException(
+                "duplicate key", new RuntimeException(
+                        "ERROR: duplicate key value violates unique constraint "
+                                + "\"uq_deployment_routing_policies_org_priority\"")));
 
         assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
                 "p", DeploymentRoutingConditions.NONE, DeploymentRoutingAction.AUTO_APPROVE, null,
                 10, true)))
                 .isInstanceOf(DeploymentRoutingPolicyPriorityConflictException.class);
+    }
+
+    @Test
+    void anUnrelatedDuplicateKeyKeepsItsOwnIdentity() {
+        when(routingPolicyRepository.saveAndFlush(any())).thenThrow(new DuplicateKeyException(
+                "duplicate key", new RuntimeException("violates unique constraint \"some_other_uq\"")));
+
+        assertThatThrownBy(() -> service.create(new CreateDeploymentRoutingPolicyCommand(ORG, null,
+                "p", DeploymentRoutingConditions.NONE, DeploymentRoutingAction.AUTO_APPROVE, null,
+                10, true)))
+                .isInstanceOf(DuplicateKeyException.class);
     }
 
     @Test

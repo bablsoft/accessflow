@@ -119,7 +119,9 @@ public class DeploymentRoutingPolicyEngine {
      * Day-of-week and time-of-day evaluated as wall-clock in the policy's own IANA timezone
      * (default UTC). Window is {@code [startTime, endTime)}; an {@code endTime} before
      * {@code startTime} spans midnight, with day membership belonging to the day the window starts —
-     * the same rule {@code FreezeWindowEvaluator} applies to recurring freeze windows.
+     * the same rule {@code FreezeWindowEvaluator} applies to recurring freeze windows. Days without
+     * times mean the whole local day; times without days mean every day; <em>one</em> time without
+     * the other is rejected rather than treated as unconstrained.
      */
     private static boolean matchesTimeWindow(DeploymentRoutingConditions conditions,
                                              RoutingContext context) {
@@ -129,15 +131,23 @@ public class DeploymentRoutingPolicyEngine {
         if (days.isEmpty() && start == null && end == null) {
             return true;
         }
+        // A half-specified window is not a window. Treating it as "unconstrained" would make the
+        // whole condition set match every deployment — an AUTO_APPROVE policy an admin wrote for a
+        // maintenance hour would then approve everything, around the clock. Skip the policy instead;
+        // the admin boundary rejects this shape, so only a hand-edited row can reach here.
+        if ((start == null) != (end == null)) {
+            throw new DateTimeException(
+                    "routing time window needs both a start and an end time, or neither");
+        }
         var zone = ZoneId.of(conditions.timezone() == null || conditions.timezone().isBlank()
                 ? "UTC" : conditions.timezone());
         var zoned = context.at().atZone(zone);
         var day = zoned.getDayOfWeek().getValue();
         var previousDay = zoned.getDayOfWeek().minus(1).getValue();
         var time = zoned.toLocalTime();
-        if (start == null || end == null) {
-            // Days alone: the whole local day. Times alone are handled below (days empty).
-            return days.isEmpty() || days.contains(day);
+        if (start == null) {
+            // Days alone: the whole local day, in the policy's zone.
+            return days.contains(day);
         }
         if (start.equals(end)) {
             throw new DateTimeException("routing time window start and end are equal");

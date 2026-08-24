@@ -3090,6 +3090,11 @@ Two evaluation rules worth stating explicitly:
 
 - **`minRiskLevel` never matches an absent risk** (same as `ApiRoutingPolicyEngine.meetsRisk`), so a
   risk-gated policy simply does not fire on a pipeline with AI disabled.
+- **A half-specified time window is rejected, not treated as unconstrained.** Supplying a
+  `startTime` without an `endTime` (or vice versa) is `400` at the admin boundary, and the engine
+  skips such a policy if a hand-edited row ever reaches it. Reading it as "unconstrained" would make
+  the whole condition set match every deployment — an `AUTO_APPROVE` policy an admin wrote for one
+  maintenance hour would approve everything, around the clock.
 - **A policy that cannot be evaluated is skipped with a WARN** — the deliberate opposite of
   `FreezeWindowEvaluator`, which fails *closed* to an active `HOLD`. A broken freeze window must
   still hold deployments; a broken routing policy must never silently auto-approve or auto-reject,
@@ -3148,7 +3153,14 @@ service, not by a functional permission (there is no `DEPLOYMENT_TRIGGER` value 
 `SecurityContext` as the JWT path, so `(JwtClaims) authentication.getPrincipal()` serves both. The
 trigger returns **202** on create and **200** on an idempotent replay.
 `AdminDeploymentRoutingPolicyController` (`/api/v1/admin/deployment-routing-policies`) is gated by
-`PERM_DEPLOYMENT_PIPELINE_MANAGE`. Audit rows for the request pipeline remain deferred to #695.
+`PERM_DEPLOYMENT_PIPELINE_MANAGE`. Listing and reading share one visibility predicate —
+`DeploymentRequestService.canViewAll` (`DEPLOYMENT_REVIEW` or `QUERY_ADMIN`) — so a reviewer cannot
+be in the position of opening a request by id that the list endpoint hides from them.
+
+**Audit rows for the request pipeline remain deferred to #695**, including the freeze-window
+auto-reject. That is a deliberate scope call, not an oversight: `audit.api.AuditAction` has no
+`DEPLOYMENT_*` value yet, and adding one is the fan-out #695 owns. Until then the trail is the
+`DeploymentStatusChangedEvent` published from every transition, which #695 consumes.
 
 ## MCP server (mcp module)
 

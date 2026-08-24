@@ -37,7 +37,9 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,8 +60,11 @@ class DefaultDeploymentRequestServiceTest {
 
     private static final UUID ORG = UUID.randomUUID();
     private static final UUID SUBMITTER = UUID.randomUUID();
+    private static final Instant NOW = Instant.parse("2026-08-21T17:30:00Z");
+    private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private DeploymentRequestRepository requestRepository;
+    private DeploymentRequestInserter requestInserter;
     private DeploymentPipelineRepository pipelineRepository;
     private DeploymentEnvironmentRepository environmentRepository;
     private DeploymentReviewDecisionRepository decisionRepository;
@@ -77,6 +82,7 @@ class DefaultDeploymentRequestServiceTest {
     @BeforeEach
     void setUp() {
         requestRepository = mock(DeploymentRequestRepository.class);
+        requestInserter = mock(DeploymentRequestInserter.class);
         pipelineRepository = mock(DeploymentPipelineRepository.class);
         environmentRepository = mock(DeploymentEnvironmentRepository.class);
         decisionRepository = mock(DeploymentReviewDecisionRepository.class);
@@ -86,10 +92,10 @@ class DefaultDeploymentRequestServiceTest {
         aiAnalysisLookupService = mock(AiAnalysisLookupService.class);
         userQueryService = mock(UserQueryService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
-        service = new DefaultDeploymentRequestService(requestRepository, pipelineRepository,
-                environmentRepository, decisionRepository, permissionResolver, freezeWindowEvaluator,
-                stateService, aiAnalysisLookupService, userQueryService, eventPublisher,
-                JsonMapper.builder().build());
+        service = new DefaultDeploymentRequestService(requestRepository, requestInserter,
+                pipelineRepository, environmentRepository, decisionRepository, permissionResolver,
+                freezeWindowEvaluator, stateService, aiAnalysisLookupService, userQueryService,
+                eventPublisher, JsonMapper.builder().build(), CLOCK);
 
         pipeline = pipeline();
         environment = environment();
@@ -181,7 +187,7 @@ class DefaultDeploymentRequestServiceTest {
 
         assertThatThrownBy(() -> service.submit(command("run-1")))
                 .isInstanceOf(DeploymentRequestPermissionException.class);
-        verify(requestRepository, never()).saveAndFlush(any());
+        verify(requestInserter, never()).insert(any());
     }
 
     @Test
@@ -247,7 +253,7 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(result.replay()).isTrue();
         assertThat(result.request().id()).isEqualTo(existing.getId());
         assertThat(result.request().status()).isEqualTo(QueryStatus.PENDING_REVIEW);
-        verify(requestRepository, never()).saveAndFlush(any());
+        verify(requestInserter, never()).insert(any());
         verify(eventPublisher, never()).publishEvent(any(DeploymentSubmittedEvent.class));
         // The grant is checked before the replay lookup, so a repeat cannot probe for existing runs.
         verify(permissionResolver).resolve(pipeline.getId(), SUBMITTER);
@@ -272,8 +278,9 @@ class DefaultDeploymentRequestServiceTest {
                 pipeline.getId(), environment.getId(), "2.4.1", "run-1"))
                 .thenReturn(Optional.empty())
                 .thenReturn(Optional.of(winner));
-        when(requestRepository.saveAndFlush(any()))
-                .thenThrow(new DataIntegrityViolationException("uq_deployment_requests_trigger_idem"));
+        org.mockito.Mockito.doThrow(
+                        new DataIntegrityViolationException("uq_deployment_requests_trigger_idem"))
+                .when(requestInserter).insert(any());
 
         var result = service.submit(command("run-1"));
 
@@ -286,8 +293,8 @@ class DefaultDeploymentRequestServiceTest {
     void anUnrelatedIntegrityViolationIsRethrown() {
         when(requestRepository.findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
                 any(), any(), any(), any())).thenReturn(Optional.empty());
-        when(requestRepository.saveAndFlush(any()))
-                .thenThrow(new DataIntegrityViolationException("something else"));
+        org.mockito.Mockito.doThrow(new DataIntegrityViolationException("something else"))
+                .when(requestInserter).insert(any());
 
         assertThatThrownBy(() -> service.submit(command("run-1")))
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -413,13 +420,34 @@ class DefaultDeploymentRequestServiceTest {
     @Test
     void cancelTransitionsAnApprovedButNotYetScheduledRun() {
         var entity = existing(QueryStatus.APPROVED);
-        entity.setScheduledFor(Instant.parse("2030-01-01T00:00:00Z"));
+        entity.setScheduledFor(NOW.plusSeconds(3600));
         when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
                 .thenReturn(Optional.of(entity));
 
         service.cancel(entity.getId(), ORG, SUBMITTER);
 
         verify(stateService).apply(entity, QueryStatus.CANCELLED);
+    }
+
+    @Test
+    void cancelRejectsAnApprovedRequestWhoseDeferredRunHasAlreadyFired() {
+        var entity = existing(QueryStatus.APPROVED);
+        entity.setScheduledFor(NOW.minusSeconds(1));
+        when(requestRepository.findByIdAndOrganizationId(entity.getId(), ORG))
+                .thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.cancel(entity.getId(), ORG, SUBMITTER))
+                .isInstanceOf(IllegalDeploymentRequestStateException.class);
+        verify(stateService, never()).apply(any(), any());
+    }
+
+    @Test
+    void canViewAllRecognisesReviewersAndAdminsOnly() {
+        assertThat(service.canViewAll(Set.of(Permission.DEPLOYMENT_REVIEW))).isTrue();
+        assertThat(service.canViewAll(Set.of(Permission.QUERY_ADMIN))).isTrue();
+        assertThat(service.canViewAll(Set.of(Permission.QUERY_SUBMIT_SELECT))).isFalse();
+        assertThat(service.canViewAll(Set.of())).isFalse();
+        assertThat(service.canViewAll(null)).isFalse();
     }
 
     @Test
@@ -452,7 +480,7 @@ class DefaultDeploymentRequestServiceTest {
 
     private DeploymentRequestEntity captureSaved() {
         var captor = org.mockito.ArgumentCaptor.forClass(DeploymentRequestEntity.class);
-        verify(requestRepository).saveAndFlush(captor.capture());
+        verify(requestInserter).insert(captor.capture());
         return captor.getValue();
     }
 

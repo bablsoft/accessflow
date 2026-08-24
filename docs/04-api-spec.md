@@ -5840,9 +5840,9 @@ submitter for every downstream rule, including "a submitter can never approve th
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/deployment-requests` | Trigger a governed deployment (`202`). Requires an active **`can_trigger`** grant on the pipeline — the most-permissive union of the caller's direct grant and every unexpired group grant; `QUERY_ADMIN` holders bypass the grant. **Idempotent**: when `externalRunId` is supplied, a repeat of the same `(pipelineId, environment, version, externalRunId)` returns the **existing** request with **`200 OK`** and creates nothing (a replayed CI job must not queue a second approval). The grant is checked *before* the replay lookup, so a repeat cannot be used to probe for existing runs. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`, `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND`. |
-| `GET` | `/deployment-requests` | List requests. Paginated (`page`, `size`). Optional filters: `status`, `pipeline_id`, `environment` (environment **name**, case-insensitive), `version` (exact), `submitted_by` (**admin-only** — non-admins are hard-scoped to their own submissions), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
+| `GET` | `/deployment-requests` | List requests. Paginated (`page`, `size`). Optional filters: `status`, `pipeline_id`, `environment` (environment **name**, case-insensitive), `version` (exact), `submitted_by` (honoured only for callers who may see the whole org — a **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** holder; everyone else is hard-scoped to their own submissions, matching the detail endpoint's visibility rule), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
 | `GET` | `/deployment-requests/{id}` | Get one request with its AI analysis summary and review decisions. Visible to the **submitter**, and to any holder of **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** in the organization; everyone else gets `404` (never `403` — the endpoint is not an existence oracle). |
-| `POST` | `/deployment-requests/{id}/cancel` | Submitter cancels the request (`204`). Allowed from `PENDING_REVIEW`, or from `APPROVED` while a `scheduledFor` deferral has not yet fired. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED` for a non-submitter, `409 DEPLOYMENT_REQUEST_INVALID_STATE` otherwise. |
+| `POST` | `/deployment-requests/{id}/cancel` | Submitter cancels the request (`204`). Allowed from `PENDING_REVIEW`, or from `APPROVED` while a `scheduledFor` deferral is still in the future. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED` for a non-submitter, `409 DEPLOYMENT_REQUEST_INVALID_STATE` otherwise. |
 
 `SubmitDeploymentRequestRequest` fields: `pipelineId` (required), `environment` (required, ≤255 —
 the environment **name** within the pipeline, because a CI job knows names, not UUIDs),
@@ -5909,10 +5909,10 @@ unconstrained**, and `{}` matches everything:
 | `providers` | `PipelineProvider` names, case-insensitive, any-of. |
 | `minRiskLevel` | Inclusive floor (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`). **Never matches when the risk signal is absent**, so a risk-gated policy does not fire on a pipeline with `aiAnalysisEnabled: false` — such a deployment falls through to the environment's `requireReview`. |
 | `versionGlobs` | Globs over the artifact `version`; `*` matches any run of characters (dots included), everything else is literal, case-insensitive, any-of. |
-| `daysOfWeek`, `startTime`, `endTime`, `timezone` | A recurring local-time window, evaluated in the policy's own IANA `timezone` (default `UTC`). ISO day numbering (1 = Monday … 7 = Sunday); the window is `[startTime, endTime)`; an `endTime` before `startTime` spans midnight, with day membership belonging to the day the window *starts*. `daysOfWeek` alone means the whole local day; times alone mean every day. |
+| `daysOfWeek`, `startTime`, `endTime`, `timezone` | A recurring local-time window, evaluated in the policy's own IANA `timezone` (default `UTC`). ISO day numbering (1 = Monday … 7 = Sunday); the window is `[startTime, endTime)`; an `endTime` before `startTime` spans midnight, with day membership belonging to the day the window *starts*. `daysOfWeek` alone means the whole local day; times alone mean every day. Supplying **one** time without the other is `400 DEPLOYMENT_ROUTING_POLICY_INVALID` — a half-open window has no meaning, and treating it as unconstrained would silently widen the policy to every deployment. |
 
-Validation is at the admin boundary: an unknown timezone, a day number outside 1–7, equal
-start/end times, or a `requiredApprovals` that does not match the chosen action is
+Validation is at the admin boundary: an unknown timezone, a day number outside 1–7, equal or
+half-specified start/end times, or a `requiredApprovals` that does not match the chosen action is
 `400 DEPLOYMENT_ROUTING_POLICY_INVALID`. At **evaluation** time a policy that still cannot be
 evaluated (its stored `conditions` no longer parse, its timezone was removed from the tz database)
 is **skipped with a WARN** — deliberately the opposite of the freeze-window evaluator's fail-closed

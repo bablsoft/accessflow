@@ -34,7 +34,6 @@ class DeploymentRoutingConditionCodecTest {
         assertThat(codec.fromJson("  ")).isEqualTo(DeploymentRoutingConditions.NONE);
         assertThat(codec.fromJson("{}")).isEqualTo(DeploymentRoutingConditions.NONE);
         assertThat(codec.fromJson("null")).isEqualTo(DeploymentRoutingConditions.NONE);
-        assertThat(codec.fromJson("{}").isEmpty()).isTrue();
     }
 
     @Test

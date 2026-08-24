@@ -205,6 +205,21 @@ class DeploymentRoutingPolicyEngineTest {
     }
 
     @Test
+    void aHalfSpecifiedTimeWindowSkipsThePolicyRatherThanMatchingEverything() {
+        // Reading a lone startTime as "unconstrained" would make this AUTO_APPROVE policy approve
+        // every deployment around the clock.
+        stub(policy("{\"startTime\":\"22:00\"}", DeploymentRoutingAction.AUTO_APPROVE, null, 10, null));
+        assertThat(engine.evaluate(ORG, PIPELINE, context(RiskLevel.LOW))).isNull();
+
+        stub(policy("{\"endTime\":\"04:00\"}", DeploymentRoutingAction.AUTO_APPROVE, null, 10, null));
+        assertThat(engine.evaluate(ORG, PIPELINE, context(RiskLevel.LOW))).isNull();
+
+        stub(policy("{\"daysOfWeek\":[5],\"startTime\":\"22:00\"}",
+                DeploymentRoutingAction.AUTO_APPROVE, null, 10, null));
+        assertThat(engine.evaluate(ORG, PIPELINE, context(RiskLevel.LOW))).isNull();
+    }
+
+    @Test
     void equalStartAndEndTimesSkipThePolicy() {
         stub(policy("{\"startTime\":\"16:00\",\"endTime\":\"16:00\"}",
                 DeploymentRoutingAction.AUTO_APPROVE, null, 10, null));

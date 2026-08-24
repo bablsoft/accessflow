@@ -17,7 +17,7 @@ import com.bablsoft.accessflow.deploygov.internal.routing.DeploymentRoutingCondi
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +36,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class DefaultDeploymentRoutingPolicyService implements DeploymentRoutingPolicyService {
+
+    private static final String PRIORITY_INDEX = "uq_deployment_routing_policies_org_priority";
 
     private final DeploymentRoutingPolicyRepository routingPolicyRepository;
     private final DeploymentPipelineRepository pipelineRepository;
@@ -122,10 +124,19 @@ public class DefaultDeploymentRoutingPolicyService implements DeploymentRoutingP
     private DeploymentRoutingPolicyEntity save(DeploymentRoutingPolicyEntity entity, int priority) {
         try {
             return routingPolicyRepository.saveAndFlush(entity);
-        } catch (DataIntegrityViolationException ex) {
-            // uq_deployment_routing_policies_org_priority (V152) — a concurrent write took the slot.
-            throw new DeploymentRoutingPolicyPriorityConflictException(priority);
+        } catch (DuplicateKeyException ex) {
+            // Only the priority index is translated; any other constraint must keep its own
+            // identity rather than surfacing to the admin as a misleading "priority in use" 409.
+            if (namesPriorityIndex(ex)) {
+                throw new DeploymentRoutingPolicyPriorityConflictException(priority);
+            }
+            throw ex;
         }
+    }
+
+    private static boolean namesPriorityIndex(DuplicateKeyException ex) {
+        var cause = ex.getMostSpecificCause().getMessage();
+        return cause != null && cause.contains(PRIORITY_INDEX);
     }
 
     private DeploymentRoutingPolicyEntity require(UUID id, UUID organizationId) {
@@ -167,6 +178,13 @@ public class DefaultDeploymentRoutingPolicyService implements DeploymentRoutingP
                 throw new IllegalDeploymentRoutingPolicyException(
                         msg("error.deployment_routing_policy_invalid_days", String.valueOf(day)));
             }
+        }
+        // Exactly one of the two times is the dangerous shape: the engine cannot evaluate a
+        // half-open window, and treating it as unconstrained would silently widen the policy to
+        // every deployment. Reject it here so a bad definition never reaches the engine.
+        if ((conditions.startTime() == null) != (conditions.endTime() == null)) {
+            throw new IllegalDeploymentRoutingPolicyException(
+                    msg("error.deployment_routing_policy_incomplete_times"));
         }
         if (conditions.startTime() != null && conditions.startTime().equals(conditions.endTime())) {
             throw new IllegalDeploymentRoutingPolicyException(

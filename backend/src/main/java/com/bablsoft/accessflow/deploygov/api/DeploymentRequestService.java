@@ -28,8 +28,16 @@ public interface DeploymentRequestService {
     DeploymentRequestSubmissionResult submit(SubmitDeploymentRequestCommand command);
 
     /**
-     * Lists deployment requests matching {@code filter}. Admins pass a filter with a {@code null}
-     * {@code submittedByUserId} to see the whole organization; everyone else sets it to their own id.
+     * True when these permissions may see every deployment request in the organization rather than
+     * only their own submissions. The web layer uses it to scope the list filter, so listing and
+     * {@link #get} agree on who can see what.
+     */
+    boolean canViewAll(Set<Permission> callerPermissions);
+
+    /**
+     * Lists deployment requests matching {@code filter}. Callers for whom
+     * {@link #canViewAll(Set)} holds pass a {@code null} {@code submittedByUserId} to see the whole
+     * organization; everyone else sets it to their own id.
      */
     PageResponse<DeploymentRequestView> list(DeploymentRequestListFilter filter, PageRequest pageRequest);
 

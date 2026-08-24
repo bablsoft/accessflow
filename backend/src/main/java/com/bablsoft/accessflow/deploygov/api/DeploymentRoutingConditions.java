@@ -52,11 +52,4 @@ public record DeploymentRoutingConditions(
                 ? List.of()
                 : values.stream().filter(v -> v != null && !v.isBlank()).toList();
     }
-
-    /** True when no leaf constrains anything, i.e. the policy matches every deployment. */
-    public boolean isEmpty() {
-        return environments.isEmpty() && providers.isEmpty() && minRiskLevel == null
-                && versionGlobs.isEmpty() && daysOfWeek.isEmpty() && startTime == null
-                && endTime == null;
-    }
 }

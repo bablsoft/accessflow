@@ -455,10 +455,26 @@ RS256-signed with the same key as compliance exports).
 group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`).
 `DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) gates pipeline / environment / freeze-window /
 trigger-grant administration — since #688 it guards the whole `/api/v1/deployment-pipelines/**`
-and `/api/v1/deployment-freeze-windows/**` admin surface (class-level `@PreAuthorize`).
-`DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) will gate approving or rejecting deployment
-requests — the deployment review service (including the same never-approve-your-own-request
-invariant as queries and API requests) arrives with the later sub-issues of epic #682.
+and `/api/v1/deployment-freeze-windows/**` admin surface, and since #691 also
+`/api/v1/admin/deployment-routing-policies/**` (class-level `@PreAuthorize` on all three).
+`DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) is, since #691, an **active read-visibility
+gate**: together with `QUERY_ADMIN` it decides who may read a deployment request they did not
+submit, on both `GET /deployment-requests` and `GET /deployment-requests/{id}` (a caller with
+neither sees only their own submissions, and an id they may not read returns `404`, never `403`).
+It will additionally gate approving or rejecting deployment requests — the deployment review
+service, including the same never-approve-your-own-request invariant as queries and API requests,
+arrives with #692.
+
+**Triggering a deployment is deliberately governed by no functional permission (#691).**
+`POST /api/v1/deployment-requests` is the one authenticated `/api/v1` surface with no class-level
+`@PreAuthorize`: authorization is the per-pipeline `can_trigger` grant resolved by
+`EffectiveDeploymentPermissionResolver` (most-permissive union of the caller's direct grant and
+every unexpired group grant), with `QUERY_ADMIN` holders bypassing it. CI runners reach it with an
+**AccessFlow API key** (`X-API-Key` / `Authorization: ApiKey …`), which
+`ApiKeyAuthenticationFilter` resolves into the same `JwtClaims` principal as the JWT path — so the
+API-key user is the submitter for every downstream rule, including "a submitter can never approve
+their own deployment". The grant is checked *before* the idempotent-replay lookup, so a caller
+without one cannot use a repeated trigger to probe whether a given CI run exists.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

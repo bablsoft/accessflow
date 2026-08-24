@@ -2,7 +2,12 @@
 --
 -- 1) ai_analyses keys off exactly one target. #691 adds a fourth: a deployment request. This is the
 --    same widening V106 performed for request_group_item_id, so every governed surface's analyses
---    stay on one table and the per-org token-budget accounting stays unified.
+--    live on one table and the admin AI-analyses surface can read them uniformly.
+--    NOTE: this does NOT put deployment analyses inside the monthly token budget. That aggregate
+--    (AiAnalysisStatsRepository.sumTokensSince) inner-joins query_requests, so api_request_id,
+--    request_group_item_id and now deployment_request_id rows all contribute zero — a pre-existing
+--    AF-500 / AF-501 gap, deliberately not widened here because it would change every org's budget
+--    behaviour in a sub-issue that is not about rate limiting.
 ALTER TABLE ai_analyses ADD COLUMN deployment_request_id UUID
     REFERENCES deployment_requests(id) ON DELETE CASCADE;
 

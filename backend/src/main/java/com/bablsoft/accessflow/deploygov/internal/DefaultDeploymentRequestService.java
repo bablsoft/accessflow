@@ -39,6 +39,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.time.Clock;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -57,6 +58,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     };
 
     private final DeploymentRequestRepository requestRepository;
+    private final DeploymentRequestInserter requestInserter;
     private final DeploymentPipelineRepository pipelineRepository;
     private final DeploymentEnvironmentRepository environmentRepository;
     private final DeploymentReviewDecisionRepository decisionRepository;
@@ -67,6 +69,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     private final UserQueryService userQueryService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
 
     @Override
     @Transactional
@@ -92,7 +95,9 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
 
         var entity = newRequest(pipeline, environment, command);
         try {
-            requestRepository.saveAndFlush(entity);
+            // Inserted on its own transaction boundary: a unique-index violation aborts only that
+            // one, leaving this transaction usable for the recovery re-read below.
+            requestInserter.insert(entity);
         } catch (DataIntegrityViolationException ex) {
             // A concurrent trigger of the same CI run won the partial unique index. Return its row.
             var winner = findReplay(pipeline.getId(), environment.getId(), command);
@@ -173,6 +178,14 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
 
     @Override
     @Transactional(readOnly = true)
+    public boolean canViewAll(Set<Permission> callerPermissions) {
+        return callerPermissions != null
+                && (callerPermissions.contains(Permission.DEPLOYMENT_REVIEW)
+                        || callerPermissions.contains(Permission.QUERY_ADMIN));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<DeploymentRequestView> list(DeploymentRequestListFilter filter,
                                                     PageRequest pageRequest) {
         List<UUID> environmentIds = filter.environment() == null || filter.environment().isBlank()
@@ -205,19 +218,16 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
             throw new DeploymentRequestPermissionException(
                     "Only the submitter can cancel a deployment request");
         }
+        // An APPROVED request is cancellable only while its deferred run is still in the future —
+        // once the scheduled moment has passed the deploy may already be releasable at the gate.
         boolean cancellable = entity.getStatus() == QueryStatus.PENDING_REVIEW
-                || (entity.getStatus() == QueryStatus.APPROVED && entity.getScheduledFor() != null);
+                || (entity.getStatus() == QueryStatus.APPROVED && entity.getScheduledFor() != null
+                        && entity.getScheduledFor().isAfter(clock.instant()));
         if (!cancellable) {
             throw new IllegalDeploymentRequestStateException(entity.getStatus(),
                     "Deployment request cannot be cancelled");
         }
         stateService.apply(entity, QueryStatus.CANCELLED);
-    }
-
-    private static boolean canViewAll(Set<Permission> callerPermissions) {
-        return callerPermissions != null
-                && (callerPermissions.contains(Permission.DEPLOYMENT_REVIEW)
-                        || callerPermissions.contains(Permission.QUERY_ADMIN));
     }
 
     private DeploymentRequestEntity require(UUID id, UUID organizationId) {

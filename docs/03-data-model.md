@@ -931,7 +931,7 @@ Stores the result of an AI analysis run for a query request.
 | `query_request_id` | FK → `query_requests` nullable (V101). |
 | `api_request_id` | FK → `api_requests` nullable (V101, AF-500). |
 | `request_group_item_id` | FK → `request_group_items` nullable (V106, AF-501). |
-| `deployment_request_id` | FK → `deployment_requests` `ON DELETE CASCADE`, nullable (V152, #691). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`, `deployment_request_id`) — keeping every governed surface's analyses on one table so per-org token accounting stays unified. Indexed. |
+| `deployment_request_id` | FK → `deployment_requests` `ON DELETE CASCADE`, nullable (V152, #691). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`, `deployment_request_id`) — every governed surface's analyses live on one table. Indexed. Note the monthly token-budget aggregate (`AiAnalysisStatsRepository.sumTokensSince`) inner-joins `query_requests`, so only query analyses count toward it; API, grouped-request and deployment analyses are checked against the budget but never increment it (a pre-existing AF-500/AF-501 gap). |
 | `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |

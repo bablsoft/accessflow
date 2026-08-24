@@ -58,8 +58,10 @@ class DefaultDeploymentAnalyzerTest {
 
         assertThat(analysis.riskLevel()).isEqualTo(RiskLevel.HIGH);
         var prompt = ArgumentCaptor.forClass(String.class);
-        verify(strategy).analyze(prompt.capture(), eq(DbType.CUSTOM), eq("changelog: fix things"),
-                eq("en"), eq(aiConfigId));
+        // The metadata rides in the framed prompt only — passing it as the schema context too would
+        // send the largest part of the prompt twice and bill the token budget twice.
+        verify(strategy).analyze(prompt.capture(), eq(DbType.CUSTOM), eq(null), eq("en"),
+                eq(aiConfigId));
         assertThat(prompt.getValue())
                 .contains("GITHUB_ACTIONS")
                 .contains("production")

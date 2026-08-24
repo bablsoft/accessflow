@@ -76,8 +76,11 @@ class DeploymentRequestController {
             @RequestParam(name = "to", required = false) Instant to,
             Authentication authentication, Pageable pageable) {
         var caller = claims(authentication);
-        // submitted_by is admin-only; everyone else is hard-scoped to their own submissions.
-        var submitter = isAdmin(caller) ? submittedBy : caller.userId();
+        // submitted_by is honoured only for callers who may see the whole organization — the same
+        // predicate the detail endpoint uses, so listing and reading agree on visibility. Everyone
+        // else is hard-scoped to their own submissions.
+        var submitter = requestService.canViewAll(caller.permissions())
+                ? submittedBy : caller.userId();
         var filter = new DeploymentRequestListFilter(caller.organizationId(), submitter, pipelineId,
                 environment, version, status, from, to);
         return DeploymentRequestPageResponse.from(

@@ -39,8 +39,10 @@ class DefaultDeploymentAnalyzer implements DeploymentAnalyzer {
                 .formatted(safe(input.provider()), safe(input.environment()), safe(input.version()),
                         blankToNone(input.commitSha()), blankToNone(input.artifactRef()),
                         blankToNone(input.metadataContext()));
-        return strategy.analyze(framed, DbType.CUSTOM, input.metadataContext(), input.language(),
-                input.aiConfigId());
+        // The metadata is already inside `framed`; passing it again as the schema context would
+        // duplicate the largest part of the prompt and bill the org's token budget twice. A
+        // deployment has no schema, so that slot stays empty.
+        return strategy.analyze(framed, DbType.CUSTOM, null, input.language(), input.aiConfigId());
     }
 
     private static String safe(String value) {
