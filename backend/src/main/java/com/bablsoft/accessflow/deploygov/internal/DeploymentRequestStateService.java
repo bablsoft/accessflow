@@ -3,12 +3,14 @@ package com.bablsoft.accessflow.deploygov.internal;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -78,5 +80,23 @@ public class DeploymentRequestStateService {
         repository.save(entity);
         eventPublisher.publishEvent(new DeploymentStatusChangedEvent(
                 entity.getId(), entity.getSubmittedBy(), previous, next));
+    }
+
+    /**
+     * Auto-reject one request past its review timeout (#692), called per row by
+     * {@code DeploymentTimeoutJob}. Transactional here so the decided event is published inside a
+     * real transaction (transactional listeners would otherwise silently skip it). Returns false
+     * when the row was decided between the scan and this call — not an error, just a lost race.
+     */
+    @Transactional
+    public boolean markTimedOut(UUID id) {
+        var entity = require(id);
+        if (entity.getStatus() != QueryStatus.PENDING_REVIEW) {
+            return false;
+        }
+        apply(entity, QueryStatus.TIMED_OUT);
+        eventPublisher.publishEvent(new DeploymentDecidedEvent(id, QueryStatus.TIMED_OUT,
+                "review_timeout"));
+        return true;
     }
 }

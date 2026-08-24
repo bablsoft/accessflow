@@ -162,7 +162,7 @@ class DeploygovWebModelsTest {
         var scheduledFor = Instant.parse("2026-09-01T00:00:00Z");
         var request = new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", "abc123",
                 "ghcr.io/app:2.4.1", "https://ci/run/1", "run-1", Map.of("changelog", "fix"),
-                "ship it", scheduledFor);
+                "ship it", scheduledFor, null);
 
         var command = request.toCommand(orgId, userId, true, "10.0.0.1");
 
@@ -180,17 +180,54 @@ class DeploygovWebModelsTest {
         assertThat(command.justification()).isEqualTo("ship it");
         assertThat(command.scheduledFor()).isEqualTo(scheduledFor);
         assertThat(command.submittedIp()).isEqualTo("10.0.0.1");
-        // The submission reason is not client-supplied; break-glass arrives with #692.
+        // An absent breakGlass flag carries no submission reason (#692).
         assertThat(command.submissionReason()).isNull();
     }
 
     @Test
     void submitDeploymentRequestDefaultsMetadataToAnEmptyMap() {
         var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
-                null, null, null, null, null, null, null)
+                null, null, null, null, null, null, null, null)
                 .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
 
         assertThat(command.metadata()).isEmpty();
+    }
+
+    @Test
+    void submitRequestBreakGlassMapsToEmergencyAccess() {
+        var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
+                null, null, null, null, null, null, null, true)
+                .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
+
+        assertThat(command.submissionReason()).isEqualTo(SubmissionReason.EMERGENCY_ACCESS);
+    }
+
+    @Test
+    void submitRequestBreakGlassFalseCarriesNoSubmissionReason() {
+        var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
+                null, null, null, null, null, null, null, false)
+                .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
+
+        assertThat(command.submissionReason()).isNull();
+    }
+
+    @Test
+    void breakGlassMayNotBeCombinedWithASchedule() {
+        var scheduledFor = Instant.parse("2026-09-01T00:00:00Z");
+        var pipelineId = UUID.randomUUID();
+
+        assertThat(new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", null,
+                null, null, null, null, null, scheduledFor, true).isBreakGlassUnscheduled())
+                .isFalse();
+        assertThat(new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", null,
+                null, null, null, null, null, scheduledFor, null).isBreakGlassUnscheduled())
+                .isTrue();
+        assertThat(new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", null,
+                null, null, null, null, null, scheduledFor, false).isBreakGlassUnscheduled())
+                .isTrue();
+        assertThat(new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", null,
+                null, null, null, null, null, null, true).isBreakGlassUnscheduled())
+                .isTrue();
     }
 
     @Test
@@ -317,7 +354,7 @@ class DeploygovWebModelsTest {
         metadata.put("changelog", null);
 
         var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
-                null, null, null, null, metadata, null, null)
+                null, null, null, null, metadata, null, null, null)
                 .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
 
         assertThat(command.metadata()).containsEntry("changelog", null);

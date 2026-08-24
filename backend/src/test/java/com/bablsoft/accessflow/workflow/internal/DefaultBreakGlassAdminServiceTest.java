@@ -165,6 +165,30 @@ class DefaultBreakGlassAdminServiceTest {
     }
 
     @Test
+    void getRendersRowWithoutQueryRequestId() {
+        // Deployment (and API) break-glass rows carry no query_request_id — the lookup is skipped.
+        var entity = pendingEntity();
+        entity.setQueryRequestId(null);
+        entity.setDatasourceId(null);
+        var deploymentRequestId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+        entity.setDeploymentRequestId(deploymentRequestId);
+        entity.setPipelineId(pipelineId);
+        when(repository.findByIdAndOrganizationId(eventId, organizationId))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.get(organizationId, eventId);
+
+        verify(queryRequestLookupService, never()).findById(any());
+        assertThat(view.queryRequestId()).isNull();
+        assertThat(view.deploymentRequestId()).isEqualTo(deploymentRequestId);
+        assertThat(view.pipelineId()).isEqualTo(pipelineId);
+        assertThat(view.sqlText()).isNull();
+        assertThat(view.executionStatus()).isNull();
+        assertThat(view.status()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+    }
+
+    @Test
     void getThrowsNotFound() {
         when(repository.findByIdAndOrganizationId(eventId, organizationId))
                 .thenReturn(Optional.empty());

@@ -461,9 +461,24 @@ and `/api/v1/deployment-freeze-windows/**` admin surface, and since #691 also
 gate**: together with `QUERY_ADMIN` it decides who may read a deployment request they did not
 submit, on both `GET /deployment-requests` and `GET /deployment-requests/{id}` (a caller with
 neither sees only their own submissions, and an id they may not read returns `404`, never `403`).
-It will additionally gate approving or rejecting deployment requests — the deployment review
-service, including the same never-approve-your-own-request invariant as queries and API requests,
-arrives with #692.
+Since #692 it also gates the deployment review surface (`/api/v1/deployment-reviews/**`,
+per-method `@PreAuthorize` plus the same service-layer re-check the API-review path uses). The
+review service enforces the **never-approve-your-own-request invariant** — the API key's owning
+user is the submitter, and their self-decision is a `409 DEPLOYMENT_REQUEST_SELF_APPROVAL`
+regardless of role — and honours review-plan approver rules opt-in (a plan with approver rules
+restricts deciding to its stage-1 approvers, by user id or role name; `REVIEW_OVERRIDE` bypasses;
+no plan/no rules stays open to any `DEPLOYMENT_REVIEW` holder). Review delegation (#622) does not
+apply to deployments.
+
+**Deployment break-glass (#692, AF-385 mirror).** `breakGlass: true` on the trigger requires the
+effective per-pipeline **`can_break_glass`** grant **and** `allow_break_glass = true` on the
+target environment — both, for everyone, with **no admin bypass** (unlike `can_trigger`, which
+`QUERY_ADMIN` bypasses). It force-approves with no AI analysis, routing, or reviewer fan-out, and
+bypasses freeze windows (`HOLD` and `REJECT`). Compensating controls: a prominent
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` audit row whose metadata records any bypassed freeze window,
+and a mandatory retro-review row in `break_glass_events` (V153 adds `deployment_request_id` +
+`pipeline_id`) written synchronously in the same transaction — acknowledged on the AF-385 admin
+worklist by an admin who is never the submitter.
 
 **Triggering a deployment is deliberately governed by no functional permission (#691).**
 `POST /api/v1/deployment-requests` is the one authenticated `/api/v1` surface with no class-level

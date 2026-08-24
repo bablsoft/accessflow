@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,6 +74,7 @@ class DeploymentRequestSpecificationsTest {
         lenient().when(cb.greaterThanOrEqualTo(any(Expression.class), any(Instant.class)))
                 .thenReturn(predicate);
         lenient().when(cb.lessThan(any(Expression.class), any(Instant.class))).thenReturn(predicate);
+        lenient().when(cb.notEqual(any(Expression.class), any(Object.class))).thenReturn(predicate);
         lenient().when(cb.and(any(Predicate[].class))).thenReturn(predicate);
         lenient().when(cb.disjunction()).thenReturn(disjunction);
         lenient().when(environmentIdPath.in(any(java.util.Collection.class))).thenReturn(predicate);
@@ -158,5 +160,54 @@ class DeploymentRequestSpecificationsTest {
 
         verify(cb).greaterThanOrEqualTo(createdAtPath, from);
         verify(cb, never()).lessThan(any(Expression.class), any(Instant.class));
+    }
+
+    // ------------------------------------------------- forPendingReview (#692)
+
+    @Test
+    void pendingReviewWithAnEmptyReachPagesEmptyRatherThanUnfiltered() {
+        var result = DeploymentRequestSpecifications.forPendingReview(UUID.randomUUID(),
+                UUID.randomUUID(), null, false, Set.of()).toPredicate(root, cq, cb);
+
+        assertThat(result).isSameAs(disjunction);
+        verify(cb, never()).and(any(Predicate[].class));
+        verify(environmentIdPath, never()).in(any(java.util.Collection.class));
+    }
+
+    @Test
+    void pendingReviewUnrestrictedIgnoresTheReach() {
+        var orgId = UUID.randomUUID();
+        var reviewerId = UUID.randomUUID();
+
+        var result = DeploymentRequestSpecifications.forPendingReview(orgId, reviewerId, null,
+                true, Set.of()).toPredicate(root, cq, cb);
+
+        assertThat(result).isSameAs(predicate);
+        verify(cb, never()).disjunction();
+        verify(environmentIdPath, never()).in(any(java.util.Collection.class));
+        verify(cb).equal(orgIdPath, orgId);
+        verify(cb).equal(statusPath, QueryStatus.PENDING_REVIEW);
+        verify(cb).notEqual(submittedByPath, reviewerId);
+        verify(cb, never()).equal(eq(pipelineIdPath), any(Object.class));
+    }
+
+    @Test
+    void pendingReviewAppliesEveryPredicateAndOrdersByCreatedAtDesc() {
+        var orgId = UUID.randomUUID();
+        var reviewerId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+
+        DeploymentRequestSpecifications.forPendingReview(orgId, reviewerId, pipelineId, false,
+                Set.of(environmentId)).toPredicate(root, cq, cb);
+
+        verify(cq).orderBy(order);
+        verify(cb).desc(createdAtPath);
+        verify(cb).equal(orgIdPath, orgId);
+        verify(cb).equal(statusPath, QueryStatus.PENDING_REVIEW);
+        verify(cb).notEqual(submittedByPath, reviewerId);
+        verify(cb).equal(pipelineIdPath, pipelineId);
+        verify(environmentIdPath).in(Set.of(environmentId));
+        verify(cb, never()).disjunction();
     }
 }

@@ -7,12 +7,20 @@ import com.bablsoft.accessflow.workflow.api.BreakGlassStatus;
 import java.time.Instant;
 import java.util.UUID;
 
-/** API response for a break-glass log row (AF-385). Field names are snake_case over the wire. */
+/**
+ * API response for a break-glass log row (AF-385). Field names are snake_case over the wire.
+ * Exactly one of {@code queryRequestId} / {@code apiRequestId} / {@code deploymentRequestId} is
+ * set — the row's target kind (AF-500 / #692).
+ */
 public record BreakGlassEventResponse(
         UUID id,
         UUID queryRequestId,
+        UUID apiRequestId,
+        UUID deploymentRequestId,
         UUID datasourceId,
         String datasourceName,
+        UUID connectorId,
+        UUID pipelineId,
         UUID submittedByUserId,
         String submittedByDisplayName,
         String submittedByEmail,
@@ -30,8 +38,12 @@ public record BreakGlassEventResponse(
         return new BreakGlassEventResponse(
                 view.id(),
                 view.queryRequestId(),
+                view.apiRequestId(),
+                view.deploymentRequestId(),
                 view.datasourceId(),
                 view.datasourceName(),
+                view.connectorId(),
+                view.pipelineId(),
                 view.submittedByUserId(),
                 view.submittedByDisplayName(),
                 view.submittedByEmail(),

@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.deploygov.internal;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
+import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
@@ -121,6 +122,40 @@ class DeploymentRequestStateServiceTest {
 
         verify(repository, never()).save(entity);
         verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markTimedOutRejectsAPendingReviewRequest() {
+        var entity = request(QueryStatus.PENDING_REVIEW);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markTimedOut(entity.getId())).isTrue();
+
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.TIMED_OUT);
+        verify(repository).save(entity);
+        verify(eventPublisher).publishEvent(new DeploymentDecidedEvent(entity.getId(),
+                QueryStatus.TIMED_OUT, "review_timeout"));
+    }
+
+    @Test
+    void markTimedOutIsANoOpOnAnAlreadyDecidedRequest() {
+        var entity = request(QueryStatus.APPROVED);
+        when(repository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThat(service.markTimedOut(entity.getId())).isFalse();
+
+        assertThat(entity.getStatus()).isEqualTo(QueryStatus.APPROVED);
+        verify(repository, never()).save(entity);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void markTimedOutThrowsWhenTheRequestIsMissing() {
+        var id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.markTimedOut(id))
+                .isInstanceOf(DeploymentRequestNotFoundException.class);
     }
 
     private static DeploymentRequestEntity request(QueryStatus status) {

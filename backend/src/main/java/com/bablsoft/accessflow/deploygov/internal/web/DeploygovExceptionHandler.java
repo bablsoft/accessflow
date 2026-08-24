@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
+import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewerNotEligibleException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentSelfApprovalException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyPriorityConflictException;
 import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentEnvironmentNameException;
@@ -100,6 +103,26 @@ class DeploygovExceptionHandler {
     ProblemDetail handleRequestPermission(DeploymentRequestPermissionException ex) {
         return problem(HttpStatus.FORBIDDEN, msg("error.deployment_request_permission_denied"),
                 "DEPLOYMENT_REQUEST_PERMISSION_DENIED");
+    }
+
+    // 409, not apigov's 403: the conflict is with the resource's provenance (its submitter), not
+    // the caller's permissions — see docs/04-api-spec.md § Deployment reviews.
+    @ExceptionHandler(DeploymentSelfApprovalException.class)
+    ProblemDetail handleSelfApproval(DeploymentSelfApprovalException ex) {
+        return problem(HttpStatus.CONFLICT, msg("error.deployment_request_self_approval"),
+                "DEPLOYMENT_REQUEST_SELF_APPROVAL");
+    }
+
+    @ExceptionHandler(DeploymentReviewerNotEligibleException.class)
+    ProblemDetail handleReviewerNotEligible(DeploymentReviewerNotEligibleException ex) {
+        return problem(HttpStatus.FORBIDDEN, msg("error.deployment_reviewer_not_eligible"),
+                "DEPLOYMENT_REVIEWER_NOT_ELIGIBLE");
+    }
+
+    @ExceptionHandler(DeploymentBreakGlassNotAllowedException.class)
+    ProblemDetail handleBreakGlassNotAllowed(DeploymentBreakGlassNotAllowedException ex) {
+        return problem(HttpStatus.FORBIDDEN, msg("error.deployment_break_glass_not_allowed"),
+                "DEPLOYMENT_BREAK_GLASS_NOT_ALLOWED");
     }
 
     @ExceptionHandler(DeploymentRoutingPolicyNotFoundException.class)
