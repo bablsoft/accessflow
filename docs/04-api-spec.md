@@ -5734,14 +5734,20 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
-## Deployment Governance (#688, epic #682)
+## Deployment Governance (#688/#691, epic #682)
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
-surface; the deployment request pipeline (`/api/v1/deployment-requests/**` trigger → AI → review →
-gate, break-glass, outcome reporting) lands in later sub-issues of epic #682 and will be documented
-here when it does. Every endpoint below requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission
-and is org-scoped — a resource in another organization reads as `404`, never as `403`.
+surface (#688), the **deployment request pipeline** — trigger → AI risk → routing → review (#691) —
+and the **admin routing-policy CRUD** (#691). The reviewer decision endpoints, break-glass and
+scheduled deploys (#692) and the deployment **gate** + outcome reporting (#693) land in later
+sub-issues of epic #682 and will be documented here when they do.
+
+Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
+`/admin/deployment-routing-policies` requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission.
+`/deployment-requests` is gated by the **per-pipeline `can_trigger` grant** instead — there is no
+functional trigger permission. Every endpoint is org-scoped: a resource in another organization
+reads as `404`, never as `403`.
 
 ### Pipelines
 
@@ -5822,6 +5828,97 @@ supplying neither completely, is `400 DEPLOYMENT_FREEZE_WINDOW_INVALID` — mirr
 window wins (environment > pipeline > org-wide); a window that cannot be evaluated (e.g. its
 stored timezone is no longer a valid zone id) **fails closed** and counts as an active `HOLD`.
 See [docs/05-backend.md → Deployment governance](05-backend.md).
+
+### Deployment requests (#691)
+
+Base path `/api/v1/deployment-requests`. This is the **pipeline-facing** surface: a CI job triggers a
+deployment, AccessFlow risk-scores it, applies routing policy, and parks it for human review. The
+trigger authenticates with either a JWT **or an AccessFlow API key** (`X-API-Key: <key>` or
+`Authorization: ApiKey <key>`) — CI runners use the API key, and the key's owning user is the
+submitter for every downstream rule, including "a submitter can never approve their own deployment".
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/deployment-requests` | Trigger a governed deployment (`202`). Requires an active **`can_trigger`** grant on the pipeline — the most-permissive union of the caller's direct grant and every unexpired group grant; `QUERY_ADMIN` holders bypass the grant. **Idempotent**: when `externalRunId` is supplied, a repeat of the same `(pipelineId, environment, version, externalRunId)` returns the **existing** request with **`200 OK`** and creates nothing (a replayed CI job must not queue a second approval). The grant is checked *before* the replay lookup, so a repeat cannot be used to probe for existing runs. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`, `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND`. |
+| `GET` | `/deployment-requests` | List requests. Paginated (`page`, `size`). Optional filters: `status`, `pipeline_id`, `environment` (environment **name**, case-insensitive), `version` (exact), `submitted_by` (**admin-only** — non-admins are hard-scoped to their own submissions), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
+| `GET` | `/deployment-requests/{id}` | Get one request with its AI analysis summary and review decisions. Visible to the **submitter**, and to any holder of **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** in the organization; everyone else gets `404` (never `403` — the endpoint is not an existence oracle). |
+| `POST` | `/deployment-requests/{id}/cancel` | Submitter cancels the request (`204`). Allowed from `PENDING_REVIEW`, or from `APPROVED` while a `scheduledFor` deferral has not yet fired. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED` for a non-submitter, `409 DEPLOYMENT_REQUEST_INVALID_STATE` otherwise. |
+
+`SubmitDeploymentRequestRequest` fields: `pipelineId` (required), `environment` (required, ≤255 —
+the environment **name** within the pipeline, because a CI job knows names, not UUIDs),
+`version` (required, ≤255 — the semantic artifact version being deployed, e.g. `2.4.1`),
+`commitSha` (≤64), `artifactRef`, `runUrl`, `externalRunId` (the provider-side run identifier;
+supplying it is what makes the trigger idempotent), `metadata` (free-form JSON object — changelog,
+commit list, diff summary; this is what the AI analyzes), `justification`, `scheduledFor`
+(ISO-8601 instant; defers the run until after approval — honoured by #692).
+
+**Freeze windows at submission.** A **`REJECT`**-behaviour freeze window active for the target
+`(pipeline, environment)` auto-rejects the trigger: the request is persisted and immediately moved
+to `REJECTED`, and the window's `reason` is echoed back on the response. A **`HOLD`** window does
+**not** block submission — it keeps an approved deployment non-releasable at the gate (#693) until
+the window closes.
+
+**State machine.** `PENDING_AI → PENDING_REVIEW → APPROVED`, plus `REJECTED` (reviewer, routing
+`AUTO_REJECT`, or a `REJECT` freeze window) and `CANCELLED` (submitter). `TIMED_OUT` arrives with
+the review-timeout job (#692); `EXECUTED` / `FAILED` arrive with the gate and outcome reporting
+(#693). An illegal transition returns `409 DEPLOYMENT_REQUEST_INVALID_STATE` and carries the
+current status as a `currentStatus` property on the `ProblemDetail`.
+
+### Deployment routing policies (#691)
+
+Base path `/api/v1/admin/deployment-routing-policies`, **`DEPLOYMENT_PIPELINE_MANAGE`**, org-scoped.
+Ordered, attribute-based rules evaluated after AI analysis and before reviewer fan-out: the **first
+enabled policy by ascending `priority` whose conditions all match** decides how the deployment is
+routed; on no match the deployment falls through to the target environment's `requireReview` flag
+and review plan.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/admin/deployment-routing-policies` | List the org's policies in ascending `priority` order (not paginated). |
+| `GET` | `/admin/deployment-routing-policies/{id}` | Get one policy. `404 DEPLOYMENT_ROUTING_POLICY_NOT_FOUND`. |
+| `POST` | `/admin/deployment-routing-policies` | Create (`201`, `Location` header). `409 DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT`, `400 DEPLOYMENT_ROUTING_POLICY_INVALID`. |
+| `PUT` | `/admin/deployment-routing-policies/{id}` | Update. Omitted/null fields stay unchanged; pass `clearPipeline: true` to widen a pipeline-scoped policy to the whole org. Re-checks the priority guard, excluding the policy itself. |
+| `DELETE` | `/admin/deployment-routing-policies/{id}` | Delete (`204`). |
+
+Body fields: `pipelineId` (nullable — null scopes the policy to every pipeline in the org), `name`
+(1–255, required), `action` (`AUTO_APPROVE` / `AUTO_REJECT` / `REQUIRE_APPROVALS` / `ESCALATE`,
+required), `requiredApprovals` (≥1; required for `REQUIRE_APPROVALS` — the absolute approver count,
+**replacing** the plan's — and for `ESCALATE` — a delta **added** to the resolved count, default
+`1`; must be null for `AUTO_APPROVE` / `AUTO_REJECT`), `priority` (unique within the organization),
+`enabled` (default `true`), and `conditions`.
+
+`conditions` is a flat object; **every present key is AND-ed, an absent or empty key is
+unconstrained**, and `{}` matches everything:
+
+```json
+{
+  "environments": ["production", "prod-eu"],
+  "providers":    ["GITHUB_ACTIONS", "GITLAB_CI"],
+  "minRiskLevel": "HIGH",
+  "versionGlobs": ["2.*", "*-rc*"],
+  "daysOfWeek":   [5, 6, 7],
+  "startTime":    "16:00",
+  "endTime":      "23:59",
+  "timezone":     "Europe/Berlin"
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `environments` | Environment names, case-insensitive, any-of. |
+| `providers` | `PipelineProvider` names, case-insensitive, any-of. |
+| `minRiskLevel` | Inclusive floor (`LOW`/`MEDIUM`/`HIGH`/`CRITICAL`). **Never matches when the risk signal is absent**, so a risk-gated policy does not fire on a pipeline with `aiAnalysisEnabled: false` — such a deployment falls through to the environment's `requireReview`. |
+| `versionGlobs` | Globs over the artifact `version`; `*` matches any run of characters (dots included), everything else is literal, case-insensitive, any-of. |
+| `daysOfWeek`, `startTime`, `endTime`, `timezone` | A recurring local-time window, evaluated in the policy's own IANA `timezone` (default `UTC`). ISO day numbering (1 = Monday … 7 = Sunday); the window is `[startTime, endTime)`; an `endTime` before `startTime` spans midnight, with day membership belonging to the day the window *starts*. `daysOfWeek` alone means the whole local day; times alone mean every day. |
+
+Validation is at the admin boundary: an unknown timezone, a day number outside 1–7, equal
+start/end times, or a `requiredApprovals` that does not match the chosen action is
+`400 DEPLOYMENT_ROUTING_POLICY_INVALID`. At **evaluation** time a policy that still cannot be
+evaluated (its stored `conditions` no longer parse, its timezone was removed from the tz database)
+is **skipped with a WARN** — deliberately the opposite of the freeze-window evaluator's fail-closed
+behaviour. A broken freeze must still hold deployments; a broken routing policy must never silently
+auto-approve or auto-reject, and skipping it drops the deployment through to the environment's
+`requireReview` (which defaults to `true`).
 
 ## Data Lifecycle Manager (AF-499)
 
@@ -5914,6 +6011,12 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_PERMISSION_NOT_FOUND` | 404 | Unknown pipeline-permission id, or the grant belongs to a different pipeline (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND` | 404 | Unknown freeze-window id, or the window is in another organization (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_INVALID` | 400 | Freeze-window shape/scope violation — mixed one-off and recurring fields, inverted bounds, bad timezone or day numbers, or `environmentId` without a matching `pipelineId` (#688). |
+| `DEPLOYMENT_REQUEST_NOT_FOUND` | 404 | Unknown deployment-request id, or the request is not visible to the caller (#691). |
+| `DEPLOYMENT_REQUEST_INVALID_STATE` | 409 | The deployment request is not in a state that allows the action (`currentStatus`) (#691). |
+| `DEPLOYMENT_REQUEST_PERMISSION_DENIED` | 403 | Caller holds no `can_trigger` grant on the pipeline, or is not the submitter of the request being cancelled (#691). |
+| `DEPLOYMENT_ROUTING_POLICY_NOT_FOUND` | 404 | Unknown deployment-routing-policy id, or the policy is in another organization (#691). |
+| `DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | Another deployment routing policy in the organization already uses that `priority` (#691). |
+| `DEPLOYMENT_ROUTING_POLICY_INVALID` | 400 | Routing-policy conditions or `requiredApprovals` are invalid — unknown timezone, day number outside 1–7, equal start/end times, or an approval count that does not match the action (#691). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|

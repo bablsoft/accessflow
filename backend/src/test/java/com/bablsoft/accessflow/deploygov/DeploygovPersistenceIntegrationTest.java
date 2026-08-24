@@ -43,7 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Validates that the V149/V150 migrations apply and every deploygov JPA entity maps to its table —
+ * Validates that the V149–V152 migrations apply and every deploygov JPA entity maps to its table —
  * entity ↔ DDL parity under {@code ddl-auto=validate}, including the pg enum
  * {@code columnDefinition}s ({@code pipeline_provider}, {@code freeze_behavior},
  * {@code deployment_outcome}, and the shared {@code query_status} / {@code decision} /

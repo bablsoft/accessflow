@@ -8,4 +8,9 @@ public class DeploymentEnvironmentNotFoundException extends DeploymentGovernance
     public DeploymentEnvironmentNotFoundException(UUID environmentId) {
         super("Deployment environment not found: " + environmentId);
     }
+
+    /** A trigger names its environment rather than identifying it (#691). */
+    public DeploymentEnvironmentNotFoundException(UUID pipelineId, String environmentName) {
+        super("Deployment environment not found on pipeline " + pipelineId + ": " + environmentName);
+    }
 }

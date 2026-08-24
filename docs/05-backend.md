@@ -2946,9 +2946,10 @@ partially-executed / failed over every channel. `RealtimeEventDispatcher` maps t
 ## Deployment Governance (deploygov module, epic #682)
 
 The **`deploygov/` module** governs CI/CD deployments the way `apigov` governs outbound API calls.
-#684 landed the persistence foundation (entities, repositories, V149–V151); **#688 adds the
-admin-facing configuration surface** — everything below. The trigger API, AI analysis, state
-machine, review flow, and gate endpoint arrive with #691/#692/#693.
+#684 landed the persistence foundation (entities, repositories, V149–V151); **#688 added the
+admin-facing configuration surface**; **#691 adds the submission half** — the trigger API, AI
+analysis, the routing engine, and the status state machine. The reviewer decision flow, break-glass
+and scheduled deploys (#692) and the gate endpoint + outcome reporting (#693) follow.
 
 **Admin services (`deploygov/api/`).** Three org-scoped service interfaces, all mirroring the
 `DefaultApiConnectorAdminService` conventions — `findByIdAndOrganizationId` + not-found on every
@@ -3006,6 +3007,148 @@ environments and `/permissions` + `/permissions/groups` sub-resources) and
 (`@Order(HIGHEST_PRECEDENCE)`) maps the module exceptions onto the `DEPLOYMENT_*` ProblemDetail
 codes documented in [docs/04-api-spec.md](04-api-spec.md). Admin-CRUD audit rows are deliberately
 deferred to the audit fan-out sub-issue (#695).
+
+### Submission (#691)
+
+`DefaultDeploymentRequestService.submit` is the pipeline-facing trigger, mirroring
+`apigov`'s `DefaultApiRequestService.submit`:
+
+1. Resolve the pipeline by `(id, organizationId)` — cross-org reads as 404 — and reject an inactive
+   one. Resolve the **environment by name** (`findByPipelineIdAndNameIgnoreCase`): a CI job knows
+   `production`, not a UUID.
+2. **Permission.** `EffectiveDeploymentPermissionResolver.resolve(pipelineId, userId)` must return a
+   grant with `canTrigger`; `QUERY_ADMIN` holders bypass it (the apigov convention). Otherwise
+   `DeploymentRequestPermissionException` → 403. This runs **before** the replay lookup, so a
+   caller without a grant cannot use a repeated trigger to probe whether a given run exists.
+3. **Idempotent replay.** When the command carries an `externalRunId`, an existing row for
+   `(pipeline, environment, version, externalRunId)` is returned as-is with `replay = true` — no
+   second row, and crucially **no second `DeploymentSubmittedEvent`**, so a retried CI job never
+   queues a duplicate approval. The partial unique index `uq_deployment_requests_trigger_idem`
+   (V150) is the concurrency backstop: a `DataIntegrityViolationException` on insert is caught and
+   the winning row re-read. The result carries the whole `DeploymentRequestView`, so the web layer
+   never re-reads it — a replay may legitimately come from a *different* CI identity than the one
+   that first triggered the run, and that identity would not necessarily pass the detail endpoint's
+   visibility guard.
+4. Persist `PENDING_AI`. `metadata` is `jsonb NOT NULL`, so a null command value is coerced to `{}`.
+5. **Freeze windows.** `FreezeWindowEvaluator.evaluate(org, pipeline, environment)` runs *after*
+   persistence so the rejection is a real state transition rather than a silent refusal. A
+   **`REJECT`** window moves the request to `REJECTED` through `DeploymentRequestStateService` (so
+   `DeploymentStatusChangedEvent` fires and #695's audit fan-out gets it for free) and publishes
+   `DeploymentDecidedEvent(…, "freeze:" + windowId)`; no analysis is ever started. A **`HOLD`**
+   window does **not** block submission — it gates *releasability* at the gate endpoint (#693), so
+   the deployment still flows through AI and review and simply cannot be released until the window
+   closes.
+6. Otherwise publish `DeploymentSubmittedEvent`.
+
+`cancel` is submitter-only and allowed from `PENDING_REVIEW`, or from `APPROVED` while a
+`scheduled_for` deferral has not yet fired.
+
+### AI analysis (#691)
+
+The split mirrors AF-500 exactly and is **load-bearing for the module graph**:
+
+- **`ai/api/DeploymentAnalyzer`** + `ai/internal/DefaultDeploymentAnalyzer` are a thin wrapper —
+  enforce the per-org guardrails (`AiRateLimiter`), frame the release metadata into a prompt, and
+  delegate to the provider `AiAnalyzerStrategy` with `DbType.CUSTOM` (the non-SQL marker). Sibling
+  of `ApiCallAnalyzer`.
+- **`deploygov/internal/DeploymentAnalysisListener`** is the `@ApplicationModuleListener` on
+  `DeploymentSubmittedEvent` that renders the metadata context, calls the analyzer, persists the row
+  through `core.api.AiAnalysisPersistenceService.persistForDeploymentRequest` (V152 adds
+  `ai_analyses.deployment_request_id`), stamps `ai_analysis_id`, and publishes
+  completed / skipped / failed.
+
+**The listener lives in `deploygov`, not in `ai`, so that `ai` never depends on `deploygov`.** The
+`ApiCallAnalyzer` javadoc establishes the direction — governed-surface modules depend on `ai.api`,
+never the reverse — and putting an `@ApplicationModuleListener` for `deploygov.events` inside
+`ai.internal` would invert it and fail `ApplicationModulesTest`.
+
+Two deviations from the apigov listener, both deliberate:
+
+- It catches **`AiAnalysisParseException` as well as `AiAnalysisException`**. The two are unrelated
+  `RuntimeException` subclasses, so `ApiAnalysisListener`'s single `catch (AiAnalysisException)`
+  lets a strict-JSON parse failure escape. A deployment analysis must never propagate — a malformed
+  provider response becomes `DeploymentAnalysisFailedEvent`, which fails safe to human review.
+- The rendered metadata context is **size-capped** before it reaches the prompt; a CI job can put an
+  entire changelog into `metadata`.
+
+When the pipeline has `ai_analysis_enabled = false` or no `ai_config_id`, the listener publishes
+`DeploymentAnalysisSkippedEvent("ai_disabled")` and the state machine proceeds with a null risk.
+
+### Routing engine (#691)
+
+`deploygov/internal/routing/DeploymentRoutingPolicyEngine` walks the org's enabled policies in
+ascending `priority`, skipping any whose non-null `pipeline_id` differs from the request's, and
+returns the **first** whose conditions all match. Unlike `apigov` — which reads a raw `JsonNode` —
+deploygov ships admin CRUD for these policies, so the conditions are a typed
+`deploygov.api.DeploymentRoutingConditions` record round-tripped by
+`DeploymentRoutingConditionCodec` and validated at create/update time. A typo'd key silently meaning
+"unconstrained" is an acceptable risk only for a surface nobody edits through an API; here it would
+be a routine admin mistake. Conditions leaves and their semantics are tabulated in
+[docs/04-api-spec.md → Deployment routing policies](04-api-spec.md).
+
+Two evaluation rules worth stating explicitly:
+
+- **`minRiskLevel` never matches an absent risk** (same as `ApiRoutingPolicyEngine.meetsRisk`), so a
+  risk-gated policy simply does not fire on a pipeline with AI disabled.
+- **A policy that cannot be evaluated is skipped with a WARN** — the deliberate opposite of
+  `FreezeWindowEvaluator`, which fails *closed* to an active `HOLD`. A broken freeze window must
+  still hold deployments; a broken routing policy must never silently auto-approve or auto-reject,
+  and skipping it drops the deployment through to the environment's `require_review` (default
+  `true`). The two asymmetric behaviours are both "fail safe" — they just point in opposite
+  directions because the failure modes do.
+
+Time-window leaves evaluate in the policy's own IANA `timezone`, defaulting to `UTC`. There is no
+organization timezone anywhere in the schema, and the sibling feature in this module — freeze
+windows — already made the explicit-zone choice for the same problem ("no Friday-afternoon prod
+deploys" is inherently local). The midnight-spanning rule is identical to `FreezeWindowEvaluator`'s.
+
+### State machine (#691)
+
+`DeploymentReviewStateMachine` listens on the three analysis events (`@ApplicationModuleListener`),
+guards on `PENDING_AI` — so a replayed event is a silent no-op — and then:
+
+1. Evaluates the routing engine. **A match wins outright**; the environment's flags are not
+   consulted. `AUTO_APPROVE` / `AUTO_REJECT` skip review; `REQUIRE_APPROVALS` **replaces** the
+   approval count; `ESCALATE` **adds** its count to the resolved base — identical arithmetic to
+   `ApiReviewStateMachine.applyRouting`, so the two modules agree.
+2. On no match, the target environment's `require_review` decides, and a review plan with
+   `requires_human_approval = false` can relax it (never tighten it).
+3. **Plan resolution is two-level**: the environment's `review_plan_id` override, else the
+   pipeline's, resolved through `core.api.ReviewPlanLookupService.findById`. The approval count on
+   the no-match path is likewise **environment `required_approvals` → plan `min_approvals_required`
+   → 1**; `deployment_environments.required_approvals` exists precisely for this.
+4. `DeploymentAnalysisFailedEvent` routes to `forceReview`, which **skips the routing engine
+   entirely** — a failed analysis can never auto-approve or auto-reject.
+
+Every status write goes through **`DeploymentRequestStateService`**, which — unlike apigov's
+`ApiRequestStateService` — validates the transition against an explicit table and throws
+`IllegalDeploymentRequestStateException` (→ `409 DEPLOYMENT_REQUEST_INVALID_STATE`) on anything
+else. Applying the status a row already has is a **silent no-op**, so a retried listener does not
+409. The table:
+
+| From | Allowed next |
+|---|---|
+| `PENDING_AI` | `PENDING_REVIEW`, `APPROVED`, `REJECTED`, `CANCELLED` |
+| `PENDING_REVIEW` | `APPROVED`, `REJECTED`, `TIMED_OUT`, `CANCELLED` |
+| `APPROVED` | `EXECUTED`, `FAILED`, `TIMED_OUT`, `CANCELLED` |
+| `REJECTED` / `TIMED_OUT` / `EXECUTED` / `FAILED` / `CANCELLED` | — (terminal) |
+
+Cells beyond #691's own reach are intentional: `PENDING_REVIEW → APPROVED/REJECTED/TIMED_OUT` is
+#692, `APPROVED → EXECUTED/FAILED/TIMED_OUT` is #693. `PENDING_AI → CANCELLED` is legal in the table
+but unreachable through the API — `POST /cancel` rejects `PENDING_AI` per the endpoint contract —
+so a future "cancel a stuck analysis" admin path costs nothing.
+
+### Request web layer (#691)
+
+`DeploymentRequestController` (`/api/v1/deployment-requests`) carries **no class-level
+`@PreAuthorize`**: triggering is authorized by the per-pipeline `can_trigger` grant inside the
+service, not by a functional permission (there is no `DEPLOYMENT_TRIGGER` value in
+`core.api.Permission`). It authenticates with a JWT **or an API key** with zero new auth code —
+`security/internal/filter/ApiKeyAuthenticationFilter` puts the same `JwtClaims` principal in the
+`SecurityContext` as the JWT path, so `(JwtClaims) authentication.getPrincipal()` serves both. The
+trigger returns **202** on create and **200** on an idempotent replay.
+`AdminDeploymentRoutingPolicyController` (`/api/v1/admin/deployment-routing-policies`) is gated by
+`PERM_DEPLOYMENT_PIPELINE_MANAGE`. Audit rows for the request pipeline remain deferred to #695.
 
 ## MCP server (mcp module)
 

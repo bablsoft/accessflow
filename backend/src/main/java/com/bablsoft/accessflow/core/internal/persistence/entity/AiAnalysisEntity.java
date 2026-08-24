@@ -47,6 +47,12 @@ public class AiAnalysisEntity {
     @Column(name = "request_group_item_id")
     private UUID requestGroupItemId;
 
+    // Nullable: an analysis may instead key off a governed deployment request (#691, V152). deploygov
+    // is a separate module, so it is a bare UUID like the API side; chk_ai_analyses_target widens to
+    // exactly-one across all four target columns.
+    @Column(name = "deployment_request_id")
+    private UUID deploymentRequestId;
+
     @Enumerated(EnumType.STRING)
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "ai_provider", nullable = false, columnDefinition = "ai_provider")
