@@ -1,15 +1,27 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
+import com.bablsoft.accessflow.core.api.DecisionType;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingAction;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingConditions;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.LocalTime;
+import java.util.Map;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -140,5 +152,186 @@ class DeploygovWebModelsTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).behavior()).isEqualTo(FreezeBehavior.HOLD);
+    }
+
+    @Test
+    void submitDeploymentRequestMapsAllFieldsOntoTheCommand() {
+        var orgId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+        var scheduledFor = Instant.parse("2026-09-01T00:00:00Z");
+        var request = new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", "abc123",
+                "ghcr.io/app:2.4.1", "https://ci/run/1", "run-1", Map.of("changelog", "fix"),
+                "ship it", scheduledFor);
+
+        var command = request.toCommand(orgId, userId, true, "10.0.0.1");
+
+        assertThat(command.pipelineId()).isEqualTo(pipelineId);
+        assertThat(command.environment()).isEqualTo("production");
+        assertThat(command.organizationId()).isEqualTo(orgId);
+        assertThat(command.submitterUserId()).isEqualTo(userId);
+        assertThat(command.admin()).isTrue();
+        assertThat(command.version()).isEqualTo("2.4.1");
+        assertThat(command.commitSha()).isEqualTo("abc123");
+        assertThat(command.artifactRef()).isEqualTo("ghcr.io/app:2.4.1");
+        assertThat(command.runUrl()).isEqualTo("https://ci/run/1");
+        assertThat(command.externalRunId()).isEqualTo("run-1");
+        assertThat(command.metadata()).containsEntry("changelog", "fix");
+        assertThat(command.justification()).isEqualTo("ship it");
+        assertThat(command.scheduledFor()).isEqualTo(scheduledFor);
+        assertThat(command.submittedIp()).isEqualTo("10.0.0.1");
+        // The submission reason is not client-supplied; break-glass arrives with #692.
+        assertThat(command.submissionReason()).isNull();
+    }
+
+    @Test
+    void submitDeploymentRequestDefaultsMetadataToAnEmptyMap() {
+        var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
+                null, null, null, null, null, null, null)
+                .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
+
+        assertThat(command.metadata()).isEmpty();
+    }
+
+    @Test
+    void deploymentRequestResponseMapsTheViewIncludingDecisions() {
+        var decision = new DeploymentReviewDecisionView(UUID.randomUUID(), UUID.randomUUID(),
+                DecisionType.APPROVED, "lgtm", 1, Instant.parse("2026-08-21T18:00:00Z"));
+        var view = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "payments-api",
+                PipelineProvider.GITHUB_ACTIONS, UUID.randomUUID(), "production", UUID.randomUUID(),
+                "ci@example.com", "2.4.1", "abc123", "ghcr.io/app:2.4.1", "https://ci/run/1",
+                "run-1", Map.of("changelog", "fix"), QueryStatus.APPROVED,
+                SubmissionReason.USER_SUBMITTED, "ship it", UUID.randomUUID(), RiskLevel.HIGH, 80,
+                "schema migration", 2, null, DeploymentOutcome.SUCCEEDED,
+                Instant.parse("2026-08-21T19:00:00Z"), "deployed", Instant.now(), List.of(decision));
+
+        var response = DeploymentRequestResponse.from(view);
+
+        assertThat(response.pipelineName()).isEqualTo("payments-api");
+        assertThat(response.provider()).isEqualTo(PipelineProvider.GITHUB_ACTIONS);
+        assertThat(response.environmentName()).isEqualTo("production");
+        assertThat(response.submittedByEmail()).isEqualTo("ci@example.com");
+        assertThat(response.metadata()).containsEntry("changelog", "fix");
+        assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(response.aiRiskScore()).isEqualTo(80);
+        assertThat(response.requiredApprovals()).isEqualTo(2);
+        assertThat(response.outcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(response.outcomeDetail()).isEqualTo("deployed");
+        assertThat(response.decisions()).hasSize(1);
+        assertThat(response.decisions().get(0).decision()).isEqualTo(DecisionType.APPROVED);
+        assertThat(response.decisions().get(0).comment()).isEqualTo("lgtm");
+    }
+
+    @Test
+    void deploymentRequestPageResponseMapsContent() {
+        var view = new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "p",
+                PipelineProvider.GENERIC, UUID.randomUUID(), "staging", UUID.randomUUID(), null,
+                "1.0.0", null, null, null, null, null, QueryStatus.PENDING_AI,
+                SubmissionReason.USER_SUBMITTED, null, null, null, null, null, 1, null, null, null,
+                null, Instant.now(), null);
+
+        var page = DeploymentRequestPageResponse.from(new PageResponse<>(List.of(view), 2, 20, 45, 3));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().get(0).decisions()).isEmpty();
+        assertThat(page.page()).isEqualTo(2);
+        assertThat(page.totalElements()).isEqualTo(45);
+        assertThat(page.totalPages()).isEqualTo(3);
+    }
+
+    @Test
+    void createRoutingPolicyRequestDefaultsPriorityEnabledAndConditions() {
+        var orgId = UUID.randomUUID();
+
+        var command = new CreateDeploymentRoutingPolicyRequest(null, "p", null,
+                DeploymentRoutingAction.AUTO_REJECT, null, null, null).toCommand(orgId);
+
+        assertThat(command.organizationId()).isEqualTo(orgId);
+        assertThat(command.conditions()).isEqualTo(DeploymentRoutingConditions.NONE);
+        assertThat(command.priority()).isEqualTo(100);
+        assertThat(command.enabled()).isTrue();
+    }
+
+    @Test
+    void createRoutingPolicyRequestCarriesEveryCondition() {
+        var pipelineId = UUID.randomUUID();
+        var conditions = new DeploymentRoutingConditionsRequest(List.of("production"),
+                List.of("GITHUB_ACTIONS"), RiskLevel.HIGH, List.of("2.*"), Set.of(5),
+                LocalTime.of(16, 0), LocalTime.of(23, 0), "Europe/Berlin");
+
+        var command = new CreateDeploymentRoutingPolicyRequest(pipelineId, "p", conditions,
+                DeploymentRoutingAction.ESCALATE, 2, 10, false).toCommand(UUID.randomUUID());
+
+        assertThat(command.pipelineId()).isEqualTo(pipelineId);
+        assertThat(command.conditions().environments()).containsExactly("production");
+        assertThat(command.conditions().providers()).containsExactly("GITHUB_ACTIONS");
+        assertThat(command.conditions().minRiskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(command.conditions().versionGlobs()).containsExactly("2.*");
+        assertThat(command.conditions().daysOfWeek()).containsExactly(5);
+        assertThat(command.conditions().startTime()).isEqualTo(LocalTime.of(16, 0));
+        assertThat(command.conditions().endTime()).isEqualTo(LocalTime.of(23, 0));
+        assertThat(command.conditions().timezone()).isEqualTo("Europe/Berlin");
+        assertThat(command.requiredApprovals()).isEqualTo(2);
+        assertThat(command.priority()).isEqualTo(10);
+        assertThat(command.enabled()).isFalse();
+    }
+
+    @Test
+    void updateRoutingPolicyRequestLeavesAbsentConditionsNull() {
+        var command = new UpdateDeploymentRoutingPolicyRequest(null, true, "renamed", null, null,
+                null, 20, false).toCommand();
+
+        assertThat(command.clearPipeline()).isTrue();
+        assertThat(command.name()).isEqualTo("renamed");
+        assertThat(command.conditions()).isNull();
+        assertThat(command.priority()).isEqualTo(20);
+        assertThat(command.enabled()).isFalse();
+    }
+
+    @Test
+    void routingPolicyResponseMapsTheViewAndItsConditions() {
+        var conditions = new DeploymentRoutingConditions(List.of("production"), null,
+                RiskLevel.CRITICAL, null, null, null, null, null);
+        var view = new DeploymentRoutingPolicyView(UUID.randomUUID(), UUID.randomUUID(), null,
+                "freeze fridays", conditions, DeploymentRoutingAction.AUTO_REJECT, null, 10, true,
+                Instant.now());
+
+        var response = DeploymentRoutingPolicyResponse.from(view);
+
+        assertThat(response.name()).isEqualTo("freeze fridays");
+        assertThat(response.action()).isEqualTo(DeploymentRoutingAction.AUTO_REJECT);
+        assertThat(response.priority()).isEqualTo(10);
+        assertThat(response.enabled()).isTrue();
+        assertThat(response.conditions().environments()).containsExactly("production");
+        assertThat(response.conditions().minRiskLevel()).isEqualTo(RiskLevel.CRITICAL);
+    }
+
+    @Test
+    void routingConditionsRequestFromNullIsNull() {
+        assertThat(DeploymentRoutingConditionsRequest.from(null)).isNull();
+    }
+
+    @Test
+    void submitRequestToleratesNullMetadataValues() {
+        var metadata = new java.util.HashMap<String, Object>();
+        metadata.put("changelog", null);
+
+        var command = new SubmitDeploymentRequestRequest(UUID.randomUUID(), "production", "2.4.1",
+                null, null, null, null, metadata, null, null)
+                .toCommand(UUID.randomUUID(), UUID.randomUUID(), false, null);
+
+        assertThat(command.metadata()).containsEntry("changelog", null);
+    }
+
+    @Test
+    void routingConditionsDropNullAndBlankEntries() {
+        var conditions = new DeploymentRoutingConditionsRequest(
+                java.util.Arrays.asList("production", null, "  "), null, null,
+                java.util.Arrays.asList((String) null), java.util.Collections.singleton(null), null,
+                null, null).toConditions();
+
+        assertThat(conditions.environments()).containsExactly("production");
+        assertThat(conditions.versionGlobs()).isEmpty();
+        assertThat(conditions.daysOfWeek()).isEmpty();
     }
 }

@@ -196,4 +196,28 @@ class DefaultAiAnalysisPersistenceServiceTest {
         assertThat(captor.getValue().getRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
         assertThat(id).isEqualTo(captor.getValue().getId());
     }
+
+    @Test
+    void persistForDeploymentRequestKeysAnalysisToTheDeploymentAndReturnsId() {
+        var deploymentRequestId = UUID.randomUUID();
+        when(aiAnalysisRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        var command = new PersistAiAnalysisCommand(
+                AiProviderType.ANTHROPIC, "claude", 88, RiskLevel.HIGH, "schema migration", "[]", "[]",
+                false, null, 10, 20, false, null);
+
+        var id = service.persistForDeploymentRequest(deploymentRequestId, command);
+
+        var captor = ArgumentCaptor.forClass(AiAnalysisEntity.class);
+        verify(aiAnalysisRepository).save(captor.capture());
+        assertThat(captor.getValue().getDeploymentRequestId()).isEqualTo(deploymentRequestId);
+        // Exactly one target column must be set - chk_ai_analyses_target enforces it in the DB.
+        assertThat(captor.getValue().getQueryRequest()).isNull();
+        assertThat(captor.getValue().getApiRequestId()).isNull();
+        assertThat(captor.getValue().getRequestGroupItemId()).isNull();
+        assertThat(captor.getValue().getRiskLevel()).isEqualTo(RiskLevel.HIGH);
+        assertThat(captor.getValue().getSummary()).isEqualTo("schema migration");
+        assertThat(captor.getValue().getPromptTokens()).isEqualTo(10);
+        assertThat(captor.getValue().getCompletionTokens()).isEqualTo(20);
+        assertThat(id).isEqualTo(captor.getValue().getId());
+    }
 }

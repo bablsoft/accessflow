@@ -29,23 +29,8 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
         var queryRequest = queryRequestRepository.findById(queryRequestId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Query request not found: " + queryRequestId));
-        var entity = new AiAnalysisEntity();
-        entity.setId(UUID.randomUUID());
+        var entity = newAnalysis(command);
         entity.setQueryRequest(queryRequest);
-        entity.setAiProvider(command.aiProvider());
-        entity.setAiModel(command.aiModel());
-        entity.setRiskScore(command.riskScore());
-        entity.setRiskLevel(command.riskLevel());
-        entity.setSummary(command.summary());
-        entity.setIssues(command.issuesJson());
-        entity.setOptimizations(command.optimizationsJson());
-        entity.setMissingIndexesDetected(command.missingIndexesDetected());
-        entity.setAffectsRowEstimate(command.affectsRowEstimate());
-        entity.setPromptTokens(command.promptTokens());
-        entity.setCompletionTokens(command.completionTokens());
-        entity.setFailed(command.failed());
-        entity.setErrorMessage(command.errorMessage());
-        entity.setCreatedAt(Instant.now());
         var saved = aiAnalysisRepository.save(entity);
         queryRequest.setAiAnalysisId(saved.getId());
         persistModelResults(saved.getId(), command);
@@ -75,23 +60,8 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
     @Override
     @Transactional
     public UUID persistForApiRequest(UUID apiRequestId, PersistAiAnalysisCommand command) {
-        var entity = new AiAnalysisEntity();
-        entity.setId(UUID.randomUUID());
+        var entity = newAnalysis(command);
         entity.setApiRequestId(apiRequestId);
-        entity.setAiProvider(command.aiProvider());
-        entity.setAiModel(command.aiModel());
-        entity.setRiskScore(command.riskScore());
-        entity.setRiskLevel(command.riskLevel());
-        entity.setSummary(command.summary());
-        entity.setIssues(command.issuesJson());
-        entity.setOptimizations(command.optimizationsJson());
-        entity.setMissingIndexesDetected(command.missingIndexesDetected());
-        entity.setAffectsRowEstimate(command.affectsRowEstimate());
-        entity.setPromptTokens(command.promptTokens());
-        entity.setCompletionTokens(command.completionTokens());
-        entity.setFailed(command.failed());
-        entity.setErrorMessage(command.errorMessage());
-        entity.setCreatedAt(Instant.now());
         var saved = aiAnalysisRepository.save(entity);
         persistModelResults(saved.getId(), command);
         return saved.getId();
@@ -100,9 +70,30 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
     @Override
     @Transactional
     public UUID persistForGroupItem(UUID requestGroupItemId, PersistAiAnalysisCommand command) {
+        var entity = newAnalysis(command);
+        entity.setRequestGroupItemId(requestGroupItemId);
+        var saved = aiAnalysisRepository.save(entity);
+        persistModelResults(saved.getId(), command);
+        return saved.getId();
+    }
+
+    @Override
+    @Transactional
+    public UUID persistForDeploymentRequest(UUID deploymentRequestId, PersistAiAnalysisCommand command) {
+        var entity = newAnalysis(command);
+        entity.setDeploymentRequestId(deploymentRequestId);
+        var saved = aiAnalysisRepository.save(entity);
+        persistModelResults(saved.getId(), command);
+        return saved.getId();
+    }
+
+    /**
+     * A new analysis row with everything but the target key set. Exactly one target column must be
+     * populated by the caller — {@code chk_ai_analyses_target} enforces it.
+     */
+    private static AiAnalysisEntity newAnalysis(PersistAiAnalysisCommand command) {
         var entity = new AiAnalysisEntity();
         entity.setId(UUID.randomUUID());
-        entity.setRequestGroupItemId(requestGroupItemId);
         entity.setAiProvider(command.aiProvider());
         entity.setAiModel(command.aiModel());
         entity.setRiskScore(command.riskScore());
@@ -117,9 +108,7 @@ class DefaultAiAnalysisPersistenceService implements AiAnalysisPersistenceServic
         entity.setFailed(command.failed());
         entity.setErrorMessage(command.errorMessage());
         entity.setCreatedAt(Instant.now());
-        var saved = aiAnalysisRepository.save(entity);
-        persistModelResults(saved.getId(), command);
-        return saved.getId();
+        return entity;
     }
 
     @Override

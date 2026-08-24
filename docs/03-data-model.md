@@ -930,7 +930,8 @@ Stores the result of an AI analysis run for a query request.
 | `id` | UUID PK |
 | `query_request_id` | FK → `query_requests` nullable (V101). |
 | `api_request_id` | FK → `api_requests` nullable (V101, AF-500). |
-| `request_group_item_id` | FK → `request_group_items` nullable (V106, AF-501). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`). |
+| `request_group_item_id` | FK → `request_group_items` nullable (V106, AF-501). |
+| `deployment_request_id` | FK → `deployment_requests` `ON DELETE CASCADE`, nullable (V152, #691). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`, `deployment_request_id`) — every governed surface's analyses live on one table. Indexed. Note the monthly token-budget aggregate (`AiAnalysisStatsRepository.sumTokensSince`) inner-joins `query_requests`, so only query analyses count toward it; API, grouped-request and deployment analyses are checked against the budget but never increment it (a pre-existing AF-500/AF-501 gap). |
 | `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |
@@ -2421,7 +2422,7 @@ collision.
 | `metadata` | JSONB DEFAULT `'{}'` | Changelog, commit list, diff summary — the AI analysis input. |
 | `status` | `query_status` | Lifecycle, reused verbatim. `EXECUTED` = the gate opened and the pipeline confirmed it proceeded. |
 | `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
-| `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. |
+| `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. `ai_analysis_id` is populated by the #691 analysis listener; the reverse link is `ai_analyses.deployment_request_id` (V152). |
 | `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. |
 | `outcome_reported_at` / `outcome_detail` | — | |
 | `submitted_ip` | VARCHAR(45) | |
@@ -2445,6 +2446,27 @@ Per-stage reviewer decisions (mirror of `api_review_decisions`): `decision` reus
 Attribute-based routing for deployments (mirror of `api_routing_policies`, reusing the
 `api_routing_action` enum): `conditions` JSONB, nullable `pipeline_id` (null = all pipelines),
 nullable `required_approvals`, `priority` (lowest wins, default 100), `enabled`.
+
+`priority` is **unique per organization** — `uq_deployment_routing_policies_org_priority` (V152,
+#691) — so "first enabled match by ascending priority" is deterministic; the service returns
+`409 DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT` ahead of it and the index is the concurrency
+backstop.
+
+`conditions` is a flat object; every present key is AND-ed and an absent/empty key is
+unconstrained (`{}` matches everything):
+
+| Key | Type | Meaning |
+|---|---|---|
+| `environments` | string[] | Environment names, case-insensitive, any-of. |
+| `providers` | string[] | `pipeline_provider` names, case-insensitive, any-of. |
+| `minRiskLevel` | `risk_level` | Inclusive floor. Never matches when no analysis produced a risk. |
+| `versionGlobs` | string[] | Globs over the artifact `version` (`*` = any run of characters), any-of. |
+| `daysOfWeek` | int[] | ISO day numbers 1 (Monday) – 7 (Sunday). |
+| `startTime` / `endTime` | `HH:mm[:ss]` | Local window `[start, end)`; `end < start` spans midnight. |
+| `timezone` | IANA zone id | Zone the window is evaluated in; default `UTC`. |
+
+See [docs/05-backend.md → Deployment governance](05-backend.md) for evaluation order and the
+skip-on-malformed rule.
 
 ---
 
