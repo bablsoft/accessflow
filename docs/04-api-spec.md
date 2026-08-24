@@ -1446,9 +1446,13 @@ grants). Any authenticated role. Backs the editor's conditional "Emergency acces
 ### GET /admin/break-glass — Break-glass log (AF-385)
 
 Paginated, newest-first list of `break_glass_events` for the caller's organization (ADMIN/AUDITOR).
-Query params: `status` (`PENDING_REVIEW` / `REVIEWED`), `datasourceId`, `userId`, `from`, `to`, `page`,
-`size` (max 200). Each item carries the executed query id + status, submitter, datasource, justification,
-and review fields. `POST /admin/break-glass/{id}/acknowledge` (ADMIN, optional `{ "comment": "…" }`)
+The log spans all three break-glass target kinds — queries (AF-385), API requests (AF-500), and
+deployments (#692); exactly one of `queryRequestId` / `apiRequestId` / `deploymentRequestId` is set
+per row. Query params: `status` (`PENDING_REVIEW` / `REVIEWED`), `datasourceId`, `userId`, `from`,
+`to`, `page`, `size` (max 200) — `datasourceId` naturally matches only query rows. Each item
+carries the target ids (plus `connectorId` / `pipelineId` for the non-query kinds and the executed
+query's SQL + status for query rows), submitter, datasource, justification, and review fields.
+`POST /admin/break-glass/{id}/acknowledge` (ADMIN, optional `{ "comment": "…" }`)
 transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and rejects self-acknowledge
 (403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`) and already-reviewed (409 `BREAK_GLASS_ALREADY_REVIEWED`).
 
@@ -5738,10 +5742,10 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
-surface (#688), the **deployment request pipeline** — trigger → AI risk → routing → review (#691) —
-and the **admin routing-policy CRUD** (#691). The reviewer decision endpoints, break-glass and
-scheduled deploys (#692) and the deployment **gate** + outcome reporting (#693) land in later
-sub-issues of epic #682 and will be documented here when they do.
+surface (#688), the **deployment request pipeline** — trigger → AI risk → routing → review (#691)
+— the **admin routing-policy CRUD** (#691), and the **reviewer decision endpoints, break-glass
+deploys and scheduled-deploy semantics** (#692). The deployment **gate** + outcome reporting
+(#693) land in a later sub-issue of epic #682 and will be documented here when they do.
 
 Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
 `/admin/deployment-routing-policies` requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission.
@@ -5850,7 +5854,27 @@ the environment **name** within the pipeline, because a CI job knows names, not 
 `commitSha` (≤64), `artifactRef`, `runUrl`, `externalRunId` (the provider-side run identifier;
 supplying it is what makes the trigger idempotent), `metadata` (free-form JSON object — changelog,
 commit list, diff summary; this is what the AI analyzes), `justification`, `scheduledFor`
-(ISO-8601 instant; defers the run until after approval — honoured by #692).
+(ISO-8601 instant; an `APPROVED` deployment stays non-releasable at the gate (#693) until the
+instant passes, and the submitter may still cancel until then), `breakGlass` (boolean, default
+`false` — see below; mutually exclusive with `scheduledFor`, the combination is a `400`
+validation error).
+
+**Break-glass / emergency deploys (#692, AF-385 mirror).** `breakGlass: true` is a distinct
+submission mode for emergencies. It requires **both** an active **`can_break_glass`** grant on
+the pipeline (most-permissive union of direct + group grants; required for everyone —
+`QUERY_ADMIN` does **not** bypass it) **and** `allowBreakGlass: true` on the target environment;
+either missing is `403 DEPLOYMENT_BREAK_GLASS_NOT_ALLOWED`. The request is persisted with
+`submission_reason = EMERGENCY_ACCESS` and **force-approved** (`PENDING_AI → APPROVED`) with no
+AI analysis, no routing, and no reviewer fan-out. Freeze windows do **not** stop it — an active
+`HOLD` or `REJECT` window is bypassed, and the bypassed window's id is recorded in the
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` audit row's metadata. Compensating control: every break-glass
+deploy opens a **mandatory retro-review** in the break-glass worklist
+(`GET /api/v1/admin/break-glass`, AF-385) that an admin — never the submitter — must acknowledge.
+The idempotent-replay rule applies unchanged — and it **wins over escalation**: re-triggering an
+already-submitted `(pipelineId, environment, version, externalRunId)` with `breakGlass: true`
+returns the existing request in whatever state it is in (a stuck `PENDING_REVIEW` run stays
+pending). To break-glass a deployment whose normal trigger is already queued, submit with a new
+`externalRunId` (or omit it — deduplication only applies when it is supplied).
 
 **Freeze windows at submission.** A **`REJECT`**-behaviour freeze window active for the target
 `(pipeline, environment)` auto-rejects the trigger: the request is persisted and immediately moved
@@ -5859,10 +5883,38 @@ to `REJECTED`, and the window's `reason` is echoed back on the response. A **`HO
 the window closes.
 
 **State machine.** `PENDING_AI → PENDING_REVIEW → APPROVED`, plus `REJECTED` (reviewer, routing
-`AUTO_REJECT`, or a `REJECT` freeze window) and `CANCELLED` (submitter). `TIMED_OUT` arrives with
-the review-timeout job (#692); `EXECUTED` / `FAILED` arrive with the gate and outcome reporting
-(#693). An illegal transition returns `409 DEPLOYMENT_REQUEST_INVALID_STATE` and carries the
-current status as a `currentStatus` property on the `ProblemDetail`.
+`AUTO_REJECT`, or a `REJECT` freeze window), `CANCELLED` (submitter), `TIMED_OUT` (the
+review-timeout job auto-rejects a `PENDING_REVIEW` request older than its review plan's
+`approval_timeout_hours` — #692), and the break-glass force-approve `PENDING_AI → APPROVED`
+(#692). `EXECUTED` / `FAILED` arrive with the gate and outcome reporting (#693). An illegal
+transition returns `409 DEPLOYMENT_REQUEST_INVALID_STATE` and carries the current status as a
+`currentStatus` property on the `ProblemDetail`.
+
+### Deployment reviews (#692)
+
+Base path `/api/v1/deployment-reviews`, **`DEPLOYMENT_REVIEW`** permission, org-scoped, JWT-only
+(the human half of the pipeline — machine auth stays on `/deployment-requests`). The decision
+semantics mirror API-call reviews: a **single review stage** (the `stage` column is persisted as
+`1` and kept for future multi-stage chains), idempotent per-reviewer decisions, quorum counting
+against the request's `required_approvals` (already folded together from the environment
+override, review plan, and any routing `REQUIRE_APPROVALS`/`ESCALATE` arithmetic at routing
+time), and an immediate terminal reject.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-reviews` | The caller's pending review queue: `PENDING_REVIEW` requests in the org, **always excluding the caller's own submissions**, filtered to the environments whose resolved review plan the caller may approve (a plan with no approver rules is open to any `DEPLOYMENT_REVIEW` holder; `REVIEW_OVERRIDE` sees everything). Paginated (`page`, `size`); optional `pipeline_id` filter. |
+| `POST` | `/deployment-reviews/{id}/approve` | Record an approval (`200`, optional `{ "comment": "…" }` ≤2000). Promotes the request to `APPROVED` once distinct approvals reach `required_approvals`. **Idempotent**: a repeat decision by the same reviewer returns the original decision with `duplicate: true` and changes nothing. |
+| `POST` | `/deployment-reviews/{id}/reject` | Record a rejection (`200`, same body). A **single** rejection moves the request to `REJECTED` immediately. Also idempotent per reviewer. |
+
+Decision errors: `409 DEPLOYMENT_REQUEST_SELF_APPROVAL` — the submitter (the API key's owning
+user) can never decide their own deployment, regardless of role; `409
+DEPLOYMENT_REQUEST_INVALID_STATE` (with `currentStatus`) when the request is not
+`PENDING_REVIEW`; `403 DEPLOYMENT_REVIEWER_NOT_ELIGIBLE` when the resolved review plan names
+approvers and the caller matches none of its stage-1 rules (by user id or role name;
+`REVIEW_OVERRIDE` bypasses); `404 DEPLOYMENT_REQUEST_NOT_FOUND` for a missing or cross-org id.
+The decision response carries `decisionId`, `decision`, `resultingStatus`, and `duplicate`.
+(Note: self-approval is deliberately a `409` here, not the `403` the API-review surface uses —
+the conflict is with the resource's provenance, not the caller's permissions.)
 
 ### Deployment routing policies (#691)
 

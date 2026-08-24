@@ -82,7 +82,11 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
     }
 
     private BreakGlassEventView toView(BreakGlassEventEntity entity) {
-        var query = queryRequestLookupService.findById(entity.getQueryRequestId()).orElse(null);
+        // API and deployment break-glass rows carry no query_request_id; Spring Data's findById
+        // rejects a null id outright, so guard before looking up.
+        var query = entity.getQueryRequestId() == null
+                ? null
+                : queryRequestLookupService.findById(entity.getQueryRequestId()).orElse(null);
         var datasource = datasourceLookupService.findRef(entity.getDatasourceId()).orElse(null);
         var submitter = userQueryService.findById(entity.getSubmittedBy()).orElse(null);
         var reviewer = entity.getReviewedBy() == null
@@ -92,9 +96,13 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
         return new BreakGlassEventView(
                 entity.getId(),
                 entity.getQueryRequestId(),
+                entity.getApiRequestId(),
+                entity.getDeploymentRequestId(),
                 entity.getOrganizationId(),
                 entity.getDatasourceId(),
                 datasource != null ? datasource.name() : null,
+                entity.getConnectorId(),
+                entity.getPipelineId(),
                 entity.getSubmittedBy(),
                 submitter != null ? submitter.displayName() : null,
                 submitter != null ? submitter.email() : null,

@@ -1228,6 +1228,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `ApprovalPredictionTrainingJob` | ai | `approvalPredictionTrainingJob` | `accessflow.ai.approval-prediction.retrain-poll-interval` | `P1D` |
 | `GrantUsageAggregationJob` | access | `grantUsageAggregationJob` | `accessflow.access.usage.aggregation-poll-interval` | `PT1H` |
 | `AuditSinkDrainJob` | audit | `auditSinkDrainJob` | `accessflow.audit.sinks.drain-interval` | `PT30S` |
+| `DeploymentTimeoutJob` | deploygov | `deploymentTimeoutJob` | `accessflow.deploygov.timeout-check` | `PT5M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -2948,8 +2949,10 @@ partially-executed / failed over every channel. `RealtimeEventDispatcher` maps t
 The **`deploygov/` module** governs CI/CD deployments the way `apigov` governs outbound API calls.
 #684 landed the persistence foundation (entities, repositories, V149–V151); **#688 added the
 admin-facing configuration surface**; **#691 adds the submission half** — the trigger API, AI
-analysis, the routing engine, and the status state machine. The reviewer decision flow, break-glass
-and scheduled deploys (#692) and the gate endpoint + outcome reporting (#693) follow.
+analysis, the routing engine, and the status state machine; **#692 adds the human half** — the
+reviewer queue and decision endpoints, break-glass deploys with the mandatory retro-review,
+scheduled-deploy semantics, and the review-timeout job. The gate endpoint + outcome reporting
+(#693) follow.
 
 **Admin services (`deploygov/api/`).** Three org-scoped service interfaces, all mirroring the
 `DefaultApiConnectorAdminService` conventions — `findByIdAndOrganizationId` + not-found on every
@@ -3138,8 +3141,9 @@ else. Applying the status a row already has is a **silent no-op**, so a retried 
 | `APPROVED` | `EXECUTED`, `FAILED`, `TIMED_OUT`, `CANCELLED` |
 | `REJECTED` / `TIMED_OUT` / `EXECUTED` / `FAILED` / `CANCELLED` | — (terminal) |
 
-Cells beyond #691's own reach are intentional: `PENDING_REVIEW → APPROVED/REJECTED/TIMED_OUT` is
-#692, `APPROVED → EXECUTED/FAILED/TIMED_OUT` is #693. `PENDING_AI → CANCELLED` is legal in the table
+`PENDING_REVIEW → APPROVED/REJECTED` is the review flow, `PENDING_REVIEW → TIMED_OUT` the timeout
+job, and `PENDING_AI → APPROVED` also serves the break-glass force-approve (all #692);
+`APPROVED → EXECUTED/FAILED/TIMED_OUT` is #693. `PENDING_AI → CANCELLED` is legal in the table
 but unreachable through the API — `POST /cancel` rejects `PENDING_AI` per the endpoint contract —
 so a future "cancel a stuck analysis" admin path costs nothing.
 
@@ -3158,9 +3162,69 @@ trigger returns **202** on create and **200** on an idempotent replay.
 be in the position of opening a request by id that the list endpoint hides from them.
 
 **Audit rows for the request pipeline remain deferred to #695**, including the freeze-window
-auto-reject. That is a deliberate scope call, not an oversight: `audit.api.AuditAction` has no
-`DEPLOYMENT_*` value yet, and adding one is the fan-out #695 owns. Until then the trail is the
-`DeploymentStatusChangedEvent` published from every transition, which #695 consumes.
+auto-reject and the approve/reject decisions. That is a deliberate scope call, not an oversight:
+the transition trail is the `DeploymentStatusChangedEvent` published from every transition, which
+#695 consumes. The one exception is break-glass (#692): `DEPLOYMENT_BREAK_GLASS_EXECUTED` is an
+AF-385 compensating control and could not wait — see below.
+
+### Review flow (#692)
+
+**`deploygov/api/DeploymentReviewService`** (`DefaultDeploymentReviewService`) copies
+`DefaultApiReviewService`'s semantics: a **single review stage** (`STAGE = 1`; the `stage` column
+is kept for future multi-stage chains), an **idempotent** `(request, reviewer, stage)` decision
+that returns the original decision with `duplicate=true` on a repeat, approval counting via
+`countByDeploymentRequestIdAndStageAndDecision` promoting to `APPROVED` at
+`deployment_requests.required_approvals` (the column the #691 state machine already folded the
+environment override / plan minimum / routing arithmetic into — the plan is deliberately **not**
+re-read at decision time, which would discard routing escalations), a single reject → `REJECTED`,
+and `DeploymentDecidedEvent` on every verdict. Guard order: self-approval
+(`DeploymentSelfApprovalException` → **409** `DEPLOYMENT_REQUEST_SELF_APPROVAL` — the submitter is
+the API key's owning user; enforced in the service, not just the controller) → `PENDING_REVIEW`
+state guard → `DEPLOYMENT_REVIEW` permission → `REVIEW_OVERRIDE` bypass → review-plan approver
+rules. Approver eligibility is **opt-in by configuration**: an environment whose resolved plan
+(its own override, else the pipeline's — the same precedence as routing) is absent or has no
+approver rules stays open to any `DEPLOYMENT_REVIEW` holder; otherwise the caller must match a
+stage-1 rule by user id or role name (`DeploymentReviewerNotEligibleException` → 403). Review
+delegation (#622) is **not** supported — `deployment_review_decisions` has no delegation columns.
+`DeploymentReviewController` (`/api/v1/deployment-reviews`) is the thin JWT-side surface; the
+pending queue is an exact Specification (org + `PENDING_REVIEW` + not-own-submission +
+pre-resolved reachable environment ids, `cb.disjunction()` when eligible for nothing).
+
+### Break-glass deploys (#692, AF-385 mirror)
+
+`breakGlass: true` on the trigger maps to `submission_reason = EMERGENCY_ACCESS`
+(`scheduledFor` alongside it is a 400). `DefaultDeploymentRequestService` then swaps the
+permission gate: instead of `can_trigger` (where `QUERY_ADMIN` bypasses), break-glass requires the
+effective **`can_break_glass`** grant **and** `deployment_environments.allow_break_glass` — both,
+with **no admin bypass**. The request is inserted normally (the CI idempotency replay applies),
+then force-approved `PENDING_AI → APPROVED` with **no `DeploymentSubmittedEvent`** — AI analysis,
+routing and reviewer fan-out are all bypassed, and freeze windows do **not** stop it (the active
+window, `HOLD` or `REJECT`, is evaluated only to be recorded). Compensating controls: a
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` audit row (`DeploygovAuditWriter`; metadata carries
+`pipeline_id`, `environment`, `version` and, when a window was bypassed,
+`bypassed_freeze_window_id` + `bypassed_freeze_behavior`), and the synchronous
+`DeploymentBreakGlassExecutedEvent` consumed by `workflow/internal/DeploymentBreakGlassReviewListener`
+(a plain `@EventListener`, so the `break_glass_events` row — V153 adds `deployment_request_id` +
+`pipeline_id` — commits in the same transaction) via
+`workflow.api.BreakGlassService.openDeploymentBreakGlassReview`, opening the mandatory retro-review
+an admin must acknowledge on the AF-385 worklist. Event-based so deploygov never depends on
+workflow (module-cycle guard, same shape as apigov's AF-567 listener).
+
+### Scheduled deploys & timeout job (#692)
+
+`scheduled_for` (AF-345 mirror) needs no run job of its own: a deployment "executes" when the CI
+pipeline confirms through the gate (#693), so deferral is a **gate concern** — an `APPROVED`
+request whose `scheduled_for` is still in the future answers `releasable=false` until the instant
+passes. Until then the submitter may still `POST /cancel` (the `APPROVED`-and-still-future guard
+landed with #691, `Clock`-checked). **`DeploymentTimeoutJob`**
+(`deploygov/internal/scheduled/`, `@Scheduled` + `@SchedulerLock(name = "deploymentTimeoutJob")`,
+cadence `accessflow.deploygov.timeout-check`, default `PT5M`) auto-rejects `PENDING_REVIEW`
+requests older than their resolved review plan's `approval_timeout_hours` (environment plan
+override wins; a plan-less request never times out, mirroring `QueryTimeoutJob`). The scan is a
+native query with an explicit `::query_status` cast; each row goes through the transactional
+`DeploymentRequestStateService.markTimedOut` (state re-check → `TIMED_OUT` →
+`DeploymentDecidedEvent(id, TIMED_OUT, "review_timeout")`), and a per-row `RuntimeException` is
+swallowed so one poisoned row cannot abort the batch.
 
 ## MCP server (mcp module)
 

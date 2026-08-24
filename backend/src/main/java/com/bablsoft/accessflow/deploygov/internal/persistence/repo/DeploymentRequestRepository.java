@@ -3,7 +3,10 @@ package com.bablsoft.accessflow.deploygov.internal.persistence.repo;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,4 +27,21 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
      */
     Optional<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
             UUID pipelineId, UUID environmentId, String version, String externalRunId);
+
+    /**
+     * Timeout scan (#692): {@code PENDING_REVIEW} requests older than their resolved review plan's
+     * {@code approval_timeout_hours} — the environment's plan override wins over the pipeline's,
+     * same precedence as routing. A request whose resolved plan is absent never times out,
+     * mirroring the core query job. Native SQL with an explicit {@code ::query_status} cast — a
+     * JPQL enum literal makes Hibernate emit a cast to a non-existent "querystatus" type.
+     */
+    @Query(value = """
+            SELECT r.id FROM deployment_requests r
+            JOIN deployment_environments e ON e.id = r.environment_id
+            JOIN deployment_pipelines p ON p.id = r.pipeline_id
+            JOIN review_plans rp ON rp.id = COALESCE(e.review_plan_id, p.review_plan_id)
+            WHERE r.status = 'PENDING_REVIEW'::query_status
+              AND r.created_at + (rp.approval_timeout_hours || ' hours')::interval < :now
+            """, nativeQuery = true)
+    List<UUID> findStalePendingReviewIds(@Param("now") Instant now);
 }

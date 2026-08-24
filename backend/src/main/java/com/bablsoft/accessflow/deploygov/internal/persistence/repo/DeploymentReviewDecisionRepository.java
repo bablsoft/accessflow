@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentR
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface DeploymentReviewDecisionRepository
@@ -12,6 +13,10 @@ public interface DeploymentReviewDecisionRepository
 
     List<DeploymentReviewDecisionEntity> findByDeploymentRequestIdOrderByStageAscDecidedAtAsc(
             UUID deploymentRequestId);
+
+    /** The idempotent-replay lookup: one decision per (request, reviewer, stage). */
+    Optional<DeploymentReviewDecisionEntity> findByDeploymentRequestIdAndReviewerIdAndStage(
+            UUID deploymentRequestId, UUID reviewerId, int stage);
 
     long countByDeploymentRequestIdAndStageAndDecision(UUID deploymentRequestId, int stage,
                                                        DecisionType decision);

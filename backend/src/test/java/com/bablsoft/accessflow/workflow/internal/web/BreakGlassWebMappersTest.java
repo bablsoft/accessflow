@@ -66,9 +66,9 @@ class BreakGlassWebMappersTest {
 
     private BreakGlassEventView sampleView() {
         return new BreakGlassEventView(
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
-                "prod-db", UUID.randomUUID(), "Alice", "a@x.io", "SELECT 1",
-                QueryStatus.EXECUTED, "prod is down", BreakGlassStatus.PENDING_REVIEW,
+                UUID.randomUUID(), UUID.randomUUID(), null, null, UUID.randomUUID(),
+                UUID.randomUUID(), "prod-db", null, null, UUID.randomUUID(), "Alice", "a@x.io",
+                "SELECT 1", QueryStatus.EXECUTED, "prod is down", BreakGlassStatus.PENDING_REVIEW,
                 null, null, null, null, Instant.now());
     }
 }

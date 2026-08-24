@@ -1,13 +1,16 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
+import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewerNotEligibleException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyPriorityConflictException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentSelfApprovalException;
 import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentEnvironmentNameException;
 import com.bablsoft.accessflow.deploygov.api.DuplicateDeploymentPipelineNameException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentFreezeWindowException;
@@ -141,6 +144,35 @@ class DeploygovExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
         assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_REQUEST_PERMISSION_DENIED");
         assertThat(pd.getDetail()).isEqualTo("error.deployment_request_permission_denied");
+    }
+
+    @Test
+    void selfApprovalIs409() {
+        var pd = handler.handleSelfApproval(new DeploymentSelfApprovalException());
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_REQUEST_SELF_APPROVAL");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_request_self_approval");
+    }
+
+    @Test
+    void reviewerNotEligibleIs403() {
+        var pd = handler.handleReviewerNotEligible(
+                new DeploymentReviewerNotEligibleException(UUID.randomUUID(), UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_REVIEWER_NOT_ELIGIBLE");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_reviewer_not_eligible");
+    }
+
+    @Test
+    void breakGlassNotAllowedIs403() {
+        var pd = handler.handleBreakGlassNotAllowed(
+                new DeploymentBreakGlassNotAllowedException("no grant"));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_BREAK_GLASS_NOT_ALLOWED");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_break_glass_not_allowed");
     }
 
     @Test

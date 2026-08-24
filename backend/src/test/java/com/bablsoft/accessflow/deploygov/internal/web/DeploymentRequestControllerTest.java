@@ -187,7 +187,7 @@ class DeploymentRequestControllerTest {
 
     private SubmitDeploymentRequestRequest submitBody() {
         return new SubmitDeploymentRequestRequest(pipelineId, "production", "2.4.1", "abc123",
-                null, null, "run-1", Map.of("changelog", "fix"), "ship it", null);
+                null, null, "run-1", Map.of("changelog", "fix"), "ship it", null, null);
     }
 
     private DeploymentRequestView view() {

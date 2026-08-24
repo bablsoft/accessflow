@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
@@ -7,6 +9,7 @@ import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
@@ -19,6 +22,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentReviewDecisionView;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.SubmitDeploymentRequestCommand;
+import com.bablsoft.accessflow.deploygov.events.DeploymentBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentSubmittedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
@@ -38,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.time.Clock;
 import java.util.Map;
@@ -65,6 +70,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
     private final EffectiveDeploymentPermissionResolver permissionResolver;
     private final FreezeWindowEvaluator freezeWindowEvaluator;
     private final DeploymentRequestStateService stateService;
+    private final DeploygovAuditWriter auditWriter;
     private final AiAnalysisLookupService aiAnalysisLookupService;
     private final UserQueryService userQueryService;
     private final ApplicationEventPublisher eventPublisher;
@@ -85,9 +91,14 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 .orElseThrow(() -> new DeploymentEnvironmentNotFoundException(
                         pipeline.getId(), command.environment()));
 
+        boolean breakGlass = command.submissionReason() == SubmissionReason.EMERGENCY_ACCESS;
         // Permission is enforced before the replay lookup so a caller without a grant cannot use a
         // repeated trigger to probe whether a given (pipeline, environment, version, run) exists.
-        enforceTriggerPermission(pipeline, command);
+        if (breakGlass) {
+            enforceBreakGlassPermission(pipeline, environment, command);
+        } else {
+            enforceTriggerPermission(pipeline, command);
+        }
         var replay = findReplay(pipeline.getId(), environment.getId(), command);
         if (replay != null) {
             return new DeploymentRequestSubmissionResult(toDetailView(replay), true);
@@ -105,6 +116,10 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 throw ex;
             }
             return new DeploymentRequestSubmissionResult(toDetailView(winner), true);
+        }
+
+        if (breakGlass) {
+            return breakGlassApprove(pipeline, environment, entity, command);
         }
 
         var freeze = freezeWindowEvaluator
@@ -133,6 +148,56 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
         }
         return requestRepository.findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
                 pipelineId, environmentId, command.version(), command.externalRunId()).orElse(null);
+    }
+
+    /**
+     * Break-glass force-approve (#692, AF-385 mirror): {@code PENDING_AI → APPROVED} with no AI
+     * analysis, no routing and no reviewer fan-out. Freeze windows are bypassed — evaluated only so
+     * the bypassed window lands in the audit metadata. No {@code DeploymentSubmittedEvent} is
+     * published; the synchronous {@code DeploymentBreakGlassExecutedEvent} lets the workflow module
+     * open the mandatory retro-review inside this same transaction.
+     */
+    private DeploymentRequestSubmissionResult breakGlassApprove(DeploymentPipelineEntity pipeline,
+                                                                DeploymentEnvironmentEntity environment,
+                                                                DeploymentRequestEntity entity,
+                                                                SubmitDeploymentRequestCommand command) {
+        var bypassed = freezeWindowEvaluator
+                .evaluate(command.organizationId(), pipeline.getId(), environment.getId())
+                .orElse(null);
+        stateService.apply(entity, QueryStatus.APPROVED);
+
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("pipeline_id", pipeline.getId().toString());
+        metadata.put("environment", environment.getName());
+        metadata.put("version", entity.getVersion());
+        if (bypassed != null) {
+            metadata.put("bypassed_freeze_window_id", bypassed.windowId().toString());
+            metadata.put("bypassed_freeze_behavior", bypassed.behavior().name());
+        }
+        auditWriter.record(AuditAction.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                AuditResourceType.DEPLOYMENT_REQUEST, entity.getId(), command.organizationId(),
+                command.submitterUserId(), metadata, command.submittedIp());
+
+        eventPublisher.publishEvent(new DeploymentBreakGlassExecutedEvent(
+                command.organizationId(), entity.getId(), pipeline.getId(),
+                command.submitterUserId(), command.justification()));
+        return new DeploymentRequestSubmissionResult(toDetailView(entity), false);
+    }
+
+    private void enforceBreakGlassPermission(DeploymentPipelineEntity pipeline,
+                                             DeploymentEnvironmentEntity environment,
+                                             SubmitDeploymentRequestCommand command) {
+        // No admin bypass: break-glass needs an explicit grant from everyone (AF-385 mirror).
+        var permission = permissionResolver.resolve(pipeline.getId(), command.submitterUserId())
+                .orElse(null);
+        if (permission == null || !permission.canBreakGlass()) {
+            throw new DeploymentBreakGlassNotAllowedException(
+                    "No active break-glass permission on this deployment pipeline");
+        }
+        if (!environment.isAllowBreakGlass()) {
+            throw new DeploymentBreakGlassNotAllowedException(
+                    "The target environment does not allow break-glass deployments");
+        }
     }
 
     private void enforceTriggerPermission(DeploymentPipelineEntity pipeline,

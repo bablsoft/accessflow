@@ -35,10 +35,26 @@ public interface BreakGlassService {
      */
     UUID openApiBreakGlassReview(ApiBreakGlassReview review);
 
+    /**
+     * Opens a mandatory break-glass retro-review row for a deployment break-glass (#692). The
+     * deploygov module persists and force-approves the deployment request itself; this records the
+     * {@link BreakGlassStatus#PENDING_REVIEW} event an admin must later acknowledge. Returns the
+     * event id.
+     */
+    UUID openDeploymentBreakGlassReview(DeploymentBreakGlassReview review);
+
     record ApiBreakGlassReview(
             UUID organizationId,
             UUID apiRequestId,
             UUID connectorId,
+            UUID submitterUserId,
+            String justification) {
+    }
+
+    record DeploymentBreakGlassReview(
+            UUID organizationId,
+            UUID deploymentRequestId,
+            UUID pipelineId,
             UUID submitterUserId,
             String justification) {
     }

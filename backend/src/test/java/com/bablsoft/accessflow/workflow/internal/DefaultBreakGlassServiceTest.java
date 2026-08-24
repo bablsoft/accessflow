@@ -20,6 +20,8 @@ import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.workflow.api.BreakGlassNotPermittedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
+import com.bablsoft.accessflow.workflow.api.BreakGlassService.DeploymentBreakGlassReview;
+import com.bablsoft.accessflow.workflow.api.BreakGlassStatus;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.ExecutionOutcome;
 import com.bablsoft.accessflow.workflow.events.BreakGlassExecutedEvent;
@@ -212,6 +214,35 @@ class DefaultBreakGlassServiceTest {
                 .isInstanceOf(com.bablsoft.accessflow.core.api.QuotaExceededException.class);
 
         verify(queryRequestPersistenceService, never()).submit(any());
+    }
+
+    @Test
+    void openDeploymentBreakGlassReviewSavesPendingReviewRow() {
+        var deploymentRequestId = UUID.randomUUID();
+        var pipelineId = UUID.randomUUID();
+
+        var eventId = service.openDeploymentBreakGlassReview(new DeploymentBreakGlassReview(
+                organizationId, deploymentRequestId, pipelineId, userId, "prod is down"));
+
+        var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
+        verify(breakGlassEventRepository).save(entity.capture());
+        assertThat(eventId).isEqualTo(entity.getValue().getId());
+        assertThat(entity.getValue().getDeploymentRequestId()).isEqualTo(deploymentRequestId);
+        assertThat(entity.getValue().getPipelineId()).isEqualTo(pipelineId);
+        assertThat(entity.getValue().getOrganizationId()).isEqualTo(organizationId);
+        assertThat(entity.getValue().getSubmittedBy()).isEqualTo(userId);
+        assertThat(entity.getValue().getJustification()).isEqualTo("prod is down");
+        assertThat(entity.getValue().getStatus()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+    }
+
+    @Test
+    void openDeploymentBreakGlassReviewDefaultsNullJustification() {
+        service.openDeploymentBreakGlassReview(new DeploymentBreakGlassReview(
+                organizationId, UUID.randomUUID(), UUID.randomUUID(), userId, null));
+
+        var entity = ArgumentCaptor.forClass(BreakGlassEventEntity.class);
+        verify(breakGlassEventRepository).save(entity.capture());
+        assertThat(entity.getValue().getJustification()).isEqualTo("(none)");
     }
 
     private BreakGlassInput input(String sql, boolean isAdmin) {

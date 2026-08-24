@@ -53,7 +53,8 @@ public enum AuditResourceType {
     SCIM_CONFIG("scim_config"),
     SCIM_TOKEN("scim_token"),
     EXPORT_POLICY("export_policy"),
-    AUDIT_SINK("audit_sink");
+    AUDIT_SINK("audit_sink"),
+    DEPLOYMENT_REQUEST("deployment_request");
 
     private final String dbValue;
 

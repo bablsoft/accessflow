@@ -1246,17 +1246,24 @@ rewritten in place (`id` and `created_at` stable). Sentinel rows are never repla
 ## break_glass_events
 
 Mandatory retrospective review opened by a break-glass / emergency-access execution (AF-385, Flyway
-V95). One row per break-glass query. Owned by the `workflow` module (`workflow/internal/persistence/`);
-cross-aggregate references are stored as bare UUIDs (no FK) like `query_snapshots` / `audit_log`, so
-deleting a user never erases the forensic record. The executed query lands in its normal terminal
-`EXECUTED`/`FAILED` state and is never re-opened — this row tracks the review alongside it.
+V95). One row per break-glass target: originally a query, widened to API requests (AF-500, V101)
+and deployment requests (#692, V153) — `chk_break_glass_target` enforces exactly one of
+`query_request_id` / `api_request_id` / `deployment_request_id` non-null. Owned by the `workflow`
+module (`workflow/internal/persistence/`); cross-aggregate references are stored as bare UUIDs (no
+FK) like `query_snapshots` / `audit_log`, so deleting a user never erases the forensic record. The
+executed query lands in its normal terminal `EXECUTED`/`FAILED` state and is never re-opened — this
+row tracks the review alongside it.
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
-| `query_request_id` | UUID NOT NULL `UNIQUE` FK → `query_requests(id)` ON DELETE CASCADE — one event per query (idempotency backstop) |
+| `query_request_id` | UUID nullable `UNIQUE` FK → `query_requests(id)` ON DELETE CASCADE — one event per query (idempotency backstop) |
+| `api_request_id` | UUID nullable `UNIQUE` FK → `api_requests(id)` ON DELETE CASCADE (AF-500, V101) |
+| `deployment_request_id` | UUID nullable `UNIQUE` FK → `deployment_requests(id)` ON DELETE CASCADE (#692, V153) |
 | `organization_id` | UUID NOT NULL — bare (no FK) |
-| `datasource_id` | UUID NOT NULL — bare (no FK) |
+| `datasource_id` | UUID nullable — bare (no FK); null unless the target is a query |
+| `connector_id` | UUID nullable — bare (no FK); set for API targets (AF-500) |
+| `pipeline_id` | UUID nullable — bare (no FK); set for deployment targets (#692) |
 | `submitted_by` | UUID NOT NULL — bare (no FK); the user who broke glass |
 | `justification` | TEXT NOT NULL — mandatory reason captured at submission |
 | `status` | ENUM `break_glass_status`: `PENDING_REVIEW` (default) \| `REVIEWED` |
@@ -2439,7 +2446,12 @@ WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never crea
 
 Per-stage reviewer decisions (mirror of `api_review_decisions`): `decision` reuses the shared
 `decision` enum, `stage` defaults to 1, unique `(deployment_request_id, reviewer_id, stage)`, FK
-`deployment_request_id` → `deployment_requests` `ON DELETE CASCADE`.
+`deployment_request_id` → `deployment_requests` `ON DELETE CASCADE`. Populated by the review flow
+(#692): the unique key backstops the idempotent per-reviewer decision, and — unlike
+`api_review_decisions` — there are no delegation columns, so review delegation (#622) does not
+apply to deployments. **V153** (#692) widens `break_glass_events` with `deployment_request_id` +
+`pipeline_id` for the deployment break-glass retro-review — see
+[break_glass_events](#break_glass_events).
 
 ### deployment_routing_policies
 

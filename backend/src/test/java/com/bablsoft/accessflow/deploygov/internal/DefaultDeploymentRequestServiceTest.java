@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisLookupService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.AiAnalysisSummaryView;
@@ -7,9 +9,11 @@ import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
@@ -20,6 +24,7 @@ import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.deploygov.api.SubmitDeploymentRequestCommand;
+import com.bablsoft.accessflow.deploygov.events.DeploymentBreakGlassExecutedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentDecidedEvent;
 import com.bablsoft.accessflow.deploygov.events.DeploymentSubmittedEvent;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
@@ -49,6 +54,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -71,6 +77,7 @@ class DefaultDeploymentRequestServiceTest {
     private EffectiveDeploymentPermissionResolver permissionResolver;
     private FreezeWindowEvaluator freezeWindowEvaluator;
     private DeploymentRequestStateService stateService;
+    private DeploygovAuditWriter auditWriter;
     private AiAnalysisLookupService aiAnalysisLookupService;
     private UserQueryService userQueryService;
     private ApplicationEventPublisher eventPublisher;
@@ -89,13 +96,14 @@ class DefaultDeploymentRequestServiceTest {
         permissionResolver = mock(EffectiveDeploymentPermissionResolver.class);
         freezeWindowEvaluator = mock(FreezeWindowEvaluator.class);
         stateService = mock(DeploymentRequestStateService.class);
+        auditWriter = mock(DeploygovAuditWriter.class);
         aiAnalysisLookupService = mock(AiAnalysisLookupService.class);
         userQueryService = mock(UserQueryService.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         service = new DefaultDeploymentRequestService(requestRepository, requestInserter,
                 pipelineRepository, environmentRepository, decisionRepository, permissionResolver,
-                freezeWindowEvaluator, stateService, aiAnalysisLookupService, userQueryService,
-                eventPublisher, JsonMapper.builder().build(), CLOCK);
+                freezeWindowEvaluator, stateService, auditWriter, aiAnalysisLookupService,
+                userQueryService, eventPublisher, JsonMapper.builder().build(), CLOCK);
 
         pipeline = pipeline();
         environment = environment();
@@ -309,6 +317,141 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(captureSaved().getRequiredApprovals()).isEqualTo(3);
     }
 
+    // ---- break-glass (#692) -------------------------------------------------------------------
+
+    @Test
+    void breakGlassIsDeniedWithoutAGrantEvenForAdmins() {
+        environment.setAllowBreakGlass(true);
+        when(permissionResolver.resolve(pipeline.getId(), SUBMITTER)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.submit(breakGlassCommand("run-1", true)))
+                .isInstanceOf(DeploymentBreakGlassNotAllowedException.class);
+        verify(requestInserter, never()).insert(any());
+    }
+
+    @Test
+    void breakGlassIsDeniedWhenTheGrantLacksCanBreakGlass() {
+        environment.setAllowBreakGlass(true);
+        // The default grant from setUp carries canTrigger only.
+
+        assertThatThrownBy(() -> service.submit(breakGlassCommand("run-1", false)))
+                .isInstanceOf(DeploymentBreakGlassNotAllowedException.class);
+        verify(requestInserter, never()).insert(any());
+    }
+
+    @Test
+    void breakGlassIsDeniedWhenTheEnvironmentDisallowsIt() {
+        // environment.allowBreakGlass stays at its false default.
+        grantBreakGlass();
+
+        assertThatThrownBy(() -> service.submit(breakGlassCommand("run-1", false)))
+                .isInstanceOf(DeploymentBreakGlassNotAllowedException.class);
+        verify(requestInserter, never()).insert(any());
+    }
+
+    @Test
+    void breakGlassForceApprovesAuditsAndPublishesTheBreakGlassEvent() {
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+
+        var result = service.submit(breakGlassCommand("run-1", false));
+
+        assertThat(result.replay()).isFalse();
+        var saved = captureSaved();
+        assertThat(saved.getSubmissionReason()).isEqualTo(SubmissionReason.EMERGENCY_ACCESS);
+        verify(stateService).apply(saved, QueryStatus.APPROVED);
+        verify(eventPublisher, never()).publishEvent(any(DeploymentSubmittedEvent.class));
+        var captor = org.mockito.ArgumentCaptor.forClass(DeploymentBreakGlassExecutedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().organizationId()).isEqualTo(ORG);
+        assertThat(captor.getValue().deploymentRequestId()).isEqualTo(saved.getId());
+        assertThat(captor.getValue().pipelineId()).isEqualTo(pipeline.getId());
+        assertThat(captor.getValue().submitterUserId()).isEqualTo(SUBMITTER);
+        assertThat(captor.getValue().justification()).isEqualTo("ship it");
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_BREAK_GLASS_EXECUTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(saved.getId()), eq(ORG), eq(SUBMITTER),
+                any(), eq("10.0.0.1"));
+    }
+
+    @Test
+    void breakGlassBypassesAnActiveRejectFreezeWindowAndRecordsItInTheAudit() {
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+        var freeze = freeze(FreezeBehavior.REJECT);
+        when(freezeWindowEvaluator.evaluate(ORG, pipeline.getId(), environment.getId()))
+                .thenReturn(Optional.of(freeze));
+
+        service.submit(breakGlassCommand("run-1", false));
+
+        var saved = captureSaved();
+        verify(stateService).apply(saved, QueryStatus.APPROVED);
+        verify(stateService, never()).apply(any(), eq(QueryStatus.REJECTED));
+        verify(eventPublisher, never()).publishEvent(any(DeploymentDecidedEvent.class));
+        assertThat(captureAuditMetadata())
+                .containsEntry("pipeline_id", pipeline.getId().toString())
+                .containsEntry("environment", "production")
+                .containsEntry("version", "2.4.1")
+                .containsEntry("bypassed_freeze_window_id", freeze.windowId().toString())
+                .containsEntry("bypassed_freeze_behavior", "REJECT");
+    }
+
+    @Test
+    void breakGlassBypassesAnActiveHoldFreezeWindowAndRecordsItInTheAudit() {
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+        var freeze = freeze(FreezeBehavior.HOLD);
+        when(freezeWindowEvaluator.evaluate(ORG, pipeline.getId(), environment.getId()))
+                .thenReturn(Optional.of(freeze));
+
+        service.submit(breakGlassCommand("run-1", false));
+
+        verify(stateService).apply(any(), eq(QueryStatus.APPROVED));
+        assertThat(captureAuditMetadata())
+                .containsEntry("bypassed_freeze_window_id", freeze.windowId().toString())
+                .containsEntry("bypassed_freeze_behavior", "HOLD");
+    }
+
+    @Test
+    void aReplayedBreakGlassTriggerReturnsTheExistingRequestUnchanged() {
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+        var existing = existing(QueryStatus.APPROVED);
+        when(requestRepository.findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
+                pipeline.getId(), environment.getId(), "2.4.1", "run-1"))
+                .thenReturn(Optional.of(existing));
+
+        var result = service.submit(breakGlassCommand("run-1", false));
+
+        assertThat(result.replay()).isTrue();
+        assertThat(result.request().id()).isEqualTo(existing.getId());
+        verify(requestInserter, never()).insert(any());
+        verify(stateService, never()).apply(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(auditWriter, never()).record(any(), any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aBreakGlassReplayOfAPendingRunStaysPendingRatherThanEscalating() {
+        // Idempotency wins over escalation: re-triggering the same CI run with breakGlass=true
+        // returns the stuck request as-is. Escalating needs a fresh (or absent) externalRunId —
+        // documented in docs/04-api-spec.md § Break-glass / emergency deploys.
+        environment.setAllowBreakGlass(true);
+        grantBreakGlass();
+        var existing = existing(QueryStatus.PENDING_REVIEW);
+        when(requestRepository.findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
+                pipeline.getId(), environment.getId(), "2.4.1", "run-1"))
+                .thenReturn(Optional.of(existing));
+
+        var result = service.submit(breakGlassCommand("run-1", false));
+
+        assertThat(result.replay()).isTrue();
+        assertThat(result.request().id()).isEqualTo(existing.getId());
+        assertThat(existing.getStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        verify(stateService, never()).apply(any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(auditWriter, never()).record(any(), any(), any(), any(), any(), any(), any());
+    }
+
     // ---- list ---------------------------------------------------------------------------------
 
     @Test
@@ -488,6 +631,28 @@ class DefaultDeploymentRequestServiceTest {
         return new SubmitDeploymentRequestCommand(pipeline.getId(), "production", ORG, SUBMITTER,
                 false, "2.4.1", "abc123", "ghcr.io/app:2.4.1", "https://ci/run/1", externalRunId,
                 Map.of("changelog", "fix things"), "ship it", null, null, "10.0.0.1");
+    }
+
+    private SubmitDeploymentRequestCommand breakGlassCommand(String externalRunId, boolean admin) {
+        return new SubmitDeploymentRequestCommand(pipeline.getId(), "production", ORG, SUBMITTER,
+                admin, "2.4.1", "abc123", "ghcr.io/app:2.4.1", "https://ci/run/1", externalRunId,
+                Map.of("changelog", "fix things"), "ship it", null,
+                SubmissionReason.EMERGENCY_ACCESS, "10.0.0.1");
+    }
+
+    private void grantBreakGlass() {
+        when(permissionResolver.resolve(pipeline.getId(), SUBMITTER)).thenReturn(
+                Optional.of(new EffectiveDeploymentPermission(pipeline.getId(), SUBMITTER, true,
+                        true, null)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> captureAuditMetadata() {
+        var captor = org.mockito.ArgumentCaptor.forClass(Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_BREAK_GLASS_EXECUTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), any(), eq(ORG), eq(SUBMITTER),
+                captor.capture(), eq("10.0.0.1"));
+        return captor.getValue();
     }
 
     private DeploymentRequestEntity existing(QueryStatus status) {
