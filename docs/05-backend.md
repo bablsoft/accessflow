@@ -1229,6 +1229,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `GrantUsageAggregationJob` | access | `grantUsageAggregationJob` | `accessflow.access.usage.aggregation-poll-interval` | `PT1H` |
 | `AuditSinkDrainJob` | audit | `auditSinkDrainJob` | `accessflow.audit.sinks.drain-interval` | `PT30S` |
 | `DeploymentTimeoutJob` | deploygov | `deploymentTimeoutJob` | `accessflow.deploygov.timeout-check` | `PT5M` |
+| `ScheduledDeploymentReleaseJob` | deploygov | `scheduledDeploymentReleaseJob` | `accessflow.deploygov.release-check` | `PT1M` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -2951,8 +2952,9 @@ The **`deploygov/` module** governs CI/CD deployments the way `apigov` governs o
 admin-facing configuration surface**; **#691 adds the submission half** — the trigger API, AI
 analysis, the routing engine, and the status state machine; **#692 adds the human half** — the
 reviewer queue and decision endpoints, break-glass deploys with the mandatory retro-review,
-scheduled-deploy semantics, and the review-timeout job. The gate endpoint + outcome reporting
-(#693) follow.
+scheduled-deploy semantics, and the review-timeout job; **#693 adds the machine contract** — the
+fail-closed gate endpoint, execution confirmation, outcome reporting with rollback follow-up
+reviews, and the release-announcement job.
 
 **Admin services (`deploygov/api/`).** Three org-scoped service interfaces, all mirroring the
 `DefaultApiConnectorAdminService` conventions — `findByIdAndOrganizationId` + not-found on every
@@ -3139,11 +3141,13 @@ else. Applying the status a row already has is a **silent no-op**, so a retried 
 | `PENDING_AI` | `PENDING_REVIEW`, `APPROVED`, `REJECTED`, `CANCELLED` |
 | `PENDING_REVIEW` | `APPROVED`, `REJECTED`, `TIMED_OUT`, `CANCELLED` |
 | `APPROVED` | `EXECUTED`, `FAILED`, `TIMED_OUT`, `CANCELLED` |
-| `REJECTED` / `TIMED_OUT` / `EXECUTED` / `FAILED` / `CANCELLED` | — (terminal) |
+| `EXECUTED` | `FAILED` |
+| `REJECTED` / `TIMED_OUT` / `FAILED` / `CANCELLED` | — (terminal) |
 
 `PENDING_REVIEW → APPROVED/REJECTED` is the review flow, `PENDING_REVIEW → TIMED_OUT` the timeout
 job, and `PENDING_AI → APPROVED` also serves the break-glass force-approve (all #692);
-`APPROVED → EXECUTED/FAILED/TIMED_OUT` is #693. `PENDING_AI → CANCELLED` is legal in the table
+`APPROVED → EXECUTED` is the gate's execution confirmation and `EXECUTED → FAILED` the one
+post-terminal flip a `FAILED` outcome report performs (both #693). `PENDING_AI → CANCELLED` is legal in the table
 but unreachable through the API — `POST /cancel` rejects `PENDING_AI` per the endpoint contract —
 so a future "cancel a stuck analysis" admin path costs nothing.
 
@@ -3164,8 +3168,11 @@ be in the position of opening a request by id that the list endpoint hides from 
 **Audit rows for the request pipeline remain deferred to #695**, including the freeze-window
 auto-reject and the approve/reject decisions. That is a deliberate scope call, not an oversight:
 the transition trail is the `DeploymentStatusChangedEvent` published from every transition, which
-#695 consumes. The one exception is break-glass (#692): `DEPLOYMENT_BREAK_GLASS_EXECUTED` is an
-AF-385 compensating control and could not wait — see below.
+#695 consumes. The exceptions are break-glass (#692) — `DEPLOYMENT_BREAK_GLASS_EXECUTED` is an
+AF-385 compensating control and could not wait (see below) — and the #693 machine contract, whose
+issue mandates the audit metadata: `DEPLOYMENT_EXECUTED` (`trigger=pipeline`) on
+confirm-execution, `DEPLOYMENT_OUTCOME_REPORTED` on the first outcome report, and
+`DEPLOYMENT_ROLLBACK_REVIEWED` on a rollback acknowledgment.
 
 ### Review flow (#692)
 
@@ -3212,11 +3219,12 @@ workflow (module-cycle guard, same shape as apigov's AF-567 listener).
 
 ### Scheduled deploys & timeout job (#692)
 
-`scheduled_for` (AF-345 mirror) needs no run job of its own: a deployment "executes" when the CI
+`scheduled_for` (AF-345 mirror) needs no *run* job: a deployment "executes" only when the CI
 pipeline confirms through the gate (#693), so deferral is a **gate concern** — an `APPROVED`
 request whose `scheduled_for` is still in the future answers `releasable=false` until the instant
-passes. Until then the submitter may still `POST /cancel` (the `APPROVED`-and-still-future guard
-landed with #691, `Clock`-checked). **`DeploymentTimeoutJob`**
+passes. (`ScheduledDeploymentReleaseJob`, below, merely *announces* the moment the gate would
+start answering yes; it executes nothing.) Until then the submitter may still `POST /cancel` (the
+`APPROVED`-and-still-future guard landed with #691, `Clock`-checked). **`DeploymentTimeoutJob`**
 (`deploygov/internal/scheduled/`, `@Scheduled` + `@SchedulerLock(name = "deploymentTimeoutJob")`,
 cadence `accessflow.deploygov.timeout-check`, default `PT5M`) auto-rejects `PENDING_REVIEW`
 requests older than their resolved review plan's `approval_timeout_hours` (environment plan
@@ -3225,6 +3233,54 @@ native query with an explicit `::query_status` cast; each row goes through the t
 `DeploymentRequestStateService.markTimedOut` (state re-check → `TIMED_OUT` →
 `DeploymentDecidedEvent(id, TIMED_OUT, "review_timeout")`), and a per-row `RuntimeException` is
 swallowed so one poisoned row cannot abort the batch.
+
+### Gate & outcome reporting (#693)
+
+**`DefaultDeploymentGateService`** (`deploygov/internal/` root — it needs the package-private
+`FreezeWindowEvaluator` and `EffectiveDeploymentPermissionResolver`) answers
+`GET /api/v1/deployment-gate`. Releasability is one **pure, fail-closed function**
+(`DefaultDeploymentGateService.releasable`):
+`status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)`. `frozen` means
+**any** active freeze window — `HOLD` *or* `REJECT`, deliberately stricter than "HOLD only",
+because a request approved *before* a `REJECT` window started must not sail through mid-freeze —
+except for break-glass requests (`submission_reason = EMERGENCY_ACCESS`), which skip the freeze
+lookup entirely. The whole evaluation is wrapped so any `RuntimeException` answers not-releasable:
+no code path answers "releasable" by default. Tuple resolution (pipeline name → environment name →
+newest request, case-insensitive) 404s at every miss, and so does the visibility predicate
+(submitter ∨ `can_trigger` ∨ `DEPLOYMENT_REVIEW` ∨ `QUERY_ADMIN`) — never a 403, so an
+under-permissioned poll reads exactly like an unknown tuple and the CI wrappers fail closed.
+
+`POST /deployment-requests/{id}/confirm-execution` is the pipeline's acknowledgment:
+`APPROVED → EXECUTED` through the state service, gated on the same releasable function
+(`409 DEPLOYMENT_NOT_RELEASABLE` on an approved-but-gated request), idempotent on a repeat, and
+audited as `DEPLOYMENT_EXECUTED` with `trigger=pipeline`. The mutating endpoints use an **actor**
+rule (submitter ∨ `can_trigger` holder ∨ `QUERY_ADMIN`) with a `403` — unlike the gate read,
+acting on a request is a permission matter, not an existence probe.
+
+**`DefaultDeploymentOutcomeService`** records the post-execution report on the
+`deployment_requests.outcome` columns: only after `EXECUTED`, idempotent per outcome (identical
+repeat → 200 no-op; different outcome → `409 DEPLOYMENT_OUTCOME_CONFLICT`), publishing
+`DeploymentOutcomeReportedEvent` inside the transaction. A `FAILED` outcome performs the state
+table's one post-terminal flip `EXECUTED → FAILED`; a `ROLLED_BACK` outcome on an environment with
+`require_review = true` inserts a **`deployment_rollback_reviews`** row in the same transaction —
+the deployment mirror of the break-glass retro-review, deliberately *not* another
+`break_glass_events` target (its UNIQUE `deployment_request_id` is claimed by break-glass, and a
+break-glass deploy that rolls back still needs its follow-up review). The worklist is
+`/api/v1/deployment-rollback-reviews` (`PERM_DEPLOYMENT_REVIEW`, JWT-side):
+list / get / `POST /{id}/acknowledge`, where acknowledgment is an idempotent latch, the
+deployment's submitter can never acknowledge their own rollback
+(`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`), and the acknowledgment audits as
+`DEPLOYMENT_ROLLBACK_REVIEWED`.
+
+**`ScheduledDeploymentReleaseJob`** (`deploygov/internal/scheduled/`, `@Scheduled` +
+`@SchedulerLock(name = "scheduledDeploymentReleaseJob")`, cadence
+`accessflow.deploygov.release-check`, default `PT1M`) is notify-only: it scans `APPROVED` requests
+with `release_notified_at IS NULL` whose scheduled moment has passed (native query, partial index
+`idx_deployment_requests_release_scan`), re-evaluates each through the transactional
+`markReleasable` (re-check → stamp `release_notified_at` → `DeploymentReleasableEvent`, all
+in-tx), and swallows per-row `RuntimeException`s. One announcement per request, ever: a request
+frozen *after* its announcement is not re-announced when the freeze lifts — the gate remains the
+source of truth, the event is a polling optimization for #695's push-style webhooks.
 
 ## MCP server (mcp module)
 

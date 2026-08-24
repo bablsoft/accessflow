@@ -438,6 +438,10 @@ accessflow:
     # older than their resolved review plan's approval_timeout_hours to TIMED_OUT. ShedLock makes
     # this safe under horizontal scaling.
     timeout-check: ${ACCESSFLOW_DEPLOYGOV_TIMEOUT_CHECK:PT5M}
+    # How often ScheduledDeploymentReleaseJob (#693) looks for APPROVED deployment requests that
+    # became releasable (HOLD freeze ended, scheduled_for arrived) and announces each one once via
+    # DeploymentReleasableEvent. ShedLock makes this safe under horizontal scaling.
+    release-check: ${ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK:PT1M}
   oauth2:
     # Where the OAuth2 success/failure handler redirects after the provider roundtrip completes.
     # The frontend parses ?code= or ?error= from the query string and posts to /auth/oauth2/exchange.

@@ -68,10 +68,12 @@ class DeploymentRequestStateServiceTest {
             "PENDING_REVIEW,APPROVED",
             "PENDING_REVIEW,REJECTED",
             "PENDING_REVIEW,TIMED_OUT",
-            // Reserved for the gate and outcome reporting (#693).
+            // The gate and outcome reporting (#693).
             "APPROVED,EXECUTED",
             "APPROVED,FAILED",
             "APPROVED,TIMED_OUT",
+            // The one post-terminal flip: a FAILED outcome report (#693).
+            "EXECUTED,FAILED",
     })
     void allowedTransitionsPersistAndPublish(QueryStatus from, QueryStatus to) {
         var entity = request(from);
@@ -98,7 +100,8 @@ class DeploymentRequestStateServiceTest {
             "APPROVED,REJECTED",
             "REJECTED,APPROVED",
             "TIMED_OUT,APPROVED",
-            "EXECUTED,FAILED",
+            "EXECUTED,APPROVED",
+            "EXECUTED,CANCELLED",
             "FAILED,EXECUTED",
             "CANCELLED,APPROVED",
     })

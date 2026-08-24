@@ -105,6 +105,9 @@ public class DeploymentRequestEntity {
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
 
+    @Column(name = "release_notified_at")
+    private Instant releaseNotifiedAt;
+
     @Column(name = "submitted_ip", length = 45)
     private String submittedIp;
 

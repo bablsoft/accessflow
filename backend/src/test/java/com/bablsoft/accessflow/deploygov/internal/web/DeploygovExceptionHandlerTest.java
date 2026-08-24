@@ -3,7 +3,13 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcomeConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewSelfAcknowledgeException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
@@ -202,5 +208,53 @@ class DeploygovExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_ROUTING_POLICY_INVALID");
         assertThat(pd.getDetail()).isEqualTo("already localized");
+    }
+
+    @Test
+    void gateQueryInvalidIs400() {
+        var pd = handler.handleGateQueryInvalid(new DeploymentGateQueryInvalidException());
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_GATE_QUERY_INVALID");
+        assertThat(pd.getDetail()).isEqualTo("error.deployment_gate_query_invalid");
+    }
+
+    @Test
+    void notReleasableIs409AndCarriesTheCurrentStatus() {
+        var pd = handler.handleNotReleasable(
+                new DeploymentNotReleasableException(UUID.randomUUID(), QueryStatus.APPROVED));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_NOT_RELEASABLE");
+        assertThat(pd.getProperties()).containsEntry("currentStatus", "APPROVED");
+    }
+
+    @Test
+    void outcomeConflictIs409() {
+        var pd = handler.handleOutcomeConflict(new DeploymentOutcomeConflictException(
+                UUID.randomUUID(), DeploymentOutcome.SUCCEEDED, DeploymentOutcome.FAILED));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "DEPLOYMENT_OUTCOME_CONFLICT");
+    }
+
+    @Test
+    void rollbackReviewNotFoundIs404() {
+        var pd = handler.handleRollbackReviewNotFound(
+                new DeploymentRollbackReviewNotFoundException(UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND");
+    }
+
+    @Test
+    void rollbackSelfAcknowledgeIs409() {
+        var pd = handler.handleRollbackSelfAcknowledge(
+                new DeploymentRollbackReviewSelfAcknowledgeException(UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties())
+                .containsEntry("error", "DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE");
     }
 }

@@ -1574,6 +1574,10 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `QUERY_COMMENT_ADDED` / `QUERY_COMMENT_REPLIED` / `QUERY_COMMENT_RESOLVED` / `QUERY_COMMENT_REOPENED` | A collaborator opens / replies to / resolves / reopens an inline comment thread on a query in review (AF-441). Resource: `query_comment` (resource id = the comment id). Metadata: `query_id`, `comment_id`. |
 | `REQUEST_GROUP_SUBMITTED` / `REQUEST_GROUP_APPROVED` / `REQUEST_GROUP_REJECTED` / `REQUEST_GROUP_EXECUTED` / `REQUEST_GROUP_PARTIALLY_EXECUTED` / `REQUEST_GROUP_FAILED` / `REQUEST_GROUP_TIMED_OUT` / `REQUEST_GROUP_CANCELLED` | A grouped request (AF-501) is submitted / approved / rejected / fully executed / stopped mid-sequence / failed / timed out / cancelled. Resource: `request_group` (resource id = the group id). Recorded alongside each member's own query/API audit row, so the group **and** each step are independently auditable. |
 | `AUDIT_SINK_CREATED` / `AUDIT_SINK_UPDATED` / `AUDIT_SINK_DELETED` | Admin creates / updates / deletes an external audit sink via the `/admin/audit-sinks` CRUD endpoints (#628). Resource: `audit_sink`. Written best-effort; metadata carries the sink name + type, never secrets. Deliveries themselves are deliberately **not** audited per batch — that would feed back into the stream being drained. |
+| `DEPLOYMENT_BREAK_GLASS_EXECUTED` | A break-glass deployment is force-approved (`PENDING_AI → APPROVED`, #692). Resource: `deployment_request`. Metadata: `pipeline_id`, `environment`, `version`, and the bypassed freeze window (`bypassed_freeze_window_id`, `bypassed_freeze_behavior`) when one was active. |
+| `DEPLOYMENT_EXECUTED` | The pipeline confirms it proceeded once the gate answered releasable (`APPROVED → EXECUTED`, #693). Resource: `deployment_request`. Metadata: `trigger: "pipeline"`, `pipeline_id`, `environment`, `version`. |
+| `DEPLOYMENT_OUTCOME_REPORTED` | The pipeline reports the post-execution outcome (#693). Resource: `deployment_request`. Metadata: `outcome`, `trigger: "pipeline"`, and `rollback_review_opened: true` when a `ROLLED_BACK` outcome opened a follow-up review. |
+| `DEPLOYMENT_ROLLBACK_REVIEWED` | A reviewer acknowledges a rollback follow-up review (#693). Resource: `deployment_rollback_review`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
@@ -1581,7 +1585,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_request`, `deployment_rollback_review`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -2368,7 +2372,8 @@ Migrations **V149** (definitions) and **V150** (request pipeline) lay the persis
 the `deploygov` module: gate CI/CD deployments behind AccessFlow approval workflows. New pg enums
 (`snake_case`, no `_enum` suffix): `pipeline_provider`
 (`GITHUB_ACTIONS`/`GITLAB_CI`/`AZURE_PIPELINES`/`JENKINS`/`CIRCLECI`/`BITBUCKET_PIPELINES`/`GENERIC`),
-`freeze_behavior` (`HOLD`/`REJECT`), `deployment_outcome` (`SUCCEEDED`/`FAILED`/`ROLLED_BACK`).
+`freeze_behavior` (`HOLD`/`REJECT`), `deployment_outcome` (`SUCCEEDED`/`FAILED`/`ROLLED_BACK`),
+and — from **V154** (#693) — `deployment_rollback_review_status` (`PENDING_REVIEW`/`REVIEWED`).
 The shared `query_status` / `submission_reason` / `decision` / `api_routing_action` types are reused
 verbatim, exactly as the apigov tables do. Cross-module references (`organization_id`,
 `review_plan_id`, `ai_config_id`, `submitted_by`, `user_id`, `created_by`) are bare UUIDs (no FK);
@@ -2430,17 +2435,21 @@ collision.
 | `status` | `query_status` | Lifecycle, reused verbatim. `EXECUTED` = the gate opened and the pipeline confirmed it proceeded. |
 | `submission_reason` | `submission_reason` | `EMERGENCY_ACCESS` = break-glass. |
 | `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. `ai_analysis_id` is populated by the #691 analysis listener; the reverse link is `ai_analyses.deployment_request_id` (V152). |
-| `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. |
+| `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. A `FAILED` outcome also flips `status` `EXECUTED → FAILED` (#693). |
 | `outcome_reported_at` / `outcome_detail` | — | |
+| `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
 | `created_at` / `updated_at` | TIMESTAMPTZ | |
 
 Indexes: `(pipeline_id, version, environment_id)` (the gate lookup), `(status)`,
 `(organization_id, status, created_at DESC)`, a partial `(scheduled_for) WHERE status = 'APPROVED'
-AND scheduled_for IS NOT NULL` backing the deferred-run scan, and the **partial unique**
-`uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version, external_run_id)
-WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates a second request.
+AND scheduled_for IS NOT NULL` backing the deferred-run scan, a partial
+`idx_deployment_requests_release_scan` on `(scheduled_for) WHERE status = 'APPROVED' AND
+release_notified_at IS NULL` (V154) backing the release-announcement scan, and the **partial
+unique** `uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version,
+external_run_id) WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates
+a second request.
 
 ### deployment_review_decisions
 
@@ -2452,6 +2461,28 @@ Per-stage reviewer decisions (mirror of `api_review_decisions`): `decision` reus
 apply to deployments. **V153** (#692) widens `break_glass_events` with `deployment_request_id` +
 `pipeline_id` for the deployment break-glass retro-review — see
 [break_glass_events](#break_glass_events).
+
+### deployment_rollback_reviews
+
+Rollback follow-up reviews (V154, #693) — the deployment-side mirror of the break-glass
+retro-review, opened when a `ROLLED_BACK` outcome lands on an environment with
+`require_review = true`, so approvers must acknowledge the rollback. Deliberately **not** another
+`break_glass_events` target: that table's `deployment_request_id` is UNIQUE and already claimed by
+break-glass deploys (V153), and a break-glass deployment that later rolls back must still get its
+follow-up review. Status enum `deployment_rollback_review_status` = `PENDING_REVIEW` | `REVIEWED`.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `deployment_request_id` | UUID NOT NULL UNIQUE, FK → `deployment_requests` `ON DELETE CASCADE` | One review per request — the idempotency backstop for a repeated `ROLLED_BACK` report. |
+| `organization_id` / `pipeline_id` / `environment_id` / `submitted_by` | UUID | Bare UUIDs (no FK), denormalized from the request; `submitted_by` backs the self-acknowledge guard. |
+| `outcome_detail` | TEXT | Copied from the outcome report. |
+| `status` | `deployment_rollback_review_status` | Default `PENDING_REVIEW`. |
+| `reviewed_by` / `review_comment` / `reviewed_at` | — | Set on acknowledgment. |
+| `version_lock` | BIGINT | `@Version` optimistic lock. |
+| `created_at` | TIMESTAMPTZ | |
+
+Index: `(organization_id, status, created_at DESC)` — the reviewer worklist.
 
 ### deployment_routing_policies
 

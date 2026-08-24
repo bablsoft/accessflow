@@ -29,8 +29,9 @@ import java.util.UUID;
  *
  * <p>Some legal transitions are unreachable in #691 and exist for the sub-issues that follow:
  * {@code PENDING_REVIEW → APPROVED/REJECTED/TIMED_OUT} is the review flow (#692), and
- * {@code APPROVED → EXECUTED/FAILED/TIMED_OUT} is the gate plus outcome reporting (#693).
- * {@code PENDING_AI → CANCELLED} is likewise legal here but unreachable through the API — the
+ * {@code APPROVED → EXECUTED/FAILED/TIMED_OUT} is the gate plus outcome reporting (#693), which
+ * also adds the one post-terminal flip {@code EXECUTED → FAILED} for a {@code FAILED} outcome
+ * report. {@code PENDING_AI → CANCELLED} is likewise legal here but unreachable through the API — the
  * cancel endpoint rejects {@code PENDING_AI} — so a future "cancel a stuck analysis" admin path
  * costs nothing.
  */
@@ -51,8 +52,11 @@ public class DeploymentRequestStateService {
                 QueryStatus.REJECTED, QueryStatus.TIMED_OUT, QueryStatus.CANCELLED));
         allowed.put(QueryStatus.APPROVED, EnumSet.of(QueryStatus.EXECUTED, QueryStatus.FAILED,
                 QueryStatus.TIMED_OUT, QueryStatus.CANCELLED));
+        // The one post-terminal flip: a FAILED outcome report moves an executed deployment to
+        // FAILED (#693).
+        allowed.put(QueryStatus.EXECUTED, EnumSet.of(QueryStatus.FAILED));
         for (var terminal : EnumSet.of(QueryStatus.REJECTED, QueryStatus.TIMED_OUT,
-                QueryStatus.EXECUTED, QueryStatus.FAILED, QueryStatus.CANCELLED)) {
+                QueryStatus.FAILED, QueryStatus.CANCELLED)) {
             allowed.put(terminal, EnumSet.noneOf(QueryStatus.class));
         }
         return Map.copyOf(allowed);

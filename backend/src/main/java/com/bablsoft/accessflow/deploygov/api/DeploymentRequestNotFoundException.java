@@ -12,4 +12,10 @@ public class DeploymentRequestNotFoundException extends DeploymentGovernanceExce
     public DeploymentRequestNotFoundException(UUID deploymentRequestId) {
         super("Deployment request not found: " + deploymentRequestId);
     }
+
+    /** The gate tuple resolved a pipeline and environment, but no request exists for them (#693). */
+    public DeploymentRequestNotFoundException(UUID pipelineId, UUID environmentId, String version) {
+        super("No deployment request for pipeline " + pipelineId + ", environment " + environmentId
+                + ", version " + version);
+    }
 }
