@@ -2331,7 +2331,14 @@
       "fallback": "Նոր ծանուցում",
       "REVIEW_ESCALATED": "{{datasource}}-ի համար դեռ որոշում չկա — բարձրացվել է Ձեզ",
       "REVIEW_NUDGE": "Հիշեցում. {{datasource}}-ի հարցումը սպասում է Ձեր ստուգմանը",
-      "SENSITIVE_RESULT_EXPORTED": "Զգայուն տվյալներ ({{classifications}}) արտահանվել են {{datasource}}-ից"
+      "SENSITIVE_RESULT_EXPORTED": "Զգայուն տվյալներ ({{classifications}}) արտահանվել են {{datasource}}-ից",
+      "DEPLOYMENT_SUBMITTED": "{{submitter}} ներկայացրեց {{version}}-ի տեղակայում դեպի {{environment}}՝ {{pipeline}} փիփլայնում",
+      "DEPLOYMENT_SUBMITTED_no_submitter": "Նոր տեղակայում սպասում է վերանայման {{pipeline}}-ում",
+      "DEPLOYMENT_APPROVED": "Ձեր {{version}}-ի տեղակայումը դեպի {{environment}} հաստատվել է",
+      "DEPLOYMENT_REJECTED": "Ձեր {{version}}-ի տեղակայումը դեպի {{environment}} մերժվել է",
+      "DEPLOYMENT_OUTCOME_FAILED": "Ձեր հաստատած տեղակայումը {{pipeline}}-ում զեկուցել է {{outcome}}",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} թողարկեց break-glass տեղակայում {{pipeline}}-ում",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Break-glass տեղակայում թողարկվեց {{pipeline}}-ում"
     }
   },
   "profile": {

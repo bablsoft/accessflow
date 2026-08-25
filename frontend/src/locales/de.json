@@ -2331,7 +2331,14 @@
       "fallback": "Neue Benachrichtigung",
       "REVIEW_ESCALATED": "Noch keine Entscheidung zu {{datasource}} — an Sie eskaliert",
       "REVIEW_NUDGE": "Erinnerung: Eine Abfrage zu {{datasource}} wartet auf Ihre Prüfung",
-      "SENSITIVE_RESULT_EXPORTED": "Sensible Daten ({{classifications}}) aus {{datasource}} exportiert"
+      "SENSITIVE_RESULT_EXPORTED": "Sensible Daten ({{classifications}}) aus {{datasource}} exportiert",
+      "DEPLOYMENT_SUBMITTED": "{{submitter}} hat ein Deployment von {{version}} nach {{environment}} auf {{pipeline}} eingereicht",
+      "DEPLOYMENT_SUBMITTED_no_submitter": "Neues Deployment wartet auf Prüfung auf {{pipeline}}",
+      "DEPLOYMENT_APPROVED": "Dein Deployment von {{version}} nach {{environment}} wurde genehmigt",
+      "DEPLOYMENT_REJECTED": "Dein Deployment von {{version}} nach {{environment}} wurde abgelehnt",
+      "DEPLOYMENT_OUTCOME_FAILED": "Ein von dir genehmigtes Deployment auf {{pipeline}} hat {{outcome}} gemeldet",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} hat ein Break-Glass-Deployment auf {{pipeline}} freigegeben",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Ein Break-Glass-Deployment wurde auf {{pipeline}} freigegeben"
     }
   },
   "profile": {

@@ -107,6 +107,7 @@ describe('NotificationBell', () => {
           event_type: 'QUERY_SUBMITTED',
           query_request_id: 'q-99',
           api_request_id: null,
+          deployment_request_id: null,
           payload: { datasource: 'orders-prod', submitter: 'alice@acme.com' },
           read: false,
           created_at: new Date().toISOString(),
@@ -147,6 +148,7 @@ describe('NotificationBell', () => {
             event_type: eventType,
             query_request_id: apiRequestId ? null : 'q-55',
             api_request_id: apiRequestId,
+            deployment_request_id: null,
             payload: { datasource: 'orders-prod' },
             read: false,
             created_at: new Date().toISOString(),
@@ -176,6 +178,7 @@ describe('NotificationBell', () => {
           event_type: 'QUERY_APPROVED',
           query_request_id: 'q-42',
           api_request_id: null,
+          deployment_request_id: null,
           payload: { datasource: 'orders-prod' },
           read: false,
           created_at: new Date().toISOString(),
@@ -205,6 +208,7 @@ describe('NotificationBell', () => {
           event_type: 'QUERY_APPROVED',
           query_request_id: null,
           api_request_id: null,
+          deployment_request_id: null,
           payload: { datasource: 'A' },
           read: false,
           created_at: new Date().toISOString(),
@@ -231,6 +235,7 @@ describe('NotificationBell', () => {
           event_type: 'API_REQUEST_SUBMITTED',
           query_request_id: null,
           api_request_id: 'api-11',
+          deployment_request_id: null,
           payload: { datasource: 'payments-api', submitter: 'bob@acme.com' },
           read: false,
           created_at: new Date().toISOString(),
@@ -261,6 +266,7 @@ describe('NotificationBell', () => {
           event_type: 'API_REQUEST_EXECUTED',
           query_request_id: null,
           api_request_id: 'api-22',
+          deployment_request_id: null,
           payload: { datasource: 'payments-api' },
           read: false,
           created_at: new Date().toISOString(),
@@ -290,6 +296,7 @@ describe('NotificationBell', () => {
           event_type: 'ACCESS_REQUEST_SUBMITTED',
           query_request_id: null,
           api_request_id: null,
+          deployment_request_id: null,
           payload: {
             access_request_id: 'req-1',
             datasource: 'orders-prod',
@@ -324,6 +331,7 @@ describe('NotificationBell', () => {
           event_type: 'ACCESS_REQUEST_SUBMITTED',
           query_request_id: null,
           api_request_id: null,
+          deployment_request_id: null,
           payload: { access_request_id: 'req-2', datasource: 'orders-prod' },
           read: true,
           created_at: new Date().toISOString(),
@@ -357,6 +365,7 @@ describe('NotificationBell', () => {
           event_type: eventType,
           query_request_id: null,
           api_request_id: null,
+          deployment_request_id: null,
           payload: { access_request_id: 'req-3', datasource: 'hr-db' },
           read: false,
           created_at: new Date().toISOString(),
@@ -386,6 +395,7 @@ describe('NotificationBell', () => {
           event_type: 'SENSITIVE_RESULT_EXPORTED',
           query_request_id: 'q-626',
           api_request_id: null,
+          deployment_request_id: null,
           payload: {
             datasource: 'billing-prod',
             submitter: 'analyst@acme.com',
@@ -420,6 +430,7 @@ describe('NotificationBell', () => {
           event_type: 'QUERY_REJECTED',
           query_request_id: 'q-7',
           api_request_id: null,
+          deployment_request_id: null,
           payload: { datasource: 'sales' },
           read: true,
           created_at: new Date().toISOString(),
@@ -459,6 +470,7 @@ describe('NotificationBell', () => {
           event_type: 'QUERY_APPROVED',
           query_request_id: 'q-8',
           api_request_id: null,
+          deployment_request_id: null,
           payload: { datasource: 'sales' },
           read: false,
           created_at: new Date().toISOString(),
@@ -483,5 +495,94 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(deleteAllNotificationsMock).toHaveBeenCalledTimes(1));
     // The list is refetched off the invalidated key rather than trusting the mutation result.
     await waitFor(() => expect(listNotificationsMock.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it.each([
+    [
+      'DEPLOYMENT_SUBMITTED' as const,
+      { datasource: 'payments-pipeline', submitter: 'dev@acme.com', submitter_name: 'Dev',
+        environment: 'production', version: '2.4.1' },
+      /Dev submitted a deployment of 2\.4\.1 to production on payments-pipeline/,
+    ],
+    [
+      'DEPLOYMENT_APPROVED' as const,
+      { datasource: 'payments-pipeline', environment: 'production', version: '2.4.1' },
+      /deployment of 2\.4\.1 to production was approved/,
+    ],
+    [
+      'DEPLOYMENT_REJECTED' as const,
+      { datasource: 'payments-pipeline', environment: 'production', version: '2.4.1' },
+      /deployment of 2\.4\.1 to production was rejected/,
+    ],
+    [
+      'DEPLOYMENT_OUTCOME_FAILED' as const,
+      { datasource: 'payments-pipeline', outcome: 'ROLLED_BACK' as const },
+      /deployment you approved on payments-pipeline reported ROLLED_BACK/,
+    ],
+    [
+      'DEPLOYMENT_BREAK_GLASS_EXECUTED' as const,
+      { datasource: 'payments-pipeline', submitter: 'dev@acme.com' },
+      /dev@acme.com released a break-glass deployment on payments-pipeline/,
+    ],
+  ])('renders %s and stays unrouted (no deploygov UI yet — #695)', async (
+    eventType,
+    payload,
+    expected,
+  ) => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'dep1',
+          event_type: eventType,
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: 'dr-1',
+          payload,
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(expected);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    // The row still marks itself read, but deliberately navigates nowhere.
+    await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('dep1'));
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('renders the no-submitter deployment variants', async () => {
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'dep2',
+          event_type: 'DEPLOYMENT_SUBMITTED',
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: 'dr-2',
+          payload: { datasource: 'payments-pipeline' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    await waitFor(() => {
+      expect(
+        screen.getByText('New deployment awaiting review on payments-pipeline'),
+      ).toBeInTheDocument();
+    });
   });
 });

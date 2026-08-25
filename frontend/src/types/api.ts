@@ -1993,7 +1993,12 @@ export type UserNotificationEventType =
   | 'ACCESS_GRANT_EXPIRED'
   | 'ACCESS_GRANT_REVOKED'
   | 'GRANT_STALE'
-  | 'SENSITIVE_RESULT_EXPORTED';
+  | 'SENSITIVE_RESULT_EXPORTED'
+  | 'DEPLOYMENT_SUBMITTED'
+  | 'DEPLOYMENT_APPROVED'
+  | 'DEPLOYMENT_REJECTED'
+  | 'DEPLOYMENT_OUTCOME_FAILED'
+  | 'DEPLOYMENT_BREAK_GLASS_EXECUTED';
 
 export interface UserNotificationPayload {
   query_id?: string;
@@ -2013,6 +2018,10 @@ export interface UserNotificationPayload {
   expires_at?: string;
   export_classifications?: string;
   export_format?: string;
+  deployment_id?: string;
+  environment?: string;
+  version?: string;
+  outcome?: 'FAILED' | 'ROLLED_BACK';
 }
 
 export interface UserNotification {
@@ -2020,6 +2029,7 @@ export interface UserNotification {
   event_type: UserNotificationEventType;
   query_request_id: string | null;
   api_request_id: string | null;
+  deployment_request_id: string | null;
   payload: UserNotificationPayload;
   read: boolean;
   created_at: string;

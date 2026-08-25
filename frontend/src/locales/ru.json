@@ -2331,7 +2331,14 @@
       "fallback": "Новое уведомление",
       "REVIEW_ESCALATED": "Решения по {{datasource}} всё ещё нет — передано вам",
       "REVIEW_NUDGE": "Напоминание: запрос к {{datasource}} ждёт вашей проверки",
-      "SENSITIVE_RESULT_EXPORTED": "Чувствительные данные ({{classifications}}) экспортированы из {{datasource}}"
+      "SENSITIVE_RESULT_EXPORTED": "Чувствительные данные ({{classifications}}) экспортированы из {{datasource}}",
+      "DEPLOYMENT_SUBMITTED": "{{submitter}} отправил развертывание {{version}} в {{environment}} на {{pipeline}}",
+      "DEPLOYMENT_SUBMITTED_no_submitter": "Новое развертывание ожидает проверки на {{pipeline}}",
+      "DEPLOYMENT_APPROVED": "Ваше развертывание {{version}} в {{environment}} было одобрено",
+      "DEPLOYMENT_REJECTED": "Ваше развертывание {{version}} в {{environment}} было отклонено",
+      "DEPLOYMENT_OUTCOME_FAILED": "Одобренное вами развертывание на {{pipeline}} сообщило результат {{outcome}}",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} выпустил аварийное развертывание (break-glass) на {{pipeline}}",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Аварийное развертывание (break-glass) было выпущено на {{pipeline}}"
     }
   },
   "profile": {
