@@ -84,7 +84,7 @@ class AccessNotificationListener {
                 return;
             }
             userNotificationService.recordForUsers(type, recipients, view.organizationId(), null, null,
-                    buildPayload(view));
+                    null, buildPayload(view));
         } catch (RuntimeException ex) {
             log.error("Access notification {} failed for request {}", type, accessRequestId, ex);
         }

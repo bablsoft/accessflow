@@ -14,6 +14,7 @@ public record UserNotificationView(
         NotificationEventType eventType,
         UUID queryRequestId,
         UUID apiRequestId,
+        UUID deploymentRequestId,
         String payloadJson,
         boolean read,
         Instant createdAt,

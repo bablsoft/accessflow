@@ -57,7 +57,7 @@ class UserNotificationServiceTest {
         var u1 = UUID.randomUUID();
         var u2 = UUID.randomUUID();
         service.recordForUsers(NotificationEventType.QUERY_SUBMITTED,
-                Set.of(u1, u2), orgId, queryId, null, "{\"k\":1}");
+                Set.of(u1, u2), orgId, queryId, null, null, "{\"k\":1}");
 
         var entityCaptor = ArgumentCaptor.forClass(UserNotificationEntity.class);
         verify(repository, times(2)).save(entityCaptor.capture());
@@ -88,7 +88,7 @@ class UserNotificationServiceTest {
         var apiRequestId = UUID.randomUUID();
 
         service.recordForUsers(NotificationEventType.API_REQUEST_SUBMITTED,
-                Set.of(userId), orgId, null, apiRequestId, "{}");
+                Set.of(userId), orgId, null, apiRequestId, null, "{}");
 
         var captor = ArgumentCaptor.forClass(UserNotificationEntity.class);
         verify(repository).save(captor.capture());
@@ -99,9 +99,25 @@ class UserNotificationServiceTest {
     }
 
     @Test
+    void recordForUsersPersistsDeploymentRequestIdWhenOtherTargetsNull() {
+        when(repository.save(any(UserNotificationEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        var deploymentRequestId = UUID.randomUUID();
+
+        service.recordForUsers(NotificationEventType.TEST,
+                Set.of(userId), orgId, null, null, deploymentRequestId, "{}");
+
+        var captor = ArgumentCaptor.forClass(UserNotificationEntity.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getQueryRequestId()).isNull();
+        assertThat(captor.getValue().getApiRequestId()).isNull();
+        assertThat(captor.getValue().getDeploymentRequestId()).isEqualTo(deploymentRequestId);
+    }
+
+    @Test
     void recordForUsersIsNoOpForEmptyRecipients() {
         service.recordForUsers(NotificationEventType.QUERY_SUBMITTED,
-                Set.of(), orgId, queryId, null, "{}");
+                Set.of(), orgId, queryId, null, null, "{}");
 
         verify(repository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
@@ -110,7 +126,7 @@ class UserNotificationServiceTest {
     @Test
     void recordForUsersIsNoOpForNullRecipients() {
         service.recordForUsers(NotificationEventType.QUERY_SUBMITTED,
-                null, orgId, queryId, null, "{}");
+                null, orgId, queryId, null, null, "{}");
 
         verify(repository, never()).save(any());
     }
@@ -120,7 +136,7 @@ class UserNotificationServiceTest {
         when(repository.save(any(UserNotificationEntity.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         service.recordForUsers(NotificationEventType.QUERY_APPROVED,
-                Set.of(userId), orgId, queryId, null, "");
+                Set.of(userId), orgId, queryId, null, null, "");
 
         var captor = ArgumentCaptor.forClass(UserNotificationEntity.class);
         verify(repository).save(captor.capture());

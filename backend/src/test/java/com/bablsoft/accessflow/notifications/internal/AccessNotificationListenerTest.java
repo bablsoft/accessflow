@@ -70,7 +70,7 @@ class AccessNotificationListenerTest {
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_REQUEST_SUBMITTED), eq(Set.of(reviewer)),
-                eq(organizationId), eq(null), eq(null), any());
+                eq(organizationId), eq(null), eq(null), eq(null), any());
     }
 
     @Test
@@ -82,7 +82,7 @@ class AccessNotificationListenerTest {
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_REQUEST_APPROVED), eq(Set.of(requesterId)),
-                eq(organizationId), eq(null), eq(null), any());
+                eq(organizationId), eq(null), eq(null), eq(null), any());
     }
 
     @Test
@@ -94,7 +94,7 @@ class AccessNotificationListenerTest {
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_REQUEST_REJECTED), eq(Set.of(requesterId)),
-                eq(organizationId), eq(null), eq(null), any());
+                eq(organizationId), eq(null), eq(null), eq(null), any());
     }
 
     @Test
@@ -107,7 +107,7 @@ class AccessNotificationListenerTest {
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_GRANT_REVOKED), eq(Set.of(requesterId)),
-                eq(organizationId), eq(null), eq(null), any());
+                eq(organizationId), eq(null), eq(null), eq(null), any());
     }
 
     @Test
@@ -117,7 +117,7 @@ class AccessNotificationListenerTest {
                 new AccessRequestApprovedEvent(requestId, UUID.randomUUID())))
                 .doesNotThrowAnyException();
         verify(userNotificationService, never())
-                .recordForUsers(any(), any(), any(), any(), any(), any());
+                .recordForUsers(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -129,7 +129,7 @@ class AccessNotificationListenerTest {
 
         verify(userNotificationService).recordForUsers(
                 eq(NotificationEventType.ACCESS_GRANT_EXPIRED), eq(Set.of(requesterId)),
-                eq(organizationId), eq(null), eq(null), any());
+                eq(organizationId), eq(null), eq(null), eq(null), any());
     }
 
     @Test
@@ -137,7 +137,7 @@ class AccessNotificationListenerTest {
         when(accessRequestLookupService.findById(requestId)).thenReturn(Optional.empty());
         listener().onAccessRequestApproved(new AccessRequestApprovedEvent(requestId, UUID.randomUUID()));
         verify(userNotificationService, never())
-                .recordForUsers(any(), any(), any(), any(), any(), any());
+                .recordForUsers(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -172,7 +172,7 @@ class AccessNotificationListenerTest {
 
     private tools.jackson.databind.JsonNode capturePayload() {
         var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(userNotificationService).recordForUsers(any(), any(), any(), any(), any(),
+        verify(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any(),
                 captor.capture());
         return new ObjectMapper().readTree(captor.getValue());
     }
@@ -186,6 +186,6 @@ class AccessNotificationListenerTest {
         listener().onAccessRequestSubmitted(new AccessRequestSubmittedEvent(requestId, requesterId));
 
         verify(userNotificationService, never())
-                .recordForUsers(any(), any(), any(), any(), any(), any());
+                .recordForUsers(any(), any(), any(), any(), any(), any(), any());
     }
 }

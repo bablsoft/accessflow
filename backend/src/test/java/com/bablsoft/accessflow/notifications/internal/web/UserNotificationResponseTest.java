@@ -53,7 +53,7 @@ class UserNotificationResponseTest {
         var view = new UserNotificationView(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
                 NotificationEventType.API_REQUEST_SUBMITTED,
-                queryRequestId, apiRequestId, "{}", false,
+                queryRequestId, apiRequestId, null, "{}", false,
                 Instant.parse("2026-05-08T10:00:00Z"), null);
 
         var resp = UserNotificationResponse.from(view, mapper);
@@ -69,6 +69,7 @@ class UserNotificationResponseTest {
                 UUID.randomUUID(),
                 NotificationEventType.QUERY_APPROVED,
                 UUID.randomUUID(),
+                null,
                 null,
                 payloadJson,
                 false,
