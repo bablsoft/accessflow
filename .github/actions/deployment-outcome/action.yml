@@ -2,10 +2,11 @@ name: "AccessFlow — Deployment outcome"
 description: >-
   Report the post-deploy outcome (SUCCEEDED / FAILED / ROLLED_BACK) of a deployment request
   gated by the deployment-gate action. Composite actions have no post-run hook, so run this as a
-  separate step with `if: always()`, passing `job-status: ${{ job.status }}` — success maps to
-  SUCCEEDED, failure to FAILED, and a cancelled job reports nothing. Pass an explicit `outcome`
-  (e.g. ROLLED_BACK) to override the mapping. A request the gate never released is skipped
-  without failing the step; reporting an outcome that conflicts with one already recorded fails.
+  separate step with `if: always()`, passing the `job.status` expression as `job-status` —
+  success maps to SUCCEEDED, failure to FAILED, and a cancelled job reports nothing. Pass an
+  explicit `outcome` (e.g. ROLLED_BACK) to override the mapping. A request the gate never
+  released is skipped without failing the step; reporting an outcome that conflicts with one
+  already recorded fails.
 author: AccessFlow
 branding:
   icon: flag
@@ -24,7 +25,7 @@ inputs:
       when the gate step failed before submitting — the step then skips without failing.
     required: false
   job-status:
-    description: "The calling job's status — pass ${{ job.status }}."
+    description: "The calling job's status — pass the `job.status` workflow expression."
     required: false
   outcome:
     description: "Explicit outcome (SUCCEEDED / FAILED / ROLLED_BACK); overrides job-status."
