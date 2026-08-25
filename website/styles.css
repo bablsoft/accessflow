@@ -703,6 +703,15 @@ section + section { border-top: 1px solid var(--line); }
   text-wrap: pretty;
 }
 
+/* Contextual deep link at the end of a prose block. A class rather than an
+   inline style: the CSP style-src can only tighten to 'self' once the inline
+   style="" attributes are gone, so don't add more of them. */
+.prose-link {
+  color: var(--accent);
+  border-bottom: 1px dotted var(--accent-dim);
+}
+.prose-link:hover { border-bottom-style: solid; }
+
 .feat .tag {
   margin-top: auto;
   font-family: var(--mono);
