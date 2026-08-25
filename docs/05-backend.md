@@ -3282,6 +3282,12 @@ in-tx), and swallows per-row `RuntimeException`s. One announcement per request, 
 frozen *after* its announcement is not re-announced when the freeze lifts — the gate remains the
 source of truth, the event is a polling optimization for #695's push-style webhooks.
 
+**CI wrappers (#694).** The pipeline-side integrations for this contract — the
+`deployment-gate` / `deployment-outcome` GitHub composite actions, the GitLab hidden-job
+template, the Azure Pipelines step template, and a generic curl walkthrough — live in
+`.github/actions/` and `ci-templates/`; see [`ci-templates/README.md`](../ci-templates/README.md)
+and [docs/16-iac.md](16-iac.md).
+
 ## MCP server (mcp module)
 
 The **`mcp/` module** hosts the Spring AI stateless MCP server. It depends on `security.api`

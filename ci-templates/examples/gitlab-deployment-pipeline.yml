@@ -1,0 +1,42 @@
+# Example consumer pipeline: gate a production deployment on AccessFlow approval (AF-694).
+# Set ACCESSFLOW_API_KEY as a masked, protected CI/CD variable.
+
+include:
+  - remote: "https://raw.githubusercontent.com/bablsoft/accessflow/main/ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml"
+
+stages: [gate, deploy, report]
+
+variables:
+  ACCESSFLOW_ENDPOINT: "https://accessflow.example.com"
+  AF_PIPELINE_ID: "3fa85f64-5717-4562-b3fc-2c963f66afa6" # pipeline UUID (admin page / Terraform output)
+
+gate_production:
+  stage: gate
+  extends: .accessflow_deployment_gate
+  variables:
+    AF_VERSION: "$CI_COMMIT_SHORT_SHA"
+    AF_ENVIRONMENT: "production"
+    AF_WAIT_TIMEOUT: "30m"
+    AF_POLL_INTERVAL: "15s"
+
+deploy_production:
+  stage: deploy
+  needs: [gate_production] # dotenv artifact hands AF_REQUEST_ID over
+  script:
+    - echo "deploying $CI_COMMIT_SHORT_SHA (request $AF_REQUEST_ID)…"
+
+# GitLab has no job-status input — wire one report job per outcome.
+report_success:
+  stage: report
+  extends: .accessflow_deployment_outcome
+  needs: [gate_production, deploy_production]
+  variables:
+    AF_OUTCOME: "SUCCEEDED"
+
+report_failure:
+  stage: report
+  extends: .accessflow_deployment_outcome
+  needs: [gate_production, deploy_production]
+  when: on_failure
+  variables:
+    AF_OUTCOME: "FAILED"

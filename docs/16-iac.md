@@ -6,8 +6,9 @@ governance resources declaratively over the REST API, complementing the env-driv
 
 - a **Terraform / OpenTofu provider** (`bablsoft/accessflow`) for datasources, review plans,
   routing / row-security / masking policies, AI configs, and notification channels;
-- reusable **GitHub Actions** and a **GitLab CI template** that wrap common operations (provision a
-  datasource, submit and await a query) for pipelines.
+- reusable **GitHub Actions**, **GitLab CI templates** and an **Azure Pipelines step template**
+  that wrap common operations (provision a datasource, submit and await a query, gate a
+  deployment on approval and report its outcome — AF-694) for pipelines.
 
 Everything authenticates with an AccessFlow **API key** (`Authorization: ApiKey <af_…>`). The key
 inherits its owner's permissions, so use an admin (or admin-role **service account**).
@@ -166,7 +167,7 @@ release. The mirror is release-output only — never hand-edit it.
 
 ---
 
-## CI Actions & GitLab template
+## CI Actions & pipeline templates
 
 Located in [`.github/actions/`](../.github/actions/) and
 [`ci-templates/`](../ci-templates/). See [`ci-templates/README.md`](../ci-templates/README.md).
@@ -202,3 +203,37 @@ Located in [`.github/actions/`](../.github/actions/) and
 an `X-AccessFlow-CI: true` header (so context-aware routing policies recognise the CI origin) and
 waits for a terminal status, failing the step on anything other than `EXECUTED`. Pair with an
 `AUTO_APPROVE` routing policy for unattended execution.
+
+**Deployment gate (AF-694)** — wrappers for the deployment-governance machine API (epic AF-682):
+
+```yaml
+- id: gate
+  uses: bablsoft/accessflow/.github/actions/deployment-gate@v1
+  with:
+    accessflow-url: https://accessflow.example.com
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    pipeline-id: 3fa85f64-5717-4562-b3fc-2c963f66afa6   # pipeline UUID (or Terraform output)
+    version: ${{ inputs.version }}
+    environment: production
+- run: ./deploy.sh
+- if: always()
+  uses: bablsoft/accessflow/.github/actions/deployment-outcome@v1
+  with:
+    accessflow-url: https://accessflow.example.com
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    request-id: ${{ steps.gate.outputs.request-id }}
+    job-status: ${{ job.status }}
+```
+
+The gate action submits a deployment request (idempotent on the CI run id), polls the fail-closed
+`GET /api/v1/deployment-gate` until `releasable: true`, then confirms execution; a 404, a
+terminal status, or the `wait-timeout` fails the job. GitLab (`.accessflow_deployment_gate` /
+`.accessflow_deployment_outcome` in `ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml`)
+and Azure Pipelines (`ci-templates/azure/accessflow-deployment.yml`, a step template with a
+`deploySteps` list) mirror the same flow, and
+[`ci-templates/examples/generic-curl-deployment.md`](../ci-templates/examples/generic-curl-deployment.md)
+documents the raw API sequence for any other CI system. Unlike the admin-CRUD tooling above, the
+trigger authorisation is the per-pipeline `can_trigger` grant (admins bypass it) — not
+`DEPLOYMENT_PIPELINE_MANAGE`; break-glass additionally needs a `can_break_glass` grant with **no**
+admin bypass. Note the pipeline is identified by **UUID**: a trigger-only key cannot list
+pipelines to resolve a name.

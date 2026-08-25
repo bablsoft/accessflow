@@ -1,0 +1,176 @@
+# Azure Pipelines step template: gate a deployment on AccessFlow approval (AF-694).
+#
+# Submits a deployment request (idempotent on Build.BuildId), polls the fail-closed deployment
+# gate until releasable, confirms execution, runs your deploy steps, then reports the outcome.
+# A marketplace extension is deliberately out of scope — these are plain bash steps.
+#
+# Usage in a downstream azure-pipelines.yml (see ci-templates/examples/azure-deployment-pipeline.yml):
+#
+#   resources:
+#     repositories:
+#       - repository: accessflow
+#         type: github
+#         name: bablsoft/accessflow
+#         endpoint: github-connection
+#   steps:
+#     - template: ci-templates/azure/accessflow-deployment.yml@accessflow
+#       parameters:
+#         accessflowUrl: "https://accessflow.example.com"
+#         pipelineId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"   # pipeline UUID (admin page / Terraform output)
+#         version: "$(Build.SourceBranchName)"
+#         environment: "production"
+#         deploySteps:
+#           - script: ./deploy.sh
+#             displayName: Deploy
+#
+# The API key comes from a secret variable (variable group or pipeline secret) whose name is
+# `apiKeyVariable` (default accessflow-api-key). It is mapped into the scripts via `env:` only —
+# never inlined as $(...) into a script body, so it cannot leak into expanded logs.
+#
+# Fail-closed contract: a gate 404, a non-retryable 4xx, a terminal status
+# (REJECTED / TIMED_OUT / CANCELLED / FAILED) or the waitTimeout elapsing fails the gate step.
+
+parameters:
+  - name: accessflowUrl
+    type: string
+  - name: apiKeyVariable
+    type: string
+    default: accessflow-api-key
+  - name: pipelineId
+    type: string
+  - name: version
+    type: string
+  - name: environment
+    type: string
+  - name: commitSha
+    type: string
+    default: "$(Build.SourceVersion)"
+  - name: artifactRef
+    type: string
+    default: ""
+  - name: justification
+    type: string
+    default: ""
+  - name: scheduledFor
+    type: string
+    default: ""
+  - name: metadataFile
+    type: string
+    default: ""
+  - name: breakGlass
+    type: boolean
+    default: false
+  - name: waitTimeout
+    type: string
+    default: "30m"
+  - name: pollInterval
+    type: string
+    default: "15s"
+  # Your deployment steps, run only after the gate opens; the outcome step reports on them.
+  - name: deploySteps
+    type: stepList
+    default: []
+  - name: reportOutcome
+    type: boolean
+    default: true
+
+steps:
+  - bash: |
+      set -euo pipefail
+      base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+      : "${ACCESSFLOW_API_KEY:?apiKeyVariable secret is required}"
+      secs() { case "$1" in *h) n="${1%h}"; m=3600;; *m) n="${1%m}"; m=60;; *s) n="${1%s}"; m=1;; *) n="$1"; m=1;; esac
+               case "$n" in ""|*[!0-9]*) echo "invalid duration ${1} (use 90, 45s, 30m or 2h)" >&2; exit 1;; esac; echo $(( n * m )); }
+      hdr=(-H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true")
+      body=$(jq -n --arg p "$AF_PIPELINE_ID" --arg e "$AF_ENVIRONMENT" --arg v "$AF_VERSION" --arg r "$AF_RUN_ID" \
+        '{pipeline_id: $p, environment: $e, version: $v, external_run_id: $r}')
+      add() { if [ -n "${2:-}" ]; then body=$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body"); fi; }
+      add run_url "${AF_RUN_URL:-}"; add commit_sha "${AF_COMMIT_SHA:-}"; add artifact_ref "${AF_ARTIFACT_REF:-}"
+      add justification "${AF_JUSTIFICATION:-}"; add scheduled_for "${AF_SCHEDULED_FOR:-}"
+      if [ "${AF_BREAK_GLASS:-false}" = "True" ] || [ "${AF_BREAK_GLASS:-false}" = "true" ]; then
+        body=$(jq '. + {break_glass: true}' <<<"$body")
+      fi
+      if [ -n "${AF_METADATA_FILE:-}" ]; then
+        body=$(jq --slurpfile m "$AF_METADATA_FILE" '. + {metadata: $m[0]}' <<<"$body")
+      fi
+      sub=$(curl -fsS -X POST "${hdr[@]}" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests")
+      rid=$(jq -r '.id' <<<"$sub")
+      if [ -z "$rid" ] || [ "$rid" = "null" ]; then echo "##vso[task.logissue type=error]submission failed: $sub"; exit 1; fi
+      echo "##vso[task.setvariable variable=accessflowRequestId]$rid"
+      echo "Deployment request $rid submitted; awaiting releasable gate"
+      int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
+      while [ "$(date +%s)" -lt "$end" ]; do
+        resp=$(curl -sS -w $'\n%{http_code}' "${hdr[@]}" "$base/deployment-gate?request_id=$rid") || { echo "  gate unreachable, retrying..."; sleep "$int"; continue; }
+        code="${resp##*$'\n'}"; gate="${resp%$'\n'*}"
+        # Fail closed: 404 (unknown/invisible request) and non-retryable 4xx fail the step.
+        if [ "$code" = "404" ]; then echo "##vso[task.logissue type=error]gate answered 404 for $rid — fail closed, not releasable"; exit 1; fi
+        if [ "$code" -ge 500 ]; then echo "  gate HTTP $code, retrying..."; sleep "$int"; continue; fi
+        if [ "$code" -ge 400 ]; then echo "##vso[task.logissue type=error]gate HTTP $code: $gate"; exit 1; fi
+        st=$(jq -r '.status' <<<"$gate"); rel=$(jq -r '.releasable' <<<"$gate")
+        case "$st" in
+          REJECTED|TIMED_OUT|CANCELLED|FAILED) echo "##vso[task.logissue type=error]deployment request $rid ended: $st"; exit 1 ;;
+          EXECUTED) echo "Deployment request $rid already confirmed"; exit 0 ;;
+        esac
+        if [ "$rel" = "true" ]; then
+          cr=$(curl -sS -X POST -w $'\n%{http_code}' "${hdr[@]}" "$base/deployment-requests/$rid/confirm-execution") || { echo "  confirm unreachable, retrying..."; sleep "$int"; continue; }
+          cc="${cr##*$'\n'}"; cb="${cr%$'\n'*}"
+          if [ "$cc" = "200" ]; then echo "Deployment request $rid confirmed — gate open"; exit 0; fi
+          if [ "$cc" = "409" ]; then
+            # currentStatus is a ProblemDetail map property — camelCase on the wire.
+            if [ "$(jq -r '.error // empty' <<<"$cb")" = "DEPLOYMENT_NOT_RELEASABLE" ]; then echo "  releasability changed, re-polling..."; sleep "$int"; continue; fi
+            if [ "$(jq -r '.currentStatus // empty' <<<"$cb")" = "EXECUTED" ]; then echo "Deployment request $rid confirmed concurrently"; exit 0; fi
+          fi
+          if [ "$cc" -ge 500 ]; then echo "  confirm HTTP $cc, retrying..."; sleep "$int"; continue; fi
+          echo "##vso[task.logissue type=error]confirm-execution failed HTTP $cc: $cb"; exit 1
+        fi
+        echo "  status=$st releasable=false, waiting ${int}s..."; sleep "$int"
+      done
+      echo "##vso[task.logissue type=error]timed out after $AF_WAIT_TIMEOUT waiting for deployment request $rid"; exit 1
+    displayName: "AccessFlow deployment gate"
+    env:
+      ACCESSFLOW_ENDPOINT: ${{ parameters.accessflowUrl }}
+      ACCESSFLOW_API_KEY: $(${{ parameters.apiKeyVariable }})
+      AF_PIPELINE_ID: ${{ parameters.pipelineId }}
+      AF_VERSION: ${{ parameters.version }}
+      AF_ENVIRONMENT: ${{ parameters.environment }}
+      AF_COMMIT_SHA: ${{ parameters.commitSha }}
+      AF_ARTIFACT_REF: ${{ parameters.artifactRef }}
+      AF_JUSTIFICATION: ${{ parameters.justification }}
+      AF_SCHEDULED_FOR: ${{ parameters.scheduledFor }}
+      AF_METADATA_FILE: ${{ parameters.metadataFile }}
+      AF_BREAK_GLASS: ${{ parameters.breakGlass }}
+      AF_WAIT_TIMEOUT: ${{ parameters.waitTimeout }}
+      AF_POLL_INTERVAL: ${{ parameters.pollInterval }}
+      AF_RUN_ID: $(Build.BuildId)
+      AF_RUN_URL: $(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)
+
+  - ${{ each step in parameters.deploySteps }}:
+      - ${{ step }}
+
+  - ${{ if eq(parameters.reportOutcome, true) }}:
+      - bash: |
+          set -euo pipefail
+          base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+          : "${ACCESSFLOW_API_KEY:?apiKeyVariable secret is required}"
+          # When the gate step failed before task.setvariable ran, Azure leaves the macro
+          # UNEXPANDED — so also treat the literal '$(...)' as "no request".
+          case "${AF_REQUEST_ID:-}" in ''|'$('*) echo "no request id — the gate never created a request; nothing to report"; exit 0 ;; esac
+          case "${AGENT_JOBSTATUS:-}" in
+            Succeeded|SucceededWithIssues) outcome="SUCCEEDED" ;;
+            Failed) outcome="FAILED" ;;
+            *) echo "job status '${AGENT_JOBSTATUS:-}' — nothing to report"; exit 0 ;;
+          esac
+          body=$(jq -n --arg o "$outcome" '{outcome: $o}')
+          resp=$(curl -sS -X POST -w $'\n%{http_code}' -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
+          code="${resp##*$'\n'}"; payload="${resp%$'\n'*}"
+          if [ "$code" = "200" ]; then echo "Outcome $outcome reported for $AF_REQUEST_ID"; exit 0; fi
+          # A request the gate never released has no outcome to record — benign under always().
+          if [ "$code" = "409" ] && [ "$(jq -r '.error // empty' <<<"$payload")" = "DEPLOYMENT_REQUEST_INVALID_STATE" ]; then echo "request $AF_REQUEST_ID was never executed; nothing to report"; exit 0; fi
+          echo "##vso[task.logissue type=error]outcome report failed HTTP $code: $payload"; exit 1
+        displayName: "AccessFlow deployment outcome"
+        condition: always()
+        env:
+          ACCESSFLOW_ENDPOINT: ${{ parameters.accessflowUrl }}
+          ACCESSFLOW_API_KEY: $(${{ parameters.apiKeyVariable }})
+          AF_REQUEST_ID: $(accessflowRequestId)
+          AGENT_JOBSTATUS: $(Agent.JobStatus)
