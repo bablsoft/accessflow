@@ -27,6 +27,11 @@ The dispatcher runs on virtual-thread executors and consumes events using Spring
 | `ATTESTATION_CAMPAIGN_OPENED` | An access-recertification campaign opens (AF-384) | The campaign's eligible reviewers (datasource reviewers) plus active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram) mirroring the `ANOMALY_DETECTED` fanout; PagerDuty treats it as not-applicable (never pages). | implemented |
 | `ERASURE_APPROVED` | A right-to-erasure request is approved (AF-499) | The request's **submitter** (so they learn it was approved). Delivered to the submitter's active chat channels (Slack/Discord/Teams/Telegram) + in-app; no email template (uses the fallback subject); PagerDuty not-applicable. | implemented |
 | `API_CONNECTOR_OAUTH2_TOKEN_FAILED` | An API connector's outbound OAuth2 token fetch has failed repeatedly (consecutive-failure counter crossed `accessflow.apigov.oauth2-token-failure-alert-threshold`); the connector is effectively down (AF-500 / #506) | All active org admins. Fanned out to **all** active org channels (Email/Slack/Discord/Teams/Telegram/PagerDuty) mirroring the `ANOMALY_DETECTED` fanout. Never includes the token/secret. | implemented |
+| `DEPLOYMENT_SUBMITTED` | A governed deployment reaches `PENDING_REVIEW` (#695, epic AF-682) — deliberately **not** on submission, so a deployment a routing policy auto-decides never pings reviewers | The deployment's eligible reviewers (the resolved review plan's stage-1 approver rules when present, else all REVIEWER/ADMIN role holders), excluding the submitter. Fanned out to **all** active org channels — deployment pipelines carry no review-plan channel binding. Never pages, never opens a ticket. | implemented |
+| `DEPLOYMENT_APPROVED` | A deployment is approved — reviewer quorum, routing-policy `AUTO_APPROVE`, or an environment that needs no review (#695) | The submitter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
+| `DEPLOYMENT_REJECTED` | A deployment is rejected — reviewer verdict, routing-policy `AUTO_REJECT`, an active `REJECT` freeze window at submission, or the review timeout (`TIMED_OUT` folds into this event with its `review_timeout` reason) (#695) | The submitter. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
+| `DEPLOYMENT_OUTCOME_FAILED` | The pipeline reports a `FAILED` or `ROLLED_BACK` outcome for an executed deployment (#695) | The reviewers who **approved** the deployment — the people who granted it learn it went wrong. Org-wide channel fanout; never pages, never opens a ticket. | implemented |
+| `DEPLOYMENT_BREAK_GLASS_EXECUTED` | A break-glass deployment force-approves and releases past review (#695, AF-385 mirror) | All active ADMIN users in the org. Fanned out to **all** active org channels including PagerDuty via the existing `BREAK_GLASS` trigger (one operator knob covers break-glass queries and deployments). | implemented |
 | `QUERY_CHANGES_REQUESTED` | Reviewer requests changes | Query submitter | deferred — no event published yet |
 | `QUERY_EXECUTED` | A **recurring occurrence** completes (#627) — fired for both `EXECUTED` and `FAILED` occurrence outcomes; one-off executions do not notify | Query submitter, via the review plan's channels. Email carries the occurrence results as a `results.csv` attachment (successful SELECT occurrences only; post-mask values; capped at 10,000 rows with a truncation note row); chat channels get a summary with a link to the occurrence. PagerDuty and ticketing not-applicable (no trigger mapping). | implemented |
 | `QUERY_FAILED` | Execution error | Query submitter + all ADMIN users | deferred — proxy executor not implemented |
@@ -78,6 +83,11 @@ Email bodies are rendered using **Thymeleaf** HTML templates located in `resourc
 - `email/grant-stale.html` — `GRANT_STALE` (#625; the grant holder, the granted resource and its kind, the recommendation, and either the idle-days count or an explicit "never used" line — the two are rendered differently because null days is not a large number of days — with a CTA to the over-provisioned access report)
 - `email/sensitive-result-exported.html` — `SENSITIVE_RESULT_EXPORTED` (#626; the exporter, the datasource, the classification list, format + row count, an extra line when the egress was a recurring-email attachment, and a CTA to the query detail page)
 - `email/api-connector-token-failed.html` — `API_CONNECTOR_OAUTH2_TOKEN_FAILED` (AF-500 / #506; red alert banner, the connector name, and a CTA to the connector settings — never the token/secret)
+- `email/deployment-pending-review.html` — `DEPLOYMENT_SUBMITTED` (#695; pipeline, environment, version, submitter, the AI summary when present, and the justification; the CTA is guarded — there is no deploygov UI yet, so `reviewUrl` is null)
+- `email/deployment-approved.html` — `DEPLOYMENT_APPROVED` (#695; pipeline, environment, version, green accent)
+- `email/deployment-rejected.html` — `DEPLOYMENT_REJECTED` (#695; adds an explicit timed-out note when the decision reason is `review_timeout`)
+- `email/deployment-outcome-failed.html` — `DEPLOYMENT_OUTCOME_FAILED` (#695; copy branches on `FAILED` vs `ROLLED_BACK`, red banner)
+- `email/deployment-break-glass-executed.html` — `DEPLOYMENT_BREAK_GLASS_EXECUTED` (#695; the AF-385-style red emergency banner, executed-by, and the break-glass justification)
 
 Templates include:
 - Query summary (datasource, query type, SQL preview — first 200 chars)
@@ -309,12 +319,12 @@ Pages an on-call responder via the [PagerDuty Events API v2](https://developer.p
   - `CRITICAL_RISK` → the `AI_HIGH_RISK` event (raised only when the AI analysis returns `CRITICAL` risk).
   - `REVIEW_TIMEOUT` → the `REVIEW_TIMEOUT` event (a query auto-rejected past its `approval_timeout_hours`).
   - `ANOMALY` → the `ANOMALY_DETECTED` event (a behavioural anomaly flagged by `BehaviorAnomalyDetectionJob`, UBA, AF-383).
-  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385).
+  - `BREAK_GLASS` → the `BREAK_GLASS_EXECUTED` event (an emergency-access query executed, bypassing review, AF-385) **and** the `DEPLOYMENT_BREAK_GLASS_EXECUTED` event (#695) — one operator knob covers break-glass queries and break-glass deployments. The routine deployment lifecycle events (`DEPLOYMENT_SUBMITTED`/`_APPROVED`/`_REJECTED`/`_OUTCOME_FAILED`) deliberately have no trigger: lifecycle progress is not an incident.
   - `ESCALATION` → the `QUERY_ESCALATED` event (a routing policy escalated the query, AF-453).
   - `REVIEW_STALLED` → the `REVIEW_ESCALATED` event (nobody decided within the plan's `escalation_after_hours`, #622). There is deliberately **no** trigger for `REVIEW_NUDGE` — a reminder is not an incident and must never page.
   Events with no matching trigger (and every other event type, e.g. `QUERY_SUBMITTED`) are dropped silently.
 
-The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<queryRequestId>` so re-triggers for the same query collapse into a single PagerDuty incident, a `summary`, `source` (the datasource name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL). A deep link back to the AccessFlow review page is sent as `client_url`.
+The event body carries a stable `dedup_key` of `accessflow-<organizationId>-<eventType>-<subject>` (the subject is the query request id, falling back to the anomaly id, then the deployment request id, then the connector id) so re-triggers for the same subject collapse into a single PagerDuty incident, a `summary`, `source` (the datasource / pipeline name), and a `custom_details` block mirroring the webhook payload (query id, risk, submitter, justification, review URL; deployment pages add `deployment_id`, `environment`, `version`). A deep link back to the AccessFlow review page is sent as `client_url` when one exists.
 
 PagerDuty delivery uses the **same async retry scheduler as the generic `WEBHOOK` channel** — one initial attempt plus up to three retries at `accessflow.notifications.retry.{first,second,third}` (default +30s / +2m / +10m). On exhaustion the dispatcher logs `ERROR` and publishes a `NotificationDeliveryExhaustedEvent` to the audit log. The Events API base URL is configurable via `accessflow.notifications.pagerduty-api-base-url` (default `https://events.pagerduty.com/`) for air-gapped installs that route through an internal proxy.
 
@@ -506,6 +516,10 @@ in `NotificationContextBuilder`:
 | `ACCESS_REQUEST_APPROVED` / `ACCESS_REQUEST_REJECTED` | The requester |
 | `ATTESTATION_CAMPAIGN_OPENED` | The campaign's eligible reviewers (datasource reviewers) plus all active org admins |
 | `API_CONNECTOR_OAUTH2_TOKEN_FAILED` | All active org admins |
+| `DEPLOYMENT_SUBMITTED` | The deployment's eligible reviewers (stage-1 plan approver rules when present, else REVIEWER ∪ ADMIN role holders), excluding the submitter |
+| `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | The submitter |
+| `DEPLOYMENT_OUTCOME_FAILED` | The reviewers who approved the deployment |
+| `DEPLOYMENT_BREAK_GLASS_EXECUTED` | All active org admins |
 | `TEST` | Skipped — never persisted to the inbox |
 
 **Persistence flow.** `NotificationDispatcher` first calls `userNotificationService.recordForUsers(...)`
