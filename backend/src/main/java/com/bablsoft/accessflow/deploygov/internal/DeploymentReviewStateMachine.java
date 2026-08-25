@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.UUID;
 
 /**
@@ -41,6 +44,7 @@ class DeploymentReviewStateMachine {
     private final DeploymentRoutingPolicyEngine routingEngine;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final DeploymentRequestStateService stateService;
+    private final DeploygovAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -108,6 +112,7 @@ class DeploymentReviewStateMachine {
             case AUTO_APPROVE -> approve(request, match.policyId());
             case AUTO_REJECT -> {
                 stateService.apply(request, QueryStatus.REJECTED);
+                auditDecision(request, AuditAction.DEPLOYMENT_REJECTED, match.policyId());
                 eventPublisher.publishEvent(new DeploymentDecidedEvent(request.getId(),
                         QueryStatus.REJECTED, "routing:" + match.policyId()));
             }
@@ -126,8 +131,25 @@ class DeploymentReviewStateMachine {
 
     private void approve(DeploymentRequestEntity request, UUID policyId) {
         stateService.apply(request, QueryStatus.APPROVED);
+        auditDecision(request, AuditAction.DEPLOYMENT_APPROVED, policyId);
         eventPublisher.publishEvent(new DeploymentDecidedEvent(request.getId(), QueryStatus.APPROVED,
                 policyId != null ? "routing:" + policyId : null));
+    }
+
+    /** #695: system decisions audit with a null actor and a trigger naming the deciding mechanism. */
+    private void auditDecision(DeploymentRequestEntity request, AuditAction action, UUID policyId) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("pipeline_id", request.getPipelineId().toString());
+        metadata.put("version", request.getVersion());
+        if (policyId != null) {
+            metadata.put("trigger", "routing");
+            metadata.put("policy_id", policyId.toString());
+        } else {
+            // Approved without routing: the environment needs no review (or the plan waives it).
+            metadata.put("trigger", "environment_policy");
+        }
+        auditWriter.record(action, AuditResourceType.DEPLOYMENT_REQUEST, request.getId(),
+                request.getOrganizationId(), null, metadata, null);
     }
 
     private void routeToReview(DeploymentRequestEntity request, int requiredApprovals) {

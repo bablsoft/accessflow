@@ -122,12 +122,23 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
             return breakGlassApprove(pipeline, environment, entity, command);
         }
 
+        auditWriter.record(AuditAction.DEPLOYMENT_SUBMITTED, AuditResourceType.DEPLOYMENT_REQUEST,
+                entity.getId(), command.organizationId(), command.submitterUserId(),
+                baseMetadata(pipeline, environment, entity), command.submittedIp());
+
         var freeze = freezeWindowEvaluator
                 .evaluate(command.organizationId(), pipeline.getId(), environment.getId())
                 .orElse(null);
         if (freeze != null && freeze.behavior() == FreezeBehavior.REJECT) {
             // HOLD deliberately does NOT block submission — it gates releasability at the gate (#693).
             stateService.apply(entity, QueryStatus.REJECTED);
+            var metadata = baseMetadata(pipeline, environment, entity);
+            metadata.put("trigger", "freeze");
+            metadata.put("freeze_window_id", freeze.windowId().toString());
+            // System decision: no actor, no caller ip.
+            auditWriter.record(AuditAction.DEPLOYMENT_REJECTED,
+                    AuditResourceType.DEPLOYMENT_REQUEST, entity.getId(),
+                    command.organizationId(), null, metadata, null);
             eventPublisher.publishEvent(new DeploymentDecidedEvent(entity.getId(),
                     QueryStatus.REJECTED, "freeze:" + freeze.windowId()));
             return new DeploymentRequestSubmissionResult(toDetailView(entity), false);
@@ -166,10 +177,7 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 .orElse(null);
         stateService.apply(entity, QueryStatus.APPROVED);
 
-        var metadata = new LinkedHashMap<String, Object>();
-        metadata.put("pipeline_id", pipeline.getId().toString());
-        metadata.put("environment", environment.getName());
-        metadata.put("version", entity.getVersion());
+        var metadata = baseMetadata(pipeline, environment, entity);
         if (bypassed != null) {
             metadata.put("bypassed_freeze_window_id", bypassed.windowId().toString());
             metadata.put("bypassed_freeze_behavior", bypassed.behavior().name());
@@ -182,6 +190,16 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 command.organizationId(), entity.getId(), pipeline.getId(),
                 command.submitterUserId(), command.justification()));
         return new DeploymentRequestSubmissionResult(toDetailView(entity), false);
+    }
+
+    private static LinkedHashMap<String, Object> baseMetadata(DeploymentPipelineEntity pipeline,
+                                                              DeploymentEnvironmentEntity environment,
+                                                              DeploymentRequestEntity entity) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("pipeline_id", pipeline.getId().toString());
+        metadata.put("environment", environment.getName());
+        metadata.put("version", entity.getVersion());
+        return metadata;
     }
 
     private void enforceBreakGlassPermission(DeploymentPipelineEntity pipeline,

@@ -1,10 +1,13 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -25,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -44,6 +48,7 @@ import java.util.UUID;
 class DeploymentRequestController {
 
     private final DeploymentRequestService requestService;
+    private final DeploygovAuditWriter auditWriter;
 
     @PostMapping
     @Operation(summary = "Trigger a governed deployment (JWT or API key; idempotent on the CI run)")
@@ -104,9 +109,14 @@ class DeploymentRequestController {
     @ApiResponse(responseCode = "403", description = "Caller is not the submitter")
     @ApiResponse(responseCode = "404", description = "Deployment request not found")
     @ApiResponse(responseCode = "409", description = "The request is in no cancellable state")
-    void cancel(@PathVariable UUID id, Authentication authentication) {
+    void cancel(@PathVariable UUID id, Authentication authentication,
+                RequestAuditContext auditContext) {
         var caller = claims(authentication);
         requestService.cancel(id, caller.organizationId(), caller.userId());
+        // #695: audited after the service call so a rejected cancel never writes a row.
+        auditWriter.record(AuditAction.DEPLOYMENT_CANCELLED, AuditResourceType.DEPLOYMENT_REQUEST,
+                id, caller.organizationId(), caller.userId(), Map.of(),
+                auditContext.ipAddress(), auditContext.userAgent());
     }
 
     private static JwtClaims claims(Authentication authentication) {

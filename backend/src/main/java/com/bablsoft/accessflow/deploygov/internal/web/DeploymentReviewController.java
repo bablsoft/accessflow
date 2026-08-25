@@ -1,6 +1,10 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
+import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,9 +22,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.UUID;
 
-// Audit rows for approve/reject land with the deployment audit fan-out (#695).
 @RestController
 @RequestMapping("/api/v1/deployment-reviews")
 @Tag(name = "Deployment Reviews", description = "Approve or reject governed deployments")
@@ -28,6 +32,7 @@ import java.util.UUID;
 class DeploymentReviewController {
 
     private final DeploymentReviewService reviewService;
+    private final DeploygovAuditWriter auditWriter;
 
     @GetMapping
     @PreAuthorize("hasAuthority('PERM_DEPLOYMENT_REVIEW')")
@@ -50,9 +55,16 @@ class DeploymentReviewController {
     @ApiResponse(responseCode = "409", description = "Self-approval, or not awaiting review")
     DeploymentDecisionResponse approve(@PathVariable UUID id,
                                        @Valid @RequestBody DeploymentDecisionRequest body,
-                                       Authentication authentication) {
-        return DeploymentDecisionResponse.from(
-                reviewService.approve(id, context(claims(authentication)), body.comment()));
+                                       Authentication authentication,
+                                       RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var outcome = reviewService.approve(id, context(caller), body.comment());
+        // Recorded per decision (before quorum) like the apigov sibling — every reviewer verdict
+        // is its own audit row (#695).
+        auditWriter.record(AuditAction.DEPLOYMENT_APPROVED, AuditResourceType.DEPLOYMENT_REQUEST,
+                id, caller.organizationId(), caller.userId(), Map.of(),
+                auditContext.ipAddress(), auditContext.userAgent());
+        return DeploymentDecisionResponse.from(outcome);
     }
 
     @PostMapping("/{id}/reject")
@@ -63,9 +75,14 @@ class DeploymentReviewController {
     @ApiResponse(responseCode = "409", description = "Self-approval, or not awaiting review")
     DeploymentDecisionResponse reject(@PathVariable UUID id,
                                       @Valid @RequestBody DeploymentDecisionRequest body,
-                                      Authentication authentication) {
-        return DeploymentDecisionResponse.from(
-                reviewService.reject(id, context(claims(authentication)), body.comment()));
+                                      Authentication authentication,
+                                      RequestAuditContext auditContext) {
+        var caller = claims(authentication);
+        var outcome = reviewService.reject(id, context(caller), body.comment());
+        auditWriter.record(AuditAction.DEPLOYMENT_REJECTED, AuditResourceType.DEPLOYMENT_REQUEST,
+                id, caller.organizationId(), caller.userId(), Map.of(),
+                auditContext.ipAddress(), auditContext.userAgent());
+        return DeploymentDecisionResponse.from(outcome);
     }
 
     private static JwtClaims claims(Authentication authentication) {

@@ -48,6 +48,7 @@ class DeploymentReviewStateMachineTest {
     private DeploymentRoutingPolicyEngine routingEngine;
     private ReviewPlanLookupService reviewPlanLookupService;
     private DeploymentRequestStateService stateService;
+    private DeploygovAuditWriter auditWriter;
     private ApplicationEventPublisher eventPublisher;
     private DeploymentReviewStateMachine machine;
 
@@ -62,9 +63,11 @@ class DeploymentReviewStateMachineTest {
         routingEngine = mock(DeploymentRoutingPolicyEngine.class);
         reviewPlanLookupService = mock(ReviewPlanLookupService.class);
         stateService = mock(DeploymentRequestStateService.class);
+        auditWriter = mock(DeploygovAuditWriter.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
         machine = new DeploymentReviewStateMachine(requestRepository, pipelineRepository,
                 environmentRepository, routingEngine, reviewPlanLookupService, stateService,
+                auditWriter,
                 eventPublisher, Clock.fixed(Instant.parse("2026-08-21T17:30:00Z"), ZoneOffset.UTC));
 
         pipeline = pipeline();
@@ -197,6 +200,19 @@ class DeploymentReviewStateMachineTest {
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().status()).isEqualTo(QueryStatus.APPROVED);
         assertThat(captor.getValue().reason()).isEqualTo("routing:" + policyId);
+        // #695: routing decisions audit as system rows (null actor) naming the policy.
+        var metadataCaptor = ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditWriter).record(
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditAction.DEPLOYMENT_APPROVED),
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditResourceType.DEPLOYMENT_REQUEST),
+                org.mockito.ArgumentMatchers.eq(request.getId()), any(),
+                org.mockito.ArgumentMatchers.isNull(), metadataCaptor.capture(),
+                org.mockito.ArgumentMatchers.isNull());
+        assertThat(metadataCaptor.getValue())
+                .containsEntry("trigger", "routing")
+                .containsEntry("policy_id", policyId.toString());
     }
 
     @Test
@@ -211,6 +227,14 @@ class DeploymentReviewStateMachineTest {
         var captor = ArgumentCaptor.forClass(DeploymentDecidedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().reason()).isEqualTo("routing:" + policyId);
+        verify(auditWriter).record(
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditAction.DEPLOYMENT_REJECTED),
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditResourceType.DEPLOYMENT_REQUEST),
+                org.mockito.ArgumentMatchers.eq(request.getId()), any(),
+                org.mockito.ArgumentMatchers.isNull(), any(),
+                org.mockito.ArgumentMatchers.isNull());
     }
 
     @Test

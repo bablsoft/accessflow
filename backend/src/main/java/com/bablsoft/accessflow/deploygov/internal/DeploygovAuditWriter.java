@@ -19,15 +19,23 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-class DeploygovAuditWriter {
+public class DeploygovAuditWriter {
 
     private final AuditLogService auditLogService;
 
-    void record(AuditAction action, AuditResourceType resourceType, UUID resourceId,
-                UUID organizationId, UUID userId, Map<String, Object> metadata, String ipAddress) {
+    public void record(AuditAction action, AuditResourceType resourceType, UUID resourceId,
+                       UUID organizationId, UUID userId, Map<String, Object> metadata,
+                       String ipAddress) {
+        record(action, resourceType, resourceId, organizationId, userId, metadata, ipAddress, null);
+    }
+
+    /** #695: overload for HTTP-driven writes (reviewer decisions, cancel) capturing the user-agent. */
+    public void record(AuditAction action, AuditResourceType resourceType, UUID resourceId,
+                       UUID organizationId, UUID userId, Map<String, Object> metadata,
+                       String ipAddress, String userAgent) {
         try {
             auditLogService.record(new AuditEntry(action, resourceType, resourceId, organizationId,
-                    userId, metadata, ipAddress, null));
+                    userId, metadata, ipAddress, userAgent));
         } catch (RuntimeException ex) {
             log.error("Audit write failed for {} on {}", action, resourceId, ex);
         }

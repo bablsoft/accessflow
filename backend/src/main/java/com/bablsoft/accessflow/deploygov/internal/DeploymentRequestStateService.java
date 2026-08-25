@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.IllegalDeploymentRequestStateException;
@@ -42,6 +44,7 @@ public class DeploymentRequestStateService {
     private static final Map<QueryStatus, Set<QueryStatus>> ALLOWED = allowedTransitions();
 
     private final DeploymentRequestRepository repository;
+    private final DeploygovAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
 
     private static Map<QueryStatus, Set<QueryStatus>> allowedTransitions() {
@@ -99,6 +102,12 @@ public class DeploymentRequestStateService {
             return false;
         }
         apply(entity, QueryStatus.TIMED_OUT);
+        // #695: system decision — null actor, trigger names the mechanism.
+        auditWriter.record(AuditAction.DEPLOYMENT_TIMED_OUT, AuditResourceType.DEPLOYMENT_REQUEST,
+                entity.getId(), entity.getOrganizationId(), null,
+                Map.of("trigger", "timeout", "pipeline_id", entity.getPipelineId().toString(),
+                        "version", entity.getVersion()),
+                null);
         eventPublisher.publishEvent(new DeploymentDecidedEvent(id, QueryStatus.TIMED_OUT,
                 "review_timeout"));
         return true;

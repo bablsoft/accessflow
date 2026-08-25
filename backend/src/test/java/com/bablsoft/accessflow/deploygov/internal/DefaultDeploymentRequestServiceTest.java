@@ -55,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -142,6 +143,15 @@ class DefaultDeploymentRequestServiceTest {
         assertThat(saved.getExternalRunId()).isEqualTo("run-1");
         assertThat(saved.getSubmittedIp()).isEqualTo("10.0.0.1");
         assertThat(saved.getMetadata()).contains("changelog");
+        // #695: every submission gets its own audit row, attributed to the submitter + caller ip.
+        var metadataCaptor = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_SUBMITTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(saved.getId()), eq(ORG), eq(SUBMITTER),
+                metadataCaptor.capture(), eq("10.0.0.1"));
+        assertThat(metadataCaptor.getValue())
+                .containsEntry("pipeline_id", pipeline.getId().toString())
+                .containsEntry("environment", "production")
+                .containsEntry("version", "2.4.1");
     }
 
     @Test
@@ -235,6 +245,17 @@ class DefaultDeploymentRequestServiceTest {
         var captor = org.mockito.ArgumentCaptor.forClass(DeploymentDecidedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().reason()).startsWith("freeze:");
+        // #695: two audit rows — the submission, then the system rejection with the freeze window.
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_SUBMITTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), any(), eq(ORG), eq(SUBMITTER),
+                any(), eq("10.0.0.1"));
+        var rejectMetadata = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_REJECTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), any(), eq(ORG), isNull(),
+                rejectMetadata.capture(), isNull());
+        assertThat(rejectMetadata.getValue())
+                .containsEntry("trigger", "freeze")
+                .containsKey("freeze_window_id");
     }
 
     @Test
