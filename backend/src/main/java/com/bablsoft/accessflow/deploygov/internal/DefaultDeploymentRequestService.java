@@ -306,6 +306,14 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 page.getTotalElements(), page.getTotalPages());
     }
 
+    /**
+     * Detail view of an already-authorized entity — reused by the gate and outcome services
+     * (#693), whose actor rules differ from {@link #get}'s visibility predicate.
+     */
+    DeploymentRequestView detailView(DeploymentRequestEntity entity) {
+        return toDetailView(entity);
+    }
+
     private DeploymentRequestView toDetailView(DeploymentRequestEntity entity) {
         var decisions = decisionRepository
                 .findByDeploymentRequestIdOrderByStageAscDecidedAtAsc(entity.getId()).stream()

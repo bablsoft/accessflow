@@ -44,4 +44,18 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
               AND r.created_at + (rp.approval_timeout_hours || ' hours')::interval < :now
             """, nativeQuery = true)
     List<UUID> findStalePendingReviewIds(@Param("now") Instant now);
+
+    /**
+     * Release-announcement scan (#693): {@code APPROVED} requests not yet announced whose
+     * scheduled moment (if any) has passed. Backed by the partial index
+     * {@code idx_deployment_requests_release_scan} (V154); the per-row freeze evaluation happens in
+     * {@code markReleasable}, not here. Native for the same {@code ::query_status} reason as above.
+     */
+    @Query(value = """
+            SELECT r.id FROM deployment_requests r
+            WHERE r.status = 'APPROVED'::query_status
+              AND r.release_notified_at IS NULL
+              AND (r.scheduled_for IS NULL OR r.scheduled_for <= :now)
+            """, nativeQuery = true)
+    List<UUID> findReleasableCandidateIds(@Param("now") Instant now);
 }

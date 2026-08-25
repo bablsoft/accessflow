@@ -3,11 +3,16 @@ package com.bablsoft.accessflow.deploygov.internal.web;
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentGateQueryInvalidException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentNotReleasableException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcomeConflictException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestPermissionException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewerNotEligibleException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewNotFoundException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewSelfAcknowledgeException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentSelfApprovalException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyNotFoundException;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingPolicyPriorityConflictException;
@@ -143,6 +148,43 @@ class DeploygovExceptionHandler {
         // Message resolved at the throw site via MessageSource — see
         // DefaultDeploymentRoutingPolicyService.
         return problem(HttpStatus.BAD_REQUEST, ex.getMessage(), "DEPLOYMENT_ROUTING_POLICY_INVALID");
+    }
+
+    @ExceptionHandler(DeploymentGateQueryInvalidException.class)
+    ProblemDetail handleGateQueryInvalid(DeploymentGateQueryInvalidException ex) {
+        return problem(HttpStatus.BAD_REQUEST, msg("error.deployment_gate_query_invalid"),
+                "DEPLOYMENT_GATE_QUERY_INVALID");
+    }
+
+    @ExceptionHandler(DeploymentNotReleasableException.class)
+    ProblemDetail handleNotReleasable(DeploymentNotReleasableException ex) {
+        var pd = problem(HttpStatus.CONFLICT, msg("error.deployment_not_releasable"),
+                "DEPLOYMENT_NOT_RELEASABLE");
+        if (ex.getCurrentStatus() != null) {
+            pd.setProperty("currentStatus", ex.getCurrentStatus().name());
+        }
+        return pd;
+    }
+
+    @ExceptionHandler(DeploymentOutcomeConflictException.class)
+    ProblemDetail handleOutcomeConflict(DeploymentOutcomeConflictException ex) {
+        return problem(HttpStatus.CONFLICT, msg("error.deployment_outcome_conflict"),
+                "DEPLOYMENT_OUTCOME_CONFLICT");
+    }
+
+    @ExceptionHandler(DeploymentRollbackReviewNotFoundException.class)
+    ProblemDetail handleRollbackReviewNotFound(DeploymentRollbackReviewNotFoundException ex) {
+        return problem(HttpStatus.NOT_FOUND, msg("error.deployment_rollback_review_not_found"),
+                "DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND");
+    }
+
+    // 409 like self-approval: the conflict is with the resource's provenance, not permissions.
+    @ExceptionHandler(DeploymentRollbackReviewSelfAcknowledgeException.class)
+    ProblemDetail handleRollbackSelfAcknowledge(
+            DeploymentRollbackReviewSelfAcknowledgeException ex) {
+        return problem(HttpStatus.CONFLICT,
+                msg("error.deployment_rollback_review_self_acknowledge"),
+                "DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE");
     }
 
     private static ProblemDetail problem(HttpStatus status, String detail, String error) {

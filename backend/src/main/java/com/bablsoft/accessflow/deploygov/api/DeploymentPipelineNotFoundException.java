@@ -8,4 +8,9 @@ public class DeploymentPipelineNotFoundException extends DeploymentGovernanceExc
     public DeploymentPipelineNotFoundException(UUID pipelineId) {
         super("Deployment pipeline not found: " + pipelineId);
     }
+
+    /** The gate names its pipeline rather than identifying it (#693). */
+    public DeploymentPipelineNotFoundException(String pipelineName) {
+        super("Deployment pipeline not found: " + pipelineName);
+    }
 }

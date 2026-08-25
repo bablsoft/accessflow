@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
@@ -370,5 +371,71 @@ class DeploygovWebModelsTest {
         assertThat(conditions.environments()).containsExactly("production");
         assertThat(conditions.versionGlobs()).isEmpty();
         assertThat(conditions.daysOfWeek()).isEmpty();
+    }
+
+    @Test
+    void gateResponseNestsApprovalsAndMapsDecisions() {
+        var requestId = UUID.randomUUID();
+        var decision = new DeploymentReviewDecisionView(UUID.randomUUID(), UUID.randomUUID(),
+                DecisionType.APPROVED, "lgtm", 1, Instant.parse("2026-08-24T11:00:00Z"));
+        var view = new DeploymentGateView(requestId, QueryStatus.APPROVED, true, 2, 1,
+                List.of(decision), true, "change freeze",
+                Instant.parse("2026-08-24T12:00:00Z"), RiskLevel.LOW);
+
+        var response = DeploymentGateResponse.from(view);
+
+        assertThat(response.requestId()).isEqualTo(requestId);
+        assertThat(response.releasable()).isTrue();
+        assertThat(response.approvals().required()).isEqualTo(2);
+        assertThat(response.approvals().granted()).isEqualTo(1);
+        assertThat(response.decisions()).hasSize(1);
+        assertThat(response.decisions().getFirst().decision()).isEqualTo(DecisionType.APPROVED);
+        assertThat(response.frozen()).isTrue();
+        assertThat(response.freezeReason()).isEqualTo("change freeze");
+        assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.LOW);
+    }
+
+    @Test
+    void gateViewDefendsItsDecisionsList() {
+        var view = new DeploymentGateView(UUID.randomUUID(), QueryStatus.APPROVED, false, 1, 0,
+                null, false, null, null, null);
+
+        assertThat(view.decisions()).isEmpty();
+    }
+
+    @Test
+    void rollbackReviewResponseMapsAllFields() {
+        var viewId = UUID.randomUUID();
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewView(viewId,
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), "detail",
+                com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus.REVIEWED,
+                UUID.randomUUID(), "ack", Instant.parse("2026-08-24T12:00:00Z"),
+                Instant.parse("2026-08-24T11:00:00Z"));
+
+        var response = DeploymentRollbackReviewResponse.from(view);
+
+        assertThat(response.id()).isEqualTo(viewId);
+        assertThat(response.status()).isEqualTo(
+                com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus.REVIEWED);
+        assertThat(response.reviewComment()).isEqualTo("ack");
+    }
+
+    @Test
+    void rollbackReviewPageResponseCopiesPaginationMetadata() {
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewView(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID(), UUID.randomUUID(), null,
+                com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus.PENDING_REVIEW,
+                null, null, null, Instant.parse("2026-08-24T11:00:00Z"));
+
+        var page = DeploymentRollbackReviewPageResponse.from(
+                new PageResponse<>(List.of(view), 1, 20, 21, 2));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(20);
+        assertThat(page.totalElements()).isEqualTo(21);
+        assertThat(page.totalPages()).isEqualTo(2);
     }
 }

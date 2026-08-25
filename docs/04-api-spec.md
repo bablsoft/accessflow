@@ -5738,14 +5738,14 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
-## Deployment Governance (#688/#691, epic #682)
+## Deployment Governance (#688/#691/#692/#693, epic #682)
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
 surface (#688), the **deployment request pipeline** — trigger → AI risk → routing → review (#691)
-— the **admin routing-policy CRUD** (#691), and the **reviewer decision endpoints, break-glass
-deploys and scheduled-deploy semantics** (#692). The deployment **gate** + outcome reporting
-(#693) land in a later sub-issue of epic #682 and will be documented here when they do.
+— the **admin routing-policy CRUD** (#691), the **reviewer decision endpoints, break-glass
+deploys and scheduled-deploy semantics** (#692), and the **deployment gate, execution
+confirmation, outcome reporting and rollback follow-up reviews** (#693).
 
 Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
 `/admin/deployment-routing-policies` requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission.
@@ -5886,9 +5886,65 @@ the window closes.
 `AUTO_REJECT`, or a `REJECT` freeze window), `CANCELLED` (submitter), `TIMED_OUT` (the
 review-timeout job auto-rejects a `PENDING_REVIEW` request older than its review plan's
 `approval_timeout_hours` — #692), and the break-glass force-approve `PENDING_AI → APPROVED`
-(#692). `EXECUTED` / `FAILED` arrive with the gate and outcome reporting (#693). An illegal
-transition returns `409 DEPLOYMENT_REQUEST_INVALID_STATE` and carries the current status as a
-`currentStatus` property on the `ProblemDetail`.
+(#692). `APPROVED → EXECUTED` is the pipeline's [execution
+confirmation](#deployment-gate--outcome-reporting-693), and `EXECUTED → FAILED` is the one
+post-terminal flip a `FAILED` [outcome report](#deployment-gate--outcome-reporting-693) performs
+(#693). An illegal transition returns `409 DEPLOYMENT_REQUEST_INVALID_STATE` and carries the
+current status as a `currentStatus` property on the `ProblemDetail`.
+
+### Deployment gate & outcome reporting (#693)
+
+The machine-facing contract the whole feature exists for: a CI pipeline triggers a deployment
+(#691), polls the **gate** until it answers `releasable: true`, **confirms execution** when it
+proceeds, and **reports the outcome** afterwards. Auth is the same as the trigger: JWT **or an
+AccessFlow API key** (`X-API-Key` / `Authorization: ApiKey <key>`); the key's owning user is the
+caller for every rule below.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-gate` | Poll releasability. Query params (snake_case): either `request_id=<uuid>` **or** all three of `pipeline=<name>`, `version=<v>`, `environment=<env name>` (any other combination is a `400`). Tuple resolution is case-insensitive on the pipeline and environment names and picks the **newest** request for the tuple. `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` / `DEPLOYMENT_REQUEST_NOT_FOUND` for an unknown pipeline, environment, tuple or id — and also when the request exists but the caller may not see it (never `403`; the CI wrappers treat any `404` as **not releasable**). Visibility: the submitter, a `can_trigger` grant holder on the pipeline, or a `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` holder. |
+| `POST` | `/deployment-requests/{id}/confirm-execution` | The pipeline acknowledges it proceeded once the gate answered `releasable: true`; transitions `APPROVED → EXECUTED` (`200`, the full request body; audit action `DEPLOYMENT_EXECUTED`, metadata `trigger=pipeline`). Only the submitter, a `can_trigger` holder on the pipeline, or `QUERY_ADMIN` may confirm (`403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`); only from `APPROVED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`) **and** currently releasable (`409 DEPLOYMENT_NOT_RELEASABLE`). Idempotent: confirming an already-`EXECUTED` request returns `200` and changes nothing. |
+| `POST` | `/deployment-requests/{id}/outcome` | Report what happened after execution. Body `{ "outcome": "SUCCEEDED" \| "FAILED" \| "ROLLED_BACK", "detail": "…" }` (`detail` optional, ≤4000). Same actor rule as confirm-execution. Only after `EXECUTED` (`409 DEPLOYMENT_REQUEST_INVALID_STATE`). **Idempotent**: repeating the same `outcome` returns `200` and changes nothing; a different `outcome` is `409 DEPLOYMENT_OUTCOME_CONFLICT`. A `FAILED` outcome also flips the request `EXECUTED → FAILED`. Audit action `DEPLOYMENT_OUTCOME_REPORTED`. |
+
+**Gate response:**
+
+```json
+{
+  "request_id": "…",
+  "status": "APPROVED",
+  "releasable": true,
+  "approvals": { "required": 2, "granted": 2 },
+  "decisions": [ { "id": "…", "reviewer_id": "…", "decision": "APPROVED", "comment": null, "stage": 1, "decided_at": "…" } ],
+  "frozen": false,
+  "freeze_reason": null,
+  "scheduled_for": null,
+  "ai_risk_level": "LOW"
+}
+```
+
+**Releasability is one pure, fail-closed function**:
+`releasable = status == APPROVED && !frozen && (scheduled_for == null || scheduled_for <= now)`.
+`frozen` is true when **any** enabled freeze window (`HOLD` *or* `REJECT` behaviour) is active for
+the request's `(pipeline, environment)` — deliberately stricter than "HOLD only": a `REJECT`
+window normally auto-rejects at submission, but a request approved *before* the window started
+must not sail through mid-freeze. `freeze_reason` echoes the winning window's `reason`.
+Break-glass requests (`submission_reason = EMERGENCY_ACCESS`) skip the freeze check entirely —
+they already bypassed it at submission. **Any lookup or evaluation error answers
+`releasable: false`** — no code path answers "releasable" by default. Requests that become
+releasable later (a `HOLD` window closing, a `scheduled_for` instant passing) are additionally
+announced **once** by the `ScheduledDeploymentReleaseJob` (see
+[05-backend.md](./05-backend.md)), so push-style integrations don't need tight polling.
+
+**Rollback follow-up reviews.** A `ROLLED_BACK` outcome on an environment with
+`require_review = true` opens a follow-up review record that approvers must acknowledge —
+the deployment-side mirror of the break-glass retro-review. Base path
+`/api/v1/deployment-rollback-reviews`, **`DEPLOYMENT_REVIEW`** permission, org-scoped, JWT-side.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-rollback-reviews` | List the org's rollback reviews, newest first. Paginated (`page`, `size`); optional `status` filter (`PENDING_REVIEW` \| `REVIEWED`). |
+| `GET` | `/deployment-rollback-reviews/{id}` | Get one review. `404 DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND` for a missing or cross-org id. |
+| `POST` | `/deployment-rollback-reviews/{id}/acknowledge` | Acknowledge the rollback (`200`, optional `{ "comment": "…" }` ≤2000; audit action `DEPLOYMENT_ROLLBACK_REVIEWED`). The deployment's **submitter can never acknowledge their own rollback** (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`). Acknowledging an already-`REVIEWED` record is an idempotent no-op returning the current state. |
 
 ### Deployment reviews (#692)
 
@@ -6069,6 +6125,11 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `DEPLOYMENT_ROUTING_POLICY_NOT_FOUND` | 404 | Unknown deployment-routing-policy id, or the policy is in another organization (#691). |
 | `DEPLOYMENT_ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | Another deployment routing policy in the organization already uses that `priority` (#691). |
 | `DEPLOYMENT_ROUTING_POLICY_INVALID` | 400 | Routing-policy conditions or `requiredApprovals` are invalid — unknown timezone, day number outside 1–7, equal start/end times, or an approval count that does not match the action (#691). |
+| `DEPLOYMENT_GATE_QUERY_INVALID` | 400 | The gate takes either `request_id` alone, or all three of `pipeline`, `version` and `environment` (#693). |
+| `DEPLOYMENT_NOT_RELEASABLE` | 409 | Confirm-execution on an `APPROVED` request that is not currently releasable — an active freeze window or a `scheduled_for` still in the future (`currentStatus`) (#693). |
+| `DEPLOYMENT_OUTCOME_CONFLICT` | 409 | A different outcome has already been reported for this deployment request (#693). |
+| `DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND` | 404 | Unknown rollback-review id, or the record is in another organization (#693). |
+| `DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE` | 409 | The deployment's submitter can never acknowledge their own rollback review (#693). |
 
 | Code | HTTP | Source | Notes |
 |------|------|--------|-------|

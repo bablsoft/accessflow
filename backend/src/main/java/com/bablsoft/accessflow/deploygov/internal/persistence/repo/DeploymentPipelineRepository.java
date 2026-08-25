@@ -15,6 +15,15 @@ public interface DeploymentPipelineRepository extends JpaRepository<DeploymentPi
 
     Optional<DeploymentPipelineEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
+    /**
+     * Gate resolution (#693): a CI job names its pipeline, it does not know the id. A list, not an
+     * {@code Optional} — org-name uniqueness is case-<em>sensitive</em> (V149), so two pipelines
+     * differing only by case may legally coexist and an ignore-case single-row finder would throw.
+     * The gate service picks the exact-case match first, else the alphabetically first.
+     */
+    List<DeploymentPipelineEntity> findByOrganizationIdAndNameIgnoreCaseOrderByNameAsc(
+            UUID organizationId, String name);
+
     Page<DeploymentPipelineEntity> findByOrganizationId(UUID organizationId, Pageable pageable);
 
     /** Review-reach resolution (#692): the whole catalog, inactive pipelines included. */

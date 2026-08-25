@@ -491,6 +491,25 @@ API-key user is the submitter for every downstream rule, including "a submitter 
 their own deployment". The grant is checked *before* the idempotent-replay lookup, so a caller
 without one cannot use a repeated trigger to probe whether a given CI run exists.
 
+**The deployment gate, confirm-execution and outcome endpoints (#693) share that model.**
+`GET /api/v1/deployment-gate` and the two `POST /deployment-requests/{id}/…` mutations carry no
+class-level `@PreAuthorize` either — authorization lives in the services. The gate read uses a
+**visibility** predicate (submitter ∨ effective `can_trigger` ∨ `DEPLOYMENT_REVIEW` ∨
+`QUERY_ADMIN`) whose failure is a **404, never a 403**: an under-permissioned poll reads exactly
+like an unknown tuple, the CI wrappers treat any 404 as not-releasable, and the endpoint cannot be
+used to probe which versions or requests exist — a request miss and a not-visible request share
+one error code. (Pipeline and environment name resolution reports distinct 404 codes, matching
+the trigger endpoint's behaviour — those names are org-internal configuration, not request
+state.) The mutations use an **actor** rule (submitter ∨
+`can_trigger` holder ∨ `QUERY_ADMIN`) with a 403 — acting on a request is a permission matter.
+Releasability itself is fail-closed: one pure function whose default answer is not-releasable,
+with any lookup/evaluation error answering `releasable: false`, and **any** active freeze window
+(`HOLD` or `REJECT`) blocking release — except for break-glass requests, which already bypassed
+the freeze at submission. The rollback follow-up worklist
+(`/api/v1/deployment-rollback-reviews`) is JWT-side `PERM_DEPLOYMENT_REVIEW`, and the
+deployment's submitter can never acknowledge their own rollback — the same "never the submitter"
+rule as break-glass, enforced in the service.
+
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
 `users.platform_admin` is an **orthogonal boolean flag, not a fifth role** — the four roles above are

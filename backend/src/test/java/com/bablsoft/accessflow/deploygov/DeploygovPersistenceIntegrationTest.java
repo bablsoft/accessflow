@@ -14,6 +14,8 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentP
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineUserPermissionEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentReviewDecisionEntity;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRollbackReviewEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRoutingPolicyEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentFreezeWindowRepository;
@@ -22,6 +24,7 @@ import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPip
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineUserPermissionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentReviewDecisionRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRollbackReviewRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRoutingPolicyRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +75,8 @@ class DeploygovPersistenceIntegrationTest {
     private DeploymentPipelineUserPermissionRepository userPermissionRepository;
     @Autowired
     private DeploymentPipelineGroupPermissionRepository groupPermissionRepository;
+    @Autowired
+    private DeploymentRollbackReviewRepository rollbackReviewRepository;
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -340,5 +345,48 @@ class DeploygovPersistenceIntegrationTest {
         assertThat(reloadedGroupGrant.isCanTrigger()).isFalse();
         assertThat(reloadedGroupGrant.isCanBreakGlass()).isTrue();
         assertThat(reloadedGroupGrant.getVersion()).isZero();
+    }
+
+    @Test
+    void persistsAndReloadsRollbackReviewAndEnforcesOnePerRequest() {
+        var pipeline = newPipeline();
+        var environment = newEnvironment(pipeline.getId(), "production");
+        var request = newRequest(pipeline.getId(), environment.getId(), "2.4.1", "run-rb");
+        request.setStatus(QueryStatus.EXECUTED);
+        requestRepository.saveAndFlush(request);
+
+        var review = new DeploymentRollbackReviewEntity();
+        review.setId(UUID.randomUUID());
+        review.setDeploymentRequestId(request.getId());
+        review.setOrganizationId(request.getOrganizationId());
+        review.setPipelineId(pipeline.getId());
+        review.setEnvironmentId(environment.getId());
+        review.setSubmittedBy(request.getSubmittedBy());
+        review.setOutcomeDetail("smoke tests failed");
+        rollbackReviewRepository.saveAndFlush(review);
+
+        var reloaded = rollbackReviewRepository.findById(review.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(DeploymentRollbackReviewStatus.PENDING_REVIEW);
+        assertThat(reloaded.getOutcomeDetail()).isEqualTo("smoke tests failed");
+        assertThat(reloaded.getVersionLock()).isZero();
+        assertThat(reloaded.getCreatedAt()).isNotNull();
+
+        reloaded.setStatus(DeploymentRollbackReviewStatus.REVIEWED);
+        reloaded.setReviewedBy(UUID.randomUUID());
+        reloaded.setReviewedAt(Instant.parse("2026-08-03T09:00:00Z"));
+        rollbackReviewRepository.saveAndFlush(reloaded);
+        assertThat(rollbackReviewRepository.findById(review.getId()).orElseThrow().getStatus())
+                .isEqualTo(DeploymentRollbackReviewStatus.REVIEWED);
+
+        // UNIQUE deployment_request_id — the idempotency backstop for a repeated ROLLED_BACK report.
+        var duplicate = new DeploymentRollbackReviewEntity();
+        duplicate.setId(UUID.randomUUID());
+        duplicate.setDeploymentRequestId(request.getId());
+        duplicate.setOrganizationId(request.getOrganizationId());
+        duplicate.setPipelineId(pipeline.getId());
+        duplicate.setEnvironmentId(environment.getId());
+        duplicate.setSubmittedBy(request.getSubmittedBy());
+        assertThatThrownBy(() -> rollbackReviewRepository.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 }
