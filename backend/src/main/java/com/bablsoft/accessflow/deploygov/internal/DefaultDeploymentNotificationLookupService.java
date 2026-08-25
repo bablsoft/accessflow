@@ -27,10 +27,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Sibling of apigov's {@code DefaultApiRequestNotificationLookupService} (#695). Eligibility
- * mirrors {@link DefaultDeploymentReviewService}'s guard: stage-1 approver rules on the resolved
- * plan (environment override wins over the pipeline's) restrict the reviewer set; without rules,
- * the REVIEWER and ADMIN system roles hold {@code DEPLOYMENT_REVIEW}.
+ * Sibling of apigov's {@code DefaultApiRequestNotificationLookupService} (#695). Recipient
+ * resolution follows {@link DefaultDeploymentReviewService}'s plan rule — stage-1 approver rules
+ * on the resolved plan (environment override wins over the pipeline's) restrict the reviewer set —
+ * with a REVIEWER∪ADMIN system-role fallback when no rules exist. The fallback is deliberately
+ * role-based, not permission-based (custom-role {@code DEPLOYMENT_REVIEW} holders are not
+ * individually pinged), matching the apigov recipient convention; see the interface javadoc.
  */
 @Service
 @RequiredArgsConstructor

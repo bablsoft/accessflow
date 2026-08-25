@@ -3005,6 +3005,10 @@
       "WATERMARK": "Filigrane",
       "ROW_CAP": "Plafond de lignes",
       "DENY_CLASSIFIED": "Refuser si classifié"
+    },
+    "deployment_outcome": {
+      "FAILED": "échoué",
+      "ROLLED_BACK": "annulé (rollback)"
     }
   },
   "access": {

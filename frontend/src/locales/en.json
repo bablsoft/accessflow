@@ -3029,6 +3029,10 @@
       "WATERMARK": "Watermark",
       "ROW_CAP": "Row cap",
       "DENY_CLASSIFIED": "Deny when classified"
+    },
+    "deployment_outcome": {
+      "FAILED": "failed",
+      "ROLLED_BACK": "rolled back"
     }
   },
   "access": {

@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -117,22 +118,24 @@ class AdminBreakGlassController {
                              RequestAuditContext auditContext, BreakGlassEventView view) {
         try {
             AuditAction action;
-            Map<String, Object> metadata;
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("submitted_by", view.submittedByUserId().toString());
             if (view.deploymentRequestId() != null) {
                 action = AuditAction.DEPLOYMENT_BREAK_GLASS_REVIEWED;
-                metadata = Map.of("deployment_request_id", view.deploymentRequestId().toString(),
-                        "pipeline_id", String.valueOf(view.pipelineId()),
-                        "submitted_by", view.submittedByUserId().toString());
+                metadata.put("deployment_request_id", view.deploymentRequestId().toString());
+                if (view.pipelineId() != null) {
+                    metadata.put("pipeline_id", view.pipelineId().toString());
+                }
             } else if (view.apiRequestId() != null) {
                 action = AuditAction.API_BREAK_GLASS_REVIEWED;
-                metadata = Map.of("api_request_id", view.apiRequestId().toString(),
-                        "connector_id", String.valueOf(view.connectorId()),
-                        "submitted_by", view.submittedByUserId().toString());
+                metadata.put("api_request_id", view.apiRequestId().toString());
+                if (view.connectorId() != null) {
+                    metadata.put("connector_id", view.connectorId().toString());
+                }
             } else {
                 action = AuditAction.BREAK_GLASS_REVIEWED;
-                metadata = Map.of("query_request_id", view.queryRequestId().toString(),
-                        "datasource_id", view.datasourceId().toString(),
-                        "submitted_by", view.submittedByUserId().toString());
+                metadata.put("query_request_id", view.queryRequestId().toString());
+                metadata.put("datasource_id", view.datasourceId().toString());
             }
             auditLogService.record(new AuditEntry(
                     action,

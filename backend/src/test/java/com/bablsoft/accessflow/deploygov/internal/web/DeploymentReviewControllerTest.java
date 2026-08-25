@@ -128,6 +128,21 @@ class DeploymentReviewControllerTest {
         assertThat(r.decision()).isEqualTo(DecisionType.REJECTED);
         assertThat(r.resultingStatus()).isEqualTo(QueryStatus.REJECTED);
         assertThat(r.duplicate()).isTrue();
+        // An idempotent replay is not a new verdict — no duplicate audit row.
+        verify(auditWriter, org.mockito.Mockito.never()).record(any(), any(), any(), any(), any(),
+                any(), any(), any());
+    }
+
+    @Test
+    void rejectAuditsAFreshDecisionWithCallerIpAndUserAgent() {
+        var decisionId = UUID.randomUUID();
+        when(reviewService.reject(eq(requestId), any(), eq("no"))).thenReturn(
+                new DeploymentReviewService.DecisionOutcome(decisionId, DecisionType.REJECTED,
+                        QueryStatus.REJECTED, false));
+
+        controller.reject(requestId, new DeploymentDecisionRequest("no"), auth(),
+                new RequestAuditContext("10.0.0.9", "cli/1.0"));
+
         verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_REJECTED),
                 eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(requestId), eq(orgId), eq(reviewerId),
                 any(), eq("10.0.0.9"), eq("cli/1.0"));

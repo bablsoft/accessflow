@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal;
 import com.bablsoft.accessflow.notifications.api.NotificationChannelType;
 import com.bablsoft.accessflow.access.events.GrantStaleEvent;
 import com.bablsoft.accessflow.compliance.events.SensitiveResultExportedEvent;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.entity.NotificationChannelEntity;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.NotificationChannelRepository;
@@ -180,8 +181,7 @@ class NotificationDispatcher {
      *  granting approvers for OUTCOME_FAILED, org admins for BREAK_GLASS_EXECUTED). Fans out to
      *  all active org channels — deployment pipelines carry no review-plan channel binding. */
     void dispatchDeployment(NotificationEventType eventType, UUID deploymentRequestId,
-                            com.bablsoft.accessflow.deploygov.api.DeploymentOutcome outcome,
-                            String decisionReason) {
+                            DeploymentOutcome outcome, String decisionReason) {
         var contextOpt = contextBuilder.buildDeployment(eventType, deploymentRequestId, outcome,
                 decisionReason);
         if (contextOpt.isEmpty()) {

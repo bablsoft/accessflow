@@ -3005,6 +3005,10 @@
       "WATERMARK": "Wasserzeichen",
       "ROW_CAP": "Zeilenlimit",
       "DENY_CLASSIFIED": "Bei Klassifizierung verweigern"
+    },
+    "deployment_outcome": {
+      "FAILED": "fehlgeschlagen",
+      "ROLLED_BACK": "zurückgerollt"
     }
   },
   "access": {

@@ -23,6 +23,7 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
 import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
@@ -542,9 +543,8 @@ class NotificationContextBuilder {
                 decisionReason));
     }
 
-    private List<RecipientView> deploymentRecipients(
-            NotificationEventType eventType,
-            com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView view) {
+    private List<RecipientView> deploymentRecipients(NotificationEventType eventType,
+                                                     DeploymentNotificationView view) {
         return switch (eventType) {
             case DEPLOYMENT_SUBMITTED -> toActiveRecipients(
                     deploymentNotificationLookupService.findEligibleReviewerUserIds(view.id()));

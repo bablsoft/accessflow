@@ -3005,6 +3005,10 @@
       "WATERMARK": "Marca de agua",
       "ROW_CAP": "Límite de filas",
       "DENY_CLASSIFIED": "Denegar si está clasificado"
+    },
+    "deployment_outcome": {
+      "FAILED": "fallido",
+      "ROLLED_BACK": "revertido"
     }
   },
   "access": {

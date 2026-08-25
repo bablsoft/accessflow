@@ -3005,6 +3005,10 @@
       "WATERMARK": "水印",
       "ROW_CAP": "行数上限",
       "DENY_CLASSIFIED": "包含分类时拒绝"
+    },
+    "deployment_outcome": {
+      "FAILED": "失败",
+      "ROLLED_BACK": "已回滚"
     }
   },
   "access": {

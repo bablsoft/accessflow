@@ -15,11 +15,14 @@ public interface DeploymentNotificationLookupService {
     Optional<DeploymentNotificationView> find(UUID deploymentRequestId);
 
     /**
-     * The users eligible to review the deployment, mirroring the #692 plan-approver rule: when the
-     * resolved review plan (the environment's override, else the pipeline's) carries stage-1
-     * approver rules, only the users those rules name qualify; otherwise every holder of the
-     * {@code DEPLOYMENT_REVIEW} permission via the REVIEWER or ADMIN system role does. The
-     * submitter is always excluded — they can never approve their own deployment.
+     * The users to alert that the deployment awaits review, following the #692 plan-approver rule:
+     * when the resolved review plan (the environment's override, else the pipeline's) carries
+     * stage-1 approver rules, the users those rules name; otherwise the REVIEWER and ADMIN
+     * <em>system-role</em> holders. The submitter is always excluded — they can never approve
+     * their own deployment. Note the review guard itself is permission-based
+     * ({@code DEPLOYMENT_REVIEW}), so a user holding it through a custom role can still decide
+     * without appearing in this fallback — the same known narrowing as the apigov recipient set;
+     * such users still see the event on the org-wide channel fanout.
      */
     List<UUID> findEligibleReviewerUserIds(UUID deploymentRequestId);
 

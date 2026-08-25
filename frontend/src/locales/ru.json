@@ -3005,6 +3005,10 @@
       "WATERMARK": "Водяной знак",
       "ROW_CAP": "Лимит строк",
       "DENY_CLASSIFIED": "Запретить при классификации"
+    },
+    "deployment_outcome": {
+      "FAILED": "неудачным",
+      "ROLLED_BACK": "откаченным"
     }
   },
   "access": {

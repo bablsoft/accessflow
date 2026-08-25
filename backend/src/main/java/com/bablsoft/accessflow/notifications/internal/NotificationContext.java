@@ -2,10 +2,10 @@ package com.bablsoft.accessflow.notifications.internal;
 
 import com.bablsoft.accessflow.access.api.GrantUsageRecommendation;
 import com.bablsoft.accessflow.core.api.GrantResourceKind;
-import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 
 import java.net.URI;

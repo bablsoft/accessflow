@@ -38,6 +38,31 @@ class WebhookPayloadFactoryTest {
         assertThat(tree.get("timestamp").asString()).isNotBlank();
     }
 
+    /** #695: subscribers must be able to correlate a deployment event — the query_request block
+     *  carries only the pipeline name. The block is additive so existing event shapes are
+     *  untouched (the HMAC covers the body). */
+    @Test
+    void deploymentEventsCarryAnAdditiveDeploymentBlock() {
+        var deploymentRequestId = UUID.randomUUID();
+        var ctx = deploymentContext(deploymentRequestId);
+
+        JsonNode tree = objectMapper.readTree(factory.buildBody(ctx));
+
+        assertThat(tree.get("event").asString()).isEqualTo("DEPLOYMENT_OUTCOME_FAILED");
+        var deployment = tree.get("deployment");
+        assertThat(deployment.get("id").asString()).isEqualTo(deploymentRequestId.toString());
+        assertThat(deployment.get("pipeline_name").asString()).isEqualTo("payments");
+        assertThat(deployment.get("environment").asString()).isEqualTo("production");
+        assertThat(deployment.get("version").asString()).isEqualTo("2.4.1");
+        assertThat(deployment.get("outcome").asString()).isEqualTo("ROLLED_BACK");
+    }
+
+    @Test
+    void queryEventsCarryNoDeploymentBlock() {
+        JsonNode tree = objectMapper.readTree(factory.buildBody(sampleContext()));
+        assertThat(tree.has("deployment")).isFalse();
+    }
+
     @Test
     void buildTestBodyOnlyIncludesEventAndTimestamp() {
         var body = factory.buildTestBody();
@@ -46,6 +71,33 @@ class WebhookPayloadFactoryTest {
         assertThat(tree.get("event").asString()).isEqualTo("TEST");
         assertThat(tree.get("timestamp").asString()).isNotBlank();
         assertThat(tree.has("query_request")).isFalse();
+    }
+
+    private static NotificationContext deploymentContext(UUID deploymentRequestId) {
+        return new NotificationContext(
+                NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                UUID.randomUUID(),
+                null,
+                null, null, null, null,
+                null, null, null,
+                UUID.randomUUID(), "payments",
+                UUID.randomUUID(), "dev@example.com", "Dev",
+                null,
+                null, null, null,
+                null,
+                List.of(),
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                deploymentRequestId, "production", "2.4.1",
+                com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.ROLLED_BACK, null);
     }
 
     private static NotificationContext sampleContext() {

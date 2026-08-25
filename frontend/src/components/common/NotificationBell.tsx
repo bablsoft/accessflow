@@ -270,7 +270,8 @@ function renderMessage(
     case 'DEPLOYMENT_OUTCOME_FAILED':
       return t('notifications.events.DEPLOYMENT_OUTCOME_FAILED', {
         pipeline: datasource,
-        outcome: payload.outcome ?? '—',
+        // Translated via enums.deployment_outcome — never the raw backend enum name.
+        outcome: payload.outcome ? t(`enums.deployment_outcome.${payload.outcome}`) : '—',
       });
     case 'DEPLOYMENT_BREAK_GLASS_EXECUTED':
       return payload.submitter

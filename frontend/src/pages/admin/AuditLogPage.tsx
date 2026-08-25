@@ -46,6 +46,8 @@ const RESOURCE_TYPES = [
   'review_plan',
   'notification_channel',
   'audit_sink',
+  'deployment_request',
+  'break_glass_event',
 ];
 
 const ACTIONS = [
@@ -89,6 +91,7 @@ const ACTIONS = [
   'DEPLOYMENT_BREAK_GLASS_EXECUTED',
   'DEPLOYMENT_BREAK_GLASS_REVIEWED',
   'DEPLOYMENT_ROLLBACK_REVIEWED',
+  'API_BREAK_GLASS_REVIEWED',
 ];
 
 const actionColor = (a: string): string => {

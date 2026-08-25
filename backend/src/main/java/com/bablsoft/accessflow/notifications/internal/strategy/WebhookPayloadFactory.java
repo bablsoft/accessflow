@@ -48,6 +48,20 @@ class WebhookPayloadFactory {
             anomaly.put("user", ctx.anomalyUserLabel());
             envelope.put("anomaly", anomaly);
         }
+        // #695: deployment events would otherwise be uncorrelatable for subscribers — the
+        // query_request block carries only the pipeline name. Additive, like the anomaly block,
+        // so existing subscribers' HMAC-verified payload shapes are untouched.
+        if (ctx.deploymentRequestId() != null) {
+            var deployment = new LinkedHashMap<String, Object>();
+            deployment.put("id", ctx.deploymentRequestId());
+            deployment.put("pipeline_id", ctx.datasourceId());
+            deployment.put("pipeline_name", ctx.datasourceName());
+            deployment.put("environment", ctx.environmentName());
+            deployment.put("version", ctx.deploymentVersion());
+            deployment.put("outcome", ctx.deploymentOutcome());
+            deployment.put("decision_reason", ctx.deploymentDecisionReason());
+            envelope.put("deployment", deployment);
+        }
         return objectMapper.writeValueAsString(envelope);
     }
 

@@ -60,10 +60,14 @@ class DeploymentReviewController {
         var caller = claims(authentication);
         var outcome = reviewService.approve(id, context(caller), body.comment());
         // Recorded per decision (before quorum) like the apigov sibling — every reviewer verdict
-        // is its own audit row (#695).
-        auditWriter.record(AuditAction.DEPLOYMENT_APPROVED, AuditResourceType.DEPLOYMENT_REQUEST,
-                id, caller.organizationId(), caller.userId(), Map.of(),
-                auditContext.ipAddress(), auditContext.userAgent());
+        // is its own audit row (#695) — but an idempotent replay of an existing decision is not a
+        // new verdict and writes nothing.
+        if (!outcome.duplicate()) {
+            auditWriter.record(AuditAction.DEPLOYMENT_APPROVED,
+                    AuditResourceType.DEPLOYMENT_REQUEST, id, caller.organizationId(),
+                    caller.userId(), Map.of(), auditContext.ipAddress(),
+                    auditContext.userAgent());
+        }
         return DeploymentDecisionResponse.from(outcome);
     }
 
@@ -79,9 +83,12 @@ class DeploymentReviewController {
                                       RequestAuditContext auditContext) {
         var caller = claims(authentication);
         var outcome = reviewService.reject(id, context(caller), body.comment());
-        auditWriter.record(AuditAction.DEPLOYMENT_REJECTED, AuditResourceType.DEPLOYMENT_REQUEST,
-                id, caller.organizationId(), caller.userId(), Map.of(),
-                auditContext.ipAddress(), auditContext.userAgent());
+        if (!outcome.duplicate()) {
+            auditWriter.record(AuditAction.DEPLOYMENT_REJECTED,
+                    AuditResourceType.DEPLOYMENT_REQUEST, id, caller.organizationId(),
+                    caller.userId(), Map.of(), auditContext.ipAddress(),
+                    auditContext.userAgent());
+        }
         return DeploymentDecisionResponse.from(outcome);
     }
 

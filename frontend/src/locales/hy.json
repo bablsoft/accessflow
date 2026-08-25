@@ -3005,6 +3005,10 @@
       "WATERMARK": "Ջրանշան",
       "ROW_CAP": "Տողերի սահմանաչափ",
       "DENY_CLASSIFIED": "Մերժել դասակարգվածի դեպքում"
+    },
+    "deployment_outcome": {
+      "FAILED": "ձախողված",
+      "ROLLED_BACK": "հետ գլորված"
     }
   },
   "access": {

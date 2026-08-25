@@ -222,6 +222,12 @@ Generic **HTTP POST** to any URL. Designed for integration with custom systems, 
 }
 ```
 
+Anomaly events (`ANOMALY_DETECTED`) add a sibling `anomaly` object, and deployment events
+(`DEPLOYMENT_*`, #695) add a sibling `deployment` object — `{ id, pipeline_id, pipeline_name,
+environment, version, outcome, decision_reason }` — since the `query_request` block carries only
+the pipeline name for them. Both blocks are **additive**: existing event shapes are unchanged, so
+subscribers' HMAC-verified payloads are unaffected.
+
 **Request headers:**
 ```
 Content-Type: application/json

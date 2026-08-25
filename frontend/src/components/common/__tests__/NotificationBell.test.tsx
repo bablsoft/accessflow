@@ -517,7 +517,7 @@ describe('NotificationBell', () => {
     [
       'DEPLOYMENT_OUTCOME_FAILED' as const,
       { datasource: 'payments-pipeline', outcome: 'ROLLED_BACK' as const },
-      /deployment you approved on payments-pipeline reported ROLLED_BACK/,
+      /deployment you approved on payments-pipeline reported rolled back/,
     ],
     [
       'DEPLOYMENT_BREAK_GLASS_EXECUTED' as const,
@@ -560,7 +560,7 @@ describe('NotificationBell', () => {
   });
 
   it('renders the no-submitter deployment variants', async () => {
-    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    fetchUnreadCountMock.mockResolvedValue({ count: 2 });
     listNotificationsMock.mockResolvedValue(
       page([
         {
@@ -574,6 +574,17 @@ describe('NotificationBell', () => {
           created_at: new Date().toISOString(),
           read_at: null,
         },
+        {
+          id: 'dep3',
+          event_type: 'DEPLOYMENT_BREAK_GLASS_EXECUTED',
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: 'dr-3',
+          payload: { datasource: 'payments-pipeline' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
       ]),
     );
 
@@ -582,6 +593,9 @@ describe('NotificationBell', () => {
     await waitFor(() => {
       expect(
         screen.getByText('New deployment awaiting review on payments-pipeline'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('A break-glass deployment was released on payments-pipeline'),
       ).toBeInTheDocument();
     });
   });
