@@ -46,9 +46,12 @@
         <connectors.dir>${project.basedir}/../connectors</connectors.dir>
         <!-- Surefire runs the whole suite in one fork; the accumulated Spring test-context cache
              plus the ArchUnit class-graph import (ApiPackageDependencyTest) exceed the JVM's
-             default (RAM/4) heap on CI runners. The JaCoCo prepare-agent goal prepends its agent
-             to this existing value, so the coverage profile keeps working. -->
-        <argLine>-Xmx6g</argLine>
+             default (RAM/4) heap on CI runners. 6g started GC-thrashing/OOMing once the deploygov
+             gate ITs (#693) grew the context cache past ~35 @SpringBootTest contexts; 10g leaves
+             the 16 GB GitHub runner room for the Maven JVM and the Testcontainers stack. The
+             JaCoCo prepare-agent goal prepends its agent to this existing value, so the coverage
+             profile keeps working. -->
+        <argLine>-Xmx10g</argLine>
     </properties>
 
     <dependencyManagement>
