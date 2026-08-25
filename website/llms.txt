@@ -12,6 +12,7 @@ It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI ag
 
 ## Docs
 
+- [Governed database access for AI agents](https://accessflow.bablsoft.com/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit
 - [Documentation home](https://accessflow.bablsoft.com/docs/): Hub for the operator and admin documentation — install AccessFlow, complete first-run setup, and configure every entity in the review pipeline
 - [Install & first run](https://accessflow.bablsoft.com/docs/install/): Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap
 - [Users & roles](https://accessflow.bablsoft.com/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
