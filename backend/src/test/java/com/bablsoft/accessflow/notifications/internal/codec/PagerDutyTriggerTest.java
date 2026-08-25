@@ -11,14 +11,18 @@ class PagerDutyTriggerTest {
 
     @Test
     void eventTypeMapping() {
-        assertThat(PagerDutyTrigger.CRITICAL_RISK.eventType())
-                .isEqualTo(NotificationEventType.AI_HIGH_RISK);
-        assertThat(PagerDutyTrigger.REVIEW_TIMEOUT.eventType())
-                .isEqualTo(NotificationEventType.REVIEW_TIMEOUT);
-        assertThat(PagerDutyTrigger.ESCALATION.eventType())
-                .isEqualTo(NotificationEventType.QUERY_ESCALATED);
-        assertThat(PagerDutyTrigger.REVIEW_STALLED.eventType())
-                .isEqualTo(NotificationEventType.REVIEW_ESCALATED);
+        assertThat(PagerDutyTrigger.CRITICAL_RISK.eventTypes())
+                .containsExactly(NotificationEventType.AI_HIGH_RISK);
+        assertThat(PagerDutyTrigger.REVIEW_TIMEOUT.eventTypes())
+                .containsExactly(NotificationEventType.REVIEW_TIMEOUT);
+        assertThat(PagerDutyTrigger.ESCALATION.eventTypes())
+                .containsExactly(NotificationEventType.QUERY_ESCALATED);
+        assertThat(PagerDutyTrigger.REVIEW_STALLED.eventTypes())
+                .containsExactly(NotificationEventType.REVIEW_ESCALATED);
+        // #695: one operator knob covers break-glass queries and break-glass deployments.
+        assertThat(PagerDutyTrigger.BREAK_GLASS.eventTypes())
+                .containsExactlyInAnyOrder(NotificationEventType.BREAK_GLASS_EXECUTED,
+                        NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED);
     }
 
     @Test
@@ -31,6 +35,8 @@ class PagerDutyTriggerTest {
                 .contains(PagerDutyTrigger.ESCALATION);
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.REVIEW_ESCALATED))
                 .contains(PagerDutyTrigger.REVIEW_STALLED);
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED))
+                .contains(PagerDutyTrigger.BREAK_GLASS);
     }
 
     @Test
@@ -41,6 +47,12 @@ class PagerDutyTriggerTest {
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.TEST)).isEmpty();
         // A reminder is not an incident: REVIEW_NUDGE deliberately has no trigger (#622).
         assertThat(PagerDutyTrigger.forEvent(NotificationEventType.REVIEW_NUDGE)).isEmpty();
+        // #695: routine deployment lifecycle progress is not an incident.
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_SUBMITTED)).isEmpty();
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_APPROVED)).isEmpty();
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_REJECTED)).isEmpty();
+        assertThat(PagerDutyTrigger.forEvent(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED))
+                .isEmpty();
     }
 
     @Test

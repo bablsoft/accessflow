@@ -43,5 +43,25 @@ public enum NotificationEventType {
 
     ERASURE_APPROVED,
 
+    /** A deployment reached {@code PENDING_REVIEW} (#695) — fans out to its eligible reviewers. */
+    DEPLOYMENT_SUBMITTED,
+    /** A deployment was approved (reviewer quorum or routing policy) — notifies the submitter. */
+    DEPLOYMENT_APPROVED,
+    /**
+     * A deployment was rejected — by a reviewer, a routing policy, a freeze window, or the review
+     * timeout. Notifies the submitter.
+     */
+    DEPLOYMENT_REJECTED,
+    /**
+     * The pipeline reported a {@code FAILED} or {@code ROLLED_BACK} outcome (#695) — notifies the
+     * reviewers who approved the deployment, so the people who granted it learn it went wrong.
+     */
+    DEPLOYMENT_OUTCOME_FAILED,
+    /**
+     * A break-glass deployment force-approved and released past review (#695) — instant fanout to
+     * every active org admin including PagerDuty, mirroring {@code BREAK_GLASS_EXECUTED}.
+     */
+    DEPLOYMENT_BREAK_GLASS_EXECUTED,
+
     TEST
 }

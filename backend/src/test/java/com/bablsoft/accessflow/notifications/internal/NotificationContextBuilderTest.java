@@ -62,6 +62,7 @@ class NotificationContextBuilderTest {
     private AttestationCampaignLookupService attestationLookup;
     private com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService apiRequestLookup;
     private com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService apiConnectorLookup;
+    private com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService deploymentLookup;
     private NotificationContextBuilder builder;
 
     private final UUID orgId = UUID.randomUUID();
@@ -84,6 +85,7 @@ class NotificationContextBuilderTest {
         attestationLookup = mock(AttestationCampaignLookupService.class);
         apiRequestLookup = mock(com.bablsoft.accessflow.apigov.api.ApiRequestNotificationLookupService.class);
         apiConnectorLookup = mock(com.bablsoft.accessflow.apigov.api.ApiConnectorNotificationLookupService.class);
+        deploymentLookup = mock(com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService.class);
         var props = new NotificationsProperties(
                 URI.create("https://app.example.test/"),
                 NotificationsProperties.Retry.defaults(),
@@ -92,7 +94,7 @@ class NotificationContextBuilderTest {
         builder = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
                 reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, apiConnectorLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, props);
 
         when(queryRequestLookup.findById(queryId)).thenReturn(Optional.of(snapshot()));
         when(datasourceAdmin.getForAdmin(eq(datasourceId), eq(orgId))).thenReturn(datasourceView());
@@ -379,7 +381,7 @@ class NotificationContextBuilderTest {
         var b = new NotificationContextBuilder(queryRequestLookup, queryRequestStateService,
                 reviewPlanLookup,
                 aiLookup, datasourceAdmin, userQuery, localizationConfig, behaviorAnomalyLookup,
-                attestationLookup, apiRequestLookup, apiConnectorLookup, props);
+                attestationLookup, apiRequestLookup, apiConnectorLookup, deploymentLookup, props);
         var ctx = b.build(NotificationEventType.QUERY_APPROVED, queryId, null, null, null)
                 .orElseThrow();
         assertThat(ctx.reviewUrl().toString())
@@ -575,6 +577,131 @@ class NotificationContextBuilderTest {
         when(apiRequestLookup.find(apiRequestId)).thenReturn(Optional.empty());
         assertThat(builder.buildApiRequest(
                 NotificationEventType.API_REQUEST_SUBMITTED, apiRequestId)).isEmpty();
+    }
+
+    @Test
+    void buildDeploymentPutsIdInDeploymentSlotAndPipelineInDatasourceName() {
+        var deploymentRequestId = UUID.randomUUID();
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(deploymentLookup.findEligibleReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of());
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_SUBMITTED,
+                deploymentRequestId, null, null).orElseThrow();
+
+        assertThat(ctx.eventType()).isEqualTo(NotificationEventType.DEPLOYMENT_SUBMITTED);
+        assertThat(ctx.queryRequestId()).isNull();
+        assertThat(ctx.apiRequestId()).isNull();
+        assertThat(ctx.deploymentRequestId()).isEqualTo(deploymentRequestId);
+        assertThat(ctx.datasourceName()).isEqualTo("payments-pipeline");
+        assertThat(ctx.environmentName()).isEqualTo("production");
+        assertThat(ctx.deploymentVersion()).isEqualTo("2.4.1");
+        assertThat(ctx.justification()).isEqualTo("ship it");
+        // No deploygov UI yet — a deployment notification must not fabricate a link.
+        assertThat(ctx.reviewUrl()).isNull();
+    }
+
+    @Test
+    void deploymentSubmittedFansOutToActiveEligibleReviewers() {
+        var deploymentRequestId = UUID.randomUUID();
+        var active = user(UUID.randomUUID(), "rev@example.com", UserRoleType.REVIEWER);
+        var inactive = new UserView(UUID.randomUUID(), "gone@example.com", "Gone",
+                UserRoleType.REVIEWER, orgId, false, AuthProviderType.LOCAL,
+                "h", null, null, false, Instant.now());
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(deploymentLookup.findEligibleReviewerUserIds(deploymentRequestId))
+                .thenReturn(List.of(active.id(), inactive.id()));
+        when(userQuery.findByIds(List.of(active.id(), inactive.id())))
+                .thenReturn(List.of(active, inactive));
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_SUBMITTED,
+                deploymentRequestId, null, null).orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(active.id());
+    }
+
+    @Test
+    void deploymentDecisionsNotifyTheActiveSubmitterOnly() {
+        var deploymentRequestId = UUID.randomUUID();
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+
+        for (var eventType : List.of(NotificationEventType.DEPLOYMENT_APPROVED,
+                NotificationEventType.DEPLOYMENT_REJECTED)) {
+            var ctx = builder.buildDeployment(eventType, deploymentRequestId, null,
+                    "review_timeout").orElseThrow();
+            assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                    .containsExactly(submitterId);
+            assertThat(ctx.deploymentDecisionReason()).isEqualTo("review_timeout");
+        }
+    }
+
+    @Test
+    void deploymentOutcomeFailureNotifiesTheGrantingApprovers() {
+        var deploymentRequestId = UUID.randomUUID();
+        var approver = user(UUID.randomUUID(), "approver@example.com", UserRoleType.REVIEWER);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(deploymentLookup.findApproverUserIds(deploymentRequestId))
+                .thenReturn(List.of(approver.id()));
+        when(userQuery.findByIds(List.of(approver.id()))).thenReturn(List.of(approver));
+
+        var ctx = builder.buildDeployment(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                deploymentRequestId,
+                com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.FAILED, null)
+                .orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(approver.id());
+        assertThat(ctx.deploymentOutcome())
+                .isEqualTo(com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.FAILED);
+    }
+
+    @Test
+    void deploymentBreakGlassFansOutToActiveOrgAdmins() {
+        var deploymentRequestId = UUID.randomUUID();
+        var admin = user(UUID.randomUUID(), "admin@example.com", UserRoleType.ADMIN);
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.of(deploymentView(
+                deploymentRequestId)));
+        when(userQuery.findById(submitterId)).thenReturn(Optional.of(user(submitterId,
+                "dev@example.com", UserRoleType.ANALYST)));
+        when(userQuery.findByOrganizationAndRole(orgId, UserRoleType.ADMIN))
+                .thenReturn(List.of(admin));
+
+        var ctx = builder.buildDeployment(
+                NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, deploymentRequestId,
+                null, null).orElseThrow();
+
+        assertThat(ctx.recipients()).extracting(RecipientView::userId)
+                .containsExactly(admin.id());
+    }
+
+    @Test
+    void buildDeploymentEmptyWhenRequestMissing() {
+        var deploymentRequestId = UUID.randomUUID();
+        when(deploymentLookup.find(deploymentRequestId)).thenReturn(Optional.empty());
+        assertThat(builder.buildDeployment(NotificationEventType.DEPLOYMENT_APPROVED,
+                deploymentRequestId, null, null)).isEmpty();
+    }
+
+    private com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView deploymentView(
+            UUID deploymentRequestId) {
+        return new com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView(
+                deploymentRequestId, orgId, UUID.randomUUID(), "payments-pipeline", "production",
+                "2.4.1", submitterId, QueryStatus.PENDING_REVIEW,
+                com.bablsoft.accessflow.core.api.SubmissionReason.USER_SUBMITTED,
+                "ship it", RiskLevel.LOW, 10, "ok");
     }
 
     @Test

@@ -101,6 +101,19 @@ class PagerDutyPayloadFactory {
                 && ctx.approvalTimeoutHours() != null) {
             details.put("approval_timeout_hours", ctx.approvalTimeoutHours());
         }
+        // #695: break-glass deployments — the pipeline already rides in datasource_name/component.
+        if (ctx.deploymentRequestId() != null) {
+            details.put("deployment_id", ctx.deploymentRequestId().toString());
+            if (ctx.environmentName() != null) {
+                details.put("environment", ctx.environmentName());
+            }
+            if (ctx.deploymentVersion() != null) {
+                details.put("version", ctx.deploymentVersion());
+            }
+            if (ctx.deploymentOutcome() != null) {
+                details.put("outcome", ctx.deploymentOutcome().name());
+            }
+        }
         if (ctx.anomalyId() != null) {
             details.put("anomaly_id", ctx.anomalyId().toString());
             if (ctx.anomalyFeature() != null) {
@@ -117,11 +130,14 @@ class PagerDutyPayloadFactory {
     }
 
     private static String dedupKey(NotificationContext ctx) {
-        // queryRequestId is null for non-query events (anomalies, connector-scoped alerts); fall back to
-        // the anomaly id, then the connector id (carried in datasourceId), so each subject is its own
-        // PagerDuty incident rather than all collapsing into one.
+        // queryRequestId is null for non-query events (anomalies, deployments, connector-scoped
+        // alerts); fall back to the anomaly id, then the deployment-request id (#695 — before the
+        // datasourceId fallback, or two break-glass deployments on one pipeline would collapse
+        // into a single incident), then the connector id (carried in datasourceId), so each
+        // subject is its own PagerDuty incident rather than all collapsing into one.
         var subject = ctx.queryRequestId() != null ? ctx.queryRequestId()
                 : ctx.anomalyId() != null ? ctx.anomalyId()
+                : ctx.deploymentRequestId() != null ? ctx.deploymentRequestId()
                 : ctx.datasourceId() != null ? ctx.datasourceId() : "none";
         // The event type is part of the key (#622) because one subject can raise genuinely
         // different incidents: a CRITICAL-risk query that then stalls in review would otherwise
@@ -152,6 +168,10 @@ class PagerDutyPayloadFactory {
             case REVIEW_TIMEOUT -> "AccessFlow: review timed out for a query on " + datasource;
             case ANOMALY_DETECTED -> "AccessFlow: behavioral anomaly detected on " + datasource;
             case BREAK_GLASS_EXECUTED -> "AccessFlow: break-glass query executed on " + datasource;
+            // #695: the only deployment event with a PagerDuty trigger; datasource is the pipeline.
+            // Spelled out because the default below says "for a query".
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED ->
+                    "AccessFlow: break-glass deployment executed on pipeline " + datasource;
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "AccessFlow: OAuth2 token fetch repeatedly failing for connector " + datasource;
             default -> "AccessFlow: " + ctx.eventType().name() + " for a query on " + datasource;

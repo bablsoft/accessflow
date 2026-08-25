@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import org.junit.jupiter.api.Test;
@@ -101,6 +102,108 @@ class TelegramMessageFactoryTest {
                 .contains("Open anomalies")
                 .contains("Open suggestions")
                 .contains("Open your dashboard");
+    }
+
+    @Test
+    void deploymentSubmittedHeaderUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null), "-100");
+        assertThat(body).contains("New Deployment Awaiting Review");
+    }
+
+    @Test
+    void deploymentApprovedHeaderUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, null), "-100");
+        assertThat(body).contains("Deployment Approved");
+    }
+
+    @Test
+    void deploymentRejectedHeaderUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_REJECTED, null), "-100");
+        assertThat(body).contains("Deployment Rejected");
+    }
+
+    @Test
+    void deploymentOutcomeFailedHeaderUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                        DeploymentOutcome.FAILED), "-100");
+        assertThat(body).contains("Deployment Failed or Rolled Back");
+    }
+
+    @Test
+    void deploymentBreakGlassHeaderUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, null), "-100");
+        // '-' is escaped to '\-' by MarkdownV2 escaping, JSON-encoded as \\-.
+        assertThat(body).contains("Break\\\\-glass Deployment Executed");
+    }
+
+    @Test
+    void deploymentSubmittedRendersPipelineEnvironmentVersionAndSubmitter() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null), "-100");
+        // The pipeline name rides in datasourceName but must be labeled "Pipeline".
+        assertThat(body).contains("Pipeline")
+                .doesNotContain("Datasource")
+                .contains("payments deploy")
+                .contains("production")
+                // "2.4.0" — MarkdownV2 escapes '.', JSON-encoded as \\.
+                .contains("2\\\\.4\\\\.0")
+                .contains("alice@example\\\\.com");
+    }
+
+    @Test
+    void deploymentOutcomeFailedCarriesOutcomeName() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                        DeploymentOutcome.ROLLED_BACK), "-100");
+        // '_' is escaped to '\_' by MarkdownV2 escaping, JSON-encoded as \\_.
+        assertThat(body).contains("Outcome").contains("ROLLED\\\\_BACK");
+    }
+
+    /** A DEPLOYMENT_* context (#695) — pipeline in datasourceName, no SQL, no review URL. */
+    private static NotificationContext deploymentCtx(
+            NotificationEventType eventType, DeploymentOutcome outcome) {
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                RiskLevel.MEDIUM,
+                42,
+                null,
+                UUID.randomUUID(),
+                "payments deploy",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                "release rollout",
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                Instant.parse("2026-08-25T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                UUID.randomUUID(),
+                "production",
+                "2.4.0",
+                outcome,
+                null);
     }
 
     private static NotificationContext digestCtx() {

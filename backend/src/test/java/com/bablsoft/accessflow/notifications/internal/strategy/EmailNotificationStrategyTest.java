@@ -155,6 +155,37 @@ class EmailNotificationStrategyTest {
     }
 
     @Test
+    void deliverRoutesEachDeploymentEventToItsOwnTemplate() {
+        var expected = java.util.Map.of(
+                NotificationEventType.DEPLOYMENT_SUBMITTED, "email/deployment-pending-review",
+                NotificationEventType.DEPLOYMENT_APPROVED, "email/deployment-approved",
+                NotificationEventType.DEPLOYMENT_REJECTED, "email/deployment-rejected",
+                NotificationEventType.DEPLOYMENT_OUTCOME_FAILED, "email/deployment-outcome-failed",
+                NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                "email/deployment-break-glass-executed");
+        expected.forEach((eventType, template) -> {
+            strategy.deliver(deploymentCtx(eventType), channel());
+            verify(templateEngine).process(eq(template), any());
+        });
+    }
+
+    /**
+     * The subject-args switch has a silent default that passes only the datasource name; the
+     * deployment cases must pass pipeline AND version or "{1}" renders unfilled in every subject.
+     */
+    @Test
+    void deploymentSubjectArgsCarryPipelineAndVersion() {
+        strategy.deliver(deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED), channel());
+
+        var argsCaptor = ArgumentCaptor.forClass(Object[].class);
+        verify(messageSource).getMessage(
+                eq("notification.email.subject.deployment_approved"),
+                argsCaptor.capture(),
+                any(Locale.class));
+        assertThat(argsCaptor.getValue()).containsExactly("payments-pipeline", "2.4.1");
+    }
+
+    @Test
     void deliverUsesRejectedTemplateForRejectedEvent() {
         var ctx = ctx(NotificationEventType.QUERY_REJECTED, List.of(
                 new RecipientView(UUID.randomUUID(), "alice@example.com", "Alice")));
@@ -436,6 +467,37 @@ class EmailNotificationStrategyTest {
     private static NotificationContext ctx(NotificationEventType eventType,
                                            List<RecipientView> recipients) {
         return ctx(eventType, recipients, "en", null);
+    }
+
+    /** A deployment context (#695): pipeline in datasourceName, deployment fields trailing. */
+    private static NotificationContext deploymentCtx(NotificationEventType eventType) {
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(),
+                null,
+                null, null, null, null,
+                null, null, null,
+                UUID.randomUUID(),
+                "payments-pipeline",
+                UUID.randomUUID(),
+                "dev@example.com",
+                "Dev",
+                null,
+                null, null, null,
+                null,
+                List.of(new RecipientView(UUID.randomUUID(), "rcpt@example.com", "R")),
+                Instant.now(),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                UUID.randomUUID(), "production", "2.4.1",
+                com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.FAILED, null);
     }
 
     /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */

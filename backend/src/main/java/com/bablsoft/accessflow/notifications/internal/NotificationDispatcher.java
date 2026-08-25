@@ -175,6 +175,23 @@ class NotificationDispatcher {
         deliver(eventType, contextOpt.get());
     }
 
+    /** Dispatch a deployment notification (#695) — non-query-backed; recipients resolved by the
+     *  context builder (eligible reviewers for SUBMITTED, submitter for APPROVED/REJECTED, the
+     *  granting approvers for OUTCOME_FAILED, org admins for BREAK_GLASS_EXECUTED). Fans out to
+     *  all active org channels — deployment pipelines carry no review-plan channel binding. */
+    void dispatchDeployment(NotificationEventType eventType, UUID deploymentRequestId,
+                            com.bablsoft.accessflow.deploygov.api.DeploymentOutcome outcome,
+                            String decisionReason) {
+        var contextOpt = contextBuilder.buildDeployment(eventType, deploymentRequestId, outcome,
+                decisionReason);
+        if (contextOpt.isEmpty()) {
+            log.debug("Skipping {} for unknown deployment request {}", eventType,
+                    deploymentRequestId);
+            return;
+        }
+        deliver(eventType, contextOpt.get());
+    }
+
     private void deliver(NotificationEventType eventType, NotificationContext ctx) {
         recordInAppNotifications(ctx);
         var channels = resolveChannels(eventType, ctx);
@@ -241,7 +258,7 @@ class NotificationDispatcher {
                     ctx.organizationId(),
                     ctx.queryRequestId(),
                     ctx.apiRequestId(),
-                    null,
+                    ctx.deploymentRequestId(),
                     buildPayload(ctx));
         } catch (RuntimeException ex) {
             log.error("Failed to persist in-app notifications for event {} on query {}",
@@ -256,6 +273,18 @@ class NotificationDispatcher {
         }
         if (ctx.apiRequestId() != null) {
             payload.put("api_id", ctx.apiRequestId().toString());
+        }
+        if (ctx.deploymentRequestId() != null) {
+            payload.put("deployment_id", ctx.deploymentRequestId().toString());
+        }
+        if (ctx.environmentName() != null) {
+            payload.put("environment", ctx.environmentName());
+        }
+        if (ctx.deploymentVersion() != null) {
+            payload.put("version", ctx.deploymentVersion());
+        }
+        if (ctx.deploymentOutcome() != null) {
+            payload.put("outcome", ctx.deploymentOutcome().name());
         }
         if (ctx.datasourceName() != null) {
             payload.put("datasource", ctx.datasourceName());
@@ -299,7 +328,15 @@ class NotificationDispatcher {
                 || eventType == NotificationEventType.ATTESTATION_CAMPAIGN_OPENED
                 || eventType == NotificationEventType.GRANT_STALE
                 || eventType == NotificationEventType.SENSITIVE_RESULT_EXPORTED
-                || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED) {
+                || eventType == NotificationEventType.API_CONNECTOR_OAUTH2_TOKEN_FAILED
+                // #695: deployment pipelines have no review-plan channel binding, so every
+                // deployment event fans out org-wide. An event missing here would silently
+                // deliver to zero channels (null datasourceId → empty plan-channel list).
+                || eventType == NotificationEventType.DEPLOYMENT_SUBMITTED
+                || eventType == NotificationEventType.DEPLOYMENT_APPROVED
+                || eventType == NotificationEventType.DEPLOYMENT_REJECTED
+                || eventType == NotificationEventType.DEPLOYMENT_OUTCOME_FAILED
+                || eventType == NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED) {
             return channelRepository.findAllByOrganizationIdAndActiveTrue(ctx.organizationId());
         }
         var planChannels = lookupPlanChannelIds(ctx);

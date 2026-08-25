@@ -68,6 +68,20 @@ class TelegramMessageFactory {
             }
             return sb.toString();
         }
+        // #695: deployment governance — the pipeline name rides in datasourceName.
+        if (ctx.deploymentRequestId() != null) {
+            appendField(sb, "Pipeline", nullToDash(ctx.datasourceName()));
+            appendField(sb, "Environment", nullToDash(ctx.environmentName()));
+            appendField(sb, "Version", nullToDash(ctx.deploymentVersion()));
+            appendField(sb, "Submitted by", nullToDash(ctx.submitterEmail()));
+            if (ctx.riskLevel() != null) {
+                appendField(sb, "Risk Level", riskBadge(ctx.riskLevel(), ctx.riskScore()));
+            }
+            if (ctx.deploymentOutcome() != null) {
+                appendField(sb, "Outcome", ctx.deploymentOutcome().name());
+            }
+            return sb.toString();
+        }
         appendField(sb, "Datasource", nullToDash(ctx.datasourceName()));
         appendField(sb, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -137,6 +151,12 @@ class TelegramMessageFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            // #695: deployment governance
+            case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
+            case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";
+            case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
+            case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
         };
     }
 

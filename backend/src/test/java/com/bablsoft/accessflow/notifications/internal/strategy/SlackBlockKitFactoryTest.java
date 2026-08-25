@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.slack.api.model.block.ActionsBlock;
@@ -287,6 +288,113 @@ class SlackBlockKitFactoryTest {
                 Instant.parse("2026-05-06T10:15:00Z"),
                 "en",
                 approvalTimeoutHours);
+    }
+
+    @Test
+    void deploymentSubmittedHeaderUsesRocketLabel() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null), null);
+        assertThat(payload.getText()).isEqualTo("🚀 New Deployment Awaiting Review");
+        var header = (HeaderBlock) payload.getBlocks().get(0);
+        assertThat(header.getText().getText()).isEqualTo("🚀 New Deployment Awaiting Review");
+    }
+
+    @Test
+    void deploymentApprovedHeaderUsesCheckmark() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, null), null);
+        assertThat(payload.getText()).isEqualTo("✅ Deployment Approved");
+    }
+
+    @Test
+    void deploymentRejectedHeaderUsesCross() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_REJECTED, null), null);
+        assertThat(payload.getText()).isEqualTo("❌ Deployment Rejected");
+    }
+
+    @Test
+    void deploymentOutcomeFailedHeaderCoversFailureAndRollback() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                        DeploymentOutcome.FAILED), null);
+        assertThat(payload.getText()).isEqualTo("🚨 Deployment Failed or Rolled Back");
+    }
+
+    @Test
+    void deploymentBreakGlassHeaderUsesSiren() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, null), null);
+        assertThat(payload.getText()).isEqualTo("🚨 Break-glass Deployment Executed");
+    }
+
+    @Test
+    void deploymentSubmittedPayloadRendersPipelineFieldsNotDatasource() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null), null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .anyMatch(t -> t.contains("Pipeline:") && t.contains("payments-service"))
+                .anyMatch(t -> t.contains("Environment:") && t.contains("production"))
+                .anyMatch(t -> t.contains("Version:") && t.contains("v2.4.1"))
+                .anyMatch(t -> t.contains("Submitted by:") && t.contains("alice@example.com"))
+                .noneMatch(t -> t.contains("Datasource:"))
+                .noneMatch(t -> t.contains("Outcome:"));
+    }
+
+    @Test
+    void deploymentOutcomeFailedPayloadCarriesTheOutcomeName() {
+        var payload = factory.buildEventPayload(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                        DeploymentOutcome.ROLLED_BACK), null);
+        var summary = (SectionBlock) payload.getBlocks().get(1);
+        assertThat(summary.getFields()).extracting(t -> ((MarkdownTextObject) t).getText())
+                .anyMatch(t -> t.contains("Outcome:") && t.contains("ROLLED_BACK"));
+    }
+
+    /**
+     * A DEPLOYMENT_* context (#695): the pipeline rides in {@code datasourceName}, no SQL, no
+     * queryType, no reviewUrl; the deployment fields are the trailing canonical components.
+     */
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome) {
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                RiskLevel.MEDIUM,
+                42,
+                null,
+                UUID.randomUUID(),
+                "payments-service",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                "hotfix for incident 4711",
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                Instant.parse("2026-08-25T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                UUID.randomUUID(),
+                "production",
+                "v2.4.1",
+                outcome,
+                null);
     }
 
     @Test

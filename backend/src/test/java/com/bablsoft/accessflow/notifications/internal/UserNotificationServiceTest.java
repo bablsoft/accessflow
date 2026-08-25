@@ -104,7 +104,7 @@ class UserNotificationServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         var deploymentRequestId = UUID.randomUUID();
 
-        service.recordForUsers(NotificationEventType.TEST,
+        service.recordForUsers(NotificationEventType.DEPLOYMENT_SUBMITTED,
                 Set.of(userId), orgId, null, null, deploymentRequestId, "{}");
 
         var captor = ArgumentCaptor.forClass(UserNotificationEntity.class);

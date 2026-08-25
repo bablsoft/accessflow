@@ -87,6 +87,21 @@ class DiscordPayloadFactory {
             embed.put("fields", fields);
             return embed;
         }
+        // #695: deployment governance — the pipeline name rides in datasourceName.
+        if (ctx.deploymentRequestId() != null) {
+            addField(fields, "Pipeline", nullToDash(ctx.datasourceName()));
+            addField(fields, "Environment", nullToDash(ctx.environmentName()));
+            addField(fields, "Version", nullToDash(ctx.deploymentVersion()));
+            addField(fields, "Submitted by", nullToDash(ctx.submitterEmail()));
+            if (ctx.riskLevel() != null) {
+                addField(fields, "Risk Level", riskBadge(ctx.riskLevel(), ctx.riskScore()));
+            }
+            if (ctx.deploymentOutcome() != null) {
+                addField(fields, "Outcome", ctx.deploymentOutcome().name());
+            }
+            embed.put("fields", fields);
+            return embed;
+        }
         addField(fields, "Datasource", nullToDash(ctx.datasourceName()));
         addField(fields, "Submitted by", nullToDash(ctx.submitterEmail()));
         if (ctx.queryType() != null) {
@@ -165,6 +180,12 @@ class DiscordPayloadFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            // #695: deployment governance
+            case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
+            case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";
+            case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
+            case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
         };
     }
 
