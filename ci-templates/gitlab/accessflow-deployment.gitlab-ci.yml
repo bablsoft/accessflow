@@ -1,0 +1,123 @@
+# Reusable AccessFlow deployment-gate GitLab CI job templates (AF-694).
+#
+# Usage in a downstream .gitlab-ci.yml:
+#
+#   include:
+#     - remote: "https://raw.githubusercontent.com/bablsoft/accessflow/main/ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml"
+#
+#   stages: [gate, deploy, report]
+#
+#   gate_production:
+#     stage: gate
+#     extends: .accessflow_deployment_gate
+#     variables:
+#       ACCESSFLOW_ENDPOINT: "https://accessflow.example.com"
+#       AF_PIPELINE_ID: "3fa85f64-5717-4562-b3fc-2c963f66afa6"   # pipeline UUID (admin page / Terraform output)
+#       AF_VERSION: "$CI_COMMIT_TAG"
+#       AF_ENVIRONMENT: "production"
+#
+#   deploy_production:
+#     stage: deploy
+#     needs: [gate_production]        # the dotenv artifact hands AF_REQUEST_ID over
+#     script: ./deploy.sh
+#
+#   report_success:
+#     stage: report
+#     extends: .accessflow_deployment_outcome
+#     needs: [gate_production, deploy_production]
+#     variables: { AF_OUTCOME: "SUCCEEDED" }
+#   report_failure:
+#     stage: report
+#     extends: .accessflow_deployment_outcome
+#     needs: [gate_production, deploy_production]
+#     when: on_failure                # GitLab has no job-status input — wire one job per outcome
+#     variables: { AF_OUTCOME: "FAILED" }
+#
+# The gate is fail-closed: a 404, any non-retryable error, a terminal status
+# (REJECTED / TIMED_OUT / CANCELLED / FAILED) or the AF_WAIT_TIMEOUT elapsing fails the job.
+# Set ACCESSFLOW_API_KEY as a masked, protected CI/CD variable.
+
+.accessflow_deploy_base:
+  image: alpine:3.21
+  variables:
+    ACCESSFLOW_ENDPOINT: ""
+    ACCESSFLOW_API_KEY: ""
+  before_script:
+    - apk add --no-cache curl jq bash >/dev/null
+
+.accessflow_deployment_gate:
+  extends: .accessflow_deploy_base
+  variables:
+    AF_WAIT_TIMEOUT: "30m"
+    AF_POLL_INTERVAL: "15s"
+  artifacts:
+    reports:
+      dotenv: accessflow-deployment.env
+  script:
+    - |
+      bash -euo pipefail -c '
+        base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+        : "${ACCESSFLOW_API_KEY:?}"; : "${AF_PIPELINE_ID:?}"; : "${AF_VERSION:?}"; : "${AF_ENVIRONMENT:?}"
+        secs() { case "$1" in *h) n="${1%h}"; m=3600;; *m) n="${1%m}"; m=60;; *s) n="${1%s}"; m=1;; *) n="$1"; m=1;; esac
+                 case "$n" in ""|*[!0-9]*) echo "invalid duration ${1} (use 90, 45s, 30m or 2h)" >&2; exit 1;; esac; echo $(( n * m )); }
+        hdr=(-H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true")
+        body=$(jq -n --arg p "$AF_PIPELINE_ID" --arg e "$AF_ENVIRONMENT" --arg v "$AF_VERSION" --arg r "$CI_PIPELINE_ID" \
+          "{pipeline_id:\$p, environment:\$e, version:\$v, external_run_id:\$r}")
+        add() { [ -n "${2:-}" ] && body=$(jq --arg v "$2" ". + {\"$1\": \$v}" <<<"$body") || true; }
+        add run_url "${CI_PIPELINE_URL:-}"; add commit_sha "${CI_COMMIT_SHA:-}"; add artifact_ref "${AF_ARTIFACT_REF:-}"
+        add justification "${AF_JUSTIFICATION:-}"; add scheduled_for "${AF_SCHEDULED_FOR:-}"
+        [ "${AF_BREAK_GLASS:-false}" = "true" ] && body=$(jq ". + {break_glass:true}" <<<"$body") || true
+        [ -n "${AF_METADATA_FILE:-}" ] && body=$(jq --slurpfile m "$AF_METADATA_FILE" ". + {metadata:\$m[0]}" <<<"$body") || true
+        sub=$(curl -fsS -X POST "${hdr[@]}" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests")
+        rid=$(jq -r ".id" <<<"$sub")
+        [ -n "$rid" ] && [ "$rid" != "null" ] || { echo "submission failed: $sub"; exit 1; }
+        echo "AF_REQUEST_ID=$rid" >accessflow-deployment.env
+        echo "Deployment request $rid submitted; awaiting releasable gate"
+        int=$(secs "$AF_POLL_INTERVAL"); end=$(( $(date +%s) + $(secs "$AF_WAIT_TIMEOUT") ))
+        while [ "$(date +%s)" -lt "$end" ]; do
+          resp=$(curl -sS -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-gate?request_id=$rid") || { echo "  gate unreachable, retrying…"; sleep "$int"; continue; }
+          code="${resp##*$'\n'}"; gate="${resp%$'\n'*}"
+          # Fail closed: 404 (unknown/invisible request) and non-retryable 4xx fail the job.
+          [ "$code" = "404" ] && { echo "gate answered 404 for $rid — fail closed, not releasable"; exit 1; }
+          [ "$code" -ge 500 ] && { echo "  gate HTTP $code, retrying…"; sleep "$int"; continue; }
+          [ "$code" -ge 400 ] && { echo "gate HTTP $code: $gate"; exit 1; }
+          st=$(jq -r ".status" <<<"$gate"); rel=$(jq -r ".releasable" <<<"$gate")
+          case "$st" in
+            REJECTED|TIMED_OUT|CANCELLED|FAILED) echo "Deployment request $rid ended: $st"; exit 1 ;;
+            EXECUTED) echo "Deployment request $rid already confirmed"; exit 0 ;;
+          esac
+          if [ "$rel" = "true" ]; then
+            cr=$(curl -sS -X POST -w "\n%{http_code}" "${hdr[@]}" "$base/deployment-requests/$rid/confirm-execution") || { echo "  confirm unreachable, retrying…"; sleep "$int"; continue; }
+            cc="${cr##*$'\n'}"; cb="${cr%$'\n'*}"
+            [ "$cc" = "200" ] && { echo "Deployment request $rid confirmed — gate open"; exit 0; }
+            if [ "$cc" = "409" ]; then
+              # currentStatus is a ProblemDetail map property — camelCase on the wire.
+              [ "$(jq -r ".error // empty" <<<"$cb")" = "DEPLOYMENT_NOT_RELEASABLE" ] && { echo "  releasability changed, re-polling…"; sleep "$int"; continue; }
+              [ "$(jq -r ".currentStatus // empty" <<<"$cb")" = "EXECUTED" ] && { echo "Deployment request $rid confirmed concurrently"; exit 0; }
+            fi
+            [ "$cc" -ge 500 ] && { echo "  confirm HTTP $cc, retrying…"; sleep "$int"; continue; }
+            echo "confirm-execution failed HTTP $cc: $cb"; exit 1
+          fi
+          echo "  status=$st releasable=false, waiting ${int}s…"; sleep "$int"
+        done
+        echo "Timed out after $AF_WAIT_TIMEOUT waiting for deployment request $rid"; exit 1
+      '
+
+.accessflow_deployment_outcome:
+  extends: .accessflow_deploy_base
+  variables:
+    AF_OUTCOME: "SUCCEEDED"
+  script:
+    - |
+      bash -euo pipefail -c '
+        base="${ACCESSFLOW_ENDPOINT%/}/api/v1"
+        : "${ACCESSFLOW_API_KEY:?}"; : "${AF_OUTCOME:?}"
+        [ -n "${AF_REQUEST_ID:-}" ] || { echo "no AF_REQUEST_ID — the gate never created a request; nothing to report"; exit 0; }
+        body=$(jq -n --arg o "$AF_OUTCOME" --arg d "${AF_DETAIL:-}" "{outcome:\$o} + (if \$d == \"\" then {} else {detail:\$d} end)")
+        resp=$(curl -sS -X POST -w "\n%{http_code}" -H "Authorization: ApiKey $ACCESSFLOW_API_KEY" -H "X-AccessFlow-CI: true" -H "Content-Type: application/json" -d "$body" "$base/deployment-requests/$AF_REQUEST_ID/outcome")
+        code="${resp##*$'\n'}"; payload="${resp%$'\n'*}"
+        [ "$code" = "200" ] && { echo "Outcome $AF_OUTCOME reported for $AF_REQUEST_ID"; exit 0; }
+        # A request the gate never released has no outcome to record — benign under when: on_failure.
+        [ "$code" = "409" ] && [ "$(jq -r ".error // empty" <<<"$payload")" = "DEPLOYMENT_REQUEST_INVALID_STATE" ] && { echo "request $AF_REQUEST_ID was never executed; nothing to report"; exit 0; }
+        echo "outcome report failed HTTP $code: $payload"; exit 1
+      '

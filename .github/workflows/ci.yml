@@ -578,6 +578,26 @@ jobs:
       - name: Shellcheck action scripts
         run: shellcheck .github/actions/*/*.sh
 
+      - name: Actionlint (workflows + deployment example)
+        # actionlint lints workflow files, not action.yml metadata — the actions themselves are
+        # exercised by the smoke steps below.
+        run: |
+          curl -fsSLO https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint_1.7.7_linux_amd64.tar.gz" | sha256sum -c -
+          tar xzf actionlint_1.7.7_linux_amd64.tar.gz actionlint
+          ./actionlint
+          ./actionlint ci-templates/examples/github-deployment-workflow.yml
+          rm -f actionlint actionlint_1.7.7_linux_amd64.tar.gz
+
+      - name: Action script tests (offline, fake curl)
+        run: bash .github/actions/tests/deployment-gate-test.sh
+
+      - name: Validate CI template YAML (GitLab + Azure + examples)
+        run: |
+          python3 -c 'import sys, yaml; [yaml.safe_load(open(f)) for f in sys.argv[1:]]' \
+            ci-templates/gitlab/*.yml ci-templates/azure/*.yml ci-templates/examples/*.yml
+          echo "all CI templates parse as YAML"
+
       - uses: docker/setup-buildx-action@v4
 
       - name: Build backend image (cached)
@@ -655,6 +675,66 @@ jobs:
           datasource-id: ${{ steps.ds.outputs.id }}
           sql: "SELECT 1"
           timeout-seconds: "180"
+
+      - name: Create a deployment pipeline for the gate smoke (AF-694)
+        id: pipeline
+        run: |
+          pid="$(curl -fsS -X POST -H "Authorization: ApiKey ${AF_KEY}" -H 'Content-Type: application/json' \
+            -d '{"name":"ci-smoke-pipeline","provider":"GITHUB_ACTIONS","ai_analysis_enabled":false}' \
+            "${AF_ENDPOINT}/api/v1/deployment-pipelines" | jq -r '.id')"
+          curl -fsS -X POST -H "Authorization: ApiKey ${AF_KEY}" -H 'Content-Type: application/json' \
+            -d '{"name":"production","require_review":false}' \
+            "${AF_ENDPOINT}/api/v1/deployment-pipelines/${pid}/environments" >/dev/null
+          # No AI config in the smoke stack (analysis is skipped) — an unconditional AUTO_APPROVE
+          # deployment routing policy takes the request straight to APPROVED.
+          curl -fsS -X POST -H "Authorization: ApiKey ${AF_KEY}" -H 'Content-Type: application/json' \
+            -d '{"name":"ci-smoke-auto-approve","action":"AUTO_APPROVE","priority":1}' \
+            "${AF_ENDPOINT}/api/v1/admin/deployment-routing-policies" >/dev/null
+          echo "id=$pid" >>"$GITHUB_OUTPUT"
+
+      - name: Smoke — deployment gate
+        id: gate
+        uses: ./.github/actions/deployment-gate
+        with:
+          accessflow-url: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          pipeline-id: ${{ steps.pipeline.outputs.id }}
+          version: "1.0.0-ci"
+          environment: production
+          commit-sha: ${{ github.sha }}
+          wait-timeout: 120s
+          poll-interval: 3s
+
+      - name: Assert gate outcome
+        run: |
+          test "${{ steps.gate.outputs.status }}" = "EXECUTED" \
+            || { echo "::error::deployment-gate did not reach EXECUTED (got '${{ steps.gate.outputs.status }}')"; exit 1; }
+
+      - name: Smoke — report deployment outcome
+        uses: ./.github/actions/deployment-outcome
+        with:
+          accessflow-url: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          request-id: ${{ steps.gate.outputs.request-id }}
+          job-status: success
+
+      - name: Smoke — replay the gate (idempotent, same request)
+        id: gate2
+        uses: ./.github/actions/deployment-gate
+        with:
+          accessflow-url: ${{ env.AF_ENDPOINT }}
+          api-key: ${{ env.AF_KEY }}
+          pipeline-id: ${{ steps.pipeline.outputs.id }}
+          version: "1.0.0-ci"
+          environment: production
+          commit-sha: ${{ github.sha }}
+          wait-timeout: 120s
+          poll-interval: 3s
+
+      - name: Assert deployment idempotency
+        run: |
+          test "${{ steps.gate.outputs.request-id }}" = "${{ steps.gate2.outputs.request-id }}" \
+            || { echo "::error::deployment-gate replay did not re-attach to the same request"; exit 1; }
 
       - name: Backend logs on failure
         if: failure()

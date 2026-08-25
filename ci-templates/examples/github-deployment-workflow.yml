@@ -1,0 +1,50 @@
+# Example consumer workflow: gate a production deployment on AccessFlow approval (AF-694).
+# ACCESSFLOW_API_KEY is a repository/environment secret holding a service-account af_ key
+# (bootstrap one declaratively — see docs/16-iac.md).
+name: Deploy with AccessFlow gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to deploy"
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Collect release metadata
+        # Untrusted values (commit messages) go through env, never inline into the script.
+        env:
+          CHANGELOG: ${{ github.event.head_commit.message || 'manual dispatch' }}
+        run: |
+          jq -n --arg changelog "$CHANGELOG" --arg actor "$GITHUB_ACTOR" \
+            '{changelog: $changelog, triggered_by: $actor}' > release-metadata.json
+
+      - name: Wait for AccessFlow deployment approval
+        id: gate
+        uses: bablsoft/accessflow/.github/actions/deployment-gate@main
+        with:
+          accessflow-url: https://accessflow.example.com
+          api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+          pipeline-id: 3fa85f64-5717-4562-b3fc-2c963f66afa6 # pipeline UUID (admin page / Terraform output)
+          version: ${{ inputs.version }}
+          environment: production
+          commit-sha: ${{ github.sha }}
+          metadata-file: release-metadata.json
+          wait-timeout: 30m
+          poll-interval: 15s
+
+      - name: Deploy
+        run: echo "deploying ${{ inputs.version }} (request ${{ steps.gate.outputs.request-id }}, AI risk ${{ steps.gate.outputs.ai-risk-level }})…"
+
+      # Composite actions have no post-run hook — report the outcome as a separate always() step.
+      - name: Report deployment outcome
+        if: always()
+        uses: bablsoft/accessflow/.github/actions/deployment-outcome@main
+        with:
+          accessflow-url: https://accessflow.example.com
+          api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+          request-id: ${{ steps.gate.outputs.request-id }}
+          job-status: ${{ job.status }}

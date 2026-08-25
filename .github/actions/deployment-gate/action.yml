@@ -1,0 +1,96 @@
+name: "AccessFlow — Deployment gate"
+description: >-
+  Gate a deployment on AccessFlow approval: submit a deployment request (idempotent on the
+  workflow run id), poll the fail-closed deployment gate until releasable, then confirm
+  execution. Fails the job on REJECTED / TIMED_OUT / CANCELLED / FAILED, on a gate 404 (unknown
+  or invisible request — fail closed), or when the wait-timeout elapses. Pair with
+  bablsoft/accessflow/.github/actions/deployment-outcome under `if: always()` to report the
+  post-deploy outcome.
+author: AccessFlow
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  accessflow-url:
+    description: "AccessFlow base URL."
+    required: true
+  api-key:
+    description: "AccessFlow API key (the af_-prefixed token)."
+    required: true
+  pipeline-id:
+    description: >-
+      Deployment pipeline UUID (from the AccessFlow admin page or Terraform output). The trigger
+      API identifies pipelines by UUID; a trigger-only API key cannot resolve names.
+    required: true
+  version:
+    description: "The version being deployed (e.g. 2.4.1)."
+    required: true
+  environment:
+    description: "Target environment name within the pipeline (case-insensitive)."
+    required: true
+  commit-sha:
+    description: "Commit SHA being deployed (pass github.sha)."
+    required: false
+  artifact-ref:
+    description: "Artifact reference (image digest, build artifact URL, …)."
+    required: false
+  metadata-file:
+    description: >-
+      Path to a JSON object file with release context for the AI analyzer (changelog, commit
+      list, diff summary).
+    required: false
+  justification:
+    description: "Optional submission justification (required policy-side for break-glass)."
+    required: false
+  scheduled-for:
+    description: "Defer the release until this ISO-8601 instant (mutually exclusive with break-glass)."
+    required: false
+  break-glass:
+    description: >-
+      Emergency deployment: bypasses AI analysis and review. Requires a can_break_glass grant on
+      the pipeline AND allow_break_glass on the environment — admins get no bypass.
+    required: false
+    default: "false"
+  wait-timeout:
+    description: "How long to wait for a releasable gate before giving up (e.g. 90, 45s, 30m, 2h)."
+    required: false
+    default: "30m"
+  poll-interval:
+    description: "Delay between gate polls (same duration format)."
+    required: false
+    default: "15s"
+
+outputs:
+  request-id:
+    description: "The deployment request's UUID."
+    value: ${{ steps.gate.outputs.request-id }}
+  status:
+    description: "The last observed request status (EXECUTED on success)."
+    value: ${{ steps.gate.outputs.status }}
+  ai-risk-level:
+    description: "AI risk level, when analysis ran (LOW / MEDIUM / HIGH / CRITICAL)."
+    value: ${{ steps.gate.outputs.ai-risk-level }}
+
+runs:
+  using: composite
+  steps:
+    - id: gate
+      shell: bash
+      env:
+        AF_ENDPOINT: ${{ inputs.accessflow-url }}
+        AF_API_KEY: ${{ inputs.api-key }}
+        AF_PIPELINE_ID: ${{ inputs.pipeline-id }}
+        AF_VERSION: ${{ inputs.version }}
+        AF_ENVIRONMENT: ${{ inputs.environment }}
+        AF_COMMIT_SHA: ${{ inputs.commit-sha }}
+        AF_ARTIFACT_REF: ${{ inputs.artifact-ref }}
+        AF_METADATA_FILE: ${{ inputs.metadata-file }}
+        AF_JUSTIFICATION: ${{ inputs.justification }}
+        AF_SCHEDULED_FOR: ${{ inputs.scheduled-for }}
+        AF_BREAK_GLASS: ${{ inputs.break-glass }}
+        AF_WAIT_TIMEOUT: ${{ inputs.wait-timeout }}
+        AF_POLL_INTERVAL: ${{ inputs.poll-interval }}
+        AF_RUN_ID: ${{ github.run_id }}
+        AF_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: ${{ github.action_path }}/deployment-gate.sh
