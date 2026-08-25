@@ -295,6 +295,7 @@ every navigation. `_headers` overrides that:
 | Path | Cache-Control | Why |
 |---|---|---|
 | `/db-icons/*`, `/favicon.svg` | 1 year, `immutable` | Vendor logos — effectively static |
+| `/fonts/*` | 1 year, `immutable` | Subsetted Geist woff2 — content-stable, and `geist-latin.woff2` is preloaded on every page |
 | `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
 | `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
 

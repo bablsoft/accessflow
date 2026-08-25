@@ -26,6 +26,11 @@
 /db-icons/*
   Cache-Control: public, max-age=31536000, immutable
 
+# Subsetted Geist woff2 — content-stable, never edited in place, and
+# geist-latin.woff2 is preloaded on every page. Same treatment as /db-icons/*.
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
+
 /favicon.svg
   Cache-Control: public, max-age=31536000, immutable
 
