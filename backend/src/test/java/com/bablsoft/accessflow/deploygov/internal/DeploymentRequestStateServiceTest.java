@@ -28,14 +28,16 @@ import static org.mockito.Mockito.when;
 class DeploymentRequestStateServiceTest {
 
     private DeploymentRequestRepository repository;
+    private DeploygovAuditWriter auditWriter;
     private ApplicationEventPublisher eventPublisher;
     private DeploymentRequestStateService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(DeploymentRequestRepository.class);
+        auditWriter = mock(DeploygovAuditWriter.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
-        service = new DeploymentRequestStateService(repository, eventPublisher);
+        service = new DeploymentRequestStateService(repository, auditWriter, eventPublisher);
     }
 
     @Test
@@ -138,6 +140,18 @@ class DeploymentRequestStateServiceTest {
         verify(repository).save(entity);
         verify(eventPublisher).publishEvent(new DeploymentDecidedEvent(entity.getId(),
                 QueryStatus.TIMED_OUT, "review_timeout"));
+        // #695: the timeout is a system decision — null actor, trigger names the mechanism.
+        var metadataCaptor = org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(auditWriter).record(
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditAction.DEPLOYMENT_TIMED_OUT),
+                org.mockito.ArgumentMatchers.eq(
+                        com.bablsoft.accessflow.audit.api.AuditResourceType.DEPLOYMENT_REQUEST),
+                org.mockito.ArgumentMatchers.eq(entity.getId()),
+                org.mockito.ArgumentMatchers.eq(entity.getOrganizationId()),
+                org.mockito.ArgumentMatchers.isNull(), metadataCaptor.capture(),
+                org.mockito.ArgumentMatchers.isNull());
+        assertThat(metadataCaptor.getValue()).containsEntry("trigger", "timeout");
     }
 
     @Test
@@ -164,7 +178,11 @@ class DeploymentRequestStateServiceTest {
     private static DeploymentRequestEntity request(QueryStatus status) {
         var entity = new DeploymentRequestEntity();
         entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(UUID.randomUUID());
+        entity.setPipelineId(UUID.randomUUID());
+        entity.setEnvironmentId(UUID.randomUUID());
         entity.setSubmittedBy(UUID.randomUUID());
+        entity.setVersion("2.4.1");
         entity.setStatus(status);
         return entity;
     }

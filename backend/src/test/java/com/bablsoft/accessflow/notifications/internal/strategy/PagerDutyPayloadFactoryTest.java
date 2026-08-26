@@ -115,6 +115,42 @@ class PagerDutyPayloadFactoryTest {
                 .isNotEqualTo(risk.get("dedup_key").asString());
     }
 
+    /** #695: the only deployment event that can page must not read "for a query". */
+    @Test
+    void deploymentBreakGlassSummaryNamesThePipelineNotAQuery() {
+        var deploymentRequestId = UUID.randomUUID();
+        var config = new PagerDutyChannelConfig("k", PagerDutySeverity.CRITICAL,
+                EnumSet.of(PagerDutyTrigger.BREAK_GLASS));
+
+        var tree = objectMapper.readTree(factory.buildEventBody(
+                deploymentContext(deploymentRequestId), config));
+
+        assertThat(tree.get("payload").get("summary").asString())
+                .isEqualTo("AccessFlow: break-glass deployment executed on pipeline payments");
+        assertThat(tree.get("payload").get("class").asString())
+                .isEqualTo("DEPLOYMENT_BREAK_GLASS_EXECUTED");
+        var details = tree.get("payload").get("custom_details");
+        assertThat(details.get("deployment_id").asString())
+                .isEqualTo(deploymentRequestId.toString());
+        assertThat(details.get("environment").asString()).isEqualTo("production");
+        assertThat(details.get("version").asString()).isEqualTo("2.4.1");
+    }
+
+    /** Two break-glass deployments on one pipeline are distinct incidents, not one. */
+    @Test
+    void deploymentDedupKeyUsesTheDeploymentRequestIdNotThePipeline() {
+        var config = new PagerDutyChannelConfig("k", PagerDutySeverity.CRITICAL,
+                EnumSet.of(PagerDutyTrigger.BREAK_GLASS));
+
+        var first = objectMapper.readTree(factory.buildEventBody(
+                deploymentContext(UUID.randomUUID()), config));
+        var second = objectMapper.readTree(factory.buildEventBody(
+                deploymentContext(UUID.randomUUID()), config));
+
+        assertThat(first.get("dedup_key").asString())
+                .isNotEqualTo(second.get("dedup_key").asString());
+    }
+
     @Test
     void buildTestBodyUsesFixedDedupKeyAndInfoSeverity() {
         var config = new PagerDutyChannelConfig("R0UT1NGKEY", PagerDutySeverity.CRITICAL,
@@ -128,6 +164,32 @@ class PagerDutyPayloadFactoryTest {
         assertThat(tree.get("payload").get("severity").asString()).isEqualTo("info");
         assertThat(tree.get("payload").get("summary").asString())
                 .isEqualTo("AccessFlow notification channel test");
+    }
+
+    private NotificationContext deploymentContext(UUID deploymentRequestId) {
+        return new NotificationContext(
+                NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED,
+                orgId,
+                null,
+                null, null, null, null,
+                null, null, null,
+                UUID.randomUUID(), "payments",
+                UUID.randomUUID(), "dev@example.com", "Dev",
+                "incident 42",
+                null, null, null,
+                null,
+                List.of(),
+                Instant.parse("2026-05-06T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                deploymentRequestId, "production", "2.4.1", null, null);
     }
 
     private NotificationContext sampleContext(NotificationEventType eventType,

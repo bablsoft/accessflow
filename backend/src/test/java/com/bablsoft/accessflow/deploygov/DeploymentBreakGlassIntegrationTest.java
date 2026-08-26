@@ -12,7 +12,10 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentEnvironmentCommand;
 import com.bablsoft.accessflow.deploygov.api.CreateDeploymentPipelineCommand;
 import com.bablsoft.accessflow.deploygov.api.DeploymentBreakGlassNotAllowedException;
+import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowCommand;
+import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPermissionService;
+import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.DeploymentPipelineAdminService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentPermissionCommand;
@@ -53,6 +56,7 @@ class DeploymentBreakGlassIntegrationTest {
     @Autowired DeploymentRequestService requestService;
     @Autowired DeploymentPipelineAdminService pipelineService;
     @Autowired DeploymentPermissionService permissionService;
+    @Autowired DeploymentFreezeWindowService freezeWindowService;
     @Autowired DeploymentRequestRepository requestRepository;
     @Autowired DeploymentPipelineUserPermissionRepository userPermissionRepository;
     @Autowired DeploymentEnvironmentRepository environmentRepository;
@@ -78,6 +82,7 @@ class DeploymentBreakGlassIntegrationTest {
     void cleanup() {
         jdbcTemplate.update("DELETE FROM audit_log");
         jdbcTemplate.update("DELETE FROM break_glass_events");
+        jdbcTemplate.update("DELETE FROM deployment_freeze_windows");
         requestRepository.deleteAll();
         userPermissionRepository.deleteAll();
         environmentRepository.deleteAll();
@@ -116,6 +121,34 @@ class DeploymentBreakGlassIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM audit_log WHERE action = ? AND resource_id = ?",
                 Long.class, "DEPLOYMENT_BREAK_GLASS_EXECUTED", requestId)).isEqualTo(1);
+    }
+
+    /**
+     * #695 acceptance: the DEPLOYMENT_BREAK_GLASS_EXECUTED row lands in audit_log (through the
+     * dedicated audit-writer role — the only role with INSERT on the table) carrying the
+     * freeze-bypass metadata #692 records when an active window is stepped over.
+     */
+    @Test
+    void breakGlassAuditRowCarriesTheBypassedFreezeWindowMetadata() {
+        var fixture = fixture(true, true);
+        var window = freezeWindowService.create(new DeploymentFreezeWindowCommand(
+                fixture.orgId(), fixture.pipelineId(), null,
+                java.time.Instant.now().minusSeconds(3600),
+                java.time.Instant.now().plusSeconds(3600),
+                null, null, null, null, FreezeBehavior.REJECT, "change freeze", true));
+
+        var result = requestService.submit(breakGlassCommand(fixture));
+
+        assertThat(result.request().status()).isEqualTo(QueryStatus.APPROVED);
+        var metadataJson = jdbcTemplate.queryForObject(
+                "SELECT metadata::text FROM audit_log WHERE action = ? AND resource_id = ?",
+                String.class, "DEPLOYMENT_BREAK_GLASS_EXECUTED", result.request().id());
+        // jsonb round-trips with its own spacing, so match key and value separately.
+        assertThat(metadataJson)
+                .contains("bypassed_freeze_window_id").contains(window.id().toString())
+                .contains("bypassed_freeze_behavior").contains("REJECT")
+                .contains("production")
+                .contains("2.4.1");
     }
 
     @Test

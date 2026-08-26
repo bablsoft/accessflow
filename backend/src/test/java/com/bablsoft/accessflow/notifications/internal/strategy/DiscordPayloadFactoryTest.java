@@ -3,10 +3,13 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import com.bablsoft.accessflow.notifications.internal.codec.DiscordChannelConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.net.URI;
@@ -123,6 +126,92 @@ class DiscordPayloadFactoryTest {
                 .contains("Open anomalies")
                 .contains("Open suggestions")
                 .contains("https://app.example.com/dashboard");
+    }
+
+    // #695: deployment governance headers.
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', textBlock = """
+            DEPLOYMENT_SUBMITTED            | 🚀 New Deployment Awaiting Review
+            DEPLOYMENT_APPROVED             | ✅ Deployment Approved
+            DEPLOYMENT_REJECTED             | ❌ Deployment Rejected
+            DEPLOYMENT_OUTCOME_FAILED       | 🚨 Deployment Failed or Rolled Back
+            DEPLOYMENT_BREAK_GLASS_EXECUTED | 🚨 Break-glass Deployment Executed
+            """)
+    void deploymentHeadersAreUsed(NotificationEventType eventType, String expectedHeader) {
+        var body = factory.buildEventBody(deploymentCtx(eventType, null),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains(expectedHeader);
+    }
+
+    @Test
+    void deploymentSubmittedEmbedCarriesPipelineEnvironmentVersionAndSubmitter() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("Pipeline")
+                .contains("payments-service")
+                .contains("Environment")
+                .contains("production")
+                .contains("Version")
+                .contains("v2.14.0")
+                .contains("Submitted by")
+                .contains("alice@example.com")
+                .doesNotContain("Datasource");
+    }
+
+    @Test
+    void deploymentOutcomeFailedEmbedCarriesOutcomeName() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                        DeploymentOutcome.ROLLED_BACK),
+                new DiscordChannelConfig(URI.create("https://discord.com/api/webhooks/x"), null, null));
+        assertThat(body).contains("Outcome")
+                .contains("ROLLED_BACK");
+    }
+
+    /**
+     * A DEPLOYMENT_* context (#695): pipeline name rides in datasourceName, submitter in
+     * submitterEmail/DisplayName; fullSqlText/queryType/reviewUrl are null.
+     */
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome) {
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                RiskLevel.MEDIUM,
+                42,
+                "ok",
+                UUID.randomUUID(),
+                "payments-service",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                "Ship the hotfix",
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                Instant.parse("2026-08-25T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                UUID.randomUUID(),
+                "production",
+                "v2.14.0",
+                outcome,
+                null);
     }
 
     private static NotificationContext digestCtx() {

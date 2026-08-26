@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.language}">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="#{notification.email.deployment_rejected.title}">Deployment rejected</title>
+    <style>
+        body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2933; }
+        pre { background: #f7fafc; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+        .meta { color: #4a5568; font-size: 13px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #c53030; color: #fff; text-decoration: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2 th:text="#{notification.email.deployment_rejected.heading}">Your deployment was rejected</h2>
+    <p th:text="#{notification.email.deployment_rejected.body}">
+        Your deployment was rejected and the pipeline will not release it.
+    </p>
+    <p th:if="${deploymentDecisionReason == 'review_timeout'}"
+       th:text="#{notification.email.deployment_rejected.timeout_note}">
+        The review timed out before enough approvals were collected.
+    </p>
+    <p class="meta">
+        <strong th:text="#{notification.email.deployment.pipeline_label}">Pipeline:</strong>
+        <span th:text="${datasourceName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.deployment.environment_label}">Environment:</strong>
+        <span th:text="${environmentName} ?: '—'">—</span><br>
+        <strong th:text="#{notification.email.deployment.version_label}">Version:</strong>
+        <span th:text="${deploymentVersion} ?: '—'">—</span>
+    </p>
+    <p th:if="${reviewUrl}">
+        <a class="btn" th:href="${reviewUrl}" th:text="#{notification.email.common.open_cta}">Open in AccessFlow</a>
+    </p>
+</body>
+</html>

@@ -1578,6 +1578,11 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DEPLOYMENT_EXECUTED` | The pipeline confirms it proceeded once the gate answered releasable (`APPROVED → EXECUTED`, #693). Resource: `deployment_request`. Metadata: `trigger: "pipeline"`, `pipeline_id`, `environment`, `version`. |
 | `DEPLOYMENT_OUTCOME_REPORTED` | The pipeline reports the post-execution outcome (#693). Resource: `deployment_request`. Metadata: `outcome`, `trigger: "pipeline"`, and `rollback_review_opened: true` when a `ROLLED_BACK` outcome opened a follow-up review. |
 | `DEPLOYMENT_ROLLBACK_REVIEWED` | A reviewer acknowledges a rollback follow-up review (#693). Resource: `deployment_rollback_review`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. |
+| `DEPLOYMENT_SUBMITTED` | A governed deployment is triggered (#695). Resource: `deployment_request`. Actor = the submitter, `ip_address` = the trigger's caller IP. Metadata: `pipeline_id`, `environment`, `version`. Written for every non-replay, non-break-glass submission — including ones a freeze window rejects a moment later. |
+| `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | A deployment decision lands (#695). Reviewer verdicts are written at the controller with the caller's IP + user-agent, one row per decision (before quorum, mirroring apigov). System decisions carry a **null actor** and a `trigger` naming the mechanism: `routing` (+ `policy_id`), `freeze` (+ `freeze_window_id`), or `environment_policy` (approved because the environment needs no review). Resource: `deployment_request`. |
+| `DEPLOYMENT_TIMED_OUT` | The review timeout auto-rejected a deployment past its window (#695, via `DeploymentTimeoutJob`). Resource: `deployment_request`. Null actor; metadata `trigger: "timeout"`, `pipeline_id`, `version`. |
+| `DEPLOYMENT_CANCELLED` | The submitter cancelled a pending or scheduled-approved deployment (#695). Resource: `deployment_request`. Written at the controller with IP + user-agent, only after the service accepted the cancel. |
+| `DEPLOYMENT_BREAK_GLASS_REVIEWED` | An admin acknowledged a **deployment** break-glass retro-review on the shared AF-385 worklist (#695 — previously these landed as the generic `BREAK_GLASS_REVIEWED`). Resource: `break_glass_event`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. The same change routes API-target acknowledgments to `API_BREAK_GLASS_REVIEWED` (their audit row was previously lost to a swallowed NPE). |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
 
@@ -1811,8 +1816,9 @@ The audit table records `USER_PASSWORD_RESET_REQUESTED` when the requester resol
 In-app notification inbox rows, persisted per recipient. Each domain event that the
 notifications module dispatches also writes one row per recipient here so the bell-icon
 inbox can show history, unread counts, and act on individual entries. The
-`event_type` mirrors `notification_event_type` (`QUERY_SUBMITTED`, `QUERY_APPROVED`,
-`QUERY_REJECTED`, `REVIEW_TIMEOUT`, `AI_HIGH_RISK`); `TEST` events are skipped.
+`event_type` mirrors the backend `NotificationEventType` enum — query, review, access,
+anomaly, API-request (`API_REQUEST_*`, AF-500), and deployment (`DEPLOYMENT_*`, #695)
+events; `TEST` events are skipped.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -1821,10 +1827,16 @@ inbox can show history, unread counts, and act on individual entries. The
 | `organization_id` | FK → `organizations` ON DELETE CASCADE |
 | `event_type` | VARCHAR(64) — one of the `NotificationEventType` values |
 | `query_request_id` | FK → `query_requests` ON DELETE CASCADE, nullable |
-| `payload` | JSONB — denormalised render context (datasource name, submitter, risk_level, reviewer comment, etc.) |
+| `api_request_id` | FK → `api_requests` ON DELETE CASCADE, nullable (V109, AF-529) |
+| `deployment_request_id` | FK → `deployment_requests` ON DELETE CASCADE, nullable (V155, #695) |
+| `payload` | JSONB — denormalised render context (datasource/pipeline name, submitter, risk_level, reviewer comment; deployment rows add `deployment_id`, `environment`, `version`, `outcome`) |
 | `is_read` | BOOLEAN DEFAULT false |
 | `created_at` | TIMESTAMPTZ DEFAULT now() |
 | `read_at` | TIMESTAMPTZ, nullable |
+
+A `CHECK (num_nonnulls(query_request_id, api_request_id, deployment_request_id) <= 1)`
+constraint keeps each row referencing at most one target (most notifications — anomaly,
+digest, attestation, connector, erasure — reference none).
 
 Indexes:
 

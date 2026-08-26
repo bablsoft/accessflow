@@ -2331,7 +2331,14 @@
       "fallback": "Nueva notificación",
       "REVIEW_ESCALATED": "Aún sin decisión sobre {{datasource}}: escalado a ti",
       "REVIEW_NUDGE": "Recordatorio: una consulta en {{datasource}} espera tu revisión",
-      "SENSITIVE_RESULT_EXPORTED": "Datos sensibles ({{classifications}}) exportados desde {{datasource}}"
+      "SENSITIVE_RESULT_EXPORTED": "Datos sensibles ({{classifications}}) exportados desde {{datasource}}",
+      "DEPLOYMENT_SUBMITTED": "{{submitter}} envió un despliegue de {{version}} a {{environment}} en {{pipeline}}",
+      "DEPLOYMENT_SUBMITTED_no_submitter": "Nuevo despliegue esperando revisión en {{pipeline}}",
+      "DEPLOYMENT_APPROVED": "Tu despliegue de {{version}} a {{environment}} fue aprobado",
+      "DEPLOYMENT_REJECTED": "Tu despliegue de {{version}} a {{environment}} fue rechazado",
+      "DEPLOYMENT_OUTCOME_FAILED": "Un despliegue que aprobaste en {{pipeline}} informó {{outcome}}",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED": "{{submitter}} liberó un despliegue de break-glass en {{pipeline}}",
+      "DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter": "Se liberó un despliegue de break-glass en {{pipeline}}"
     }
   },
   "profile": {
@@ -2998,6 +3005,10 @@
       "WATERMARK": "Marca de agua",
       "ROW_CAP": "Límite de filas",
       "DENY_CLASSIFIED": "Denegar si está clasificado"
+    },
+    "deployment_outcome": {
+      "FAILED": "fallido",
+      "ROLLED_BACK": "revertido"
     }
   },
   "access": {

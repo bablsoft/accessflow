@@ -196,5 +196,13 @@ public enum AuditAction {
     DEPLOYMENT_BREAK_GLASS_EXECUTED,
     DEPLOYMENT_EXECUTED,
     DEPLOYMENT_OUTCOME_REPORTED,
-    DEPLOYMENT_ROLLBACK_REVIEWED
+    DEPLOYMENT_ROLLBACK_REVIEWED,
+    /** #695: the remaining deployment lifecycle transitions (epic AF-682). */
+    DEPLOYMENT_SUBMITTED,
+    DEPLOYMENT_APPROVED,
+    DEPLOYMENT_REJECTED,
+    DEPLOYMENT_TIMED_OUT,
+    DEPLOYMENT_CANCELLED,
+    /** #695: a deployment break-glass retro-review acknowledged (was generic BREAK_GLASS_REVIEWED). */
+    DEPLOYMENT_BREAK_GLASS_REVIEWED
 }

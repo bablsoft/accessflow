@@ -7,7 +7,11 @@ import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
+import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +33,7 @@ import static org.mockito.Mockito.when;
 class DeploymentReviewControllerTest {
 
     private DeploymentReviewService reviewService;
+    private DeploygovAuditWriter auditWriter;
     private DeploymentReviewController controller;
 
     private final UUID orgId = UUID.randomUUID();
@@ -38,7 +43,8 @@ class DeploymentReviewControllerTest {
     @BeforeEach
     void setUp() {
         reviewService = mock(DeploymentReviewService.class);
-        controller = new DeploymentReviewController(reviewService);
+        auditWriter = mock(DeploygovAuditWriter.class);
+        controller = new DeploymentReviewController(reviewService, auditWriter);
     }
 
     private Authentication auth() {
@@ -88,7 +94,8 @@ class DeploymentReviewControllerTest {
                 new DeploymentReviewService.DecisionOutcome(decisionId, DecisionType.APPROVED,
                         QueryStatus.APPROVED, false));
 
-        var r = controller.approve(requestId, new DeploymentDecisionRequest("ok"), auth());
+        var r = controller.approve(requestId, new DeploymentDecisionRequest("ok"), auth(),
+                new RequestAuditContext("10.0.0.9", "cli/1.0"));
 
         assertThat(r.decisionId()).isEqualTo(decisionId);
         assertThat(r.decision()).isEqualTo(DecisionType.APPROVED);
@@ -101,6 +108,10 @@ class DeploymentReviewControllerTest {
         assertThat(contextCaptor.getValue().roleName()).isEqualTo("REVIEWER");
         assertThat(contextCaptor.getValue().permissions())
                 .contains(Permission.DEPLOYMENT_REVIEW);
+        // #695: every reviewer verdict is its own audit row, with ip + user-agent.
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_APPROVED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(requestId), eq(orgId), eq(reviewerId),
+                any(), eq("10.0.0.9"), eq("cli/1.0"));
     }
 
     @Test
@@ -110,11 +121,30 @@ class DeploymentReviewControllerTest {
                 new DeploymentReviewService.DecisionOutcome(decisionId, DecisionType.REJECTED,
                         QueryStatus.REJECTED, true));
 
-        var r = controller.reject(requestId, new DeploymentDecisionRequest("no"), auth());
+        var r = controller.reject(requestId, new DeploymentDecisionRequest("no"), auth(),
+                new RequestAuditContext("10.0.0.9", "cli/1.0"));
 
         assertThat(r.decisionId()).isEqualTo(decisionId);
         assertThat(r.decision()).isEqualTo(DecisionType.REJECTED);
         assertThat(r.resultingStatus()).isEqualTo(QueryStatus.REJECTED);
         assertThat(r.duplicate()).isTrue();
+        // An idempotent replay is not a new verdict — no duplicate audit row.
+        verify(auditWriter, org.mockito.Mockito.never()).record(any(), any(), any(), any(), any(),
+                any(), any(), any());
+    }
+
+    @Test
+    void rejectAuditsAFreshDecisionWithCallerIpAndUserAgent() {
+        var decisionId = UUID.randomUUID();
+        when(reviewService.reject(eq(requestId), any(), eq("no"))).thenReturn(
+                new DeploymentReviewService.DecisionOutcome(decisionId, DecisionType.REJECTED,
+                        QueryStatus.REJECTED, false));
+
+        controller.reject(requestId, new DeploymentDecisionRequest("no"), auth(),
+                new RequestAuditContext("10.0.0.9", "cli/1.0"));
+
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_REJECTED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(requestId), eq(orgId), eq(reviewerId),
+                any(), eq("10.0.0.9"), eq("cli/1.0"));
     }
 }

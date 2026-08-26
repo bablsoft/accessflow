@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -107,22 +108,46 @@ class AdminBreakGlassController {
         return BreakGlassEventResponse.from(view);
     }
 
+    /**
+     * #695: the action names the acknowledged target's kind. Before this branch existed the method
+     * unconditionally dereferenced the query fields, NPE'd for API and deployment targets, and the
+     * swallow below silently dropped the audit row — {@code API_BREAK_GLASS_REVIEWED} was never
+     * written.
+     */
     private void recordAudit(UUID eventId, UUID organizationId, UUID actorUserId,
                              RequestAuditContext auditContext, BreakGlassEventView view) {
         try {
+            AuditAction action;
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("submitted_by", view.submittedByUserId().toString());
+            if (view.deploymentRequestId() != null) {
+                action = AuditAction.DEPLOYMENT_BREAK_GLASS_REVIEWED;
+                metadata.put("deployment_request_id", view.deploymentRequestId().toString());
+                if (view.pipelineId() != null) {
+                    metadata.put("pipeline_id", view.pipelineId().toString());
+                }
+            } else if (view.apiRequestId() != null) {
+                action = AuditAction.API_BREAK_GLASS_REVIEWED;
+                metadata.put("api_request_id", view.apiRequestId().toString());
+                if (view.connectorId() != null) {
+                    metadata.put("connector_id", view.connectorId().toString());
+                }
+            } else {
+                action = AuditAction.BREAK_GLASS_REVIEWED;
+                metadata.put("query_request_id", view.queryRequestId().toString());
+                metadata.put("datasource_id", view.datasourceId().toString());
+            }
             auditLogService.record(new AuditEntry(
-                    AuditAction.BREAK_GLASS_REVIEWED,
+                    action,
                     AuditResourceType.BREAK_GLASS_EVENT,
                     eventId,
                     organizationId,
                     actorUserId,
-                    Map.of("query_request_id", view.queryRequestId().toString(),
-                            "datasource_id", view.datasourceId().toString(),
-                            "submitted_by", view.submittedByUserId().toString()),
+                    metadata,
                     auditContext.ipAddress(),
                     auditContext.userAgent()));
         } catch (RuntimeException ex) {
-            log.error("Audit write failed for BREAK_GLASS_REVIEWED on event {}", eventId, ex);
+            log.error("Audit write failed for break-glass acknowledgment on event {}", eventId, ex);
         }
     }
 }

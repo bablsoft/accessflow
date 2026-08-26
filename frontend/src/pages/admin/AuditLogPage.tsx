@@ -46,6 +46,8 @@ const RESOURCE_TYPES = [
   'review_plan',
   'notification_channel',
   'audit_sink',
+  'deployment_request',
+  'break_glass_event',
 ];
 
 const ACTIONS = [
@@ -78,6 +80,18 @@ const ACTIONS = [
   'AUDIT_SINK_CREATED',
   'AUDIT_SINK_UPDATED',
   'AUDIT_SINK_DELETED',
+  // #695 — deployment governance lifecycle (epic AF-682).
+  'DEPLOYMENT_SUBMITTED',
+  'DEPLOYMENT_APPROVED',
+  'DEPLOYMENT_REJECTED',
+  'DEPLOYMENT_TIMED_OUT',
+  'DEPLOYMENT_CANCELLED',
+  'DEPLOYMENT_EXECUTED',
+  'DEPLOYMENT_OUTCOME_REPORTED',
+  'DEPLOYMENT_BREAK_GLASS_EXECUTED',
+  'DEPLOYMENT_BREAK_GLASS_REVIEWED',
+  'DEPLOYMENT_ROLLBACK_REVIEWED',
+  'API_BREAK_GLASS_REVIEWED',
 ];
 
 const actionColor = (a: string): string => {

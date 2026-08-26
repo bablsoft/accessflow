@@ -3010,8 +3010,10 @@ environments and `/permissions` + `/permissions/groups` sub-resources) and
 `DeploymentFreezeWindowController` (`/api/v1/deployment-freeze-windows`) both carry a class-level
 `@PreAuthorize("hasAuthority('PERM_DEPLOYMENT_PIPELINE_MANAGE')")`. `DeploygovExceptionHandler`
 (`@Order(HIGHEST_PRECEDENCE)`) maps the module exceptions onto the `DEPLOYMENT_*` ProblemDetail
-codes documented in [docs/04-api-spec.md](04-api-spec.md). Admin-CRUD audit rows are deliberately
-deferred to the audit fan-out sub-issue (#695).
+codes documented in [docs/04-api-spec.md](04-api-spec.md). Admin-CRUD audit rows (pipeline /
+environment / freeze-window / permission / routing-policy create-update-delete) remain
+deliberately unwritten: #695 scoped its audit fan-out to the lifecycle transitions, and the
+admin-CRUD trail moves to a follow-up issue.
 
 ### Submission (#691)
 
@@ -3165,14 +3167,22 @@ trigger returns **202** on create and **200** on an idempotent replay.
 `DeploymentRequestService.canViewAll` (`DEPLOYMENT_REVIEW` or `QUERY_ADMIN`) — so a reviewer cannot
 be in the position of opening a request by id that the list endpoint hides from them.
 
-**Audit rows for the request pipeline remain deferred to #695**, including the freeze-window
-auto-reject and the approve/reject decisions. That is a deliberate scope call, not an oversight:
-the transition trail is the `DeploymentStatusChangedEvent` published from every transition, which
-#695 consumes. The exceptions are break-glass (#692) — `DEPLOYMENT_BREAK_GLASS_EXECUTED` is an
-AF-385 compensating control and could not wait (see below) — and the #693 machine contract, whose
-issue mandates the audit metadata: `DEPLOYMENT_EXECUTED` (`trigger=pipeline`) on
+**Audit rows cover every lifecycle transition since #695.** `DEPLOYMENT_SUBMITTED` is written in
+`submit` (actor = submitter, `ip_address` = the trigger's caller IP; metadata `pipeline_id`,
+`environment`, `version`) for every non-replay, non-break-glass submission. Decisions write
+`DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED`: reviewer verdicts at `DeploymentReviewController`
+with IP + user-agent (one row per decision, before quorum, mirroring apigov), system decisions
+with a **null actor** and a `trigger` naming the mechanism — `routing` (+ `policy_id`) from
+`DeploymentReviewStateMachine`, `freeze` (+ `freeze_window_id`) on the submission auto-reject,
+`environment_policy` when an environment needs no review. `DeploymentRequestStateService
+.markTimedOut` writes `DEPLOYMENT_TIMED_OUT` (`trigger=timeout`), and the cancel endpoint writes
+`DEPLOYMENT_CANCELLED` (controller layer, IP + user-agent, only after the service accepts).
+These join the pre-#695 rows: `DEPLOYMENT_BREAK_GLASS_EXECUTED` (#692, an AF-385 compensating
+control), and the #693 machine contract — `DEPLOYMENT_EXECUTED` (`trigger=pipeline`) on
 confirm-execution, `DEPLOYMENT_OUTCOME_REPORTED` on the first outcome report, and
-`DEPLOYMENT_ROLLBACK_REVIEWED` on a rollback acknowledgment.
+`DEPLOYMENT_ROLLBACK_REVIEWED` on a rollback acknowledgment. Deployment break-glass retro-review
+acknowledgments on the AF-385 worklist now audit as `DEPLOYMENT_BREAK_GLASS_REVIEWED` (API
+targets as `API_BREAK_GLASS_REVIEWED`) instead of the generic `BREAK_GLASS_REVIEWED`.
 
 ### Review flow (#692)
 

@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.deploygov.internal.web;
 
-import com.bablsoft.accessflow.audit.api.RequestAuditContext;
+
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
@@ -8,7 +8,11 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
+import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
@@ -29,6 +33,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -43,12 +48,14 @@ class DeploymentRequestControllerTest {
     private final UUID requestId = UUID.randomUUID();
 
     private DeploymentRequestService requestService;
+    private DeploygovAuditWriter auditWriter;
     private DeploymentRequestController controller;
 
     @BeforeEach
     void setUp() {
         requestService = mock(DeploymentRequestService.class);
-        controller = new DeploymentRequestController(requestService);
+        auditWriter = mock(DeploygovAuditWriter.class);
+        controller = new DeploymentRequestController(requestService, auditWriter);
         // The controller delegates the visibility question to the service; mirror the real rule.
         lenient().when(requestService.canViewAll(any())).thenAnswer(invocation -> {
             Set<Permission> permissions = invocation.getArgument(0);
@@ -179,10 +186,26 @@ class DeploymentRequestControllerTest {
     }
 
     @Test
-    void cancelDelegatesToTheService() {
-        controller.cancel(requestId, auth(false));
+    void cancelDelegatesToTheServiceAndAuditsWithCallerIpAndUserAgent() {
+        controller.cancel(requestId, auth(false), new RequestAuditContext("10.0.0.9", "cli/1.0"));
 
         verify(requestService).cancel(requestId, orgId, userId);
+        verify(auditWriter).record(eq(AuditAction.DEPLOYMENT_CANCELLED),
+                eq(AuditResourceType.DEPLOYMENT_REQUEST), eq(requestId), eq(orgId), eq(userId),
+                any(), eq("10.0.0.9"), eq("cli/1.0"));
+    }
+
+    @Test
+    void cancelDoesNotAuditWhenTheServiceRejectsIt() {
+        org.mockito.Mockito.doThrow(new com.bablsoft.accessflow.deploygov.api
+                .DeploymentRequestPermissionException("not the submitter"))
+                .when(requestService).cancel(requestId, orgId, userId);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> controller.cancel(requestId,
+                auth(false), new RequestAuditContext("10.0.0.9", "cli/1.0")))
+                .isInstanceOf(com.bablsoft.accessflow.deploygov.api
+                        .DeploymentRequestPermissionException.class);
+        verify(auditWriter, never()).record(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     private SubmitDeploymentRequestRequest submitBody() {

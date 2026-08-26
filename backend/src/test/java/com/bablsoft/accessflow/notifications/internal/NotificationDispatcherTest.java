@@ -245,6 +245,80 @@ class NotificationDispatcherTest {
     }
 
     @Test
+    void persistsDeploymentNotificationWithDeploymentRequestIdAndPayload() {
+        var reviewer = UUID.randomUUID();
+        var deploymentRequestId = UUID.randomUUID();
+        when(contextBuilder.buildDeployment(
+                eq(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED), eq(deploymentRequestId),
+                eq(com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.ROLLED_BACK), isNull()))
+                .thenReturn(Optional.of(sampleDeploymentContext(
+                        NotificationEventType.DEPLOYMENT_OUTCOME_FAILED, deploymentRequestId,
+                        com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.ROLLED_BACK,
+                        List.of(new RecipientView(reviewer, "a@x", "A")))));
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId)).thenReturn(List.of());
+
+        dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                deploymentRequestId,
+                com.bablsoft.accessflow.deploygov.api.DeploymentOutcome.ROLLED_BACK, null);
+
+        var payloadCaptor = ArgumentCaptor.forClass(String.class);
+        verify(userNotificationService).recordForUsers(
+                eq(NotificationEventType.DEPLOYMENT_OUTCOME_FAILED),
+                eq(Set.of(reviewer)),
+                eq(orgId),
+                isNull(),
+                isNull(),
+                eq(deploymentRequestId),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .contains("\"deployment_id\":\"" + deploymentRequestId + "\"")
+                .contains("\"environment\":\"production\"")
+                .contains("\"version\":\"2.4.1\"")
+                .contains("\"outcome\":\"ROLLED_BACK\"")
+                .contains("\"datasource\":\"payments-pipeline\"");
+    }
+
+    /**
+     * #695: deployment pipelines carry no review-plan channel binding, so every deployment event
+     * must fan out org-wide. Falling through to the plan-channel lookup would silently deliver to
+     * zero channels (null datasource → empty plan list).
+     */
+    @Test
+    void deploymentEventsUseAllActiveChannelsForOrg() {
+        var deploymentRequestId = UUID.randomUUID();
+        var emailCh = channel(NotificationChannelType.EMAIL);
+        when(channelRepository.findAllByOrganizationIdAndActiveTrue(orgId))
+                .thenReturn(List.of(emailCh));
+        for (var eventType : List.of(NotificationEventType.DEPLOYMENT_SUBMITTED,
+                NotificationEventType.DEPLOYMENT_APPROVED,
+                NotificationEventType.DEPLOYMENT_REJECTED,
+                NotificationEventType.DEPLOYMENT_OUTCOME_FAILED,
+                NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED)) {
+            when(contextBuilder.buildDeployment(eq(eventType), eq(deploymentRequestId), any(),
+                    any()))
+                    .thenReturn(Optional.of(sampleDeploymentContext(eventType, deploymentRequestId,
+                            null, List.of(new RecipientView(UUID.randomUUID(), "a@x", "A")))));
+
+            dispatcher.dispatchDeployment(eventType, deploymentRequestId, null, null);
+        }
+        verify(emailStrategy, org.mockito.Mockito.times(5)).deliver(any(), eq(emailCh));
+        verify(contextBuilder, never()).lookupPlanChannelIds(any());
+    }
+
+    @Test
+    void unknownDeploymentRequestShortCircuits() {
+        when(contextBuilder.buildDeployment(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        dispatcher.dispatchDeployment(NotificationEventType.DEPLOYMENT_APPROVED,
+                UUID.randomUUID(), null, null);
+
+        verify(channelRepository, never()).findAllByOrganizationIdAndActiveTrue(any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(),
+                any(), any());
+    }
+
+    @Test
     void skipsTestEventForInAppPersistence() {
         when(contextBuilder.build(any(), eq(queryRequestId), any(), any(), any()))
                 .thenReturn(Optional.of(sampleContextWithRecipients(
@@ -368,6 +442,32 @@ class NotificationDispatcherTest {
     }
 
     /** A QUERY_EXECUTED context (#627) carrying the execution outcome in the trailing fields. */
+    private NotificationContext sampleDeploymentContext(
+            NotificationEventType type, UUID deploymentRequestId,
+            com.bablsoft.accessflow.deploygov.api.DeploymentOutcome outcome,
+            List<RecipientView> recipients) {
+        return new NotificationContext(
+                type,
+                orgId,
+                null,
+                null, null, null, null,
+                null, null, null,
+                UUID.randomUUID(), "payments-pipeline",
+                UUID.randomUUID(), "submit@example.com", "Sub",
+                null,
+                null, null, null,
+                null,
+                recipients, Instant.now(), "en", null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                deploymentRequestId, "production", "2.4.1", outcome, null);
+    }
+
     private NotificationContext sampleExecutedContext(List<RecipientView> recipients) {
         return new NotificationContext(
                 NotificationEventType.QUERY_EXECUTED,

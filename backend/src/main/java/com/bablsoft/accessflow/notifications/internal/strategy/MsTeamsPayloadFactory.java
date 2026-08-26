@@ -86,6 +86,22 @@ class MsTeamsPayloadFactory {
             }
             return card;
         }
+        // #695: deployment governance — the pipeline name rides in datasourceName.
+        if (ctx.deploymentRequestId() != null) {
+            facts.add(fact("Pipeline", nullToDash(ctx.datasourceName())));
+            facts.add(fact("Environment", nullToDash(ctx.environmentName())));
+            facts.add(fact("Version", nullToDash(ctx.deploymentVersion())));
+            facts.add(fact("Submitted by", nullToDash(ctx.submitterEmail())));
+            if (ctx.riskLevel() != null) {
+                facts.add(fact("Risk Level", riskBadge(ctx.riskLevel(), ctx.riskScore())));
+            }
+            if (ctx.deploymentOutcome() != null) {
+                facts.add(fact("Outcome", ctx.deploymentOutcome().name()));
+            }
+            body.add(factSet(facts));
+            card.put("body", body);
+            return card;
+        }
         facts.add(fact("Datasource", nullToDash(ctx.datasourceName())));
         facts.add(fact("Submitted by", nullToDash(ctx.submitterEmail())));
         if (ctx.queryType() != null) {
@@ -213,6 +229,12 @@ class MsTeamsPayloadFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            // #695: deployment governance
+            case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
+            case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";
+            case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
+            case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
         };
     }
 

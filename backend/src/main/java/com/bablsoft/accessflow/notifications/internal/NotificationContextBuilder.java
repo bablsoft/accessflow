@@ -22,6 +22,9 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.events.WeeklyDigestReadyEvent;
+import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationLookupService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentNotificationView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.config.NotificationsProperties;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +60,7 @@ class NotificationContextBuilder {
     private final AttestationCampaignLookupService attestationCampaignLookupService;
     private final ApiRequestNotificationLookupService apiRequestNotificationLookupService;
     private final ApiConnectorNotificationLookupService apiConnectorNotificationLookupService;
+    private final DeploymentNotificationLookupService deploymentNotificationLookupService;
     private final NotificationsProperties properties;
 
     List<UUID> lookupPlanChannelIds(UUID datasourceId) {
@@ -176,7 +180,9 @@ class NotificationContextBuilder {
                  SENSITIVE_RESULT_EXPORTED, WEEKLY_DIGEST, ATTESTATION_CAMPAIGN_OPENED,
                  API_REQUEST_SUBMITTED, API_REQUEST_APPROVED, API_REQUEST_EXECUTED,
                  API_REQUEST_FAILED, API_CONNECTOR_OAUTH2_TOKEN_FAILED,
-                 ERASURE_APPROVED -> List.of();
+                 ERASURE_APPROVED,
+                 DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
+                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED -> List.of();
         };
     }
 
@@ -482,6 +488,90 @@ class NotificationContextBuilder {
         var submitter = userQueryService.findById(view.submittedByUserId())
                 .filter(UserView::active).orElse(null);
         return submitter != null ? List.of(toRecipient(submitter)) : List.of();
+    }
+
+    /**
+     * Builds the context for a deployment notification (#695). Not query-backed: the pipeline rides
+     * in {@code datasourceId}/{@code datasourceName}, the environment/version/outcome in the
+     * {@code deployment*} fields, and the submission (or break-glass) justification in
+     * {@code justification}. {@code reviewUrl} stays null — there is no deploygov UI yet.
+     * SUBMITTED fans out to the eligible reviewers, OUTCOME_FAILED to the reviewers who approved,
+     * BREAK_GLASS_EXECUTED to every active org admin, and APPROVED/REJECTED to the submitter.
+     */
+    Optional<NotificationContext> buildDeployment(NotificationEventType eventType,
+                                                  UUID deploymentRequestId,
+                                                  DeploymentOutcome outcome,
+                                                  String decisionReason) {
+        var view = deploymentNotificationLookupService.find(deploymentRequestId).orElse(null);
+        if (view == null) {
+            return Optional.empty();
+        }
+        var submitter = userQueryService.findById(view.submittedByUserId()).orElse(null);
+        var recipients = deploymentRecipients(eventType, view);
+        var locale = localizationConfigService.getOrDefault(view.organizationId()).defaultLanguage();
+        return Optional.of(new NotificationContext(
+                eventType,
+                view.organizationId(),
+                null,
+                null, null, null, null,
+                view.aiRiskLevel(),
+                view.aiRiskScore(),
+                view.aiSummary(),
+                view.pipelineId(),
+                view.pipelineName(),
+                view.submittedByUserId(),
+                submitter != null ? submitter.email() : null,
+                submitter != null ? submitter.displayName() : null,
+                view.justification(),
+                null, null, null,
+                null,
+                recipients,
+                Instant.now(),
+                locale,
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                deploymentRequestId,
+                view.environmentName(),
+                view.version(),
+                outcome,
+                decisionReason));
+    }
+
+    private List<RecipientView> deploymentRecipients(NotificationEventType eventType,
+                                                     DeploymentNotificationView view) {
+        return switch (eventType) {
+            case DEPLOYMENT_SUBMITTED -> toActiveRecipients(
+                    deploymentNotificationLookupService.findEligibleReviewerUserIds(view.id()));
+            // The reviewers who granted the deployment learn it failed or was rolled back.
+            case DEPLOYMENT_OUTCOME_FAILED -> toActiveRecipients(
+                    deploymentNotificationLookupService.findApproverUserIds(view.id()));
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> userQueryService
+                    .findByOrganizationAndRole(view.organizationId(), UserRoleType.ADMIN)
+                    .stream()
+                    .filter(UserView::active)
+                    .map(NotificationContextBuilder::toRecipient)
+                    .toList();
+            default -> userQueryService.findById(view.submittedByUserId())
+                    .filter(UserView::active)
+                    .map(u -> List.of(toRecipient(u)))
+                    .orElse(List.of());
+        };
+    }
+
+    private List<RecipientView> toActiveRecipients(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return List.of();
+        }
+        return userQueryService.findByIds(userIds).stream()
+                .filter(UserView::active)
+                .map(NotificationContextBuilder::toRecipient)
+                .toList();
     }
 
     private URI buildApiRequestUrl(UUID apiRequestId) {

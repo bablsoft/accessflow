@@ -93,6 +93,9 @@ class SlackBlockKitFactory {
         if (ctx.attestationCampaignId() != null) {
             return attestationSection(ctx);
         }
+        if (ctx.deploymentRequestId() != null) {
+            return deploymentSection(ctx);
+        }
         var fields = new ArrayList<TextObject>();
         fields.add(mrkdwn("*Datasource:*\n" + nullToDash(ctx.datasourceName())));
         fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
@@ -124,6 +127,23 @@ class SlackBlockKitFactory {
                     ? ctx.exportFormat() + " · " + ctx.executionRowsAffected() + " rows"
                     : ctx.exportFormat();
             fields.add(mrkdwn("*Export:*\n" + export));
+        }
+        return SectionBlock.builder().fields(fields).build();
+    }
+
+    // #695: deployment governance — "Datasource" would mislabel the pipeline, so the
+    // DEPLOYMENT_* events render their own field set instead of the generic query fields.
+    private static SectionBlock deploymentSection(NotificationContext ctx) {
+        var fields = new ArrayList<TextObject>();
+        fields.add(mrkdwn("*Pipeline:*\n" + nullToDash(ctx.datasourceName())));
+        fields.add(mrkdwn("*Environment:*\n" + nullToDash(ctx.environmentName())));
+        fields.add(mrkdwn("*Version:*\n" + nullToDash(ctx.deploymentVersion())));
+        fields.add(mrkdwn("*Submitted by:*\n" + nullToDash(ctx.submitterEmail())));
+        if (ctx.riskLevel() != null) {
+            fields.add(mrkdwn("*Risk Level:*\n" + riskBadge(ctx.riskLevel(), ctx.riskScore())));
+        }
+        if (ctx.deploymentOutcome() != null) {
+            fields.add(mrkdwn("*Outcome:*\n" + ctx.deploymentOutcome().name()));
         }
         return SectionBlock.builder().fields(fields).build();
     }
@@ -223,6 +243,12 @@ class SlackBlockKitFactory {
             case API_REQUEST_EXECUTED -> "🚀 API Call Executed";
             case API_REQUEST_FAILED -> "❌ API Call Failed";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "🔑 API Connector Token Failure";
+            // #695: deployment governance
+            case DEPLOYMENT_SUBMITTED -> "🚀 New Deployment Awaiting Review";
+            case DEPLOYMENT_APPROVED -> "✅ Deployment Approved";
+            case DEPLOYMENT_REJECTED -> "❌ Deployment Rejected";
+            case DEPLOYMENT_OUTCOME_FAILED -> "🚨 Deployment Failed or Rolled Back";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "🚨 Break-glass Deployment Executed";
         };
     }
 

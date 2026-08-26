@@ -247,6 +247,41 @@ function renderMessage(
         datasource: accessResource,
         classifications: payload.export_classifications ?? '—',
       });
+    // #695 — the pipeline name rides in the `datasource` payload field.
+    case 'DEPLOYMENT_SUBMITTED':
+      return payload.submitter
+        ? t('notifications.events.DEPLOYMENT_SUBMITTED', {
+            submitter: payload.submitter_name ?? payload.submitter,
+            pipeline: datasource,
+            environment: payload.environment ?? '—',
+            version: payload.version ?? '—',
+          })
+        : t('notifications.events.DEPLOYMENT_SUBMITTED_no_submitter', { pipeline: datasource });
+    case 'DEPLOYMENT_APPROVED':
+      return t('notifications.events.DEPLOYMENT_APPROVED', {
+        environment: payload.environment ?? '—',
+        version: payload.version ?? '—',
+      });
+    case 'DEPLOYMENT_REJECTED':
+      return t('notifications.events.DEPLOYMENT_REJECTED', {
+        environment: payload.environment ?? '—',
+        version: payload.version ?? '—',
+      });
+    case 'DEPLOYMENT_OUTCOME_FAILED':
+      return t('notifications.events.DEPLOYMENT_OUTCOME_FAILED', {
+        pipeline: datasource,
+        // Translated via enums.deployment_outcome — never the raw backend enum name.
+        outcome: payload.outcome ? t(`enums.deployment_outcome.${payload.outcome}`) : '—',
+      });
+    case 'DEPLOYMENT_BREAK_GLASS_EXECUTED':
+      return payload.submitter
+        ? t('notifications.events.DEPLOYMENT_BREAK_GLASS_EXECUTED', {
+            submitter: payload.submitter_name ?? payload.submitter,
+            pipeline: datasource,
+          })
+        : t('notifications.events.DEPLOYMENT_BREAK_GLASS_EXECUTED_no_submitter', {
+            pipeline: datasource,
+          });
     default:
       return t('notifications.events.fallback');
   }
@@ -291,6 +326,17 @@ export function routeForNotification(item: UserNotification): string | null {
     item.event_type === 'API_REQUEST_FAILED'
   ) {
     return item.api_request_id ? `/api-requests/${item.api_request_id}` : null;
+  }
+  // #695 — deliberately unrouted: no deploygov UI exists yet, and falling through would produce
+  // a dead /queries link (deployment notifications carry no query_request_id anyway).
+  if (
+    item.event_type === 'DEPLOYMENT_SUBMITTED' ||
+    item.event_type === 'DEPLOYMENT_APPROVED' ||
+    item.event_type === 'DEPLOYMENT_REJECTED' ||
+    item.event_type === 'DEPLOYMENT_OUTCOME_FAILED' ||
+    item.event_type === 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
+  ) {
+    return null;
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

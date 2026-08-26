@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.notifications.internal.strategy;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.NotificationContext;
 import org.junit.jupiter.api.Test;
@@ -111,6 +112,64 @@ class MsTeamsPayloadFactoryTest {
                 .contains("https://app.example.com/dashboard");
     }
 
+    @Test
+    void deploymentSubmittedHeaderIsUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null));
+        assertThat(body).contains("🚀 New Deployment Awaiting Review");
+    }
+
+    @Test
+    void deploymentApprovedHeaderIsUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_APPROVED, null));
+        assertThat(body).contains("✅ Deployment Approved");
+    }
+
+    @Test
+    void deploymentRejectedHeaderIsUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_REJECTED, null));
+        assertThat(body).contains("❌ Deployment Rejected");
+    }
+
+    @Test
+    void deploymentOutcomeFailedHeaderIsUsed() {
+        var body = factory.buildEventBody(deploymentCtx(
+                NotificationEventType.DEPLOYMENT_OUTCOME_FAILED, DeploymentOutcome.FAILED));
+        assertThat(body).contains("🚨 Deployment Failed or Rolled Back");
+    }
+
+    @Test
+    void deploymentBreakGlassHeaderIsUsed() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_BREAK_GLASS_EXECUTED, null));
+        assertThat(body).contains("🚨 Break-glass Deployment Executed");
+    }
+
+    @Test
+    void deploymentSubmittedCardCarriesPipelineFacts() {
+        var body = factory.buildEventBody(
+                deploymentCtx(NotificationEventType.DEPLOYMENT_SUBMITTED, null));
+        assertThat(body).contains("Pipeline")
+                .contains("payments-service")
+                .contains("Environment")
+                .contains("production")
+                .contains("Version")
+                .contains("v2.4.1")
+                .contains("Submitted by")
+                .contains("alice@example.com")
+                .doesNotContain("Datasource");
+    }
+
+    @Test
+    void deploymentOutcomeFailedCardCarriesOutcome() {
+        var body = factory.buildEventBody(deploymentCtx(
+                NotificationEventType.DEPLOYMENT_OUTCOME_FAILED, DeploymentOutcome.ROLLED_BACK));
+        assertThat(body).contains("Outcome")
+                .contains("ROLLED_BACK");
+    }
+
     private static NotificationContext digestCtx() {
         return new NotificationContext(
                 NotificationEventType.WEEKLY_DIGEST,
@@ -189,6 +248,47 @@ class MsTeamsPayloadFactoryTest {
                 Instant.parse("2026-05-06T10:15:00Z"),
                 "en",
                 approvalTimeoutHours);
+    }
+
+    /**
+     * A DEPLOYMENT_* context (#695) — the pipeline name rides in {@code datasourceName}, the
+     * deployment fields trail the record; fullSqlText/queryType/reviewUrl are null.
+     */
+    private static NotificationContext deploymentCtx(NotificationEventType eventType,
+                                                     DeploymentOutcome outcome) {
+        return new NotificationContext(
+                eventType,
+                UUID.randomUUID(),
+                null,
+                null,
+                null, null, null,
+                RiskLevel.MEDIUM,
+                42,
+                "ok",
+                UUID.randomUUID(),
+                "payments-service",
+                UUID.randomUUID(),
+                "alice@example.com",
+                "Alice",
+                "Hotfix for the checkout outage",
+                null, null, null,
+                null,
+                List.of(),
+                Instant.parse("2026-08-25T10:15:00Z"),
+                "en",
+                null,
+                null, null, null, null, null, null,
+                null,
+                null, null, null,
+                null,
+                null, null, null,
+                null, null, null,
+                null, null, null,
+                UUID.randomUUID(),
+                "production",
+                "v2.4.1",
+                outcome,
+                null);
     }
 
     private static NotificationContext ctxWithoutReviewUrl(NotificationEventType eventType) {

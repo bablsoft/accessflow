@@ -247,6 +247,13 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
         context.setVariable("exportFormat", ctx.exportFormat());
         context.setVariable("exportClassifications", ctx.exportClassifications());
         context.setVariable("exportTrigger", ctx.exportTrigger());
+        context.setVariable("deploymentRequestId", ctx.deploymentRequestId());
+        context.setVariable("environmentName", ctx.environmentName());
+        context.setVariable("deploymentVersion", ctx.deploymentVersion());
+        context.setVariable("deploymentOutcome",
+                ctx.deploymentOutcome() != null ? ctx.deploymentOutcome().name() : null);
+        context.setVariable("deploymentDecisionReason", ctx.deploymentDecisionReason());
+        context.setVariable("justification", ctx.justification());
         return templateEngine.process(template, context);
     }
 
@@ -272,6 +279,12 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             case SENSITIVE_RESULT_EXPORTED -> "email/sensitive-result-exported";
             // A connector whose OAuth2 token keeps failing is effectively down — alert admins by email.
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED -> "email/api-connector-token-failed";
+            // #695: deployment governance — unlike API requests, deployment events do email.
+            case DEPLOYMENT_SUBMITTED -> "email/deployment-pending-review";
+            case DEPLOYMENT_APPROVED -> "email/deployment-approved";
+            case DEPLOYMENT_REJECTED -> "email/deployment-rejected";
+            case DEPLOYMENT_OUTCOME_FAILED -> "email/deployment-outcome-failed";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED -> "email/deployment-break-glass-executed";
             // Access (JIT) events are delivered as in-app notifications by AccessNotificationListener,
             // not through the channel-strategy email path — no email template.
             // API-request events (AF-500) deliver as in-app + chat notifications, not email.
@@ -296,6 +309,12 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
             // #622: same shape as the default, spelled out so this switch's silent default is a
             // deliberate choice for these two rather than something nobody looked at.
             case REVIEW_ESCALATED, REVIEW_NUDGE -> new Object[]{ctx.datasourceName()};
+            // #695: the pipeline name rides in datasourceName; the version is the second argument.
+            // Spelled out — this switch has a silent default and would otherwise pass only the
+            // pipeline, leaving "{1}" unfilled in every deployment subject.
+            case DEPLOYMENT_SUBMITTED, DEPLOYMENT_APPROVED, DEPLOYMENT_REJECTED,
+                 DEPLOYMENT_OUTCOME_FAILED, DEPLOYMENT_BREAK_GLASS_EXECUTED ->
+                    new Object[]{ctx.datasourceName(), ctx.deploymentVersion()};
             default -> new Object[]{ctx.datasourceName()};
         };
         return messageSource.getMessage(key, args, resolveLocale(ctx));
@@ -322,6 +341,13 @@ public class EmailNotificationStrategy implements NotificationChannelStrategy {
                     "notification.email.subject.sensitive_result_exported";
             case API_CONNECTOR_OAUTH2_TOKEN_FAILED ->
                     "notification.email.subject.api_connector_token_failed";
+            case DEPLOYMENT_SUBMITTED -> "notification.email.subject.deployment_submitted";
+            case DEPLOYMENT_APPROVED -> "notification.email.subject.deployment_approved";
+            case DEPLOYMENT_REJECTED -> "notification.email.subject.deployment_rejected";
+            case DEPLOYMENT_OUTCOME_FAILED ->
+                    "notification.email.subject.deployment_outcome_failed";
+            case DEPLOYMENT_BREAK_GLASS_EXECUTED ->
+                    "notification.email.subject.deployment_break_glass_executed";
             // Unreachable for access events (no email template); kept for switch exhaustiveness.
             case TEST, ACCESS_REQUEST_SUBMITTED, ACCESS_REQUEST_APPROVED, ACCESS_REQUEST_REJECTED,
                  ACCESS_GRANT_EXPIRED, ACCESS_GRANT_REVOKED, API_REQUEST_SUBMITTED, API_REQUEST_APPROVED,

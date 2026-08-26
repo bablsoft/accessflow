@@ -5349,6 +5349,8 @@ no role is required — every authenticated user can read and manage their own i
       "id": "uuid",
       "event_type": "QUERY_APPROVED",
       "query_request_id": "uuid",
+      "api_request_id": null,
+      "deployment_request_id": null,
       "payload": {
         "query_id": "uuid",
         "datasource": "orders-prod",
@@ -5371,10 +5373,21 @@ no role is required — every authenticated user can read and manage their own i
 }
 ```
 
-`event_type` is one of `QUERY_SUBMITTED` \| `QUERY_APPROVED` \| `QUERY_REJECTED` \|
-`REVIEW_TIMEOUT` \| `AI_HIGH_RISK`. The `payload` keys are best-effort context for the
-client to render a human-readable message and link — UIs must treat individual keys as
-optional.
+`event_type` is any backend `NotificationEventType` value — the query events
+(`QUERY_SUBMITTED` \| `QUERY_APPROVED` \| `QUERY_REJECTED` \| `QUERY_ESCALATED` \|
+`QUERY_EXECUTED` \| `REVIEW_TIMEOUT` \| `REVIEW_ESCALATED` \| `REVIEW_NUDGE` \|
+`AI_HIGH_RISK` \| `BREAK_GLASS_EXECUTED` \| `SENSITIVE_RESULT_EXPORTED`), the access
+events (`ACCESS_REQUEST_*`, `ACCESS_GRANT_*`, `GRANT_STALE`), `ANOMALY_DETECTED`,
+`WEEKLY_DIGEST`, `ATTESTATION_CAMPAIGN_OPENED`, `ERASURE_APPROVED`, the API-request
+events (`API_REQUEST_*`, `API_CONNECTOR_OAUTH2_TOKEN_FAILED` — AF-500), and the
+deployment events (`DEPLOYMENT_SUBMITTED` \| `DEPLOYMENT_APPROVED` \|
+`DEPLOYMENT_REJECTED` \| `DEPLOYMENT_OUTCOME_FAILED` \|
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` — #695). At most one of `query_request_id` \|
+`api_request_id` \| `deployment_request_id` is set, naming the row's target. The
+`payload` keys are best-effort context for the client to render a human-readable message
+and link — UIs must treat individual keys as optional; deployment rows add
+`deployment_id`, `environment`, `version`, and `outcome`, with the pipeline name riding
+the `datasource` key.
 
 ### GET /notifications/unread-count — Response 200
 

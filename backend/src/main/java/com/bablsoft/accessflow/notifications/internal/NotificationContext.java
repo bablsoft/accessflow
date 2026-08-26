@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.GrantResourceKind;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 
 import java.net.URI;
@@ -42,6 +43,14 @@ import java.util.UUID;
  * query's submitter) and {@code executionRowsAffected} for the exported row count;
  * {@code exportClassifications} is the preformatted classification list (e.g. {@code "PCI, PHI"})
  * and {@code exportTrigger} is {@code "endpoint"} or {@code "email_attachment"}.
+ *
+ * <p>The {@code deployment*} fields are only populated for the {@code DEPLOYMENT_*} events (#695).
+ * Those events reuse {@code datasourceId}/{@code datasourceName} for the pipeline,
+ * {@code submittedByUserId}/{@code submitterEmail} for the submitter, and {@code justification}
+ * for the submission (or break-glass) justification. {@code deploymentOutcome} is only set for
+ * {@code DEPLOYMENT_OUTCOME_FAILED}; {@code deploymentDecisionReason} carries the decision
+ * provenance ({@code "routing:&lt;policyId&gt;"}, {@code "freeze:&lt;windowId&gt;"},
+ * {@code "review_timeout"}, or null for a reviewer verdict).
  */
 public record NotificationContext(
         NotificationEventType eventType,
@@ -87,7 +96,70 @@ public record NotificationContext(
         GrantUsageRecommendation grantRecommendation,
         String exportFormat,
         String exportClassifications,
-        String exportTrigger) {
+        String exportTrigger,
+        UUID deploymentRequestId,
+        String environmentName,
+        String deploymentVersion,
+        DeploymentOutcome deploymentOutcome,
+        String deploymentDecisionReason) {
+
+    /** Compatibility constructor without the #695 deployment fields — every non-deployment path. */
+    public NotificationContext(
+            NotificationEventType eventType,
+            UUID organizationId,
+            UUID queryRequestId,
+            QueryType queryType,
+            String fullSqlText,
+            String sqlPreview200,
+            String sqlPreview300,
+            RiskLevel riskLevel,
+            Integer riskScore,
+            String aiSummary,
+            UUID datasourceId,
+            String datasourceName,
+            UUID submittedByUserId,
+            String submitterEmail,
+            String submitterDisplayName,
+            String justification,
+            UUID reviewerUserId,
+            String reviewerDisplayName,
+            String reviewerComment,
+            URI reviewUrl,
+            List<RecipientView> recipients,
+            Instant occurredAt,
+            String locale,
+            Integer approvalTimeoutHours,
+            UUID anomalyId,
+            String anomalyFeature,
+            Double anomalyScore,
+            Double anomalyObservedValue,
+            Double anomalyBaselineMean,
+            String anomalyUserLabel,
+            WeeklyDigestData digest,
+            UUID attestationCampaignId,
+            String attestationCampaignName,
+            Instant attestationDueAt,
+            UUID apiRequestId,
+            QueryStatus executionStatus,
+            Long executionRowsAffected,
+            Long executionDurationMs,
+            GrantResourceKind grantResourceKind,
+            Long grantDaysSinceLastUse,
+            GrantUsageRecommendation grantRecommendation,
+            String exportFormat,
+            String exportClassifications,
+            String exportTrigger) {
+        this(eventType, organizationId, queryRequestId, queryType, fullSqlText, sqlPreview200,
+                sqlPreview300, riskLevel, riskScore, aiSummary, datasourceId, datasourceName,
+                submittedByUserId, submitterEmail, submitterDisplayName, justification,
+                reviewerUserId, reviewerDisplayName, reviewerComment, reviewUrl, recipients,
+                occurredAt, locale, approvalTimeoutHours, anomalyId, anomalyFeature, anomalyScore,
+                anomalyObservedValue, anomalyBaselineMean, anomalyUserLabel, digest,
+                attestationCampaignId, attestationCampaignName, attestationDueAt, apiRequestId,
+                executionStatus, executionRowsAffected, executionDurationMs, grantResourceKind,
+                grantDaysSinceLastUse, grantRecommendation, exportFormat, exportClassifications,
+                exportTrigger, null, null, null, null, null);
+    }
 
     /**
      * Compatibility constructor without the #626 result-export fields — every path other than

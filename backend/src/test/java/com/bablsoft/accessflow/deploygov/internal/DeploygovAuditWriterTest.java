@@ -49,6 +49,19 @@ class DeploygovAuditWriterTest {
     }
 
     @Test
+    void recordsUserAgentThroughTheHttpOverload() {
+        new DeploygovAuditWriter(auditLogService).record(
+                AuditAction.DEPLOYMENT_APPROVED, AuditResourceType.DEPLOYMENT_REQUEST,
+                requestId, orgId, userId, Map.of(), "10.0.0.9", "browser/1.0");
+
+        var captor = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(captor.capture());
+        assertThat(captor.getValue().action()).isEqualTo(AuditAction.DEPLOYMENT_APPROVED);
+        assertThat(captor.getValue().ipAddress()).isEqualTo("10.0.0.9");
+        assertThat(captor.getValue().userAgent()).isEqualTo("browser/1.0");
+    }
+
+    @Test
     void auditFailureIsSwallowed() {
         when(auditLogService.record(any())).thenThrow(new IllegalStateException("audit down"));
 
