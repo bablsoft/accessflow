@@ -10,6 +10,8 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEnti
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
 import com.bablsoft.accessflow.notifications.api.NotificationEventType;
 import com.bablsoft.accessflow.notifications.internal.persistence.repo.UserNotificationRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +47,7 @@ class UserNotificationServiceApiRequestIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired UserRepository userRepository;
     @Autowired ApiRequestRepository apiRequestRepository;
+    @Autowired DeploymentRequestRepository deploymentRequestRepository;
 
     private OrganizationEntity organization;
     private UserEntity recipient;
@@ -103,7 +106,8 @@ class UserNotificationServiceApiRequestIntegrationTest {
 
         service.recordForUsers(NotificationEventType.API_REQUEST_SUBMITTED,
                 Set.of(recipient.getId()), organization.getId(),
-                /* queryRequestId */ null, apiRequest.getId(), "{\"api_id\":\"x\"}");
+                /* queryRequestId */ null, apiRequest.getId(), /* deploymentRequestId */ null,
+                "{\"api_id\":\"x\"}");
 
         var stored = notificationRepository
                 .findByUserIdOrderByCreatedAtDesc(recipient.getId(), PageRequest.of(0, 10))
@@ -121,7 +125,8 @@ class UserNotificationServiceApiRequestIntegrationTest {
         // query row needed since query_request_id is nullable) — the CHECK allows both-null.
         service.recordForUsers(NotificationEventType.QUERY_APPROVED,
                 Set.of(recipient.getId()), organization.getId(),
-                /* queryRequestId */ null, /* apiRequestId */ null, "{}");
+                /* queryRequestId */ null, /* apiRequestId */ null, /* deploymentRequestId */ null,
+                "{}");
 
         var stored = notificationRepository
                 .findByUserIdOrderByCreatedAtDesc(recipient.getId(), PageRequest.of(0, 10))
@@ -129,6 +134,35 @@ class UserNotificationServiceApiRequestIntegrationTest {
         assertThat(stored).singleElement().satisfies(n -> {
             assertThat(n.getQueryRequestId()).isNull();
             assertThat(n.getApiRequestId()).isNull();
+            assertThat(n.getDeploymentRequestId()).isNull();
+        });
+    }
+
+    @Test
+    void recordsDeploymentRequestNotificationAgainstItsOwnFkColumn() {
+        // AF-695 mirror of the AF-529 exercise: the deployment-request id must land in
+        // user_notifications.deployment_request_id (V155), not in either of the other FK columns.
+        var deploymentRequest = new DeploymentRequestEntity();
+        deploymentRequest.setId(UUID.randomUUID());
+        deploymentRequest.setPipelineId(UUID.randomUUID());
+        deploymentRequest.setEnvironmentId(UUID.randomUUID());
+        deploymentRequest.setOrganizationId(organization.getId());
+        deploymentRequest.setSubmittedBy(recipient.getId());
+        deploymentRequest.setVersion("2.4.1");
+        deploymentRequestRepository.save(deploymentRequest);
+
+        service.recordForUsers(NotificationEventType.QUERY_APPROVED,
+                Set.of(recipient.getId()), organization.getId(),
+                /* queryRequestId */ null, /* apiRequestId */ null, deploymentRequest.getId(),
+                "{\"deployment_id\":\"x\"}");
+
+        var stored = notificationRepository
+                .findByUserIdOrderByCreatedAtDesc(recipient.getId(), PageRequest.of(0, 10))
+                .getContent();
+        assertThat(stored).singleElement().satisfies(n -> {
+            assertThat(n.getQueryRequestId()).isNull();
+            assertThat(n.getApiRequestId()).isNull();
+            assertThat(n.getDeploymentRequestId()).isEqualTo(deploymentRequest.getId());
         });
     }
 }

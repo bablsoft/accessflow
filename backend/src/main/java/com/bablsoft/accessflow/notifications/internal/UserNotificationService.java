@@ -51,6 +51,7 @@ public class UserNotificationService {
                                UUID organizationId,
                                UUID queryRequestId,
                                UUID apiRequestId,
+                               UUID deploymentRequestId,
                                String payloadJson) {
         if (recipientUserIds == null || recipientUserIds.isEmpty()) {
             return;
@@ -63,6 +64,7 @@ public class UserNotificationService {
             entity.setEventType(eventType);
             entity.setQueryRequestId(queryRequestId);
             entity.setApiRequestId(apiRequestId);
+            entity.setDeploymentRequestId(deploymentRequestId);
             entity.setPayloadJson(payloadJson == null || payloadJson.isBlank() ? "{}" : payloadJson);
             entity.setRead(false);
             entity.setCreatedAt(Instant.now(clock));
@@ -118,6 +120,7 @@ public class UserNotificationService {
                 entity.getEventType(),
                 entity.getQueryRequestId(),
                 entity.getApiRequestId(),
+                entity.getDeploymentRequestId(),
                 entity.getPayloadJson(),
                 entity.isRead(),
                 entity.getCreatedAt(),

@@ -241,6 +241,7 @@ class NotificationDispatcher {
                     ctx.organizationId(),
                     ctx.queryRequestId(),
                     ctx.apiRequestId(),
+                    null,
                     buildPayload(ctx));
         } catch (RuntimeException ex) {
             log.error("Failed to persist in-app notifications for event {} on query {}",

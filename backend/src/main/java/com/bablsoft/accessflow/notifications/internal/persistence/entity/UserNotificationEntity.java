@@ -45,6 +45,9 @@ public class UserNotificationEntity {
     @Column(name = "api_request_id")
     private UUID apiRequestId;
 
+    @Column(name = "deployment_request_id")
+    private UUID deploymentRequestId;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
     private String payloadJson = "{}";

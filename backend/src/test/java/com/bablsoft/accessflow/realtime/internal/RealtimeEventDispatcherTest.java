@@ -270,7 +270,7 @@ class RealtimeEventDispatcherTest {
         when(userNotificationLookupService.findById(notificationId))
                 .thenReturn(Optional.of(new UserNotificationView(
                         notificationId, recipientId, organizationId,
-                        NotificationEventType.QUERY_APPROVED, queryId, null,
+                        NotificationEventType.QUERY_APPROVED, queryId, null, null,
                         "{\"datasource\":\"prod\"}", false,
                         Instant.parse("2026-05-08T09:00:00Z"), null)));
 
@@ -305,7 +305,7 @@ class RealtimeEventDispatcherTest {
         when(userNotificationLookupService.findById(notificationId))
                 .thenReturn(Optional.of(new UserNotificationView(
                         notificationId, recipientId, organizationId,
-                        NotificationEventType.AI_HIGH_RISK, null, null, "{}", false,
+                        NotificationEventType.AI_HIGH_RISK, null, null, null, "{}", false,
                         Instant.parse("2026-05-08T09:00:00Z"), null)));
 
         dispatcher.onUserNotificationCreated(

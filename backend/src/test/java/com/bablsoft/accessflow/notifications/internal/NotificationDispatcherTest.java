@@ -218,6 +218,7 @@ class NotificationDispatcherTest {
                 eq(orgId),
                 eq(queryRequestId),
                 isNull(),
+                isNull(),
                 any());
     }
 
@@ -239,6 +240,7 @@ class NotificationDispatcherTest {
                 eq(orgId),
                 isNull(),
                 eq(apiRequestId),
+                isNull(),
                 any());
     }
 
@@ -252,7 +254,7 @@ class NotificationDispatcherTest {
 
         dispatcher.dispatch(NotificationEventType.TEST, queryRequestId, null, null, null);
 
-        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -263,7 +265,7 @@ class NotificationDispatcherTest {
                         NotificationEventType.QUERY_APPROVED,
                         List.of(new RecipientView(reviewer, "a@x", "A")))));
         doThrow(new RuntimeException("db down"))
-                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any());
+                .when(userNotificationService).recordForUsers(any(), any(), any(), any(), any(), any(), any());
         var emailCh = channel(NotificationChannelType.EMAIL);
         when(contextBuilder.lookupPlanChannelIds(datasourceId)).thenReturn(List.of(emailCh.getId()));
         when(channelRepository.findAllByOrganizationIdAndIdInAndActiveTrue(eq(orgId), anyCollection()))
@@ -304,6 +306,7 @@ class NotificationDispatcherTest {
                 eq(orgId),
                 eq(queryRequestId),
                 isNull(),
+                isNull(),
                 payloadCaptor.capture());
         assertThat(payloadCaptor.getValue())
                 .contains("\"final_status\":\"EXECUTED\"")
@@ -318,7 +321,7 @@ class NotificationDispatcherTest {
         dispatcher.dispatchQueryExecuted(queryRequestId, QueryStatus.EXECUTED, 5L, 120L);
 
         verify(emailStrategy, never()).deliver(any(), any());
-        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any());
+        verify(userNotificationService, never()).recordForUsers(any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test

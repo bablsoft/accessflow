@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Governed database access for AI agents — AccessFlow</title>
+  <meta name="description" content="Let AI agents query production databases through the same review pipeline as people. Agents get a scoped key, an MCP tool surface, AI risk analysis, human approval, and a tamper-evident audit trail — open source, Apache 2.0." />
+
+  <link rel="canonical" href="https://accessflow.bablsoft.com/ai-agents/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Governed database access for AI agents — AccessFlow" />
+  <meta property="og:description" content="Let AI agents query production databases through the same review pipeline as people. Agents get a scoped key, an MCP tool surface, AI risk analysis, human approval, and a tamper-evident audit trail — open source, Apache 2.0." />
+  <meta property="og:url" content="https://accessflow.bablsoft.com/ai-agents/" />
+  <meta property="og:image" content="https://accessflow.bablsoft.com/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Governed database access for AI agents — AccessFlow" />
+  <meta name="twitter:description" content="Let AI agents query production databases through the same review pipeline as people. Agents get a scoped key, an MCP tool surface, AI risk analysis, human approval, and a tamper-evident audit trail — open source, Apache 2.0." />
+  <meta name="twitter:image" content="https://accessflow.bablsoft.com/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.bablsoft.com/ai-agents/#article",
+        "headline": "Governed database access for AI agents",
+        "name": "Governed database access for AI agents — AccessFlow",
+        "description": "Let AI agents query production databases through the same review pipeline as people. Agents get a scoped key, an MCP tool surface, AI risk analysis, human approval, and a tamper-evident audit trail — open source, Apache 2.0.",
+        "inLanguage": "en",
+        "articleSection": "AI agents",
+        "datePublished": "2026-08-25",
+        "dateModified": "2026-08-25",
+        "url": "https://accessflow.bablsoft.com/ai-agents/",
+        "mainEntityOfPage": "https://accessflow.bablsoft.com/ai-agents/",
+        "image": "https://accessflow.bablsoft.com/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.bablsoft.com/#website" },
+        "about": { "@id": "https://accessflow.bablsoft.com/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.bablsoft.com/" },
+          { "@type": "ListItem", "position": 2, "name": "AI agents", "item": "https://accessflow.bablsoft.com/ai-agents/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.bablsoft.com/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap" style="max-width: 860px;">
+
+      <header class="docs-hero">
+        <span class="eyebrow">AI agents</span>
+        <h1>Your agent doesn't need your database. It needs an answer.</h1>
+        <p class="hero-sub" style="margin-top: 14px;">
+          Point an AI agent at a database over MCP and it inherits whatever the connection string
+          can do — every table, every row, every <code>DELETE</code>. AccessFlow gives it a
+          different shape of access: it can ask, and the query goes through the same parse, AI risk
+          analysis, human approval, and audit trail as one a person submitted.
+        </p>
+        <div class="hero-cta" style="margin-top: 22px;">
+          <a href="/#install" class="btn btn-primary">
+            Get AccessFlow
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md" class="btn btn-ghost">MCP reference</a>
+        </div>
+      </header>
+
+      <!-- ─────────────────────────── The problem ─────────────────────────── -->
+      <section id="problem" class="docs-section scroll-pad">
+        <h2>What a direct database connection actually hands over</h2>
+        <p>
+          The usual way to give an agent data access is a database MCP server holding a connection
+          string. That server is not a permission boundary — it is a pipe. Whatever the credential
+          can do, the agent can do, and three properties follow from that:
+        </p>
+        <ul class="uc-list">
+          <li>
+            <strong>The blast radius is the credential, not the task.</strong> An agent asked to
+            summarise last week's signups holds the same access as one asked to drop a table.
+            Scope lives in the prompt, which is not a security control.
+          </li>
+          <li>
+            <strong>Prompt injection becomes database access.</strong> Untrusted text in a support
+            ticket or a web page the agent reads can redirect what it decides to run. The pipe
+            faithfully executes the redirected intent.
+          </li>
+          <li>
+            <strong>The audit trail loses the human.</strong> The database sees one service
+            account. Which person's agent ran what, and why, is not recoverable from the logs
+            afterwards.
+          </li>
+        </ul>
+        <div class="docs-callout info">
+          <strong>This is the emerging consensus, not a novel claim.</strong> Vendor guidance
+          through 2026 converges on the same conclusion — MCP servers reaching production data need
+          a governance layer in front of them. Most of the available answers are proprietary.
+          AccessFlow is an open-source one.
+        </div>
+      </section>
+
+      <!-- ─────────────────────────── How it works ─────────────────────────── -->
+      <section id="how" class="docs-section scroll-pad">
+        <h2>The agent joins the queue, like everyone else</h2>
+        <p>
+          AccessFlow exposes a Model Context Protocol server. An agent connects with an API key and
+          gets twelve tools. Submitting a query does not execute it — it enters the same state
+          machine a query from the web editor enters.
+        </p>
+
+        <div class="flow-steps" role="list" aria-label="How an agent query flows through AccessFlow">
+          <div class="flow-step" role="listitem">
+            <div class="flow-num">01</div>
+            <div>
+              <h3>Discover, then draft</h3>
+              <p>The agent calls <span class="mono">get_datasource_schema</span> to see what exists, and <span class="mono">validate_sql</span> to parse-check a draft. Validation never executes and never calls the AI — the agent can iterate for free.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <div class="flow-num">02</div>
+            <div>
+              <h3>Submit for review</h3>
+              <p><span class="mono">submit_query</span> returns <span class="mono">PENDING_AI</span>. Nothing has touched the database yet. Permission and parse failures come back as structured errors, not executions.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <div class="flow-num">03</div>
+            <div>
+              <h3>AI risk analysis</h3>
+              <p>The query is scored 0–100, checked for missing indexes and anti-patterns, and given a pre-flight cost estimate — the same analysis a human submission gets.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <div class="flow-num">04</div>
+            <div>
+              <h3>Human approval</h3>
+              <p>The datasource's review plan decides who signs off. Reviewers see the agent's SQL, its risk score, and its justification, and approve or reject from the web UI, Slack, or a mobile push.</p>
+            </div>
+          </div>
+          <div class="flow-step" role="listitem">
+            <div class="flow-num">05</div>
+            <div>
+              <h3>Execute, under the same guards</h3>
+              <p>On approval the proxy runs it with the schema allow-list, column masking, row-level security, and row caps applied — then <span class="mono">get_query_result</span> returns the rows to the agent.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="docs-callout ok">
+          <strong>The property that matters.</strong> Agents cannot bypass AI analysis, multi-stage
+          approvals, or column-level restrictions. There is no agent fast-path, because the tools
+          call the same services the web UI calls — the guards live in the service layer, below
+          both.
+        </div>
+      </section>
+
+      <!-- ─────────────────────────── Guarantees ─────────────────────────── -->
+      <section id="guarantees" class="docs-section scroll-pad">
+        <h2>What holds, specifically</h2>
+        <p>
+          Governance claims are worth only as much as their enforcement point. Each of these is
+          enforced in the service layer, not in the tool wrapper:
+        </p>
+
+        <div class="qa-grid">
+          <div class="qa-item">
+            <h3>Keys inherit the human</h3>
+            <p>An API key carries the owning user's role and datasource permissions exactly. A reviewer's key can review; an analyst's key cannot. An agent never gets more access than the person who created it.</p>
+          </div>
+          <div class="qa-item">
+            <h3>Masking survives sampling</h3>
+            <p><span class="mono">get_column_samples</span> runs the governed read path — row-level security predicates and column masks apply, so a masked column returns the masked value to the agent, never the raw one.</p>
+          </div>
+          <div class="qa-item">
+            <h3>Audit is caller-scoped</h3>
+            <p><span class="mono">get_audit_log</span> forces the actor to the calling user and their organisation. An agent cannot read another user's activity — not even with an admin key.</p>
+          </div>
+          <div class="qa-item">
+            <h3>No self-approval</h3>
+            <p><span class="mono">review_query</span> blocks approving your own submission at the service layer, and <span class="mono">list_pending_reviews</span> excludes the caller's own queries. An agent cannot approve what it submitted.</p>
+          </div>
+          <div class="qa-item">
+            <h3>Every action is attributed</h3>
+            <p>MCP submissions and decisions write the same audit rows as the web UI, recording the user id plus the IP and user-agent of the MCP request. There is no separate agent audit path.</p>
+          </div>
+          <div class="qa-item">
+            <h3>Keys are hashed and revocable</h3>
+            <p>The plaintext key is shown exactly once; only a SHA-256 hash is stored, so neither admins nor the system can recover it. Revocation takes effect on the next request.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────── Setup ─────────────────────────── -->
+      <section id="connect" class="docs-section scroll-pad">
+        <h2>Connecting an agent</h2>
+        <p>
+          Create a key under <strong>Profile → API keys</strong>, then point the client at your
+          AccessFlow instance. The server speaks stateless Streamable HTTP at
+          <span class="mono">/mcp</span>.
+        </p>
+
+        <div class="code-block">
+          <div class="code-block-head">
+            <span class="mono">claude_desktop_config.json</span>
+            <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+              <span data-copy-label>copy</span>
+            </button>
+          </div>
+<pre>{
+  <span class="sql-str">"mcpServers"</span>: {
+    <span class="sql-str">"accessflow"</span>: {
+      <span class="sql-str">"type"</span>: <span class="sql-str">"http"</span>,
+      <span class="sql-str">"url"</span>: <span class="sql-str">"https://accessflow.example.com/mcp"</span>,
+      <span class="sql-str">"headers"</span>: {
+        <span class="sql-str">"X-API-Key"</span>: <span class="sql-str">"af_kQ7…"</span>
+      }
+    }
+  }
+}</pre>
+        </div>
+
+        <div class="code-block">
+          <div class="code-block-head">
+            <span class="mono">Claude Code</span>
+            <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+              <span data-copy-label>copy</span>
+            </button>
+          </div>
+<pre>claude mcp add accessflow --transport http \
+  --url https://accessflow.example.com/mcp \
+  --header <span class="sql-str">"X-API-Key: af_kQ7…"</span></pre>
+        </div>
+
+        <p>
+          Any MCP-compatible client works the same way — Claude Desktop, Claude Code, or a custom
+          pipeline. Full tool reference and error codes are in the
+          <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md">MCP documentation →</a>
+        </p>
+      </section>
+
+      <!-- ─────────────────────────── Honest limits ─────────────────────────── -->
+      <section id="limits" class="docs-section scroll-pad">
+        <h2>What this does not solve</h2>
+        <p>
+          A governance layer that claims to solve everything is not one worth trusting. The
+          boundaries are worth stating plainly:
+        </p>
+        <ul class="uc-list">
+          <li>
+            <strong>It does not stop an agent submitting a bad query.</strong> A compromised or
+            confused agent can still submit anything its key permits. What it cannot do is get that
+            query <em>executed</em> without passing the review plan. The control is on execution,
+            not on intent.
+          </li>
+          <li>
+            <strong>Auto-approval is a policy you choose.</strong> Routing policies can auto-approve
+            low-risk reads, and a review plan can be configured not to require human approval. Those
+            are deliberate settings — if you grant an agent a path that skips review, it skips
+            review. The default is that it does not.
+          </li>
+          <li>
+            <strong>Key expiry is not shipped yet.</strong> Keys are revocable immediately, but
+            timestamped auto-expiry is still on the roadmap
+            (<a class="prose-link" href="https://github.com/bablsoft/accessflow/issues/80">FE-09</a>).
+            Rotate deliberately in the meantime.
+          </li>
+          <li>
+            <strong>It governs AccessFlow, not your agent.</strong> This is a control on one
+            path — the database. An agent with other tools, other credentials, or a shell is
+            outside its scope entirely.
+          </li>
+        </ul>
+      </section>
+
+      <!-- ─────────────────────────── CTA ─────────────────────────── -->
+      <section id="start" class="docs-section scroll-pad">
+        <h2>Run it yourself</h2>
+        <p>
+          AccessFlow is Apache 2.0 and self-hosted — it runs inside your own infrastructure, and no
+          query text or row data leaves it. One <span class="mono">docker compose up</span> gets a
+          working instance; the install guide covers Helm and from-source too.
+        </p>
+        <div class="hero-cta" style="margin-top: 20px;">
+          <a href="/docs/install/" class="btn btn-primary">
+            Install &amp; first run
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a href="/docs/configuration/ai/" class="btn btn-ghost">Configure AI analysis</a>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
