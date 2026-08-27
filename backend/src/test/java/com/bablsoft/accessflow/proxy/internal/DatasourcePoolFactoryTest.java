@@ -320,4 +320,118 @@ class DatasourcePoolFactoryTest {
                     anyString(), any());
         }
     }
+
+    /**
+     * Regression test for the dynamic-driver classloader ordering. Every other test in this class
+     * uses {@code org.postgresql.Driver}, which is on the app classloader — and
+     * {@code HikariConfig.setDriverClassName} falls back to its own classloader when the thread
+     * context loader misses, so those tests pass whether the call happens before or after the TCCL
+     * swap. Here the driver class is compiled into a temp directory that is on no classpath at all,
+     * so it is reachable <em>only</em> through {@code resolved.classLoader()} — which is exactly the
+     * shape of an uploaded custom driver JAR or an on-demand connector download.
+     */
+    @Test
+    void createPoolResolvesDriverClassReachableOnlyViaTheDriverClassloader() throws Exception {
+        var compiler = javax.tools.ToolProvider.getSystemJavaCompiler();
+        org.junit.jupiter.api.Assumptions.assumeTrue(compiler != null,
+                "no JDK compiler on this runtime — cannot stage an off-classpath driver");
+
+        var stagingDir = java.nio.file.Files.createTempDirectory("accessflow-hidden-driver-");
+        var source = stagingDir.resolve("HiddenDriver.java");
+        java.nio.file.Files.writeString(source, """
+                package hidden;
+
+                public class HiddenDriver implements java.sql.Driver {
+                    public java.sql.Connection connect(String url, java.util.Properties info) {
+                        return null;
+                    }
+                    public boolean acceptsURL(String url) {
+                        return false;
+                    }
+                    public java.sql.DriverPropertyInfo[] getPropertyInfo(
+                            String url, java.util.Properties info) {
+                        return new java.sql.DriverPropertyInfo[0];
+                    }
+                    public int getMajorVersion() {
+                        return 1;
+                    }
+                    public int getMinorVersion() {
+                        return 0;
+                    }
+                    public boolean jdbcCompliant() {
+                        return false;
+                    }
+                    public java.util.logging.Logger getParentLogger() {
+                        return java.util.logging.Logger.getGlobal();
+                    }
+                }
+                """);
+        assertThat(compiler.run(null, null, null, "-d", stagingDir.toString(), source.toString()))
+                .as("javac must compile the stub driver")
+                .isZero();
+
+        // The whole test is meaningless if the app classloader can see this class — assert it cannot,
+        // otherwise HikariConfig's fallback would mask the ordering bug exactly as it does elsewhere.
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> Class.forName("hidden.HiddenDriver", false, getClass().getClassLoader()))
+                .isInstanceOf(ClassNotFoundException.class);
+
+        var customDriverId = UUID.randomUUID();
+        var customDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, customDriverId, null,
+                null, null, null, null, true);
+        var driverDescriptor = new com.bablsoft.accessflow.core.api.CustomDriverDescriptor(
+                customDriverId, organizationId, DbType.POSTGRESQL, "Acme",
+                "hidden.HiddenDriver", "driver.jar", "a".repeat(64), 1024, "custom/x.jar");
+        when(customJdbcDriverService.findById(customDriverId, organizationId))
+                .thenReturn(java.util.Optional.of(driverDescriptor));
+
+        try (var hiddenLoader = new java.net.URLClassLoader(
+                new java.net.URL[]{stagingDir.toUri().toURL()}, getClass().getClassLoader())) {
+            when(driverCatalog.resolveCustom(driverDescriptor))
+                    .thenReturn(new ResolvedDriver(mock(Driver.class), hiddenLoader,
+                            "hidden.HiddenDriver"));
+
+            var captured = new AtomicReference<HikariConfig>();
+            try (MockedConstruction<HikariDataSource> ignored = Mockito.mockConstruction(
+                    HikariDataSource.class,
+                    (mock, ctx) -> captured.set((HikariConfig) ctx.arguments().get(0)))) {
+
+                factory.createPool(customDescriptor);
+
+                assertThat(captured.get().getDriverClassName()).isEqualTo("hidden.HiddenDriver");
+            }
+        }
+    }
+
+    /**
+     * A driver class that no classloader can resolve must fail before the credential is fetched.
+     * Resolving the secret first means a misconfigured datasource burns a Vault / AWS / Azure round
+     * trip on every pool-init attempt (see {@code SecretResolutionService}), so the cheap local
+     * check belongs first.
+     */
+    @Test
+    void createPoolFailingOnAnUnloadableDriverClassDoesNotFetchTheSecret() {
+        var customDriverId = UUID.randomUUID();
+        var customDescriptor = new DatasourceConnectionDescriptor(
+                datasourceId, organizationId, DbType.POSTGRESQL, "h", 5432, "appdb", "svc",
+                "ENC(secret)", SslMode.DISABLE, 15, 1000, false, null, false, customDriverId, null,
+                null, null, null, null, true);
+        var driverDescriptor = new com.bablsoft.accessflow.core.api.CustomDriverDescriptor(
+                customDriverId, organizationId, DbType.POSTGRESQL, "Acme",
+                "com.acme.NoSuchDriver", "driver.jar", "a".repeat(64), 1024, "custom/x.jar");
+        when(customJdbcDriverService.findById(customDriverId, organizationId))
+                .thenReturn(java.util.Optional.of(driverDescriptor));
+        when(driverCatalog.resolveCustom(driverDescriptor))
+                .thenReturn(new ResolvedDriver(mock(Driver.class),
+                        new ClassLoader(getClass().getClassLoader()) {}, "com.acme.NoSuchDriver"));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> factory.createPool(customDescriptor))
+                .isInstanceOf(RuntimeException.class);
+
+        verify(secretResolutionService, times(0))
+                .resolve("ENC(secret)", datasourceId, organizationId);
+    }
 }
