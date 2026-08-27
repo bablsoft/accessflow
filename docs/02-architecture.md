@@ -2,7 +2,7 @@
 
 ## High-Level Architecture
 
-AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI Analyzer, Notifications, Audit, and Realtime — communicating via REST/WebSocket internally. The Proxy Engine is the **sole path** to production databases — no direct database credentials are ever exposed to users. The Realtime subsystem fans domain events out to connected frontend clients over a single WebSocket at `/ws`.
+AccessFlow is composed of seven primary subsystems — Proxy Engine, Workflow, AI Analyzer, Notifications, Audit, Realtime, and Deployment Governance — communicating via REST/WebSocket internally. The Proxy Engine is the **sole path** to production databases — no direct database credentials are ever exposed to users. The Realtime subsystem fans domain events out to connected frontend clients over a single WebSocket at `/ws`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -12,7 +12,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
                           │  HTTPS REST + WebSocket
 ┌─────────────────────────▼───────────────────────────────────────┐
 │                     API GATEWAY LAYER                           │
-│         Spring Boot 3  /  JWT Auth  /  Rate Limiting            │
+│         Spring Boot 4  /  JWT Auth  /  Rate Limiting            │
 └──┬────────────┬───────────────┬───────────────────┬────────────┘
    │            │               │                   │
 ┌──▼──┐    ┌────▼────┐    ┌─────▼──────┐    ┌──────▼──────┐

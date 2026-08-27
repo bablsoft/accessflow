@@ -2,11 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
-  apiBase,
   createApiKeyViaApi,
   inviteUserViaApi,
   loginViaApi,
   purgeMailcrab,
+  revokeApiKeyViaApi,
   waitForInviteToken,
 } from '../helpers/datasources';
 import { getCurrentUserIdViaApi } from '../helpers/apiConnectors';
@@ -47,7 +47,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
   let submitterEmail = '';
   let submitterToken = '';
   let submitterApiKey = '';
-  let submitterId = '';
+  let submitterApiKeyId = '';
   let pipeline: CreatedDeploymentPipeline | null = null;
 
   test.beforeAll(async ({ request }) => {
@@ -64,25 +64,33 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       requiredApprovals: 1,
     });
 
-    // The submitter is a non-admin ANALYST (admins bypass the can_trigger check,
-    // and self-approval is blocked — the reviewing bootstrap admin must differ).
+    // The submitter is a non-admin REVIEWER: admins bypass the can_trigger check, so they
+    // cannot stand in here — and REVIEWER (not ANALYST) is what makes the self-approval ban
+    // *observable*. The decision endpoints are gated on PERM_DEPLOYMENT_REVIEW, so an ANALYST
+    // is turned away at method security with a 403 and never reaches the provenance check.
+    // Holding the permission and still being refused is the guarantee worth testing.
     submitterEmail = `af696-submitter-${randomUUID()}@e2e.local`;
     await purgeMailcrab(request);
-    await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'AF-696 Submitter', 'ANALYST');
+    await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'AF-696 Submitter', 'REVIEWER');
     const token = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, token, SUBMITTER_PASSWORD, 'AF-696 Submitter');
     submitterToken = await loginViaApi(request, submitterEmail, SUBMITTER_PASSWORD);
-    submitterId = await getCurrentUserIdViaApi(request, submitterToken);
+    const submitterId = await getCurrentUserIdViaApi(request, submitterToken);
     await grantDeploymentPermissionViaApi(request, adminAccessToken, pipeline.id, submitterId, {
       canTrigger: true,
     });
     // CI authenticates with an API key, not a bearer JWT. The key's owning user is the
     // submitter, so the same can_trigger grant and self-approval ban apply to it.
-    submitterApiKey = (await createApiKeyViaApi(request, submitterToken, `af697-ci-${randomUUID()}`))
-      .rawKey;
+    const key = await createApiKeyViaApi(request, submitterToken, `af697-ci-${randomUUID()}`);
+    submitterApiKey = key.rawKey;
+    submitterApiKeyId = key.id;
   });
 
   test.afterAll(async ({ request }) => {
+    // A non-expiring key on the shared seeded org would outlive the run.
+    if (submitterApiKeyId && submitterToken) {
+      await revokeApiKeyViaApi(request, submitterToken, submitterApiKeyId);
+    }
     if (pipeline) {
       try {
         await deleteDeploymentPipelineViaApi(request, adminAccessToken, pipeline.id);
@@ -253,12 +261,11 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     });
     await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'PENDING_REVIEW');
 
-    // The submitter can never approve their own deployment, even holding the grant.
-    const selfApprove = await request.post(
-      `${apiBase()}/api/v1/deployment-reviews/${triggered.id}/approve`,
-      { headers: { Authorization: `Bearer ${submitterToken}` } },
-    );
-    expect(selfApprove.status()).toBe(409);
+    // The submitter holds DEPLOYMENT_REVIEW, so this reaches the provenance check rather than
+    // method security: the ban is about who submitted, not about who may review.
+    const selfApprove = await approveDeploymentViaApi(request, submitterToken, triggered.id);
+    expect(selfApprove.status).toBe(409);
+    expect(selfApprove.error).toBe('DEPLOYMENT_REQUEST_SELF_APPROVAL');
 
     const decision = await approveDeploymentViaApi(
       request,
@@ -266,7 +273,8 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       triggered.id,
       'AF-697 e2e approval',
     );
-    expect(decision.resulting_status).toBe('APPROVED');
+    expect(decision.ok).toBe(true);
+    expect(decision.resultingStatus).toBe('APPROVED');
 
     const gate = await getDeploymentGateViaApi(request, adminAccessToken, triggered.id);
     expect(gate.releasable).toBe(true);
@@ -317,7 +325,8 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const review = reviews.find((r) => r.deployment_request_id === triggered.id);
     expect(review, 'rollback review opened for the rolled-back deployment').toBeTruthy();
 
-    // The deployment's submitter can never acknowledge their own rollback.
+    // Same provenance rule on the follow-up review: the submitter holds DEPLOYMENT_REVIEW and
+    // is still refused.
     const selfAck = await acknowledgeRollbackReviewViaApi(request, submitterToken, review!.id);
     expect(selfAck.status).toBe(409);
     expect(selfAck.error).toBe('DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE');

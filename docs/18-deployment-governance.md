@@ -36,15 +36,15 @@ com.bablsoft.accessflow.deploygov/
 └── internal/
     ├── Default*Service (one per api/ interface), DeploymentRequestStateService,
     │   DeploymentReviewStateMachine, EffectiveDeploymentPermissionResolver,
-    │   FreezeWindowEvaluator, DeploymentAnalysisListener
+    │   FreezeWindowEvaluator, DeploymentAnalysisListener, DeploygovAuditWriter
     ├── persistence/{entity,repo}/   # DeploymentPipelineEntity, DeploymentEnvironmentEntity,
     │                                # DeploymentFreezeWindowEntity, DeploymentRequestEntity,
     │                                # DeploymentReviewDecisionEntity, DeploymentRollbackReviewEntity,
     │                                # DeploymentRoutingPolicyEntity, the two grant entities + repos
     ├── routing/     # DeploymentRoutingPolicyEngine
     ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
-    └── web/         # six controllers, request/response records, DeploygovExceptionHandler,
-                     # DeploygovAuditWriter, SpringPageableAdapter
+    └── web/         # seven controllers, request/response records,
+                     # DeploygovExceptionHandler, SpringPageableAdapter
 ```
 
 Cross-module references (`organization_id`, `review_plan_id`, `ai_config_id`, `submitted_by`,
@@ -67,7 +67,9 @@ A **deployment pipeline** is the governed unit: a name unique within the organiz
 `provider` (`GITHUB_ACTIONS`, `GITLAB_CI`, `AZURE_PIPELINES`, `JENKINS`, `CIRCLECI`,
 `BITBUCKET_PIPELINES`, `GENERIC`), an optional repository URL and project ref, an optional
 `review_plan_id`, and its own AI switch (`ai_analysis_enabled` + optional `ai_config_id`).
-Deleting a pipeline cascades to everything below it.
+Deleting a pipeline cascades to its **configuration** — environments, freeze windows and grants.
+Its governed deployment history does not go with it: `deployment_requests.pipeline_id` is a bare
+UUID with no foreign key, so past requests, decisions and rollback reviews survive as evidence.
 
 **Environments** are the ordered promotion targets under a pipeline — `dev`, `staging`,
 `production` — each with a `sort_order`, a `require_review` flag, optional `required_approvals`
@@ -116,8 +118,9 @@ never deduplicated — the index is partial. The CI wrappers always send one.
 **Payload.** `pipeline_id`, `environment` (by name) and `version` (the semantic artifact version)
 are required; `commit_sha`, `artifact_ref`, `run_url`, `external_run_id`, a free-form `metadata`
 object, `justification`, `scheduled_for` and `break_glass` are optional. The wrappers also send
-`X-AccessFlow-CI: true`, which matches the existing `CiCdOrigin` routing-condition leaf, so a
-policy can treat a pipeline-originated request differently from a human one.
+`X-AccessFlow-CI: true` for consistency with the query-side CI Actions, but **deployment routing
+does not read it** — its conditions are the typed set in §3, and every deployment request is
+machine-triggered anyway, so a CI-origin leaf would match everything.
 
 **Visibility of the resulting request** is a predicate, not a role: the submitter, an effective
 `can_trigger` holder, `DEPLOYMENT_REVIEW`, or `QUERY_ADMIN`. Everything else reads `404`. A
@@ -227,8 +230,10 @@ Three conjuncts, all required: the status is **exactly `APPROVED`**, **no freeze
 active**, and **`scheduled_for` is null or already passed**. Everything else answers
 `releasable: false` — a `PENDING_REVIEW` request, a rejected one, an unknown pipeline / version /
 environment tuple, a caller who may not see the request, and **any internal error**: the freeze
-evaluation is wrapped so that a thrown exception is logged and degrades to *frozen and not
-releasable*, never to an accidental yes.
+evaluation is wrapped so that a thrown exception is logged and degrades to *not releasable*, never
+to an accidental yes. Note the error path reports `frozen: false` with no `freeze_reason` — it
+makes no claim about a window it could not evaluate — so `releasable`, not `frozen`, is the field
+a pipeline branches on.
 
 **`frozen` means any active window, `HOLD` or `REJECT`.** A `REJECT` window normally auto-rejects
 at submission, but a request approved *before* the window opened must not sail through mid-freeze.

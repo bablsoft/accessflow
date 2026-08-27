@@ -350,7 +350,11 @@ client-side guard that rejects a one-off window whose end precedes its start.
 `tests/deployment-review.spec.ts` covers the end-to-end governed release. It
 provisions a **second, non-admin user** as the submitter (invite → Mailcrab →
 accept), because admins bypass the `can_trigger` check and the self-approval
-ban means the submitter and the reviewer must differ, then:
+ban means the submitter and the reviewer must differ. That user is a
+**REVIEWER**, deliberately: the decision endpoints are gated on
+`PERM_DEPLOYMENT_REVIEW`, so an ANALYST would be turned away at method
+security and never reach the provenance check — holding the permission and
+still being refused is the guarantee worth asserting. The spec then covers:
 
 1. **CI trigger → approve → gate** — the submitter mints a personal API key
    and triggers a deployment with `X-API-Key` (the real machine path through
@@ -375,7 +379,6 @@ confirm-execution, outcome reporting, rollback-review listing and
 acknowledgement); `createApiKeyViaApi` is in
 [`helpers/datasources.ts`](helpers/datasources.ts) with the rest of the
 `*ViaApi` layer.
-
 
 `tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
 (`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a

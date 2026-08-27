@@ -221,7 +221,7 @@ export async function confirmDeploymentExecutionViaApi(
   return (await res.json()) as { status: string };
 }
 
-export interface OutcomeReportResult {
+export interface ApiCallResult {
   ok: boolean;
   status: number;
   error: string | null;
@@ -237,7 +237,7 @@ export async function reportDeploymentOutcomeViaApi(
   requestId: string,
   outcome: 'SUCCEEDED' | 'FAILED' | 'ROLLED_BACK',
   options: { detail?: string; apiKey?: string } = {},
-): Promise<OutcomeReportResult> {
+): Promise<ApiCallResult> {
   const res = await request.post(`${apiBase()}/api/v1/deployment-requests/${requestId}/outcome`, {
     headers: authHeaders(token, options.apiKey),
     data: { outcome, ...(options.detail === undefined ? {} : { detail: options.detail }) },
@@ -261,11 +261,16 @@ export async function listDeploymentRollbackReviewsViaApi(
   request: APIRequestContext,
   token: string,
   status?: string,
+  // The endpoint defaults to 20 rows; a long-lived local stack accumulates more than that and a
+  // stale page would read as "the review was never opened" rather than as a paging artefact.
+  size = 100,
 ): Promise<RollbackReview[]> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : '';
-  const res = await request.get(`${apiBase()}/api/v1/deployment-rollback-reviews${query}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const params = new URLSearchParams({ size: String(size) });
+  if (status) params.set('status', status);
+  const res = await request.get(
+    `${apiBase()}/api/v1/deployment-rollback-reviews?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
   if (!res.ok()) {
     throw new Error(`List rollback reviews failed: ${res.status()} ${await res.text()}`);
   }
@@ -281,7 +286,7 @@ export async function acknowledgeRollbackReviewViaApi(
   token: string,
   reviewId: string,
   comment?: string,
-): Promise<OutcomeReportResult> {
+): Promise<ApiCallResult> {
   const res = await request.post(
     `${apiBase()}/api/v1/deployment-rollback-reviews/${reviewId}/acknowledge`,
     {
@@ -296,22 +301,29 @@ export async function acknowledgeRollbackReviewViaApi(
   return { ok: res.ok(), status: res.status(), error };
 }
 
-/** Approves a deployment as a reviewer (JWT-side, PERM_DEPLOYMENT_REVIEW). */
+/**
+ * Approves a deployment as a reviewer (JWT-side, PERM_DEPLOYMENT_REVIEW). Returns the raw result
+ * rather than throwing, so a spec can assert the self-approval 409 with the same helper.
+ */
 export async function approveDeploymentViaApi(
   request: APIRequestContext,
   token: string,
   requestId: string,
   comment?: string,
-): Promise<{ resulting_status: string }> {
-  const res = await request.post(
-    `${apiBase()}/api/v1/deployment-reviews/${requestId}/approve`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      data: comment === undefined ? {} : { comment },
-    },
-  );
-  if (!res.ok()) {
-    throw new Error(`Approve deployment failed: ${res.status()} ${await res.text()}`);
-  }
-  return (await res.json()) as { resulting_status: string };
+): Promise<ApiCallResult & { resultingStatus: string | null }> {
+  const res = await request.post(`${apiBase()}/api/v1/deployment-reviews/${requestId}/approve`, {
+    headers: { Authorization: `Bearer ${token}` },
+    // The endpoint declares a required @RequestBody, so an empty object is the minimum.
+    data: comment === undefined ? {} : { comment },
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    resulting_status?: string;
+  };
+  return {
+    ok: res.ok(),
+    status: res.status(),
+    error: res.ok() ? null : (body.error ?? null),
+    resultingStatus: body.resulting_status ?? null,
+  };
 }

@@ -231,7 +231,6 @@
       'cfg-roles': '/docs/configuration/users-roles/',
       'cfg-users': '/docs/configuration/users-roles/',
       'iac': '/docs/iac/',
-      'iac-deployment-gate': '/docs/iac/',
       'iac-ci': '/docs/iac/',
       'iac-provider': '/docs/iac/',
       'iac-service-account': '/docs/iac/',

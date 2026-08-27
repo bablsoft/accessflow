@@ -797,8 +797,8 @@ A page opts in by passing the anchor to its existing `PageHeader`:
 
 The deployment-governance admin surface uses `cfg-deployment-pipelines`
 (`/docs/configuration/review-workflows/#cfg-deployment-pipelines`) on `DeploymentPipelinesPage`;
-the CI-side setup lives at `/docs/iac/#iac-deployment-gate`, which is forwarder-only and has no
-in-app link.
+the CI-side setup lives at `/docs/iac/#iac-deployment-gate`, which no page links to from the app
+and so needs no anchor entry.
 
 `PageHeader` renders it as a "View docs" link (`target="_blank"` + `rel="noopener noreferrer"`,
 label and `aria-label` via `t()`) in the header row, to the left of `actions` — so it stays clear of

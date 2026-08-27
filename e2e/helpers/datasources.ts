@@ -1263,3 +1263,18 @@ export async function createApiKeyViaApi(
   const body = (await res.json()) as { api_key: { id: string }; raw_key: string };
   return { id: body.api_key.id, rawKey: body.raw_key };
 }
+
+/** Best-effort key revocation for afterAll — a personal key has no expiry by default. */
+export async function revokeApiKeyViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}/api/v1/me/api-keys/${id}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok() && res.status() !== 404) {
+    // eslint-disable-next-line no-console
+    console.warn(`API key cleanup skipped: ${res.status()} ${await res.text()}`);
+  }
+}
