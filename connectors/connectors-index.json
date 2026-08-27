@@ -1,5 +1,5 @@
 {
-  "version": "2.3.0",
+  "version": "2.4.0",
   "connectors": [
     {
       "id": "bigquery",
@@ -75,7 +75,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "18e6889b6ca3b9777a23a896e52677dd4ed3fa1e2799a412bbea1566feb24520"
+        "sha256": "887db1f335363d29fd1e101de6f936b0b84f12c88c51457e8869f76236498693"
       }
     },
     {
@@ -130,7 +130,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "be6078ffff601e4e4d45a2c03177874345dafb1153da3521536411ad7e0f9870"
+        "sha256": "5fde42eb5028b98ecb55f3d52d80705f7350ea15875e0ef012deca9b9053e230"
       }
     },
     {
@@ -141,7 +141,7 @@
       "bundled": false,
       "driver": {
         "type": "url",
-        "sha256": "18e6889b6ca3b9777a23a896e52677dd4ed3fa1e2799a412bbea1566feb24520"
+        "sha256": "887db1f335363d29fd1e101de6f936b0b84f12c88c51457e8869f76236498693"
       }
     },
     {
