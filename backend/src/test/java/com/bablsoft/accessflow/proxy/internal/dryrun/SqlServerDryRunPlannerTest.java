@@ -118,6 +118,26 @@ class SqlServerDryRunPlannerTest {
     }
 
     @Test
+    void aFailingShowplanResetIsWarnedAboutButDoesNotFailTheDryRun() throws SQLException {
+        // The reset is best-effort — HikariCP does not clear arbitrary session state on return, so
+        // a failure is worth a WARN, but it must not turn a successful plan into an error.
+        var connection = mock(Connection.class);
+        var toggleOn = mock(Statement.class);
+        var statement = mock(Statement.class);
+        var toggleOff = mock(Statement.class);
+        var rs = mock(ResultSet.class);
+        when(connection.createStatement()).thenReturn(toggleOn, statement, toggleOff);
+        when(statement.executeQuery(anyString())).thenReturn(rs);
+        when(rs.next()).thenReturn(false);
+        when(toggleOff.execute("SET SHOWPLAN_ALL OFF")).thenThrow(new SQLException("session gone"));
+
+        var result = planner.plan(request(connection));
+
+        assertThat(result.supported()).isTrue();
+        verify(toggleOff).execute("SET SHOWPLAN_ALL OFF");
+    }
+
+    @Test
     void rowSecurityBindsDegradeToUnsupportedWithoutTouchingTheSession() throws SQLException {
         var connection = mock(Connection.class);
         when(messageSource.getMessage(eq("error.dry_run.mssql_row_security_unsupported"),
