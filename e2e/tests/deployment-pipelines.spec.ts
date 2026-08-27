@@ -107,7 +107,15 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     const permPanel = activeTabPanel(page);
     // Open the user Select by its stable form-item input id (label text repeats in the tables).
     await permPanel.locator('#user_id').click();
-    await page.getByTitle(new RegExp(ADMIN_EMAIL)).first().click();
+    // The suite accumulates users in the shared org, so the admin is not reliably in the first
+    // page of options on a re-used stack — type to filter (the Select searches the option label)
+    // and pick from the open dropdown rather than from anywhere on the page.
+    await permPanel.locator('#user_id').fill(ADMIN_EMAIL);
+    await page
+      .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+      .getByTitle(new RegExp(ADMIN_EMAIL))
+      .first()
+      .click();
     const grantResponse = page.waitForResponse(
       (r) =>
         r.request().method() === 'POST' &&

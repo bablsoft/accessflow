@@ -2957,6 +2957,9 @@ scheduled-deploy semantics, and the review-timeout job; **#693 adds the machine 
 fail-closed gate endpoint, execution confirmation, outcome reporting with rollback follow-up
 reviews, and the release-announcement job.
 
+The user- and operator-facing narrative for all of it is
+[18-deployment-governance.md](18-deployment-governance.md).
+
 **Admin services (`deploygov/api/`).** Three org-scoped service interfaces, all mirroring the
 `DefaultApiConnectorAdminService` conventions — `findByIdAndOrganizationId` + not-found on every
 entry point (a cross-org id reads as 404, never "exists elsewhere"), duplicate-name guards on

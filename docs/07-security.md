@@ -452,63 +452,11 @@ so an exported window is independently chain-verifiable (the S3 WORM segments ar
 RS256-signed with the same key as compliance exports).
 
 **Deployment governance (#684, epic #682):** two permissions in the new `DEPLOYMENT_GOVERNANCE`
-group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`).
-`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) gates pipeline / environment / freeze-window /
-trigger-grant administration — since #688 it guards the whole `/api/v1/deployment-pipelines/**`
-and `/api/v1/deployment-freeze-windows/**` admin surface, and since #691 also
-`/api/v1/admin/deployment-routing-policies/**` (class-level `@PreAuthorize` on all three).
-`DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) is, since #691, an **active read-visibility
-gate**: together with `QUERY_ADMIN` it decides who may read a deployment request they did not
-submit, on both `GET /deployment-requests` and `GET /deployment-requests/{id}` (a caller with
-neither sees only their own submissions, and an id they may not read returns `404`, never `403`).
-Since #692 it also gates the deployment review surface (`/api/v1/deployment-reviews/**`,
-per-method `@PreAuthorize` plus the same service-layer re-check the API-review path uses). The
-review service enforces the **never-approve-your-own-request invariant** — the API key's owning
-user is the submitter, and their self-decision is a `409 DEPLOYMENT_REQUEST_SELF_APPROVAL`
-regardless of role — and honours review-plan approver rules opt-in (a plan with approver rules
-restricts deciding to its stage-1 approvers, by user id or role name; `REVIEW_OVERRIDE` bypasses;
-no plan/no rules stays open to any `DEPLOYMENT_REVIEW` holder). Review delegation (#622) does not
-apply to deployments.
-
-**Deployment break-glass (#692, AF-385 mirror).** `breakGlass: true` on the trigger requires the
-effective per-pipeline **`can_break_glass`** grant **and** `allow_break_glass = true` on the
-target environment — both, for everyone, with **no admin bypass** (unlike `can_trigger`, which
-`QUERY_ADMIN` bypasses). It force-approves with no AI analysis, routing, or reviewer fan-out, and
-bypasses freeze windows (`HOLD` and `REJECT`). Compensating controls: a prominent
-`DEPLOYMENT_BREAK_GLASS_EXECUTED` audit row whose metadata records any bypassed freeze window,
-and a mandatory retro-review row in `break_glass_events` (V153 adds `deployment_request_id` +
-`pipeline_id`) written synchronously in the same transaction — acknowledged on the AF-385 admin
-worklist by an admin who is never the submitter.
-
-**Triggering a deployment is deliberately governed by no functional permission (#691).**
-`POST /api/v1/deployment-requests` is the one authenticated `/api/v1` surface with no class-level
-`@PreAuthorize`: authorization is the per-pipeline `can_trigger` grant resolved by
-`EffectiveDeploymentPermissionResolver` (most-permissive union of the caller's direct grant and
-every unexpired group grant), with `QUERY_ADMIN` holders bypassing it. CI runners reach it with an
-**AccessFlow API key** (`X-API-Key` / `Authorization: ApiKey …`), which
-`ApiKeyAuthenticationFilter` resolves into the same `JwtClaims` principal as the JWT path — so the
-API-key user is the submitter for every downstream rule, including "a submitter can never approve
-their own deployment". The grant is checked *before* the idempotent-replay lookup, so a caller
-without one cannot use a repeated trigger to probe whether a given CI run exists.
-
-**The deployment gate, confirm-execution and outcome endpoints (#693) share that model.**
-`GET /api/v1/deployment-gate` and the two `POST /deployment-requests/{id}/…` mutations carry no
-class-level `@PreAuthorize` either — authorization lives in the services. The gate read uses a
-**visibility** predicate (submitter ∨ effective `can_trigger` ∨ `DEPLOYMENT_REVIEW` ∨
-`QUERY_ADMIN`) whose failure is a **404, never a 403**: an under-permissioned poll reads exactly
-like an unknown tuple, the CI wrappers treat any 404 as not-releasable, and the endpoint cannot be
-used to probe which versions or requests exist — a request miss and a not-visible request share
-one error code. (Pipeline and environment name resolution reports distinct 404 codes, matching
-the trigger endpoint's behaviour — those names are org-internal configuration, not request
-state.) The mutations use an **actor** rule (submitter ∨
-`can_trigger` holder ∨ `QUERY_ADMIN`) with a 403 — acting on a request is a permission matter.
-Releasability itself is fail-closed: one pure function whose default answer is not-releasable,
-with any lookup/evaluation error answering `releasable: false`, and **any** active freeze window
-(`HOLD` or `REJECT`) blocking release — except for break-glass requests, which already bypassed
-the freeze at submission. The rollback follow-up worklist
-(`/api/v1/deployment-rollback-reviews`) is JWT-side `PERM_DEPLOYMENT_REVIEW`, and the
-deployment's submitter can never acknowledge their own rollback — the same "never the submitter"
-rule as break-glass, enforced in the service.
+group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`) —
+`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) and `DEPLOYMENT_REVIEW` (held by `ADMIN` and
+`REVIEWER`). What each one gates, and why triggering a deployment deliberately has no functional
+permission at all, is in
+[Deployment governance security](#deployment-governance-security-epic-af-682) below.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
@@ -939,6 +887,72 @@ security posture — every per-member control still fires, and the group aggrega
   `SKIPPED`, but **already-applied members stay** — there is no cross-target rollback (one cannot roll
   back a committed Postgres DDL because a later Mongo write failed). This is surfaced explicitly in the
   UI and docs so reviewers and submitters understand that approving a bundle is not a transaction.
+
+---
+
+## Deployment governance security (epic AF-682)
+
+Deployments are the third governed request surface, and the one whose caller is a machine — see
+[18-deployment-governance.md](18-deployment-governance.md) for the feature as a whole.
+
+**Permissions.** Two, in the `DEPLOYMENT_GOVERNANCE`
+group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V148`).
+`DEPLOYMENT_PIPELINE_MANAGE` (held by `ADMIN`) gates pipeline / environment / freeze-window /
+trigger-grant administration — since #688 it guards the whole `/api/v1/deployment-pipelines/**`
+and `/api/v1/deployment-freeze-windows/**` admin surface, and since #691 also
+`/api/v1/admin/deployment-routing-policies/**` (class-level `@PreAuthorize` on all three).
+`DEPLOYMENT_REVIEW` (held by `ADMIN` and `REVIEWER`) is, since #691, an **active read-visibility
+gate**: together with `QUERY_ADMIN` it decides who may read a deployment request they did not
+submit, on both `GET /deployment-requests` and `GET /deployment-requests/{id}` (a caller with
+neither sees only their own submissions, and an id they may not read returns `404`, never `403`).
+Since #692 it also gates the deployment review surface (`/api/v1/deployment-reviews/**`,
+per-method `@PreAuthorize` plus the same service-layer re-check the API-review path uses). The
+review service enforces the **never-approve-your-own-request invariant** — the API key's owning
+user is the submitter, and their self-decision is a `409 DEPLOYMENT_REQUEST_SELF_APPROVAL`
+regardless of role — and honours review-plan approver rules opt-in (a plan with approver rules
+restricts deciding to its stage-1 approvers, by user id or role name; `REVIEW_OVERRIDE` bypasses;
+no plan/no rules stays open to any `DEPLOYMENT_REVIEW` holder). Review delegation (#622) does not
+apply to deployments.
+
+**Deployment break-glass (#692, AF-385 mirror).** `breakGlass: true` on the trigger requires the
+effective per-pipeline **`can_break_glass`** grant **and** `allow_break_glass = true` on the
+target environment — both, for everyone, with **no admin bypass** (unlike `can_trigger`, which
+`QUERY_ADMIN` bypasses). It force-approves with no AI analysis, routing, or reviewer fan-out, and
+bypasses freeze windows (`HOLD` and `REJECT`). Compensating controls: a prominent
+`DEPLOYMENT_BREAK_GLASS_EXECUTED` audit row whose metadata records any bypassed freeze window,
+and a mandatory retro-review row in `break_glass_events` (V153 adds `deployment_request_id` +
+`pipeline_id`) written synchronously in the same transaction — acknowledged on the AF-385 admin
+worklist by an admin who is never the submitter.
+
+**Triggering a deployment is deliberately governed by no functional permission (#691).**
+`POST /api/v1/deployment-requests` is the one authenticated `/api/v1` surface with no class-level
+`@PreAuthorize`: authorization is the per-pipeline `can_trigger` grant resolved by
+`EffectiveDeploymentPermissionResolver` (most-permissive union of the caller's direct grant and
+every unexpired group grant), with `QUERY_ADMIN` holders bypassing it. CI runners reach it with an
+**AccessFlow API key** (`X-API-Key` / `Authorization: ApiKey …`), which
+`ApiKeyAuthenticationFilter` resolves into the same `JwtClaims` principal as the JWT path — so the
+API-key user is the submitter for every downstream rule, including "a submitter can never approve
+their own deployment". The grant is checked *before* the idempotent-replay lookup, so a caller
+without one cannot use a repeated trigger to probe whether a given CI run exists.
+
+**The deployment gate, confirm-execution and outcome endpoints (#693) share that model.**
+`GET /api/v1/deployment-gate` and the two `POST /deployment-requests/{id}/…` mutations carry no
+class-level `@PreAuthorize` either — authorization lives in the services. The gate read uses a
+**visibility** predicate (submitter ∨ effective `can_trigger` ∨ `DEPLOYMENT_REVIEW` ∨
+`QUERY_ADMIN`) whose failure is a **404, never a 403**: an under-permissioned poll reads exactly
+like an unknown tuple, the CI wrappers treat any 404 as not-releasable, and the endpoint cannot be
+used to probe which versions or requests exist — a request miss and a not-visible request share
+one error code. (Pipeline and environment name resolution reports distinct 404 codes, matching
+the trigger endpoint's behaviour — those names are org-internal configuration, not request
+state.) The mutations use an **actor** rule (submitter ∨
+`can_trigger` holder ∨ `QUERY_ADMIN`) with a 403 — acting on a request is a permission matter.
+Releasability itself is fail-closed: one pure function whose default answer is not-releasable,
+with any lookup/evaluation error answering `releasable: false`, and **any** active freeze window
+(`HOLD` or `REJECT`) blocking release — except for break-glass requests, which already bypassed
+the freeze at submission. The rollback follow-up worklist
+(`/api/v1/deployment-rollback-reviews`) is JWT-side `PERM_DEPLOYMENT_REVIEW`, and the
+deployment's submitter can never acknowledge their own rollback — the same "never the submitter"
+rule as break-glass, enforced in the service.
 
 ---
 

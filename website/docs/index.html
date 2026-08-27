@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Documentation",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-20",
+      "dateModified": "2026-08-27",
       "url": "https://accessflow.bablsoft.com/docs/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -224,7 +224,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Run and configure AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-20">20 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-27">27 August 2026</time></p>
         </header>
 
 <section id="getting-started" class="docs-section">
@@ -250,6 +250,17 @@
             one of three deployment modes), <a href="/docs/install/#first-run">first-time setup</a> (browser
             wizard or GitOps env vars), and <a href="/docs/configuration/users-roles/">configuration</a> (every
             entity an admin manages through the UI or REST API).
+          </p>
+          <p>
+            The same review, approval, and audit machinery governs two further request surfaces:
+            outbound <a href="/docs/configuration/connectors/#cfg-api-connectors">API calls</a>
+            (REST, SOAP, GraphQL, gRPC) and
+            <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">CI/CD
+            deployments</a> — where a pipeline triggers a governed release request with an API key
+            and blocks on a fail-closed
+            <a href="/docs/iac/#iac-deployment-gate">deployment gate</a> until every required
+            approval is granted, with freeze windows, audited break-glass, and post-deploy outcome
+            reporting.
           </p>
 
           <div class="docs-callout info">
@@ -349,6 +360,8 @@
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md">08 · Notifications</a> — event types, channel configs, signed webhook payloads.</li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">09 · Deployment</a> — full env-var reference, Helm values, Bootstrap GitOps tree.</li>
             <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md">16 · Infrastructure as Code</a> — Terraform/OpenTofu provider, CI Actions, registry publishing.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md">17 · API Access Governance</a> — connectors, schema ingestion, masking, dynamic variables.</li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md">18 · Deployment governance</a> — pipelines, the fail-closed gate, freeze windows, outcome reporting.</li>
           </ul>
         </section>
 

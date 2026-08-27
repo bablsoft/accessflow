@@ -2,7 +2,7 @@
 
 ## High-Level Architecture
 
-AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI Analyzer, Notifications, Audit, and Realtime — communicating via REST/WebSocket internally. The Proxy Engine is the **sole path** to production databases — no direct database credentials are ever exposed to users. The Realtime subsystem fans domain events out to connected frontend clients over a single WebSocket at `/ws`.
+AccessFlow is composed of seven primary subsystems — Proxy Engine, Workflow, AI Analyzer, Notifications, Audit, Realtime, and Deployment Governance — communicating via REST/WebSocket internally. The Proxy Engine is the **sole path** to production databases — no direct database credentials are ever exposed to users. The Realtime subsystem fans domain events out to connected frontend clients over a single WebSocket at `/ws`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -12,7 +12,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
                           │  HTTPS REST + WebSocket
 ┌─────────────────────────▼───────────────────────────────────────┐
 │                     API GATEWAY LAYER                           │
-│         Spring Boot 3  /  JWT Auth  /  Rate Limiting            │
+│         Spring Boot 4  /  JWT Auth  /  Rate Limiting            │
 └──┬────────────┬───────────────┬───────────────────┬────────────┘
    │            │               │                   │
 ┌──▼──┐    ┌────▼────┐    ┌─────▼──────┐    ┌──────▼──────┐
@@ -43,6 +43,7 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 | **AI Query Analyzer Service** | Wraps configurable AI backends (OpenAI, Anthropic, local Ollama, any OpenAI-compatible endpoint, or Hugging Face — hosted router or local TGI). Provides risk scoring, query analysis, index hints, and syntax suggestions. |
 | **Admin & Audit Service** | Datasource CRUD, user/role management, policy configuration, audit log queries, notification channel setup. |
 | **Notification Dispatcher** | Fanout service sending review events to Email, Slack, and configurable webhooks asynchronously. |
+| **Deployment Governance Service** | Gates CI/CD deployments (epic AF-682): accepts API-key-authenticated pipeline triggers, runs them through AI release-risk analysis, routing and human review, and answers a fail-closed **deployment gate** the pipeline blocks on. Also owns freeze windows, break-glass deploys and post-deploy outcome reporting. See [18-deployment-governance.md](18-deployment-governance.md). |
 
 ---
 
@@ -78,6 +79,17 @@ AccessFlow is composed of six primary subsystems — Proxy Engine, Workflow, AI 
 8. Reviewer approves via UI (or Slack/webhook) → status becomes `APPROVED`.
 9. Proxy opens JDBC connection to customer database, executes SQL, captures metadata.
 10. Audit log entry written. WebSocket event pushed to submitter. Status becomes `EXECUTED`.
+
+### Deployment request flow (epic AF-682)
+
+Deployments follow the same machinery with a machine at both ends instead of a browser:
+
+1. A CI job calls `POST /api/v1/deployment-requests` with an AccessFlow **API key**, naming the pipeline, environment, version and its own CI run id. The run id makes the call idempotent — a retry returns the existing request rather than opening a second review.
+2. The request is authorized by a per-pipeline `can_trigger` grant (not a functional permission), then analyzed by the AI release-risk analyzer; status becomes `PENDING_AI`.
+3. Routing policies may auto-approve, auto-reject or change the required approval count; otherwise the environment's policy decides and status becomes `PENDING_REVIEW`.
+4. Reviewers approve in the UI. The submitter — including the API key's owning user — can never approve their own deployment.
+5. The job polls `GET /api/v1/deployment-gate` until `releasable: true`. The gate is **fail-closed**: anything other than an `APPROVED`, unfrozen, due request answers `false`.
+6. The job calls `confirm-execution` (re-checked against freeze windows at that instant, status becomes `EXECUTED`), runs the deploy, then reports `SUCCEEDED` / `FAILED` / `ROLLED_BACK` back to AccessFlow. A rollback opens a mandatory follow-up review.
 
 ---
 

@@ -1242,3 +1242,39 @@ export async function exportOverProvisionedCsvViaApi(
     body: await res.text(),
   };
 }
+
+/**
+ * Mints a personal API key for the caller and returns the raw token (shown once).
+ * CI-facing endpoints authenticate with `X-API-Key: <rawKey>`, so a spec that wants to
+ * exercise the machine path rather than a bearer JWT seeds one through this.
+ */
+export async function createApiKeyViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  name: string,
+): Promise<{ id: string; rawKey: string }> {
+  const res = await request.post(`${apiBase()}/api/v1/me/api-keys`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    data: { name },
+  });
+  if (!res.ok()) {
+    throw new Error(`Create API key failed: ${res.status()} ${await res.text()}`);
+  }
+  const body = (await res.json()) as { api_key: { id: string }; raw_key: string };
+  return { id: body.api_key.id, rawKey: body.raw_key };
+}
+
+/** Best-effort key revocation for afterAll — a personal key has no expiry by default. */
+export async function revokeApiKeyViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  id: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}/api/v1/me/api-keys/${id}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok() && res.status() !== 404) {
+    // eslint-disable-next-line no-console
+    console.warn(`API key cleanup skipped: ${res.status()} ${await res.text()}`);
+  }
+}

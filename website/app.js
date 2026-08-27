@@ -218,6 +218,7 @@
       'cfg-slack': '/docs/configuration/notifications/',
       'cfg-smtp': '/docs/configuration/notifications/',
       'cfg-attestation': '/docs/configuration/review-workflows/',
+      'cfg-deployment-pipelines': '/docs/configuration/review-workflows/',
       'cfg-review-plans': '/docs/configuration/review-workflows/',
       'cfg-review-delegation': '/docs/configuration/review-workflows/',
       'cfg-review-escalation': '/docs/configuration/review-workflows/',

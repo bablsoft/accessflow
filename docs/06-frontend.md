@@ -780,9 +780,10 @@ rendering live in one place.
 
 - **`DOCS_BASE_URL`** — the docs site root. A hardcoded constant, deliberately *not* runtime-
   overridable like `apiBaseUrl` / `wsUrl`: the docs deploy with the marketing site, not per-install.
-- **`DOCS_ANCHORS` / `DocsAnchor`** — the `as const` tuple of every linkable anchor, and the literal
-  union derived from it. Passing an anchor that isn't in the list is a compile error.
-- **`docsUrl(anchor)`** — builds the absolute `…/docs/#anchor` URL.
+- **`DOCS_ANCHOR_PAGES` / `DOCS_ANCHORS` / `DocsAnchor`** — the `as const` map from every linkable
+  anchor to the chapter page that owns it, the anchor list derived from it, and the literal union.
+  Passing an anchor that isn't in the map is a compile error.
+- **`docsUrl(anchor)`** — builds the absolute `…/docs/<chapter>/#anchor` URL.
 
 A page opts in by passing the anchor to its existing `PageHeader`:
 
@@ -794,13 +795,20 @@ A page opts in by passing the anchor to its existing `PageHeader`:
 />
 ```
 
+The deployment-governance admin surface uses `cfg-deployment-pipelines`
+(`/docs/configuration/review-workflows/#cfg-deployment-pipelines`) on `DeploymentPipelinesPage`;
+the CI-side setup lives at `/docs/iac/#iac-deployment-gate`, which no page links to from the app
+and so needs no anchor entry.
+
 `PageHeader` renders it as a "View docs" link (`target="_blank"` + `rel="noopener noreferrer"`,
 label and `aria-label` via `t()`) in the header row, to the left of `actions` — so it stays clear of
 the page's primary call to action. The prop is optional; end-user flow pages don't pass one.
 
-**Adding a page:** add its anchor to `DOCS_ANCHORS` *and* ship a matching `id` in
-`website/docs/index.html`. `src/config/__tests__/docs.test.ts` asserts every declared anchor resolves
-to a real `id` in that file, so a typo on either side fails CI.
+**Adding a page:** add its anchor to `DOCS_ANCHOR_PAGES` naming the owning chapter, ship a matching
+`id` in that chapter under `website/docs/`, *and* add the anchor to `LEGACY_DOCS_ANCHORS` in
+`website/app.js` (the permanent forwarder for the pre-split `/docs/#anchor` form that already-released
+self-hosted frontends still emit). `src/config/__tests__/docs.test.ts` asserts all three halves agree,
+so a typo on any side fails CI.
 
 ---
 

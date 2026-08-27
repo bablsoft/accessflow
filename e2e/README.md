@@ -334,6 +334,52 @@ is covered indirectly by `admin-users-invitations.spec.ts`,
 `admin-users-crud.spec.ts`, and `reviews-self-approval-blocked.spec.ts` — this
 spec stays single-purpose on the React guard.
 
+**Deployment governance** (epic AF-682) is covered by three specs, all seeding
+their pipeline through the real admin API and cleaning it up in `afterAll`:
+
+`tests/deployment-pipelines.spec.ts` drives pipeline administration at
+`/admin/deployment-pipelines` — create a pipeline through the UI and land in
+its settings, add an environment and a user permission grant on the settings
+tabs, delete a pipeline from the list.
+
+`tests/deployment-freeze-windows.spec.ts` drives the **Freeze windows** tab of
+the pipeline settings page — creating a recurring weekly window and rendering
+the week strip, editing a window's behavior to auto-reject, and the
+client-side guard that rejects a one-off window whose end precedes its start.
+
+`tests/deployment-review.spec.ts` covers the end-to-end governed release. It
+provisions a **second, non-admin user** as the submitter (invite → Mailcrab →
+accept), because admins bypass the `can_trigger` check and the self-approval
+ban means the submitter and the reviewer must differ. That user is a
+**REVIEWER**, deliberately: the decision endpoints are gated on
+`PERM_DEPLOYMENT_REVIEW`, so an ANALYST would be turned away at method
+security and never reach the provenance check — holding the permission and
+still being refused is the guarantee worth asserting. The spec then covers:
+
+1. **CI trigger → approve → gate** — the submitter mints a personal API key
+   and triggers a deployment with `X-API-Key` (the real machine path through
+   `ApiKeyAuthenticationFilter`, not a bearer JWT). The gate answers
+   `releasable: false` while review is pending, an admin approves in
+   `/deployment-reviews`, and the gate flips to `releasable: true`.
+2. **Detail page** — the decision, the releasability banner, and the
+   `1 of 1 approvals` card render on `/deployments/{id}`.
+3. **Submitter visibility** — the submitter sees their own deployment in
+   `/deployments` and gets the cancel action, never the reviewer buttons.
+4. **The machine contract** — the submitter's own approve attempt is a 409;
+   after approval the pipeline calls `confirm-execution` (→ `EXECUTED`) and
+   reports `ROLLED_BACK`. Repeating the same outcome is idempotent, a
+   different one is `409 DEPLOYMENT_OUTCOME_CONFLICT`, the rollback opens a
+   follow-up review the submitter cannot acknowledge
+   (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`), and an admin closes it
+   from the **Rollback reviews** tab of `/deployment-reviews`.
+
+Shared seeding lives in [`helpers/deployments.ts`](helpers/deployments.ts)
+(pipeline / environment / grant creation, trigger, status polling, gate read,
+confirm-execution, outcome reporting, rollback-review listing and
+acknowledgement); `createApiKeyViaApi` is in
+[`helpers/datasources.ts`](helpers/datasources.ts) with the rest of the
+`*ViaApi` layer.
+
 `tests/auth-setup-wizard.spec.ts` runs against a **separate variant stack**
 (`docker-compose.e2e.setup.yml` on ports 5174/8081) that boots WITHOUT a
 pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
