@@ -24,7 +24,8 @@ export type WsEventName =
   | 'collab.comment'
   | 'attestation.campaign_opened'
   | 'request_group.status_changed'
-  | 'request_group.item_executed';
+  | 'request_group.item_executed'
+  | 'deployment.status_changed';
 
 export type ReviewDecision = 'APPROVED' | 'REJECTED' | 'REQUESTED_CHANGES';
 
@@ -142,6 +143,12 @@ export interface WsEventPayloadMap {
     sequence_order: number;
     status: RequestGroupItemStatus;
   };
+  // Fired on every deployment-request transition (#696, epic AF-682) — pushed to the submitter.
+  'deployment.status_changed': {
+    deployment_request_id: string;
+    old_status: QueryStatus;
+    new_status: QueryStatus;
+  };
 }
 
 export interface WsEnvelope<E extends WsEventName = WsEventName> {
@@ -176,4 +183,5 @@ export const WS_EVENT_NAMES: ReadonlyArray<WsEventName> = [
   'attestation.campaign_opened',
   'request_group.status_changed',
   'request_group.item_executed',
+  'deployment.status_changed',
 ];

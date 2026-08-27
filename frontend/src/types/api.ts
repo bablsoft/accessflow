@@ -2241,9 +2241,14 @@ export type BreakGlassEventStatus = 'PENDING_REVIEW' | 'REVIEWED';
 
 export interface BreakGlassEvent {
   id: string;
-  query_request_id: string;
-  datasource_id: string;
+  /** Exactly one of query_request_id / api_request_id / deployment_request_id is set. */
+  query_request_id: string | null;
+  api_request_id: string | null;
+  deployment_request_id: string | null;
+  datasource_id: string | null;
   datasource_name: string | null;
+  connector_id: string | null;
+  pipeline_id: string | null;
   submitted_by_user_id: string;
   submitted_by_display_name: string | null;
   submitted_by_email: string | null;
@@ -3662,4 +3667,343 @@ export interface CreateReviewDelegationInput {
   reason?: string | null;
   startsAt: string;
   endsAt: string;
+}
+
+// ─── Deployment governance (#696, epic AF-682) ─────────────────────────────────
+
+export type PipelineProvider =
+  | 'GITHUB_ACTIONS'
+  | 'GITLAB_CI'
+  | 'AZURE_PIPELINES'
+  | 'JENKINS'
+  | 'CIRCLECI'
+  | 'BITBUCKET_PIPELINES'
+  | 'GENERIC';
+
+export type FreezeBehavior = 'HOLD' | 'REJECT';
+
+export type DeploymentOutcome = 'SUCCEEDED' | 'FAILED' | 'ROLLED_BACK';
+
+/** Same literals as RoutingAction; a distinct alias keeps the deploygov surface self-describing. */
+export type DeploymentRoutingAction = RoutingAction;
+
+export type DeploymentRollbackReviewStatus = 'PENDING_REVIEW' | 'REVIEWED';
+
+export interface DeploymentPipeline {
+  id: string;
+  name: string;
+  provider: PipelineProvider;
+  repository_url: string | null;
+  project_ref: string | null;
+  review_plan_id: string | null;
+  ai_analysis_enabled: boolean;
+  ai_config_id: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export type DeploymentPipelinePage = PageEnvelope<DeploymentPipeline>;
+
+export interface CreateDeploymentPipelineInput {
+  name: string;
+  provider: PipelineProvider;
+  repository_url?: string | null;
+  project_ref?: string | null;
+  review_plan_id?: string | null;
+  ai_analysis_enabled?: boolean;
+  ai_config_id?: string | null;
+}
+
+export interface UpdateDeploymentPipelineInput {
+  name?: string | null;
+  provider?: PipelineProvider | null;
+  repository_url?: string | null;
+  project_ref?: string | null;
+  review_plan_id?: string | null;
+  clear_review_plan?: boolean;
+  ai_analysis_enabled?: boolean | null;
+  ai_config_id?: string | null;
+  clear_ai_config?: boolean;
+  active?: boolean | null;
+}
+
+export interface DeploymentEnvironment {
+  id: string;
+  pipeline_id: string;
+  name: string;
+  sort_order: number;
+  require_review: boolean;
+  required_approvals: number | null;
+  review_plan_id: string | null;
+  allow_break_glass: boolean;
+  created_at: string;
+}
+
+export interface CreateDeploymentEnvironmentInput {
+  name: string;
+  sort_order?: number;
+  require_review?: boolean;
+  required_approvals?: number | null;
+  review_plan_id?: string | null;
+  allow_break_glass?: boolean;
+}
+
+export interface UpdateDeploymentEnvironmentInput {
+  name?: string | null;
+  sort_order?: number | null;
+  require_review?: boolean | null;
+  required_approvals?: number | null;
+  clear_required_approvals?: boolean;
+  review_plan_id?: string | null;
+  clear_review_plan?: boolean;
+  allow_break_glass?: boolean | null;
+}
+
+export interface DeploymentPipelinePermission {
+  id: string;
+  pipeline_id: string;
+  user_id: string;
+  user_email: string | null;
+  user_display_name: string | null;
+  can_trigger: boolean;
+  can_break_glass: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface DeploymentPipelineGroupPermission {
+  id: string;
+  pipeline_id: string;
+  group_id: string;
+  group_name: string | null;
+  member_count: number;
+  can_trigger: boolean;
+  can_break_glass: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface GrantDeploymentPermissionInput {
+  user_id: string;
+  can_trigger?: boolean;
+  can_break_glass?: boolean;
+  expires_at?: string | null;
+}
+
+export interface GrantDeploymentGroupPermissionInput {
+  group_id: string;
+  can_trigger?: boolean;
+  can_break_glass?: boolean;
+  expires_at?: string | null;
+}
+
+export interface UpdateDeploymentPermissionInput {
+  can_trigger?: boolean;
+  can_break_glass?: boolean;
+  expires_at?: string | null;
+}
+
+export interface DeploymentFreezeWindow {
+  id: string;
+  pipeline_id: string | null;
+  environment_id: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  /** ISO weekday numbers, Monday = 1 … Sunday = 7. */
+  days_of_week: number[];
+  start_time: string | null;
+  end_time: string | null;
+  timezone: string | null;
+  behavior: FreezeBehavior;
+  reason: string | null;
+  enabled: boolean;
+  created_at: string;
+}
+
+export type DeploymentFreezeWindowPage = PageEnvelope<DeploymentFreezeWindow>;
+
+/** POST and PUT take the same full-replacement record. */
+export interface DeploymentFreezeWindowInput {
+  pipeline_id?: string | null;
+  environment_id?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  days_of_week?: number[] | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  timezone?: string | null;
+  behavior: FreezeBehavior;
+  reason?: string | null;
+  enabled?: boolean;
+}
+
+export interface DeploymentRoutingConditions {
+  environments: string[];
+  providers: PipelineProvider[];
+  min_risk_level: RiskLevel | null;
+  version_globs: string[];
+  days_of_week: number[];
+  start_time: string | null;
+  end_time: string | null;
+  timezone: string | null;
+}
+
+export interface DeploymentRoutingConditionsInput {
+  environments?: string[] | null;
+  providers?: PipelineProvider[] | null;
+  min_risk_level?: RiskLevel | null;
+  version_globs?: string[] | null;
+  days_of_week?: number[] | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  timezone?: string | null;
+}
+
+export interface DeploymentRoutingPolicy {
+  id: string;
+  pipeline_id: string | null;
+  name: string;
+  conditions: DeploymentRoutingConditions;
+  action: DeploymentRoutingAction;
+  required_approvals: number | null;
+  priority: number;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface CreateDeploymentRoutingPolicyInput {
+  pipeline_id?: string | null;
+  name: string;
+  conditions?: DeploymentRoutingConditionsInput | null;
+  action: DeploymentRoutingAction;
+  required_approvals?: number | null;
+  priority?: number | null;
+  enabled?: boolean | null;
+}
+
+export interface UpdateDeploymentRoutingPolicyInput {
+  pipeline_id?: string | null;
+  clear_pipeline?: boolean;
+  name?: string | null;
+  conditions?: DeploymentRoutingConditionsInput | null;
+  action?: DeploymentRoutingAction | null;
+  required_approvals?: number | null;
+  priority?: number | null;
+  enabled?: boolean | null;
+}
+
+export interface DeploymentDecision {
+  id: string;
+  reviewer_id: string;
+  decision: ReviewDecisionType;
+  comment: string | null;
+  stage: number;
+  decided_at: string;
+}
+
+export interface DeploymentRequest {
+  id: string;
+  pipeline_id: string;
+  pipeline_name: string | null;
+  provider: PipelineProvider | null;
+  environment_id: string;
+  environment_name: string | null;
+  submitted_by: string;
+  submitted_by_email: string | null;
+  version: string;
+  commit_sha: string | null;
+  artifact_ref: string | null;
+  run_url: string | null;
+  external_run_id: string | null;
+  metadata: Record<string, unknown>;
+  status: QueryStatus;
+  submission_reason: SubmissionReason;
+  justification: string | null;
+  ai_analysis_id: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  ai_summary: string | null;
+  required_approvals: number;
+  scheduled_for: string | null;
+  outcome: DeploymentOutcome | null;
+  outcome_reported_at: string | null;
+  outcome_detail: string | null;
+  created_at: string;
+  /** Always [] on the list endpoint; populated on the detail endpoint. */
+  decisions: DeploymentDecision[];
+}
+
+export type DeploymentRequestPage = PageEnvelope<DeploymentRequest>;
+
+export interface DeploymentRequestListFilters {
+  status?: QueryStatus;
+  pipeline_id?: string;
+  /** Environment name, matched case-insensitively. */
+  environment?: string;
+  /** Exact version match. */
+  version?: string;
+  submitted_by?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+}
+
+export interface DeploymentReviewItem {
+  deployment_request_id: string;
+  pipeline_id: string;
+  pipeline_name: string | null;
+  environment_id: string;
+  environment_name: string | null;
+  submitted_by_user_id: string;
+  version: string;
+  commit_sha: string | null;
+  run_url: string | null;
+  justification: string | null;
+  ai_analysis_id: string | null;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  ai_summary: string | null;
+  current_stage: number;
+  required_approvals: number;
+  scheduled_for: string | null;
+  created_at: string;
+}
+
+export type DeploymentReviewPage = PageEnvelope<DeploymentReviewItem>;
+
+export interface DeploymentDecisionResult {
+  decision_id: string | null;
+  decision: ReviewDecisionType;
+  resulting_status: QueryStatus;
+  duplicate: boolean;
+}
+
+export interface DeploymentRollbackReview {
+  id: string;
+  deployment_request_id: string;
+  pipeline_id: string;
+  environment_id: string;
+  submitted_by: string;
+  outcome_detail: string | null;
+  status: DeploymentRollbackReviewStatus;
+  reviewed_by: string | null;
+  review_comment: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export type DeploymentRollbackReviewPage = PageEnvelope<DeploymentRollbackReview>;
+
+export interface DeploymentGateStatus {
+  request_id: string;
+  status: QueryStatus;
+  releasable: boolean;
+  approvals: { required: number; granted: number };
+  decisions: DeploymentDecision[];
+  frozen: boolean;
+  freeze_reason: string | null;
+  scheduled_for: string | null;
+  ai_risk_level: RiskLevel | null;
 }

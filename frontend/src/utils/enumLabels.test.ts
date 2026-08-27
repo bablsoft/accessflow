@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { TFunction } from 'i18next';
 import {
   AUDIT_SINK_TYPES,
+  DEPLOYMENT_OUTCOMES,
+  DEPLOYMENT_ROLLBACK_REVIEW_STATUSES,
+  FREEZE_BEHAVIORS,
+  PIPELINE_PROVIDERS,
+  deploymentOutcomeLabel,
+  deploymentRollbackReviewStatusLabel,
+  freezeBehaviorLabel,
+  isoWeekdayLabel,
+  pipelineProviderLabel,
   auditSinkTypeLabel,
   EXPORT_POLICY_MODES,
   exportPolicyModeLabel,
@@ -196,5 +205,40 @@ describe('grant usage labels (#625)', () => {
     for (const kind of GRANT_RESOURCE_KINDS) {
       expect(grantResourceKindLabel(realT, kind)).not.toContain('enums.');
     }
+  });
+});
+
+describe('deployment governance labels (#696)', () => {
+  it('lists every provider, behavior, outcome and rollback status', () => {
+    expect(PIPELINE_PROVIDERS).toHaveLength(7);
+    expect(FREEZE_BEHAVIORS).toEqual(['HOLD', 'REJECT']);
+    expect(DEPLOYMENT_OUTCOMES).toEqual(['SUCCEEDED', 'FAILED', 'ROLLED_BACK']);
+    expect(DEPLOYMENT_ROLLBACK_REVIEW_STATUSES).toEqual(['PENDING_REVIEW', 'REVIEWED']);
+  });
+
+  it('resolves every label against the real bundle', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    for (const provider of PIPELINE_PROVIDERS) {
+      expect(pipelineProviderLabel(realT, provider)).not.toContain('enums.');
+    }
+    for (const behavior of FREEZE_BEHAVIORS) {
+      expect(freezeBehaviorLabel(realT, behavior)).not.toContain('enums.');
+    }
+    for (const outcome of DEPLOYMENT_OUTCOMES) {
+      expect(deploymentOutcomeLabel(realT, outcome)).not.toContain('enums.');
+    }
+    for (const status of DEPLOYMENT_ROLLBACK_REVIEW_STATUSES) {
+      expect(deploymentRollbackReviewStatusLabel(realT, status)).not.toContain('enums.');
+    }
+  });
+
+  it('maps ISO weekday numbers onto weekday labels, tolerating out-of-range input', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    expect(isoWeekdayLabel(realT, 1)).toBe('Monday');
+    expect(isoWeekdayLabel(realT, 7)).toBe('Sunday');
+    expect(isoWeekdayLabel(realT, 0)).toBe('0');
+    expect(isoWeekdayLabel(realT, 8)).toBe('8');
   });
 });

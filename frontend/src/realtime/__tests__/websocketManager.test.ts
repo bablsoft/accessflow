@@ -198,6 +198,53 @@ describe('websocketManager', () => {
     expect(spy).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
   });
 
+  it('a deployment notification also refreshes the matching review queue (#696)', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'notification.created',
+      timestamp: 'now',
+      data: {
+        notification_id: 'n2',
+        event_type: 'DEPLOYMENT_SUBMITTED',
+        query_id: null,
+        created_at: '2026-08-26T10:00:00Z',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
+
+    spy.mockReset();
+    sock(0).triggerMessage({
+      event: 'notification.created',
+      timestamp: 'now',
+      data: {
+        notification_id: 'n3',
+        event_type: 'DEPLOYMENT_OUTCOME_FAILED',
+        query_id: null,
+        created_at: '2026-08-26T10:00:01Z',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployment-rollback-reviews'] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
+  });
+
+  it('default invalidations fire for deployment.status_changed (#696)', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'deployment.status_changed',
+      timestamp: 'now',
+      data: { deployment_request_id: 'd1', old_status: 'PENDING_REVIEW', new_status: 'APPROVED' },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployments', 'detail', 'd1'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployments', 'list'] });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
+  });
+
   it('default invalidation fires for anomaly.detected', () => {
     const { client, spy } = makeQueryClient();
     websocketManager.bindQueryClient(client);

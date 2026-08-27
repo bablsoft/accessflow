@@ -327,16 +327,23 @@ export function routeForNotification(item: UserNotification): string | null {
   ) {
     return item.api_request_id ? `/api-requests/${item.api_request_id}` : null;
   }
-  // #695 — deliberately unrouted: no deploygov UI exists yet, and falling through would produce
-  // a dead /queries link (deployment notifications carry no query_request_id anyway).
+  // Deployment events (#695/#696): submission goes to the reviewer queue, an outcome failure to
+  // the rollback-review tab, and the submitter/admin-targeted events to the deployment detail.
+  if (item.event_type === 'DEPLOYMENT_SUBMITTED') {
+    return '/deployment-reviews';
+  }
+  // Only a ROLLED_BACK outcome opens a rollback review; a plain FAILED one never appears on
+  // that worklist, so send those to the deployment itself.
+  if (item.event_type === 'DEPLOYMENT_OUTCOME_FAILED') {
+    if (item.payload.outcome === 'ROLLED_BACK') return '/deployment-reviews?tab=rollbacks';
+    return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
+  }
   if (
-    item.event_type === 'DEPLOYMENT_SUBMITTED' ||
     item.event_type === 'DEPLOYMENT_APPROVED' ||
     item.event_type === 'DEPLOYMENT_REJECTED' ||
-    item.event_type === 'DEPLOYMENT_OUTCOME_FAILED' ||
     item.event_type === 'DEPLOYMENT_BREAK_GLASS_EXECUTED'
   ) {
-    return null;
+    return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
   }
   return item.query_request_id ? `/queries/${item.query_request_id}` : null;
 }

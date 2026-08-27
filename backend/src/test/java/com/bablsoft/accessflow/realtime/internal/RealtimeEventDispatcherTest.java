@@ -25,6 +25,7 @@ import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.ApprovalPredictionCompletedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.events.RequestGroupItemExecutedEvent;
@@ -105,6 +106,21 @@ class RealtimeEventDispatcherTest {
         assertThat(data.get("query_id").asString()).isEqualTo(queryId.toString());
         assertThat(data.get("old_status").asString()).isEqualTo("PENDING_AI");
         assertThat(data.get("new_status").asString()).isEqualTo("PENDING_REVIEW");
+    }
+
+    @Test
+    void onDeploymentStatusChangedSendsEnvelopeToSubmitter() throws Exception {
+        var deploymentRequestId = UUID.randomUUID();
+        dispatcher.onDeploymentStatusChanged(new DeploymentStatusChangedEvent(deploymentRequestId,
+                submitterId, QueryStatus.PENDING_REVIEW, QueryStatus.APPROVED));
+
+        var envelope = captureEnvelope(submitterId);
+        assertThat(envelope.get("event").asString()).isEqualTo("deployment.status_changed");
+        assertThat(envelope.get("timestamp").asString()).isEqualTo("2026-05-07T10:00:00Z");
+        var data = envelope.get("data");
+        assertThat(data.get("deployment_request_id").asString()).isEqualTo(deploymentRequestId.toString());
+        assertThat(data.get("old_status").asString()).isEqualTo("PENDING_REVIEW");
+        assertThat(data.get("new_status").asString()).isEqualTo("APPROVED");
     }
 
     @Test

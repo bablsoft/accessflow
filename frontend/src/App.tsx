@@ -95,6 +95,21 @@ const RequestGroupDetailPage = lazy(() => import('@/pages/requestGroups/RequestG
 const RequestGroupReviewQueuePage = lazy(
   () => import('@/pages/requestGroups/RequestGroupReviewQueuePage'),
 );
+const DeploymentListPage = lazy(() => import('@/pages/deployments/DeploymentListPage'));
+const DeploymentDetailPage = lazy(() => import('@/pages/deployments/DeploymentDetailPage'));
+const DeploymentReviewQueuePage = lazy(
+  () => import('@/pages/deployments/DeploymentReviewQueuePage'),
+);
+const DeploymentPipelinesPage = lazy(() =>
+  import('@/pages/admin/deployments/DeploymentPipelinesPage').then((m) => ({
+    default: m.DeploymentPipelinesPage,
+  })),
+);
+const DeploymentPipelineSettingsPage = lazy(() =>
+  import('@/pages/admin/deployments/DeploymentPipelineSettingsPage').then((m) => ({
+    default: m.DeploymentPipelineSettingsPage,
+  })),
+);
 import { ProfilePage } from '@/pages/profile/ProfilePage';
 
 export function App() {
@@ -208,6 +223,52 @@ export function App() {
               <AuthGuard requirePermission={'API_REQUEST_REVIEW'}>
                 <Suspense fallback={null}>
                   <ApiReviewQueuePage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/deployments"
+            element={
+              <Suspense fallback={null}>
+                <DeploymentListPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/deployments/:id"
+            element={
+              <Suspense fallback={null}>
+                <DeploymentDetailPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/deployment-reviews"
+            element={
+              <AuthGuard requirePermission={'DEPLOYMENT_REVIEW'}>
+                <Suspense fallback={null}>
+                  <DeploymentReviewQueuePage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/deployment-pipelines"
+            element={
+              <AuthGuard requirePermission={'DEPLOYMENT_PIPELINE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <DeploymentPipelinesPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/deployment-pipelines/:id"
+            element={
+              <AuthGuard requirePermission={'DEPLOYMENT_PIPELINE_MANAGE'}>
+                <Suspense fallback={null}>
+                  <DeploymentPipelineSettingsPage />
                 </Suspense>
               </AuthGuard>
             }
