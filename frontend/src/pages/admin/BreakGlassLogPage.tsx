@@ -313,9 +313,21 @@ export default function BreakGlassLogPage() {
             <DetailCard>
               <Space orientation="vertical" size={8} style={{ width: '100%' }}>
                 <BreakGlassStatusPill status={detail.status} size="sm" />
-                <Link to={`/queries/${detail.query_request_id}`}>
-                  {t('breakglass.view_query')}
-                </Link>
+                {detail.query_request_id && (
+                  <Link to={`/queries/${detail.query_request_id}`}>
+                    {t('breakglass.view_query')}
+                  </Link>
+                )}
+                {detail.api_request_id && (
+                  <Link to={`/api-requests/${detail.api_request_id}`}>
+                    {t('breakglass.view_api_request')}
+                  </Link>
+                )}
+                {detail.deployment_request_id && (
+                  <Link to={`/deployments/${detail.deployment_request_id}`}>
+                    {t('breakglass.view_deployment')}
+                  </Link>
+                )}
               </Space>
             </DetailCard>
             <DetailCard title={t('breakglass.section_justification')}>

@@ -38,6 +38,7 @@ import {
   FieldTimeOutlined,
   CheckSquareOutlined,
   BlockOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/api/auth';
@@ -94,6 +95,8 @@ export function Sidebar({
         { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
         { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
         { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, permissions: ['API_REQUEST_REVIEW'] },
+        { id: 'deployments', to: '/deployments', label: t('nav.deployments'), icon: <RocketOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
+        { id: 'deployment-reviews', to: '/deployment-reviews', label: t('nav.deploymentReviews'), icon: <InboxOutlined />, permissions: ['DEPLOYMENT_REVIEW'] },
         { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
         { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'] },
         { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
@@ -108,6 +111,7 @@ export function Sidebar({
       items: [
         { id: 'datasources', to: '/datasources', label: t('nav.datasources'), icon: <DatabaseOutlined />, permissions: ['DATASOURCE_MANAGE'] },
         { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, permissions: ['API_CONNECTOR_MANAGE'] },
+        { id: 'deployment-pipelines', to: '/admin/deployment-pipelines', label: t('nav.deploymentPipelines'), icon: <RocketOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE'] },
         { id: 'connectors', to: '/admin/connectors', label: t('nav.connectors'), icon: <AppstoreOutlined />, permissions: ['DATASOURCE_MANAGE'] },
         { id: 'drivers', to: '/admin/drivers', label: t('nav.custom_drivers'), icon: <ApiOutlined />, permissions: ['DATASOURCE_MANAGE'] },
       ],

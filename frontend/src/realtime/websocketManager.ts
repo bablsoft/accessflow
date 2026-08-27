@@ -203,10 +203,19 @@ class WebSocketManager {
         this.queryClient.invalidateQueries({ queryKey: ['reviews', 'pending'] });
         if (queryId) this.queryClient.invalidateQueries({ queryKey: ['queries', 'detail', queryId] });
         break;
-      case 'notification.created':
+      case 'notification.created': {
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'list'] });
         this.queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+        // Deployment WS status events go to the submitter only; reviewers learn about queue
+        // changes through their own notification (#696).
+        const eventType = (envelope.data as { event_type?: string }).event_type;
+        if (eventType === 'DEPLOYMENT_SUBMITTED') {
+          this.queryClient.invalidateQueries({ queryKey: ['deployment-reviews', 'list'] });
+        } else if (eventType === 'DEPLOYMENT_OUTCOME_FAILED') {
+          this.queryClient.invalidateQueries({ queryKey: ['deployment-rollback-reviews'] });
+        }
         break;
+      }
       case 'anomaly.detected': {
         const anomalyId = (envelope.data as { anomaly_id?: string }).anomaly_id;
         this.queryClient.invalidateQueries({ queryKey: ['anomalies', 'list'] });
@@ -237,6 +246,19 @@ class WebSocketManager {
         }
         this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'list'] });
         this.queryClient.invalidateQueries({ queryKey: ['request-groups', 'reviews'] });
+        break;
+      }
+      case 'deployment.status_changed': {
+        const deploymentId = (envelope.data as { deployment_request_id?: string })
+          .deployment_request_id;
+        if (deploymentId) {
+          // Prefix-invalidates the gate child key ['deployments','detail',id,'gate'] too.
+          this.queryClient.invalidateQueries({
+            queryKey: ['deployments', 'detail', deploymentId],
+          });
+        }
+        this.queryClient.invalidateQueries({ queryKey: ['deployments', 'list'] });
+        this.queryClient.invalidateQueries({ queryKey: ['deployment-reviews', 'list'] });
         break;
       }
     }

@@ -5441,6 +5441,7 @@ Clients subscribe to real-time updates for their own queries and (for reviewers)
 | `attestation.campaign_opened` | An access-recertification campaign opened (AF-384) — pushed to its eligible reviewers and org admins | `campaign_id`, `name`, `due_at` |
 | `request_group.status_changed` | A grouped request (AF-501) changed status — pushed to the submitter, and to eligible reviewers when it becomes ready for review | `group_id`, `old_status`, `new_status` |
 | `request_group.item_executed` | A member of a grouped request finished executing (AF-501) — drives the live ordered-progress view | `group_id`, `item_id`, `sequence_order`, `item_status` |
+| `deployment.status_changed` | A deployment request (epic AF-682) changed status — pushed to the submitter on every transition, including `EXECUTED` and the `EXECUTED → FAILED` outcome flip. Reviewer queues refresh via `notification.created` (`DEPLOYMENT_SUBMITTED`). | `deployment_request_id`, `old_status`, `new_status` |
 
 ### Collaboration protocol (bidirectional — AF-441)
 

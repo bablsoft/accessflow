@@ -52,8 +52,12 @@ import type {
   RowSecurityOperator,
   RowSecurityValueType,
   DiscoveryDetector,
+  DeploymentOutcome,
+  DeploymentRollbackReviewStatus,
   DiscoveryFindingStatus,
   CommentStatus,
+  FreezeBehavior,
+  PipelineProvider,
   SslMode,
   SubmissionReason,
   VotingStrategy,
@@ -632,3 +636,51 @@ export const DELEGATION_STATUSES: readonly ReviewDelegationStatus[] = [
 
 export const delegationStatusLabel = (t: TFunction, v: ReviewDelegationStatus): string =>
   t(`enums.delegation_status.${v}` as const);
+
+// ── Deployment governance (#696, epic AF-682) ───────────────────────────────
+
+export const PIPELINE_PROVIDERS: readonly PipelineProvider[] = [
+  'GITHUB_ACTIONS',
+  'GITLAB_CI',
+  'AZURE_PIPELINES',
+  'JENKINS',
+  'CIRCLECI',
+  'BITBUCKET_PIPELINES',
+  'GENERIC',
+] as const;
+
+export const pipelineProviderLabel = (t: TFunction, v: PipelineProvider): string =>
+  t(`enums.pipeline_provider.${v}` as const);
+
+export const FREEZE_BEHAVIORS: readonly FreezeBehavior[] = ['HOLD', 'REJECT'] as const;
+
+export const freezeBehaviorLabel = (t: TFunction, v: FreezeBehavior): string =>
+  t(`enums.freeze_behavior.${v}` as const);
+
+export const DEPLOYMENT_OUTCOMES: readonly DeploymentOutcome[] = [
+  'SUCCEEDED',
+  'FAILED',
+  'ROLLED_BACK',
+] as const;
+
+export const deploymentOutcomeLabel = (t: TFunction, v: DeploymentOutcome): string =>
+  t(`enums.deployment_outcome.${v}` as const);
+
+export const DEPLOYMENT_ROLLBACK_REVIEW_STATUSES: readonly DeploymentRollbackReviewStatus[] = [
+  'PENDING_REVIEW',
+  'REVIEWED',
+] as const;
+
+export const deploymentRollbackReviewStatusLabel = (
+  t: TFunction,
+  v: DeploymentRollbackReviewStatus,
+): string => t(`enums.deployment_rollback_review_status.${v}` as const);
+
+/** ISO weekday order (Monday = 1 … Sunday = 7), as the freeze-window wire format uses. */
+const ISO_WEEKDAYS: readonly Weekday[] = WEEKDAYS;
+
+/** Label for an ISO weekday number 1–7; falls back to the raw number when out of range. */
+export const isoWeekdayLabel = (t: TFunction, iso: number): string => {
+  const name = ISO_WEEKDAYS[iso - 1];
+  return name ? weekdayLabel(t, name) : String(iso);
+};

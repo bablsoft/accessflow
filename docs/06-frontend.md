@@ -570,6 +570,39 @@ queue). `useWebSocket` maps `request_group.status_changed` / `request_group.item
 `queryClient.invalidateQueries`. Navigation entries are added to `components/common/Sidebar.tsx`
 (Workflow group: grouped requests), role-gated like the rest of the nav.
 
+## Deployment governance pages (#696, epic AF-682)
+
+The deploygov UI lives under `src/pages/deployments/` (user surface) and
+`src/pages/admin/deployments/` (admin surface), with heavy settings tabs extracted to
+`src/components/deployments/`. API modules: `src/api/deploymentPipelines.ts`,
+`deploymentRequests.ts`, `deploymentReviews.ts`, `deploymentFreezeWindows.ts`,
+`deploymentRoutingPolicies.ts` (TanStack Query key factories mirroring `apiConnectors.ts`). Types
+in `src/types/api.ts` (`DeploymentPipeline`, `DeploymentRequest`, `DeploymentFreezeWindow`,
+`DeploymentRoutingPolicy`, …; request status reuses `QueryStatus`, risk reuses `RiskLevel`, so
+`StatusPill`/`RiskPill` are reused unchanged). Enum labels `pipelineProviderLabel` /
+`freezeBehaviorLabel` / `deploymentOutcomeLabel` / `deploymentRollbackReviewStatusLabel` /
+`isoWeekdayLabel` in `src/utils/enumLabels.ts`; outcome/rollback colors in
+`src/utils/statusColors.ts`. All visible strings are `t()`-keyed under `deploygov.*` in every
+registered locale.
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/deployments` | `DeploymentListPage` | Deployment requests (non-reviewers are server-scoped to their own submissions). Filter bar: status, pipeline, environment name, exact version; server pagination, forced `created_at DESC` (no sortable columns). The pipeline filter is built from the loaded rows unless the caller holds `DEPLOYMENT_PIPELINE_MANAGE` — a `DEPLOYMENT_REVIEW`-only user cannot call `GET /deployment-pipelines`. Row click → detail. |
+| `/deployments/:id` | `DeploymentDetailPage` | Metadata `Descriptions` (version, commit, artifact, CI-run link, external run id, submitter, reason, schedule), AI risk card (`RiskPill` + summary), approvals progress + decisions table, request `metadata` JSON block, and an `ApprovalTimeline` fed by the pure `buildDeploymentTimelineStages.ts` (submitted → AI → review → scheduled → release → outcome, incl. the `EXECUTED → FAILED` outcome flip). While `APPROVED`, the page calls `GET /deployment-gate?request_id=` for the **releasability banner** (releasable / held-by-freeze with reason / scheduled); a gate 404 hides the banner silently. The submitter can cancel via `Popconfirm` while cancellable. |
+| `/deployment-reviews` | `DeploymentReviewQueuePage` | `DEPLOYMENT_REVIEW`-gated, two tabs synced to `?tab=`. **Pending deployments**: queue rows (pipeline/environment/version/risk/approvals/schedule) with approve/reject via a shared comment modal (≤2000 chars); own submissions render disabled buttons with a tooltip (self-approval is also blocked server-side with 409). **Rollback reviews** (`?tab=rollbacks`): the mandatory post-rollback acknowledgements — status filter, outcome detail, acknowledge with optional comment (idempotent; self-ack 409), link to the deployment. |
+| `/admin/deployment-pipelines` | `DeploymentPipelinesPage` | `DEPLOYMENT_PIPELINE_MANAGE`-gated CRUD list (name, provider label, repository, AI toggle, active tag) + create modal (name 3–255, provider, repository URL ≤2048, project ref ≤512, review plan, AI toggle + AI config — validation parity with `CreateDeploymentPipelineRequest`). Create navigates straight into settings. |
+| `/admin/deployment-pipelines/:id` | `DeploymentPipelineSettingsPage` | Tabs: **General** (edit form, `clear_review_plan`/`clear_ai_config` on unset, active switch); **Environments** (`PipelineEnvironmentsTab` — ordered list, per-env `require_review`/`required_approvals`/review-plan overrides/`allow_break_glass`); **Permissions** (`PipelinePermissionsTab` — user + group grant tables mirroring the connector-permission UI, capabilities `can_trigger`/`can_break_glass`/`expires_at`); **Freeze windows** (`PipelineFreezeWindowsTab` — the global list client-filtered to this pipeline + org-global rows ("Global" badge); one-off vs weekly-recurring editor with ISO-weekday multi-select, `HH:mm` time pickers, an IANA timezone select from `Intl.supportedValuesOf('timeZone')`, and a CSS-grid week-strip visualisation from the pure `freezeWindowCalendar.ts`); **Routing policies** (`PipelineRoutingPoliciesTab` — flat typed conditions (environments/providers/min-risk/version globs/day+time window), `required_approvals` required for `REQUIRE_APPROVALS`/`ESCALATE` and hidden for `AUTO_*`, priority conflicts surfaced from the 409); **CI setup** (`CiSnippetPanel` — copyable GitHub Actions / GitLab CI / Azure Pipelines / curl snippets from `ci-templates/`, pipeline id and origin pre-filled). Pure form logic lives in `freezeWindowForm.ts` / `deploymentRoutingPolicyForm.ts` (coverage-listed). |
+
+Live refresh: the backend pushes `deployment.status_changed` to the **submitter** on every
+transition; `websocketManager.invokeDefault` invalidates the deployment detail (incl. its gate
+child key), list, and review queue. Reviewer queues refresh off `notification.created` — a
+`DEPLOYMENT_SUBMITTED` notification additionally invalidates the review queue and a
+`DEPLOYMENT_OUTCOME_FAILED` one the rollback-review list. `NotificationBell` routes deployment
+notifications into the new pages (submission → queue, outcome-failed → rollback tab, the rest →
+the deployment detail). Navigation: Workflow group `Deployments` (on `QUERY_SUBMIT_SELECT`, like
+API requests) and `Deployment Reviews` (`DEPLOYMENT_REVIEW`); Data group `Deployment Pipelines`
+(`DEPLOYMENT_PIPELINE_MANAGE`).
+
 ## SQL Editor Component
 
 Built on **CodeMirror 6** (`@codemirror/lang-sql`).
@@ -830,6 +863,9 @@ for deployment recipes (Docker Compose, Helm).
 /request-groups/new                 → GroupBuilderPage (lazy; build + reorder + submit a grouped request — AF-501)
 /request-groups/:id/edit            → GroupBuilderPage (lazy; re-open an own DRAFT for editing — #559)
 /request-groups/:id                 → RequestGroupDetailPage (lazy; ordered step-by-step progress, live via WebSocket — AF-501)
+/deployments                        → DeploymentListPage (lazy; deployment requests, own-scoped for non-reviewers — #696)
+/deployments/:id                    → DeploymentDetailPage (lazy; metadata + AI risk + approvals + releasability banner + outcome timeline — #696)
+/deployment-reviews                 → DeploymentReviewQueuePage (lazy; DEPLOYMENT_REVIEW — pending deployments + rollback-review tabs — #696)
 /profile                            → ProfilePage
 
 /datasources                        → DatasourceListPage
@@ -856,6 +892,8 @@ for deployment recipes (Docker Compose, Helm).
 /admin/ai-analyses                  → AiAnalysesPage (dashboard — risk-score-over-time + top categories + top submitters, lazy)
 /admin/datasource-health            → DatasourceHealthPage (per-datasource pool ring + 24h query/latency/error stats, lazy)
 /admin/routing-policies             → RoutingPoliciesPage (lazy; policy-as-code routing — AF-379)
+/admin/deployment-pipelines         → DeploymentPipelinesPage (lazy; DEPLOYMENT_PIPELINE_MANAGE — pipeline CRUD — #696)
+/admin/deployment-pipelines/:id     → DeploymentPipelineSettingsPage (lazy; tabs: general / environments / permissions / freeze windows / routing policies / CI setup — #696)
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)

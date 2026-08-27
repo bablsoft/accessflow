@@ -503,31 +503,37 @@ describe('NotificationBell', () => {
       { datasource: 'payments-pipeline', submitter: 'dev@acme.com', submitter_name: 'Dev',
         environment: 'production', version: '2.4.1' },
       /Dev submitted a deployment of 2\.4\.1 to production on payments-pipeline/,
+      '/deployment-reviews',
     ],
     [
       'DEPLOYMENT_APPROVED' as const,
       { datasource: 'payments-pipeline', environment: 'production', version: '2.4.1' },
       /deployment of 2\.4\.1 to production was approved/,
+      '/deployments/dr-1',
     ],
     [
       'DEPLOYMENT_REJECTED' as const,
       { datasource: 'payments-pipeline', environment: 'production', version: '2.4.1' },
       /deployment of 2\.4\.1 to production was rejected/,
+      '/deployments/dr-1',
     ],
     [
       'DEPLOYMENT_OUTCOME_FAILED' as const,
       { datasource: 'payments-pipeline', outcome: 'ROLLED_BACK' as const },
       /deployment you approved on payments-pipeline reported rolled back/,
+      '/deployment-reviews?tab=rollbacks',
     ],
     [
       'DEPLOYMENT_BREAK_GLASS_EXECUTED' as const,
       { datasource: 'payments-pipeline', submitter: 'dev@acme.com' },
       /dev@acme.com released a break-glass deployment on payments-pipeline/,
+      '/deployments/dr-1',
     ],
-  ])('renders %s and stays unrouted (no deploygov UI yet — #695)', async (
+  ])('renders %s and routes into the deploygov UI (#696)', async (
     eventType,
     payload,
     expected,
+    expectedRoute,
   ) => {
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });
     markNotificationReadMock.mockResolvedValue(undefined);
@@ -554,9 +560,38 @@ describe('NotificationBell', () => {
     if (!row) throw new Error('list row not found');
     fireEvent.click(row);
 
-    // The row still marks itself read, but deliberately navigates nowhere.
     await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('dep1'));
-    expect(navigateMock).not.toHaveBeenCalled();
+    expect(navigateMock).toHaveBeenCalledWith(expectedRoute);
+  });
+
+  it('routes a plain FAILED outcome to the deployment, not the rollback worklist', async () => {
+    // A rollback review only exists for ROLLED_BACK; a FAILED deploy would never appear there.
+    fetchUnreadCountMock.mockResolvedValue({ count: 1 });
+    markNotificationReadMock.mockResolvedValue(undefined);
+    listNotificationsMock.mockResolvedValue(
+      page([
+        {
+          id: 'dep-failed',
+          event_type: 'DEPLOYMENT_OUTCOME_FAILED',
+          query_request_id: null,
+          api_request_id: null,
+          deployment_request_id: 'dr-9',
+          payload: { datasource: 'payments-pipeline', outcome: 'FAILED' },
+          read: false,
+          created_at: new Date().toISOString(),
+          read_at: null,
+        },
+      ]),
+    );
+
+    render(wrap(<NotificationBell />));
+    fireEvent.click(screen.getByLabelText('Notifications'));
+    const text = await screen.findByText(/reported failed/);
+    const row = text.closest('.ant-list-item');
+    if (!row) throw new Error('list row not found');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/deployments/dr-9'));
   });
 
   it('renders the no-submitter deployment variants', async () => {

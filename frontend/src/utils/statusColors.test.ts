@@ -6,11 +6,14 @@ import {
   attestationCampaignStatusColor,
   attestationItemDecisionColor,
   breakGlassStatusColor,
+  deploymentOutcomeColor,
+  deploymentRollbackReviewStatusColor,
   grantUsageRecommendationColor,
   statusColor,
 } from './statusColors';
 import type {
   AttestationCampaignStatus,
+  DeploymentOutcome,
   AttestationItemDecision,
   GrantUsageRecommendation,
   BehaviorAnomalyStatus,
@@ -123,5 +126,27 @@ describe('grantUsageRecommendationColor', () => {
         expect(defined, `${token} is not defined in tokens.css`).toContain(`${token}:`);
       }
     }
+  });
+});
+
+describe('deploymentOutcomeColor (#696)', () => {
+  const ALL: DeploymentOutcome[] = ['SUCCEEDED', 'FAILED', 'ROLLED_BACK'];
+
+  it('maps outcomes onto the severity ramp', () => {
+    expect(deploymentOutcomeColor('SUCCEEDED').fg).toBe('var(--risk-low)');
+    expect(deploymentOutcomeColor('FAILED').fg).toBe('var(--risk-crit)');
+    expect(deploymentOutcomeColor('ROLLED_BACK').fg).toBe('var(--status-warn)');
+  });
+
+  it('returns a distinct colour triple for each outcome', () => {
+    const triples = ALL.map((o) => JSON.stringify(deploymentOutcomeColor(o)));
+    expect(new Set(triples).size).toBe(ALL.length);
+  });
+});
+
+describe('deploymentRollbackReviewStatusColor (#696)', () => {
+  it('flags pending rollback reviews and settles reviewed ones', () => {
+    expect(deploymentRollbackReviewStatusColor('PENDING_REVIEW').fg).toBe('var(--risk-crit)');
+    expect(deploymentRollbackReviewStatusColor('REVIEWED').fg).toBe('var(--risk-low)');
   });
 });

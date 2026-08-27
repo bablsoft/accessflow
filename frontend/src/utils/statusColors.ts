@@ -4,6 +4,8 @@ import type {
   AttestationItemDecision,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
+  DeploymentOutcome,
+  DeploymentRollbackReviewStatus,
   GrantUsageRecommendation,
   QueryStatus,
   RequestGroupItemStatus,
@@ -149,5 +151,27 @@ export const statusColor = (status: QueryStatus): ColorTriple => {
       return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
     case 'CANCELLED':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+export const deploymentOutcomeColor = (outcome: DeploymentOutcome): ColorTriple => {
+  switch (outcome) {
+    case 'SUCCEEDED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
+    case 'FAILED':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'ROLLED_BACK':
+      return { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' };
+  }
+};
+
+export const deploymentRollbackReviewStatusColor = (
+  status: DeploymentRollbackReviewStatus,
+): ColorTriple => {
+  switch (status) {
+    case 'PENDING_REVIEW':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'REVIEWED':
+      return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
   }
 };

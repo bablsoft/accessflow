@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.core.events.QueryEstimateFailedEvent;
 import com.bablsoft.accessflow.core.events.AnomalyDetectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.events.QueryStatusChangedEvent;
+import com.bablsoft.accessflow.deploygov.events.DeploymentStatusChangedEvent;
 import com.bablsoft.accessflow.notifications.api.UserNotificationLookupService;
 import com.bablsoft.accessflow.notifications.events.UserNotificationCreatedEvent;
 import com.bablsoft.accessflow.realtime.internal.ws.SessionRegistry;
@@ -115,6 +116,17 @@ class RealtimeEventDispatcher {
             data.put("old_status", event.oldStatus().name());
             data.put("new_status", event.newStatus().name());
             sendTo(event.submitterId(), "query.status_changed", data);
+        });
+    }
+
+    @ApplicationModuleListener
+    void onDeploymentStatusChanged(DeploymentStatusChangedEvent event) {
+        safe("deployment.status_changed", event.deploymentRequestId(), () -> {
+            ObjectNode data = objectMapper.createObjectNode();
+            data.put("deployment_request_id", event.deploymentRequestId().toString());
+            data.put("old_status", event.oldStatus().name());
+            data.put("new_status", event.newStatus().name());
+            sendTo(event.submitterId(), "deployment.status_changed", data);
         });
     }
 
