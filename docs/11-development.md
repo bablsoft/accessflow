@@ -93,9 +93,11 @@ mechanism the e2e stacks use.
 | Layer | Framework | What to Test |
 |-------|-----------|-------------|
 | Unit | JUnit 5 + Mockito | Service classes, domain logic, state machine transitions, AI prompt building |
-| Integration | Spring Boot Test + Testcontainers | Repository queries, proxy engine with real PostgreSQL/MySQL, workflow end-to-end |
+| Integration | Spring Boot Test + Testcontainers | Repository queries, proxy engine with real PostgreSQL / MySQL / SQL Server, workflow end-to-end |
 | API | RestAssured + Spring Boot Test | All REST endpoints, auth enforcement, permission checks, error responses |
 | Security | Custom tests | JWT forgery, permission boundary violations, SQL injection attempts |
+
+**Arch-gated tests.** `DefaultQueryExecutorMssqlIntegrationTest` is `@EnabledIfSystemProperty`-gated on `os.arch` because `mcr.microsoft.com/mssql/server` publishes an amd64-only manifest: it runs on CI's `ubuntu-latest` and is **skipped on Apple Silicon**, where a green local `mvn verify` therefore proves nothing about it. Its class Javadoc carries the `DOCKER_DEFAULT_PLATFORM=linux/amd64` + `-Dos.arch=amd64` incantation for running it under emulation. Check the CI test report shows it *run*, not skipped, before trusting a change to the SQL Server proxy path.
 
 **Coverage target:** ≥90% line coverage (≥80% branches), enforced by JaCoCo across the single backend module. See CLAUDE.md → Testing for the coverage-parity rule.
 

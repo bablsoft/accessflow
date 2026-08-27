@@ -205,6 +205,14 @@ class DefaultQueryExecutor implements QueryExecutor {
                 ? descriptor.connectorId()
                 : descriptor.dbType().name().toLowerCase(java.util.Locale.ROOT);
 
+        // A BEGIN; … COMMIT; envelope has no single statement to plan, and letting one through
+        // would hand a stacked language batch to the SQL Server SHOWPLAN Statement path (AF-762).
+        // Mirrors the transactional branch executeInternal takes on the real-execution path.
+        if (request.transactional()) {
+            return QueryDryRunResult.unsupported(engineId,
+                    msg("error.dry_run.transactional_unsupported"));
+        }
+
         if (engineCatalog.isEngineManaged(descriptor.dbType())) {
             return engineCatalog.engineFor(descriptor.dbType())
                     .dryRun(new QueryEngineDryRunRequest(request, descriptor, effectiveTimeout));

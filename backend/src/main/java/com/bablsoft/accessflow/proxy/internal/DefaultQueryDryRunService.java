@@ -63,8 +63,11 @@ class DefaultQueryDryRunService implements QueryDryRunService {
                         p.operator(), p.values()))
                 .toList();
 
+        // Carry the parser's transactional verdict through: the executor refuses to plan a
+        // BEGIN; … COMMIT; envelope rather than passing the stacked text to a dialect planner.
         var request = new QueryExecutionRequest(datasourceId, sql, parsed.type(), null, null,
-                List.of(), List.of(), rowSecurityPredicates, false, null, List.of());
+                List.of(), List.of(), rowSecurityPredicates,
+                parsed.transactional(), parsed.statements(), List.of());
         var result = queryExecutor.dryRun(request);
 
         // 5. Localize the unsupported reason for engines that cannot produce a plan.

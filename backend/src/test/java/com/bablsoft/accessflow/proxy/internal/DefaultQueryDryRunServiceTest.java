@@ -167,4 +167,44 @@ class DefaultQueryDryRunServiceTest {
         assertThat(captor.getValue().rowSecurityPredicates()).hasSize(1);
         assertThat(captor.getValue().rowSecurityPredicates().getFirst().policyId()).isEqualTo(policyId);
     }
+
+    @Test
+    void transactionalParseVerdictIsPassedToExecutor() {
+        // AF-762: the executor refuses to plan a BEGIN; … COMMIT; envelope, but only if the
+        // service stops hardcoding transactional=false when it rebuilds the request.
+        when(datasourceAdminService.getForAdmin(datasourceId, orgId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(new SqlParseResult(QueryType.INSERT,
+                true, List.of("INSERT INTO t VALUES (1)", "INSERT INTO t VALUES (2)"),
+                Set.of("t"), false, false));
+        when(rowSecurityResolutionService.resolveApplicable(orgId, datasourceId, userId))
+                .thenReturn(List.of());
+        when(queryExecutor.dryRun(any()))
+                .thenReturn(QueryDryRunResult.unsupported("postgresql", "no dry-run for batches"));
+
+        var result = service.dryRun(datasourceId,
+                "BEGIN; INSERT INTO t VALUES (1); INSERT INTO t VALUES (2); COMMIT;",
+                userId, orgId, true);
+
+        assertThat(result.unsupportedReason()).isEqualTo("no dry-run for batches");
+        var captor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).dryRun(captor.capture());
+        assertThat(captor.getValue().transactional()).isTrue();
+        assertThat(captor.getValue().statements()).hasSize(2);
+    }
+
+    @Test
+    void singleStatementParseStaysNonTransactional() {
+        when(datasourceAdminService.getForAdmin(datasourceId, orgId)).thenReturn(view());
+        when(queryParser.parse(anyString(), any())).thenReturn(parse(QueryType.SELECT, Set.of("t")));
+        when(rowSecurityResolutionService.resolveApplicable(orgId, datasourceId, userId))
+                .thenReturn(List.of());
+        when(queryExecutor.dryRun(any())).thenReturn(QueryDryRunResult.of("postgresql",
+                QueryType.SELECT, 1L, null, null, Set.of(), Duration.ZERO));
+
+        service.dryRun(datasourceId, "SELECT 1", userId, orgId, true);
+
+        var captor = ArgumentCaptor.forClass(QueryExecutionRequest.class);
+        verify(queryExecutor).dryRun(captor.capture());
+        assertThat(captor.getValue().transactional()).isFalse();
+    }
 }

@@ -3,10 +3,13 @@ package com.bablsoft.accessflow.proxy.internal.dryrun;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryPlanNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -22,9 +25,21 @@ import java.util.Set;
  * runs. The session flag is toggled off in a {@code finally}. The plan rows (keyed by
  * {@code NodeId}/{@code Parent}) become the {@link QueryPlanNode} tree; the root {@code EstimateRows}
  * is the estimate.
+ *
+ * <p>SHOWPLAN is only reachable over a plain {@link Statement} (issue AF-762), so a dry-run whose
+ * row-security rewrite produced positional binds cannot be planned at all and degrades to an
+ * <em>unsupported</em> result rather than surfacing a driver error.
  */
 @Component
 class SqlServerDryRunPlanner implements DryRunPlanner {
+
+    private static final Logger log = LoggerFactory.getLogger(SqlServerDryRunPlanner.class);
+
+    private final MessageSource messageSource;
+
+    SqlServerDryRunPlanner(MessageSource messageSource) {
+        this.messageSource = messageSource;
+    }
 
     @Override
     public Set<DbType> supportedTypes() {
@@ -33,6 +48,15 @@ class SqlServerDryRunPlanner implements DryRunPlanner {
 
     @Override
     public QueryDryRunResult plan(DryRunPlanRequest request) throws SQLException {
+        // Binds are non-empty exactly when RowSecurityRewriter spliced a policy predicate behind a
+        // JdbcParameter. Those values can only be supplied through a PreparedStatement, which
+        // SHOWPLAN cannot use (see below) — and inlining them into the SQL text would break the
+        // proxy's no-string-concatenation rule. Fail closed and honest instead, before the session
+        // flag is ever touched.
+        if (!request.binds().isEmpty()) {
+            return QueryDryRunResult.unsupported(request.engineId(),
+                    msg("error.dry_run.mssql_row_security_unsupported"));
+        }
         Connection connection = request.connection();
         connection.setReadOnly(request.readOnlyEligible());
         try (Statement toggle = connection.createStatement()) {
@@ -40,10 +64,23 @@ class SqlServerDryRunPlanner implements DryRunPlanner {
         }
         try {
             QueryPlanNode tree;
-            try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
+            // Deliberately a plain Statement, not a PreparedStatement — do not "fix" this back.
+            // mssql-jdbc returns no plan whatsoever over the prepared/RPC path: executeQuery()
+            // raises "The statement did not return a result set", and execute() + getMoreResults()
+            // yields updateCount=-1 with zero rows. SHOWPLAN_XML behaves identically. A language
+            // batch is the only shape that produces a plan (issue AF-762).
+            //
+            // This is not a SQL-injection surface. The statement text is the caller's own SQL,
+            // parsed by JSqlParser upstream and therefore a single statement; the transactional
+            // BEGIN; … COMMIT; envelope is refused by DefaultQueryExecutor.dryRun, so no stacked
+            // batch reaches here; nothing is concatenated into the text; and binds is provably
+            // empty above, so no value is ever interpolated. Nor is it an execution surface:
+            // SHOWPLAN_ALL suppresses execution for every statement class the dry-run path can
+            // classify, DDL and SET included — DefaultQueryExecutorMssqlIntegrationTest pins that
+            // against a real SQL Server 2022 for UPDATE, DELETE, and CREATE/DROP TABLE.
+            try (Statement statement = connection.createStatement()) {
                 statement.setQueryTimeout(request.timeoutSeconds());
-                request.bind(statement);
-                try (ResultSet rs = statement.executeQuery()) {
+                try (ResultSet rs = statement.executeQuery(request.sql())) {
                     tree = readPlan(rs);
                 }
             }
@@ -55,10 +92,20 @@ class SqlServerDryRunPlanner implements DryRunPlanner {
         } finally {
             try (Statement toggle = connection.createStatement()) {
                 toggle.execute("SET SHOWPLAN_ALL OFF");
-            } catch (SQLException ignored) {
-                // session is discarded back to the pool on close; best-effort reset
+            } catch (SQLException ex) {
+                // Best-effort: HikariCP resets only autoCommit/readOnly/isolation/catalog/network
+                // timeout on return, not arbitrary session state, so a failed reset would leave
+                // SHOWPLAN ON for the next borrower of this connection. In practice this only
+                // throws when the session is already dead, which the pool's own validation
+                // discards — but it is worth an operator-visible warning either way.
+                log.warn("Could not reset SET SHOWPLAN_ALL OFF on a SQL Server dry-run connection;"
+                        + " the pool will discard it if the session is dead: {}", ex.getMessage());
             }
         }
+    }
+
+    private String msg(String key) {
+        return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
     }
 
     private QueryPlanNode readPlan(ResultSet rs) throws SQLException {

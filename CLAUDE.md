@@ -374,7 +374,7 @@ For non-periodic critical sections use `scheduling.api.DistributedLockService`.
 
 ### Security Rules — Non-Negotiable
 
-1. **No string-concatenation SQL** — `PreparedStatement` exclusively in the proxy engine.
+1. **No string-concatenation SQL** — `PreparedStatement` exclusively for anything the proxy engine *executes*. One documented non-executing carve-out: the SQL Server dry-run plan read (`SqlServerDryRunPlanner`, AF-762) uses a plain `Statement`, because `mssql-jdbc` returns no `SET SHOWPLAN_ALL` rows at all over the prepared/RPC path. It never carries binds (row-security dry-runs degrade to *unsupported*) and never executes. Do not add a second one — see [docs/07-security.md](docs/07-security.md) → SQL Injection Prevention.
 2. **JSqlParser validation first** — parse every submitted SQL before any execution path. Reject unparseable SQL with HTTP 422. Multi-statement input is rejected, **except** for `BEGIN; … COMMIT;` envelopes wrapping a homogeneous INSERT/UPDATE/DELETE batch — those are executed under a single JDBC transaction (`autoCommit=false` + commit on success / rollback on `SQLException`). Inside the envelope, SELECT, DDL, `ROLLBACK`, `SAVEPOINT`, and nested `BEGIN` are all rejected with distinct 422 messages.
 3. **Schema allow-list at AST level** — walk the parsed AST to validate referenced tables, not string matching.
 4. **`password_encrypted` never in heap beyond pool init** — decrypt credentials once inside `QueryProxyService`, pass to HikariCP, do not store the plaintext.

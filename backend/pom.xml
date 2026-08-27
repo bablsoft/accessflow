@@ -142,6 +142,22 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+          Test-only, and the version is load-bearing, so it is pinned here rather than taken from
+          the Spring Boot BOM (which manages a newer 13.4.0.jre11):
+          DriverCacheTestSupport.prepareCacheWithMssql() stages this JAR into the driver cache under
+          the catalog-pinned filename, and DriverJarCache re-verifies its SHA-256 against
+          connectors/mssql/connector.json on every resolution. This version must equal the one in
+          that manifest, or DefaultQueryExecutorMssqlIntegrationTest fails with CHECKSUM_MISMATCH.
+          Deliberately an inline <version> and not a redefinition of Boot's mssql-jdbc.version
+          property, which would silently downgrade the whole project.
+        -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>12.10.0.jre11</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>com.github.jsqlparser</groupId>
@@ -439,6 +455,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- AF-762: SQL Server dry-run (SHOWPLAN) integration coverage. amd64-only image. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mssqlserver</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- AF-448: secret-store integration tests (real Vault dev server + LocalStack). -->
