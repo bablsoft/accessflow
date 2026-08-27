@@ -173,6 +173,7 @@ export function DeploymentPipelinesPage() {
       <PageHeader
         title={t('deploygov.pipelines.title')}
         subtitle={t('deploygov.pipelines.subtitle')}
+        docsAnchor="cfg-deployment-pipelines"
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
             {t('deploygov.pipelines.add')}

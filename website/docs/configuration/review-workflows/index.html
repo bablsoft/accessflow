@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-17",
+      "dateModified": "2026-08-27",
       "url": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/configuration/review-workflows/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -215,6 +215,7 @@
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-routing-policies">Routing policies</a>
             <a href="#cfg-attestation">Access recertification campaigns</a>
+            <a href="#cfg-deployment-pipelines">Deployment pipelines</a>
             <a href="/docs/configuration/ai/">AI</a>
             <a href="/docs/configuration/auth/">Auth & SSO</a>
             <a href="/docs/configuration/notifications/">Notifications</a>
@@ -230,7 +231,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-12">12 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-27">27 August 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -594,6 +595,76 @@ APPROVED → FAILED (execution error)</pre>
               <code>ACCESSFLOW_ACCESS_USAGE_NUDGE_COOLDOWN</code> (<code>P30D</code> — minimum time
               between nudges for the same grant).</li>
           </ul>
+        </section>
+
+<section class="docs-section">
+          <h2 id="cfg-deployment-pipelines">Deployment pipelines</h2>
+          <p>
+            <strong>What it is.</strong> The same review machinery, applied to <strong>CI/CD
+            deployments</strong>. A <strong>deployment pipeline</strong> names a provider (GitHub
+            Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic)
+            and holds ordered <strong>environments</strong> — <code>dev</code>,
+            <code>staging</code>, <code>production</code> — each of which can require review, set its
+            own approval count, override the <a href="#cfg-review-plans">review plan</a>, and opt in
+            to break-glass. A CI job asks AccessFlow for permission to release, the request flows
+            through AI release-risk analysis, <a href="#cfg-routing-policies">routing policies</a> and
+            human approval, and the job blocks on a <strong>fail-closed gate</strong> until every
+            required approval is granted. The submitter — for a pipeline, the user who owns the API
+            key — can never approve their own deployment.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Create pipelines at
+            <code>/admin/deployment-pipelines</code> (requires the
+            <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
+            pipeline's settings page carries four tabs: <strong>Environments</strong> (promotion
+            order, required approvals, review-plan override, break-glass opt-in),
+            <strong>Permissions</strong> (per-user and per-group <code>can_trigger</code> /
+            <code>can_break_glass</code> grants with an optional expiry — a user's effective grant is
+            the most-permissive union of their direct grant and every unexpired group grant),
+            <strong>Freeze windows</strong>, and <strong>Routing policies</strong>. The page also
+            renders a copy-paste CI setup snippet for the pipeline's provider. Reviewers work
+            deployments at <code>/deployment-reviews</code> (requires <code>DEPLOYMENT_REVIEW</code>,
+            held by <code>ADMIN</code> and <code>REVIEWER</code>); everyone sees their own at
+            <code>/deployments</code>.
+          </p>
+          <p>
+            <strong>Freeze windows.</strong> A freeze window suspends releases for the whole
+            organization, one pipeline, or a single environment. It is either <strong>one-off</strong>
+            (a start and end instant) or <strong>recurring weekly</strong> (days of the week plus a
+            start and end time in a named IANA timezone — an end time before the start time spans
+            midnight). <code>HOLD</code> lets a deployment be submitted, analyzed and approved but
+            withholds releasability until the window closes, so the release proceeds by itself
+            afterwards with no re-approval. <code>REJECT</code> auto-rejects at submission instead.
+            Where several windows are active at once the most specific scope wins, and
+            <code>REJECT</code> beats <code>HOLD</code>. A window whose definition cannot be evaluated
+            — a bad timezone, say — counts as an active <code>HOLD</code>, never a
+            <code>REJECT</code>: a broken rule can stall a release but can never destroy a request.
+          </p>
+          <p>
+            <strong>Break-glass and rollbacks.</strong> An emergency deploy needs
+            <em>both</em> a <code>can_break_glass</code> grant on the pipeline <em>and</em>
+            <code>allow_break_glass</code> on the target environment — for everyone, with no admin
+            bypass. It skips AI analysis, routing and review, and pays for that with an instant
+            notification to every org admin, a prominent audit row naming any freeze window it
+            bypassed, and a mandatory retro-review an admin who is never the submitter must
+            acknowledge. After a deploy the pipeline reports its outcome; a
+            <strong>rollback</strong> on a review-required environment opens a follow-up review in the
+            reviewer queue that the submitter can never close.
+          </p>
+          <p>
+            <strong>Wire up CI.</strong> See
+            <a href="/docs/iac/#iac-deployment-gate">the deployment gate in CI</a> for the GitHub
+            Action, the GitLab CI template, the Azure Pipelines step template, and the plain-curl
+            path, plus how to mint the service-account API key a pipeline authenticates with.
+          </p>
+          <p>
+            <strong>Tune it.</strong> <code>ACCESSFLOW_DEPLOYGOV_TIMEOUT_CHECK</code> (how often
+            deployments awaiting review are checked against their review plan's approval timeout,
+            default <code>PT5M</code>) and <code>ACCESSFLOW_DEPLOYGOV_RELEASE_CHECK</code> (how often
+            approved deployments are scanned to announce that they have become releasable, default
+            <code>PT1M</code>). Every transition lands in the
+            <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>.
+          </p>
         </section>
 
       </article>

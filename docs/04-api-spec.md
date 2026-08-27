@@ -5755,7 +5755,7 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
-## Deployment Governance (#688/#691/#692/#693, epic #682)
+## Deployment Governance (#688–#693, epic #682)
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
@@ -5769,6 +5769,9 @@ Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
 `/deployment-requests` is gated by the **per-pipeline `can_trigger` grant** instead — there is no
 functional trigger permission. Every endpoint is org-scoped: a resource in another organization
 reads as `404`, never as `403`.
+
+The feature narrative these endpoints implement is
+[18-deployment-governance.md](18-deployment-governance.md).
 
 ### Pipelines
 

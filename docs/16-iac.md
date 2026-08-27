@@ -237,3 +237,7 @@ trigger authorisation is the per-pipeline `can_trigger` grant (admins bypass it)
 `DEPLOYMENT_PIPELINE_MANAGE`; break-glass additionally needs a `can_break_glass` grant with **no**
 admin bypass. Note the pipeline is identified by **UUID**: a trigger-only key cannot list
 pipelines to resolve a name.
+
+The governance model behind these wrappers — pipelines, environments, the fail-closed gate
+contract, freeze windows and outcome reporting — is
+[18-deployment-governance.md](18-deployment-governance.md).

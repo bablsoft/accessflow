@@ -2378,7 +2378,7 @@ break-glass retro-review can target an API request.
 
 ---
 
-## Deployment governance (`deploygov`, #684 / epic #682)
+## Deployment governance (`deploygov`, #684–#695 / epic #682)
 
 Migrations **V149** (definitions) and **V150** (request pipeline) lay the persistence foundation of
 the `deploygov` module: gate CI/CD deployments behind AccessFlow approval workflows. New pg enums
@@ -2391,6 +2391,9 @@ verbatim, exactly as the apigov tables do. Cross-module references (`organizatio
 `review_plan_id`, `ai_config_id`, `submitted_by`, `user_id`, `created_by`) are bare UUIDs (no FK);
 the group-permission table keeps the real FKs of its V111 template. **V151** seeds the
 `DEPLOYMENT_PIPELINE_MANAGE` (ADMIN) and `DEPLOYMENT_REVIEW` (ADMIN + REVIEWER) permissions.
+
+The feature narrative — lifecycle, gate contract, freeze-window semantics, CI wrappers — is
+[18-deployment-governance.md](18-deployment-governance.md).
 
 ### deployment_pipelines
 

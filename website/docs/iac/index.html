@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-03",
+      "dateModified": "2026-08-27",
       "url": "https://accessflow.bablsoft.com/docs/iac/",
       "mainEntityOfPage": "https://accessflow.bablsoft.com/docs/iac/",
       "image": "https://accessflow.bablsoft.com/og-image.png",
@@ -219,6 +219,7 @@
             <a href="/docs/iac/" class="docs-toc-current" aria-current="page">Infrastructure as Code</a>
             <p class="docs-toc-label">On this page</p>
             <a href="#iac">Infrastructure as Code (Terraform / OpenTofu & CI Actions)</a>
+            <a href="#iac-deployment-gate">Deployment gate in CI</a>
           </nav>
         </details>
       </aside>
@@ -228,7 +229,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-27">27 August 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
@@ -396,6 +397,76 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
             <code>ci-templates/gitlab/accessflow.gitlab-ci.yml</code> template and then
             <code>extends:</code> <code>.accessflow_provision_datasource</code> or
             <code>.accessflow_run_query</code>, passing the same values as <code>AF_*</code> variables.
+          </p>
+          <h3 id="iac-deployment-gate">Deployment gate in CI</h3>
+          <p>
+            The deployment-governance wrappers let a pipeline ask AccessFlow for permission to
+            release. Every provider follows the same four beats — <strong>submit</strong> a
+            deployment request (idempotent on the CI run id, so a retried step never opens a second
+            review), <strong>poll</strong> the fail-closed gate until it answers releasable,
+            <strong>confirm</strong> execution, then <strong>report</strong> the outcome. All of them
+            fail the job on a rejection, a timeout, or a gate that returns 404 — an unknown or
+            invisible release is treated as not releasable, never as approved.
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.github/workflows/deploy.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com">- id: gate</span>
+  uses: bablsoft/accessflow/.github/actions/deployment-gate@v1
+  with:
+    accessflow-url: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    pipeline-id: <span class="c-str">1f0c9d02-1c2a-4a19-9f0e-6b2f8f1a4c77</span>
+    environment: production
+    version: ${{ github.ref_name }}
+    commit-sha: ${{ github.sha }}
+    wait-timeout: <span class="c-str">30m</span>
+
+- run: ./deploy.sh
+
+- uses: bablsoft/accessflow/.github/actions/deployment-outcome@v1
+  <span class="c-com">if: always()</span>
+  with:
+    accessflow-url: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    request-id: ${{ steps.gate.outputs.request-id }}
+    job-status: ${{ job.status }}
+</pre>
+          </div>
+          <p>
+            A composite action has no post-run hook, so the outcome step is separate and runs under
+            <code>if: always()</code> — <code>job.status</code> maps success to
+            <code>SUCCEEDED</code> and failure to <code>FAILED</code>. Pass an explicit
+            <code>outcome: ROLLED_BACK</code> when you roll back; on a review-required environment
+            that opens a follow-up review the submitter can never close. The pipeline is identified
+            by <strong>UUID</strong>, not by name: a trigger-only API key cannot list pipelines to
+            resolve one.
+          </p>
+          <p>
+            On GitLab, <code>include:</code> the
+            <code>ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml</code> template and
+            <code>extends:</code> <code>.accessflow_deployment_gate</code> /
+            <code>.accessflow_deployment_outcome</code>. On Azure Pipelines, use the step template
+            <code>ci-templates/azure/accessflow-deployment.yml</code>, which takes your own
+            <code>deploySteps</code> list and wraps it. Any other CI system can follow the plain-curl
+            sequence in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/ci-templates/examples/generic-curl-deployment.md">ci-templates/examples/generic-curl-deployment.md</a>.
+          </p>
+          <p>
+            <strong>The API key a pipeline uses is an ordinary AccessFlow key</strong> belonging to a
+            dedicated service-account user — mint it as described under
+            <a href="#iac-service-account">service-account API keys</a> above, grant that user
+            <code>can_trigger</code> on the pipeline (see
+            <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment
+            pipelines</a>), and store the raw key as a CI secret. Because the key's owning user is the
+            submitter, that account can never approve its own deployments. Triggering is governed by
+            the grant, not by the <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, so a CI key
+            needs no administrative rights.
           </p>
           <p>
             Full provider reference, all resources, and the registry-publishing runbook (the provider

@@ -100,7 +100,15 @@ export interface TriggeredDeployment {
   status: string;
 }
 
-/** Triggers a deployment request the way a CI job would (bearer token works like an API key). */
+/**
+ * Builds the auth header a deployment call should carry. Passing `apiKey` exercises the real
+ * machine path (`X-API-Key`, resolved by ApiKeyAuthenticationFilter) instead of a bearer JWT.
+ */
+function authHeaders(token: string, apiKey?: string): Record<string, string> {
+  return apiKey ? { 'X-API-Key': apiKey } : { Authorization: `Bearer ${token}` };
+}
+
+/** Triggers a deployment request the way a CI job would. */
 export async function triggerDeploymentViaApi(
   request: APIRequestContext,
   token: string,
@@ -111,10 +119,12 @@ export async function triggerDeploymentViaApi(
     externalRunId?: string;
     commitSha?: string;
     justification?: string;
+    /** Authenticate with this raw API key instead of the bearer token. */
+    apiKey?: string;
   },
 ): Promise<TriggeredDeployment> {
   const res = await request.post(`${apiBase()}/api/v1/deployment-requests`, {
-    headers: { Authorization: `Bearer ${token}`, 'X-AccessFlow-CI': 'true' },
+    headers: { ...authHeaders(token, options.apiKey), 'X-AccessFlow-CI': 'true' },
     data: {
       pipeline_id: options.pipelineId,
       environment: options.environment,
@@ -189,4 +199,119 @@ export async function deleteDeploymentPipelineViaApi(
   if (!res.ok() && res.status() !== 404) {
     throw new Error(`Delete deployment pipeline failed: ${res.status()} ${await res.text()}`);
   }
+}
+
+/**
+ * Confirms the pipeline proceeded (`APPROVED → EXECUTED`). Re-evaluates releasability at this
+ * instant, so a freeze window that opened during the poll loop still blocks with 409.
+ */
+export async function confirmDeploymentExecutionViaApi(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+  apiKey?: string,
+): Promise<{ status: string }> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/deployment-requests/${requestId}/confirm-execution`,
+    { headers: authHeaders(token, apiKey) },
+  );
+  if (!res.ok()) {
+    throw new Error(`Confirm deployment execution failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as { status: string };
+}
+
+export interface OutcomeReportResult {
+  ok: boolean;
+  status: number;
+  error: string | null;
+}
+
+/**
+ * Reports the post-deploy outcome. Returns the raw result rather than throwing, so a spec can
+ * assert the fail-closed conflict codes (409 DEPLOYMENT_OUTCOME_CONFLICT, self-acknowledge, …).
+ */
+export async function reportDeploymentOutcomeViaApi(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+  outcome: 'SUCCEEDED' | 'FAILED' | 'ROLLED_BACK',
+  options: { detail?: string; apiKey?: string } = {},
+): Promise<OutcomeReportResult> {
+  const res = await request.post(`${apiBase()}/api/v1/deployment-requests/${requestId}/outcome`, {
+    headers: authHeaders(token, options.apiKey),
+    data: { outcome, ...(options.detail === undefined ? {} : { detail: options.detail }) },
+  });
+  let error: string | null = null;
+  if (!res.ok()) {
+    error = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? null;
+  }
+  return { ok: res.ok(), status: res.status(), error };
+}
+
+export interface RollbackReview {
+  id: string;
+  deployment_request_id: string;
+  status: string;
+  outcome_detail: string | null;
+}
+
+/** Lists the rollback follow-up reviews (JWT-side, PERM_DEPLOYMENT_REVIEW). */
+export async function listDeploymentRollbackReviewsViaApi(
+  request: APIRequestContext,
+  token: string,
+  status?: string,
+): Promise<RollbackReview[]> {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await request.get(`${apiBase()}/api/v1/deployment-rollback-reviews${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List rollback reviews failed: ${res.status()} ${await res.text()}`);
+  }
+  return ((await res.json()) as { content: RollbackReview[] }).content;
+}
+
+/**
+ * Acknowledges a rollback review. Returns the raw result so a spec can assert the
+ * 409 the deployment's own submitter gets.
+ */
+export async function acknowledgeRollbackReviewViaApi(
+  request: APIRequestContext,
+  token: string,
+  reviewId: string,
+  comment?: string,
+): Promise<OutcomeReportResult> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/deployment-rollback-reviews/${reviewId}/acknowledge`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      data: comment === undefined ? {} : { comment },
+    },
+  );
+  let error: string | null = null;
+  if (!res.ok()) {
+    error = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? null;
+  }
+  return { ok: res.ok(), status: res.status(), error };
+}
+
+/** Approves a deployment as a reviewer (JWT-side, PERM_DEPLOYMENT_REVIEW). */
+export async function approveDeploymentViaApi(
+  request: APIRequestContext,
+  token: string,
+  requestId: string,
+  comment?: string,
+): Promise<{ resulting_status: string }> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/deployment-reviews/${requestId}/approve`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      data: comment === undefined ? {} : { comment },
+    },
+  );
+  if (!res.ok()) {
+    throw new Error(`Approve deployment failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as { resulting_status: string };
 }

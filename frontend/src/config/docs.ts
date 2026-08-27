@@ -35,6 +35,7 @@ export const DOCS_ANCHOR_PAGES = {
   'cfg-review-escalation': 'configuration/review-workflows/',
   'cfg-routing-policies': 'configuration/review-workflows/',
   'cfg-attestation': 'configuration/review-workflows/',
+  'cfg-deployment-pipelines': 'configuration/review-workflows/',
   'cfg-ai': 'configuration/ai/',
   'cfg-ai-analyses': 'configuration/ai/',
   'cfg-anomalies': 'configuration/ai/',

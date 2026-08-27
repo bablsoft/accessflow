@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import {
   acceptInvitationViaApi,
+  apiBase,
+  createApiKeyViaApi,
   inviteUserViaApi,
   loginViaApi,
   purgeMailcrab,
@@ -9,11 +11,16 @@ import {
 } from '../helpers/datasources';
 import { getCurrentUserIdViaApi } from '../helpers/apiConnectors';
 import {
+  acknowledgeRollbackReviewViaApi,
+  approveDeploymentViaApi,
+  confirmDeploymentExecutionViaApi,
   createDeploymentEnvironmentViaApi,
   createDeploymentPipelineViaApi,
   deleteDeploymentPipelineViaApi,
   getDeploymentGateViaApi,
   grantDeploymentPermissionViaApi,
+  listDeploymentRollbackReviewsViaApi,
+  reportDeploymentOutcomeViaApi,
   triggerDeploymentViaApi,
   waitForDeploymentStatus,
   type CreatedDeploymentPipeline,
@@ -39,6 +46,8 @@ test.describe.serial('deployment governance review flow (#696)', () => {
   let adminAccessToken = '';
   let submitterEmail = '';
   let submitterToken = '';
+  let submitterApiKey = '';
+  let submitterId = '';
   let pipeline: CreatedDeploymentPipeline | null = null;
 
   test.beforeAll(async ({ request }) => {
@@ -63,10 +72,14 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const token = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, token, SUBMITTER_PASSWORD, 'AF-696 Submitter');
     submitterToken = await loginViaApi(request, submitterEmail, SUBMITTER_PASSWORD);
-    const submitterId = await getCurrentUserIdViaApi(request, submitterToken);
+    submitterId = await getCurrentUserIdViaApi(request, submitterToken);
     await grantDeploymentPermissionViaApi(request, adminAccessToken, pipeline.id, submitterId, {
       canTrigger: true,
     });
+    // CI authenticates with an API key, not a bearer JWT. The key's owning user is the
+    // submitter, so the same can_trigger grant and self-approval ban apply to it.
+    submitterApiKey = (await createApiKeyViaApi(request, submitterToken, `af697-ci-${randomUUID()}`))
+      .rawKey;
   });
 
   test.afterAll(async ({ request }) => {
@@ -95,6 +108,8 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       version,
       externalRunId: `run-${Date.now()}`,
       justification: 'AF-696 e2e review flow',
+      // Exercise the real machine path: X-API-Key through ApiKeyAuthenticationFilter.
+      apiKey: submitterApiKey,
     });
     // Routing/AI-skip settles asynchronously off the submit event.
     await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'PENDING_REVIEW');
@@ -216,5 +231,120 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     } finally {
       await submitterCtx.close();
     }
+  });
+
+  // The machine half of the contract (#693): confirm-execution, outcome reporting, and the
+  // rollback follow-up review the deployment's own submitter can never close. Driven entirely
+  // over the API-key path a CI job actually uses, then acknowledged in the reviewer UI.
+  test('CI confirms execution, reports a rollback, and an admin acknowledges the follow-up', async ({
+    browser,
+    request,
+  }) => {
+    if (!pipeline) throw new Error('pipeline not created in beforeAll');
+
+    const version = `2.4.4-${Date.now()}`;
+    const detail = `af697 rollback ${randomUUID()}`;
+    const triggered = await triggerDeploymentViaApi(request, submitterToken, {
+      pipelineId: pipeline.id,
+      environment: 'production',
+      version,
+      externalRunId: `run-${Date.now()}`,
+      apiKey: submitterApiKey,
+    });
+    await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'PENDING_REVIEW');
+
+    // The submitter can never approve their own deployment, even holding the grant.
+    const selfApprove = await request.post(
+      `${apiBase()}/api/v1/deployment-reviews/${triggered.id}/approve`,
+      { headers: { Authorization: `Bearer ${submitterToken}` } },
+    );
+    expect(selfApprove.status()).toBe(409);
+
+    const decision = await approveDeploymentViaApi(
+      request,
+      adminAccessToken,
+      triggered.id,
+      'AF-697 e2e approval',
+    );
+    expect(decision.resulting_status).toBe('APPROVED');
+
+    const gate = await getDeploymentGateViaApi(request, adminAccessToken, triggered.id);
+    expect(gate.releasable).toBe(true);
+
+    // The pipeline confirms it proceeded, then reports that it rolled the release back.
+    const executed = await confirmDeploymentExecutionViaApi(
+      request,
+      submitterToken,
+      triggered.id,
+      submitterApiKey,
+    );
+    expect(executed.status).toBe('EXECUTED');
+
+    const reported = await reportDeploymentOutcomeViaApi(
+      request,
+      submitterToken,
+      triggered.id,
+      'ROLLED_BACK',
+      { detail, apiKey: submitterApiKey },
+    );
+    expect(reported.ok).toBe(true);
+
+    // Repeating the same outcome is idempotent; a different one conflicts.
+    const repeat = await reportDeploymentOutcomeViaApi(
+      request,
+      submitterToken,
+      triggered.id,
+      'ROLLED_BACK',
+      { detail, apiKey: submitterApiKey },
+    );
+    expect(repeat.ok).toBe(true);
+    const conflicting = await reportDeploymentOutcomeViaApi(
+      request,
+      submitterToken,
+      triggered.id,
+      'SUCCEEDED',
+      { apiKey: submitterApiKey },
+    );
+    expect(conflicting.status).toBe(409);
+    expect(conflicting.error).toBe('DEPLOYMENT_OUTCOME_CONFLICT');
+
+    // A rollback on a review-required environment opens a follow-up review.
+    const reviews = await listDeploymentRollbackReviewsViaApi(
+      request,
+      adminAccessToken,
+      'PENDING_REVIEW',
+    );
+    const review = reviews.find((r) => r.deployment_request_id === triggered.id);
+    expect(review, 'rollback review opened for the rolled-back deployment').toBeTruthy();
+
+    // The deployment's submitter can never acknowledge their own rollback.
+    const selfAck = await acknowledgeRollbackReviewViaApi(request, submitterToken, review!.id);
+    expect(selfAck.status).toBe(409);
+    expect(selfAck.error).toBe('DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE');
+
+    const reviewerCtx = await browser.newContext();
+    try {
+      const reviewerPage = await reviewerCtx.newPage();
+      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await reviewerPage.goto('/deployment-reviews?tab=rollbacks');
+
+      const row = reviewerPage.locator('.ant-table-row', { hasText: detail });
+      await expect(row.first()).toBeVisible({ timeout: 15_000 });
+      await row.first().getByRole('button', { name: 'Acknowledge' }).click();
+
+      const dialog = reviewerPage.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await dialog.locator('textarea').fill('AF-697 e2e rollback acknowledged');
+      await dialog.getByRole('button', { name: 'Acknowledge' }).click();
+
+      await expect(
+        reviewerPage.locator('.ant-message').getByText('Rollback acknowledged', { exact: true }),
+      ).toBeVisible({ timeout: 10_000 });
+    } finally {
+      await reviewerCtx.close();
+    }
+
+    const afterAck = await listDeploymentRollbackReviewsViaApi(request, adminAccessToken, 'REVIEWED');
+    expect(afterAck.some((r) => r.deployment_request_id === triggered.id)).toBe(true);
   });
 });

@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.1.1",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-26",
+        "dateModified": "2026-08-27",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "isAccessibleForFree": true,
@@ -127,7 +127,7 @@
         "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-26"
+        "dateModified": "2026-08-27"
       }
     ]
   }
@@ -446,6 +446,15 @@
             <h3>API Access Governance</h3>
             <p>Govern outbound <strong>API</strong> calls — not just databases. Register an <strong>API connector</strong> (REST, SOAP, GraphQL, or gRPC) with a base URL, admin-defined default headers, and an auth method (API key, bearer, basic, OAuth2 with automatic token fetch/cache/refresh — client-credentials, refresh-token, or resource-owner password — custom header, or mTLS) — secrets are AES-256-GCM encrypted and never returned. Upload its schema (OpenAPI / WSDL / GraphQL SDL / gRPC proto — or a <strong>Postman collection</strong> export, for the many teams whose de-facto contract is a collection rather than an OpenAPI document; paste, drag-and-drop a file, or fetch from a URL) and AccessFlow parses a normalized <strong>operation catalog</strong> with read/write classification — with an optional <strong>import filter</strong> that keeps <code>/internal/**</code>, deprecated, and other ungovernable operations out of the catalog by path glob, verb, operation id, or tag (previewable before commit, editable afterwards without re-uploading) — then share governed connectivity with the team via per-user permissions. Compose calls like Postman — query params, custom headers, raw / form-data / x-www-form-urlencoded / binary file bodies — so every API call can flow through the same review, approval, and audit machinery as a database query: AI risk scoring, attribute-based routing, multi-stage approval, <strong>connector-level response masking</strong> (target a field by schema field, JSON path, XML/XPath, or regex — with a masking strategy and role / group / user reveal scoping) and <strong>data-classification tags</strong> (PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE that auto-derive masking and raise the AI risk), <strong>dynamic variables</strong> that compute a value per request and substitute it into headers, path, query or body — HMAC request signing, nonces, timestamps, idempotency keys — resolved after authentication so a signature can cover the freshly minted token, break-glass, scheduled execution, W3C trace-context propagation, full-response download, and natural-language text-to-API included. <a class="prose-link" href="/docs/configuration/connectors/#cfg-api-connectors">API connector docs →</a></p>
             <span class="tag">REST · SOAP · GraphQL · gRPC · OpenAPI / WSDL / SDL / proto / Postman</span>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
+            </div>
+            <h3>Deployment approval governance</h3>
+            <p>Gate <strong>CI/CD deployments</strong> behind the same review machinery as a query. Define a <strong>deployment pipeline</strong> (GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic) with ordered <strong>environments</strong> — each with its own required approvals, review-plan override, and break-glass opt-in — and per-user or per-group <code>can_trigger</code> grants. A CI job triggers a request with an AccessFlow <strong>API key</strong>, idempotent on the CI run id, so a retried step never opens a second review; the AI analyzer scores the release metadata; routing policies on environment, provider, version glob, risk, or time window can auto-approve, auto-reject, or raise the approval bar; and reviewers decide in the UI — where the submitter, machine or human, can never approve their own deployment. The job then blocks on a <strong>fail-closed gate</strong> that opens only for an approved, unfrozen, due release: any error, unknown release, or under-permissioned poll answers <em>not releasable</em>. <strong>Freeze windows</strong> (one-off or weekly recurring, org-wide down to a single environment) either hold a release or auto-reject it; audited <strong>break-glass</strong> deploys need both a grant and an environment opt-in, with no admin bypass and a mandatory retro-review. After the deploy, the pipeline reports the <strong>outcome</strong> — succeeded, failed, or rolled back — and a rollback opens a follow-up review the submitter can never close. Native GitHub Action, GitLab CI, and Azure Pipelines steps reduce the glue to one step. <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">Deployment pipeline docs →</a> <a class="prose-link" href="/docs/iac/#iac-deployment-gate">CI gate setup →</a></p>
+            <span class="tag">GitHub Actions · GitLab CI · Azure Pipelines · Jenkins · CircleCI · Bitbucket · freeze windows · break-glass · rollback tracking</span>
           </div>
 
           <div class="feat">
@@ -1371,6 +1380,15 @@
               </ul>
             </div>
             <div class="rm-group">
+              <h4 class="rm-cat">Deployment governance</h4>
+              <ul>
+                <li>Deployment approval governance — gate CI/CD releases behind approval workflows</li>
+                <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
+                <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
+                <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
+              </ul>
+            </div>
+            <div class="rm-group">
               <h4 class="rm-cat">Compliance</h4>
               <ul>
                 <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
@@ -1402,7 +1420,6 @@
             <div class="rm-group">
               <h4 class="rm-cat">Security &amp; ops</h4>
               <ul>
-                <li>Deployment approval governance — gate CI/CD releases behind approval workflows: pipelines &amp; environments, AI release-risk analysis, freeze windows, break-glass, rollback tracking, GitHub/GitLab/Azure gate steps</li>
                 <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
                 <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
                 <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
@@ -1513,6 +1530,11 @@
             <span class="doc-num">17</span>
             <h3>API Access Governance</h3>
             <p>Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions.</p>
+          </a>
+          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md" class="doc-card">
+            <span class="doc-num">18</span>
+            <h3>Deployment governance</h3>
+            <p>Gate CI/CD deployments — pipelines, the fail-closed gate, freeze windows, break-glass.</p>
           </a>
           <a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md" class="doc-card">
             <span class="doc-num">★</span>

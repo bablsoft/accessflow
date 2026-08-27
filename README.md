@@ -264,12 +264,14 @@ accessflow/
 │   │   ├── scim/             # SCIM 2.0 provisioning server (IdP-driven user/group lifecycle)
 │   │   ├── notifications/    # Email / Slack / Webhook / Discord / Telegram / MS Teams / PagerDuty / ServiceNow / Jira dispatchers
 │   │   ├── audit/            # INSERT-only, HMAC-chained audit log
+│   │   ├── apigov/           # API Access Governance — governed outbound REST/SOAP/GraphQL/gRPC calls
+│   │   ├── deploygov/        # Deployment approval governance — pipelines, the fail-closed CI gate, freeze windows
 │   │   ├── compliance/       # Compliance reports + signed PDF/CSV exports (AF-459)
 │   │   └── mcp/              # Stateless MCP server for AI agents
 │   └── pom.xml
 ├── engines/          # On-demand engine plugins — engines/mongodb/, engines/couchbase/, engines/redis/, engines/cassandra/, engines/elasticsearch/, engines/dynamodb/, engines/neo4j/, engines/snowflake/, engines/bigquery/, engines/databricks/ (shaded QueryEngine SPI jars)
 ├── terraform-provider/ # Terraform / OpenTofu provider (Go) — released to a dedicated terraform-provider-accessflow mirror repo
-├── ci-templates/     # Reusable GitLab CI + Azure Pipelines templates + usage examples (GitHub Actions live in .github/actions/)
+├── ci-templates/     # Reusable GitLab CI + Azure Pipelines templates + usage examples, incl. the deployment-approval gate (GitHub Actions live in .github/actions/: provision-datasource, run-query, deployment-gate, deployment-outcome)
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
 ├── connectors/       # Declarative connector catalog (one connector.json + logo per database)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)
@@ -302,6 +304,7 @@ accessflow/
 | [`docs/15-engine-sdk.md`](https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines |
 | [`docs/16-iac.md`](https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md) | Infrastructure as Code — Terraform/OpenTofu provider, CI Actions, service-account API keys, registry publishing |
 | [`docs/17-api-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md) | API Access Governance — govern outbound REST/SOAP/GraphQL/gRPC calls (connectors, schema ingestion, permissions; review/AI pipeline planned) |
+| [`docs/18-deployment-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md) | Deployment Approval Governance — gate CI/CD deployments: pipelines, environments, trigger grants, the fail-closed gate, freeze windows, break-glass, outcome reporting |
 
 ---
 
