@@ -39,14 +39,26 @@ class SqlServerDryRunPlanner implements DryRunPlanner {
             toggle.execute("SET SHOWPLAN_ALL ON");
         }
         try {
-            QueryPlanNode tree;
-            try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
-                statement.setQueryTimeout(request.timeoutSeconds());
-                request.bind(statement);
-                try (ResultSet rs = statement.executeQuery()) {
-                    tree = readPlan(rs);
-                }
-            }
+           QueryPlanNode tree;
+
+	if (request.binds().isEmpty()) {
+    		try (Statement statement = connection.createStatement()) {
+        	statement.setQueryTimeout(request.timeoutSeconds());
+
+        	try (ResultSet rs = statement.executeQuery(request.sql())) {
+            		tree = readPlan(rs);
+        	}
+    	}
+	} else {
+    	try (PreparedStatement statement = connection.prepareStatement(request.sql())) {
+        	statement.setQueryTimeout(request.timeoutSeconds());
+        request.bind(statement);
+
+        try (ResultSet rs = statement.executeQuery()) {
+            tree = readPlan(rs);
+        }
+    }
+}
             Long estimated = tree != null && tree.estimatedRows() != null
                     ? Math.round(tree.estimatedRows())
                     : null;

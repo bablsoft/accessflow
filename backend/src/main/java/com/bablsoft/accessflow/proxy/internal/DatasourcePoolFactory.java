@@ -82,7 +82,6 @@ class DatasourcePoolFactory {
         var config = new HikariConfig();
         config.setPoolName(properties.poolNamePrefix() + idSuffix);
         config.setJdbcUrl(jdbcUrl);
-        config.setDriverClassName(resolved.driverClassName());
         config.setUsername(username);
         config.setMaximumPoolSize(poolSize);
         config.setConnectionTimeout(properties.connectionTimeout().toMillis());
@@ -98,6 +97,7 @@ class DatasourcePoolFactory {
         var previousLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(resolved.classLoader());
+    	    config.setDriverClassName(resolved.driverClassName());
             config.setPassword(plaintext);
             return new HikariDataSource(config);
         } finally {
