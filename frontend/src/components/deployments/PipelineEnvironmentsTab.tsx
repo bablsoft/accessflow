@@ -201,8 +201,12 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
         onOk={() => form.submit()}
         destroyOnHidden
       >
+        {/* Named so its control ids are namespaced: the settings page keeps the General tab
+            mounted, and it declares `name` / `review_plan_id` too — bare ids would collide and
+            mis-associate the labels. */}
         <Form<EnvironmentFormValues>
           form={form}
+          name="deployment_environment"
           layout="vertical"
           onFinish={(values) => saveMutation.mutate(values)}
         >

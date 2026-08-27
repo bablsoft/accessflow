@@ -304,8 +304,11 @@ export function PipelineRoutingPoliciesTab({ pipelineId }: { pipelineId: string 
         onOk={() => form.submit()}
         destroyOnHidden
       >
+        {/* Named for the same reason as the environment form — the always-mounted General tab
+            also declares a `name` field. */}
         <Form<PolicyFormValues>
           form={form}
+          name="deployment_routing_policy"
           layout="vertical"
           onFinish={(values) => saveMutation.mutate(values)}
         >

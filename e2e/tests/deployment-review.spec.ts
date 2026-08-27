@@ -174,8 +174,9 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       await expect(
         reviewerPage.getByText(/Approved and releasable/),
       ).toBeVisible({ timeout: 15_000 });
-      // The approvals card reflects the granted decision.
-      await expect(reviewerPage.getByText('1 of 1 approvals')).toBeVisible();
+      // The approvals card reflects the granted decision. The same sentence also renders as
+      // the timeline's review stage, so match the first occurrence rather than both.
+      await expect(reviewerPage.getByText('1 of 1 approvals').first()).toBeVisible();
     } finally {
       await reviewerCtx.close();
     }
