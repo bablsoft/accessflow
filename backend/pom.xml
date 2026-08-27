@@ -563,6 +563,30 @@
                     </execution>
                 </executions>
             </plugin>
+            <!--
+              Scheduled jobs are live in every @SpringBootTest context (SchedulingConfiguration's
+              @EnableScheduling, running on notificationsTaskScheduler — the only TaskScheduler
+              bean, hence every @Scheduled method), and Spring caches contexts, so the schedulers of
+              *every* previously-built context keep scanning the one shared Postgres for the whole
+              suite. Those scans are global: GroupReviewEscalationJob stamps escalated_at and
+              ScheduledGroupRunJob executes any APPROVED group whose scheduled_for has passed —
+              including rows an unrelated test just inserted and is about to assert on, which is a
+              cross-context race no per-class @SpringBootTest(properties=...) pin can close.
+              System properties reach every context in the fork, so pin the data-mutating
+              request-group cadences here. See RequestGroupPersistenceIntegrationTest, whose
+              own per-class pin was necessary but not sufficient.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <accessflow.requestgroups.run-poll-interval>PT24H</accessflow.requestgroups.run-poll-interval>
+                        <accessflow.requestgroups.escalation-poll-interval>PT24H</accessflow.requestgroups.escalation-poll-interval>
+                        <accessflow.requestgroups.timeout-poll-interval>PT24H</accessflow.requestgroups.timeout-poll-interval>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>

@@ -32,7 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {
         "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
         // Pin the scheduled jobs far out so the live ScheduledGroupRunJob cannot fire mid-test and
-        // flip the just-inserted APPROVED group to EXECUTING before the findScheduledDueIds assertion.
+        // flip the just-inserted APPROVED group to EXECUTING before the findScheduledDueIds
+        // assertion. Necessary but NOT sufficient on its own: these properties bind only this
+        // context, while every other cached @SpringBootTest context keeps scanning the same
+        // database at the production cadence. The JVM-wide pin in backend/pom.xml's surefire
+        // systemPropertyVariables is what actually closes the race.
         "accessflow.requestgroups.run-poll-interval=PT24H",
         "accessflow.requestgroups.timeout-poll-interval=PT24H"})
 @ImportTestcontainers(TestcontainersConfig.class)
