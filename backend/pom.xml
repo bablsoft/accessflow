@@ -29,6 +29,11 @@
         <totp.version>1.7.1</totp.version>
         <pdfbox.version>3.0.8</pdfbox.version>
         <archiunit.version>1.5.0</archiunit.version>
+        <!-- Deliberately overrides the Spring Boot BOM's managed 13.4.0.jre11, project-wide:
+             this property name is Boot's own, so redefining it pins every mssql-jdbc resolution to
+             the version in connectors/mssql/connector.json, which DriverJarCache SHA-256-verifies
+             on every driver resolution. Bump both together. -->
+        <mssql-jdbc.version>12.10.0.jre11</mssql-jdbc.version>
         <!-- Code style. Measured 2026-08-04: no google-java-format profile matches this
              codebase — even the 4-space AOSP profile rewrites 2,351 of 2,654 sources
              (import ordering + line wrapping). So Spotless runs style-neutral hygiene
@@ -140,6 +145,19 @@
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--
+          Test-only, and the version is load-bearing: DriverCacheTestSupport.prepareCacheWithMssql()
+          stages this JAR into the driver cache under the catalog-pinned filename, and
+          DriverJarCache re-verifies its SHA-256 against connectors/mssql/connector.json on every
+          resolution. Bump both together or the MSSQL integration test fails with CHECKSUM_MISMATCH.
+          The version comes from the mssql-jdbc.version property above, which overrides Boot's.
+        -->
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${mssql-jdbc.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -439,6 +457,12 @@
         <dependency>
             <groupId>org.testcontainers</groupId>
             <artifactId>testcontainers-mysql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- AF-762: SQL Server dry-run (SHOWPLAN) integration coverage. amd64-only image. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mssqlserver</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- AF-448: secret-store integration tests (real Vault dev server + LocalStack). -->

@@ -1898,7 +1898,7 @@ Returns a **non-committing dry-run** (AF-445): the engine's execution plan and a
 }
 ```
 
-The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE`, SQL Server `SET SHOWPLAN_ALL ON`, MongoDB `explain` (queryPlanner verbosity), Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`, Snowflake `EXPLAIN USING TABULAR`, Databricks `EXPLAIN COST`, BigQuery a native dry-run job. `plan` is a recursive node tree (`operation`, `target`, `estimated_rows`, `estimated_cost`, `detail`, `children`); `estimated_rows`/`plan`/`raw_plan` are individually nullable when an engine's plan does not expose them. `estimated_bytes_scanned` (AF-634) is the warehouse engine's native pre-flight scan estimate in raw bytes — BigQuery reports the dry-run job's `totalBytesProcessed` (the on-demand billing basis), Snowflake the EXPLAIN GlobalStats `bytesAssigned` after partition pruning, Databricks the optimized plan's top-level `Statistics` `sizeInBytes` — and is `null` for engines without one.
+The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/MariaDB `EXPLAIN FORMAT=JSON`, Oracle `EXPLAIN PLAN FOR` + `PLAN_TABLE`, SQL Server `SET SHOWPLAN_ALL ON` (over a plain `Statement` — see the AF-762 note below), MongoDB `explain` (queryPlanner verbosity), Couchbase / Neo4j `EXPLAIN`, Elasticsearch/OpenSearch `_validate/query?explain`, Snowflake `EXPLAIN USING TABULAR`, Databricks `EXPLAIN COST`, BigQuery a native dry-run job. `plan` is a recursive node tree (`operation`, `target`, `estimated_rows`, `estimated_cost`, `detail`, `children`); `estimated_rows`/`plan`/`raw_plan` are individually nullable when an engine's plan does not expose them. `estimated_bytes_scanned` (AF-634) is the warehouse engine's native pre-flight scan estimate in raw bytes — BigQuery reports the dry-run job's `totalBytesProcessed` (the on-demand billing basis), Snowflake the EXPLAIN GlobalStats `bytesAssigned` after partition pruning, Databricks the optimized plan's top-level `Statistics` `sizeInBytes` — and is `null` for engines without one.
 
 **Response 200 (engine without a plan concept):**
 ```json
@@ -1915,7 +1915,10 @@ The dialect EXPLAIN is non-executing: PostgreSQL `EXPLAIN (FORMAT JSON)`, MySQL/
 }
 ```
 
-Redis, Cassandra/ScyllaDB, DynamoDB, and custom JDBC drivers degrade gracefully with `supported: false` and a localized `unsupported_reason`.
+Redis, Cassandra/ScyllaDB, DynamoDB, and custom JDBC drivers degrade gracefully with `supported: false` and a localized `unsupported_reason`. Two further cases return the same envelope rather than an error (AF-762):
+
+- **SQL Server under row security.** SHOWPLAN is only reachable over a plain `Statement`, which cannot carry the bound parameters a row-security policy contributes, so the plan is unavailable for that caller (`unsupported_reason` names row security as the cause). Real execution of the same query is unaffected.
+- **A transactional `BEGIN; … COMMIT;` envelope.** An envelope has no single statement to plan; it is refused before reaching any dialect planner.
 
 **Response 403:** Caller lacks the capability or allow-list entry for a referenced table. `error: FORBIDDEN`.
 **Response 404:** Datasource not found or not accessible. `error: DATASOURCE_NOT_FOUND`.

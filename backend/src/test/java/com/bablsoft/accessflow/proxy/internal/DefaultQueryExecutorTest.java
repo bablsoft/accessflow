@@ -649,6 +649,52 @@ class DefaultQueryExecutorTest {
     }
 
     @Test
+    void dryRunTransactionalEnvelopeReturnsUnsupportedWithoutPlanning() throws SQLException {
+        // A BEGIN; … COMMIT; envelope has no single statement to plan, and must never reach a
+        // dialect planner as a stacked language batch (AF-762).
+        when(messageSource.getMessage(eq("error.dry_run.transactional_unsupported"), any(),
+                any(java.util.Locale.class))).thenReturn("no dry-run for batches");
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO users VALUES (1); COMMIT;", QueryType.INSERT, null, null,
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), true,
+                java.util.List.of("INSERT INTO users VALUES (1)"), java.util.List.of());
+
+        var result = executor.dryRun(request);
+
+        assertThat(result.supported()).isFalse();
+        assertThat(result.engineId()).isEqualTo("postgresql");
+        assertThat(result.unsupportedReason()).isEqualTo("no dry-run for batches");
+        verify(dryRunPlanner, never()).plan(any());
+    }
+
+    @Test
+    void dryRunTransactionalGuardPreemptsEngineManagedEngines() throws SQLException {
+        // The guard sits before the isEngineManaged branch on purpose: no engine plugin should be
+        // handed an envelope either. No engine parser produces transactional=true today, so this
+        // pins the ordering rather than a live path.
+        var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
+                DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,
+                false, null, false, null, null, null, null, null, null, true);
+        when(lookupService.findById(datasourceId)).thenReturn(Optional.of(mongoDescriptor));
+        var engine = mock(com.bablsoft.accessflow.core.api.QueryEngine.class);
+        when(messageSource.getMessage(eq("error.dry_run.transactional_unsupported"), any(),
+                any(java.util.Locale.class))).thenReturn("no dry-run for batches");
+
+        var request = new QueryExecutionRequest(datasourceId,
+                "BEGIN; INSERT INTO users VALUES (1); COMMIT;", QueryType.INSERT, null, null,
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), true,
+                java.util.List.of("INSERT INTO users VALUES (1)"), java.util.List.of());
+
+        var result = executor.dryRun(request);
+
+        assertThat(result.supported()).isFalse();
+        assertThat(result.unsupportedReason()).isEqualTo("no dry-run for batches");
+        verify(engine, never()).dryRun(any());
+        verify(dryRunPlanner, never()).plan(any());
+    }
+
+    @Test
     void dryRunEngineManagedDelegatesToEngine() {
         var mongoDescriptor = new DatasourceConnectionDescriptor(datasourceId, UUID.randomUUID(),
                 DbType.MONGODB, "h", 27017, "db", "u", "ENC", SslMode.DISABLE, 10, 2_000,

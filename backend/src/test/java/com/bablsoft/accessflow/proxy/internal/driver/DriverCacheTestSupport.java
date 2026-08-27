@@ -24,10 +24,23 @@ public final class DriverCacheTestSupport {
      * classpath into it under the catalog-pinned filename, and return the cache path.
      */
     public static Path prepareCacheWithMysql() {
+        return prepareCache(DbType.MYSQL, "com.mysql.cj.jdbc.Driver");
+    }
+
+    /**
+     * Same, for the {@code mssql-jdbc} JAR (issue AF-762). The test-scope dependency version in
+     * {@code backend/pom.xml} must match {@code connectors/mssql/connector.json} exactly — the
+     * cache re-verifies the SHA-256 on every resolution, including cache hits.
+     */
+    public static Path prepareCacheWithMssql() {
+        return prepareCache(DbType.MSSQL, "com.microsoft.sqlserver.jdbc.SQLServerDriver");
+    }
+
+    private static Path prepareCache(DbType dbType, String driverClassName) {
         try {
             var dir = Files.createTempDirectory("accessflow-driver-cache-");
-            var manifest = new ConnectorCatalog().requireByDbType(DbType.MYSQL);
-            var source = locateClasspathJar("com.mysql.cj.jdbc.Driver");
+            var manifest = new ConnectorCatalog().requireByDbType(dbType);
+            var source = locateClasspathJar(driverClassName);
             Files.copy(source, dir.resolve(manifest.jarFileName()),
                     StandardCopyOption.REPLACE_EXISTING);
             return dir;
