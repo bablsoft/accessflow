@@ -580,7 +580,7 @@ via `ServiceLoader` — see the "MongoDB engine" section above.
 
 Any failure in this flow bubbles as `DriverResolutionException` and surfaces on the `POST /datasources` response as HTTP 422 `DATASOURCE_DRIVER_UNAVAILABLE` (see `docs/04-api-spec.md`).
 
-**HikariCP integration.** The resolved `Driver` instance is passed to Hikari via `setDriverClassName` together with the dedicated `URLClassLoader` (`setClassLoader`). Pool creation is otherwise unchanged.
+**HikariCP integration.** `HikariConfig` has no classloader setter — `setDriverClassName` resolves the class eagerly through the **thread context classloader**, falling back to HikariCP's own loader. `DatasourcePoolFactory` therefore installs `resolved.classLoader()` as the TCCL around two separate windows: the first wraps `setDriverClassName`, the second wraps `new HikariDataSource(config)`. The ordering is load-bearing in both directions — calling `setDriverClassName` outside the window fails with `Failed to load driver class …` for every non-bundled driver, and running the credential fetch inside it would execute the secret-backend SDKs (Vault / AWS / Azure) under a third-party driver's `URLClassLoader`. The driver check deliberately precedes the credential fetch so a bad driver class costs no secret-store round trip. Covered by `DatasourcePoolFactoryTest.createPoolResolvesDriverClassReachableOnlyViaTheDriverClassloader`, which stages a driver class reachable only from the child loader — the bundled Postgres driver cannot detect a regression here, because Hikari's fallback finds it either way.
 
 **Configuration.**
 

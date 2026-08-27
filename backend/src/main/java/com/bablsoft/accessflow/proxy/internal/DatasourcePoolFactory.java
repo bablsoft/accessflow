@@ -82,7 +82,6 @@ class DatasourcePoolFactory {
         var config = new HikariConfig();
         config.setPoolName(properties.poolNamePrefix() + idSuffix);
         config.setJdbcUrl(jdbcUrl);
-        config.setDriverClassName(resolved.driverClassName());
         config.setUsername(username);
         config.setMaximumPoolSize(poolSize);
         config.setConnectionTimeout(properties.connectionTimeout().toMillis());
@@ -93,9 +92,20 @@ class DatasourcePoolFactory {
             config.setLeakDetectionThreshold(leak);
         }
 
+        var previousLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            // HikariConfig.setDriverClassName eagerly resolves the class through the thread
+            // context loader, so a dynamically loaded driver is only visible from inside this
+            // window. Kept ahead of the credential fetch so an unresolvable driver class fails
+            // without costing a secret-store round trip.
+            Thread.currentThread().setContextClassLoader(resolved.classLoader());
+            config.setDriverClassName(resolved.driverClassName());
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousLoader);
+        }
+
         String plaintext = secretResolutionService.resolve(
                 passwordEncrypted, descriptor.id(), descriptor.organizationId());
-        var previousLoader = Thread.currentThread().getContextClassLoader();
         try {
             Thread.currentThread().setContextClassLoader(resolved.classLoader());
             config.setPassword(plaintext);
