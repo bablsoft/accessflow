@@ -27,9 +27,14 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - `docs/07-security.md` — auth, authorization matrix, encryption rules
   - `docs/08-notifications.md` — event types, channel configs, signed payloads
   - `docs/09-deployment.md` — Docker Compose, Helm, env-var reference
-  - `docs/10-editions.md` — Community vs Enterprise feature matrix
   - `docs/11-development.md` — coding standards, testing strategy, Git workflow
   - `docs/12-roadmap.md` — milestone scope
+  - `docs/13-mcp.md` — MCP server, `@Tool` callbacks, user API keys
+  - `docs/14-connectors.md` — connector catalog, manifests, SHA-256 pins
+  - `docs/15-engine-sdk.md` — host↔plugin contract, add-an-engine checklist
+  - `docs/16-iac.md` — Terraform/OpenTofu provider, CI templates, composite Actions
+  - `docs/17-api-governance.md` — API access governance (`apigov`)
+  - `docs/18-deployment-governance.md` — deployment approval governance (`deploygov`)
 - **Backend** at `backend/` — Java 25, Spring Boot 4, Spring Modulith. Modules under `com.bablsoft.accessflow.{core,proxy,workflow,ai,security,notifications,audit}`. Build: `mvn verify` (run from `backend/` — there is no Maven wrapper).
 - **Frontend** at `frontend/` — React 19 + Vite + TS + Ant Design 6 + TanStack Query + Zustand. Build: `npm run lint && npm run typecheck && npm run test:coverage && npm run build`.
 - **End-to-end** at `e2e/` — Playwright suite with its own `docker-compose.e2e.yml` that builds backend + frontend from the working tree and seeds a deterministic admin via the `bootstrap` module. Owns auth and (over time) all critical user flows. Run: `cd e2e && npm ci && npx playwright install --with-deps chromium && npm run stack:up && npm test`.
@@ -51,7 +56,8 @@ Resolve the numeric issue with `gh issue view <n> --json number,title,body,label
   - UI page / component / store → `06-frontend.md`
   - Notifications → `08-notifications.md`
   - Env vars / Docker / Helm → `09-deployment.md`
-  - Edition gating → `10-editions.md`
+  - MCP / connectors / engine SPI / IaC → `13-mcp.md`, `14-connectors.md`, `15-engine-sdk.md`, `16-iac.md`
+  - API or deployment governance → `17-api-governance.md`, `18-deployment-governance.md`
 - Always re-skim CLAUDE.md sections relevant to the layer you're touching (Modulith rules, validation parity, i18n, scheduled-job locking, JaCoCo gate).
 
 ### 2. Branch
@@ -81,7 +87,7 @@ Non-negotiable. The PR is incomplete until the matching `docs/*.md`, `README.md`
 - New scheduled job / module rule / proxy step → `05-backend.md`
 - New page / route / store / hook → `06-frontend.md`
 - New env var → `09-deployment.md` **and** the env-var table in CLAUDE.md
-- Edition-gated feature → `10-editions.md`
+- New MCP tool / connector / engine SPI change / IaC surface → `13-mcp.md`, `14-connectors.md`, `15-engine-sdk.md`, `16-iac.md`
 - New dependency → bump the version snapshot in CLAUDE.md (per the `feedback_dependency_versions` memory rule).
 
 **`README.md`** (repo root) — update when the change affects setup, tech stack versions, features, project structure, or top-level documentation.
@@ -117,10 +123,14 @@ step 5.)
 | always | **`af-reviewer`** — cross-cutting: fan-out completeness tables, "same commit set" drift (docs, website, connector pins, locale parity, backend↔frontend validation parity). |
 | any path under `backend/` or `engines/` | **`af-java-reviewer`** — CLAUDE.md backend rules + the backend/engine pattern checklists. |
 | any path under `frontend/` or `e2e/` | **`af-frontend-reviewer`** — the frontend non-negotiables + the frontend/e2e pattern checklists. |
+| any path under `docs/` or `website/`, or `README.md` | **`af-content-reviewer`** — the prose a human actually reads: claims checked against the content-source map, readability, and the SEO surface the website tests do not cover (title/description wording, alt and anchor text, JSON-LD semantics, and whether the three modified dates are actually current rather than merely agreed). |
 
 **Merging the reports:** collate all findings into one set. If two reviewers report the same
-`path:line` defect, keep the specialist's version and drop the duplicate. The overall verdict is
-the strictest returned (`revise` > `approve-with-concerns` > `approve`).
+`path:line` defect, keep the specialist's version and drop the duplicate. On a `docs/`, `website/`,
+or `README.md` line the two can both claim, split it by question: `af-content-reviewer` owns
+*is what was written accurate, readable, and findable*; `af-reviewer` owns *was the update made at
+all* — only it sees the code half that should have forced one. The overall verdict is the strictest
+returned (`revise` > `approve-with-concerns` > `approve`).
 
 **This gate reports; it does not block.** Do not silently act on the merged findings and move on,
 and do not silently ignore them either:
@@ -151,5 +161,5 @@ If no reviewer returns a Blocker, say that plainly — an empty review is a real
 - [ ] Frontend: lint + typecheck + `test:coverage` + build all green.
 - [ ] `e2e/tests/` updated to match: existing specs still pass against the change, and new user-facing flows (route, auth path, user-driven mutation) have a new spec — or the PR description states explicitly why one wasn't added. Specs ran locally via `npm run stack:up && npm test` when the change touched frontend or auth/setup/proxy backend code.
 - [ ] New concrete classes / pure modules have their own test files (coverage parity rule).
-- [ ] `af-verifier`, `af-reviewer`, and the path-matched specialists (`af-java-reviewer` for backend/engines, `af-frontend-reviewer` for frontend/e2e) ran concurrently; every Blocker from any report was fixed or explicitly rebutted with reasoning, and surviving Concerns are in the PR description under **Review notes**.
+- [ ] `af-verifier`, `af-reviewer`, and the path-matched specialists (`af-java-reviewer` for backend/engines, `af-frontend-reviewer` for frontend/e2e, `af-content-reviewer` for docs/website/README) ran concurrently; every Blocker from any report was fixed or explicitly rebutted with reasoning, and surviving Concerns are in the PR description under **Review notes**.
 - [ ] PR opened, links the issue, and lists touched docs **and website files** in the description.

@@ -9,7 +9,8 @@ description: >-
   reviews; its entire output is the review. Dispatched by impl-gh-issue before a
   PR is opened, and usable standalone on any branch. Cross-cutting reviewer:
   code-level backend/frontend review is delegated to af-java-reviewer and
-  af-frontend-reviewer when they are dispatched alongside.
+  af-frontend-reviewer, and docs/website prose and SEO to af-content-reviewer,
+  when they are dispatched alongside.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
@@ -81,6 +82,10 @@ gap is a finding of its own).
 - A **backend** change that flips behaviour for an e2e-covered flow → is the spec updated, or a
   stated reason it is not worth one? (Frontend-triggered e2e drift is `af-frontend-reviewer`'s.)
 - A `website/**` edit → `sitemap.xml` `<lastmod>` and JSON-LD `dateModified` bumped?
+
+You check that the `docs/`, `website/`, and `README.md` update **exists and is complete** — that is
+a question about the code half of the diff, which only you see. Whether the prose is accurate,
+readable, or well-optimised is `af-content-reviewer`'s when it runs alongside you.
 
 Per-stack test parity and test quality are the specialists' axes, not yours.
 

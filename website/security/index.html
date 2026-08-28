@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Database proxy security architecture — AccessFlow</title>
+  <meta name="description" content="Where AccessFlow keeps database credentials, what the proxy can read while a query runs, how sign-in works, and what the tamper-evident audit log proves." />
+
+  <link rel="canonical" href="https://accessflow.io/security/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Database proxy security architecture — AccessFlow" />
+  <meta property="og:description" content="Where credentials live, and what the proxy can actually see. AccessFlow's security architecture: AES-256-GCM or external secret stores, SAML / OAuth / SCIM sign-in, and an INSERT-only hash-chained audit log — open source, Apache 2.0." />
+  <meta property="og:url" content="https://accessflow.io/security/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Database proxy security architecture — AccessFlow" />
+  <meta name="twitter:description" content="Where credentials live, and what the proxy can actually see. AccessFlow's security architecture: AES-256-GCM or external secret stores, SAML / OAuth / SCIM sign-in, and an INSERT-only hash-chained audit log — open source, Apache 2.0." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.io/security/#article",
+        "headline": "Where credentials live, and what the proxy can actually see",
+        "name": "Database proxy security architecture — AccessFlow",
+        "description": "Where credentials live, and what the proxy can actually see. AccessFlow's security architecture: AES-256-GCM or external secret stores, SAML / OAuth / SCIM sign-in, and an INSERT-only hash-chained audit log — open source, Apache 2.0.",
+        "inLanguage": "en",
+        "articleSection": "Security",
+        "datePublished": "2026-08-29",
+        "dateModified": "2026-08-29",
+        "url": "https://accessflow.io/security/",
+        "mainEntityOfPage": "https://accessflow.io/security/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Security", "item": "https://accessflow.io/security/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Security</p>
+            <a href="#architecture">Architecture</a>
+            <a href="#credentials">Credential storage</a>
+            <a href="#auth">Authentication</a>
+            <a href="#audit">Audit log</a>
+            <a href="#data-handling">Data handling</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/docs/configuration/auth/">Auth &amp; SSO</a>
+            <a href="/docs/configuration/audit-compliance/">Audit &amp; compliance</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/ai-agents/">AI agents</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Security</span>
+          <h1>Where credentials live, and what the proxy can actually see</h1>
+          <p>
+            AccessFlow is a full proxy, not a gateway. It terminates the user's session, holds the
+            database and API credentials itself, and is the only thing that ever opens the real
+            connection — under whatever policy you configure, from a multi-stage approval chain
+            down to an audited break-glass path. That decision settles the three things a security
+            reviewer asks about first: where the secrets are stored, what the proxy is able to read
+            while a query runs, and what evidence survives afterwards. This page answers all three,
+            and links to the operator chapters that configure them.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md" class="btn btn-ghost">Security reference</a>
+          </div>
+        </header>
+
+        <section class="arch docs-section scroll-pad" id="architecture">
+          <h2>Database proxy security architecture — one component holds the credentials</h2>
+          <p>
+            Nobody gets the database password or the API credentials — not even your own team.
+            AccessFlow sits in the middle and is the only thing that ever connects to the real
+            database or upstream API, and only after a request is approved. Users sign in to
+            AccessFlow, never to the target; behind the scenes the proxy holds the real database
+            connection pools and the connectors' encrypted credentials, and reaches out on their
+            behalf.
+          </p>
+          <p>
+            That single choke point is what makes everything below it possible: the component
+            that decides whether a query may run is also the one that parses it, checks the schema
+            allow-list against the parsed statement rather than against a string, applies masking
+            and row-level security at execution time, and writes the audit record.
+          </p>
+
+          <div class="arch-canvas">
+            <div class="arch-row">
+              <div class="arch-cell">
+                <span class="label">CLIENT</span>
+                <span class="value">React SPA · /ws · REST</span>
+              </div>
+            </div>
+            <div class="arch-conn" aria-hidden="true"></div>
+            <div class="arch-row">
+              <div class="arch-cell accent arch-cell-md">
+                <span class="label">API GATEWAY</span>
+                <span class="value">REST + WebSocket gateway · JWT · modular service</span>
+              </div>
+            </div>
+            <div class="arch-conn" aria-hidden="true"></div>
+            <div class="arch-services">
+              <div class="arch-cell">
+                <span class="label">SERVICE</span>
+                <span class="value">Query &amp; API Proxy</span>
+              </div>
+              <div class="arch-cell">
+                <span class="label">SERVICE</span>
+                <span class="value">Review Workflow</span>
+              </div>
+              <div class="arch-cell">
+                <span class="label">SERVICE</span>
+                <span class="value">AI Analyzer</span>
+              </div>
+              <div class="arch-cell">
+                <span class="label">SERVICE</span>
+                <span class="value">Admin &amp; Audit</span>
+              </div>
+            </div>
+            <div class="arch-conn" aria-hidden="true"></div>
+            <div class="arch-row">
+              <div class="arch-cell arch-cell-md">
+                <span class="label">INTERNAL STATE</span>
+                <span class="value">PostgreSQL · Redis</span>
+              </div>
+            </div>
+            <div class="arch-conn" aria-hidden="true"></div>
+            <div class="arch-row">
+              <div class="arch-cell accent arch-cell-lg">
+                <span class="label">CUSTOMER DATABASES &amp; APIS (PROXIED)</span>
+                <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · Snowflake · BigQuery · Databricks · REST · SOAP · GraphQL · gRPC APIs</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="arch-callouts">
+            <div class="arch-callout">
+              <span class="k">Encryption</span>
+              <span class="v">AES-256-GCM for datasource credentials at rest — or resolve them from HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault via secret references at connection time. RSA-2048 JWT signing. SAML 2.0 keystore.</span>
+            </div>
+            <div class="arch-callout">
+              <span class="k">Runtime</span>
+              <span class="v">Concurrent request-per-task runtime — horizontally scalable behind any L7 load balancer.</span>
+            </div>
+            <div class="arch-callout">
+              <span class="k">Observability</span>
+              <span class="v">HTTP health and readiness probes. OpenTelemetry OTLP trace export of the full proxy pipeline (Tempo / Jaeger / Honeycomb), Prometheus metrics, and pre-built Grafana dashboards (query volume, approval SLAs, AI usage, rejection rates, pool stats). HMAC-SHA256 chained, append-only metadata audit log of every action. Optional one-line-JSON console logs (logstash / ECS / GELF) for ELK / OpenSearch.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="credentials">
+          <h2>Where the credentials actually live</h2>
+          <p>
+            A datasource password is encrypted with <strong>AES-256-GCM</strong> before it is
+            stored, under a key that lives only in the deployment's environment — never in the
+            database beside the ciphertext it protects. The encrypted column is excluded from serialization on
+            the entity itself rather than filtered per endpoint, so a future API route cannot leak
+            it by accident — there is no response shape in which it appears.
+          </p>
+          <p>
+            If you would rather AccessFlow never store the secret, a datasource can hold a
+            <strong>secret reference</strong> instead of a value and resolve it on demand from
+            <strong>HashiCorp Vault</strong>, <strong>AWS Secrets Manager</strong>, or
+            <strong>Azure Key Vault</strong>. Rotating the secret upstream rotates it here, with no
+            redeploy and no copy left behind.
+          </p>
+          <p>
+            Either way the plaintext has a deliberately short life. It is decrypted once, handed to
+            the connection pool at initialisation, and not retained in application memory beyond
+            that point; the query path works against a warm pool, never against a password.
+          </p>
+          <p>
+            Three other keys matter operationally, and they are deliberately not all sourced the
+            same way. The <strong>RSA-2048 JWT signing key</strong> comes from the environment. The
+            <strong>audit HMAC key</strong> can too, but it is optional — left unset it is derived
+            from the encryption key via HKDF-SHA256, and startup fails if neither is available. The
+            <strong>SAML SP signing keypair</strong> is hybrid: supply the key and certificate as
+            environment values and AccessFlow uses them verbatim and never persists them; leave
+            them unset and it generates a self-signed RSA-2048 pair on first use, encrypts the
+            private key with the same AES-256-GCM service, and stores it on the
+            <code>saml_config</code> row so it survives restarts. If your policy is that no signing
+            key may rest in the application database, supply that pair explicitly.
+          </p>
+          <p>
+            None of these is logged or returned by an endpoint. One exception is worth knowing
+            before you grep and find it: the zero-config <code>docker compose up</code> demo stack
+            ships throwaway keys inline so a fresh clone runs with no setup. They are committed on
+            purpose, and every production install path generates or demands its own.
+            <a class="prose-link" href="/docs/configuration/datasources/">Datasource docs →</a>
+          </p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="auth">
+          <h2>Who can sign in, and who takes them out</h2>
+          <p>
+            Because nobody holds a production credential, the identity check moves entirely to
+            AccessFlow's front door. So it has to be the front door your company already runs — and
+            offboarding has to reach it without anyone remembering to click anything.
+          </p>
+          <div class="feat-grid">
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3>Workforce-ready auth</h3>
+              <p>Sign in with the accounts your company already uses — SAML 2.0 SSO and OAuth 2.0 / OIDC, with built-in templates for Google, GitHub, Microsoft, GitLab, and a generic provider for any other IdP (Keycloak, Auth0, Okta, …). Roles and group memberships sync automatically from your identity provider on every login, with optional TOTP two-factor. With <strong>SCIM 2.0 provisioning</strong>, the IdP drives the whole user lifecycle: joiners are created, movers re-grouped, and leavers deactivated automatically — sessions and standing access grants revoked the moment someone is offboarded in Okta or Entra ID. One deployment hosts <strong>multiple fully-isolated organizations</strong>, and a <strong>super-admin</strong> manages tenants across the cluster — with per-org quotas and a kill-switch that disables an org instantly. <a class="prose-link" href="/docs/configuration/auth/#cfg-oauth">Auth &amp; SSO docs →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-roles">Users &amp; roles docs →</a></p>
+              <span class="tag">JWT · SAML · OAuth · SCIM provisioning · IdP group sync · TOTP · Multi-tenant orgs · Per-org quotas</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="audit">
+          <h2>What the audit log proves</h2>
+          <p>
+            The proxy is the only thing that talks to the database, so its log is the complete
+            record — and a complete record is only worth something if it can be shown to be
+            complete. A separate, dedicated writer role owns the table and appends the rows, while
+            <code>UPDATE</code>, <code>DELETE</code> and <code>TRUNCATE</code> are revoked from the
+            general application role, which keeps <code>SELECT</code> for the admin read endpoint.
+            That privilege split raises the bar; the hash chain is what makes the log
+            tamper-<em>evident</em> rather than merely tamper-resistant, so an edit made around the
+            split still surfaces as a broken chain.
+          </p>
+          <div class="feat-grid">
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+              </div>
+              <h3>Tamper-evident audit &amp; compliance reports</h3>
+              <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role. And once a permitted query returns, <strong>result-export governance</strong> decides what may leave: per-datasource policies allow, <strong>watermark</strong>, row-cap, or deny downloads of classified results — the watermark (who, when, which query) is baked into the signed bytes, every export is audited, and "who downloaded this data" always has an answer. Need it in your SIEM? <strong>External audit sinks</strong> stream every audit event to <strong>Splunk HEC</strong>, <strong>syslog/CEF</strong> (TCP/TLS), or an HMAC-<strong>signed HTTPS</strong> endpoint, and archive digitally-signed segments to <strong>S3 Object Lock</strong> for WORM retention — at-least-once off a durable per-sink cursor, a dead sink never blocks the log, and every exported event carries its chain links so the external copy verifies on its own. <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-audit-log">Audit log docs →</a></p>
+              <span class="tag">HMAC-SHA256 chain · signed exports · SIEM streaming · WORM archival</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="data-handling">
+          <h2>What AccessFlow keeps, and what it never touches</h2>
+          <p>
+            The last question is the simplest: sitting in the middle of every query, how much of
+            the data does the proxy keep? None of it. Results stream through; what is written down
+            is the request and the decision.
+          </p>
+          <div class="qa-grid">
+            <div class="qa-item">
+              <h3>Does AccessFlow store or copy my data?</h3>
+              <p>
+                No. AccessFlow proxies queries and streams results back without persisting them.
+                Its own database stores the query text, the approval decisions, and audit metadata —
+                row counts and timings, not rows. Datasource credentials are AES-256-GCM encrypted,
+                or held in Vault, AWS Secrets Manager, or Azure Key Vault.
+              </p>
+            </div>
+          </div>
+          <p>
+            Agents are held to the same line: a query arriving over the built-in MCP server takes
+            the same parse, risk analysis, approval and audit path as one a person submitted, and
+            masking and row-level security apply to the samples it reads.
+            <a class="prose-link" href="/ai-agents/">Governed access for AI agents →</a>
+            <a class="prose-link" href="/#install">Install AccessFlow →</a>
+          </p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
