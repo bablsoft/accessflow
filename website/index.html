@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.3.0",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-27",
+        "dateModified": "2026-08-28",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.bablsoft.com/og-image.png",
         "isAccessibleForFree": true,
@@ -127,7 +127,7 @@
         "primaryImageOfPage": "https://accessflow.bablsoft.com/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-04-01",
-        "dateModified": "2026-08-27"
+        "dateModified": "2026-08-28"
       }
     ]
   }
@@ -1290,159 +1290,123 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Roadmap</span>
-          <h2>Shipped, shipping, and where we're going next.</h2>
-          <p>Public, versioned milestones — driven by community input and adapter contributions. Full milestone scope lives in <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" style="color: var(--accent); border-bottom: 1px dotted var(--accent-dim);">docs/12-roadmap.md</a>.</p>
+          <h2>What AccessFlow can do today, and what's planned.</h2>
+          <p>A capability map of the platform as it stands — driven by community input and adapter contributions. Version-by-version milestone scope lives in <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" style="color: var(--accent); border-bottom: 1px dotted var(--accent-dim);">docs/12-roadmap.md</a>.</p>
         </div>
-        <div class="roadmap-track">
-          <div class="milestone" data-status="published">
-            <span class="ver">v1</span>
-            <h3>Core platform</h3>
-            <div class="rm-group">
-              <h4 class="rm-cat">Proxy &amp; data access</h4>
-              <ul>
-                <li>SQL proxy · 5 DBs + custom drivers</li>
-                <li>Read-replica routing · result diffing</li>
-                <li>Schema explorer &amp; ER view · sample previews</li>
-                <li>Datasource health dashboard</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">AI analysis</h4>
-              <ul>
-                <li>Risk scoring + index hints · analytics</li>
-                <li>OpenAI-compatible &amp; Hugging Face providers</li>
-                <li>Editable prompts · Langfuse · text-to-SQL · RAG</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Review &amp; access</h4>
-              <ul>
-                <li>Multi-stage approvals · auto-approve reads</li>
-                <li>Bulk decisions · scheduled &amp; recurring runs · plan templates</li>
-                <li>Reviewer groups &amp; scoping · JIT access</li>
-                <li>Policy-as-code routing · row-level security · masking</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Auth &amp; audit</h4>
-              <ul>
-                <li>JWT · SAML · OAuth/OIDC · SCIM provisioning · TOTP · RBAC with custom roles</li>
-                <li>HMAC-chained audit log + CSV export</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Deploy</h4>
-              <ul>
-                <li>Docker Compose · Helm 3 · HPA · health probes</li>
-              </ul>
-            </div>
+        <h3 class="rm-band-title">Available now</h3>
+        <div class="rm-grid">
+          <div class="rm-cell">
+            <h4 class="rm-cat">Proxy &amp; data access</h4>
+            <ul>
+              <li>SQL proxy · 5 DBs + custom drivers</li>
+              <li>Read-replica routing · result diffing</li>
+              <li>Schema explorer &amp; ER view · sample previews</li>
+              <li>Datasource health dashboard</li>
+              <li>High-volume proxy performance — result caching · query batching · multi-replica load balancing</li>
+              <li>Declarative connector catalog</li>
+              <li>MongoDB · Couchbase (SQL++) · Redis</li>
+              <li>Cassandra &amp; ScyllaDB (CQL)</li>
+              <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
+              <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
+              <li>Cloud data warehouses — Snowflake, BigQuery, Databricks SQL (native auth)</li>
+            </ul>
           </div>
-          <div class="milestone" data-status="published">
-            <span class="ver">v2</span>
-            <h3>Beyond SQL &amp; advanced governance</h3>
-            <div class="rm-group">
-              <h4 class="rm-cat">Connectors &amp; NoSQL engines</h4>
-              <ul>
-                <li>High-volume proxy performance — result caching · query batching · multi-replica load balancing</li>
-                <li>Declarative connector catalog</li>
-                <li>MongoDB · Couchbase (SQL++) · Redis</li>
-                <li>Cassandra &amp; ScyllaDB (CQL)</li>
-                <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
-                <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
-                <li>Cloud data warehouses — Snowflake, BigQuery, Databricks SQL (native auth)</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">AI &amp; monitoring</h4>
-              <ul>
-                <li>Offline AI fallback — provider fallback pool with local Ollama</li>
-                <li>Approval-likelihood prediction — advisory triage signal from your own review history</li>
-                <li>Behavioral anomaly detection (UBA)</li>
-                <li>AI optimization &amp; index recommendations</li>
-                <li>Expanded MCP agent toolset</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Review &amp; access</h4>
-              <ul>
-                <li>Break-glass emergency access</li>
-                <li>Multi-tenant orgs &amp; per-org quotas</li>
-                <li>Real-time collaborative editing</li>
-                <li>Mobile PWA + one-tap push</li>
-                <li>Version history &amp; diff · dry-run sandbox · replay</li>
-                <li>Personalized dashboard &amp; weekly digest</li>
-                <li>Request chaining &amp; grouping</li>
-                <li>Group-based data &amp; API access grants</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">API governance</h4>
-              <ul>
-                <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
-                <li>Operation catalog · response masking · text-to-API</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Deployment governance</h4>
-              <ul>
-                <li>Deployment approval governance — gate CI/CD releases behind approval workflows</li>
-                <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
-                <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
-                <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Compliance</h4>
-              <ul>
-                <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
-                <li>Compliance reports &amp; signed exports · Auditor role</li>
-                <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
-                <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
-                <li>Access recertification campaigns</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Security &amp; ops</h4>
-              <ul>
-                <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
-                <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
-                <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
-                <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
-                <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Automation &amp; IaC</h4>
-              <ul>
-                <li>Terraform / OpenTofu provider</li>
-                <li>Reusable GitHub Actions &amp; GitLab CI template</li>
-              </ul>
-            </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">AI &amp; monitoring</h4>
+            <ul>
+              <li>Risk scoring + index hints · analytics</li>
+              <li>OpenAI-compatible &amp; Hugging Face providers</li>
+              <li>Editable prompts · Langfuse · text-to-SQL · RAG</li>
+              <li>Offline AI fallback — provider fallback pool with local Ollama</li>
+              <li>Approval-likelihood prediction — advisory triage signal from your own review history</li>
+              <li>Behavioral anomaly detection (UBA)</li>
+              <li>AI optimization &amp; index recommendations</li>
+              <li>Expanded MCP agent toolset</li>
+            </ul>
           </div>
-          <div class="milestone" data-status="planned">
-            <span class="ver">upcoming</span>
-            <h3>Planned</h3>
-            <div class="rm-group">
-              <h4 class="rm-cat">Connectors &amp; access</h4>
-              <ul>
-                <li>Native wire-protocol gateway</li>
-                <li>Column-level permissions</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">Security &amp; ops</h4>
-              <ul>
-                <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
-              </ul>
-            </div>
-            <div class="rm-group">
-              <h4 class="rm-cat">AI</h4>
-              <ul>
-                <li>Custom analyzer plugins (SPI / HTTP)</li>
-                <li>Automatic query suggestions</li>
-              </ul>
-            </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Review &amp; access</h4>
+            <ul>
+              <li>Multi-stage approvals · auto-approve reads</li>
+              <li>Bulk decisions · scheduled &amp; recurring runs · plan templates</li>
+              <li>Reviewer groups &amp; scoping · JIT access</li>
+              <li>Policy-as-code routing · row-level security · masking</li>
+              <li>Break-glass emergency access</li>
+              <li>Multi-tenant orgs &amp; per-org quotas</li>
+              <li>Real-time collaborative editing</li>
+              <li>Mobile PWA + one-tap push</li>
+              <li>Version history &amp; diff · dry-run sandbox · replay</li>
+              <li>Personalized dashboard &amp; weekly digest</li>
+              <li>Request chaining &amp; grouping</li>
+              <li>Group-based data &amp; API access grants</li>
+            </ul>
           </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">API governance</h4>
+            <ul>
+              <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
+              <li>Operation catalog · response masking · text-to-API</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Deployment governance</h4>
+            <ul>
+              <li>Deployment approval governance — gate CI/CD releases behind approval workflows</li>
+              <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
+              <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
+              <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Compliance</h4>
+            <ul>
+              <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
+              <li>Compliance reports &amp; signed exports · Auditor role</li>
+              <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
+              <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
+              <li>Access recertification campaigns</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Auth &amp; audit</h4>
+            <ul>
+              <li>JWT · SAML · OAuth/OIDC · SCIM provisioning · TOTP · RBAC with custom roles</li>
+              <li>HMAC-chained audit log + CSV export</li>
+              <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Security &amp; ops</h4>
+            <ul>
+              <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
+              <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
+              <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
+              <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
+              <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Automation &amp; IaC</h4>
+            <ul>
+              <li>Terraform / OpenTofu provider</li>
+              <li>Reusable GitHub Actions &amp; GitLab CI template</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h4 class="rm-cat">Deploy</h4>
+            <ul>
+              <li>Docker Compose · Helm 3 · HPA · health probes</li>
+            </ul>
+          </div>
+        </div>
+        <div class="rm-planned">
+          <h3 class="rm-cat">Planned</h3>
+          <ul>
+            <li>Native wire-protocol gateway</li>
+            <li>Column-level permissions</li>
+            <li>Custom analyzer plugins (SPI / HTTP)</li>
+            <li>Automatic query suggestions</li>
+          </ul>
         </div>
       </div>
     </section>

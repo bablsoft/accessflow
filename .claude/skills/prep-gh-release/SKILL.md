@@ -37,7 +37,7 @@ If the user omits the version, ask for it once and stop. Do not guess from the r
   - `docs/13-mcp.md` — MCP server
 - **README** at the repo root — user-facing pitch, tech-stack versions, quick-start, project structure.
 - **Marketing site** at [`website/`](../../website/) — static HTML/CSS/JS, no build step:
-  - `website/index.html` — landing page (pitch, supported DBs, AI providers, auth methods, feature tiles, roadmap track, quick-start, tech stack, docs grid, footer).
+  - `website/index.html` — landing page (pitch, supported DBs, AI providers, auth methods, feature tiles, roadmap section, quick-start, tech stack, docs grid, footer).
   - `website/docs/index.html` — public operator docs (deployment, configuration entities, RBAC matrix, env vars).
   - `website/README.md` — content-source map. Authoritative for "which app/docs source feeds which website section". Read it before judging website coverage.
   - `website/images/docs/` — admin-SPA screenshots (light + dark pairs for most pages; light-only for editor / queries / reviews by precedent).
@@ -124,14 +124,19 @@ Anything not mentioned is a blocker: `MISSING README: <what> ("<sample commit su
 
 Use [`website/README.md`](../../website/README.md)'s content-source map as the authoritative mapping. For every section in the map, if its source-of-truth file changed in the release window, the corresponding website section must also be updated in that window. Check both files:
 
-- `website/index.html` — pitch, supported DBs, AI providers, auth methods, feature tiles, roadmap track bullets, quick-start commands, tech-stack callouts, docs grid, top-level URLs, footer status badge.
+- `website/index.html` — pitch, supported DBs, AI providers, auth methods, feature tiles, roadmap section items, quick-start commands, tech-stack callouts, docs grid, top-level URLs, footer status badge.
 - `website/docs/index.html` — deployment instructions, configuration entities (Review Plans, AI configs, datasources, OAuth, SAML, SMTP, notification channels, user creation), RBAC role matrix, operator-facing env vars.
 
 Record gaps as: `MISSING WEBSITE: <website section> does not reflect <source change>`.
 
-#### 2f. Roadmap-track ↔ docs/12-roadmap.md parity
+#### 2f. Roadmap section ↔ docs/12-roadmap.md parity
 
-The bullets under `<div class="milestone" data-status="..."><span class="ver">vX.Y</span>` in `website/index.html` must be a faithful (possibly abbreviated) summary of the bullets under `## vX.Y` in `docs/12-roadmap.md`. If a bullet is present in the docs but not on the website, record: `MISSING WEBSITE ROADMAP: <feature> not in v X.Y milestone card`.
+`website/index.html`'s roadmap section (`#roadmap`) is grouped by **capability, not by release**: an **Available now** grid of `<div class="rm-cell">` cards, each headed by an `<h4 class="rm-cat">` group name, above a compact `<div class="rm-planned">` band. It carries no version framing at all — there is no per-version milestone card to look in, and none should be re-introduced. Version history lives in `docs/12-roadmap.md`, which the section links to.
+
+Check both directions:
+
+- Every bullet under a **released** `## vX.Y` must be a faithful (possibly abbreviated) summary of an item somewhere in the Available now grid — in whichever `rm-cat` group fits the capability. Record: `MISSING WEBSITE ROADMAP: <feature> not in the available-now grid`.
+- Nothing in the `rm-planned` band may correspond to a bullet under a released `## vX.Y`, and nothing in the grid may correspond to a bullet still under `## Backlog / Unscheduled`. Record: `STALE WEBSITE ROADMAP: <feature> is <released|backlog> in the docs but sits in the <planned band|available grid>`.
 
 ### 3. Screenshot refresh — the skill drives the app, never the user
 
@@ -237,17 +242,13 @@ Only reached when steps 2 and 3 are green.
 
 #### 4b. `website/index.html`
 
-- In `<div class="roadmap-track">`, change the matching milestone card's `data-status="in-progress"` to `data-status="published"` for `<span class="ver">vX.Y</span>`.
+- The roadmap section carries no version framing, so there is **no milestone card to flip**. Instead, move any feature that this release promoted out of `## Backlog / Unscheduled` into `## vX.Y` out of the `<div class="rm-planned">` band and into the matching `<div class="rm-cell">` group in the Available now grid. If nothing was promoted, the section needs no edit.
 - If the hero strip has a `badge-tag` referencing the prior version (e.g. `<span class="badge-tag">v1.1</span>`), update it to `vX.Y`.
 - In the footer bar, update `<span class="status">… <prev> generally available</span>` to `<span class="status">… vX.Y generally available</span>`.
 
 #### 4c. `website/styles.css`
 
-Only touch if a status-badge CSS class needs adjusting for the new "published" state. Diff against the previous release-prep commit to see whether colour tokens for `data-status="published"` / `data-status="in-progress"` need updating:
-
-```bash
-git show <previous-release-prep-commit-sha> -- website/styles.css
-```
+Usually untouched. The roadmap section has no status-badge rules any more — the `data-status` PUBLISHED / IN PROGRESS / PLANNED badges went away with the release-column layout. Only touch it if moving an item between the `rm-cell` grid and the `rm-planned` band needs a layout adjustment.
 
 The v1.1 prep commit (`e6a4089`) is a reference example.
 
@@ -310,7 +311,7 @@ README gaps:
   - feat(AF-363) added env var ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_TOKEN not reflected in README.md
 
 Website gaps:
-  - website/index.html roadmap track v1.2 milestone bullets do not match docs/12-roadmap.md
+  - website/index.html available-now roadmap grid is missing the v1.2 "<feature>" bullet from docs/12-roadmap.md
   - website/docs/index.html does not document the new ACCESSFLOW_NOTIFICATIONS_PAGERDUTY_* env vars
 
 Re-run after closing the items above.
@@ -329,6 +330,6 @@ Suppress any section that has no entries — don't print empty headers.
 - [ ] Every admin-SPA screenshot under `website/images/docs/` was regenerated against the current frontend build via `preview_*` tools — no manual captures, no skipped pages.
 - [ ] `git status website/images/docs/` shows only the expected PNGs touched; the screenshot table in step 3c matches the actual PNG set on disk.
 - [ ] `docs/12-roadmap.md` flipped to `✅ released`.
-- [ ] `website/index.html` roadmap track milestone flipped to `data-status="published"`; hero badge and footer status updated.
+- [ ] `website/index.html` — every feature promoted out of the docs Backlog moved from the `rm-planned` band into its available-now group; hero badge and footer status updated.
 - [ ] `backend/pom.xml`, `frontend/package.json`, `charts/accessflow/Chart.yaml` untouched — the `Release` workflow owns those.
 - [ ] Branch `chore/release-prep-vX.Y` pushed, PR opened, PR body lists release contents + regenerated PNGs + link to the `Release` workflow.
