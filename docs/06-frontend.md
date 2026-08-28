@@ -772,7 +772,7 @@ The Axios refresh interceptor calls `useAuthStore.setState(...)` whenever the ac
 ## Contextual docs links
 
 Every admin / configuration page deep-links to the section of the public docs site
-(<https://accessflow.bablsoft.com/docs/>) that explains it, so an admin never has to leave the app
+(<https://accessflow.io/docs/>) that explains it, so an admin never has to leave the app
 and hunt for the right section. The page declares only *which* section it maps to; the URL and the
 rendering live in one place.
 

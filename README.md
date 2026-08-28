@@ -13,12 +13,12 @@
   <a href="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml"><img src="https://github.com/bablsoft/accessflow/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://snyk.io/test/github/bablsoft/accessflow?targetFile=backend/pom.xml"><img src="https://snyk.io/test/github/bablsoft/accessflow/badge.svg?targetFile=backend/pom.xml" alt="Snyk Monitoring"></a>
   <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0">
-  <a href="https://accessflow.bablsoft.com/"><img src="https://img.shields.io/badge/Live%20Demo-accessflow.bablsoft.com-1f6feb?logo=githubpages&logoColor=white" alt="Live site"></a>
+  <a href="https://accessflow.io/"><img src="https://img.shields.io/badge/Live%20Demo-accessflow.io-1f6feb?logo=githubpages&logoColor=white" alt="Live site"></a>
 </p>
 
 <p align="center">
-  <a href="https://accessflow.bablsoft.com/">Website</a> ·
-  <a href="https://accessflow.bablsoft.com/docs/">Live Docs</a> ·
+  <a href="https://accessflow.io/">Website</a> ·
+  <a href="https://accessflow.io/docs/">Live Docs</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="docs/">Design Docs</a>
 </p>
@@ -58,7 +58,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 
 *Connect a database in the admin UI — credentials are AES-256-GCM encrypted at rest, the proxy holds them, and end users never see them.*
 
-> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.bablsoft.com/docs/).
+> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.io/docs/).
 
 ---
 

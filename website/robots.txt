@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://accessflow.bablsoft.com/sitemap.xml
+Sitemap: https://accessflow.io/sitemap.xml

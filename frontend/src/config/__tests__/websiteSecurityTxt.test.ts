@@ -45,7 +45,7 @@ describe('website security.txt', () => {
 
   it('points Canonical at the path it is actually served from', () => {
     expect(fields().Canonical).toBe(
-      'https://accessflow.bablsoft.com/.well-known/security.txt',
+      'https://accessflow.io/.well-known/security.txt',
     );
   });
 

@@ -13,10 +13,10 @@ const readChapter = (page: string) =>
 describe('docs config', () => {
   it('builds an absolute anchored URL pointing at the owning chapter', () => {
     expect(docsUrl('cfg-users')).toBe(
-      'https://accessflow.bablsoft.com/docs/configuration/users-roles/#cfg-users',
+      'https://accessflow.io/docs/configuration/users-roles/#cfg-users',
     );
     expect(docsUrl('cfg-saml')).toBe(
-      'https://accessflow.bablsoft.com/docs/configuration/auth/#cfg-saml',
+      'https://accessflow.io/docs/configuration/auth/#cfg-saml',
     );
   });
 
@@ -62,7 +62,7 @@ describe('docs config', () => {
     const stale: string[] = [];
     for (const file of readdirSync(e2eTests).filter((f) => f.endsWith('.spec.ts'))) {
       const src = readFileSync(path.join(e2eTests, file), 'utf8');
-      for (const m of src.matchAll(/'(https:\/\/accessflow\.bablsoft\.com\/docs\/[^']*)'/g)) {
+      for (const m of src.matchAll(/'(https:\/\/accessflow\.io\/docs\/[^']*)'/g)) {
         const url = m[1]!;
         const anchor = url.split('#')[1];
         if (!anchor) continue;

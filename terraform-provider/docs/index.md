@@ -6,7 +6,7 @@ description: |-
 
 # AccessFlow Provider
 
-The AccessFlow provider manages [AccessFlow](https://accessflow.bablsoft.com/) — the
+The AccessFlow provider manages [AccessFlow](https://accessflow.io/) — the
 open-source database & API access governance platform — declaratively through its REST API. Use it to
 provision datasources, review plans, routing/row-security/masking policies, AI configs, and
 notification channels as code, with the same authoritative-upsert semantics as the built-in
@@ -16,7 +16,7 @@ It works with both [OpenTofu](https://opentofu.org) (`tofu`) and Terraform (`ter
 
 ## About AccessFlow
 
-[AccessFlow](https://accessflow.bablsoft.com/) is a full query proxy between users and your
+[AccessFlow](https://accessflow.io/) is a full query proxy between users and your
 databases (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, MongoDB, Couchbase, Redis, Cassandra,
 ScyllaDB, Elasticsearch, OpenSearch, DynamoDB, Neo4j, and any JDBC-compatible engine) that
 enforces configurable review and approval workflows before any query executes. Core capabilities:
@@ -28,7 +28,7 @@ enforces configurable review and approval workflows before any query executes. C
 - **Tamper-evident audit log** — HMAC-chained, INSERT-only.
 - **Just-in-time access, break-glass, attestation campaigns** — the full governance lifecycle.
 
-- Project website: [accessflow.bablsoft.com](https://accessflow.bablsoft.com/)
+- Project website: [accessflow.io](https://accessflow.io/)
 - Source code: [github.com/bablsoft/accessflow](https://github.com/bablsoft/accessflow)
 - Provider source (monorepo): [`terraform-provider/`](https://github.com/bablsoft/accessflow/tree/main/terraform-provider)
 

@@ -1,7 +1,7 @@
-// Public docs site: https://accessflow.bablsoft.com/ is the site root, /docs/ the docs hub.
+// Public docs site: https://accessflow.io/ is the site root, /docs/ the docs hub.
 // Deliberately a hardcoded constant rather than runtime-overridable: the docs deploy with the
 // marketing site, not per-install, so there is nothing an operator would repoint.
-export const DOCS_BASE_URL = 'https://accessflow.bablsoft.com/docs/';
+export const DOCS_BASE_URL = 'https://accessflow.io/docs/';
 
 /**
  * Every anchor in the public docs an admin page may deep-link to, mapped to the
