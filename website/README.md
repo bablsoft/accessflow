@@ -218,9 +218,10 @@ and keeps it PNG — do not switch the card to WebP or JPEG, since social crawle
 surprising with PNG and JPEG rings around the headline text. Keep the output exactly
 1200×630: the `og:image:width` / `og:image:height` meta tags assert those numbers.
 
-All canonical / `og:url` values are hard-coded to `https://accessflow.bablsoft.com` — if
-the deployed origin ever changes, search every HTML file plus `sitemap.xml` and
-`robots.txt` and update in lockstep.
+All canonical / `og:url` values are hard-coded to `https://accessflow.io` — if
+the deployed origin ever changes, search every HTML file plus `sitemap.xml`,
+`robots.txt`, `llms.txt` and `.well-known/security.txt` and update in lockstep —
+along with `frontend/src/config/docs.ts` and the tests that assert those literals.
 
 ### Provenance strip
 
@@ -373,7 +374,7 @@ swap will not find it.
 
 ## Deployment
 
-Live at <https://accessflow.bablsoft.com/>, served as **Cloudflare Workers static assets**
+Live at <https://accessflow.io/>, served as **Cloudflare Workers static assets**
 per `wrangler.jsonc` (`assets.directory: "."`, no Worker `main` — pure static). Deploy with
 `wrangler deploy` from this folder. The repo's `gh-pages` branch is unrelated and stays
 reserved for the Helm chart index.

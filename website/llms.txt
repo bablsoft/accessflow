@@ -12,19 +12,19 @@ It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI ag
 
 ## Docs
 
-- [Governed database access for AI agents](https://accessflow.bablsoft.com/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit
-- [Documentation home](https://accessflow.bablsoft.com/docs/): Hub for the operator and admin documentation — install AccessFlow, complete first-run setup, and configure every entity in the review pipeline
-- [Install & first run](https://accessflow.bablsoft.com/docs/install/): Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap
-- [Users & roles](https://accessflow.bablsoft.com/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
-- [Datasources](https://accessflow.bablsoft.com/docs/configuration/datasources/): Add governed datasources, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health
-- [Connectors](https://accessflow.bablsoft.com/docs/configuration/connectors/): Install SQL, NoSQL and data-warehouse engine connectors from the catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors
-- [Review workflows](https://accessflow.bablsoft.com/docs/configuration/review-workflows/): Build multi-stage approval chains with review plans, automate decisions with policy-as-code routing, and run access recertification campaigns
-- [AI](https://accessflow.bablsoft.com/docs/configuration/ai/): Configure AI providers for query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection
-- [Auth & SSO](https://accessflow.bablsoft.com/docs/configuration/auth/): Connect to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more
-- [Notifications](https://accessflow.bablsoft.com/docs/configuration/notifications/): Route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP
-- [Audit & compliance](https://accessflow.bablsoft.com/docs/configuration/audit-compliance/): Read the tamper-evident audit log, generate signed compliance exports, run retention and right-to-erasure policies, and use the personalized dashboard
-- [End-user workflows](https://accessflow.bablsoft.com/docs/workflows/): How analysts submit queries and API calls, draft SQL from natural language, schedule runs, and how reviewers approve or reject them
-- [Infrastructure as Code](https://accessflow.bablsoft.com/docs/iac/): Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates
+- [Governed database access for AI agents](https://accessflow.io/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit
+- [Documentation home](https://accessflow.io/docs/): Hub for the operator and admin documentation — install AccessFlow, complete first-run setup, and configure every entity in the review pipeline
+- [Install & first run](https://accessflow.io/docs/install/): Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap
+- [Users & roles](https://accessflow.io/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
+- [Datasources](https://accessflow.io/docs/configuration/datasources/): Add governed datasources, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health
+- [Connectors](https://accessflow.io/docs/configuration/connectors/): Install SQL, NoSQL and data-warehouse engine connectors from the catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors
+- [Review workflows](https://accessflow.io/docs/configuration/review-workflows/): Build multi-stage approval chains with review plans, automate decisions with policy-as-code routing, and run access recertification campaigns
+- [AI](https://accessflow.io/docs/configuration/ai/): Configure AI providers for query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection
+- [Auth & SSO](https://accessflow.io/docs/configuration/auth/): Connect to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more
+- [Notifications](https://accessflow.io/docs/configuration/notifications/): Route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP
+- [Audit & compliance](https://accessflow.io/docs/configuration/audit-compliance/): Read the tamper-evident audit log, generate signed compliance exports, run retention and right-to-erasure policies, and use the personalized dashboard
+- [End-user workflows](https://accessflow.io/docs/workflows/): How analysts submit queries and API calls, draft SQL from natural language, schedule runs, and how reviewers approve or reject them
+- [Infrastructure as Code](https://accessflow.io/docs/iac/): Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates
 
 ## Engineering reference
 
@@ -50,7 +50,7 @@ It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI ag
 
 - [GitHub repository](https://github.com/bablsoft/accessflow): Source code, issues, releases (Apache 2.0)
 - [Agent rulebook](https://raw.githubusercontent.com/bablsoft/accessflow/main/CLAUDE.md): Authoritative implementation rules for AI agents contributing to the codebase
-- [Install / quick start](https://accessflow.bablsoft.com/#install): Docker Compose, Helm, and from-source install commands
-- [Common questions](https://accessflow.bablsoft.com/#questions): Short answers to the most-asked questions about AccessFlow
+- [Install / quick start](https://accessflow.io/#install): Docker Compose, Helm, and from-source install commands
+- [Common questions](https://accessflow.io/#questions): Short answers to the most-asked questions about AccessFlow
 - [Helm chart repository](https://bablsoft.github.io/accessflow): Published Helm chart index for Kubernetes installs
-- [Sitemap](https://accessflow.bablsoft.com/sitemap.xml): Every indexable URL on this site
+- [Sitemap](https://accessflow.io/sitemap.xml): Every indexable URL on this site

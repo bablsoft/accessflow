@@ -38,10 +38,10 @@ const slice = (s: string, a: string, b: string): string => {
 
 const digest = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 12);
 
-/** '/docs/configuration/ai/index.html' -> 'https://accessflow.bablsoft.com/docs/configuration/ai/' */
+/** '/docs/configuration/ai/index.html' -> 'https://accessflow.io/docs/configuration/ai/' */
 const expectedCanonical = (file: string) => {
   const rel = path.relative(website, file).replace(/index\.html$/, '').replace(/\\/g, '/');
-  return `https://accessflow.bablsoft.com/${rel}`;
+  return `https://accessflow.io/${rel}`;
 };
 
 describe('website docs chapters', () => {
@@ -77,7 +77,7 @@ describe('website docs chapters', () => {
   });
 
   it('links every chapter from every chapter sidebar', () => {
-    const urls = files.map((f) => expectedCanonical(f).replace('https://accessflow.bablsoft.com', ''));
+    const urls = files.map((f) => expectedCanonical(f).replace('https://accessflow.io', ''));
     for (const f of files) {
       const html = read(f);
       const missing = urls.filter((u) => !html.includes(`href="${u}"`));
@@ -134,7 +134,7 @@ describe('website docs chapters', () => {
   it('has no dead cross-chapter links', () => {
     const idsByUrl = new Map<string, Set<string>>();
     for (const f of files) {
-      const url = expectedCanonical(f).replace('https://accessflow.bablsoft.com', '');
+      const url = expectedCanonical(f).replace('https://accessflow.io', '');
       idsByUrl.set(url, new Set([...read(f).matchAll(/id="([a-z0-9-]+)"/g)].map((m) => m[1]!)));
     }
     for (const f of files) {

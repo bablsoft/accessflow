@@ -69,7 +69,7 @@ test.describe.serial('AF-362 — Slack integration', () => {
     await expect(docsLink).toBeVisible();
     await expect(docsLink).toHaveAttribute(
       'href',
-      'https://accessflow.bablsoft.com/docs/configuration/notifications/#cfg-slack',
+      'https://accessflow.io/docs/configuration/notifications/#cfg-slack',
     );
     await expect(docsLink).toHaveAttribute('target', '_blank');
     await expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');

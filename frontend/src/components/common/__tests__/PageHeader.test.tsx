@@ -39,7 +39,7 @@ describe('PageHeader', () => {
     // path as well as the anchor — see config/docs.ts DOCS_ANCHOR_PAGES.
     expect(link).toHaveAttribute(
       'href',
-      'https://accessflow.bablsoft.com/docs/configuration/users-roles/#cfg-users',
+      'https://accessflow.io/docs/configuration/users-roles/#cfg-users',
     );
   });
 
