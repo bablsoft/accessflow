@@ -83,7 +83,8 @@ jobs:
               - '.github/actions/**'
               - 'ci-templates/**'
               - 'backend/**'
-              - '.github/workflows/ci.yml'
+              # actionlint runs over every workflow, so any workflow change belongs to this job.
+              - '.github/workflows/**'
 
   backend:
     name: Backend
