@@ -316,12 +316,14 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 
    | Name | Kind | Value |
    |---|---|---|
-   | `DEMO_KUBECONFIG` | secret | base64 kubeconfig, RBAC limited to the `accessflow` namespace |
+   | `DEMO_KUBECONFIG` | secret | kubeconfig, base64-encoded or pasted raw; RBAC limited to the `accessflow` namespace |
    | `ACCESSFLOW_DEMO_API_KEY` | secret | the `af_…` key from step 2 |
    | `ACCESSFLOW_DEMO_URL` | variable | `https://demo.accessflow.bablsoft.com` |
    | `ACCESSFLOW_DEMO_PIPELINE_ID` | variable | the pipeline UUID from step 3 |
 
-   The k3s API server must be reachable from GitHub-hosted runner IP ranges.
+   The k3s API server must be reachable from GitHub-hosted runner IP ranges. The workflow
+   validates the kubeconfig and reaches the cluster **before** it opens a deployment request, so a
+   bad or expired credential fails the job without consuming anyone's approval.
 
 Steps 1–2 can instead be provisioned declaratively through `bootstrap.serviceAccounts[]`
 (see [Bootstrap configuration](#bootstrap-configuration)), which creates the user with password
