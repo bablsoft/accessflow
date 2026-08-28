@@ -5,7 +5,7 @@ databases, AI providers, auth methods, feature list, roadmap, quick-start comman
 top-level URLs.
 **Canonical example:** `website/sitemap.xml:5` (`<lastmod>`), `website/index.html:68` and `website/docs/index.html:65` (JSON-LD `dateModified`)
 **Contract:** `frontend/src/config/docs.ts:19` (`DOCS_ANCHOR_PAGES`) ↔ `website/app.js:198` (`LEGACY_DOCS_ANCHORS`)
-**Tests:** `frontend/src/config/__tests__/{docs,websiteDocs,websiteCsp,websiteSecurityTxt}.test.ts`
+**Tests:** `frontend/src/config/__tests__/{docs,websitePages,websiteDocs,websiteCsp,websiteSecurityTxt}.test.ts`
 **Related:** `website/README.md` (the content-source map)
 
 ## Shape
@@ -36,19 +36,29 @@ Two contracts bind these pages to the app:
 
 ## What is already tested, and what isn't
 
-`websiteDocs.test.ts` covers a lot — every chapter exists, byte-identical nav and footer,
-self-referencing canonicals, one `h1` and no skipped heading levels, no duplicate element ids, no
-dead fragment or cross-chapter links, `<meta name="description">` within the SERP limit, and every
-chapter listed in `sitemap.xml`.
+`websitePages.test.ts` runs against **every** page on the site (not just `docs/`): byte-identical
+nav — normalized for `aria-current` — and footer, self-referencing canonicals, `og:url` equal to
+canonical, one `h1` and no skipped heading levels, no duplicate element ids, no dead fragment or
+internal links, no parent-relative `href`, no `FAQPage`/`HowTo` structured data,
+`<meta name="description">` within the SERP limit, the pinned legacy `/` section ids, bidirectional
+`sitemap.xml` ↔ disk, every `llms.txt` URL resolving, a `-dark.webp` twin for every referenced
+`-light.webp`, and a ratcheting site-wide inline-`style=""` budget.
 
-**It does not check freshness.** Nothing verifies that `<lastmod>` or JSON-LD `dateModified` were
-bumped when you edited a page. That is the half `.claude/hooks/website-drift.sh` warns on, and the
-half that silently rots.
+`websiteDocs.test.ts` keeps only what is docs-specific: every chapter linked from every chapter
+sidebar, and cross-chapter links resolving.
+
+**Freshness is now half-tested.** `websitePages.test.ts` asserts a page's three published
+last-modified dates agree — visible `<time datetime>`, JSON-LD `dateModified`, `sitemap.xml`
+`<lastmod>` — so moving one without the others fails CI. Nothing can verify the date is *today*;
+that is still the half `.claude/hooks/website-drift.sh` warns on, and the half that silently rots.
 
 ## Required (acceptance checklist)
 
-- [ ] **Bump `<lastmod>` in `website/sitemap.xml` and `dateModified` in the JSON-LD of every page
-      you touched, to today's date.** No test catches this.
+- [ ] **Bump all three copies of the modified date to today, together:** `<lastmod>` in
+      `website/sitemap.xml`, `dateModified` in the page's JSON-LD, and — on a docs chapter — the
+      visible `<p class="docs-updated"><time datetime>`. `websitePages.test.ts` fails when they
+      disagree or one goes missing; **no test can tell you the date is stale**, only that the
+      three agree, so bumping is still on you.
 - [ ] New page → a new `<url>` block in `sitemap.xml`.
 - [ ] Moving a section between chapters → update `DOCS_ANCHOR_PAGES` **and** the `id` in the target
       chapter **and** `LEGACY_DOCS_ANCHORS`.
@@ -65,15 +75,19 @@ half that silently rots.
 
 ## Anti-patterns
 
-- **Editing a page without bumping `lastmod`/`dateModified`** → crawlers keep the stale date, and
-  because nothing tests it the drift compounds silently across releases.
+- **Editing a page without bumping `lastmod`/`dateModified`** → crawlers keep the stale date. The
+  three copies are tested against *each other*, never against today, so a synchronized-but-stale
+  set sails through CI and the drift compounds silently across releases.
 - **Adding `HowTo` schema** → deprecated in 2023.
 - **Adding `FAQPage` schema** → Google retired FAQ rich results for all sites in May 2026. It is
   dead weight that can only hurt.
-- **A description over 160 chars** → `websiteDocs.test.ts` fails, and Google rewrites your snippet.
+- **A description over 160 chars** → `websitePages.test.ts` fails, and Google rewrites your snippet.
 - **Moving a doc section without touching `LEGACY_DOCS_ANCHORS`** → every already-deployed
   self-hosted frontend's *View docs* button 404s. Those forwarders are permanent, not transitional.
 - **`href="../index.html"`** → a 307 on every click, and it splits link equity.
+- **A screenshot shipped light-only** → `app.js`'s `swapDocsImages` rewrites `-light.webp` to
+  `-dark.webp` unconditionally, so the theme toggle 404s the image. Ship both twins, or the
+  `-dark.webp` guard fails.
 - **Assuming a build step exists** → there isn't one. What you write is what ships.
 
 ## Extending

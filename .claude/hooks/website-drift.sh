@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # website-drift.sh — PreToolUse (Write|Edit) on website/**.html. Warn only.
 #
-# Deliberately targets ONLY the half that frontend/src/config/__tests__/websiteDocs.test.ts
-# does not cover. That test already checks chapter existence, shared nav/footer,
-# canonicals, heading levels, duplicate ids, dead links, description length and
-# sitemap membership. Nothing checks FRESHNESS — that <lastmod> and JSON-LD
-# dateModified were bumped when the page changed. That is what rots silently.
+# Deliberately targets ONLY the half that frontend/src/config/__tests__/websitePages.test.ts
+# does not cover. That test already checks shared nav/footer, canonicals, heading
+# levels, duplicate ids, dead links, description length, sitemap membership, and that
+# a page's three published modified dates AGREE with each other. What no test can
+# check is whether that agreed date is TODAY — a synchronized-but-stale set passes CI.
+# That is what rots silently.
 #
 # See .claude/patterns/website-drift.md
 
