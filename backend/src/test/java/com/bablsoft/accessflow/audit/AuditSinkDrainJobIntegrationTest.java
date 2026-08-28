@@ -26,18 +26,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
@@ -57,8 +52,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {
         // Keep the background AuditSinkDrainJob out of the way: this test drives
         // AuditSinkDrainService.drainAll(...) explicitly.
-        "accessflow.audit.sinks.drain-interval=PT1H",
-        "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"})
+        "accessflow.audit.sinks.drain-interval=PT1H"})
 @ImportTestcontainers(TestcontainersConfig.class)
 class AuditSinkDrainJobIntegrationTest {
 
@@ -96,18 +90,6 @@ class AuditSinkDrainJobIntegrationTest {
     private final AtomicInteger successBudget = new AtomicInteger(0);
 
     private record ReceivedRequest(String signature, String event, String delivery, byte[] body) {
-    }
-
-    @DynamicPropertySource
-    static void env(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'})
-                .encodeToString(((RSAPrivateCrtKey) kp.getPrivate()).getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
     }
 
     @BeforeEach

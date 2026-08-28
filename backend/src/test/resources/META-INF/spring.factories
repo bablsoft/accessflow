@@ -1,0 +1,9 @@
+# Registered here rather than on each test class so neither contributes a per-class Spring
+# test-context cache key. TestExecutionListeners are not part of MergedContextConfiguration at
+# all; the customizer below is, but every instance is value-equal, so it is one stable component
+# shared by all test classes. See .claude/patterns/backend-test-parity.md.
+org.springframework.test.context.TestExecutionListener=\
+com.bablsoft.accessflow.DatabaseResetTestExecutionListener
+
+org.springframework.test.context.ContextCustomizerFactory=\
+com.bablsoft.accessflow.TestKeysContextCustomizerFactory

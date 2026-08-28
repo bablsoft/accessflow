@@ -109,6 +109,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      # Pull the Testcontainers images in the background while Spotless, Checkstyle and
+      # compilation (~55s) run, so the first test that needs one does not wait on a cold pull.
+      # The mssql image alone is ~1.5 GB. Failures are ignored: Testcontainers pulls on demand
+      # anyway, so a miss here costs time, never correctness.
+      - name: Pre-pull Testcontainers images
+        run: |
+          for image in \
+            pgvector/pgvector:pg18 \
+            redis:8-alpine \
+            postgres:18-alpine \
+            mysql:8.0 \
+            mcr.microsoft.com/mssql/server:2022-latest \
+            hashicorp/vault:2.0 \
+            localstack/localstack:4.9.2; do
+            docker pull -q "$image" >/dev/null 2>&1 &
+          done
+          echo "Started $(jobs -p | wc -l) background pulls"
+
       - name: Build and Test with Maven
         run: mvn -B clean verify -Pcoverage
         working-directory: backend

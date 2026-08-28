@@ -11,7 +11,7 @@
 | Suffix | Runner | Scope |
 |---|---|---|
 | `*Test.java` | surefire | Single class, Mockito, **no Spring context** |
-| `*IntegrationTest.java` | failsafe | `@SpringBootTest` + Testcontainers, real Postgres |
+| `*IntegrationTest.java` | surefire | `@SpringBootTest` + Testcontainers, real Postgres |
 | `*ModuleTest.java` | surefire | `@ApplicationModuleTest`, one module in isolation |
 
 The shared container config — **use it, don't roll your own**:
@@ -61,12 +61,59 @@ exist. A hand-rolled `PostgreSQLContainer` fails on both.
   nothing to do with your change.
 - **H2 as a Postgres stand-in** → the schema uses PG enums, `TIMESTAMPTZ`, and `pgvector`. H2
   models none of them, so a green H2 test proves nothing.
-- **Naming an integration test `*Test`** → surefire runs it in the unit phase, where no container
-  exists. The suffix selects the runner.
+- **Naming an integration test `*Test`** → there is no failsafe plugin; surefire runs everything in
+  one fork, so the suffix no longer selects a runner. It still matters: it is how humans, the CI
+  report and this pattern tell the two kinds apart, and `*IntegrationTest` is what the
+  database-reset listener and the context-cache budget are reasoned about in terms of.
 - **A `@SpringBootTest` for logic that needs no context** → seconds per test instead of
   milliseconds, and the whole suite shares one context cache.
 - **Asserting only the happy path on a service with documented exceptions** → the exception
   branches are exactly what the ProblemDetail contract depends on.
+
+## Test-context cache — two invariants
+
+The suite once built **121 Spring contexts for 124 integration tests** (631 s, 46 % of the run)
+because every class declared its own `@DynamicPropertySource`. Spring's
+`DynamicPropertiesContextCustomizer` keys the context cache on the `Set<Method>` it finds on the
+**test class hierarchy**, so a per-class method guarantees a cache miss.
+
+1. **Shared test properties are registered globally, never on a test class.**
+   The JWT and encryption keys come from `TestKeysContextCustomizerFactory`, registered in
+   `src/test/resources/META-INF/spring.factories`. Its customizer is value-equal to every other
+   instance, so it is one *stable* component of every context cache key instead of a per-class one.
+   Values several tests share but some must override belong in
+   `src/test/resources/application.properties` (ordinary config data, so an inline
+   `@SpringBootTest(properties = …)` still wins).
+
+   A `@DynamicPropertySource` on an `@ImportTestcontainers` holder — e.g.
+   `MysqlDriverCacheTestcontainersConfig` — is also cache-key-free, because
+   `DynamicPropertySourceMethodsImporter` turns it into a `DynamicPropertyRegistrar` *bean*.
+   **But a bean is applied during `finishBeanFactoryInitialization`, which is too late for a
+   servlet context**: under `webEnvironment = RANDOM_PORT`,
+   `ServletWebServerApplicationContext.onRefresh()` starts Tomcat and builds the security filter
+   chain first, so anything the filter chain reads is still unset and you get a context-load
+   failure (`jwtServiceImpl` → "Missing key encoding"). Use the holder only for values that no
+   `RANDOM_PORT` test needs; use a `ContextCustomizerFactory` when it must be there before refresh.
+
+   A test class needs its own `@DynamicPropertySource` only for a genuinely per-class value — its
+   own container's URL, a temp directory it created. Accept that it buys a private context, and
+   prefer `@SpringBootTest(properties = …)` with **literal** values where you can: identical
+   literals across two classes still *share* a context, which `@DynamicPropertySource` can never do.
+
+2. **`spring.test.context.cache.maxSize` must exceed the distinct-context count.**
+   `DefaultContextCache.put()` evicts the LRU context *before* loading the new one, and eviction
+   closes the shared static Testcontainers instances
+   (`TestcontainersLifecycleBeanPostProcessor` is a `DestructionAwareBeanPostProcessor`) out from
+   under every context still cached. Exceed the ceiling and the suite fails with mass
+   `Connection refused`, not slowness. It is pinned to 64 in the surefire
+   `systemPropertyVariables` (it is read via `SpringProperties`, so it cannot live in a
+   properties file). If you add contexts, check the `ContextCache` stats line before assuming
+   there is headroom.
+
+Because one Postgres now serves the whole run, `DatabaseResetTestExecutionListener` truncates
+every table and re-seeds the system roles after each test class. Do not rely on a virgin database
+in a `@BeforeAll` — rely on the listener, and keep your own cleanup idempotent.
+
 
 ## Extending
 

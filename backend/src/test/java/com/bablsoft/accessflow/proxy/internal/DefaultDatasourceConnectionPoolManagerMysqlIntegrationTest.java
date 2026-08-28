@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.MysqlDriverCacheTestcontainersConfig;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.DbType;
@@ -11,7 +12,6 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceUserPerm
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.proxy.api.DatasourceConnectionPoolManager;
-import com.bablsoft.accessflow.proxy.internal.driver.DriverCacheTestSupport;
 import com.zaxxer.hikari.HikariDataSource;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -21,19 +21,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.mysql.MySQLContainer;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
-import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@ImportTestcontainers(TestcontainersConfig.class)
+@ImportTestcontainers({TestcontainersConfig.class, MysqlDriverCacheTestcontainersConfig.class})
 class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
 
     @SuppressWarnings({"rawtypes", "resource"})
@@ -51,23 +46,6 @@ class DefaultDatasourceConnectionPoolManagerMysqlIntegrationTest {
     @Autowired CredentialEncryptionService encryptionService;
 
     private OrganizationEntity org;
-
-    @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var privateKey = (RSAPrivateCrtKey) kp.getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-        var cacheDir = DriverCacheTestSupport.prepareCacheWithMysql();
-        registry.add("accessflow.drivers.cache-dir", cacheDir::toString);
-        registry.add("accessflow.drivers.offline", () -> "true");
-    }
 
     @BeforeAll
     static void startCustomerDb() {

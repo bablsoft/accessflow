@@ -13,13 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,16 +24,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (enums, jsonb columns), and the native scheduled-due scan executes against real Postgres — booting
  * the full application context (so the new {@code requestgroups} beans wire cleanly).
  */
-@SpringBootTest(properties = {
-        "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
-        // Pin the scheduled jobs far out so the live ScheduledGroupRunJob cannot fire mid-test and
-        // flip the just-inserted APPROVED group to EXECUTING before the findScheduledDueIds
-        // assertion. Necessary but NOT sufficient on its own: these properties bind only this
-        // context, while every other cached @SpringBootTest context keeps scanning the same
-        // database at the production cadence. The JVM-wide pin in backend/pom.xml's surefire
-        // systemPropertyVariables is what actually closes the race.
-        "accessflow.requestgroups.run-poll-interval=PT24H",
-        "accessflow.requestgroups.timeout-poll-interval=PT24H"})
+// ScheduledGroupRunJob used to race this test, flipping the just-inserted APPROVED group to
+// EXECUTING before the findScheduledDueIds assertion. Nothing is pinned here any more:
+// src/test/resources/application.properties sets accessflow.scheduling.enabled=false, so no
+// @Scheduled job runs in the suite at all. Adding properties back would also cost this class a
+// private Spring context — see .claude/patterns/backend-test-parity.md.
+@SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
 class RequestGroupPersistenceIntegrationTest {
 
@@ -46,17 +37,6 @@ class RequestGroupPersistenceIntegrationTest {
     private RequestGroupRepository groupRepository;
     @Autowired
     private RequestGroupItemRepository itemRepository;
-
-    @DynamicPropertySource
-    static void rsaProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var privateKey = (RSAPrivateCrtKey) kpg.generateKeyPair().getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-    }
 
     @Test
     void persistsGroupWithQueryAndApiMembersAndScansScheduledDue() {
