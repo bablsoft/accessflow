@@ -5,8 +5,8 @@
 <h1 align="center">AccessFlow</h1>
 
 <p align="center">
-  <strong>Open-source database &amp; API access governance platform</strong><br>
-  A SQL, NoSQL, and API proxy that puts review, approval, and audit between your team and production data and services.
+  <strong>Open-source database, API &amp; deployment access governance platform</strong><br>
+  A SQL, NoSQL, and API proxy — plus a CI/CD deployment gate — that puts review, approval, and audit between your team and production data, services, and releases.
 </p>
 
 <p align="center">

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AccessFlow — Open-source database &amp; API access governance</title>
-  <meta name="description" content="Open-source database &amp; API access governance. Every query and API call goes through AI review, approval workflows, and a tamper-evident audit log. Apache 2.0." />
+  <title>AccessFlow — Open-source database, API &amp; deployment access governance</title>
+  <meta name="description" content="Open-source database, API &amp; deployment access governance. Every query, API call and CI/CD release goes through AI review, approval workflows, and a tamper-evident audit log. Apache 2.0." />
 
   <link rel="canonical" href="https://accessflow.io/" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="bablsoft" />
-  <meta name="keywords" content="database access governance, API access governance, SQL and NoSQL proxy, REST SOAP GraphQL gRPC proxy, query approval workflow, API call approval workflow, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, ClickHouse, MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Neo4j, DynamoDB, Snowflake, BigQuery, Databricks, AI query review, Apache 2.0" />
+  <meta name="keywords" content="database access governance, API access governance, SQL and NoSQL proxy, REST SOAP GraphQL gRPC proxy, query approval workflow, API call approval workflow, deployment approval governance, CI/CD deployment gate, deployment freeze window, tamper-evident audit log, open source, PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, ClickHouse, MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Neo4j, DynamoDB, Snowflake, BigQuery, Databricks, AI query review, Apache 2.0" />
   <meta name="theme-color" content="#0A0D11" />
   <meta name="color-scheme" content="dark light" />
 
@@ -28,20 +28,20 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="AccessFlow — Open-source database &amp; API access governance" />
-  <meta property="og:description" content="Open-source access proxy for SQL and NoSQL databases and cloud data warehouses — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, Snowflake, BigQuery, Databricks, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta property="og:title" content="AccessFlow — Open-source database, API &amp; deployment access governance" />
+  <meta property="og:description" content="Open-source access proxy for SQL and NoSQL databases and cloud data warehouses — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, Snowflake, BigQuery, Databricks, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs, and CI/CD deployments. AI-reviewed queries, API calls and releases, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta property="og:url" content="https://accessflow.io/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="AccessFlow — Open-source database &amp; API access governance" />
-  <meta name="twitter:description" content="Open-source access proxy for SQL and NoSQL databases and cloud data warehouses — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, Snowflake, BigQuery, Databricks, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs. AI-reviewed queries and API calls, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
+  <meta name="twitter:title" content="AccessFlow — Open-source database, API &amp; deployment access governance" />
+  <meta name="twitter:description" content="Open-source access proxy for SQL and NoSQL databases and cloud data warehouses — Postgres, MySQL, Oracle, SQL Server, MongoDB, Cassandra, Elasticsearch, Neo4j, Snowflake, BigQuery, Databricks, and more — plus outbound REST, SOAP, GraphQL, and gRPC APIs, and CI/CD deployments. AI-reviewed queries, API calls and releases, configurable approval workflows, tamper-evident audit log — Apache 2.0." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
-  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers. Open-source SQL, NoSQL &amp; API proxy with AI review and approval workflows." />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
 
@@ -85,6 +85,7 @@
           "Cloud-native deploy via Docker Compose and Helm",
           "Infrastructure as Code with a Terraform / OpenTofu provider",
           "API access governance for REST, SOAP, GraphQL and gRPC",
+          "Deployment approval governance with CI/CD gates, freeze windows and break-glass",
           "Data lifecycle — retention, right-to-erasure and pseudonymization",
           "Request chaining and grouping"
         ],
@@ -223,7 +224,7 @@
             generally available — Apache 2.0 licensed
           </span>
           <h1>
-            Governed database &amp; API access,<br />
+            Governed database, API &amp; deployment access,<br />
             built for <span class="underline">engineers</span>.
           </h1>
           <p class="hero-sub">
@@ -231,7 +232,10 @@
             REST, SOAP, GraphQL, and gRPC APIs — that sits between your team and your data. Every query
             and every API call is checked, sorted by type, optionally AI-reviewed, and routed through a
             configurable human-approval workflow before it touches production — with a tamper-evident
-            metadata audit trail of every decision.
+            metadata audit trail of every decision. The same review machinery gates your
+            <b>CI/CD deployments</b>: a pipeline asks for permission to release and blocks on a
+            fail-closed approval gate, with freeze windows, scheduled releases, audited break-glass
+            and post-deploy outcome tracking.
           </p>
           <div class="hero-cta">
             <a href="#install" class="btn btn-primary">
@@ -243,7 +247,8 @@
             </a>
           </div>
           <div class="hero-meta">
-            <span><b>PostgreSQL</b> · <b>MySQL</b> · <b>MariaDB</b> · <b>Oracle</b> · <b>MSSQL</b> · <b>MongoDB</b> · <b>Couchbase</b> · <b>Redis</b> · <b>Cassandra</b> · <b>ScyllaDB</b> · <b>Elasticsearch</b> · <b>OpenSearch</b> · <b>DynamoDB</b> · <b>Neo4j</b> · <b>Snowflake</b> · <b>BigQuery</b> · <b>Databricks</b></span>
+            <span><b>PostgreSQL</b> · <b>MySQL</b> · <b>MariaDB</b> · <b>Oracle</b> · <b>MSSQL</b> · <b>ClickHouse</b> · <b>MongoDB</b> · <b>Couchbase</b> · <b>Redis</b> · <b>Cassandra</b> · <b>ScyllaDB</b> · <b>Elasticsearch</b> · <b>OpenSearch</b> · <b>DynamoDB</b> · <b>Neo4j</b> · <b>Snowflake</b> · <b>BigQuery</b> · <b>Databricks</b></span>
+            <span>CI/CD gates · <b>GitHub Actions</b> · <b>GitLab CI</b> · <b>Azure Pipelines</b> · <b>Jenkins</b></span>
             <span>Self-hosted · <b>SAML</b> · <b>OAuth</b> · <b>TOTP</b></span>
             <span>Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face</span>
           </div>
@@ -1416,7 +1421,7 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Documentation</span>
-          <h2>AccessFlow documentation — seventeen chapters, read them in any order.</h2>
+          <h2>AccessFlow documentation — eighteen chapters, read them in any order.</h2>
           <p>Every subsystem is documented — architecture diagrams, schemas, payload examples, deployment recipes, and security model. Open source in the same repo. New here? The <a href="docs/">run &amp; configure guide</a> walks you through installing AccessFlow and setting it up step by step.</p>
         </div>
         <div class="docs-grid">
