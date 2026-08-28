@@ -27,6 +27,17 @@ enforces configurable review and approval workflows before any query executes. C
 - **Row-level security & column masking** — policies enforced by the proxy, not the client.
 - **Tamper-evident audit log** — HMAC-chained, INSERT-only.
 - **Just-in-time access, break-glass, attestation campaigns** — the full governance lifecycle.
+- **API access governance** — the same submit → AI → review → approve pipeline in front of outbound
+  REST, SOAP, GraphQL, and gRPC calls, with response masking and data-classification tags.
+- **Deployment approval governance** — gate CI/CD **deployments** behind approval workflows:
+  pipelines with ordered per-environment policies, a fail-closed release gate the CI job blocks on,
+  freeze windows, audited break-glass, and post-deploy outcome + rollback review. Native GitHub
+  Actions, GitLab CI, and Azure Pipelines steps reduce the CI glue to one step.
+
+This provider manages the configuration surface listed under **Resources** — datasources, review
+plans, routing / row-security / masking policies, AI configs, and notification channels. Query, API
+call, and deployment *requests* are runtime objects created through the app, API, or CI, not
+Terraform-managed.
 
 - Project website: [accessflow.io](https://accessflow.io/)
 - Source code: [github.com/bablsoft/accessflow](https://github.com/bablsoft/accessflow)
