@@ -3810,8 +3810,11 @@ export interface DeploymentFreezeWindow {
   environment_id: string | null;
   starts_at: string | null;
   ends_at: string | null;
-  /** ISO weekday numbers, Monday = 1 … Sunday = 7. */
-  days_of_week: number[];
+  /**
+   * ISO weekday numbers, Monday = 1 … Sunday = 7. Absent on a one-off window —
+   * the backend omits the field rather than sending an empty array.
+   */
+  days_of_week: number[] | null;
   start_time: string | null;
   end_time: string | null;
   timezone: string | null;

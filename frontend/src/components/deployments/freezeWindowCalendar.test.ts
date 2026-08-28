@@ -30,6 +30,25 @@ describe('freezeWindowCalendar', () => {
     expect(timeStringToMinutes('bogus')).toBeNull();
   });
 
+  // The backend omits days_of_week entirely on a one-off window rather than
+  // sending []. Reading .length off that undefined blanked the whole settings page.
+  it('skips a one-off window whose days_of_week the backend omitted', () => {
+    const oneOff = makeWindow({
+      starts_at: '2026-09-04T09:00:00Z',
+      ends_at: '2026-09-06T09:00:00Z',
+    });
+    delete (oneOff as { days_of_week?: number[] | null }).days_of_week;
+    expect(buildWeekSegments([oneOff])).toEqual([]);
+  });
+
+  it('treats an explicitly null days_of_week as no recurring days', () => {
+    expect(
+      buildWeekSegments([
+        makeWindow({ days_of_week: null, start_time: '08:00', end_time: '18:00' }),
+      ]),
+    ).toEqual([]);
+  });
+
   it('produces one segment per selected day', () => {
     const segments = buildWeekSegments([
       makeWindow({ days_of_week: [6, 7], start_time: '08:00', end_time: '18:00' }),

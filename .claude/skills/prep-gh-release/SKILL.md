@@ -152,66 +152,91 @@ cd e2e && npm ci && npm run stack:up
 
 Stack listens on `http://localhost:5173` (frontend) and `http://localhost:8080` (backend). Seeded admin credentials live in [`e2e/README.md`](../../e2e/README.md). **Read the credentials from there at runtime** — do not hardcode them; if `bootstrap` changes them, the README is the source of truth.
 
-#### 3b. Drive the app via preview tools
+#### 3b. Run the capture script
 
-Attach with `preview_start http://localhost:5173`. If `preview_start` fails (no browser sidecar attached), abort the skill with a clear error: `Screenshot capture requires the preview MCP tools; aborting. Re-run from an environment where preview_start can attach.` Never silently skip captures or hand the task back to the user.
+Captures are driven by [`e2e/screenshots/capture.ts`](../../e2e/screenshots/capture.ts), **not** by the
+preview MCP tools — it seeds its own data over the API, logs in as the bootstrap admin, and encodes
+every shot through `sharp` into lossless WebP. Run it from `e2e/` once the stack is up:
 
-Log in with the seeded admin via `preview_fill` + `preview_click` (assert success with `preview_snapshot` showing the post-login layout).
+```bash
+npx -y tsx screenshots/capture.ts
+```
+
+Useful env knobs: `ONLY=name1,name2` captures a subset; `SKIP_SEED` + `SEEDED_DATASOURCE_ID` /
+`SEEDED_DEPLOYMENT_PIPELINE_ID` / `SEEDED_DEPLOYMENT_REQUEST_ID` reuse an already-seeded stack.
+
+Per-target failures are **non-fatal by design** — the script logs `FAIL: <name>` and continues. Read
+the output for those lines; a silent gap otherwise looks like a successful run.
 
 #### 3c. Capture each page in light and dark
 
-Canonical list — these are the PNGs that exist today plus the routes they were captured from. **The authoritative source is the `targets[]` array in [`e2e/screenshots/capture.ts`](../../e2e/screenshots/capture.ts)** — keep this table in sync with it. Cross-check against `git ls-files website/images/docs/` before each release; if extra PNGs exist, update this table and the `website/README.md` content-source map in the same PR.
+Canonical list — these are the WebP files that exist today plus the routes they were captured from (the set has been lossless WebP, not PNG, since `7ffed087`). **The authoritative source is the `targets[]` array in [`e2e/screenshots/capture.ts`](../../e2e/screenshots/capture.ts)** — keep this table in sync with it. Cross-check against `git ls-files website/images/docs/` before each release; if extra files exist, update this table and the `website/README.md` content-source map in the same PR.
 
-| Source page (admin SPA) | Output PNGs |
+| Source page (admin SPA) | Output WebP |
 |---|---|
-| `/admin/users` → invite drawer open | `users-invite-light.png`, `users-invite-dark.png` |
-| `/datasources` → create wizard open | `datasources-create-light.png`, `datasources-create-dark.png` |
-| `/admin/review-plans` → create drawer open | `review-plans-create-light.png`, `review-plans-create-dark.png` |
-| `/admin/review-plans` → templates dropdown open | `review-plans-templates-light.png`, `review-plans-templates-dark.png` |
-| `/admin/ai-configs/new` (create wizard) | `ai-configs-create-light.png`, `ai-configs-create-dark.png` |
-| `/admin/notifications` → create channel drawer open | `notification-channels-create-light.png`, `notification-channels-create-dark.png` |
-| System SMTP edit form (rendered via `SystemSmtpCard`, on `/admin/notifications` — confirm in `frontend/src/App.tsx` before navigating) | `system-smtp-edit-light.png`, `system-smtp-edit-dark.png` |
-| `/admin/oauth2` → Google provider form populated | `oauth2-google-light.png`, `oauth2-google-dark.png` |
-| `/admin/saml` → config form populated | `saml-config-light.png`, `saml-config-dark.png` |
-| `/admin/audit-log` with seeded data | `audit-log-light.png`, `audit-log-dark.png` |
-| `/admin/ai-analyses` dashboard with seeded data | `ai-analyses-dashboard-light.png`, `ai-analyses-dashboard-dark.png` |
-| `/admin/drivers` list | `drivers-list-light.png`, `drivers-list-dark.png` |
-| `/datasources/<id>/settings` → ER diagram tab | `datasources-er-diagram-light.png`, `datasources-er-diagram-dark.png` |
-| `/admin/datasource-health` dashboard | `datasource-health-light.png`, `datasource-health-dark.png` |
-| `/admin/slack` config | `slack-config-light.png`, `slack-config-dark.png` |
-| `/admin/groups` list | `groups-list-light.png`, `groups-list-dark.png` |
-| `/admin/routing-policies` list (AF-379) | `routing-policies-light.png`, `routing-policies-dark.png` |
-| `/admin/access-requests` queue (AF-378) | `access-requests-queue-light.png`, `access-requests-queue-dark.png` |
-| `/datasources/<id>/settings` → Masking tab (AF-381) | `datasources-masking-light.png`, `datasources-masking-dark.png` |
-| `/datasources/<id>/settings` → Row security tab (AF-380) | `datasources-row-security-light.png`, `datasources-row-security-dark.png` |
-| `/admin/langfuse` config form (AF-333) | `langfuse-config-light.png`, `langfuse-config-dark.png` |
-| `/admin/ai-configs/new` → Connection step, Enable RAG toggled (AF-336) | `ai-configs-rag-light.png`, `ai-configs-rag-dark.png` |
-| `/admin/organizations` list (platform-admin multi-tenant management, AF-456) | `organizations-list-light.png`, `organizations-list-dark.png` |
-| `/admin/auditor` dashboard (AF-459) | `auditor-dashboard-light.png`, `auditor-dashboard-dark.png` |
-| `/admin/anomalies` dashboard (UBA, AF-383) | `anomalies-dashboard-light.png`, `anomalies-dashboard-dark.png` |
-| `/admin/break-glass` log (AF-385) | `break-glass-log-light.png`, `break-glass-log-dark.png` |
-| `/dashboard` personalized dashboard (AF-498) | `dashboard-light.png`, `dashboard-dark.png` |
-| `/admin/attestation` campaign list (AF-384) | `attestation-campaigns-light.png`, `attestation-campaigns-dark.png` |
-| `/api-connectors` connector catalog (AF-500) | `api-connectors-list-light.png`, `api-connectors-list-dark.png` |
-| `/admin/lifecycle/policies` retention-policy list (AF-499) | `lifecycle-policies-light.png`, `lifecycle-policies-dark.png` |
-| `/request-groups` list (AF-501) | `request-groups-list-light.png` (light-only by precedent) |
-| `/api-requests` list (AF-500) | `api-requests-list-light.png` (light-only by precedent) |
-| `/editor` with a sample query and the AI hint panel visible | `editor-light.png` (light-only by precedent) |
-| `/editor` → schedule date picker open | `editor-schedule-light.png` (light-only by precedent) |
-| `/editor` → query-templates drawer open | `editor-query-templates-light.png` (light-only by precedent) |
-| `/editor` → text-to-SQL bar with a natural-language prompt (AF-335) | `editor-text-to-sql-light.png` (light-only by precedent) |
-| `/queries` list with seeded data | `queries-list-light.png` (light-only by precedent) |
-| `/reviews` queue with seeded data | `reviews-queue-light.png` (light-only by precedent) |
-| `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.png` (light-only by precedent) |
+| `/admin/users` → invite drawer open | `users-invite-light.webp`, `users-invite-dark.webp` |
+| `/datasources` → create wizard open | `datasources-create-light.webp`, `datasources-create-dark.webp` |
+| `/admin/review-plans` → create drawer open | `review-plans-create-light.webp`, `review-plans-create-dark.webp` |
+| `/admin/review-plans` → templates dropdown open | `review-plans-templates-light.webp`, `review-plans-templates-dark.webp` |
+| `/admin/ai-configs/new` (create wizard) | `ai-configs-create-light.webp`, `ai-configs-create-dark.webp` |
+| `/admin/notifications` → create channel drawer open | `notification-channels-create-light.webp`, `notification-channels-create-dark.webp` |
+| System SMTP edit form (rendered via `SystemSmtpCard`, on `/admin/notifications` — confirm in `frontend/src/App.tsx` before navigating) | `system-smtp-edit-light.webp`, `system-smtp-edit-dark.webp` |
+| `/admin/oauth2` → Google provider form populated | `oauth2-google-light.webp`, `oauth2-google-dark.webp` |
+| `/admin/saml` → config form populated | `saml-config-light.webp`, `saml-config-dark.webp` |
+| `/admin/audit-log` with seeded data | `audit-log-light.webp`, `audit-log-dark.webp` |
+| `/admin/ai-analyses` dashboard with seeded data | `ai-analyses-dashboard-light.webp`, `ai-analyses-dashboard-dark.webp` |
+| `/admin/drivers` list | `drivers-list-light.webp`, `drivers-list-dark.webp` |
+| `/datasources/<id>/settings` → ER diagram tab | `datasources-er-diagram-light.webp`, `datasources-er-diagram-dark.webp` |
+| `/admin/datasource-health` dashboard | `datasource-health-light.webp`, `datasource-health-dark.webp` |
+| `/admin/slack` config | `slack-config-light.webp`, `slack-config-dark.webp` |
+| `/admin/groups` list | `groups-list-light.webp`, `groups-list-dark.webp` |
+| `/admin/routing-policies` list (AF-379) | `routing-policies-light.webp`, `routing-policies-dark.webp` |
+| `/admin/access-requests` queue (AF-378) | `access-requests-queue-light.webp`, `access-requests-queue-dark.webp` |
+| `/datasources/<id>/settings` → Masking tab (AF-381) | `datasources-masking-light.webp`, `datasources-masking-dark.webp` |
+| `/datasources/<id>/settings` → Row security tab (AF-380) | `datasources-row-security-light.webp`, `datasources-row-security-dark.webp` |
+| `/admin/langfuse` config form (AF-333) | `langfuse-config-light.webp`, `langfuse-config-dark.webp` |
+| `/admin/ai-configs/new` → Connection step, Enable RAG toggled (AF-336) | `ai-configs-rag-light.webp`, `ai-configs-rag-dark.webp` |
+| `/admin/organizations` list (platform-admin multi-tenant management, AF-456) | `organizations-list-light.webp`, `organizations-list-dark.webp` |
+| `/admin/auditor` dashboard (AF-459) | `auditor-dashboard-light.webp`, `auditor-dashboard-dark.webp` |
+| `/admin/anomalies` dashboard (UBA, AF-383) | `anomalies-dashboard-light.webp`, `anomalies-dashboard-dark.webp` |
+| `/admin/break-glass` log (AF-385) | `break-glass-log-light.webp`, `break-glass-log-dark.webp` |
+| `/dashboard` personalized dashboard (AF-498) | `dashboard-light.webp`, `dashboard-dark.webp` |
+| `/admin/attestation` campaign list (AF-384) | `attestation-campaigns-light.webp`, `attestation-campaigns-dark.webp` |
+| `/api-connectors` connector catalog (AF-500) | `api-connectors-list-light.webp`, `api-connectors-list-dark.webp` |
+| `/admin/lifecycle/policies` retention-policy list (AF-499) | `lifecycle-policies-light.webp`, `lifecycle-policies-dark.webp` |
+| `/request-groups` list (AF-501) | `request-groups-list-light.webp` (light-only by precedent) |
+| `/api-requests` list (AF-500) | `api-requests-list-light.webp` (light-only by precedent) |
+| `/deployments` list with seeded data (AF-682) | `deployments-list-light.webp`, `deployments-list-dark.webp` |
+| `/deployments/<id>` detail (AF-682) | `deployment-detail-light.webp`, `deployment-detail-dark.webp` |
+| `/deployment-reviews` queue (AF-682) | `deployment-reviews-queue-light.webp`, `deployment-reviews-queue-dark.webp` |
+| `/deployment-reviews?tab=rollbacks` worklist (AF-682) | `deployment-rollback-reviews-light.webp`, `deployment-rollback-reviews-dark.webp` |
+| `/admin/deployment-pipelines` list (AF-682) | `deployment-pipelines-list-light.webp`, `deployment-pipelines-list-dark.webp` |
+| `/admin/deployment-pipelines/<id>` → Environments tab | `deployment-pipeline-environments-light.webp`, `deployment-pipeline-environments-dark.webp` |
+| `/admin/deployment-pipelines/<id>` → Freeze windows tab | `deployment-pipeline-freeze-windows-light.webp`, `deployment-pipeline-freeze-windows-dark.webp` |
+| `/admin/deployment-pipelines/<id>` → CI setup tab | `deployment-pipeline-ci-light.webp`, `deployment-pipeline-ci-dark.webp` |
+| `/editor` with a sample query and the AI hint panel visible | `editor-light.webp` (light-only by precedent) |
+| `/editor` → schedule date picker open | `editor-schedule-light.webp` (light-only by precedent) |
+| `/editor` → query-templates drawer open | `editor-query-templates-light.webp` (light-only by precedent) |
+| `/editor` → text-to-SQL bar with a natural-language prompt (AF-335) | `editor-text-to-sql-light.webp` (light-only by precedent) |
+| `/queries` list with seeded data | `queries-list-light.webp` (light-only by precedent) |
+| `/reviews` queue with seeded data | `reviews-queue-light.webp` (light-only by precedent) |
+| `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.webp` (light-only by precedent) |
 
-For each row:
+Adding a row means editing `capture.ts`, not doing anything by hand:
 
-1. Navigate via `preview_eval` (`window.location.assign('/admin/users')`).
-2. Open the drawer / wizard / panel via `preview_click`. Use accessible-name selectors (`role=button[name='Invite user']`), not brittle CSS.
-3. Wait for the target element with `preview_snapshot` until the rendered drawer / form is fully present.
-4. `preview_screenshot` → returns a temp path. Move it to `website/images/docs/<name>-light.png` (overwriting the existing file).
-5. Flip the theme. The app uses Ant Design dark-mode tokens — confirm the exact toggle by reading [`frontend/src/utils/antdTheme.ts`](../../frontend/src/utils/antdTheme.ts) and any `preferencesStore` flag. Drive that toggle via `preview_eval` (whatever the source code exposes; do not invent a `data-theme` attribute that the app doesn't read). Re-capture and save as `<name>-dark.png`.
-6. Reset to the previous state before moving on (close the drawer; flip back to light) so each capture is independent.
+1. Add a `prep(page)` function — navigate with `gotoAndSettle`, then open the drawer / wizard / tab
+   with accessible-name selectors (`getByRole('tab', { name: /Freeze windows/i })`), never brittle CSS.
+2. Add a `{ name, prep, darkToo }` entry to `targets[]`. `darkToo: false` is the precedent for
+   end-user pages. An entry that needs a seeded id takes a closure over the `seedData()` return
+   (`(p) => prepDeploymentDetail(p, seed.deploymentRequestId!)`) and is spread in only when the
+   best-effort seed produced it.
+3. If the page needs data, extend `seedData()` — wrapped in `try/catch`, so a failed seed leaves the
+   page on its empty state rather than aborting the whole run.
+4. Theme is flipped by writing the `af-preferences` localStorage key and reloading (`setTheme()`);
+   `prep` is deliberately re-run per variant because the reload closes drawers. Do not invent a
+   `data-theme` attribute — the app does not read one.
+5. Embed the new figures in the matching `website/docs/**` page, or they will sit on disk referenced
+   by nothing.
 
 #### 3d. Verify the diff
 
@@ -221,7 +246,7 @@ After capturing all rows:
 git status website/images/docs/
 ```
 
-Exactly the expected PNGs (and only those) should be modified or added. If `git status` shows extra untracked PNGs, the screenshot table above is out of date — block and update the table + the `website/README.md` content-source map in the same PR before continuing.
+Exactly the expected WebP files (and only those) should be modified or added. If `git status` shows extra untracked files, the screenshot table above is out of date — block and update the table + the `website/README.md` content-source map in the same PR before continuing.
 
 #### 3e. Tear the stack down
 
@@ -327,7 +352,7 @@ Suppress any section that has no entries — don't print empty headers.
 - [ ] Every closed `AF-NNN` is referenced in the right `docs/*.md` chapter (by `AF-NNN` token or feature name).
 - [ ] `README.md` reflects all release-window changes (features, tech-stack version bumps, project-structure additions).
 - [ ] `website/index.html` and `website/docs/index.html` reflect all release-window changes per [`website/README.md`](../../website/README.md)'s content-source map.
-- [ ] Every admin-SPA screenshot under `website/images/docs/` was regenerated against the current frontend build via `preview_*` tools — no manual captures, no skipped pages.
+- [ ] Every admin-SPA screenshot under `website/images/docs/` was regenerated against the current frontend build by running `e2e/screenshots/capture.ts` — no manual captures, no skipped pages, and no `FAIL:` lines left unexplained in its output.
 - [ ] `git status website/images/docs/` shows only the expected PNGs touched; the screenshot table in step 3c matches the actual PNG set on disk.
 - [ ] `docs/12-roadmap.md` flipped to `✅ released`.
 - [ ] `website/index.html` — every feature promoted out of the docs Backlog moved from the `rm-planned` band into its available-now group; hero badge and footer status updated.

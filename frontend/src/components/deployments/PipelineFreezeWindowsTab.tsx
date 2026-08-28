@@ -194,7 +194,7 @@ export function PipelineFreezeWindowsTab({ pipelineId }: { pipelineId: string })
         environment_id: modalFor.environment_id,
         starts_at: modalFor.starts_at ? dayjs(modalFor.starts_at) : null,
         ends_at: modalFor.ends_at ? dayjs(modalFor.ends_at) : null,
-        days_of_week: [...modalFor.days_of_week],
+        days_of_week: [...(modalFor.days_of_week ?? [])],
         start_time: modalFor.start_time ? dayjs(modalFor.start_time, 'HH:mm:ss') : null,
         end_time: modalFor.end_time ? dayjs(modalFor.end_time, 'HH:mm:ss') : null,
         timezone: modalFor.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
