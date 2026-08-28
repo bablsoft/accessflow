@@ -491,7 +491,7 @@
         <div class="section-head">
           <span class="eyebrow">Connectors</span>
           <h2>Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines.</h2>
-          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL), <strong>cloud data warehouses</strong> (Snowflake, BigQuery, Databricks), and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and the MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks native engines are resolved on demand the same way. <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors">Read the connector docs →</a></p>
+          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL), <strong>cloud data warehouses</strong> (Snowflake, BigQuery, Databricks), and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and the MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks native engines are resolved on demand the same way. <a class="prose-link" href="/connectors/">All database connectors →</a> <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors">Read the connector docs →</a></p>
         </div>
         <p class="eyebrow" style="margin-top:8px">SQL</p>
         <div class="conn-grid">
@@ -1244,10 +1244,10 @@
           <div class="qa-item">
             <h3>Which databases does AccessFlow support?</h3>
             <p>
-              PostgreSQL, MySQL, MariaDB, Oracle, and Microsoft SQL Server over JDBC, plus any
-              other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
+              PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, and ClickHouse over JDBC,
+              plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
               BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
-              Elasticsearch, OpenSearch, DynamoDB, and Neo4j. See
+              Elasticsearch, OpenSearch, DynamoDB, and Neo4j. Eighteen in all — see
               <a href="/docs/configuration/connectors/">Connectors</a>.
             </p>
           </div>
