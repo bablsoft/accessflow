@@ -746,7 +746,13 @@ section + section { border-top: 1px solid var(--line); }
   width: 52px;
   height: 52px;
   border-radius: var(--radius);
-  background: var(--tint-2);
+  /* Vendor logos are authored for a light background — several are single-colour
+     dark navy (MariaDB #003545, DynamoDB #2E27AD, MySQL #00618A) and disappear
+     against a theme tint in dark mode, while the light ones (ClickHouse #FAFF69,
+     Elasticsearch #FED10A) disappear in light mode. A fixed white plate keeps
+     every logo legible in both themes, including any connector added later. */
+  background: #FFFFFF;
+  box-shadow: inset 0 0 0 1px var(--line);
   display: grid;
   place-items: center;
 }
@@ -772,7 +778,8 @@ section + section { border-top: 1px solid var(--line); }
   font-family: var(--mono);
   font-size: 28px;
   line-height: 1;
-  color: var(--accent);
+  /* --accent is a bright green in dark mode and would wash out on the white plate */
+  color: var(--accent-dim);
 }
 
 /* how it works */
