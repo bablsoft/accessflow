@@ -2,9 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # feature/AF-782-website-restructure is the temporary integration branch for the
+    # website-restructure epic (#782) — its sub-issue PRs target it, not main, and a
+    # pull_request event fires against the base branch, so without it they get zero CI.
+    # Remove both entries in the final #782 merge PR; the branch is deleted with it.
+    branches: [main, 'feature/AF-782-website-restructure']
   pull_request:
-    branches: [main]
+    branches: [main, 'feature/AF-782-website-restructure']
 
 permissions:
   contents: read
