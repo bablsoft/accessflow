@@ -42,6 +42,38 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
+      # Runs BEFORE the gate on purpose: the gate confirms execution as its last act, so anything
+      # that can fail without asking a human must fail first. A bad credential here used to burn a
+      # real approval and mark the request FAILED for a reason unrelated to the deployment.
+      - name: Configure and verify cluster access
+        env:
+          KUBECONFIG_SECRET: ${{ secrets.DEMO_KUBECONFIG }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KUBECONFIG_SECRET:-}" ]; then
+            echo "::error::DEMO_KUBECONFIG is empty. Set it on the 'demo' environment."
+            exit 1
+          fi
+          # Accept either a base64 blob or a pasted raw kubeconfig — both are easy to produce by
+          # hand, and the difference is not worth a failed deploy.
+          if ! printf '%s' "$KUBECONFIG_SECRET" | base64 -d > "$RUNNER_TEMP/kubeconfig" 2>/dev/null; then
+            printf '%s' "$KUBECONFIG_SECRET" > "$RUNNER_TEMP/kubeconfig"
+          fi
+          chmod 600 "$RUNNER_TEMP/kubeconfig"
+          if ! grep -q 'apiVersion' "$RUNNER_TEMP/kubeconfig" \
+             || ! grep -q 'clusters' "$RUNNER_TEMP/kubeconfig"; then
+            echo "::error::DEMO_KUBECONFIG is neither a base64-encoded kubeconfig nor a raw one."
+            exit 1
+          fi
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          # Cheapest call that actually reaches the API server, so an unreachable or unauthorized
+          # cluster fails now rather than after someone has approved the release.
+          if ! KUBECONFIG="$RUNNER_TEMP/kubeconfig" helm list --namespace accessflow > /dev/null; then
+            echo "::error::Cannot reach the cluster with DEMO_KUBECONFIG (unreachable API server, expired credential, or missing RBAC on namespace accessflow)."
+            exit 1
+          fi
+          echo "Cluster reachable; credentials accepted."
+
       - name: Resolve release version
         id: release
         env:
@@ -101,15 +133,6 @@ jobs:
           metadata-file: release-metadata.json
           wait-timeout: 60m
           poll-interval: 20s
-
-      - name: Configure cluster access
-        env:
-          KUBECONFIG_B64: ${{ secrets.DEMO_KUBECONFIG }}
-        run: |
-          set -euo pipefail
-          printf '%s' "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
-          chmod 600 "$RUNNER_TEMP/kubeconfig"
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
 
       - name: Deploy with Helm
         id: deploy
