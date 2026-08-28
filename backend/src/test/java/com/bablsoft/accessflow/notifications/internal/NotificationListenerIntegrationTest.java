@@ -45,10 +45,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,17 +80,6 @@ class NotificationListenerIntegrationTest {
 
     @DynamicPropertySource
     static void env(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'})
-                .encodeToString(((RSAPrivateCrtKey) kp.getPrivate()).getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-        registry.add("accessflow.notifications.public-base-url", () -> "https://app.example.test");
         // Tighten retries so a failing send doesn't hold up the suite.
         registry.add("accessflow.notifications.retry.first", () -> "PT0.1S");
         registry.add("accessflow.notifications.retry.second", () -> "PT0.1S");

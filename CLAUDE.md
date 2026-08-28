@@ -409,8 +409,7 @@ same change** — do not assume coverage arrives from callers, because controlle
 | Plugin | Purpose |
 |--------|---------|
 | `spring-boot-maven-plugin` | Packaging & running |
-| `maven-surefire-plugin` | Unit tests (`*Test.java`) |
-| `maven-failsafe-plugin` | Integration tests (`*IntegrationTest.java`) |
+| `maven-surefire-plugin` | **All** tests — `*Test.java` and `*IntegrationTest.java` alike, in one fork (there is no failsafe plugin) |
 | `jacoco-maven-plugin` | Coverage enforcement (90% minimum, build fails below) |
 | `maven-compiler-plugin` | Java 25, enable preview features if used |
 

@@ -43,17 +43,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.ObjectMapper;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -119,20 +114,6 @@ class ApprovalPredictionIntegrationTest {
     private UserEntity submitter;
     private UserEntity reviewer;
     private DatasourceEntity datasource;
-
-    @DynamicPropertySource
-    static void env(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'})
-                .encodeToString(((RSAPrivateCrtKey) kp.getPrivate()).getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-    }
 
     @BeforeEach
     void setUp() {

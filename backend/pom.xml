@@ -564,23 +564,36 @@
                 </executions>
             </plugin>
             <!--
-              Scheduled jobs are live in every @SpringBootTest context (SchedulingConfiguration's
-              @EnableScheduling, running on notificationsTaskScheduler — the only TaskScheduler
-              bean, hence every @Scheduled method), and Spring caches contexts, so the schedulers of
-              *every* previously-built context keep scanning the one shared Postgres for the whole
-              suite. Those scans are global: GroupReviewEscalationJob stamps escalated_at and
-              ScheduledGroupRunJob executes any APPROVED group whose scheduled_for has passed —
-              including rows an unrelated test just inserted and is about to assert on, which is a
-              cross-context race no per-class @SpringBootTest(properties=...) pin can close.
-              System properties reach every context in the fork, so pin the data-mutating
-              request-group cadences here. See RequestGroupPersistenceIntegrationTest, whose
-              own per-class pin was necessary but not sufficient.
+              Scheduled jobs used to be live in every @SpringBootTest context and, because Spring
+              caches contexts, the schedulers of every previously-built context kept scanning the
+              one shared Postgres for the whole suite — mutating rows unrelated tests were about to
+              assert on. That is closed properly now: SchedulingConfiguration is gated on
+              accessflow.scheduling.enabled, which src/test/resources/application.properties sets
+              to false, so no @Scheduled method runs in the suite at all.
+
+              The request-group cadences below are kept as a backstop for the handful of tests that
+              re-enable scheduling inline: system properties reach every context in the fork, so a
+              re-enabled context still gets a harmless cadence rather than the production one.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <systemPropertyVariables>
+                        <!--
+                          HARD PREREQUISITE, NOT A TUNING KNOB. DefaultContextCache.put() evicts the
+                          LRU context BEFORE loading the new one, and eviction closes the *shared
+                          static* Testcontainers instances (TestcontainersLifecycleBeanPostProcessor
+                          is a DestructionAwareBeanPostProcessor) out from under every context still
+                          in the cache. If the distinct-context count ever exceeds this value, the
+                          first eviction poisons the rest and the suite fails with mass
+                          "Connection refused"; it does not merely get slower. The suite settles
+                          at ~31 contexts; 64 leaves generous headroom. Do not lower this to the
+                          Spring default of 32. Read via SpringProperties (system property or
+                          classpath spring.properties), NOT the Environment, so it cannot live in
+                          src/test/resources/application.properties.
+                        -->
+                        <spring.test.context.cache.maxSize>64</spring.test.context.cache.maxSize>
                         <accessflow.requestgroups.run-poll-interval>PT24H</accessflow.requestgroups.run-poll-interval>
                         <accessflow.requestgroups.escalation-poll-interval>PT24H</accessflow.requestgroups.escalation-poll-interval>
                         <accessflow.requestgroups.timeout-poll-interval>PT24H</accessflow.requestgroups.timeout-poll-interval>

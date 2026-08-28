@@ -13,14 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Set;
 import java.util.UUID;
 
@@ -45,19 +40,6 @@ class GrantUsageReportIntegrationTest {
 
     @Autowired GrantUsageService grantUsageService;
     @Autowired JdbcTemplate jdbcTemplate;
-
-    @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var privateKey = (RSAPrivateCrtKey) kpg.generateKeyPair().getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-    }
 
     private UUID organizationId;
     private UUID datasourceId;

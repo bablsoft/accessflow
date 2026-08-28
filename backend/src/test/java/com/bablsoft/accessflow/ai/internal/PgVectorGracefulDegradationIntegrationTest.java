@@ -7,12 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
-import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,19 +23,6 @@ class PgVectorGracefulDegradationIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PgVectorAvailability pgVectorAvailability;
-
-    @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'})
-                .encodeToString(((RSAPrivateCrtKey) kpg.generateKeyPair().getPrivate()).getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-    }
 
     @Test
     void contextStartsWithPgVectorUnavailable() {

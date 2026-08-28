@@ -9,15 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import javax.sql.DataSource;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -46,20 +41,6 @@ class AuditRoleSeparationIntegrationTest {
 
     @Autowired DataSource primaryDataSource;
     @Autowired @Qualifier("auditDataSource") DataSource auditDataSource;
-
-    @DynamicPropertySource
-    static void env(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'})
-                .encodeToString(((RSAPrivateCrtKey) kp.getPrivate()).getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-    }
 
     @BeforeAll
     void applyMigrationGrantsToAppRole() throws SQLException {

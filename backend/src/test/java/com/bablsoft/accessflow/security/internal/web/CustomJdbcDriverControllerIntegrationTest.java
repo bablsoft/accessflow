@@ -31,10 +31,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
-import java.security.interfaces.RSAPrivateCrtKey;
-import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -66,16 +63,6 @@ class CustomJdbcDriverControllerIntegrationTest {
 
     @DynamicPropertySource
     static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var privateKey = (RSAPrivateCrtKey) kp.getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
 
         Path cacheDir = Files.createTempDirectory("custom-driver-cache-");
         registry.add("accessflow.drivers.cache-dir", cacheDir::toString);

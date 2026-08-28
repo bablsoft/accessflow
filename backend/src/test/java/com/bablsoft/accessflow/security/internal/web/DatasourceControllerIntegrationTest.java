@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.MysqlDriverCacheTestcontainersConfig;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
@@ -28,16 +29,11 @@ import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -51,7 +47,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 
 @SpringBootTest
-@ImportTestcontainers(TestcontainersConfig.class)
+@ImportTestcontainers({TestcontainersConfig.class, MysqlDriverCacheTestcontainersConfig.class})
 class DatasourceControllerIntegrationTest {
 
     @Autowired WebApplicationContext context;
@@ -77,23 +73,6 @@ class DatasourceControllerIntegrationTest {
     private UserEntity stranger;
     private String adminToken;
     private String analystToken;
-
-    @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var privateKey = (RSAPrivateCrtKey) kp.getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
-        var cacheDir = com.bablsoft.accessflow.proxy.internal.driver
-                .DriverCacheTestSupport.prepareCacheWithMysql();
-        registry.add("accessflow.drivers.cache-dir", cacheDir::toString);
-    }
 
     @AfterEach
     void cleanup() {

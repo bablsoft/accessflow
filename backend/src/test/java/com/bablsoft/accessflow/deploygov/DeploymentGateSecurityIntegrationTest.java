@@ -14,14 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
-import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +27,7 @@ import static org.springframework.security.test.web.servlet.setup.SecurityMockMv
  * raw {@code af_…} key reaches the domain layer (a domain status, never a 401), and an anonymous
  * call is rejected by the security chain on all three endpoints.
  */
-@SpringBootTest(properties = "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
+@SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
 class DeploymentGateSecurityIntegrationTest {
 
@@ -45,17 +40,6 @@ class DeploymentGateSecurityIntegrationTest {
 
     private MockMvcTester mvc;
     private String rawKey;
-
-    @DynamicPropertySource
-    static void rsaProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var pk = (RSAPrivateCrtKey) kpg.generateKeyPair().getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(pk.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-    }
 
     @BeforeEach
     void setUp() {

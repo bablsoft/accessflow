@@ -32,14 +32,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.time.Instant;
 import java.time.LocalTime;
-import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,8 +49,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * partial unique trigger-idempotency index — booting the full application context so the new
  * module wires cleanly.
  */
-@SpringBootTest(properties = {
-        "accessflow.encryption-key=00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"})
+@SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
 class DeploygovPersistenceIntegrationTest {
 
@@ -79,17 +73,6 @@ class DeploygovPersistenceIntegrationTest {
     private DeploymentRollbackReviewRepository rollbackReviewRepository;
     @Autowired
     private JdbcTemplate jdbcTemplate;
-
-    @DynamicPropertySource
-    static void rsaProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var privateKey = (RSAPrivateCrtKey) kpg.generateKeyPair().getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-    }
 
     private DeploymentPipelineEntity newPipeline() {
         var pipeline = new DeploymentPipelineEntity();

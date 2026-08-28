@@ -22,4 +22,5 @@ public final class NoPgVectorTestcontainersConfig {
     @ServiceConnection(name = "redis")
     @SuppressWarnings("resource")
     public static GenericContainer<?> redis = new GenericContainer<>("redis:8-alpine").withExposedPorts(6379);
+
 }

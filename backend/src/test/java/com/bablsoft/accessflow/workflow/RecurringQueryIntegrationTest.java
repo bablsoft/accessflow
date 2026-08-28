@@ -39,12 +39,9 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateCrtKey;
 import java.sql.DriverManager;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,17 +82,7 @@ class RecurringQueryIntegrationTest {
     private DatasourceEntity datasource;
 
     @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) throws Exception {
-        var kpg = KeyPairGenerator.getInstance("RSA");
-        kpg.initialize(2048);
-        var kp = kpg.generateKeyPair();
-        var privateKey = (RSAPrivateCrtKey) kp.getPrivate();
-        var pem = "-----BEGIN PRIVATE KEY-----\n"
-                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(privateKey.getEncoded())
-                + "\n-----END PRIVATE KEY-----";
-        registry.add("accessflow.jwt.private-key", () -> pem);
-        registry.add("accessflow.encryption-key", () ->
-                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    static void securityProperties(DynamicPropertyRegistry registry) {
         // These tests drive executeRecurringOccurrence by hand on rows with an already-due
         // cursor. The real RecurringQueryRunJob also runs in this context and would race the
         // manual calls (an extra child appears whenever a tick lands mid-test), so push its
