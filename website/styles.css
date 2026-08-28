@@ -1237,80 +1237,35 @@ section + section { border-top: 1px solid var(--line); }
 
 /* roadmap */
 
-.roadmap-track {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+.rm-band-title {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
 }
 
-.milestone {
-  background: var(--bg);
+.rm-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.rm-cell {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-1);
   padding: 24px;
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 280px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.rm-cell:hover {
+  border-color: var(--line-strong);
+  background: var(--bg-2);
 }
 
-.milestone .ver {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-}
-
-.milestone[data-status]::before {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-}
-.milestone[data-status="published"]::before { content: 'PUBLISHED'; color: var(--fg-mute); }
-.milestone[data-status="in-progress"]::before { content: 'IN PROGRESS'; color: var(--accent); }
-.milestone[data-status="planned"]::before { content: 'PLANNED'; color: var(--fg-faint); }
-
-.milestone[data-status="in-progress"] {
-  background:
-    linear-gradient(180deg, oklch(0.82 0.17 145 / 0.06), transparent 60%),
-    var(--bg-1);
-}
-.milestone[data-status="in-progress"] .ver { color: var(--accent); }
-
-.milestone h3 {
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.milestone ul {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.milestone li {
-  font-size: 12px;
-  color: var(--fg-mute);
-  display: flex;
-  gap: 8px;
-}
-.milestone li::before {
-  content: '—';
-  color: var(--fg-faint);
-  flex-shrink: 0;
-}
-
-.rm-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .rm-cat {
   font-family: var(--mono);
   font-size: 10px;
@@ -1318,6 +1273,45 @@ section + section { border-top: 1px solid var(--line); }
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--fg-dim);
+}
+
+.rm-cell ul,
+.rm-planned ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rm-cell li,
+.rm-planned li {
+  font-size: 12px;
+  color: var(--fg-mute);
+  display: flex;
+  gap: 8px;
+}
+.rm-cell li::before,
+.rm-planned li::before {
+  content: '—';
+  color: var(--fg-faint);
+  flex-shrink: 0;
+}
+
+/* planned — a secondary footnote to the grid above, not a fourth column */
+.rm-planned {
+  margin-top: 32px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px 32px;
+}
+.rm-planned .rm-cat { color: var(--fg-faint); }
+.rm-planned ul {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 24px;
 }
 
 /* docs */
@@ -1537,7 +1531,7 @@ footer {
   .uc-list { gap: 72px; }
   .install-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: repeat(2, 1fr); }
-  .roadmap-track { grid-template-columns: 1fr; }
+  .rm-grid { grid-template-columns: repeat(2, 1fr); }
   .footer-grid { grid-template-columns: 2fr 1fr 1fr; gap: 32px; }
   .arch-services { grid-template-columns: repeat(2, 1fr); }
   .arch-callouts { grid-template-columns: 1fr; }
@@ -1549,7 +1543,9 @@ footer {
   .feat-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: 1fr; }
   .qa-grid { grid-template-columns: 1fr; }
-  .roadmap-track { grid-template-columns: 1fr; }
+  .rm-grid { grid-template-columns: 1fr; }
+  .rm-planned { flex-direction: column; align-items: stretch; gap: 12px; }
+  .rm-planned ul { flex-direction: column; }
   .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
   .footer-bar { flex-direction: column; gap: 16px; }
   .arch-canvas { padding: 24px; }
