@@ -178,17 +178,17 @@
         <details class="docs-sidebar-mobile" open>
           <summary>On this page</summary>
           <nav class="docs-toc">
-            <p class="docs-toc-label">On this page</p>
+            <p class="docs-toc-label">Security</p>
             <a href="#architecture">Architecture</a>
             <a href="#credentials">Credential storage</a>
             <a href="#auth">Authentication</a>
             <a href="#audit">Audit log</a>
             <a href="#data-handling">Data handling</a>
             <p class="docs-toc-label">Related</p>
-            <a href="/docs/configuration/auth/">Auth &amp; SSO docs</a>
-            <a href="/docs/configuration/audit-compliance/">Audit &amp; compliance docs</a>
-            <a href="/docs/configuration/datasources/">Datasource docs</a>
-            <a href="/ai-agents/">Access for AI agents</a>
+            <a href="/docs/configuration/auth/">Auth &amp; SSO</a>
+            <a href="/docs/configuration/audit-compliance/">Audit &amp; compliance</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/ai-agents/">AI agents</a>
           </nav>
         </details>
       </aside>
@@ -200,12 +200,20 @@
           <h1>Where credentials live, and what the proxy can actually see</h1>
           <p>
             AccessFlow is a full proxy, not a gateway. It terminates the user's session, holds the
-            database and API credentials itself, and opens the real connection only after a request
-            has cleared review. That one design decision settles the three things a security
+            database and API credentials itself, and is the only thing that ever opens the real
+            connection — under whatever policy you configure, from a multi-stage approval chain
+            down to an audited break-glass path. That decision settles the three things a security
             reviewer asks about first: where the secrets are stored, what the proxy is able to read
             while a query runs, and what evidence survives afterwards. This page answers all three,
             and links to the operator chapters that configure them.
           </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md" class="btn btn-ghost">Security reference</a>
+          </div>
         </header>
 
         <section class="arch docs-section scroll-pad" id="architecture">
@@ -219,12 +227,10 @@
             behalf.
           </p>
           <p>
-            That single choke point is what makes everything below it possible. Because every
-            statement passes through one process, the same component that decides whether a query
-            may run is also the one that parses it, enforces the schema allow-list against the
-            parsed statement rather than against a string, applies masking and row-level security
-            at execution time, and writes the audit record. There is no second path to the data
-            that could skip a step.
+            That single choke point is what makes everything below it possible: the component
+            that decides whether a query may run is also the one that parses it, checks the schema
+            allow-list against the parsed statement rather than against a string, applies masking
+            and row-level security at execution time, and writes the audit record.
           </p>
 
           <div class="arch-canvas">
@@ -295,26 +301,41 @@
         <section class="docs-section scroll-pad" id="credentials">
           <h2>Where the credentials actually live</h2>
           <p>
-            A datasource password is encrypted with <strong>AES-256-GCM</strong> under a key
-            supplied to the deployment through the environment and never written to the database
-            alongside the data it protects. The encrypted column is excluded from serialization on
+            A datasource password is encrypted with <strong>AES-256-GCM</strong> before it is
+            stored, under a key that lives only in the deployment's environment — never in the
+            database beside the ciphertext it protects. The encrypted column is excluded from serialization on
             the entity itself rather than filtered per endpoint, so a future API route cannot leak
             it by accident — there is no response shape in which it appears.
           </p>
           <p>
-            If you would rather AccessFlow never hold the secret at all, a datasource can store a
-            <strong>secret reference</strong> instead of a value and resolve it at connection time
-            from <strong>HashiCorp Vault</strong>, <strong>AWS Secrets Manager</strong>, or
+            If you would rather AccessFlow never store the secret, a datasource can hold a
+            <strong>secret reference</strong> instead of a value and resolve it on demand from
+            <strong>HashiCorp Vault</strong>, <strong>AWS Secrets Manager</strong>, or
             <strong>Azure Key Vault</strong>. Rotating the secret upstream rotates it here, with no
             redeploy and no copy left behind.
           </p>
           <p>
             Either way the plaintext has a deliberately short life. It is decrypted once, handed to
             the connection pool at initialisation, and not retained in application memory beyond
-            that point; the query path works against a warm pool, never against a password. Two
-            other keys matter operationally — an RSA-2048 private key signs the RS256 access
-            tokens, and SAML 2.0 SSO uses its own keystore. All three are environment-supplied,
-            and none is committed, logged, or returned by an endpoint.
+            that point; the query path works against a warm pool, never against a password.
+          </p>
+          <p>
+            Three other keys matter operationally, and they are deliberately not all sourced the
+            same way. The <strong>RSA-2048 JWT signing key</strong> comes from the environment. The
+            <strong>audit HMAC key</strong> can too, but it is optional — left unset it is derived
+            from the encryption key via HKDF-SHA256, and startup fails if neither is available. The
+            <strong>SAML SP signing keypair</strong> is hybrid: supply the key and certificate as
+            environment values and AccessFlow uses them verbatim and never persists them; leave
+            them unset and it generates a self-signed RSA-2048 pair on first use, encrypts the
+            private key with the same AES-256-GCM service, and stores it on the
+            <code>saml_config</code> row so it survives restarts. If your policy is that no signing
+            key may rest in the application database, supply that pair explicitly.
+          </p>
+          <p>
+            None of these is logged or returned by an endpoint. One exception is worth knowing
+            before you grep and find it: the zero-config <code>docker compose up</code> demo stack
+            ships throwaway keys inline so a fresh clone runs with no setup. They are committed on
+            purpose, and every production install path generates or demands its own.
             <a class="prose-link" href="/docs/configuration/datasources/">Datasource docs →</a>
           </p>
         </section>
@@ -342,11 +363,13 @@
           <h2>What the audit log proves</h2>
           <p>
             The proxy is the only thing that talks to the database, so its log is the complete
-            record of who asked for what and who let it through. A complete record is only worth
-            something if it can be shown to be complete, so the audit table is append-only at the
-            database-privilege level rather than by convention: the application's own role holds
-            <code>SELECT</code> on it and nothing more, and a separate, dedicated writer role
-            appends the rows.
+            record — and a complete record is only worth something if it can be shown to be
+            complete. A separate, dedicated writer role owns the table and appends the rows, while
+            <code>UPDATE</code>, <code>DELETE</code> and <code>TRUNCATE</code> are revoked from the
+            general application role, which keeps <code>SELECT</code> for the admin read endpoint.
+            That privilege split raises the bar; the hash chain is what makes the log
+            tamper-<em>evident</em> rather than merely tamper-resistant, so an edit made around the
+            split still surfaces as a broken chain.
           </p>
           <div class="feat-grid">
             <div class="feat">
@@ -363,9 +386,9 @@
         <section class="docs-section scroll-pad" id="data-handling">
           <h2>What AccessFlow keeps, and what it never touches</h2>
           <p>
-            The last question a reviewer asks is the simplest one: sitting in the middle of every
-            query, how much of the data does the proxy end up holding? The answer is none of it.
-            Results stream through; what is written down is the request and the decision.
+            The last question is the simplest: sitting in the middle of every query, how much of
+            the data does the proxy keep? None of it. Results stream through; what is written down
+            is the request and the decision.
           </p>
           <div class="qa-grid">
             <div class="qa-item">

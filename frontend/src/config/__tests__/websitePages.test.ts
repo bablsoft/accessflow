@@ -57,9 +57,10 @@ const INLINE_STYLE_BUDGET = 42;
 
 describe('website pages', () => {
   it('finds every page on the site', () => {
-    expect(files.length).toBeGreaterThanOrEqual(14);
+    expect(files.length).toBeGreaterThanOrEqual(15);
     expect(files.map(rel)).toContain('index.html');
     expect(files.map(rel)).toContain(path.join('ai-agents', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('security', 'index.html'));
   });
 
   it('shares a byte-identical nav across every page', () => {
@@ -295,7 +296,10 @@ describe('website pages', () => {
 
   it('ratchets the inline style attributes down', () => {
     const total = files.reduce((n, f) => n + [...read(f).matchAll(/style="/g)].length, 0);
-    expect(total, 'inline style="" attributes site-wide').toBeLessThanOrEqual(INLINE_STYLE_BUDGET);
+    // Exact, not <=: removing an inline style must also lower the constant, which is
+    // what forces website/_headers and website/README.md down in the same commit.
+    // Same reason the dark-screenshot allowlist above is asserted exactly consumed.
+    expect(total, 'inline style="" attributes site-wide').toBe(INLINE_STYLE_BUDGET);
   });
 
 });
