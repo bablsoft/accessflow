@@ -13,6 +13,7 @@ It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI ag
 ## Product
 
 - [Database proxy security architecture](https://accessflow.io/security/): Where AccessFlow keeps datasource credentials (AES-256-GCM at rest or a Vault / AWS Secrets Manager / Azure Key Vault secret reference), what the proxy can read while a query runs, SAML / OAuth / SCIM sign-in and IdP-driven offboarding, and the INSERT-only hash-chained audit log behind the signed compliance exports
+- [Database connectors](https://accessflow.io/connectors/): Every database engine AccessFlow governs and how each one loads — the eighteen-connector catalog grouped into SQL, cloud data warehouses and NoSQL, a per-engine category/runtime/install reference, the SHA-256-pinned manifest and on-demand engine-plugin model, and how to add a JDBC engine that is not in the catalog
 
 ## Docs
 
