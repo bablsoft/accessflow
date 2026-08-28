@@ -34,7 +34,7 @@ the right.
 |---|---|
 | [`README.md`](../README.md) (pitch, quick start) | Hero, Install tabs, terminal preview |
 | [`README.md`](../README.md), [`docs/01-overview.md`](../docs/01-overview.md), [`docs/13-mcp.md`](../docs/13-mcp.md), [`LICENSE.md`](../LICENSE.md) — plus the same engine list as the Connectors section | **"Common questions" section** (homepage, `#questions`) — six question-form headings with short, self-contained answers (what a database access proxy is, supported engines, data handling, VPN/bastion contrast, licence, AI-agent/MCP access). Question-form headings and standalone answers are what AI-search surfaces extract, so keep each answer readable with **no surrounding context**. Deliberately **no `FAQPage` schema** — Google retired FAQ rich results for all sites in May 2026. Also linked from [`llms.txt`](llms.txt) |
-| (no upstream — derived from the chapter it opens) | The question-form `<h3>` + answer block at the top of each [`docs/`](docs/) chapter, and the `Last updated <time>` line under every docs `<h1>`. The `datetime` attribute must stay equal to that page's JSON-LD `dateModified` **and** its [`sitemap.xml`](sitemap.xml) `<lastmod>` — move all three together |
+| (no upstream — derived from the chapter it opens) | The question-form `<h3>` + answer block at the top of each [`docs/`](docs/) chapter, and the `Last updated <time>` line under every docs `<h1>`. The `datetime` attribute must stay equal to that page's JSON-LD `dateModified` **and** its [`sitemap.xml`](sitemap.xml) `<lastmod>` — move all three together, which `frontend/src/config/__tests__/websitePages.test.ts` now enforces |
 | [`docs/02-architecture.md`](../docs/02-architecture.md) | Architecture diagram |
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
@@ -154,14 +154,20 @@ chapter files — a nav change is a 13-file edit (~98 KB of duplicated shell). T
 deliberate trade for keeping this folder buildless.
 
 Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
-12 files and missing the 13th — is guarded:
-[`frontend/src/config/__tests__/websiteDocs.test.ts`](../frontend/src/config/__tests__/websiteDocs.test.ts)
-fails CI unless every chapter shares a byte-identical nav and footer, links every other
-chapter, carries a correct self-referencing canonical, keeps one `<h1>` with no skipped
-levels, holds its description under 160 characters, has no duplicate ids, has no dead
-same-page or cross-chapter links, and appears in `sitemap.xml`.
+13 files and missing the 14th — is guarded.
+[`frontend/src/config/__tests__/websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts)
+runs over **every** page, `index.html` and `ai-agents/` included, and fails CI unless each
+shares a byte-identical nav (normalized for the active-link markers, which are asserted
+separately) and footer, carries a self-referencing canonical with a matching `og:url`, keeps
+one `<h1>` with no skipped levels, holds its description under 160 characters, has no
+duplicate ids, no dead fragments and no unresolvable internal links, ships every asset it
+references, declares no retired `FAQPage`/`HowTo` schema, and agrees with `sitemap.xml` in
+both directions.
+[`websiteDocs.test.ts`](../frontend/src/config/__tests__/websiteDocs.test.ts) keeps only what
+is meaningless outside `docs/`: every chapter linked from every chapter sidebar, and
+cross-chapter links resolving.
 
-So: editing all 13 files is on you; forgetting one is on CI.
+So: editing all 14 files is on you; forgetting one is on CI.
 
 No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
 at runtime.**
@@ -329,8 +335,9 @@ non-JavaScript MIME types, so `script-src` does not apply to them.
 
 #### Why style-src keeps 'unsafe-inline'
 
-39 multi-declaration inline `style=""` attributes remain (the single-declaration colour and
-`margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities). Dropping the
+43 multi-declaration inline `style=""` attributes remain site-wide (the single-declaration
+colour and `margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities).
+`websitePages.test.ts` pins that number and ratchets it down — it is the one place to read it. Dropping the
 directive is **all-or-nothing** — one leftover inline style and it has to stay — so the
 partial cleanup bought readability, not a tighter policy.
 
