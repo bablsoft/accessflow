@@ -250,6 +250,84 @@ being changed. Anything not listed inherits the chart default. The example
 files are sourced from GitHub; they're excluded from the packaged chart via
 `.helmignore` so the published `.tgz` stays lean.
 
+### The public demo environment
+
+[`values-demo.yaml`](../charts/accessflow/values-demo.yaml) is the override behind the public
+demo at `https://demo.accessflow.bablsoft.com` — one replica per tier, Traefik ingress, and the
+public base URL. It is deployed by the manually-dispatched
+[`deploy-demo.yml`](../.github/workflows/deploy-demo.yml) workflow into release `accessflow`,
+namespace `accessflow`:
+
+```bash
+helm upgrade --install accessflow charts/accessflow \
+  --namespace accessflow --create-namespace \
+  --values charts/accessflow/values-demo.yaml \
+  --set image.backend.tag="$VERSION" --set image.frontend.tag="$VERSION" \
+  --atomic --wait --timeout 15m
+```
+
+Both `--set` flags are required: `values-demo.yaml` overrides no image tag, and the in-tree
+`Chart.appVersion` is the `0.1.0` placeholder (the release workflow rewrites `appVersion` only in
+the *packaged* chart). The workflow resolves `$VERSION` from the newest GitHub release on the
+chosen channel — `stable` (non-prerelease) or `beta` — or from an explicit `version` input.
+
+**The demo governs its own deployment.** The workflow opens a real deployment request against the
+demo instance through [`.github/actions/deployment-gate`](../.github/actions/deployment-gate) and
+blocks until a human approves it there; only then does helm run. See
+[18-deployment-governance.md](18-deployment-governance.md). The gate is **fail-closed**: if the
+demo is unreachable, nothing deploys. Recovery from a fully-down demo is running the command above
+by hand on the host — there is deliberately no break-glass or skip-gate input on the workflow.
+
+#### One-time setup
+
+Everything below is state inside the demo instance and in GitHub settings; none of it is committed.
+
+1. **Create the CI service account.** The API key's owning user *is* the submitter, and a submitter
+   can never approve their own deployment — so this must not be the account that approves.
+   Sidebar → *Security & Access* → **Users**. The top-right control is a split button; click its
+   **dropdown arrow** and choose **Create with password** (the *Invite via email* path hard-fails
+   without system SMTP, which this deployment does not configure). Fill **Email**, **Initial
+   password**, **Display name**, and leave **Role** on **Analyst** — the trigger right comes from
+   the per-pipeline grant in step 3, not from the role. Submit with **Send invite** (no mail is
+   sent on this path).
+2. **Mint its API key.** API keys are self-service — `/api/v1/me/api-keys` has no admin-side
+   equivalent — so sign in as the service account in a private window, open the user menu →
+   **Profile settings** → **API keys** → **Create API key**. The raw `af_…` value is shown once;
+   copy it then. (UI-minted keys never expire; the form has no expiry field.)
+3. **Create the pipeline, environment and grant.** As an admin: sidebar → *Data sources* →
+   **Deployment Pipelines** → **Add pipeline**, provider **GitHub Actions**. Creation lands on
+   `/admin/deployment-pipelines/<uuid>` — **that UUID in the address bar is the pipeline id**;
+   there is no ID column anywhere else, only the interpolated snippet on the **CI setup** tab. Then
+   **Environments** → **Add environment** named `demo` with **Requires review** on and **Required
+   approvals** `1`; then **Permissions** → type the service account's email into the **User**
+   select (it will not be on the first page), leave **Can trigger** on, click **Grant**.
+4. **Restrict who may approve.** `DEPLOYMENT_REVIEW` is held by **ADMIN and REVIEWER**, so without
+   this step any reviewer on the demo could approve a deploy of the demo. Sidebar → *Security &
+   Access* → **Review plans** → **Add review plan**, set **Minimum approvals** `1`, and give it one
+   approver row with **Role** = `Admin` and **Stage** `1`. Attach it on the pipeline's **General**
+   tab → **Review plan**. Two caveats: an attached plan with *no* approver rows restricts nothing,
+   and deployment review is single-stage — approver rows with stage ≥ 2 are ignored. To pin
+   approval to one specific person instead of all admins, put their user UUID in the row's **User**
+   box (it is a raw text input, and user ids are not displayed in the Users UI — read one from
+   `GET /api/v1/admin/users`). `REVIEW_OVERRIDE` is ADMIN-only and bypasses the approver list by
+   design, so the rule that ultimately protects the demo is: never grant ADMIN to a visitor.
+5. **Store the credentials** on a GitHub `demo` environment, so only jobs declaring
+   `environment: demo` can read the kubeconfig:
+
+   | Name | Kind | Value |
+   |---|---|---|
+   | `DEMO_KUBECONFIG` | secret | base64 kubeconfig, RBAC limited to the `accessflow` namespace |
+   | `ACCESSFLOW_DEMO_API_KEY` | secret | the `af_…` key from step 2 |
+   | `ACCESSFLOW_DEMO_URL` | variable | `https://demo.accessflow.bablsoft.com` |
+   | `ACCESSFLOW_DEMO_PIPELINE_ID` | variable | the pipeline UUID from step 3 |
+
+   The k3s API server must be reachable from GitHub-hosted runner IP ranges.
+
+Steps 1–2 can instead be provisioned declaratively through `bootstrap.serviceAccounts[]`
+(see [Bootstrap configuration](#bootstrap-configuration)), which creates the user with password
+login disabled and imports a key you generate — preferable if you would rather not hand a
+service account a usable password.
+
 ### Full `values.yaml`
 
 ```yaml

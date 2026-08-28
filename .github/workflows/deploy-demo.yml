@@ -1,0 +1,149 @@
+# Deploy the AccessFlow demo instance (https://demo.accessflow.bablsoft.com) to k3s.
+#
+# The demo governs its own deployment: this workflow opens a real deployment request against the
+# demo instance, blocks until a human approves it there, and only then runs helm (epic #682).
+# The gate is fail-closed by design — if the demo is unreachable, nothing deploys. Recovery from a
+# fully-down demo is a manual `helm upgrade --install` on the host; see docs/09-deployment.md.
+#
+# One-time setup (service account, pipeline, environment, trigger grant, secrets) is documented in
+# docs/09-deployment.md → "Demo environment".
+name: Deploy demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "Release channel to deploy"
+        type: choice
+        options:
+          - stable
+          - beta
+        default: stable
+      version:
+        description: "Explicit semver (e.g. 1.4.2) — overrides the channel"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-demo
+  # Never cancel: the gate confirms execution before helm runs, so a cancelled job would leave an
+  # EXECUTED deployment request with no outcome ever reported.
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: demo
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v5
+
+      - name: Resolve release version
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ inputs.channel }}
+          EXPLICIT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ -n "$EXPLICIT" ]; then
+            TAG="$EXPLICIT"
+          elif [ "$CHANNEL" = "beta" ]; then
+            TAG=$(gh release list --limit 30 --json tagName,isPrerelease \
+              --jq 'map(select(.isPrerelease)) | .[0].tagName // empty')
+          else
+            TAG=$(gh release list --exclude-pre-releases --limit 1 --json tagName \
+              --jq '.[0].tagName // empty')
+          fi
+          if [ -z "$TAG" ]; then
+            echo "::error::No ${CHANNEL} release found — publish one with the release workflow first."
+            exit 1
+          fi
+          # Release tags are v<semver>; image tags carry no leading v.
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${CHANNEL} channel to ${TAG#v}"
+
+      - name: Collect release metadata
+        # Release notes are untrusted text — they reach jq through env, never inlined into the
+        # script. The gate action requires this file to parse as a JSON object.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          CHANNEL: ${{ inputs.channel }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          NOTES=$(gh release view "v${VERSION}" --json body --jq '.body // empty' 2>/dev/null | head -c 4000 || true)
+          jq -n \
+            --arg version "$VERSION" \
+            --arg channel "$CHANNEL" \
+            --arg actor "$ACTOR" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg release_notes "$NOTES" \
+            '{version: $version, channel: $channel, triggered_by: $actor,
+              repository: $repository, release_notes: $release_notes}' > release-metadata.json
+
+      - name: Wait for AccessFlow deployment approval
+        id: gate
+        uses: ./.github/actions/deployment-gate
+        with:
+          accessflow-url: ${{ vars.ACCESSFLOW_DEMO_URL }}
+          api-key: ${{ secrets.ACCESSFLOW_DEMO_API_KEY }}
+          pipeline-id: ${{ vars.ACCESSFLOW_DEMO_PIPELINE_ID }}
+          version: ${{ steps.release.outputs.version }}
+          environment: demo
+          commit-sha: ${{ github.sha }}
+          artifact-ref: ghcr.io/${{ github.repository_owner }}/accessflow-backend:${{ steps.release.outputs.version }}
+          metadata-file: release-metadata.json
+          wait-timeout: 60m
+          poll-interval: 20s
+
+      - name: Configure cluster access
+        env:
+          KUBECONFIG_B64: ${{ secrets.DEMO_KUBECONFIG }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$KUBECONFIG_B64" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          chmod 600 "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Deploy with Helm
+        id: deploy
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          helm dependency update charts/accessflow
+          # values-demo.yaml overrides no image tag and the in-tree Chart.appVersion is the 0.1.0
+          # placeholder, so both --set flags are required to land the resolved release.
+          # --wait keeps the job alive until the new backend serves again, which the outcome step
+          # needs; --atomic rolls back a failed upgrade so the demo stays up.
+          if helm upgrade --install accessflow charts/accessflow \
+              --namespace accessflow --create-namespace \
+              --values charts/accessflow/values-demo.yaml \
+              --set image.backend.tag="$VERSION" \
+              --set image.frontend.tag="$VERSION" \
+              --atomic --wait --timeout 15m; then
+            echo "outcome=SUCCEEDED" >> "$GITHUB_OUTPUT"
+          else
+            # --atomic already restored the previous release, so the honest outcome is a rollback.
+            echo "outcome=ROLLED_BACK" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      # Composite actions have no post-run hook — report the outcome as a separate always() step.
+      - name: Report deployment outcome
+        if: always()
+        uses: ./.github/actions/deployment-outcome
+        with:
+          accessflow-url: ${{ vars.ACCESSFLOW_DEMO_URL }}
+          api-key: ${{ secrets.ACCESSFLOW_DEMO_API_KEY }}
+          request-id: ${{ steps.gate.outputs.request-id }}
+          job-status: ${{ job.status }}
+          # Empty unless helm rolled back, in which case it overrides the job-status mapping.
+          outcome: ${{ steps.deploy.outputs.outcome == 'ROLLED_BACK' && 'ROLLED_BACK' || '' }}
+          detail: "helm upgrade accessflow → ${{ steps.release.outputs.version }} (${{ inputs.channel }} channel)"
