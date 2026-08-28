@@ -170,6 +170,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   padding: 0 var(--pad);
 }
 
+/* Prose column on a sidebar-less page. A class rather than an inline style: the
+   CSP style-src can only tighten to 'self' once the inline style="" attributes
+   are gone, so don't add more of them. */
+.wrap-narrow { max-width: 860px; }
+
 .mono { font-family: var(--mono); }
 
 .eyebrow {
@@ -1665,6 +1670,13 @@ img, table, pre { max-width: 100%; }
 .docs-content {
   min-width: 0;
   max-width: 820px;
+}
+
+/* The homepage card grids are sized for the full 1280px wrap. Inside the 820px
+   docs column they stack instead of being squeezed into 2-3 tracks. */
+.docs-content .feat-grid,
+.docs-content .qa-grid {
+  grid-template-columns: 1fr;
 }
 
 .docs-hero {

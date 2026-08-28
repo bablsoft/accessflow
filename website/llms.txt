@@ -10,6 +10,10 @@ Beyond query review, AccessFlow governs outbound **API access** (REST, SOAP, Gra
 
 It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI agents can discover schemas and validate and submit queries through the same governance pipeline, and offers a Terraform/OpenTofu provider plus reusable CI actions for infrastructure-as-code management. Source code lives at https://github.com/bablsoft/accessflow.
 
+## Product
+
+- [Database proxy security architecture](https://accessflow.io/security/): Where AccessFlow keeps datasource credentials (AES-256-GCM at rest or a Vault / AWS Secrets Manager / Azure Key Vault secret reference), what the proxy can read while a query runs, SAML / OAuth / SCIM sign-in and IdP-driven offboarding, and the INSERT-only hash-chained audit log behind the signed compliance exports
+
 ## Docs
 
 - [Governed database access for AI agents](https://accessflow.io/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit

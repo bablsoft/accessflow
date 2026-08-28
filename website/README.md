@@ -36,6 +36,7 @@ the right.
 | [`README.md`](../README.md), [`docs/01-overview.md`](../docs/01-overview.md), [`docs/13-mcp.md`](../docs/13-mcp.md), [`LICENSE.md`](../LICENSE.md) — plus the same engine list as the Connectors section | **"Common questions" section** (homepage, `#questions`) — six question-form headings with short, self-contained answers (what a database access proxy is, supported engines, data handling, VPN/bastion contrast, licence, AI-agent/MCP access). Question-form headings and standalone answers are what AI-search surfaces extract, so keep each answer readable with **no surrounding context**. Deliberately **no `FAQPage` schema** — Google retired FAQ rich results for all sites in May 2026. Also linked from [`llms.txt`](llms.txt) |
 | (no upstream — derived from the chapter it opens) | The question-form `<h3>` + answer block at the top of each [`docs/`](docs/) chapter, and the `Last updated <time>` line under every docs `<h1>`. The `datetime` attribute must stay equal to that page's JSON-LD `dateModified` **and** its [`sitemap.xml`](sitemap.xml) `<lastmod>` — move all three together, which `frontend/src/config/__tests__/websitePages.test.ts` now enforces |
 | [`docs/02-architecture.md`](../docs/02-architecture.md) | Architecture diagram |
+| [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/09-deployment.md`](../docs/09-deployment.md) (`ENCRYPTION_KEY` / `JWT_PRIVATE_KEY` / `AUDIT_DB_USER`, observability vars) | **`/security/` page** ([`security/index.html`](security/index.html)) — the buying-question security answer: architecture canvas + Encryption / Runtime / Observability callouts, credential storage (AES-256-GCM at rest vs. Vault / AWS Secrets Manager / Azure Key Vault secret references), the "Workforce-ready auth" tile, the "Tamper-evident audit &amp; compliance reports" tile, and the data-handling answer. `docs/02-architecture.md` still owns the *design* question — this page answers the *buying* one. Its blocks are **deliberately duplicated** from the homepage (`#architecture`, the two feature tiles, the `#questions` data-handling entry) until [#789](https://github.com/bablsoft/accessflow/issues/789) cuts them from `/`; change both copies together until then |
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
@@ -111,6 +112,8 @@ website/
 ├── wrangler.jsonc   # Cloudflare Workers static-assets deploy config
 ├── googlef4908e4bf779aae8.html  # Google Search Console site-verification token
 ├── db-icons/        # Connector logos, copied from connectors/<id>/logo.svg
+├── ai-agents/       # Topic page — governed database access for AI agents
+├── security/        # Topic page — credential storage, auth, audit (AF-783)
 ├── docs/            # Public user documentation — one page per chapter
 │   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
 │   ├── install/     #   Docker Compose / Helm / from source + first-run setup
@@ -150,11 +153,11 @@ every file.
    the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
 
 Because there is no build step, the nav, `<head>`, and footer are duplicated across the
-chapter files — a nav change is a 13-file edit (~98 KB of duplicated shell). That is the
+chapter files — a nav change is a 15-file edit (~105 KB of duplicated shell). That is the
 deliberate trade for keeping this folder buildless.
 
 Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
-13 files and missing the 14th — is guarded.
+14 files and missing the 15th — is guarded.
 [`frontend/src/config/__tests__/websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts)
 runs over **every** page, `index.html` and `ai-agents/` included, and fails CI unless each
 shares a byte-identical nav (normalized for the active-link markers, which are asserted
@@ -167,7 +170,7 @@ both directions.
 is meaningless outside `docs/`: every chapter linked from every chapter sidebar, and
 cross-chapter links resolving.
 
-So: editing all 14 files is on you; forgetting one is on CI.
+So: editing all 15 files is on you; forgetting one is on CI.
 
 No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
 at runtime.**
@@ -335,8 +338,9 @@ non-JavaScript MIME types, so `script-src` does not apply to them.
 
 #### Why style-src keeps 'unsafe-inline'
 
-43 multi-declaration inline `style=""` attributes remain site-wide (the single-declaration
-colour and `margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities).
+42 multi-declaration inline `style=""` attributes remain site-wide (the single-declaration
+colour and `margin-left` ones were replaced by the `.t-*` / `.ml-auto` utilities, and the
+sidebar-less prose column by `.wrap-narrow`).
 `websitePages.test.ts` pins that number and ratchets it down — it is the one place to read it. Dropping the
 directive is **all-or-nothing** — one leftover inline style and it has to stay — so the
 partial cleanup bought readability, not a tighter policy.

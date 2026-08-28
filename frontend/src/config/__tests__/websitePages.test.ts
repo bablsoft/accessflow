@@ -53,7 +53,7 @@ const MISSING_DARK_SCREENSHOTS = [
  * 'unsafe-inline' to 'self' until this reaches 0 (website/_headers). Ratchet only
  * downwards — never raise this number to make a new page pass.
  */
-const INLINE_STYLE_BUDGET = 43;
+const INLINE_STYLE_BUDGET = 42;
 
 describe('website pages', () => {
   it('finds every page on the site', () => {
