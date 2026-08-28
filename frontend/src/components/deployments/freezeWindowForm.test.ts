@@ -58,6 +58,17 @@ describe('freezeWindowForm', () => {
     expect(windowMode(makeWindow({ starts_at: '2026-09-01T00:00:00Z' }))).toBe('one_off');
   });
 
+  // A one-off window comes back from the API with no days_of_week key at all.
+  it('classifies and summarizes a window whose days_of_week the backend omitted', () => {
+    const oneOff = makeWindow({
+      starts_at: '2026-09-04T09:00:00Z',
+      ends_at: '2026-09-06T09:00:00Z',
+    });
+    delete (oneOff as { days_of_week?: number[] | null }).days_of_week;
+    expect(windowMode(oneOff)).toBe('one_off');
+    expect(freezeWindowSummary(t, oneOff)).toContain('summary_one_off');
+  });
+
   it('normalizes wire LocalTime renderings to HH:mm', () => {
     expect(normalizeTime('09:30:00')).toBe('09:30');
     expect(normalizeTime('09:30')).toBe('09:30');

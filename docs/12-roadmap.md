@@ -197,11 +197,19 @@
 
 ---
 
-## v2.4 🚧 in progress
+## v2.4 ✅ released
 
 **Theme:** Deployment approval governance.
 
 - **Deployment approval governance** — a third governed request surface alongside queries and API calls: gate CI/CD **deployments** behind the same submit → AI → review → approve machinery. Admins define **deployment pipelines** (GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic) with ordered per-environment policies — required approvals, review-plan overrides, break-glass opt-in — and per-user/per-group `can_trigger` / `can_break_glass` grants resolved as a most-permissive union. A CI job triggers a request over the REST API with an existing AccessFlow **API key**, idempotent on the CI run id (202 on create, 200 on replay); the AI analyzer scores the release metadata; routing policies (environment / provider / version glob / risk / time window) may auto-approve, auto-reject or change the approval count; and reviewers decide in the UI, where the submitter — the API key's owning user — can never approve their own deployment. The pipeline then blocks on a **fail-closed gate**, `GET /api/v1/deployment-gate`, whose one pure releasable function defaults to *not* releasable: it opens only for an `APPROVED` request with no active freeze window and a `scheduled_for` that has passed, and any error, unknown tuple or under-permissioned poll answers `releasable: false` (404, never 403). **Freeze windows** are one-off or weekly recurring, scoped org-wide / per-pipeline / per-environment, `HOLD` (withhold releasability) or `REJECT` (auto-reject at submission), and fail closed to `HOLD` when a definition is unevaluable. Audited **break-glass** deploys need both a `can_break_glass` grant and an environment opt-in — no admin bypass — and carry a mandatory retro-review. After the deploy the pipeline confirms execution and reports the **outcome** (`SUCCEEDED` / `FAILED` / `ROLLED_BACK`); a rollback on a review-required environment opens a follow-up review the submitter can never acknowledge. Eight new tables, native **GitHub Action / GitLab CI / Azure Pipelines** wrappers plus a generic-curl path, five notification event types, an audit row for every transition, and a full web UI — deployment list and detail, reviewer queue with a rollback worklist, and pipeline administration with a copy-paste CI setup panel (AF-682) — see [docs/18-deployment-governance.md](18-deployment-governance.md)
+
+---
+
+## v2.5 🚧 in progress
+
+**Theme:** Deployment version tracking and drift.
+
+- **Multi-environment version tracking & drift** — carry the AF-682 epic past the approval gate into *what is actually running where*: per-environment version tags and current-version state so an environment knows the release it last executed, rollback semantics that restore the prior recorded version rather than merely reopening a review, and a version-inventory / drift API that answers "which environments are behind, and by how much" across every pipeline in the org. Surfaced in the web UI as a version matrix across environments, a per-environment history timeline, and drift badges on the deployment list and detail pages (#741, #742, #743 — epic AF-682)
 
 ---
 

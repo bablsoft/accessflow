@@ -28,11 +28,12 @@ const nextDay = (day: number): number => (day % 7) + 1;
 export function buildWeekSegments(windows: DeploymentFreezeWindow[]): WeekSegment[] {
   const segments: WeekSegment[] = [];
   for (const window of windows) {
-    if (!window.enabled || window.days_of_week.length === 0) continue;
+    const daysOfWeek = window.days_of_week ?? [];
+    if (!window.enabled || daysOfWeek.length === 0) continue;
     const start = timeStringToMinutes(window.start_time);
     const end = timeStringToMinutes(window.end_time);
     if (start == null || end == null) continue;
-    for (const day of window.days_of_week) {
+    for (const day of daysOfWeek) {
       if (day < 1 || day > 7) continue;
       if (start < end) {
         segments.push({

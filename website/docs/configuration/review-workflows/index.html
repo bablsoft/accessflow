@@ -612,21 +612,67 @@ APPROVED → FAILED (execution error)</pre>
             required approval is granted. The submitter — for a pipeline, the user who owns the API
             key — can never approve their own deployment.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployments-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployments-list-dark.webp"
+                   alt="The /deployments page listing deployment requests — pipeline, environment, version, status, risk and submitted time, with status and environment filters above the table."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployments</code> — every deployment you submitted, with its status, target environment and release version.</figcaption>
+          </figure>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-detail-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-detail-dark.webp"
+                   alt="A deployment request detail page showing the pipeline, target environment, version and commit, the AI release-risk verdict, the approval timeline and the releasability banner."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployments/&lt;id&gt;</code> — release metadata, the AI risk verdict, the approval timeline and the fail-closed releasability banner.</figcaption>
+          </figure>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-reviews-queue-dark.webp"
+                   alt="The /deployment-reviews queue listing deployments awaiting a decision — pipeline, environment, version, submitter, risk and age — with approve and reject actions per row."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployment-reviews</code> — the reviewer queue. A deployment never appears here for its own submitter.</figcaption>
+          </figure>
           <p>
             <strong>Configure it.</strong> Create pipelines at
             <code>/admin/deployment-pipelines</code> (requires the
             <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
-            pipeline's settings page carries four tabs: <strong>Environments</strong> (promotion
+            pipeline's settings page carries six tabs. Alongside <strong>General</strong> and the
+            <strong>CI setup</strong> snippet sit <strong>Environments</strong> (promotion
             order, required approvals, review-plan override, break-glass opt-in),
             <strong>Permissions</strong> (per-user and per-group <code>can_trigger</code> /
             <code>can_break_glass</code> grants with an optional expiry — a user's effective grant is
             the most-permissive union of their direct grant and every unexpired group grant),
-            <strong>Freeze windows</strong>, and <strong>Routing policies</strong>. The page also
-            renders a copy-paste CI setup snippet for the pipeline's provider. Reviewers work
+            <strong>Freeze windows</strong>, and <strong>Routing policies</strong>. The CI setup
+            tab renders a copy-paste snippet for the pipeline's provider. Reviewers work
             deployments at <code>/deployment-reviews</code> (requires <code>DEPLOYMENT_REVIEW</code>,
             held by <code>ADMIN</code> and <code>REVIEWER</code>); everyone sees their own at
             <code>/deployments</code>.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipelines-list-dark.webp"
+                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, CI provider, repository, environment count and whether AI analysis is enabled."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its CI provider and environment count.</figcaption>
+          </figure>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipeline-environments-dark.webp"
+                   alt="The Environments tab of a deployment pipeline settings page, listing ordered environments with their required approval count, review requirement, review-plan override and break-glass opt-in."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, required approvals, review-plan override and break-glass opt-in, per environment.</figcaption>
+          </figure>
           <p>
             <strong>Freeze windows.</strong> A freeze window suspends releases for the whole
             organization, one pipeline, or a single environment. It is either <strong>one-off</strong>
@@ -640,6 +686,15 @@ APPROVED → FAILED (execution error)</pre>
             — a bad timezone, say — counts as an active <code>HOLD</code>, never a
             <code>REJECT</code>: a broken rule can stall a release but can never destroy a request.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipeline-freeze-windows-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipeline-freeze-windows-dark.webp"
+                   alt="The Freeze windows tab of a deployment pipeline settings page, listing one-off and recurring weekly windows with their scope, behavior (hold or reject), reason and enabled state."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Pipeline settings → <strong>Freeze windows</strong> — one-off or recurring weekly, scoped org-wide, per pipeline or per environment, holding or rejecting.</figcaption>
+          </figure>
           <p>
             <strong>Break-glass and rollbacks.</strong> An emergency deploy needs
             <em>both</em> a <code>can_break_glass</code> grant on the pipeline <em>and</em>
@@ -651,12 +706,30 @@ APPROVED → FAILED (execution error)</pre>
             <strong>rollback</strong> on a review-required environment opens a follow-up review in the
             reviewer queue that the submitter can never close.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-rollback-reviews-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-rollback-reviews-dark.webp"
+                   alt="The rollback worklist tab of the deployment review queue, listing executed deployments reported as rolled back and awaiting a follow-up acknowledgement."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployment-reviews?tab=rollbacks</code> — the follow-up worklist a rolled-back deployment opens.</figcaption>
+          </figure>
           <p>
             <strong>Wire up CI.</strong> See
             <a href="/docs/iac/#iac-deployment-gate">the deployment gate in CI</a> for the GitHub
             Action, the GitLab CI template, the Azure Pipelines step template, and the plain-curl
             path, plus how to mint the service-account API key a pipeline authenticates with.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipeline-ci-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipeline-ci-dark.webp"
+                   alt="The CI setup tab of a deployment pipeline settings page, rendering a copy-paste CI snippet for the pipeline provider along with the pipeline identifier the job needs."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Pipeline settings → <strong>CI setup</strong> — a copy-paste snippet for the pipeline's provider, carrying the pipeline id the job gates on.</figcaption>
+          </figure>
           <p>
             <strong>Tune it.</strong> <code>ACCESSFLOW_DEPLOYGOV_TIMEOUT_CHECK</code> (how often
             deployments awaiting review are checked against their review plan's approval timeout,
@@ -730,7 +803,7 @@ APPROVED → FAILED (execution error)</pre>
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.1 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
       </div>
     </div>
   </footer>

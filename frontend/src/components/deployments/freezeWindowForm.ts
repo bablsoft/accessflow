@@ -30,7 +30,7 @@ export interface FreezeWindowFormValues {
 }
 
 export function windowMode(window: DeploymentFreezeWindow): FreezeWindowMode {
-  return window.days_of_week.length > 0 ? 'recurring' : 'one_off';
+  return (window.days_of_week ?? []).length > 0 ? 'recurring' : 'one_off';
 }
 
 /** Normalize the wire "HH:mm[:ss]" LocalTime rendering to "HH:mm" for form fields and display. */
@@ -66,7 +66,7 @@ export function freezeWindowSummary(t: TFunction, window: DeploymentFreezeWindow
       to: window.ends_at ? fmtDate(window.ends_at) : '—',
     });
   }
-  const days = [...window.days_of_week]
+  const days = [...(window.days_of_week ?? [])]
     .sort((a, b) => a - b)
     .map((d) => isoWeekdayLabel(t, d))
     .join(', ');

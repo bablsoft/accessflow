@@ -3,10 +3,10 @@
 // Drives the running e2e stack (http://localhost:5173 frontend,
 // http://localhost:8080 backend) and writes the website docs screenshots as
 // lossless WebP into ../website/images/docs/ — every existing screen
-// (re-captured against the
-// current build) plus the v1.4 captures: the Langfuse config page (AF-333,
-// light + dark), the AI-config RAG knowledge-base section (AF-336, light +
-// dark), and the editor text-to-SQL bar (AF-335, light only).
+// (re-captured against the current build) plus, most recently, the v2.4
+// deployment-governance captures (AF-682): the deployment list and detail, the
+// reviewer queue and its rollback worklist, the pipeline list, and the
+// environments / freeze-windows / CI-setup settings tabs.
 //
 // Run from the e2e/ directory after `npm run stack:up`:
 //   npx tsx screenshots/capture.ts
@@ -33,6 +33,16 @@ import {
   createRetentionPolicyViaApi,
 } from '../helpers/datasources';
 import { createApiConnectorViaApi } from '../helpers/apiConnectors';
+import {
+  createDeploymentPipelineViaApi,
+  createDeploymentEnvironmentViaApi,
+  grantDeploymentPermissionViaApi,
+  triggerDeploymentViaApi,
+  waitForDeploymentStatus,
+  approveDeploymentViaApi,
+  confirmDeploymentExecutionViaApi,
+  reportDeploymentOutcomeViaApi,
+} from '../helpers/deployments';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
@@ -65,11 +75,20 @@ async function seedData() {
   // 2. Provision a reviewer (needed to approve admin's own queries — the
   //    workflow forbids self-approval).
   await purgeMailcrab(api).catch(() => {});
-  const reviewer = await inviteUserViaApi(api, adminToken, REVIEWER_EMAIL, 'Sample Reviewer', 'REVIEWER');
+  await inviteUserViaApi(api, adminToken, REVIEWER_EMAIL, 'Sample Reviewer', 'REVIEWER');
   const reviewerToken = await waitForInviteToken(api, REVIEWER_EMAIL).then(async (token) => {
     await acceptInvitationViaApi(api, token, REVIEWER_PASSWORD, 'Sample Reviewer');
     return loginViaApi(api, REVIEWER_EMAIL, REVIEWER_PASSWORD);
   });
+  // inviteUserViaApi returns the *invitation*; its id is not the user id that
+  // group-membership and deployment-permission grants want. Resolve the real one
+  // from the reviewer's own profile.
+  const reviewerId = await api
+    .get(`${apiBase()}/api/v1/me`, { headers: { Authorization: `Bearer ${reviewerToken}` } })
+    .then(async (r) => {
+      if (!r.ok()) throw new Error(`Resolve reviewer id failed: ${r.status()}`);
+      return ((await r.json()) as { id: string }).id;
+    });
 
   // 3. Create a review plan with a REVIEWER-role approver so the seeded
   //    reviewer is eligible to approve queries.
@@ -149,7 +168,7 @@ async function seedData() {
   if (groupIds[0]) {
     const res = await api.post(`${apiB}/api/v1/admin/groups/${groupIds[0]}/members`, {
       headers: adminHeaders,
-      data: { user_id: reviewer.id },
+      data: { user_id: reviewerId },
     });
     if (!res.ok()) console.warn(`  [warn] add group member failed: ${res.status()}`);
   }
@@ -323,8 +342,107 @@ async function seedData() {
     console.warn(`  [warn] attestation campaign: ${(e as Error).message}`);
   }
 
+  // 11. v2.4 deploygov entities (AF-682) so the deployment pages, the reviewer
+  //     queue and the pipeline settings tabs all render populated. Best-effort,
+  //     exactly like the v2.1 block above.
+  //
+  //     The pipeline deliberately carries NO review plan: eligibility then falls
+  //     back to every REVIEWER/ADMIN holder, so the admin the capture runs as is
+  //     an eligible approver and /deployment-reviews is non-empty. The seeded
+  //     reviewer submits the requests the admin reviews — the self-approval ban
+  //     covers deployments too, so an admin-submitted request would never show
+  //     up in the admin's own queue.
+  const deploy: { pipelineId: string | null; requestId: string | null } = {
+    pipelineId: null,
+    requestId: null,
+  };
+  try {
+    const pipeline = await createDeploymentPipelineViaApi(api, adminToken, {
+      name: `Checkout service ${RUN_SUFFIX}`,
+      provider: 'GITHUB_ACTIONS',
+      repositoryUrl: 'https://github.com/acme/checkout-service',
+    });
+    deploy.pipelineId = pipeline.id;
+    console.log(`[seed] deployment pipeline ${pipeline.id}`);
+
+    for (const name of ['staging', 'production']) {
+      await createDeploymentEnvironmentViaApi(api, adminToken, pipeline.id, {
+        name,
+        requiredApprovals: 1,
+        requireReview: true,
+      });
+    }
+
+    // The reviewer is not an admin, so it needs an explicit can_trigger grant.
+    await grantDeploymentPermissionViaApi(api, adminToken, pipeline.id, reviewerId, {
+      canTrigger: true,
+    });
+
+    // Two pending requests — one is the detail shot, both populate the queue.
+    const versions = ['v4.12.0', 'v4.11.3'];
+    for (let i = 0; i < versions.length; i++) {
+      const req = await triggerDeploymentViaApi(api, reviewerToken, {
+        pipelineId: pipeline.id,
+        environment: i === 0 ? 'production' : 'staging',
+        version: versions[i],
+        externalRunId: `ci-run-${RUN_SUFFIX}-${i}`,
+        commitSha: i === 0 ? '9f2c1ab4d7e83b5619ac0f2d4e7b81c3a5d69e07' : '3b7e5d1c9a24f80e6b1d3c5a7f9e2b4d6c8a0f13',
+        justification:
+          i === 0
+            ? 'Release the checkout hotfix — payment retry timeout raised to 30s.'
+            : 'Promote the nightly build to staging for QA sign-off.',
+      });
+      await waitForDeploymentStatus(api, reviewerToken, req.id, 'PENDING_REVIEW', 20_000).catch(
+        () => {},
+      );
+      if (i === 0) deploy.requestId = req.id;
+    }
+    console.log(`[seed] 2 deployment requests pending review`);
+
+    // A future one-off freeze window so the Freeze windows tab is populated.
+    // Deliberately in the future: an active window would hold the gate and the
+    // rollback chain below could never confirm execution.
+    const freezeStart = new Date(Date.now() + 7 * 86400_000).toISOString();
+    const freezeEnd = new Date(Date.now() + 9 * 86400_000).toISOString();
+    const fw = await api.post(`${apiB}/api/v1/deployment-freeze-windows`, {
+      headers: adminHeaders,
+      data: {
+        pipeline_id: pipeline.id,
+        starts_at: freezeStart,
+        ends_at: freezeEnd,
+        behavior: 'HOLD',
+        reason: 'Quarter-end change freeze',
+        enabled: true,
+      },
+    });
+    if (fw.ok()) console.log('[seed] deployment freeze window');
+    else console.warn(`  [warn] freeze window failed: ${fw.status()} ${await fw.text()}`);
+
+    // A rolled-back deployment so /deployment-reviews?tab=rollbacks is populated:
+    // reviewer triggers -> admin approves -> confirm execution -> report ROLLED_BACK.
+    const rolled = await triggerDeploymentViaApi(api, reviewerToken, {
+      pipelineId: pipeline.id,
+      environment: 'production',
+      version: 'v4.11.2',
+      externalRunId: `ci-run-${RUN_SUFFIX}-rollback`,
+      justification: 'Ship the search relevance rebuild.',
+    });
+    await waitForDeploymentStatus(api, reviewerToken, rolled.id, 'PENDING_REVIEW', 20_000).catch(
+      () => {},
+    );
+    await approveDeploymentViaApi(api, adminToken, rolled.id, 'Approved for the release window.');
+    await confirmDeploymentExecutionViaApi(api, reviewerToken, rolled.id);
+    const outcome = await reportDeploymentOutcomeViaApi(api, reviewerToken, rolled.id, 'ROLLED_BACK', {
+      detail: 'Error rate tripled within 4 minutes; rolled back to v4.11.1.',
+    });
+    if (outcome.ok) console.log('[seed] rolled-back deployment + follow-up review');
+    else console.warn(`  [warn] rollback outcome failed: ${outcome.status} ${outcome.error}`);
+  } catch (e) {
+    console.warn(`  [warn] deploygov seed: ${(e as Error).message}`);
+  }
+
   await api.dispose();
-  return { datasourceId: ds.id };
+  return { datasourceId: ds.id, deploymentPipelineId: deploy.pipelineId, deploymentRequestId: deploy.requestId };
 }
 
 async function setTheme(page: Page, theme: 'light' | 'dark') {
@@ -662,6 +780,45 @@ async function prepDatasourcesMasking(page: Page, datasourceId: string) {
   await page.waitForTimeout(800);
 }
 
+// ----------------------- v2.4 deploygov (AF-682) -----------------------
+
+async function prepDeploymentsList(page: Page) {
+  await gotoAndSettle(page, '/deployments');
+  await page.waitForTimeout(600);
+}
+
+async function prepDeploymentDetail(page: Page, requestId: string) {
+  await gotoAndSettle(page, `/deployments/${requestId}`);
+  await page.waitForTimeout(800);
+}
+
+async function prepDeploymentReviewsQueue(page: Page) {
+  await gotoAndSettle(page, '/deployment-reviews');
+  await page.waitForTimeout(600);
+}
+
+async function prepDeploymentRollbackReviews(page: Page) {
+  // The review-queue tab IS url-driven (DeploymentReviewQueuePage.tsx), unlike
+  // the pipeline settings tabs below.
+  await gotoAndSettle(page, '/deployment-reviews?tab=rollbacks');
+  await page.waitForTimeout(600);
+}
+
+async function prepDeploymentPipelinesList(page: Page) {
+  await gotoAndSettle(page, '/admin/deployment-pipelines');
+  await page.waitForTimeout(600);
+}
+
+// The pipeline settings tabs are plain AntD Tabs with no URL sync, so each of
+// these has to click its tab by accessible name after landing on the page.
+async function prepPipelineTab(page: Page, pipelineId: string, name: RegExp) {
+  await gotoAndSettle(page, `/admin/deployment-pipelines/${pipelineId}`);
+  await page.waitForTimeout(500);
+  const tab = page.getByRole('tab', { name }).first();
+  if (await tab.count()) await tab.click();
+  await page.waitForTimeout(800);
+}
+
 async function prepDatasourcesRowSecurity(page: Page, datasourceId: string) {
   await gotoAndSettle(page, `/datasources/${datasourceId}/settings`);
   await page.waitForTimeout(500);
@@ -817,9 +974,17 @@ async function prepApiRequestsList(page: Page) {
 // ----------------------- main flow -----------------------
 
 async function main() {
-  let seed: { datasourceId: string };
+  let seed: {
+    datasourceId: string;
+    deploymentPipelineId: string | null;
+    deploymentRequestId: string | null;
+  };
   if (process.env.SKIP_SEED) {
-    seed = { datasourceId: process.env.SEEDED_DATASOURCE_ID ?? '' };
+    seed = {
+      datasourceId: process.env.SEEDED_DATASOURCE_ID ?? '',
+      deploymentPipelineId: process.env.SEEDED_DEPLOYMENT_PIPELINE_ID ?? null,
+      deploymentRequestId: process.env.SEEDED_DEPLOYMENT_REQUEST_ID ?? null,
+    };
     console.log(`[seed] skipped (using SEEDED_DATASOURCE_ID=${seed.datasourceId})`);
   } else {
     seed = await seedData();
@@ -908,6 +1073,42 @@ async function main() {
     // v2.1 end-user (light only, by precedent)
     { name: 'request-groups-list', prep: prepRequestGroupsList, darkToo: false },
     { name: 'api-requests-list', prep: prepApiRequestsList, darkToo: false },
+
+    // v2.4 deploygov (AF-682). The id-dependent entries are spread in only when
+    // the best-effort seed actually produced them — a failed seed drops those
+    // shots rather than capturing a 404 page.
+    { name: 'deployments-list', prep: prepDeploymentsList, darkToo: true },
+    { name: 'deployment-reviews-queue', prep: prepDeploymentReviewsQueue, darkToo: true },
+    { name: 'deployment-rollback-reviews', prep: prepDeploymentRollbackReviews, darkToo: true },
+    { name: 'deployment-pipelines-list', prep: prepDeploymentPipelinesList, darkToo: true },
+    ...(seed.deploymentRequestId
+      ? [
+          {
+            name: 'deployment-detail',
+            prep: (p: Page) => prepDeploymentDetail(p, seed.deploymentRequestId!),
+            darkToo: true,
+          },
+        ]
+      : []),
+    ...(seed.deploymentPipelineId
+      ? [
+          {
+            name: 'deployment-pipeline-environments',
+            prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /Environments/i),
+            darkToo: true,
+          },
+          {
+            name: 'deployment-pipeline-freeze-windows',
+            prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /Freeze windows/i),
+            darkToo: true,
+          },
+          {
+            name: 'deployment-pipeline-ci',
+            prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /CI setup/i),
+            darkToo: true,
+          },
+        ]
+      : []),
 
     // Reviewer-role captures run LAST so we only flip session once.
     { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },
