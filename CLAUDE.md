@@ -618,6 +618,13 @@ chore/AF-{n}-description      → from main   (tooling, docs, release prep)
 `gh-pages` is release output only (Helm index, connector bundle, engine jars) — never
 hand-edited. `dependabot/*` branches are machine-generated and exempt from the naming rule.
 
+**Temporary exception — epic #782 (website restructure).** While that epic is open, its
+sub-issues (#783–#795) branch from and PR into `feature/AF-782-website-restructure`, never
+`main` — merging to `main` publishes the live site, and a half-restructured site must never
+be public. That branch is a short-lived stacked-feature branch for one epic, not a second
+trunk; it is deleted at the final merge, and this paragraph is removed with it. Note that it
+carries **no** branch ruleset, so `CI / CI Gate` runs on those PRs but does not block them.
+
 Where no issue exists, a descriptive slug replaces the number
 (`fix/AF-security-txt-expiry-guard`) — but the numbered form is strongly preferred, and
 `impl-gh-issue` always produces it.
