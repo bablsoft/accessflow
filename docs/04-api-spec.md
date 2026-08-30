@@ -315,7 +315,7 @@ missing.
 |-------|------|-------------|
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
-| `sort` | string | e.g. `name,asc` (Spring Data sort syntax — uses **JPA property names** (camelCase Java field names), not column names) |
+| `sort` | string | e.g. `name,asc` (Spring Data sort syntax — uses **JPA property names** (camelCase Java field names), not column names). When omitted, admin listings default to `createdAt,desc` (newest first). |
 
 **Response 200:**
 ```json
@@ -2825,7 +2825,7 @@ on the CSV export with `row_count` / `truncated` / the applied filters in its me
 |-------|------|-------------|
 | `page` | int | Page number (default 0) |
 | `size` | int | Page size (default 20, max 100) |
-| `sort` | string | e.g. `email,asc` (Spring Data sort syntax) |
+| `sort` | string | e.g. `email,asc` (Spring Data sort syntax). When omitted, defaults to `createdAt,desc` (newest first). |
 
 **Response 200:**
 ```json

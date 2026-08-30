@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -16,14 +17,6 @@ const REPLICA_JDBC_URL = 'jdbc:postgresql://postgres:5432/accessflow';
 const REPLICA_JDBC_URL_B = 'jdbc:postgresql://postgres:5432/accessflow?ApplicationName=replica-b';
 const REPLICA_USER = 'accessflow';
 const REPLICA_PASSWORD = 'accessflow';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForSettingsReady(page: Page, dsId: string): Promise<void> {
   await page.waitForResponse(
@@ -64,7 +57,7 @@ test.describe.serial('datasource settings — read replicas & performance', () =
 
   test('adds, tests, saves, and removes replica endpoints', async ({ page }) => {
     if (!datasource) throw new Error('datasource fixture missing');
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
     await waitForSettingsReady(page, datasource.id);
 

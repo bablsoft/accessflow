@@ -1,7 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { login } from '../helpers/login';
 
-const ADMIN_EMAIL = 'e2e@accessflow.test';
-const ADMIN_PASSWORD = 'E2ePassword!123';
 
 // The e2e docker-compose stack reaches its own Postgres container as
 // `postgres:5432` over the e2e-network bridge. The `accessflow` user owns the
@@ -11,14 +10,6 @@ const TARGET_HOST = 'postgres';
 const TARGET_DATABASE = 'accessflow';
 const TARGET_USERNAME = 'accessflow';
 const TARGET_PASSWORD = 'accessflow';
-
-async function login(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Happy-path coverage for the four-step datasource creation wizard. Drives the
 // real backend + a real Postgres (the same container the control-plane uses,

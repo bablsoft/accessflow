@@ -163,9 +163,12 @@ endpoint returns 200; intentionally corrupt the access token and confirm the res
 interceptor transparently refreshes via the HttpOnly cookie; logout clears state and
 redirects to `/login`.
 
-**Adding new specs:** the suite runs serially with one worker because every scenario
-shares the one seeded admin. Drop a new `*.spec.ts` under `e2e/tests/` and keep that
-contract in mind. If a spec needs a fresh database, tear down and re-up the stack.
+**Adding new specs:** drop a new `*.spec.ts` under `e2e/tests/`. The main suite is
+split into a `parallel` project (files run concurrently; each spec must isolate
+itself with run-unique names) and a `serial` project for specs that mutate
+stack-shared state — see [`e2e/README.md`](../e2e/README.md) → "Adding new specs"
+for the membership rules. If a spec needs a fresh database, tear down and re-up
+the stack.
 
 **Setup-wizard variant stack.** [`e2e/docker-compose.e2e.setup.yml`](../e2e/docker-compose.e2e.setup.yml)
 is a second compose file that boots the same images on ports 5174 / 8081 with
@@ -204,9 +207,12 @@ cd e2e
 npm run test:sso
 ```
 
-The CI `e2e` job runs all three sequentially — `npm test` against the main
-stack, then `npm run test:setup` against the setup-wizard variant, then
-`npm run test:sso` against the SSO variant.
+The CI `e2e` job is a three-leg matrix — one runner per stack, in parallel:
+`npm test` against the main stack (which itself chains the `parallel` project
+on `E2E_WORKERS` workers, then the `serial` project — see
+[`e2e/README.md`](../e2e/README.md) → "Adding new specs"), `npm run test:setup`
+against the setup-wizard variant, and `npm run test:sso` against the SSO
+variant.
 
 CI: the `e2e` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs
 whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. It's part of the

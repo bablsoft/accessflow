@@ -1,13 +1,13 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   deleteRoleViaApi,
   inviteUserViaApi,
   listRolesViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -31,21 +31,12 @@ const STEWARD_EMAIL = `steward-${UNIQUE_SUFFIX}@e2e.local`;
 const STEWARD_DISPLAY = `AF522 Steward ${UNIQUE_SUFFIX}`;
 const STEWARD_PASSWORD = 'StewardPass!123';
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test.describe.serial('custom roles & permissions (AF-522)', () => {
   let adminToken = '';
   let roleId: string | null = null;
   let stewardUserId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
-    await purgeMailcrab(request);
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
   });
 
@@ -66,7 +57,7 @@ test.describe.serial('custom roles & permissions (AF-522)', () => {
   });
 
   test('1) admin creates a custom role via the permission-matrix UI', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/roles');
     await expect(page.getByRole('heading', { name: 'Roles' })).toBeVisible({
       timeout: 15_000,
@@ -133,7 +124,7 @@ test.describe.serial('custom roles & permissions (AF-522)', () => {
     const token = await waitForInviteToken(request, STEWARD_EMAIL);
     await acceptInvitationViaApi(request, token, STEWARD_PASSWORD, STEWARD_DISPLAY);
 
-    await loginViaUi(page, STEWARD_EMAIL, STEWARD_PASSWORD);
+    await login(page, STEWARD_EMAIL, STEWARD_PASSWORD);
 
     // Granted surfaces are in the nav…
     await expect(page.getByRole('link', { name: 'Query editor' })).toBeVisible();

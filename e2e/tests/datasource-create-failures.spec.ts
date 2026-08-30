@@ -5,10 +5,10 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -31,14 +31,6 @@ const DUPLICATE_NAME = `Compose Postgres ${UNIQUE_SUFFIX}`;
 // is the right stand-in for the "non-admin" scenario.
 const ANALYST_EMAIL = `analyst-af272-${Date.now()}@accessflow.test`;
 const ANALYST_PASSWORD = 'Analyst-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Reach the "connection" step of the wizard with PostgreSQL selected and the
 // VERIFY_FULL → DISABLE flip already applied (the bare postgres:18 container
@@ -94,7 +86,6 @@ test.describe.serial('datasource create wizard — failure paths', () => {
     // exchange that auth-invitation.spec.ts drives via UI, but does it via
     // the API helpers because we're testing the AuthGuard redirect, not the
     // invitation UX.
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -116,7 +107,7 @@ test.describe.serial('datasource create wizard — failure paths', () => {
   });
 
   test('wrong password keeps Next disabled and renders the failure Alert', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openConnectionStep(page);
 
     await fillConnection(page, {
@@ -173,7 +164,7 @@ test.describe.serial('datasource create wizard — failure paths', () => {
   test('duplicate name surfaces the 409 toast and stays on the connection step', async ({ page }) => {
     if (!arrangedDatasource) throw new Error('beforeAll did not arrange the duplicate-name target');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openConnectionStep(page);
 
     // Reuse the exact arranged name so the (organization_id, name) uniqueness
@@ -213,7 +204,7 @@ test.describe.serial('datasource create wizard — failure paths', () => {
   });
 
   test('non-admin (ANALYST) visiting /datasources/new is redirected to their role home', async ({ page }) => {
-    await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
+    await login(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/datasources/new');
 

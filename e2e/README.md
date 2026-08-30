@@ -167,7 +167,8 @@ Test scenarios are kept isolated by using `invitee-${randomUUID()}@e2e.local` as
 the invited address so CI retries and partial re-runs don't trip the
 `DUPLICATE_PENDING_INVITATION` (409) or `EMAIL_ALREADY_EXISTS` (409) guards.
 Tests 3 and 4 share the captured token via a module-scoped `let`, which is
-safe because Playwright runs the suite serially with `workers: 1`.
+safe because `fullyParallel` is off — a file's tests always run in order on
+one worker (only distinct files run concurrently).
 
 `tests/datasource-create-wizard.spec.ts` drives the four-step datasource
 creation wizard:
@@ -496,10 +497,37 @@ name (`accessflow-e2e-sso`) so this variant can coexist with the main
 
 ## Adding new specs
 
-Drop a new `*.spec.ts` under `tests/`. The suite runs serially with a single
-worker because all scenarios share the one seeded admin — keep that contract
-in mind when adding tests. If you need a fresh database between specs, tear
-the stack down and bring it back up between runs.
+Drop a new `*.spec.ts` under `tests/`. The main suite is split into two
+Playwright projects (see `playwright.config.ts`):
+
+- **`parallel`** — the default. Files run concurrently across workers
+  (`npm run test:parallel`, `E2E_WORKERS` overrides the worker count; the CI
+  job pins 3). `fullyParallel` stays off, so tests *within* a file still run
+  in order and `describe.serial` chains keep working. Every spec here must
+  isolate itself: `Date.now()`/`randomUUID()`-suffixed resource names,
+  run-unique invitee emails, per-file `afterAll` cleanup — and it must
+  **never call `purgeMailcrab`** (the mailbox is shared; recipient-filtered
+  `waitForInviteToken` needs no purge when recipients are unique).
+- **`serial`** — one file at a time, after the parallel leg (`npm test`
+  chains the two invocations). A spec belongs here when it mutates state the
+  whole stack shares: org-singleton config rows (SMTP, languages, SAML/OAuth2/
+  SCIM/Slack/Langfuse), the seeded admin's credentials (password, TOTP), or
+  when it asserts on org-wide aggregates (audit log, dashboards, anomaly
+  lists) that concurrent writers would corrupt. Add the file to
+  `SERIAL_SPECS` in `playwright.config.ts`.
+
+Log in through `helpers/login.ts` (`login(page)` / `login(page, email,
+password)`) — it authenticates via the API and boots the SPA off the refresh
+cookie, skipping the /login form. Only specs whose subject *is* the login or
+credential flow drive the real form.
+
+If you need a fresh database between specs, tear the stack down and bring it
+back up between runs. Prefer a fresh database (`npm run stack:down &&
+npm run stack:up`) after a couple of full local runs in any case: every run
+leaves datasources/plans/users behind, and once lists grow past a page (or an
+AntD Select starts virtualizing its options) specs that pick their fixtures
+out of shared dropdowns and tables start failing for reasons that have
+nothing to do with your change. CI always starts from an empty database.
 
 Specs that need a different stack belong in their own variant config:
 
@@ -516,9 +544,10 @@ stacks rebuild on every `npm run test:setup` / `npm run test:sso` because
 ## CI
 
 The suite runs in the `e2e` job of [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
-whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. The job runs
-**three** suites sequentially: first `npm test` against the main stack, then
-`npm run test:setup` against the setup-variant stack, then `npm run test:sso`
-against the SSO-variant stack (each variant manages its own stack via its
-config's `globalSetup`/`globalTeardown`). The job is part of the `CI Gate`
-aggregate, so it must be green for the gate to pass.
+whenever a PR touches `e2e/**`, `frontend/**`, or `backend/**`. The job is a
+**three-leg matrix** — one runner per stack, in parallel: `npm test` against
+the main stack (the parallel project on `E2E_WORKERS: 3` workers, then the
+serial project on one), `npm run test:setup` against the setup-variant stack,
+and `npm run test:sso` against the SSO-variant stack (the variants manage
+their own stacks via their configs' `globalSetup`/`globalTeardown`). The job
+is part of the `CI Gate` aggregate, so it must be green for the gate to pass.

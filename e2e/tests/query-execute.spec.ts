@@ -8,13 +8,14 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -24,18 +25,6 @@ const APPROVER_PASSWORD = 'Approver-Pwd!123';
 // PT3S so test 3 (SELECT pg_sleep(5)) fires inside the Playwright timeout
 // without bumping the per-test timeout. Keep these in sync.
 const STATEMENT_TIMEOUT_SECONDS = 3;
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // CodeMirror's contenteditable doesn't accept the standard `.fill()`. Click +
 // type matches the convention in query-submit.spec.ts and survives the
@@ -113,7 +102,6 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     // the submitter. Provision a fresh user per run so re-runs don't trip the
     // (email) uniqueness constraint left over from prior invitation acceptances.
     approverEmail = `approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -168,7 +156,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       const submitterPage = await submitterCtx.newPage();
       const approverPage = await approverCtx.newPage();
 
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       const queryId = await submitViaEditor(
         submitterPage,
         datasource,
@@ -188,17 +176,17 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
       // renders the full UUID in a mono span, so we anchor the locator on the
       // exact id to disambiguate when prior specs leave their own queries in
       // PENDING_REVIEW (`query-detail-cancel.spec.ts` deliberately does so).
-      await loginViaUi(approverPage, approverEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverEmail, APPROVER_PASSWORD);
       await approverPage.goto('/reviews');
-      await expect(
-        approverPage.getByText(queryId, { exact: true }),
-      ).toBeVisible({ timeout: 15_000 });
-      const reviewCard = approverPage
-        .locator('div')
-        .filter({ hasText: queryId })
-        .filter({ has: approverPage.getByRole('button', { name: 'Approve' }) })
-        .first();
-      await reviewCard.getByRole('button', { name: 'Approve' }).click();
+      // Anchor on the table row containing this query's full UUID and walk
+      // the pagination to it — the approver is an ADMIN, so concurrent specs'
+      // role-ADMIN queries share this queue under the parallel project (a
+      // broad `div` filter also stops being unambiguous with >1 card).
+      const reviewRow = approverPage
+        .getByRole('row')
+        .filter({ hasText: queryId });
+      await findRowAcrossPages(approverPage, reviewRow);
+      await reviewRow.getByRole('button', { name: 'Approve' }).click();
       // Toast text from reviews.on_approve.
       await expect(
         approverPage.getByText('Approved · forwarded to execution'),
@@ -288,7 +276,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     // Drop the datasource so the execute path's findById() returns empty.
     await deleteDatasource(request, adminAccessToken, throwaway.id);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Approved'),
@@ -330,7 +318,7 @@ test.describe.serial('query execute (happy path + failures, AF-267)', () => {
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
     await approveQueryViaApi(request, approverAccessToken, submitted.id);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Approved'),

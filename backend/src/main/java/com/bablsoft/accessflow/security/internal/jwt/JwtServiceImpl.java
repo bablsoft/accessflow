@@ -77,6 +77,12 @@ class JwtServiceImpl implements JwtService {
 
         var builder = new JWTClaimsSet.Builder()
                 .issuer(ISSUER)
+                // Without a unique jti, two tokens minted for the same user within the same
+                // second are byte-identical (NumericDate has second resolution and RS256
+                // signing is deterministic). Identical refresh tokens share one hash in the
+                // RefreshTokenStore, so rotating or logging out one session would silently
+                // revoke the other concurrent session's token.
+                .jwtID(UUID.randomUUID().toString())
                 .subject(user.id().toString())
                 .claim(CLAIM_EMAIL, user.email())
                 .claim(CLAIM_ORG_ID, user.organizationId().toString())

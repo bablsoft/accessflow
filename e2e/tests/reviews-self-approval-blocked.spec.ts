@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   createPostgresDatasource,
   createReviewPlanViaApi,
@@ -9,21 +9,10 @@ import {
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.serial('reviews self-approval blocked (AF-270)', () => {
   let adminAccessToken = '';
@@ -80,7 +69,7 @@ test.describe.serial('reviews self-approval blocked (AF-270)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // UI gate #1: /reviews must filter the submitter's own query out of the
       // queue (ReviewQueuePage.tsx:45 → reviewable.filter(submitted_by !==

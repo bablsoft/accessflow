@@ -5,7 +5,9 @@
   "type": "module",
   "description": "End-to-end Playwright suite for AccessFlow. Spins up Postgres + Redis + backend + frontend via docker-compose.e2e.yml and exercises the real auth flow.",
   "scripts": {
-    "test": "playwright test",
+    "test": "npm run test:parallel && npm run test:serial",
+    "test:parallel": "E2E_REPORT_DIR=playwright-report/parallel playwright test --project=parallel --workers=${E2E_WORKERS:-4}",
+    "test:serial": "E2E_REPORT_DIR=playwright-report/serial playwright test --project=serial",
     "test:headed": "playwright test --headed",
     "test:setup": "playwright test --config=playwright.setup.config.ts",
     "test:sso": "playwright test --config=playwright.sso.config.ts",

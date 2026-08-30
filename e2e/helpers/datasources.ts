@@ -830,18 +830,23 @@ export async function findUserByEmailViaApi(
   adminAccessToken: string,
   email: string,
 ): Promise<InvitedUser> {
-  const res = await request.get(`${apiBase()}/api/v1/admin/users?size=200`, {
-    headers: { Authorization: `Bearer ${adminAccessToken}` },
-  });
-  if (!res.ok()) {
-    throw new Error(`List users failed: ${res.status()} ${await res.text()}`);
+  // The endpoint has no email filter and caps `size` at 100, so page through:
+  // the long-lived parallel-suite database accumulates well over one page of
+  // invited users between stack:down cycles.
+  for (let pageNo = 0; pageNo < 50; pageNo++) {
+    const res = await request.get(
+      `${apiBase()}/api/v1/admin/users?size=100&page=${pageNo}`,
+      { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+    );
+    if (!res.ok()) {
+      throw new Error(`List users failed: ${res.status()} ${await res.text()}`);
+    }
+    const body = (await res.json()) as { content: InvitedUser[] };
+    const found = body.content.find((u) => u.email === email);
+    if (found) return found;
+    if (body.content.length < 100) break;
   }
-  const body = (await res.json()) as { content: InvitedUser[] };
-  const found = body.content.find((u) => u.email === email);
-  if (!found) {
-    throw new Error(`User ${email} not found after invitation`);
-  }
-  return found;
+  throw new Error(`User ${email} not found after invitation`);
 }
 
 // POST /api/v1/auth/invitations/{token}/accept — public endpoint, no auth. The
@@ -960,8 +965,11 @@ function recipientMatches(summary: MailcrabSummary, recipient: string): boolean 
   });
 }
 
-// Drop every captured email so subsequent waitForInviteToken calls don't
-// match a previous run's invitation. Safe to call between tests.
+// Drop every captured email. SERIAL-PROJECT ONLY: the mailbox is shared by
+// the whole stack, so a purge destroys emails a concurrently-running spec is
+// still polling for. Parallel-project specs don't need it — every invite
+// recipient is a run-unique random address, so waitForInviteToken's recipient
+// filter can never match another spec's (or a previous run's) mail.
 export async function purgeMailcrab(request: APIRequestContext): Promise<void> {
   const res = await request.post(`${mailcrabBase()}/api/delete-all`);
   if (!res.ok() && res.status() !== 404) {

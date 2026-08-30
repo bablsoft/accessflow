@@ -7,6 +7,7 @@ import {
   type Route,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -30,14 +31,6 @@ function apiBase(): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/admin/notification-channels that NotificationsPage
@@ -158,7 +151,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('1) create SLACK channel via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -193,7 +186,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('2) create WEBHOOK channel via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -227,7 +220,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('3) create DISCORD channel via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -262,7 +255,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('3b) create PAGERDUTY channel via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -300,7 +293,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('3c) create SERVICENOW channel via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -338,7 +331,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   test('3d) create JIRA channel via modal (bi-directional sync) → card appears', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -380,7 +373,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     const slack = created.get('slack');
     test.skip(!slack, 'Test 1 must succeed to seed the SLACK channel');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -427,7 +420,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     test.skip(!slack, 'Test 1 must succeed to seed the SLACK channel');
 
     await stubTestEndpointOk(page);
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -457,7 +450,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     test.skip(!pagerduty, 'Test 3b must succeed to seed the PAGERDUTY channel');
 
     await stubTestEndpointOk(page);
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -487,7 +480,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     test.skip(!webhook, 'Test 2 must succeed to seed the WEBHOOK channel');
 
     await stubTestEndpointError(page, 'Test notification could not be delivered.');
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -508,7 +501,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
   });
 
   test('7) create with invalid URL → inline validation, no POST fired', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -552,7 +545,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
     const slack = created.get('slack');
     test.skip(!slack, 'Test 1 must succeed to seed the SLACK channel');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 
@@ -602,7 +595,7 @@ test.describe.serial('/admin/notifications — channel CRUD + test', () => {
       'Tests 2, 3, 3b, 3c and 3d must succeed to seed the deletable channels',
     );
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/notifications');
     await waitForChannelsListReady(page);
 

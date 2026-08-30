@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 // AF-518: API connector masking & classification — an admin creates an API connector, configures a
 // response-masking policy on the Masking tab, and a data-classification tag on the Classification
@@ -12,16 +13,8 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 
 const CONNECTOR_NAME = `Masking ${Date.now()}`;
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test('admin configures connector masking policy and classification tag', async ({ page }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // Create a connector.
   await page.goto('/api-connectors');

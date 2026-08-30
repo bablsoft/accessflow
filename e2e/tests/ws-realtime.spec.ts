@@ -8,32 +8,18 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-// loginViaUi / submitViaEditor / pickDatasource / typeInEditor mirror the
-// helpers in reviews-approve.spec.ts. They're file-local there too; no shared
-// module exists yet, so duplicating here matches the current convention.
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function typeInEditor(page: Page, sql: string): Promise<void> {
   const content = page.locator('.cm-content');
@@ -92,7 +78,6 @@ test.describe.serial('ws realtime cache invalidation (AF-289)', () => {
     // own query. Mirrors the AF-268 pattern but only one approver is needed
     // because this spec doesn't exercise the race / 409 path.
     approverEmail = `ws-realtime-approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -148,7 +133,7 @@ test.describe.serial('ws realtime cache invalidation (AF-289)', () => {
       const submitterPage = await submitterCtx.newPage();
       const approverPage = await approverCtx.newPage();
 
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       const queryId = await submitViaEditor(
         submitterPage,
         datasource,
@@ -173,15 +158,14 @@ test.describe.serial('ws realtime cache invalidation (AF-289)', () => {
             .__websocketManager !== undefined,
       );
 
-      await loginViaUi(approverPage, approverEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverEmail, APPROVER_PASSWORD);
       await approverPage.goto('/reviews');
-      await expect(
-        approverPage.getByText(queryId, { exact: true }),
-      ).toBeVisible({ timeout: 15_000 });
       // /reviews renders an Ant Design <Table> — anchor on the row that
-      // contains this query's full UUID so other pending rows left over by
-      // earlier specs don't confuse the locator.
+      // contains this query's full UUID so other pending rows don't confuse
+      // the locator, and walk the pagination: the approver is an ADMIN, so
+      // concurrent specs' role-ADMIN queries share this queue.
       const reviewRow = approverPage.getByRole('row').filter({ hasText: queryId });
+      await findRowAcrossPages(approverPage, reviewRow);
       await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       // ── The load-bearing assertion. No reload(). ──
@@ -230,7 +214,7 @@ test.describe.serial('ws realtime cache invalidation (AF-289)', () => {
     const submitterCtx = await browser.newContext();
     try {
       const submitterPage = await submitterCtx.newPage();
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await submitterPage.goto(`/queries/${submitted.id}`);
       await expect(
         submitterPage

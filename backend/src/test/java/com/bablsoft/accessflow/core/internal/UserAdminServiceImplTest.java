@@ -70,8 +70,13 @@ class UserAdminServiceImplTest {
     @Test
     void listUsersReturnsPageMappedToView() {
         var entity = buildUser(userId, orgId, "alice@example.com", UserRoleType.ANALYST);
+        // Exact-match stub: a sortless request must be upgraded to the
+        // newest-first default (unspecified heap order hides fresh users on
+        // later pages).
         when(userRepository.findAllByOrganization_Id(orgId,
-                org.springframework.data.domain.PageRequest.of(0, 20)))
+                org.springframework.data.domain.PageRequest.of(0, 20,
+                        org.springframework.data.domain.Sort.by(
+                                org.springframework.data.domain.Sort.Direction.DESC, "createdAt"))))
                 .thenReturn(new PageImpl<>(List.of(entity)));
 
         var page = service.listUsers(orgId,

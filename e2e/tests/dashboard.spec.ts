@@ -1,20 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
+import { login } from '../helpers/login';
 
 // AF-498 — personalized dashboard. Covers the default post-login landing, the self-scoped widgets
 // rendering (incl. the redesign's attestation/access-request/request-group widgets), widget
 // visibility + reset-layout customization persisting across reloads, clickable stat tiles, the
 // trends range control, and the signed weekly-summary export download.
 
-const ADMIN_EMAIL = 'e2e@accessflow.test';
-const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForSummary(page: Page): Promise<void> {
   await page.waitForResponse(
@@ -28,7 +19,7 @@ async function waitForSummary(page: Page): Promise<void> {
 
 test.describe.serial('/dashboard personalized home', () => {
   test('is the default landing and renders the core widgets', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -53,7 +44,7 @@ test.describe.serial('/dashboard personalized home', () => {
   });
 
   test('shows the metric and range controls on the trends widget', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     const trends = page.getByTestId('dashboard-widget-trends');
@@ -71,7 +62,7 @@ test.describe.serial('/dashboard personalized home', () => {
   });
 
   test('stat tiles navigate to the matching list page', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     await page.getByTestId('dashboard-stat-pending').click();
@@ -80,7 +71,7 @@ test.describe.serial('/dashboard personalized home', () => {
   });
 
   test('hiding a widget persists across reloads', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     await expect(page.getByTestId('dashboard-widget-trends')).toBeVisible();
@@ -101,7 +92,7 @@ test.describe.serial('/dashboard personalized home', () => {
   });
 
   test('reset layout restores hidden widgets', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     await page.getByRole('button', { name: 'Customize' }).click();
@@ -114,7 +105,7 @@ test.describe.serial('/dashboard personalized home', () => {
   });
 
   test('exports the weekly summary as a signed PDF', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await waitForSummary(page);
 
     await page.getByRole('button', { name: 'Export this week' }).click();

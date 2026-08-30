@@ -11,7 +11,6 @@ import {
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
@@ -108,14 +107,12 @@ test.describe.serial('recurring approved queries (#627)', () => {
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
 
-    await purgeMailcrab(request);
     const approverEmail = `rec-approver-${randomUUID()}@e2e.local`;
     await inviteUserViaApi(request, adminAccessToken, approverEmail, '627 Approver', 'ADMIN');
     const approverToken = await waitForInviteToken(request, approverEmail);
     await acceptInvitationViaApi(request, approverToken, APPROVER_PASSWORD, '627 Approver');
     approverAccessToken = await loginViaApi(request, approverEmail, APPROVER_PASSWORD);
 
-    await purgeMailcrab(request);
     const analystEmail = `rec-analyst-${randomUUID()}@e2e.local`;
     await inviteUserViaApi(request, adminAccessToken, analystEmail, '627 Analyst', 'ANALYST');
     const analystToken = await waitForInviteToken(request, analystEmail);

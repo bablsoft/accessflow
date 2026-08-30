@@ -338,6 +338,11 @@ jobs:
       # it to reuse the images pre-built below instead of rebuilding. Harmless for
       # the main leg (it brings its stack up explicitly, also without --build).
       E2E_SKIP_BUILD: "1"
+      # Worker count for the main leg's `parallel` project (npm run test:parallel).
+      # 3 rather than the local default of 4: the ubuntu-latest runner's 4 vCPUs
+      # are shared with the docker stack. Ignored by the setup/sso configs
+      # (workers: 1 there).
+      E2E_WORKERS: "3"
     defaults:
       run:
         working-directory: e2e

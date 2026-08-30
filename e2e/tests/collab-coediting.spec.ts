@@ -8,26 +8,18 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const COLLAB_PASSWORD = 'Collab-Pwd!123';
 const COLLAB_NAME = 'AF-441 Collaborator';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 function editor(page: Page) {
   return page.getByTestId('collaborative-sql-editor').locator('.cm-content');
@@ -58,7 +50,6 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
     // The collaborator is ADMIN so the seeded one-stage ADMIN review plan makes
     // them an eligible reviewer — and therefore an authorized co-author.
     collaboratorEmail = `af441-collab-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminAccessToken, collaboratorEmail, COLLAB_NAME, 'ADMIN');
     const token = await waitForInviteToken(request, collaboratorEmail);
     await acceptInvitationViaApi(request, token, COLLAB_PASSWORD, COLLAB_NAME);
@@ -112,14 +103,14 @@ test.describe.serial('collaborative query editing (AF-441)', () => {
       const collaboratorPage = await collaboratorCtx.newPage();
 
       // Submitter opens first → seeds the shared document from the query's SQL.
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await submitterPage.goto(`/queries/${submitted.id}`);
       await expect(submitterPage.getByText('SQL (collaborative)')).toBeVisible({ timeout: 15_000 });
       await expect(editor(submitterPage)).toContainText('SELECT 1', { timeout: 15_000 });
 
       // Collaborator joins → syncs the document state from the submitter. As the
       // second joiner it does NOT self-seed, so seeing the SQL proves the relay.
-      await loginViaUi(collaboratorPage, collaboratorEmail, COLLAB_PASSWORD);
+      await login(collaboratorPage, collaboratorEmail, COLLAB_PASSWORD);
       await collaboratorPage.goto(`/queries/${submitted.id}`);
       await expect(editor(collaboratorPage)).toContainText('SELECT 1', { timeout: 15_000 });
 

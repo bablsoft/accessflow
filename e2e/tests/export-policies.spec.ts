@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   approveQueryViaApi,
@@ -12,7 +12,6 @@ import {
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
@@ -23,6 +22,7 @@ import {
 } from '../helpers/datasources';
 import { clickTab } from '../helpers/ui';
 import type { APIRequestContext } from '@playwright/test';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -32,14 +32,6 @@ const ANALYST_PASSWORD = 'Analyst-Pwd!123';
 // DENY_CLASSIFIED policy scoped to the analyst denies their export while the
 // org-wide WATERMARK policy stamps everyone else's.
 const CLASSIFIED_SELECT = 'SELECT email FROM users ORDER BY email LIMIT 1';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function provisionAnalyst(
   request: APIRequestContext,
@@ -92,7 +84,6 @@ test.describe.serial('result-export governance (#626)', () => {
 
   test.beforeAll(async ({ request }) => {
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await purgeMailcrab(request);
 
     analyst = await provisionAnalyst(request, adminToken);
 
@@ -189,7 +180,7 @@ test.describe.serial('result-export governance (#626)', () => {
 
   // ── 3. Denied analyst sees a disabled export button on the detail page ────
   test('denied analyst sees a disabled export button with the reason', async ({ page }) => {
-    await loginViaUi(page, analyst.user.email, ANALYST_PASSWORD);
+    await login(page, analyst.user.email, ANALYST_PASSWORD);
     await page.goto(`/queries/${analystQueryId}`);
 
     // The denied reason rides on the button's accessible name (aria-label).
@@ -202,7 +193,7 @@ test.describe.serial('result-export governance (#626)', () => {
   test('admin creates an export policy via the Export policy tab UI', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
     await clickTab(page, /Exports/);

@@ -6,6 +6,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // AF-364: save a SQL snippet as a template, reload the page, open the Templates
 // drawer, fill placeholder values, and submit through the normal /editor flow.
@@ -18,14 +19,6 @@ const TEMPLATE_NAME = `Top users ${SUFFIX}`;
 let datasource: CreatedDatasource | null = null;
 let adminAccessToken = '';
 let createdTemplateId: string | null = null;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function typeInEditor(page: Page, sql: string): Promise<void> {
   const content = page.locator('.cm-content');
@@ -65,7 +58,7 @@ test.describe.serial('query templates from /editor', () => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
     // ── 1. Login and write a SQL template with two :placeholders.
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
     // Register the schema wait BEFORE picking — the fetch can complete before a
     // later-registered listener attaches (localhost round-trips).

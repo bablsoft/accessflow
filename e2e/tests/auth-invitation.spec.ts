@@ -27,15 +27,6 @@ interface MailcrabMessage extends MailcrabSummary {
   html?: string;
 }
 
-// Purge any captured emails so the next `waitForInviteToken` probe is
-// unambiguous about which message belongs to the test that just ran.
-async function purgeMailcrab(request: APIRequestContext): Promise<void> {
-  const res = await request.post(`${MAILCRAB_BASE}/api/delete-all`);
-  if (!res.ok() && res.status() !== 404) {
-    throw new Error(`Mailcrab purge failed: ${res.status()} ${await res.text()}`);
-  }
-}
-
 function recipientMatches(summary: MailcrabSummary, recipient: string): boolean {
   if (!summary.to) return false;
   return summary.to.some((entry) => {
@@ -105,7 +96,12 @@ async function sendInvitation(page: Page, invitee: string): Promise<void> {
   // The modal is rendered into an AntD portal; scope queries to the dialog.
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Invite a teammate')).toBeVisible({ timeout: 10_000 });
-  await dialog.getByLabel('Email').fill(invitee);
+  // The modal Form can remount just after open and wipe an early fill (the
+  // Send click then trips required-field validation instead of POSTing) —
+  // assert the value stuck before submitting.
+  const emailInput = dialog.getByLabel('Email');
+  await emailInput.fill(invitee);
+  await expect(emailInput).toHaveValue(invitee);
   // Role is ANALYST by default — leave the Select untouched.
   await dialog.getByRole('button', { name: 'Send invitation' }).click();
   await expect(page.getByText('Invitation email sent')).toBeVisible({ timeout: 10_000 });
@@ -118,10 +114,6 @@ async function sendInvitation(page: Page, invitee: string): Promise<void> {
 let acceptedInviteToken: string | null = null;
 
 test.describe('invitation acceptance flow', () => {
-  test.beforeEach(async ({ request }) => {
-    await purgeMailcrab(request);
-  });
-
   // ── 1. Invalid token — preview endpoint returns 404, page renders alert + no form ──
   test('invalid token shows the error alert and no form', async ({ page }) => {
     await page.goto('/invite/this-token-does-not-exist');

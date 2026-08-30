@@ -1,5 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -22,14 +24,6 @@ function apiBase(): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/admin/users that UsersPage issues on mount so the
@@ -152,7 +146,7 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
   });
 
   test('1) create user with password (role ANALYST) via UI', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
@@ -199,6 +193,7 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
     const primaryRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(PRIMARY_USER_EMAIL)),
     });
+    await findRowAcrossPages(page, primaryRow);
     await expect(primaryRow).toBeVisible();
     await expect(primaryRow.getByText('Analyst', { exact: true })).toBeVisible();
     await expect(primaryRow.getByText('active', { exact: true })).toBeVisible();
@@ -207,13 +202,14 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
   test('2) edit user role from ANALYST to REVIEWER via UI', async ({ page }) => {
     test.skip(!primaryUserId, 'Test 1 must succeed to seed the row');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
     const primaryRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(PRIMARY_USER_EMAIL)),
     });
+    await findRowAcrossPages(page, primaryRow);
     await expect(primaryRow).toBeVisible();
 
     await openRowActionsMenu(primaryRow);
@@ -253,13 +249,14 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
   }) => {
     test.skip(!primaryUserId, 'Test 1 must succeed to seed the row');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
     const primaryRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(PRIMARY_USER_EMAIL)),
     });
+    await findRowAcrossPages(page, primaryRow);
     await expect(primaryRow).toBeVisible();
     await expect(primaryRow.getByText('active', { exact: true })).toBeVisible();
 
@@ -312,7 +309,7 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
     });
     duplicateUserId = created.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
@@ -347,13 +344,14 @@ test.describe.serial('/admin/users — create + edit + deactivate', () => {
   test('5) admin cannot deactivate themselves (422 ILLEGAL_USER_OPERATION)', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
     const adminRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(ADMIN_EMAIL)),
     });
+    await findRowAcrossPages(page, adminRow);
     await expect(adminRow).toBeVisible();
     await expect(adminRow.getByText('active', { exact: true })).toBeVisible();
 

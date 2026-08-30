@@ -7,9 +7,9 @@ import {
   createReviewPlanViaApi,
   deleteDatasource,
   deleteReviewPlanViaApi,
+  findUserByEmailViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedDatasource,
   type CreatedReviewPlan,
@@ -20,6 +20,7 @@ import {
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 // AF-501: Request chaining & grouping. An analyst bundles two ordered database-query steps into one
 // request group, submits it as a single element, an independent reviewer approves the bundle, and it
@@ -33,14 +34,6 @@ import { activeTabPanel } from '../helpers/ui';
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Since #559 the builder cards are compact summaries: "Add step" (or a card's Edit button) opens a
 // full-parity authoring drawer — the same Query/API editor surfaces as /editor and /api-editor.
@@ -179,15 +172,18 @@ test.describe('request groups (AF-501)', () => {
 
     // Provision an independent reviewer so the bundle can be approved by someone other than the
     // submitter (self-approval is blocked server-side).
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, approverEmail, 'Group Reviewer', 'REVIEWER');
     const token = await waitForInviteToken(request, approverEmail);
     await acceptInvitationViaApi(request, token, APPROVER_PASSWORD, 'Group Reviewer');
     reviewerToken = await loginViaApi(request, approverEmail, APPROVER_PASSWORD);
+    const reviewer = await findUserByEmailViaApi(request, adminToken, approverEmail);
 
     reviewPlan = await createReviewPlanViaApi(request, adminToken, {
       name: `Group Plan ${Date.now()}`,
-      approvers: [{ role: 'REVIEWER', stage: 1 }],
+      // user_id-scoped rather than role-scoped: a role-REVIEWER entry would
+      // put every concurrent spec's REVIEWER (e.g. reviews-approve's isolated
+      // approver B) in this plan's audience under the parallel project.
+      approvers: [{ userId: reviewer.id, stage: 1 }],
     });
     datasource = await createPostgresDatasource(request, adminToken, {
       name: `Group DS ${Date.now()}`,
@@ -209,7 +205,7 @@ test.describe('request groups (AF-501)', () => {
     request,
   }) => {
     const ds = datasource!;
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     // Builder: add two database-query steps.
     await page.goto('/request-groups/new');
@@ -290,7 +286,7 @@ test.describe('request groups (AF-501)', () => {
   }) => {
     const ds = datasource!;
     const conn = connector!;
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     await page.goto('/request-groups/new');
     const groupName = `E2E Draft Group ${Date.now()}`;
@@ -381,7 +377,7 @@ test.describe('request groups (AF-501)', () => {
   });
 
   test('the request groups list shows the new group action and table', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/request-groups');
     await expect(page.getByRole('button', { name: /New group/i })).toBeVisible();
     await expect(page.getByPlaceholder('Search groups…')).toBeVisible();

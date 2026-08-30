@@ -51,6 +51,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.SecretResolutionService;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -109,8 +110,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<DatasourceView> listForAdmin(UUID organizationId, PageRequest pageRequest) {
+        // Default to newest-first when the caller specifies no sort — without it the
+        // page order is unspecified heap order, so a freshly created datasource can
+        // land on any page (the health dashboard reads only page 0).
+        var effective = pageRequest != null && pageRequest.sort().isEmpty()
+                ? new PageRequest(pageRequest.page(), pageRequest.size(),
+                        List.of(SortOrder.desc("createdAt")))
+                : pageRequest;
         var page = datasourceRepository.findAllByOrganization_Id(
-                organizationId, PageAdapter.toSpringPageable(pageRequest));
+                organizationId, PageAdapter.toSpringPageable(effective));
         return PageAdapter.toPageResponse(page.map(this::toView));
     }
 

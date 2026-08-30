@@ -9,7 +9,6 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForApprovalPrediction,
   waitForInviteToken,
@@ -17,6 +16,7 @@ import {
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -28,18 +28,6 @@ const APPROVER_PASSWORD = 'Approver-Pwd!123';
  * copy deterministic: the queue shows the unscored dash, the detail card the cold-start notice.
  */
 const COLD_START_NOTICE = 'Not enough review history yet.';
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 /** Opens the "All pending" tab, which is not capped the way the default "Assigned to you" is. */
 async function openAllPendingTab(page: Page): Promise<void> {
@@ -64,7 +52,6 @@ test.describe.serial('approval-outcome prediction (AF-645)', () => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     approverEmail = `af645-approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -142,7 +129,7 @@ test.describe.serial('approval-outcome prediction (AF-645)', () => {
     // The API omits null fields rather than emitting them, so the sentinel reads as absent.
     expect(prediction.probability ?? null).toBeNull();
 
-    await loginViaUi(page, approverEmail, APPROVER_PASSWORD);
+    await login(page, approverEmail, APPROVER_PASSWORD);
     // "All pending" rather than the default tab, which slices to the first eight rows — with other
     // specs' queries in the queue this one is not guaranteed to survive the cut.
     await openAllPendingTab(page);
@@ -207,7 +194,7 @@ test.describe.serial('approval-outcome prediction (AF-645)', () => {
         .approval_prediction ?? null,
     ).toBeNull();
 
-    await loginViaUi(page, approverEmail, APPROVER_PASSWORD);
+    await login(page, approverEmail, APPROVER_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
 
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible({

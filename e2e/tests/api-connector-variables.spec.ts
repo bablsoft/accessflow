@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 // AF-613: dynamic variables for API connectors — an admin creates a connector, declares an
 // HMAC signing variable and an overridable nonce on the Variables tab, reorders them, and deletes
@@ -12,16 +13,8 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 
 const CONNECTOR_NAME = `Variables ${Date.now()}`;
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test('admin configures connector dynamic variables', async ({ page }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // Create a connector.
   await page.goto('/api-connectors');

@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -15,14 +16,6 @@ const API_BASE = process.env.E2E_API_BASE ?? 'http://localhost:8080';
 // need a real datasource), and deleted in afterAll.
 let datasource: CreatedDatasource | null = null;
 let adminAccessToken = '';
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // CodeMirror typing. `.cm-content` is the contenteditable that owns the SQL
 // document. Autocompletion is enabled in SqlEditor.tsx, so a popup pops while
@@ -61,7 +54,7 @@ test.describe.serial('query submission from /editor', () => {
   test('admin submits SELECT 1 and lands on /queries/<uuid>', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
 
     // Wait for the schema-tree GET on the seeded datasource to complete. The
     // editor auto-selects datasources[0] when nothing is picked, so we just
@@ -138,7 +131,7 @@ test.describe.serial('query submission from /editor', () => {
   test('Submit is disabled when SQL is empty', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
 
     // Same explicit datasource pick as test #1 so we don't depend on list
@@ -177,7 +170,7 @@ test.describe.serial('query submission from /editor', () => {
   }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
 
     const dsSelect = page.getByRole('combobox').first();
@@ -247,7 +240,7 @@ test.describe.serial('query submission from /editor', () => {
       });
     });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
 
     // Empty-state copy from datasources.list.empty (en.json:407).

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   approveQueryViaApi,
@@ -11,7 +11,6 @@ import {
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   setUserAttributesViaApi,
   submitQueryViaApi,
   waitForInviteToken,
@@ -22,6 +21,7 @@ import {
   type InvitedUser,
 } from '../helpers/datasources';
 import type { APIRequestContext } from '@playwright/test';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -31,14 +31,6 @@ const ANALYST_PASSWORD = 'Analyst-Pwd!123';
 // filters this to `email = :user.email_filter`, so a scoped analyst only sees the
 // single row matching the email stored in their admin-set attribute.
 const SELECT_EMAILS = 'SELECT email FROM users ORDER BY email';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function provisionAnalyst(
   request: APIRequestContext,
@@ -104,7 +96,6 @@ test.describe.serial('row-level security policies (AF-380)', () => {
 
   test.beforeAll(async ({ request }) => {
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await purgeMailcrab(request);
 
     scopedAnalyst = await provisionAnalyst(request, adminToken, 'scoped');
     unscopedAnalyst = await provisionAnalyst(request, adminToken, 'unscoped');
@@ -173,7 +164,7 @@ test.describe.serial('row-level security policies (AF-380)', () => {
   test('admin creates a row-security policy via the Row security tab UI', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
     await page.getByRole('tab', { name: /Row security/ }).click();

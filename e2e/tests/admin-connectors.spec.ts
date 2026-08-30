@@ -1,15 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Wait for the GET /api/v1/datasources/connectors the page issues on mount so
 // the catalog is rendered with real data rather than the loading skeleton.
@@ -37,7 +30,7 @@ async function waitForConnectorsReady(page: Page): Promise<void> {
 //      than coupling to network availability.
 test.describe.serial('/admin/connectors — connector catalog', () => {
   test('1) browse the connector catalog grouped by SQL and NoSQL', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/connectors');
     await waitForConnectorsReady(page);
 
@@ -74,7 +67,7 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
   });
 
   test('2) search narrows the catalog', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/connectors');
     await waitForConnectorsReady(page);
 
@@ -132,7 +125,7 @@ test.describe.serial('/admin/connectors — connector catalog', () => {
       });
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/connectors');
 
     const installButton = page.getByRole('button', { name: /install/i });
