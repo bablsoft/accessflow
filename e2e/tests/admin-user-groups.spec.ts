@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -8,14 +9,6 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 const SUFFIX = `af353-${Date.now()}`;
 const GROUP_NAME = `Billing Reviewers ${SUFFIX}`;
 const RENAMED_GROUP_NAME = `Billing Reviewers v2 ${SUFFIX}`;
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Wait for the GET /api/v1/admin/groups that GroupsListPage issues on mount so
 // the Table (or EmptyState) has real content before we drive the UI.
@@ -31,7 +24,7 @@ async function waitForGroupsListReady(page: Page): Promise<void> {
 
 test.describe('AF-353 — user groups admin CRUD', () => {
   test('admin can create, rename, and delete a user group', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     await page.goto('/admin/groups');
     await waitForGroupsListReady(page);

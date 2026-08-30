@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { login } from '../helpers/login';
 
 // AF-500 / #506: OAuth2 token sourcing for API connectors. An admin creates a connector with
 // auth_method=OAUTH2_CLIENT_CREDENTIALS pointed at a mock token server (WireMock `mock-ai`), then
@@ -14,18 +15,10 @@ const TOKEN_URI = `${MOCK_BASE}/oauth/token`;
 
 const CONNECTOR_NAME = `OAuth2 API ${Date.now()}`;
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test('admin creates an OAuth2 client-credentials connector and test-connection fetches a token', async ({
   page,
 }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   await page.goto('/api-connectors');
   await page.waitForResponse(

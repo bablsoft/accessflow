@@ -4,7 +4,7 @@
 // frontend on host port 5173, which collides with a locally running dev app.
 // Free the port (or set E2E_BASE_URL / E2E_API_BASE) before running locally.
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   createAttestationCampaignViaApi,
@@ -18,23 +18,15 @@ import {
   listPermissionsViaApi,
   loginViaApi,
   openAttestationCampaignViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedAttestationCampaign,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const ANALYST_PASSWORD = 'Analyst-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Two-user setup + UI table interactions; give the suite a generous budget.
 test.describe.configure({ timeout: 90_000 });
@@ -49,7 +41,6 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
 
   test.beforeAll(async ({ request }) => {
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await purgeMailcrab(request);
 
     datasource = await createPostgresDatasource(request, adminToken, {
       name: `Postgres E2E AF384 ${Date.now()}`,
@@ -114,7 +105,7 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
       // The bootstrap admin is also a valid attestation reviewer (hasAnyRole
       // REVIEWER/ADMIN), and is not the subject of either item, so the
       // self-subject guard does not apply.
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
       await page.goto('/reviews/attestations');
 
       // Both subjects render as rows.

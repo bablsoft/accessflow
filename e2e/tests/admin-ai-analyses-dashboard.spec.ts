@@ -7,6 +7,7 @@ import {
   submitQueryViaApi,
   waitForQueryStatus,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // AF-347 — admin AI analysis history dashboard. The mock-ai service in
 // docker-compose.e2e.yml is a WireMock instance configured to return a canned
@@ -24,14 +25,6 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 
 const UNIQUE_SUFFIX = `af347-${Date.now()}`;
 const DATASOURCE_NAME = `ai-dashboard-ds-${UNIQUE_SUFFIX}`;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForStatsResponse(page: Page): Promise<void> {
   await page.waitForResponse(
@@ -81,7 +74,7 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
   });
 
   test('renders chart cards with seeded data', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/ai-analyses');
     await waitForStatsResponse(page);
 
@@ -95,7 +88,7 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
   });
 
   test('datasource filter scopes to the seeded datasource', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/ai-analyses');
     await waitForStatsResponse(page);
 
@@ -126,7 +119,7 @@ test.describe.serial('/admin/ai-analyses dashboard renders seeded analyses', () 
   });
 
   test('shows empty state when range is years in the past', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/ai-analyses');
     await waitForStatsResponse(page);
 

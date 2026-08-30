@@ -1,7 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { login } from '../helpers/login';
 
-const ADMIN_EMAIL = 'e2e@accessflow.test';
-const ADMIN_PASSWORD = 'E2ePassword!123';
 
 // AF-459 covers the auditor compliance dashboard (/admin/auditor):
 //   1. the sidebar "Compliance reports" link routes to the dashboard and both report tabs render
@@ -12,14 +11,6 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 // AUDITOR) and the export's audit-log chaining (COMPLIANCE_REPORT_EXPORTED) are exercised by
 // ComplianceReportControllerIntegrationTest, which can seed arbitrary roles and read the audit log
 // directly — the e2e bootstrap only seeds an admin.
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForClassifiedReport(page: Page): Promise<void> {
   await page.waitForResponse(
@@ -33,7 +24,7 @@ async function waitForClassifiedReport(page: Page): Promise<void> {
 
 test.describe.serial('auditor compliance dashboard', () => {
   test('sidebar link opens the dashboard with both report tabs', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.getByRole('link', { name: 'Compliance reports' }).click();
     await page.waitForURL('**/admin/auditor', { timeout: 15_000 });
     await waitForClassifiedReport(page);
@@ -46,7 +37,7 @@ test.describe.serial('auditor compliance dashboard', () => {
   });
 
   test('CSV export is signed with the compliance filename and signature headers', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/auditor');
     await waitForClassifiedReport(page);
 
@@ -78,7 +69,7 @@ test.describe.serial('auditor compliance dashboard', () => {
   });
 
   test('switching to the regulatory trail tab refetches that report', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/auditor');
     await waitForClassifiedReport(page);
 

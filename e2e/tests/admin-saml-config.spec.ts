@@ -6,6 +6,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -31,14 +32,6 @@ const IDP_ENTITY_ID_UPDATED = 'urn:e2e:idp-2';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Gate before driving the SAML form: wait for the GET that SamlConfigPage
@@ -75,7 +68,13 @@ async function probeLoginSamlButton(browser: Browser): Promise<{
       { timeout: 10_000 },
     );
     const button = page.getByRole('button', { name: /SAML SSO/i });
-    const visible = await button.isVisible().catch(() => false);
+    // The button renders a beat after the providers response lands — an
+    // immediate isVisible() races the React commit. Bounded wait keeps the
+    // negative probes (visible=false) correct too, at a 3s cost.
+    const visible = await button
+      .waitFor({ state: 'visible', timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
     return { visible };
   } finally {
     await context.close();
@@ -140,7 +139,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 
@@ -160,7 +159,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 
@@ -201,7 +200,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
   test('3) reload → fields persisted, cert masked, mask-preserve roundtrip', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 
@@ -240,7 +239,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 
@@ -272,7 +271,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
   test('5) malformed metadata URL → inline AntD error, no PUT fires', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 
@@ -307,7 +306,7 @@ test.describe.serial('/admin/saml — config CRUD (no IdP roundtrip)', () => {
   test('6) invalid PEM → backend 400, error toast, form stays open', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/saml');
     await waitForSamlConfigLoaded(page);
 

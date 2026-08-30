@@ -6,6 +6,7 @@ import {
   purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -24,14 +25,6 @@ const DEFAULT_API_BASE = 'http://localhost:8080';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/admin/users that UsersPage issues on mount so the
@@ -133,7 +126,7 @@ test.describe.serial('/admin/users — invitation lifecycle', () => {
   });
 
   test('1) invite via email → row appears with status PENDING', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
     await expect(page.getByRole('heading', { name: 'Users' })).toBeVisible();
@@ -185,7 +178,7 @@ test.describe.serial('/admin/users — invitation lifecycle', () => {
   test('2) resend → toast appears, row stays PENDING', async ({ page }) => {
     test.skip(!invitationId, 'Test 1 must succeed to seed the invitation row');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
@@ -221,7 +214,7 @@ test.describe.serial('/admin/users — invitation lifecycle', () => {
   test('3) revoke → row flips to REVOKED with disabled row actions', async ({ page }) => {
     test.skip(!invitationId, 'Test 1 must succeed to seed the invitation row');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
@@ -279,7 +272,7 @@ test.describe.serial('/admin/users — invitation lifecycle', () => {
   test('4) malformed email blocks submission with inline validation', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 
@@ -343,7 +336,7 @@ test.describe.serial('/admin/users — invitation lifecycle', () => {
     );
 
     // UI assertion: open the row's "⋯" menu and confirm both actions are disabled.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
     await waitForUsersListReady(page);
 

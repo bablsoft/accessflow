@@ -6,31 +6,21 @@ import {
   createPostgresDatasource,
   createReviewPlanViaApi,
   deleteDatasource,
+  findUserByEmailViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // CodeMirror's contenteditable doesn't accept .fill(). Mirrors the helper in
 // query-execute.spec.ts; the editor onboarding banner reflows after the schema
@@ -96,7 +86,6 @@ test.describe.serial('reviews approve (AF-268)', () => {
     // ADMIN-role so the seeded one-stage ADMIN review plan accepts either.
     approverAEmail = `af268-approver-a-${randomUUID()}@e2e.local`;
     approverBEmail = `af268-approver-b-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
 
     await inviteUserViaApi(
       request,
@@ -113,12 +102,17 @@ test.describe.serial('reviews approve (AF-268)', () => {
       'AF-268 Approver A',
     );
 
+    // B is deliberately a REVIEWER, not an ADMIN: under the parallel project
+    // every concurrent spec's role-ADMIN plan would land in an ADMIN's queue,
+    // and test 3 asserts B's queue can be drained to the empty state. As a
+    // REVIEWER, B is eligible only via the explicit user_id entry on this
+    // spec's plan, so B's queue contains this spec's queries and nothing else.
     await inviteUserViaApi(
       request,
       adminAccessToken,
       approverBEmail,
       'AF-268 Approver B',
-      'ADMIN',
+      'REVIEWER',
     );
     const tokenB = await waitForInviteToken(request, approverBEmail);
     await acceptInvitationViaApi(
@@ -133,9 +127,20 @@ test.describe.serial('reviews approve (AF-268)', () => {
       approverBPassword,
     );
 
+    const approverB = await findUserByEmailViaApi(
+      request,
+      adminAccessToken,
+      approverBEmail,
+    );
+
     reviewPlan = await createReviewPlanViaApi(request, adminAccessToken, {
       name: `E2E Review Plan AF268 ${Date.now()}`,
-      approvers: [{ role: 'ADMIN', stage: 1 }],
+      // A approves via the role entry; B (a REVIEWER — see the invite above)
+      // is eligible only through the explicit user_id entry.
+      approvers: [
+        { role: 'ADMIN', stage: 1 },
+        { userId: approverB.id, stage: 1 },
+      ],
       minApprovalsRequired: 1,
     });
 
@@ -163,7 +168,7 @@ test.describe.serial('reviews approve (AF-268)', () => {
       const submitterPage = await submitterCtx.newPage();
       const approverPage = await approverCtx.newPage();
 
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       const queryId = await submitViaEditor(
         submitterPage,
         datasource,
@@ -177,16 +182,15 @@ test.describe.serial('reviews approve (AF-268)', () => {
           .getByText('Pending review'),
       ).toBeVisible({ timeout: 15_000 });
 
-      await loginViaUi(approverPage, approverAEmail, approverAPassword);
+      await login(approverPage, approverAEmail, approverAPassword);
       await approverPage.goto('/reviews');
 
-      // The /reviews table renders the full UUID inside the row so prior
-      // specs that leave queries in PENDING_REVIEW (e.g. cancel spec) don't
-      // confuse the locator.
-      await expect(
-        approverPage.getByText(queryId, { exact: true }),
-      ).toBeVisible({ timeout: 15_000 });
+      // The /reviews table renders the full UUID inside the row so other
+      // specs' pending rows don't confuse the locator; A is an ADMIN, so
+      // concurrent specs' role-ADMIN queries share this queue and the row may
+      // sit past page 1 — walk the pagination to it.
       const reviewRow = approverPage.getByRole('row').filter({ hasText: queryId });
+      await findRowAcrossPages(approverPage, reviewRow);
       await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       // Toast from reviews.on_approve in en.json.
@@ -242,18 +246,16 @@ test.describe.serial('reviews approve (AF-268)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverAEmail, approverAPassword);
+      await login(approverPage, approverAEmail, approverAPassword);
       await approverPage.goto('/reviews');
-      await expect(
-        approverPage.getByText(submitted.id, { exact: true }),
-      ).toBeVisible({ timeout: 15_000 });
+      const reviewRow = approverPage.getByRole('row').filter({ hasText: submitted.id });
+      await findRowAcrossPages(approverPage, reviewRow);
 
       // Race: approver B (separate user, separate token) approves via API
       // before approver A's click. The query is now APPROVED server-side, but
       // approver A's cached card is unaware.
       await approveQueryViaApi(request, approverBAccessToken, submitted.id);
 
-      const reviewRow = approverPage.getByRole('row').filter({ hasText: submitted.id });
       await reviewRow.getByRole('button', { name: 'Approve' }).click();
 
       await expect(
@@ -312,7 +314,7 @@ test.describe.serial('reviews approve (AF-268)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverBEmail, approverBPassword);
+      await login(approverPage, approverBEmail, approverBPassword);
       await approverPage.goto('/reviews');
       // EmptyState title from reviews.empty_title.
       await expect(approverPage.getByText('All caught up')).toBeVisible({

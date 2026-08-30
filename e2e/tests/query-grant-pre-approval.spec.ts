@@ -9,13 +9,13 @@ import {
   executeQueryViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // #582 — grant-covered query auto-approval. A JIT access request (AF-378) can
 // opt into pre-approving queries: while the resulting grant is active, a query
@@ -30,14 +30,6 @@ import {
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const REQUESTER_PASSWORD = 'Requester-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function submitAccessRequest(
   page: Page,
@@ -88,7 +80,6 @@ test.describe.serial('grant-covered query auto-approval (#582)', () => {
       name: `AF-582 Plain DS ${Date.now()}`,
       reviewPlanId: reviewPlan.id,
     });
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, requesterEmail, 'AF-582 Requester', 'ANALYST');
     const token = await waitForInviteToken(request, requesterEmail);
     await acceptInvitationViaApi(request, token, REQUESTER_PASSWORD, 'AF-582 Requester');
@@ -105,11 +96,11 @@ test.describe.serial('grant-covered query auto-approval (#582)', () => {
     request,
   }) => {
     // 1. Requester asks for access with the pre-approve checkbox ticked.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, preApprovedDs!.name, { preApprove: true });
 
     // 2. The approving admin sees exactly what they authorize — the blue tag.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
     await expect(page.getByText('Pre-approves queries').first()).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Approve' }).first().click();
@@ -131,7 +122,7 @@ test.describe.serial('grant-covered query auto-approval (#582)', () => {
     expect(executed.status).toBe('EXECUTED');
 
     // 5. The query detail shows the grant provenance (grant id + approver).
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto(`/queries/${query.id}`);
     await expect(page.getByText('Auto-approved under an access grant')).toBeVisible({
       timeout: 15_000,
@@ -142,10 +133,10 @@ test.describe.serial('grant-covered query auto-approval (#582)', () => {
   test('grant without the flag keeps human review', async ({ page, request }) => {
     // Same flow, checkbox left unchecked: the grant only conveys submission
     // rights — the query still routes to PENDING_REVIEW.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, plainDs!.name, { preApprove: false });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await approveNewestAccessRequest(page, requesterEmail);
 
     const query = await submitQueryViaApi(

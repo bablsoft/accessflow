@@ -6,10 +6,10 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 async function createGroupViaApi(
   request: APIRequestContext,
@@ -46,14 +46,6 @@ const WRONG_PASSWORD = 'wrong-password-af273';
 const ANALYST_DISPLAY = 'AF-273 Analyst';
 const ANALYST_EMAIL = `analyst-af273-${Date.now()}@accessflow.test`;
 const ANALYST_PASSWORD = 'Analyst-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Wait for the GET /api/v1/datasources/{id} that backs the settings page so
 // the Configuration tab is rendered with initialValues populated. Mirrors the
@@ -151,7 +143,6 @@ test.describe.serial('datasource settings — config + permissions', () => {
     // dropdown's "taken" check anyway — but the analyst is the realistic
     // grantee). Mirrors the invitation arrangement from
     // datasource-create-failures.spec.ts.
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -185,7 +176,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceX) throw new Error('beforeAll did not create datasource X');
     const dsId = datasourceX.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -225,7 +216,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     }
     const dsId = datasourceX.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -258,7 +249,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceZ) throw new Error('beforeAll did not create datasource Z');
     const dsId = datasourceZ.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -291,7 +282,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceA) throw new Error('beforeAll did not create datasource A');
     const dsId = datasourceA.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -384,7 +375,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceA) throw new Error('beforeAll did not create datasource A');
     const dsId = datasourceA.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -476,7 +467,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceA) throw new Error('beforeAll did not create datasource A');
     const dsId = datasourceA.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 
@@ -525,7 +516,7 @@ test.describe.serial('datasource settings — config + permissions', () => {
     if (!datasourceB) throw new Error('beforeAll did not create datasource B');
     const dsId = datasourceB.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 

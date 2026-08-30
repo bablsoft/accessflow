@@ -1,35 +1,25 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   createPostgresDatasource,
   createReviewPlanViaApi,
   deleteDatasource,
+  findUserByEmailViaApi,
+  grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Two-user setup + table interactions, give the suite a generous budget.
 test.describe.configure({ timeout: 90_000 });
@@ -44,14 +34,18 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     approverEmail = `af346-approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
 
     await inviteUserViaApi(
       request,
       adminAccessToken,
       approverEmail,
       'AF-346 Approver',
-      'ADMIN',
+      // REVIEWER + a user_id-scoped plan below: this spec select-alls the
+      // approver's whole queue and asserts "3 selected", so the queue must
+      // contain ONLY this spec's rows. An ADMIN approver would see (and
+      // bulk-approve!) every concurrent spec's role-ADMIN queries under the
+      // parallel project.
+      'REVIEWER',
     );
     const token = await waitForInviteToken(request, approverEmail);
     await acceptInvitationViaApi(
@@ -60,10 +54,15 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
       APPROVER_PASSWORD,
       'AF-346 Approver',
     );
+    const approver = await findUserByEmailViaApi(
+      request,
+      adminAccessToken,
+      approverEmail,
+    );
 
     reviewPlan = await createReviewPlanViaApi(request, adminAccessToken, {
       name: `E2E Review Plan AF346 ${Date.now()}`,
-      approvers: [{ role: 'ADMIN', stage: 1 }],
+      approvers: [{ userId: approver.id, stage: 1 }],
       minApprovalsRequired: 1,
     });
 
@@ -71,6 +70,15 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
       name: `Postgres E2E AF346 ${Date.now()}`,
       reviewPlanId: reviewPlan.id,
     });
+
+    // A non-admin needs an explicit grant to submit the self-owned query used
+    // by the FORBIDDEN branch (ADMINs get implicit access; REVIEWERs don't).
+    await grantPermissionViaApi(
+      request,
+      adminAccessToken,
+      datasource.id,
+      approver.id,
+    );
   });
 
   test.afterAll(async ({ request }) => {
@@ -129,7 +137,7 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverEmail, APPROVER_PASSWORD);
       await approverPage.goto('/reviews');
 
       // Each submitted query renders as a row with the full UUID visible.
@@ -249,7 +257,7 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverEmail, APPROVER_PASSWORD);
       await approverPage.goto('/reviews');
       await expect(
         approverPage.getByText(submitted.id, { exact: true }),

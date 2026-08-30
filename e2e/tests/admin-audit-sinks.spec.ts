@@ -7,6 +7,7 @@ import {
   type Route,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -30,14 +31,6 @@ function apiBase(): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/admin/audit-sinks that AuditSinksPage issues on
@@ -166,7 +159,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
       if (req.url().startsWith('https://splunk.e2e-sink.invalid')) sinkCalled = true;
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -210,7 +203,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
   });
 
   test('2) create S3_OBJECT_LOCK sink via modal → card appears', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -251,7 +244,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
     const splunk = created.get('splunk');
     test.skip(!splunk, 'Test 1 must succeed to seed the SPLUNK sink');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -296,7 +289,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
   });
 
   test('4) submit empty form → inline validation, no POST fired', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -339,7 +332,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
     test.skip(!splunk, 'Test 1 must succeed to seed the SPLUNK sink');
 
     await stubTestEndpointOk(page);
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -373,7 +366,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
     const splunk = created.get('splunk');
     test.skip(!splunk, 'Test 1 must succeed to seed the SPLUNK sink');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 
@@ -412,7 +405,7 @@ test.describe.serial('/admin/audit-sinks — sink CRUD + health + test (#628)', 
     const s3 = created.get('s3');
     test.skip(!splunk || !s3, 'Tests 1 and 2 must succeed to seed the deletable sinks');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/audit-sinks');
     await waitForSinksListReady(page);
 

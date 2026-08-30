@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -36,14 +37,6 @@ let adminAccessToken = '';
 // using a datasource-name substring exercises the same `qr.datasource.name`
 // branch of the filter (QueryListPage.tsx:104) and actually narrows.
 const UNIQUE_SUFFIX = `af265-${Date.now()}`;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 interface SubmittedQuery {
   id: string;
@@ -203,7 +196,7 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
   }) => {
     if (!datasourceA || !datasourceB) throw new Error('beforeAll did not create datasources');
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/queries');
     await waitForListReady(page);
 
@@ -290,7 +283,7 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
   });
 
   test('clicking a row navigates to /queries/<uuid>', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/queries');
     await waitForListReady(page);
 
@@ -319,7 +312,7 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
     // Override Accept on the page context so the browser advertises text/csv.
     await context.setExtraHTTPHeaders({ Accept: 'text/csv, */*' });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/queries');
     await waitForListReady(page);
 
@@ -376,7 +369,7 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
       });
     });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/queries');
     await waitForListReady(page);
 
@@ -415,7 +408,7 @@ test.describe.serial('query list filters + CSV export on /queries', () => {
       });
     });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/queries');
 
     // The page renders: header + filter strip + Table with empty data.

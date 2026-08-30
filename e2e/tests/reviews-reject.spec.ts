@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   approveQueryViaApi,
@@ -8,29 +8,17 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Two-context tests + invitation roundtrips + status polls run longer than
 // the default 30s budget. Matches the timeout used by query-execute.spec.ts.
@@ -50,7 +38,6 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
 
     approverAEmail = `af269-approver-a-${randomUUID()}@e2e.local`;
     approverBEmail = `af269-approver-b-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
 
     await inviteUserViaApi(
       request,
@@ -134,7 +121,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverAEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverAEmail, APPROVER_PASSWORD);
       await approverPage.goto('/reviews');
 
       await expect(
@@ -170,7 +157,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
       const submitterCtx = await browser.newContext();
       try {
         const submitterPage = await submitterCtx.newPage();
-        await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+        await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
         await submitterPage.goto(`/queries/${submitted.id}`);
         await expect(
           submitterPage
@@ -214,7 +201,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverAEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverAEmail, APPROVER_PASSWORD);
       await approverPage.goto(`/queries/${submitted.id}`);
 
       await expect(
@@ -250,7 +237,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
     const submitterCtx = await browser.newContext();
     try {
       const submitterPage = await submitterCtx.newPage();
-      await loginViaUi(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(submitterPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await submitterPage.goto(`/queries/${submitted.id}`);
 
       await expect(
@@ -288,7 +275,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverAEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverAEmail, APPROVER_PASSWORD);
       await approverPage.goto(`/queries/${submitted.id}`);
 
       // The Reject button in the reviewer decision panel.
@@ -339,7 +326,7 @@ test.describe.serial('reviews reject + request-changes (AF-269)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverAEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverAEmail, APPROVER_PASSWORD);
       await approverPage.goto(`/queries/${submitted.id}`);
       await expect(
         approverPage

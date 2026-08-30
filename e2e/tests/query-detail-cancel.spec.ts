@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   createPostgresDatasource,
   deleteDatasource,
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -33,14 +34,6 @@ interface MailcrabSummary {
 interface MailcrabMessage extends MailcrabSummary {
   text?: string;
   html?: string;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function submitQuery(
@@ -86,13 +79,6 @@ async function waitForQueryStatus(
   throw new Error(
     `Query ${id} did not reach status ${expected} within ${timeoutMs}ms (last seen: ${last || '<no response>'})`,
   );
-}
-
-async function purgeMailcrab(request: APIRequestContext): Promise<void> {
-  const res = await request.post(`${MAILCRAB_BASE}/api/delete-all`);
-  if (!res.ok() && res.status() !== 404) {
-    throw new Error(`Mailcrab purge failed: ${res.status()} ${await res.text()}`);
-  }
 }
 
 function recipientMatches(summary: MailcrabSummary, recipient: string): boolean {
@@ -168,7 +154,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     );
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
 
     // statusLabel() replaces '_' with ' ', so PENDING_REVIEW renders as
@@ -240,8 +226,6 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     );
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
 
-    await purgeMailcrab(request);
-
     // Random email so a re-run doesn't collide with the row left behind by the
     // previous run — invitation acceptance provisions a real user we don't
     // clean up (matches the auth-invitation spec's behavior).
@@ -250,7 +234,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
     const inviteeCtx = await browser.newContext();
     try {
       const adminPage = await adminCtx.newPage();
-      await loginViaUi(adminPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(adminPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await adminPage.goto('/admin/users');
       await adminPage
         .getByRole('button', { name: 'Invite via email', exact: true })
@@ -342,7 +326,7 @@ test.describe.serial('query detail page — view + submitter cancel (AF-266)', (
       });
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Pending review'),

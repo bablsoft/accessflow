@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   createApiKeyViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   revokeApiKeyViaApi,
   waitForInviteToken,
 } from '../helpers/datasources';
@@ -25,18 +24,11 @@ import {
   waitForDeploymentStatus,
   type CreatedDeploymentPipeline,
 } from '../helpers/deployments';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const SUBMITTER_PASSWORD = 'Submitter-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Provisioning the submitter (invite → Mailcrab → accept) takes 1–2s, so bump
 // the per-test budget beyond the 30s default.
@@ -70,7 +62,6 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     // is turned away at method security with a 403 and never reaches the provenance check.
     // Holding the permission and still being refused is the guarantee worth testing.
     submitterEmail = `af696-submitter-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'AF-696 Submitter', 'REVIEWER');
     const token = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, token, SUBMITTER_PASSWORD, 'AF-696 Submitter');
@@ -129,7 +120,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const reviewerCtx = await browser.newContext();
     try {
       const reviewerPage = await reviewerCtx.newPage();
-      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await reviewerPage.goto('/deployment-reviews');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: version });
@@ -175,7 +166,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const reviewerCtx = await browser.newContext();
     try {
       const reviewerPage = await reviewerCtx.newPage();
-      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Approve from the queue, then follow the row into the detail page.
       await reviewerPage.goto('/deployment-reviews');
@@ -223,7 +214,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const submitterCtx = await browser.newContext();
     try {
       const submitterPage = await submitterCtx.newPage();
-      await loginViaUi(submitterPage, submitterEmail, SUBMITTER_PASSWORD);
+      await login(submitterPage, submitterEmail, SUBMITTER_PASSWORD);
 
       await submitterPage.goto('/deployments');
       const row = submitterPage.locator('.ant-table-row', { hasText: version });
@@ -334,7 +325,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     const reviewerCtx = await browser.newContext();
     try {
       const reviewerPage = await reviewerCtx.newPage();
-      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await reviewerPage.goto('/deployment-reviews?tab=rollbacks');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: detail });

@@ -1,11 +1,11 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -31,18 +31,6 @@ const ANALYST_PASSWORD = 'AnalystPass!123';
 // invitation role (DefaultUserInvitationService) and the realistic non-admin /
 // non-reviewer role.
 
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 async function provisionAnalystUser(
   request: APIRequestContext,
   adminToken: string,
@@ -64,7 +52,6 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
   const ANALYST_DISPLAY = `AF288 Analyst ${UNIQUE_SUFFIX}`;
 
   test.beforeAll(async ({ request }) => {
-    await purgeMailcrab(request);
     const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
     await provisionAnalystUser(request, adminToken, ANALYST_EMAIL, ANALYST_DISPLAY);
   });
@@ -79,7 +66,7 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
   });
 
   test('ANALYST visiting /admin/users is redirected to their role home', async ({ page }) => {
-    await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
+    await login(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/admin/users');
     // AuthGuard's `<Navigate to={homePathForRole(role)} replace />` collapses history, so the bad
@@ -93,7 +80,7 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
   });
 
   test('ANALYST visiting /reviews is redirected to their role home', async ({ page }) => {
-    await loginViaUi(page, ANALYST_EMAIL, ANALYST_PASSWORD);
+    await login(page, ANALYST_EMAIL, ANALYST_PASSWORD);
 
     await page.goto('/reviews');
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
@@ -103,7 +90,7 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
   });
 
   test('ADMIN can access /editor, /reviews, and /admin/users', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     // /editor — login now lands on /dashboard, so navigate explicitly and assert ADMIN can reach the
     // editor (URL + sidebar-nav). The QueryEditorPage <h1> is conditional on having a datasource

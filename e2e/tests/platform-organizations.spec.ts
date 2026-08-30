@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { login } from '../helpers/login';
 
 // AF-456: super-admin multi-organization management. The bootstrap admin is provisioned as a
 // platform admin (platform_admin=true), so it can reach the cross-org management UI.
@@ -9,17 +10,9 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 const SUFFIX = `af456-${Date.now()}`;
 const NEW_ORG_NAME = `Acme ${SUFFIX}`;
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test.describe('Platform organization management', () => {
   test('platform admin can create, configure, and disable an organization', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     // The Platform nav group is visible only to platform admins. Wait on rendered content
     // (not a network response) so the assertions survive TanStack Query's client-side cache.

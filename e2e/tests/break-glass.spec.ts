@@ -8,10 +8,10 @@ import {
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -23,14 +23,6 @@ async function meIdViaApi(request: APIRequestContext, token: string): Promise<st
   });
   if (!res.ok()) throw new Error(`GET /me failed: ${res.status()} ${await res.text()}`);
   return ((await res.json()) as { id: string }).id;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function typeInEditor(page: Page, sql: string): Promise<void> {
@@ -62,7 +54,6 @@ test.describe.serial('break-glass / emergency access (AF-385)', () => {
     // so provision a fresh ANALYST as the break-glass submitter and let the bootstrap
     // admin reconcile. A fresh user per run avoids the email uniqueness constraint.
     submitterEmail = `breakglass-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'AF-385 Submitter', 'ANALYST');
     const inviteToken = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, inviteToken, SUBMITTER_PASSWORD, 'AF-385 Submitter');
@@ -89,7 +80,7 @@ test.describe.serial('break-glass / emergency access (AF-385)', () => {
   test('eligible user breaks glass → query executes immediately', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page, submitterEmail, SUBMITTER_PASSWORD);
+    await login(page, submitterEmail, SUBMITTER_PASSWORD);
     await page.goto('/editor');
     await pickDatasource(page, datasource);
     await page.waitForLoadState('networkidle');
@@ -115,7 +106,7 @@ test.describe.serial('break-glass / emergency access (AF-385)', () => {
   });
 
   test('admin sees the unreconciled event and acknowledges it', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/break-glass');
 
     // Default filter is PENDING_REVIEW (unreconciled). The row carries the justification.

@@ -1,14 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   apiBase,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
 import { createApiConnectorViaApi } from '../helpers/apiConnectors';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 // AF-500: API Access Governance — admin creates an API connector via the UI, uploads an OpenAPI
 // schema, and sees the parsed operation catalog. Seeded admin comes from the bootstrap module.
@@ -29,16 +29,8 @@ const OPENAPI_DOC = JSON.stringify({
   },
 });
 
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
-
 test('admin creates an API connector and uploads an OpenAPI schema', async ({ page }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // Connector list
   await page.goto('/api-connectors');
@@ -123,7 +115,7 @@ test('admin imports a Postman collection as a connector schema (#612)', async ({
     aiAnalysisEnabled: false,
   });
 
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await page.goto(`/api-connectors/${connector.id}/settings`);
   await page.getByRole('tab', { name: 'Schema' }).click();
 
@@ -161,7 +153,7 @@ test('admin imports a Postman collection as a connector schema (#612)', async ({
 });
 
 test('API Requests and API Reviews pages render their filter bars (#512)', async ({ page }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // API Requests list: aligned with Query History — search + status/connector/verb/risk filters,
   // plus the submitter column and trace/span id filters (#517).
@@ -183,12 +175,11 @@ test('admin edits an API connector permission in place (AF-530)', async ({ page,
   // Seed a second, usable user via invite + accept (bootstrap only seeds the admin).
   const memberEmail = `perm-edit-${Date.now()}@accessflow.test`;
   const adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
-  await purgeMailcrab(request);
   await inviteUserViaApi(request, adminToken, memberEmail, 'Perm Edit Member', 'ANALYST');
   const inviteToken = await waitForInviteToken(request, memberEmail);
   await acceptInvitationViaApi(request, inviteToken, ADMIN_PASSWORD);
 
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // Create a connector to grant on.
   const connectorName = `PermEdit ${Date.now()}`;
@@ -254,7 +245,7 @@ test('admin grants and edits an API connector group permission (AF-564)', async 
   });
   expect(groupRes.ok()).toBeTruthy();
 
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await page.goto(`/api-connectors/${connector.id}/settings`);
   await page.getByRole('tab', { name: 'Permissions' }).click();
 
@@ -321,7 +312,7 @@ test('admin assigns and clears a review plan on an API connector (AF-579)', asyn
     aiAnalysisEnabled: false,
   });
 
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
   await page.goto(`/api-connectors/${connector.id}/settings`);
 
   // Assign the plan from the config form.
@@ -364,7 +355,7 @@ test('admin assigns and clears a review plan on an API connector (AF-579)', asyn
 });
 
 test('API editor shows the Postman-style composer and scheduling (#517)', async ({ page }) => {
-  await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   await page.goto('/api-editor');
   // The request composer exposes Params / Headers / Body tabs.

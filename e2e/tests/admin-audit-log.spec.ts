@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -28,14 +29,6 @@ const DATASOURCE_NAME = `Audit log E2E ${UNIQUE_SUFFIX}`;
 
 let datasource: CreatedDatasource | null = null;
 let adminAccessToken = '';
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Wait for the GET /api/v1/admin/audit-log response that backs the page. The
 // table renders only after the query resolves, so subsequent locators are
@@ -88,7 +81,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
   test('shows USER_LOGIN and DATASOURCE_CREATED events in the unfiltered list', async ({
     page,
   }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
@@ -106,7 +99,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
   });
 
   test('filtering by action DATASOURCE_CREATED narrows the list', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
@@ -135,7 +128,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
   test('clicking a row opens the drawer and renders the metadata JSON', async ({
     page,
   }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
@@ -180,7 +173,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
   });
 
   test('Verify chain button reports Chain valid with rows checked', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
@@ -214,7 +207,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
     // axios advertises text/csv. Same workaround as the /queries CSV export spec.
     await context.setExtraHTTPHeaders({ Accept: 'text/csv, */*' });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
@@ -263,7 +256,7 @@ test.describe.serial('admin audit log — list, filter, drawer, chain verify', (
   });
 
   test('filter that matches no events renders the empty-state', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/audit-log');
     await waitForAuditListReady(page);
 
