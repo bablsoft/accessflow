@@ -10,6 +10,7 @@ import {
   normalizeNav,
   pageUrl,
   slice,
+  stripNonProse,
   websiteRoot,
 } from './helpers/websiteHtml';
 
@@ -58,9 +59,11 @@ const INLINE_STYLE_BUDGET = 36;
 
 /**
  * AF-789 landing composition: index.html is a hub of teasers, not the
- * encyclopedia — the full content lives on the spoke pages. Measured at 1,084
+ * encyclopedia — the full content lives on the spoke pages. Measured at 1,104
  * words when the cut landed; the budget is a ceiling, not a target. Raising it
- * past 1300 needs the same scrutiny as raising the inline-style budget.
+ * past 1300 needs the same scrutiny as raising the inline-style budget — and
+ * aria-hidden is NOT a budget valve: it exists to exclude decorative mock-UI
+ * facsimiles, never to hide real copy from the count.
  */
 const MAIN_WORD_BUDGET = 1300;
 
@@ -68,6 +71,8 @@ const MAIN_WORD_BUDGET = 1300;
  * The 8 pages epic AF-782 carved out of the landing page. Hub-and-spoke only
  * works with no orphans: each must stay reachable from the homepage *body* —
  * the nav does not count (it is chrome, and AF-791 retargets it separately).
+ * Exactly once, per the AF-789 acceptance: a second in-body link dilutes the
+ * exact-match anchor text, so adding one must be a deliberate test change.
  */
 const SPOKE_URLS = [
   '/features/',
@@ -263,10 +268,40 @@ describe('website pages', () => {
     expect(words, 'index.html <main> prose word count').toBeLessThanOrEqual(MAIN_WORD_BUDGET);
   });
 
-  it('links every AF-782 spoke page from the landing page body', () => {
-    const main = slice(read(path.join(websiteRoot, 'index.html')), '<main', '</main>');
-    const unlinked = SPOKE_URLS.filter((u) => !main.includes(`href="${u}"`));
-    expect(unlinked, 'spoke pages not linked from index.html <main>').toEqual([]);
+  it('links every AF-782 spoke page from the landing page body, exactly once', () => {
+    // stripNonProse so a commented-out teaser or a script-embedded string can
+    // neither satisfy the link requirement nor trip the exactly-once half.
+    const main = stripNonProse(slice(read(path.join(websiteRoot, 'index.html')), '<main', '</main>'));
+    const counts = SPOKE_URLS.map((u) => `${u} ×${main.split(`href="${u}"`).length - 1}`);
+    expect(counts, 'spoke links from index.html <main>').toEqual(SPOKE_URLS.map((u) => `${u} ×1`));
+  });
+
+  describe('mainWordCount', () => {
+    // The word-budget guard is only as strong as this tokenizer, so its
+    // semantics are pinned on fixtures rather than only on live content.
+    it('counts prose words and ignores separator glyphs', () => {
+      expect(mainWordCount('<main><p>two words · → — ✓ 3</p></main>')).toBe(3);
+    });
+    it('decodes entities without inflating the count', () => {
+      expect(mainWordCount('<main><p>Q&amp;A one&nbsp;two &rarr; &#x2192; &#8594;</p></main>')).toBe(3);
+    });
+    it('excludes aria-hidden subtrees, including nested ones', () => {
+      expect(
+        mainWordCount(
+          '<main><p>kept</p><div aria-hidden="true"><div><p>hidden words</p></div></div><p>also kept</p></main>',
+        ),
+      ).toBe(3);
+    });
+    it('survives void and self-closing tags inside a hidden subtree', () => {
+      expect(
+        mainWordCount('<main><div aria-hidden="true">hidden<br /><img src="x.png" />gone</div>kept</main>'),
+      ).toBe(1);
+    });
+    it('excludes comments, scripts and svg', () => {
+      expect(
+        mainWordCount('<main><!-- ghost --><script>var x = "ghost";</script><svg><text>ghost</text></svg>kept</main>'),
+      ).toBe(1);
+    });
   });
 
   it('keeps sitemap.xml and the pages on disk in sync both ways', () => {

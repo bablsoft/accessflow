@@ -56,6 +56,12 @@ export const slice = (s: string, a: string, b: string): string => {
 export const digest = (s: string): string =>
   createHash('sha256').update(s).digest('hex').slice(0, 12);
 
+/** Removes markup that is never prose: comments and <script>/<style>/<svg> subtrees. */
+export const stripNonProse = (fragment: string): string =>
+  fragment
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi, ' ');
+
 /** Elements that never take a closing tag, so the depth walker below must not descend. */
 const VOID_TAGS = new Set([
   'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
@@ -70,9 +76,7 @@ const VOID_TAGS = new Set([
  * digit — so the "·" and "→" separator glyphs never inflate the number.
  */
 export const mainWordCount = (html: string): number => {
-  const main = slice(html, '<main', '</main>')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<(script|style|svg)[\s\S]*?<\/\1>/g, ' ');
+  const main = stripNonProse(slice(html, '<main', '</main>'));
   let text = '';
   let depth = 0;
   let hiddenAt: number | null = null;
@@ -97,7 +101,7 @@ export const mainWordCount = (html: string): number => {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&(?:nbsp|ensp|emsp|thinsp);/g, ' ')
-    .replace(/&[a-z]+;|&#\d+;/gi, ' ');
+    .replace(/&[a-z]+;|&#x?[0-9a-f]+;/gi, ' ');
   return decoded.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 };
 

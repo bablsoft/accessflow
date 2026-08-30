@@ -233,7 +233,7 @@
             what — or a <b>ticket-driven DBA queue</b> — safe, but slow enough that engineers route
             around it. AccessFlow is the missing middle: governed, self-service access to databases,
             APIs and CI/CD deployments, where every request is reviewable, every approval is
-            traceable, and AI catches the obvious problems before a human ever sees them.
+            traceable, and AI catches the obvious problems before a human ever sees the request.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -281,13 +281,13 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">In the product</span>
-          <h2>The review queue your team actually works in.</h2>
-          <p>Pending queries, AI risk scores inline, one decision per row — straight from the reviewer's screen.</p>
+          <h2>The review queue your team will actually work in.</h2>
+          <p>Pending queries, AI risk scores inline, one decision per row — this is where reviewers spend their day.</p>
         </div>
         <div class="mock" aria-hidden="true">
           <div class="mock-bar">
             <span class="seg on">Review queue</span>
-            <span class="mono ml-auto">AccessFlow · live product view</span>
+            <span class="mono ml-auto">AccessFlow</span>
           </div>
         </div>
       </div>
@@ -304,35 +304,35 @@
 
         <div class="flow-grid">
           <div class="flow-steps" role="tablist" aria-label="Request flow steps">
-            <div class="flow-step active" role="tab" aria-selected="true">
+            <div class="flow-step active" role="tab" aria-controls="flow-pane-0" aria-selected="true">
               <div class="flow-num">01</div>
               <div>
                 <h3>Submit a query</h3>
                 <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
               </div>
             </div>
-            <div class="flow-step" role="tab" aria-selected="false">
+            <div class="flow-step" role="tab" aria-controls="flow-pane-1" aria-selected="false">
               <div class="flow-num">02</div>
               <div>
                 <h3>AI reviews it</h3>
                 <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
               </div>
             </div>
-            <div class="flow-step" role="tab" aria-selected="false">
+            <div class="flow-step" role="tab" aria-controls="flow-pane-2" aria-selected="false">
               <div class="flow-num">03</div>
               <div>
                 <h3>Humans approve</h3>
                 <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook — and ServiceNow / Jira tickets open automatically with bi-directional status sync. Multi-stage approval chains run as a state machine.</p>
               </div>
             </div>
-            <div class="flow-step" role="tab" aria-selected="false">
+            <div class="flow-step" role="tab" aria-controls="flow-pane-3" aria-selected="false">
               <div class="flow-num">04</div>
               <div>
                 <h3>Proxy executes</h3>
                 <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
               </div>
             </div>
-            <div class="flow-step" role="tab" aria-selected="false">
+            <div class="flow-step" role="tab" aria-controls="flow-pane-4" aria-selected="false">
               <div class="flow-num">05</div>
               <div>
                 <h3>Audit forever</h3>
@@ -344,8 +344,8 @@
           <div class="flow-stage">
 
             <!-- Stage 1: Submit -->
-            <div data-flow-stage="0" aria-hidden="true">
-              <div class="mock">
+            <div data-flow-stage="0" id="flow-pane-0" role="tabpanel" aria-label="Illustration: the SQL editor with a query pending review">
+              <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">SQL Editor</span>
                   <span class="seg">History</span>
@@ -367,8 +367,8 @@
             </div>
 
             <!-- Stage 2: AI -->
-            <div data-flow-stage="1" hidden aria-hidden="true">
-              <div class="ai-panel">
+            <div data-flow-stage="1" hidden id="flow-pane-1" role="tabpanel" aria-label="Illustration: the AI analysis panel scoring the query">
+              <div class="ai-panel" aria-hidden="true">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="pill ai">analyzing</span>
@@ -406,8 +406,8 @@
             </div>
 
             <!-- Stage 3: Review queue -->
-            <div data-flow-stage="2" hidden aria-hidden="true">
-              <div class="mock">
+            <div data-flow-stage="2" hidden id="flow-pane-2" role="tabpanel" aria-label="Illustration: the reviewer queue with pending decisions">
+              <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">Review queue</span>
                   <span class="seg">All queries</span>
@@ -459,8 +459,8 @@
             </div>
 
             <!-- Stage 4: Execute -->
-            <div data-flow-stage="3" hidden aria-hidden="true">
-              <div class="mock">
+            <div data-flow-stage="3" hidden id="flow-pane-3" role="tabpanel" aria-label="Illustration: the live execution log streamed over WebSocket">
+              <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">Execution · q_42081</span>
                   <span class="mono ml-auto"><span class="t-accent">● live</span> · streaming via /ws</span>
@@ -490,8 +490,8 @@
             </div>
 
             <!-- Stage 5: Audit -->
-            <div data-flow-stage="4" hidden aria-hidden="true">
-              <div class="mock">
+            <div data-flow-stage="4" hidden id="flow-pane-4" role="tabpanel" aria-label="Illustration: the append-only audit log of the request">
+              <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">Audit log</span>
                   <span class="mono ml-auto">append-only · HMAC-SHA256 chained</span>
@@ -542,7 +542,7 @@
         <div class="section-head">
           <span class="eyebrow">Capabilities</span>
           <h2>The open-source database access proxy, capability by capability.</h2>
-          <p>Three governance surfaces, one approval pipeline and one audit trail behind all of them. Runs entirely inside your own infrastructure — nothing leaves the box. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
+          <p>Three governance surfaces, one approval pipeline and one audit trail behind all of them. Self-hosted in your own infrastructure — and with a local Ollama analyzer, air-gap friendly. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
         </div>
         <div class="feat-grid">
 
@@ -764,8 +764,10 @@
                   <span data-copy-label>copy</span>
                 </button>
               </div>
-<pre><span class="c-com"># infra, then backend (Java 25 · Maven) and frontend (Node 24 · Vite)</span>
+<pre><span class="c-com"># infra, then backend (Java 25) and frontend (Node 24) — open http://localhost:5173</span>
 <span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
+<span class="c-kw">mvn</span> -f backend/pom.xml spring-boot:run
+<span class="c-kw">npm</span> --prefix frontend install &amp;&amp; <span class="c-kw">npm</span> --prefix frontend run dev
 </pre>
             </div>
           </div>
@@ -856,8 +858,8 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Roadmap</span>
-          <h2>What AccessFlow can do today, and what's planned.</h2>
-          <p>Everything available now, per-milestone scope, and what comes next live on the <a class="prose-link" href="/roadmap/">AccessFlow roadmap →</a></p>
+          <h2>Where the platform is headed.</h2>
+          <p>The full capability map — everything available now, per-milestone scope, and what's planned — is on the <a class="prose-link" href="/roadmap/">AccessFlow roadmap →</a></p>
         </div>
       </div>
     </section>
