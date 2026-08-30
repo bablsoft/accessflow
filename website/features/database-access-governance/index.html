@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Database access governance — every query reviewed — AccessFlow</title>
+  <meta name="description" content="How AccessFlow governs database access: every query parsed and risk-scored, routed through approval, masked and row-filtered, then snapshotted for replay." />
+
+  <link rel="canonical" href="https://accessflow.io/features/database-access-governance/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Database access governance — every query reviewed — AccessFlow" />
+  <meta property="og:description" content="The full path a query takes through AccessFlow — parsed at the proxy, scored by AI, routed to a reviewer, then executed under masking and row-level security." />
+  <meta property="og:url" content="https://accessflow.io/features/database-access-governance/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Database access governance — every query reviewed — AccessFlow" />
+  <meta name="twitter:description" content="The full path a query takes through AccessFlow — parsed at the proxy, scored by AI, routed to a reviewer, then executed under masking and row-level security." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.io/features/database-access-governance/#article",
+        "headline": "Database access governance — every query reviewed before it runs",
+        "name": "Database access governance — every query reviewed — AccessFlow",
+        "description": "The full path a query takes through AccessFlow — parsed at the proxy, scored by AI, routed to a reviewer, then executed under masking and row-level security.",
+        "articleSection": "Features",
+        "inLanguage": "en",
+        "datePublished": "2026-08-30",
+        "dateModified": "2026-08-30",
+        "url": "https://accessflow.io/features/database-access-governance/",
+        "mainEntityOfPage": "https://accessflow.io/features/database-access-governance/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://accessflow.io/features/" },
+          { "@type": "ListItem", "position": 3, "name": "Database access governance", "item": "https://accessflow.io/features/database-access-governance/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Database access governance</p>
+            <a href="#proxy">The proxy</a>
+            <a href="#ai">AI analysis</a>
+            <a href="#review">Review and approval</a>
+            <a href="#grouping">Grouped requests</a>
+            <a href="#lifecycle">Data lifecycle</a>
+            <a href="#teams">Which team is this for</a>
+            <p class="docs-toc-label">More capabilities</p>
+            <a href="/features/">All 12 capabilities</a>
+            <a href="/features/api-access-governance/">API access governance</a>
+            <a href="/features/deployment-governance/">Deployment approval governance</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/security/">Security architecture</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/use-cases/">Use cases</a>
+            <a href="/docs/">Documentation</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Capabilities</span>
+          <h1>Database access governance — every query reviewed before it runs</h1>
+          <p>
+            Most teams govern database access one of two ways: hand out a shared read-only credential
+            and hope, or route everything through a DBA and watch the queue grow. AccessFlow is the
+            middle: a proxy that every query passes through, where the query is parsed, risk-scored,
+            routed to whoever should decide, executed under masking and row-level security, and recorded
+            in a log nobody can quietly edit. This page follows one query the whole way.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/features/" class="btn btn-ghost">All 12 capabilities</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="proxy">
+          <h2>Every query is parsed before it runs</h2>
+          <p>AccessFlow is a full proxy, not a linter bolted onto a client. Nothing reaches the database except through it, and nothing goes through it unparsed. Each submitted statement is turned into a syntax tree first; anything that will not parse is rejected outright rather than passed along and hoped for. From that tree AccessFlow reads the statement type — read, write, or schema change — and the exact set of tables and columns referenced, which is what the schema allow-list is checked against. Matching on the tree rather than on the text is the difference between a rule you can rely on and one that a comment or an alias can walk straight past.</p>
+          <p>The same treatment covers the engines that are not plain SQL. MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, DynamoDB and Neo4j each bring their own classifier, and so do the cloud warehouses — Snowflake, BigQuery and Databricks — so a document-store command and a warehouse query reach the same checks by a different route. Server-side scripting and the destructive administrative commands are blocked before review rather than after it. <a href="/connectors/">Every engine AccessFlow connects to →</a></p>
+          <h3>What the proxy enforces at execution</h3>
+          <p>Approval decides whether a query runs; these decide what it is allowed to see when it does.</p>
+          <ul>
+            <li><strong>Row-level security</strong> rewrites the query so a user only ever receives the rows they are cleared for, from policies evaluated against their own attributes.</li>
+            <li><strong>Dynamic masking</strong> hides or partially redacts sensitive columns per person, so the same query returns different results to a support agent and to a DBA.</li>
+            <li><strong>Data-classification tags</strong> (PII, PCI, PHI, GDPR) attach to columns, derive masking automatically, and raise the risk score of any query that touches them.</li>
+            <li><strong>Automated discovery</strong> samples column data on a schedule and proposes those tags for you — emails, card numbers, SSNs, IBANs and phone numbers are found by local checksum-verified detectors, optionally aided by your AI analyzer, which only ever sees redacted samples. An admin confirms or dismisses each proposal.</li>
+          </ul>
+          <h3>Knowing the cost before approving</h3>
+          <p>A reviewer approving a query they cannot estimate is guessing. Every submission carries a pre-flight cost estimate — the database's own <code>EXPLAIN</code> plan plus an exact affected-row count for updates and deletes — shown alongside the request, folded into the AI analysis, and usable in routing rules such as "escalate any full-scan <code>DELETE</code> over 100k rows". A dry-run preview shows a statement's impact without changing data; on the cloud warehouses it reports the bytes the query would scan, which is the number the bill is based on. Every executed query is kept as an exact snapshot that can be replayed in a test environment afterwards. <a href="/docs/configuration/datasources/#cfg-datasources">Datasource, masking &amp; row-security docs →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="ai">
+          <h2>Risk-scored before a human sees it</h2>
+          <p>An AI analyzer reads every query before it reaches a reviewer and returns a 0–100 risk score, missing-index detection, anti-pattern flags, and concrete fixes offered as a draft edit. The point is not to replace the reviewer — it is to make the queue triageable, so the twenty routine reads are visibly routine and the one unbounded delete is visibly not.</p>
+          <p>The provider is chosen per organization: Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face. The system prompt is editable, and a RAG knowledge base lets you feed the analyzer your own house rules so it flags what your team actually cares about. Configurations can be marked as an ordered fallback pool — typically a local Ollama behind a cloud model — so analysis keeps working when the primary provider is unreachable, which is what makes an air-gapped deployment practical.</p>
+          <h3>More than one opinion</h3>
+          <p>Several models can run on the same query, with their verdicts combined by weighted, highest-risk, or majority voting — a fast local model alongside a deep cloud one, for instance — and per-model cost and latency charted so the trade-off is visible rather than assumed. Guardrails block configured prompt patterns before a model is ever called. Text-to-query is opt-in: describe what you want in plain language, and the draft comes back in the database's own dialect, still routed through review like anything else.</p>
+          <h3>Signals beyond the single query</h3>
+          <p>Behavioral anomaly detection learns each user's normal pattern and escalates what falls outside it. Separately, a purely statistical model trained on your team's own past decisions shows reviewers the historical approval likelihood of a pending request. That one is deliberately advisory: it is a triage hint for a busy queue and it never approves or rejects anything. <a href="/docs/configuration/ai/#cfg-ai">AI analysis docs →</a> <a href="/ai-agents/">Governed access for AI agents →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="review">
+          <h2>Who signs off — and what happens when nobody does</h2>
+          <p>A review plan is attached per datasource and says who must approve what. Chains can be multi-stage, reads can be auto-approved while writes are not, decisions can be taken in bulk, and each queue is scoped to the right team by user or by group. One rule holds everywhere and is enforced in the workflow service rather than the UI: nobody approves their own query, regardless of role.</p>
+          <p>Routing policies sit in front of the plan and decide where a request goes without anyone touching it — auto-approve, auto-reject, escalate, or demand extra approvals, keyed on query type, AI risk, who is asking, time of day, and where the request came from. Standing just-in-time grants can pre-approve queries within their capability and table scope, but they lose to any matching routing policy and are suppressed on high or critical risk, on an open anomaly, and whenever the SQL fails to re-parse.</p>
+          <h3>Reviews that stall</h3>
+          <p>The failure mode of an approval workflow is silence, so both remedies are built in and both are notify-only — waiting never changes who is allowed to approve.</p>
+          <ul>
+            <li><strong>Out-of-office delegation</strong> hands a reviewer's duty to a named colleague for a set window, across queries, API calls and grouped requests. Every decision records both names, a delegate can never act on the delegator's own requests, and delegation never grants a permission the delegate does not already hold.</li>
+            <li><strong>Escalation windows and nudge cadences</strong> are set per review plan. AccessFlow raises a stalled request to the reviewers it is actually waiting on and to your admins, and reminds them, well before the approval timeout auto-rejects it.</li>
+          </ul>
+          <h3>Where reviewers actually decide</h3>
+          <p>Notifications go out over email, Slack, Discord, Telegram, Teams, PagerDuty or webhook. ServiceNow and Jira ticketing opens an incident when a query is rejected, escalated, or times out, and a ticket resolution can sync back as the decision. Reviewers can approve straight from Slack, or with one tap on a mobile push behind a step-up check. While a query waits, the reviewer and the submitter can co-author it live — and any edit re-enters review, so an approval is never inherited by different SQL.</p>
+          <h3>Emergencies</h3>
+          <p>Break-glass exists because the alternative is a shared credential in a password manager. It is gated by a per-user, per-datasource permission that everyone needs including admins; it runs the query immediately, still through the allow-list, masking, row security and row caps; and it pays for that with an instant fan-out to every org admin, a prominent audit entry, and a mandatory retro-review that an admin — never the submitter — must acknowledge. <a href="/docs/configuration/review-workflows/#cfg-review-plans">Review workflow docs →</a> <a href="/docs/configuration/notifications/#cfg-notification-channels">Notification docs →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="grouping">
+          <h2>Several steps, one approval</h2>
+          <p>A migration is rarely one statement. A grouped request bundles ordered members — queries across different datasources, calls to governed API connectors, or both — into a single element that is reviewed, approved and executed as a unit. The builder lets you add steps, drag to reorder them, and read a per-step AI risk preview beside an aggregate badge for the whole group.</p>
+          <p>Bundling never weakens a member's policy. Each member is validated against your permission for its own target, a break-glass group requires the break-glass grant on every target rather than one, the required approvers are the union across all member plans, and the group is approved only when every member's plan is satisfied. You still cannot approve your own group.</p>
+          <p>One property is worth stating plainly rather than discovering: <strong>there is no distributed rollback.</strong> On execute, members run in order and the first failure stops the run, skipping the rest — or, if you chose continue-on-error, the remainder still run. Either way an approved group is not atomic, and members that already applied stay applied. The UI says so before you submit. Each member records its own snapshot and audit row alongside the group-level audit and live progress over WebSocket. <a href="/docs/workflows/#flow-request-groups">Grouped request docs →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="lifecycle">
+          <h2>When data should be retired</h2>
+          <p>Access governance answers who may read a row. It says nothing about whether the row should still exist. Retention and erasure rules close that gap: per datasource, target a table, a column set, or a classification tag, give it a retention window plus arbitrary conditions — a structured, parameter-bound predicate builder, with a parser-validated raw <code>WHERE</code> clause as the escape hatch — and choose an action: hard-delete, soft-delete, or pseudonymize. Rules run on an optional cron schedule through a clustered scan job, with a dry-run preview first and execution through the proxy like any other statement.</p>
+          <p>A GDPR or CCPA right-to-erasure request takes the same configuration and adds people to it: AI-assisted scope detection proposes what is in range, and the request goes through review-plan-based peer review — reviewer-eligible, multi-stage, no self-approval, auto-rejected on timeout — before anything is removed.</p>
+          <p>Enforcement is at the proxy and therefore transparent to the caller: soft-deleted rows stop appearing in reads, a <code>DELETE</code> against them becomes a marker update, and aged PII resolves to an irreversible salted hash at read time, so aggregates survive while the personal data does not — pseudonymization is enforced on the way out rather than by a destructive batch write. A completed erasure request writes a tamper-evident proof-of-deletion audit row naming the affected rows, tables and method; a scheduled retention run writes its own execution record. <a href="/docs/configuration/audit-compliance/#cfg-lifecycle">Data lifecycle docs →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="teams">
+          <h2>Which team is this for</h2>
+          <p>The same checkpoint answers a different question depending on who is standing at it — a platform team removing shared credentials, an on-call engineer who needs production access at 03:00, a DBA drowning in review requests, or a privacy team that has to prove erasure happened. <a href="/use-cases/#platform">Platform engineering</a>, <a href="/use-cases/#sre">SRE and on-call</a>, <a href="/use-cases/#dba">DBAs and data platform</a>, and <a href="/use-cases/#privacy">privacy and data protection</a> each get the long version. For where the credentials live and how the audit chain is built, see the <a href="/security/">security architecture</a>.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
