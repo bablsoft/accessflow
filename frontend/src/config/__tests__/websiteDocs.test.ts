@@ -7,7 +7,7 @@ import { htmlFiles, pageUrl, slice, websiteRoot } from './helpers/websiteHtml';
  * Docs-specific guards. Everything that is true of *any* page on the site — nav and
  * footer identity, canonicals, headings, descriptions, duplicate ids, dead fragments,
  * sitemap membership — moved to websitePages.test.ts in AF-794, which runs it against
- * all 16 pages rather than the 12 chapters.
+ * all 17 pages rather than the 12 chapters.
  *
  * What is left is the part with no meaning outside docs/: every chapter must link every
  * other chapter from its sidebar, and cross-chapter links must resolve.

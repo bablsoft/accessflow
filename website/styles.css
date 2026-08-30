@@ -1689,6 +1689,37 @@ img, table, pre { max-width: 100%; }
   grid-template-columns: repeat(2, 1fr);
 }
 
+/* /use-cases/ hosts the homepage .uc-row blocks in the same 820px column, where two
+   tracks would squeeze the mock panels. These override the base rules outright rather
+   than relying on the viewport collapse at 1024px, which only fires once .docs-layout
+   has itself gone single-column. .docs-section ul likewise re-adds the left padding
+   .uc-benefits deliberately drops. The explicit order:0 keeps the mock below the copy
+   structurally: .uc-row:nth-child(even) .uc-visual would otherwise flip it above the
+   moment anything is inserted before a .uc-row, and only above 1024px. */
+.docs-content .uc-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+}
+
+.docs-content .uc-row .uc-visual {
+  order: 0;
+}
+
+.docs-content .uc-persona {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.docs-content .uc-benefits {
+  padding-left: 0;
+}
+
+/* .uc-copy spaces its children with a flex gap; .docs-section p would add a margin
+   on top of it, so the paragraphs would sit further apart here than on the homepage. */
+.docs-content .uc-copy > p {
+  margin-bottom: 0;
+}
+
 .docs-hero {
   margin-bottom: 64px;
   padding-bottom: 40px;

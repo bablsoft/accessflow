@@ -38,6 +38,7 @@ the right.
 | [`docs/02-architecture.md`](../docs/02-architecture.md) | Architecture diagram |
 | [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/09-deployment.md`](../docs/09-deployment.md) (`ENCRYPTION_KEY` / `JWT_PRIVATE_KEY` / `AUDIT_DB_USER`, observability vars) | **`/security/` page** ([`security/index.html`](security/index.html)) — the buying-question security answer: architecture canvas + Encryption / Runtime / Observability callouts, credential storage (AES-256-GCM at rest vs. Vault / AWS Secrets Manager / Azure Key Vault secret references), the "Workforce-ready auth" tile, the "Tamper-evident audit &amp; compliance reports" tile, and the data-handling answer. `docs/02-architecture.md` still owns the *design* question — this page answers the *buying* one. Its blocks are **deliberately duplicated** from the homepage (`#architecture`, the two feature tiles, the `#questions` data-handling entry) until [#789](https://github.com/bablsoft/accessflow/issues/789) cuts them from `/`; change both copies together until then |
 | [`docs/14-connectors.md`](../docs/14-connectors.md), the [`connectors/`](../connectors/) manifests (`connector.json` — `category`, `bundled`, `driver.type`), [`CLAUDE.md`](../CLAUDE.md) *Project at a Glance* engine table, [`docs/05-backend.md`](../docs/05-backend.md) per-engine sections (the warehouse auth models), [`docs/15-engine-sdk.md`](../docs/15-engine-sdk.md) (the SPI / `ServiceLoader` claims), [`charts/accessflow/values.yaml`](../charts/accessflow/values.yaml) `driverCache.persistence` + [`docs/09-deployment.md`](../docs/09-deployment.md) `ACCESSFLOW_DRIVER_CACHE` / `ACCESSFLOW_DRIVERS_OFFLINE` (the cache-persistence and air-gap claims) | **`/connectors/` page** ([`connectors/index.html`](connectors/index.html)) — the "does it support my database?" answer: the full logo catalog split **SQL / cloud data warehouses / NoSQL**, a per-engine reference table (engine · `category` · in-process JDBC vs. engine plugin · install path), the manifest / SHA-256-pin / `ServiceLoader` catalog internals, uploaded-driver `CUSTOM` datasources, and the "Which databases does AccessFlow support?" answer. The logo grid, the catalog-internals prose and the "Which databases…" answer are **deliberately duplicated** from the homepage `#connectors` block until [#789](https://github.com/bablsoft/accessflow/issues/789) cuts them from `/`; change both copies together until then. `/`'s `#connectors` h2 is still the exact phrase this page's `h1` lifts — [#789](https://github.com/bablsoft/accessflow/issues/789) owns retargeting that h2 so the phrase exists once. Note `/` still groups the three warehouse engines under its **NoSQL** eyebrow — this page corrects that, and `/` is left alone because a third eyebrow there needs a fourth inline `style=""` |
+| [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/05-backend.md`](../docs/05-backend.md) (JIT access, break-glass AF-385, routing policies AF-379, masking, lifecycle AF-499, attestation AF-384, compliance AF-459, discovery AF-623, apigov AF-500/AF-518), [`docs/07-security.md`](../docs/07-security.md) (credential resolution, the hash-chained audit log), [`docs/17-api-governance.md`](../docs/17-api-governance.md) (the `#api` block) | **`/use-cases/` page** ([`use-cases/index.html`](use-cases/index.html)) — the "is this my problem?" answer: six persona sections, each an anchor (`#platform`, `#sre`, `#dba`, `#compliance`, `#privacy`, `#api`), carrying the prose, the benefit list and the mock UI panel from the homepage `#use-cases` row, expanded with a second paragraph of mechanism and sideways links into `/security/`, `/connectors/`, `/ai-agents/` and `/docs/**`. Its blocks are **deliberately duplicated** from the homepage `#use-cases` section until [#789](https://github.com/bablsoft/accessflow/issues/789) cuts them to one-line persona tiles; change both copies together until then. The `#api` block is the canonical copy — [#788](https://github.com/bablsoft/accessflow/issues/788) references it from `/features/api-access-governance/` rather than duplicating it, Retargeting this page's `/#features` link to the `/features/` spokes is an open follow-up that no sub-issue currently owns — it is not in #788's scope, and #789 only slims `/`'s `#features` block |
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | Architecture callouts, From-source toolchain versions in Install tab |
 | (no upstream — copy lives in the website) | System requirements panel sizing tiers (Evaluation / Production) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
@@ -106,7 +107,7 @@ website/
 ├── favicon.svg      # Brand mark (shared with frontend/public/favicon.svg)
 ├── og-image.png     # 1200×630 social-share image (Open Graph / Twitter Card)
 ├── robots.txt       # Crawler directives + sitemap pointer
-├── sitemap.xml      # XML sitemap (homepage + docs page)
+├── sitemap.xml      # XML sitemap (homepage + topic pages + docs pages)
 ├── llms.txt         # llms.txt (llmstxt.org) — curated product overview + doc links for LLM agents
 ├── _headers         # Cloudflare asset headers — Cache-Control + security headers (see SEO)
 ├── .assetsignore    # Files in this folder that must NOT be published
@@ -116,6 +117,7 @@ website/
 ├── ai-agents/       # Topic page — governed database access for AI agents
 ├── security/        # Topic page — credential storage, auth, audit (AF-783)
 ├── connectors/      # Topic page — the engine catalog, per-engine reference (AF-784)
+├── use-cases/       # Topic page — the six persona use cases and their mocks (AF-785)
 ├── docs/            # Public user documentation — one page per chapter
 │   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
 │   ├── install/     #   Docker Compose / Helm / from source + first-run setup
@@ -155,11 +157,11 @@ every file.
    the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
 
 Because there is no build step, the nav, `<head>`, and footer are duplicated across the
-chapter files — a nav change is a 16-file edit (~105 KB of duplicated shell). That is the
+chapter files — a nav change is a 17-file edit (~112 KB of duplicated shell). That is the
 deliberate trade for keeping this folder buildless.
 
 Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
-15 files and missing the 16th — is guarded.
+16 files and missing the 17th — is guarded.
 [`frontend/src/config/__tests__/websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts)
 runs over **every** page, `index.html` and `ai-agents/` included, and fails CI unless each
 shares a byte-identical nav (normalized for the active-link markers, which are asserted
@@ -172,7 +174,7 @@ both directions.
 is meaningless outside `docs/`: every chapter linked from every chapter sidebar, and
 cross-chapter links resolving.
 
-So: editing all 16 files is on you; forgetting one is on CI.
+So: editing all 17 files is on you; forgetting one is on CI.
 
 No frameworks, no bundlers, no CDN runtime — **nothing is fetched from a third-party origin
 at runtime.**
@@ -199,7 +201,10 @@ with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 
 Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
 `theme-color`, and a JSON-LD `@graph` (`SoftwareApplication` + `Organization` + `WebSite`
-on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter).
+on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter and
+on `/security/`; `CollectionPage` + `ItemList` + `BreadcrumbList` + `Organization` on the
+`/connectors/` and `/use-cases/` catalog pages). Only the homepage declares
+`SoftwareApplication` — every other page references it as `{"@id": ".../#software"}`.
 
 ### Regenerating og-image.png
 
@@ -291,8 +296,9 @@ workflow that opens an issue would close that gap; the repo has no cron workflow
 this was left as a deliberate trade rather than new machinery.
 
 `robots.txt` allows all crawlers and points to `sitemap.xml`. `sitemap.xml` lists every
-HTML page — the homepage, the docs hub, and one entry per docs chapter — so a new chapter
-needs a new `<url>` block.
+HTML page — the homepage, each topic page, the docs hub, and one entry per docs chapter — so
+a new page of any kind needs a new `<url>` block. `websitePages.test.ts` checks that mapping
+in both directions, so a page without an entry (or an entry without a page) fails CI.
 
 Meta descriptions must stay **≤ 160 rendered characters** — past that Google truncates the
 tag and usually substitutes its own snippet. Bump `<lastmod>` in `sitemap.xml` and
