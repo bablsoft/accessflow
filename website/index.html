@@ -228,14 +228,12 @@
             built for <span class="underline">engineers</span>.
           </h1>
           <p class="hero-sub">
-            AccessFlow is an open-source access proxy for SQL and NoSQL databases — and outbound
-            REST, SOAP, GraphQL, and gRPC APIs — that sits between your team and your data. Every query
-            and every API call is checked, sorted by type, optionally AI-reviewed, and routed through a
-            configurable human-approval workflow before it touches production — with a tamper-evident
-            metadata audit trail of every decision. The same review machinery gates your
-            <b>CI/CD deployments</b>: a pipeline asks for permission to release and blocks on a
-            fail-closed approval gate, with freeze windows, scheduled releases, audited break-glass
-            and post-deploy outcome tracking.
+            Most teams pick one of two extremes for database access: <b>shared production
+            credentials</b> — fast, but one mistake is unbounded and there is no record of who did
+            what — or a <b>ticket-driven DBA queue</b> — safe, but slow enough that engineers route
+            around it. AccessFlow is the missing middle: governed, self-service access to databases,
+            APIs and CI/CD deployments, where every request is reviewable, every approval is
+            traceable, and AI catches the obvious problems before a human ever sees them.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -278,83 +276,261 @@
       </div>
     </section>
 
-    <!-- Architecture -->
-    <section class="arch scroll-pad" id="architecture">
+    <!-- Product proof — the placeholder frame is replaced by a real screenshot in #790 -->
+    <section class="scroll-pad" id="proof">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow">Architecture</span>
-          <h2>One proxy in front of every query and API call — zero shared credentials.</h2>
-          <p>
-            Nobody gets the database password or the API credentials — not even your own team.
-            AccessFlow sits in the middle and is the only thing that ever connects to the real database
-            or upstream API, and only after a request is approved. Users sign in to AccessFlow, never to
-            the target; behind the scenes the proxy holds the real database connection pools and the
-            connectors' encrypted credentials, and reaches out on their behalf.
-            <a class="prose-link" href="/security/">Database proxy security architecture →</a>
-          </p>
+          <span class="eyebrow">In the product</span>
+          <h2>The review queue your team actually works in.</h2>
+          <p>Pending queries, AI risk scores inline, one decision per row — straight from the reviewer's screen.</p>
         </div>
-
-        <div class="arch-canvas">
-          <div class="arch-row">
-            <div class="arch-cell">
-              <span class="label">CLIENT</span>
-              <span class="value">React SPA · /ws · REST</span>
-            </div>
-          </div>
-          <div class="arch-conn" aria-hidden="true"></div>
-          <div class="arch-row">
-            <div class="arch-cell accent arch-cell-md">
-              <span class="label">API GATEWAY</span>
-              <span class="value">REST + WebSocket gateway · JWT · modular service</span>
-            </div>
-          </div>
-          <div class="arch-conn" aria-hidden="true"></div>
-          <div class="arch-services">
-            <div class="arch-cell">
-              <span class="label">SERVICE</span>
-              <span class="value">Query &amp; API Proxy</span>
-            </div>
-            <div class="arch-cell">
-              <span class="label">SERVICE</span>
-              <span class="value">Review Workflow</span>
-            </div>
-            <div class="arch-cell">
-              <span class="label">SERVICE</span>
-              <span class="value">AI Analyzer</span>
-            </div>
-            <div class="arch-cell">
-              <span class="label">SERVICE</span>
-              <span class="value">Admin &amp; Audit</span>
-            </div>
-          </div>
-          <div class="arch-conn" aria-hidden="true"></div>
-          <div class="arch-row">
-            <div class="arch-cell arch-cell-md">
-              <span class="label">INTERNAL STATE</span>
-              <span class="value">PostgreSQL · Redis</span>
-            </div>
-          </div>
-          <div class="arch-conn" aria-hidden="true"></div>
-          <div class="arch-row">
-            <div class="arch-cell accent arch-cell-lg">
-              <span class="label">CUSTOMER DATABASES &amp; APIS (PROXIED)</span>
-              <span class="value">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · custom drivers · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · Snowflake · BigQuery · Databricks · REST · SOAP · GraphQL · gRPC APIs</span>
-            </div>
+        <div class="mock" aria-hidden="true">
+          <div class="mock-bar">
+            <span class="seg on">Review queue</span>
+            <span class="mono ml-auto">AccessFlow · live product view</span>
           </div>
         </div>
+      </div>
+    </section>
 
-        <div class="arch-callouts">
-          <div class="arch-callout">
-            <span class="k">Encryption</span>
-            <span class="v">AES-256-GCM for datasource credentials at rest — or resolve them from HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault via secret references at connection time. RSA-2048 JWT signing. SAML 2.0 keystore.</span>
+    <!-- How it works -->
+    <section class="how scroll-pad" id="how">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Request flow</span>
+          <h2>How query approval works — from keystroke to commit, observable at every step.</h2>
+          <p>Every query follows the same predictable path — submitted, AI-analyzed, approved, executed, audited — and outbound API calls and grouped requests travel it too.</p>
+        </div>
+
+        <div class="flow-grid">
+          <div class="flow-steps" role="tablist" aria-label="Request flow steps">
+            <div class="flow-step active" role="tab" aria-selected="true">
+              <div class="flow-num">01</div>
+              <div>
+                <h3>Submit a query</h3>
+                <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">02</div>
+              <div>
+                <h3>AI reviews it</h3>
+                <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">03</div>
+              <div>
+                <h3>Humans approve</h3>
+                <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook — and ServiceNow / Jira tickets open automatically with bi-directional status sync. Multi-stage approval chains run as a state machine.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">04</div>
+              <div>
+                <h3>Proxy executes</h3>
+                <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
+              </div>
+            </div>
+            <div class="flow-step" role="tab" aria-selected="false">
+              <div class="flow-num">05</div>
+              <div>
+                <h3>Audit forever</h3>
+                <p>Append-only metadata audit row. WebSocket pushes result to the submitter. Status becomes <span class="mono">EXECUTED</span>.</p>
+              </div>
+            </div>
           </div>
-          <div class="arch-callout">
-            <span class="k">Runtime</span>
-            <span class="v">Concurrent request-per-task runtime — horizontally scalable behind any L7 load balancer.</span>
-          </div>
-          <div class="arch-callout">
-            <span class="k">Observability</span>
-            <span class="v">HTTP health and readiness probes. OpenTelemetry OTLP trace export of the full proxy pipeline (Tempo / Jaeger / Honeycomb), Prometheus metrics, and pre-built Grafana dashboards (query volume, approval SLAs, AI usage, rejection rates, pool stats). HMAC-SHA256 chained, append-only metadata audit log of every action. Optional one-line-JSON console logs (logstash / ECS / GELF) for ELK / OpenSearch.</span>
+
+          <div class="flow-stage">
+
+            <!-- Stage 1: Submit -->
+            <div data-flow-stage="0" aria-hidden="true">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">SQL Editor</span>
+                  <span class="seg">History</span>
+                  <span class="seg">Saved</span>
+                  <span class="mono ml-auto">datasource: <span class="t-info">prod-orders ⌄</span></span>
+                </div>
+                <div class="sql-editor">
+                  <div class="sql-line"><span class="ln">1</span><span><span class="sql-com">-- backfill missing region codes</span></span></div>
+                  <div class="sql-line"><span class="ln">2</span><span><span class="sql-kw">UPDATE</span> <span class="sql-op">orders</span></span></div>
+                  <div class="sql-line"><span class="ln">3</span><span>   <span class="sql-kw">SET</span> region_code <span class="sql-op">=</span> <span class="sql-fn">UPPER</span>(<span class="sql-op">substr</span>(country, <span class="sql-num">1</span>, <span class="sql-num">2</span>))</span></div>
+                  <div class="sql-line"><span class="ln">4</span><span> <span class="sql-kw">WHERE</span> region_code <span class="sql-kw">IS NULL</span></span></div>
+                  <div class="sql-line"><span class="ln">5</span><span>   <span class="sql-kw">AND</span> created_at <span class="sql-op">&gt;</span> <span class="sql-str">'2026-01-01'</span><span class="sql-op">;</span></span></div>
+                </div>
+                <div style="padding: 12px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span class="t-warn">DML detected</span> · review required</span>
+                  <span class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Submit for review</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 2: AI -->
+            <div data-flow-stage="1" hidden aria-hidden="true">
+              <div class="ai-panel">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="pill ai">analyzing</span>
+                    <span class="mono" style="font-size: 11px; color: var(--fg-mute);">req_a8c91f · ai_analyzer</span>
+                  </div>
+                  <span class="mono" style="font-size: 11px; color: var(--fg-faint);">1.4s</span>
+                </div>
+                <div class="risk-bar">
+                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">RISK</span>
+                  <div class="risk-meter"><div class="risk-fill"></div></div>
+                  <span class="risk-label">62 · MEDIUM</span>
+                </div>
+                <div class="ai-finding warn">
+                  <span class="marker">!</span>
+                  <div>
+                    <strong>Unbounded UPDATE scan</strong>
+                    <p>WHERE clause has no index on (region_code, created_at). Estimated 4.2M rows scanned. Suggest composite index before run.</p>
+                  </div>
+                </div>
+                <div class="ai-finding info">
+                  <span class="marker">i</span>
+                  <div>
+                    <strong>Idempotency</strong>
+                    <p>Repeat execution will not modify already-backfilled rows (region_code IS NULL filter is self-limiting). Safe to re-run.</p>
+                  </div>
+                </div>
+                <div class="ai-finding ok">
+                  <span class="marker">✓</span>
+                  <div>
+                    <strong>No DDL, no destructive ops</strong>
+                    <p>UPPER(substr(...)) is deterministic. Statement parses cleanly against the orders schema.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 3: Review queue -->
+            <div data-flow-stage="2" hidden aria-hidden="true">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Review queue</span>
+                  <span class="seg">All queries</span>
+                  <span class="seg">Audit log</span>
+                  <span class="mono ml-auto">5 results</span>
+                </div>
+                <div>
+                  <div class="review-row">
+                    <span class="id">q_42081</span>
+                    <span class="sql">UPDATE orders SET region_code = UPPER(substr(...))</span>
+                    <span class="who">alice@co · ANALYST</span>
+                    <span class="pill pending">PENDING</span>
+                    <span style="display: flex; gap: 6px;">
+                      <span style="font-size: 11px; color: var(--accent); cursor: pointer;">approve</span>
+                      <span style="font-size: 11px; color: var(--fg-faint);">·</span>
+                      <span style="font-size: 11px; color: var(--danger); cursor: pointer;">reject</span>
+                    </span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42080</span>
+                    <span class="sql">SELECT user_id, count(*) FROM events GROUP BY 1 LIMIT 100</span>
+                    <span class="who">bob@co · ANALYST</span>
+                    <span class="pill ai">AI REVIEW</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42079</span>
+                    <span class="sql">DELETE FROM sessions WHERE expires_at &lt; now() - interval '30 days'</span>
+                    <span class="who">eve@co · REVIEWER</span>
+                    <span class="pill approved">APPROVED</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42078</span>
+                    <span class="sql">SELECT * FROM payments WHERE amount &gt; 10000</span>
+                    <span class="who">mark@co · ANALYST</span>
+                    <span class="pill executed">EXECUTED</span>
+                    <span></span>
+                  </div>
+                  <div class="review-row">
+                    <span class="id">q_42077</span>
+                    <span class="sql">DROP TABLE legacy_users</span>
+                    <span class="who">mark@co · ANALYST</span>
+                    <span class="pill rejected">REJECTED</span>
+                    <span></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 4: Execute -->
+            <div data-flow-stage="3" hidden aria-hidden="true">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Execution · q_42081</span>
+                  <span class="mono ml-auto"><span class="t-accent">● live</span> · streaming via /ws</span>
+                </div>
+                <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
+                  <div class="t-mute">↳ proxy → <span class="t-fg">postgresql://prod-orders.db.internal:5432</span></div>
+                  <div class="t-mute">↳ pool <span class="t-info">pool-prod-orders</span> · borrowed conn #7 of 20</div>
+                  <div class="t-mute">↳ setMaxRows = 10000 (datasource cap)</div>
+                  <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
+                  <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
+                    <div style="display: flex; justify-content: space-between;">
+                      <span class="t-mute">rows_affected</span>
+                      <span class="t-fg">238,420</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span class="t-mute">duration_ms</span>
+                      <span class="t-fg">4,182</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                      <span class="t-mute">conn_returned</span>
+                      <span class="t-accent">ok</span>
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px; color: var(--accent);">✓ status → EXECUTED · ws event pushed to submitter</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage 5: Audit -->
+            <div data-flow-stage="4" hidden aria-hidden="true">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Audit log</span>
+                  <span class="mono ml-auto">append-only · HMAC-SHA256 chained</span>
+                </div>
+                <div style="padding: 0; font-family: var(--mono); font-size: 12px;">
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span class="t-faint">14:02:51</span>
+                    <span class="t-accent">QUERY_SUBMITTED</span>
+                    <span class="t-dim">alice@co</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">q_42081 · datasource=prod-orders</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span class="t-faint">14:02:52</span>
+                    <span class="t-accent">AI_REVIEW_STARTED</span>
+                    <span class="t-dim">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">provider=anthropic</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span class="t-faint">14:02:53</span>
+                    <span class="t-accent">AI_REVIEW_COMPLETED</span>
+                    <span class="t-dim">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">risk=62 MEDIUM · 3 findings</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
+                    <span class="t-faint">14:04:11</span>
+                    <span class="t-accent">QUERY_APPROVED</span>
+                    <span class="t-dim">eve@co</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">stage=1/1 · note="add index first"</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; font-size: 11px;">
+                    <span class="t-faint">14:04:12</span>
+                    <span class="t-accent">QUERY_EXECUTED</span>
+                    <span class="t-dim">system</span>
+                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">rows=238420 · duration=4182ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -366,7 +542,7 @@
         <div class="section-head">
           <span class="eyebrow">Capabilities</span>
           <h2>The open-source database access proxy, capability by capability.</h2>
-          <p>Turn each capability on where you need it, tune it per database, and see everything that happens. Runs entirely inside your own infrastructure — nothing leaves the box. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
+          <p>Three governance surfaces, one approval pipeline and one audit trail behind all of them. Runs entirely inside your own infrastructure — nothing leaves the box. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
         </div>
         <div class="feat-grid">
 
@@ -374,111 +550,24 @@
             <div class="feat-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
             </div>
-            <h3>Full query proxy — SQL and NoSQL</h3>
-            <p>Every query is inspected before it ever reaches the database — parsed, sorted by type (read, write, or schema change), checked against the tables a user is allowed to touch, and routed through your review policy. The same governance covers <strong>NoSQL</strong> and the <strong>cloud data warehouses</strong> too: MongoDB, Couchbase, Redis, Cassandra, Elasticsearch, DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks all flow through identical checks, with dangerous or server-side commands blocked up front. Layer on <strong>row-level security</strong> so users only see the rows they're cleared for, <strong>dynamic masking</strong> that hides sensitive columns per person, and <strong>data-classification tags</strong> (PII, PCI, PHI, GDPR) that auto-apply masking and raise a query's risk score — with <strong>automated sensitive-data discovery</strong> that samples column data on a schedule, spots emails, card numbers, SSNs, IBANs, and phone numbers with local checksum-verified detectors (optionally aided by your AI analyzer, which only ever sees redacted samples), and proposes the tags for one-click confirmation. A <strong>dry-run preview</strong> shows a query's impact before review without changing any data — for the cloud warehouses it includes the estimated bytes the query would scan, the number your bill is based on — and every submitted query automatically gets a <strong>pre-flight cost estimate</strong> — the database's own <code>EXPLAIN</code> plan plus an exact affected-row count for updates and deletes — shown to reviewers, folded into the AI risk analysis, and usable in routing policies (“auto-escalate any full-scan DELETE over 100k rows”). Every executed query is saved as an exact snapshot you can <strong>replay in a test environment</strong>. <a class="prose-link" href="/docs/configuration/datasources/#cfg-datasources">Datasource, masking &amp; row-security docs →</a></p>
-            <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · Snowflake · BigQuery · Databricks · connector catalog · custom drivers · read-replica load balancing · result caching · dynamic masking · row-level security · data classification</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                <path d="M9 3a3 3 0 0 0-3 3v1a3 3 0 0 0-2 2.83V11a3 3 0 0 0 1 2.24V15a3 3 0 0 0 3 3h1v3h4V3H9z"/>
-                <path d="M15 3v18h4a3 3 0 0 0 3-3v-2.76A3 3 0 0 0 23 13v-1.17A3 3 0 0 0 21 9V7a3 3 0 0 0-3-3h-3z"/>
-              </svg>
-            </div>
-            <h3>AI query analysis</h3>
-            <p>An AI assistant reads each query first and flags anything risky — like a senior reviewer who never sleeps. Every query gets a 0–100 risk score, missing-index detection, and anti-pattern flags before a human sees it, plus concrete fixes you can apply as a draft. Pick your provider per organization (Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face) and tune the analyzer with an editable prompt and a <strong>RAG knowledge base</strong> of your house rules. Run <strong>several models at once</strong> and combine their verdicts by weighted, highest-risk, or majority voting — say a fast local model alongside a deep cloud one — with per-model cost and latency charted on the dashboard. Add <strong>guardrails</strong> that block configured prompt patterns before a model is ever called. Opt in to <strong>text-to-query</strong> — describe what you want in plain language and the AI drafts it in the database's own language, still routed through review. Beyond single queries, <strong>behavioral anomaly detection</strong> learns each user's normal pattern and escalates anything out of the ordinary, and an admin dashboard charts risk trends over time. A separate, purely statistical model learns from your team's own past review decisions and shows reviewers the <strong>historical approval likelihood</strong> of each pending query — a triage signal for prioritising a busy queue, advisory only: it never approves or rejects anything. Mark configurations as an ordered <strong>fallback pool</strong> — typically a local Ollama — so analysis keeps working when the primary provider is unreachable, air-gap friendly by design. <a class="prose-link" href="/docs/configuration/ai/#cfg-ai">AI analysis docs →</a> <a class="prose-link" href="/ai-agents/">Governed access for AI agents →</a></p>
-            <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Fallback pool · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · Approval likelihood (advisory) · History dashboard</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-            </div>
-            <h3>Configurable review workflows</h3>
-            <p>Decide who must sign off before a query runs, and route each request automatically. Build per-datasource approval chains with multi-stage reviewers, auto-approve reads, timeouts, and bulk decisions — and scope each queue to the right team by user or group. Add <strong>policy-as-code routing</strong> to auto-approve, escalate, or require extra approvals based on query type, AI risk, who's asking, time of day, and where the request came from. When a reviewer goes on holiday, <strong>out-of-office delegation</strong> hands their review duty to a named colleague for a set window — across queries, API calls, and grouped requests — and every decision records both names, so the audit trail always says who actually clicked approve. A delegate can never act on the delegator's own requests, and delegation never grants a permission they don't already have. Reviews that stall no longer stall silently: set an <strong>escalation window</strong> and a <strong>nudge cadence</strong> per review plan, and AccessFlow raises the request to the reviewers it is actually waiting on and your admins &mdash; and reminds those reviewers &mdash; well before the approval timeout auto-rejects it. Both are notify-only: waiting never changes who is allowed to approve. Users can request <strong>just-in-time</strong> temporary access to a database or a governed API connection, and for genuine emergencies <strong>break-glass</strong> runs a query immediately — still through every guard — while paging all admins and opening a mandatory follow-up review. Reviewers are notified by Email, Slack, Discord, Telegram, Teams, PagerDuty, or webhook — with <strong>ServiceNow &amp; Jira ticketing</strong> auto-opening an incident when a query is rejected, escalated, or times out (and a ticket resolution syncing back as the decision) — and can <strong>approve right from Slack</strong> or <strong>one tap on a mobile push</strong> (with a step-up check). While a query waits, reviewers and the submitter can even <strong>co-author it live</strong> — any edit re-enters review, so approvals are never skipped. <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-review-plans">Review workflow docs →</a> <a class="prose-link" href="/docs/configuration/notifications/#cfg-notification-channels">Notification docs →</a></p>
-            <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Break-glass emergency access · Bulk decisions · Real-time co-authoring · Inline comments · Slack approve/reject · Mobile PWA · One-tap push approvals · Email · Slack · Discord · Telegram · Teams · PagerDuty · ServiceNow · Jira · Webhooks</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <h3>Workforce-ready auth</h3>
-            <p>Sign in with the accounts your company already uses — SAML 2.0 SSO and OAuth 2.0 / OIDC, with built-in templates for Google, GitHub, Microsoft, GitLab, and a generic provider for any other IdP (Keycloak, Auth0, Okta, …). Roles and group memberships sync automatically from your identity provider on every login, with optional TOTP two-factor. With <strong>SCIM 2.0 provisioning</strong>, the IdP drives the whole user lifecycle: joiners are created, movers re-grouped, and leavers deactivated automatically — sessions and standing access grants revoked the moment someone is offboarded in Okta or Entra ID. One deployment hosts <strong>multiple fully-isolated organizations</strong>, and a <strong>super-admin</strong> manages tenants across the cluster — with per-org quotas and a kill-switch that disables an org instantly. <a class="prose-link" href="/docs/configuration/auth/#cfg-oauth">Auth &amp; SSO docs →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-roles">Users &amp; roles docs →</a></p>
-            <span class="tag">JWT · SAML · OAuth · SCIM provisioning · IdP group sync · TOTP · Multi-tenant orgs · Per-org quotas</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
-            </div>
-            <h3>Tamper-evident audit &amp; compliance reports</h3>
-            <p>Every decision is recorded in a log that can't be quietly edited after the fact — append-only, cryptographically chained, and searchable, with CSV export and no row data ever stored. Pre-built <strong>compliance reports</strong> — classified-data access (PII/PCI/PHI/GDPR) and a DDL/DELETE trail with approver names — export as <strong>digitally signed</strong> PDF/CSV that verify offline, surfaced to a dedicated read-only <strong>Auditor</strong> role. And once a permitted query returns, <strong>result-export governance</strong> decides what may leave: per-datasource policies allow, <strong>watermark</strong>, row-cap, or deny downloads of classified results — the watermark (who, when, which query) is baked into the signed bytes, every export is audited, and "who downloaded this data" always has an answer. Need it in your SIEM? <strong>External audit sinks</strong> stream every audit event to <strong>Splunk HEC</strong>, <strong>syslog/CEF</strong> (TCP/TLS), or an HMAC-<strong>signed HTTPS</strong> endpoint, and archive digitally-signed segments to <strong>S3 Object Lock</strong> for WORM retention — at-least-once off a durable per-sink cursor, a dead sink never blocks the log, and every exported event carries its chain links so the external copy verifies on its own. <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-audit-log">Audit log docs →</a></p>
-            <span class="tag">HMAC-SHA256 chain · signed exports · SIEM streaming · WORM archival</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-            </div>
-            <h3>Personalized dashboard</h3>
-            <p>A self-scoped home that answers "what's waiting on me?" the moment you sign in: pending approvals, your recent queries with status and risk trends, an actionable AI optimization backlog you can open straight in the editor, and your own behavioral-anomaly alerts. <strong>Drag-and-drop</strong> the widgets into the layout you want — show, hide, collapse, reorder — and it sticks. Export the week as a <strong>digitally signed</strong> PDF/CSV on demand, or opt in to a <strong>weekly email digest</strong>. <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-dashboard">Dashboard docs →</a></p>
-            <span class="tag">Customizable widgets · weekly digest · signed export</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
-            </div>
-            <h3>Cloud-native deploy</h3>
-            <p>Run it on a laptop with one command, or on Kubernetes for production. One <span class="mono">docker compose up</span> covers local and small environments; a Helm 3 chart covers Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas. <a class="prose-link" href="/docs/install/">Install &amp; first-run docs →</a></p>
-            <span class="tag">Docker · Helm · Kubernetes</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
-            </div>
-            <h3>Infrastructure as Code</h3>
-            <p>Manage AccessFlow the way you manage the rest of your stack. An official <strong>Terraform / OpenTofu provider</strong> declares datasources, review plans, routing / row-level-security / masking policies, AI configs, and notification channels as code — applied idempotently with the same authoritative-upsert semantics as the env-driven GitOps bootstrap. Reusable <strong>GitHub Actions</strong> and a <strong>GitLab CI template</strong> wrap provisioning a datasource and submitting a governed query from a pipeline. Everything authenticates with a bootstrap-provisioned <strong>service-account API key</strong>. <a class="prose-link" href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
-            <span class="tag">Terraform · OpenTofu · GitHub Actions · GitLab CI · GitOps · Service-account API keys</span>
+            <h3>Databases</h3>
+            <p>Every SQL and NoSQL query is parsed, classified, AI risk-scored, and routed through human review before it reaches production — with dynamic masking, row-level security, and data-classification tags applied to what comes back. <a class="prose-link" href="/features/database-access-governance/">Database access governance →</a></p>
           </div>
 
           <div class="feat">
             <div class="feat-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="16" cy="17" r="1.6" fill="currentColor"/></svg>
             </div>
-            <h3>API Access Governance</h3>
-            <p>Govern outbound <strong>API</strong> calls — not just databases. Register an <strong>API connector</strong> (REST, SOAP, GraphQL, or gRPC) with a base URL, admin-defined default headers, and an auth method (API key, bearer, basic, OAuth2 with automatic token fetch/cache/refresh — client-credentials, refresh-token, or resource-owner password — custom header, or mTLS) — secrets are AES-256-GCM encrypted and never returned. Upload its schema (OpenAPI / WSDL / GraphQL SDL / gRPC proto — or a <strong>Postman collection</strong> export, for the many teams whose de-facto contract is a collection rather than an OpenAPI document; paste, drag-and-drop a file, or fetch from a URL) and AccessFlow parses a normalized <strong>operation catalog</strong> with read/write classification — with an optional <strong>import filter</strong> that keeps <code>/internal/**</code>, deprecated, and other ungovernable operations out of the catalog by path glob, verb, operation id, or tag (previewable before commit, editable afterwards without re-uploading) — then share governed connectivity with the team via per-user permissions. Compose calls like Postman — query params, custom headers, raw / form-data / x-www-form-urlencoded / binary file bodies — so every API call can flow through the same review, approval, and audit machinery as a database query: AI risk scoring, attribute-based routing, multi-stage approval, <strong>connector-level response masking</strong> (target a field by schema field, JSON path, XML/XPath, or regex — with a masking strategy and role / group / user reveal scoping) and <strong>data-classification tags</strong> (PII/PCI/PHI/GDPR/FINANCIAL/SENSITIVE that auto-derive masking and raise the AI risk), <strong>dynamic variables</strong> that compute a value per request and substitute it into headers, path, query or body — HMAC request signing, nonces, timestamps, idempotency keys — resolved after authentication so a signature can cover the freshly minted token, break-glass, scheduled execution, W3C trace-context propagation, full-response download, and natural-language text-to-API included. <a class="prose-link" href="/docs/configuration/connectors/#cfg-api-connectors">API connector docs →</a></p>
-            <span class="tag">REST · SOAP · GraphQL · gRPC · OpenAPI / WSDL / SDL / proto / Postman</span>
+            <h3>APIs</h3>
+            <p>Outbound REST, SOAP, GraphQL, and gRPC calls flow through the same submit → AI review → approve → execute pipeline, with schema-ingested operation catalogs and connector-level response masking. <a class="prose-link" href="/features/api-access-governance/">API access governance →</a></p>
           </div>
 
           <div class="feat">
             <div class="feat-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
             </div>
-            <h3>Deployment approval governance</h3>
-            <p>Gate <strong>CI/CD deployments</strong> behind the same review machinery as a query. Define a <strong>deployment pipeline</strong> (GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic) with ordered <strong>environments</strong> — each with its own required approvals, review-plan override, and break-glass opt-in — and per-user or per-group <code>can_trigger</code> grants. A CI job triggers a request with an AccessFlow <strong>API key</strong>, idempotent on the CI run id, so a retried step never opens a second review; the AI analyzer scores the release metadata; routing policies on environment, provider, version glob, risk, or time window can auto-approve, auto-reject, or raise the approval bar; and reviewers decide in the UI — where the submitter, machine or human, can never approve their own deployment. The job then blocks on a <strong>fail-closed gate</strong> that opens only for an approved, unfrozen, due release: any error, unknown release, or under-permissioned poll answers <em>not releasable</em>. <strong>Freeze windows</strong> (one-off or weekly recurring, org-wide down to a single environment) either hold a release or auto-reject it; audited <strong>break-glass</strong> deploys need both a grant and an environment opt-in, with no admin bypass and a mandatory retro-review. After the deploy, the pipeline reports the <strong>outcome</strong> — succeeded, failed, or rolled back — and a rollback opens a follow-up review the submitter can never close. Native GitHub Action, GitLab CI, and Azure Pipelines steps reduce the glue to one step. <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">Deployment pipeline docs →</a> <a class="prose-link" href="/docs/iac/#iac-deployment-gate">CI gate setup →</a></p>
-            <span class="tag">GitHub Actions · GitLab CI · Azure Pipelines · Jenkins · CircleCI · Bitbucket · freeze windows · break-glass · rollback tracking</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l2.5 1.5"/><circle cx="12" cy="12" r="8.5"/></svg>
-            </div>
-            <h3>Data lifecycle &amp; right-to-erasure</h3>
-            <p>Govern not just who reads data, but when it should be <strong>retired</strong>. Define <strong>retention/erasure rules</strong> per datasource — target a table, column set, or classification tag with a retention window plus <strong>arbitrary conditions</strong> (a structured, parameter-bound predicate builder and a JSqlParser-validated raw-<code>WHERE</code> escape hatch) and an action (<strong>hard-delete</strong>, <strong>soft-delete</strong>, or <strong>pseudonymize</strong>) — with an optional <strong>cron schedule</strong>, a clustered scan job, a dry-run preview, and <strong>automatic execution</strong> through the proxy. File a GDPR/CCPA <strong>right-to-erasure</strong> request with the same rich configuration and route it through AI-assisted scope detection plus <strong>review-plan-based peer review</strong> (REVIEWER-eligible, multi-stage, no self-approval, auto-reject on timeout). The proxy enforces it transparently: soft-deleted rows vanish from reads, <code>DELETE</code>s become marker updates, and aged PII resolves to an irreversible <strong>salted hash</strong> at read time — so aggregates survive while the PII does not — all with tamper-evident proof-of-deletion audit records. <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-lifecycle">Data lifecycle docs →</a></p>
-            <span class="tag">Retention · conditions · cron · pseudonymization · peer-reviewed erasure</span>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="9" height="5" rx="1.2"/><rect x="3.5" y="15" width="9" height="5" rx="1.2"/><path d="M8 9v6"/><path d="M12.5 6.5h5a2 2 0 0 1 2 2v9"/><path d="m17.5 15 2 2.5 2-2.5"/></svg>
-            </div>
-            <h3>Request chaining &amp; grouping</h3>
-            <p>Bundle several steps into one <strong>grouped request</strong> reviewed and approved as a single element, then executed as an <strong>ordered sequence</strong>. Members can mix <strong>queries</strong> across different datasources and <strong>API calls</strong> against governed connectors — a builder lets you add steps, drag-reorder them, and see a per-step AI risk preview plus an aggregate risk badge. Bundling never weakens a member's policy: each member is validated against your permission for its target (break-glass groups require <code>can_break_glass</code> on <strong>every</strong> target), the required approvers are the <strong>union</strong> across all member plans, and the group is approved only when <strong>every</strong> member plan is satisfied — you can never approve your own group. On execute, members run in order; on the first failure the run stops and the rest are skipped (continue-on-error runs them all instead). There is <strong>no distributed rollback</strong> — an approved group is not atomic, already-applied members stay, and that's surfaced clearly. Each member records its own snapshot + audit row alongside group-level audit and live WebSocket progress. <a class="prose-link" href="/docs/workflows/#flow-request-groups">Grouped request docs →</a></p>
-            <span class="tag">Grouped requests · queries + API calls · ordered execution · no distributed rollback</span>
+            <h3>Deployments</h3>
+            <p>CI/CD releases block on a fail-closed approval gate — freeze windows, audited break-glass, and rollback tracking included — triggered from GitHub Actions, GitLab CI, Azure Pipelines, and more. <a class="prose-link" href="/features/deployment-governance/">Deployment approval governance →</a></p>
           </div>
 
         </div>
@@ -490,8 +579,8 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Connectors</span>
-          <h2>Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines.</h2>
-          <p>A connector is simply how AccessFlow talks to one kind of database. AccessFlow ships with a built-in list — find the database your team uses, click <strong>Install</strong>, and it's ready to govern; AccessFlow fetches the right driver for you and verifies it's genuine before it's ever used. The list is grouped into <strong>SQL</strong> (table-based databases like PostgreSQL), <strong>cloud data warehouses</strong> (Snowflake, BigQuery, Databricks), and <strong>NoSQL</strong> (document databases like MongoDB). Using something that isn't on the list? Upload its driver and AccessFlow adds it. Under the hood this is a versioned <strong>connector catalog</strong>: every driver download is <strong>SHA-256-verified</strong> and cached, and the MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, Amazon DynamoDB, Neo4j, Snowflake, BigQuery, and Databricks native engines are resolved on demand the same way. <a class="prose-link" href="/connectors/">All database connectors →</a> <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors">Read the connector docs →</a></p>
+          <h2>Eighteen engines, one governed checkpoint.</h2>
+          <p>PostgreSQL to Snowflake to MongoDB — find your engine, click <strong>Install</strong>, and AccessFlow fetches its driver and SHA-256-verifies it before governing a single query. Using something else? Upload any JDBC driver. <a class="prose-link" href="/connectors/">All database connectors →</a></p>
         </div>
         <p class="eyebrow" style="margin-top:8px">SQL</p>
         <div class="conn-grid">
@@ -618,244 +707,67 @@
       </div>
     </section>
 
-    <!-- How it works -->
-    <section class="how scroll-pad" id="how">
+    <!-- Install -->
+    <section class="install scroll-pad" id="install">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow">Request flow</span>
-          <h2>How query approval works — from keystroke to commit, observable at every step.</h2>
-          <p>Every query follows the same predictable path — submitted, reviewed, run — and each step is recorded. Outbound API calls travel the same path, and grouped requests can bundle both. A single state machine drives that flow through classification, review, and execution, and every transition is auditable, cancellable, and replayable.</p>
+          <span class="eyebrow">Quick start</span>
+          <h2>Install AccessFlow — governing queries and API calls in under five minutes.</h2>
+          <p>Pick your platform. The backend initializes its schema on first boot, and the in-app setup wizard creates the first admin. <a class="prose-link" href="/docs/install/">Full install guide →</a></p>
         </div>
 
-        <div class="flow-grid">
-          <div class="flow-steps" role="tablist" aria-label="Request flow steps">
-            <div class="flow-step active" role="tab" aria-selected="true">
-              <div class="flow-num">01</div>
-              <div>
-                <h3>Submit a query</h3>
-                <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
+        <div>
+          <div class="install-tabs" role="tablist" aria-label="Install method">
+            <button class="install-tab active" role="tab" aria-selected="true" data-install-tab="docker">Docker Compose</button>
+            <button class="install-tab" role="tab" aria-selected="false" data-install-tab="helm">Helm / Kubernetes</button>
+            <button class="install-tab" role="tab" aria-selected="false" data-install-tab="source">From source</button>
+          </div>
+
+          <div data-install-pane="docker">
+            <div class="code-block">
+              <div class="code-block-head">
+                <span class="mono">shell</span>
+                <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                  <span data-copy-label>copy</span>
+                </button>
               </div>
-            </div>
-            <div class="flow-step" role="tab" aria-selected="false">
-              <div class="flow-num">02</div>
-              <div>
-                <h3>AI reviews it</h3>
-                <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
-              </div>
-            </div>
-            <div class="flow-step" role="tab" aria-selected="false">
-              <div class="flow-num">03</div>
-              <div>
-                <h3>Humans approve</h3>
-                <p>Reviewers get paged by Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, or webhook — and ServiceNow / Jira tickets open automatically with bi-directional status sync. Multi-stage approval chains run as a state machine.</p>
-              </div>
-            </div>
-            <div class="flow-step" role="tab" aria-selected="false">
-              <div class="flow-num">04</div>
-              <div>
-                <h3>Proxy executes</h3>
-                <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
-              </div>
-            </div>
-            <div class="flow-step" role="tab" aria-selected="false">
-              <div class="flow-num">05</div>
-              <div>
-                <h3>Audit forever</h3>
-                <p>Append-only metadata audit row. WebSocket pushes result to the submitter. Status becomes <span class="mono">EXECUTED</span>.</p>
-              </div>
+<pre><span class="c-com"># zero-config demo — then open http://localhost:5173</span>
+<span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git &amp;&amp; <span class="c-kw">cd</span> accessflow
+<span class="c-kw">docker</span> compose up -d
+</pre>
             </div>
           </div>
 
-          <div class="flow-stage">
-
-            <!-- Stage 1: Submit -->
-            <div data-flow-stage="0">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">SQL Editor</span>
-                  <span class="seg">History</span>
-                  <span class="seg">Saved</span>
-                  <span class="mono ml-auto">datasource: <span class="t-info">prod-orders ⌄</span></span>
-                </div>
-                <div class="sql-editor">
-                  <div class="sql-line"><span class="ln">1</span><span><span class="sql-com">-- backfill missing region codes</span></span></div>
-                  <div class="sql-line"><span class="ln">2</span><span><span class="sql-kw">UPDATE</span> <span class="sql-op">orders</span></span></div>
-                  <div class="sql-line"><span class="ln">3</span><span>   <span class="sql-kw">SET</span> region_code <span class="sql-op">=</span> <span class="sql-fn">UPPER</span>(<span class="sql-op">substr</span>(country, <span class="sql-num">1</span>, <span class="sql-num">2</span>))</span></div>
-                  <div class="sql-line"><span class="ln">4</span><span> <span class="sql-kw">WHERE</span> region_code <span class="sql-kw">IS NULL</span></span></div>
-                  <div class="sql-line"><span class="ln">5</span><span>   <span class="sql-kw">AND</span> created_at <span class="sql-op">&gt;</span> <span class="sql-str">'2026-01-01'</span><span class="sql-op">;</span></span></div>
-                </div>
-                <div style="padding: 12px 16px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between;">
-                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">5 lines · <span class="t-warn">DML detected</span> · review required</span>
-                  <span class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;">Submit for review</span>
-                </div>
+          <div data-install-pane="helm" hidden>
+            <div class="code-block">
+              <div class="code-block-head">
+                <span class="mono">shell</span>
+                <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                  <span data-copy-label>copy</span>
+                </button>
               </div>
+<pre><span class="c-com"># keys and the Postgres password are auto-generated on first install</span>
+<span class="c-kw">helm</span> repo add accessflow https://bablsoft.github.io/accessflow
+<span class="c-kw">helm</span> install accessflow accessflow/accessflow -n accessflow --create-namespace
+</pre>
             </div>
+          </div>
 
-            <!-- Stage 2: AI -->
-            <div data-flow-stage="1" hidden>
-              <div class="ai-panel">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <span class="pill ai">analyzing</span>
-                    <span class="mono" style="font-size: 11px; color: var(--fg-mute);">req_a8c91f · ai_analyzer</span>
-                  </div>
-                  <span class="mono" style="font-size: 11px; color: var(--fg-faint);">1.4s</span>
-                </div>
-                <div class="risk-bar">
-                  <span class="mono" style="font-size: 11px; color: var(--fg-mute);">RISK</span>
-                  <div class="risk-meter"><div class="risk-fill"></div></div>
-                  <span class="risk-label">62 · MEDIUM</span>
-                </div>
-                <div class="ai-finding warn">
-                  <span class="marker">!</span>
-                  <div>
-                    <strong>Unbounded UPDATE scan</strong>
-                    <p>WHERE clause has no index on (region_code, created_at). Estimated 4.2M rows scanned. Suggest composite index before run.</p>
-                  </div>
-                </div>
-                <div class="ai-finding info">
-                  <span class="marker">i</span>
-                  <div>
-                    <strong>Idempotency</strong>
-                    <p>Repeat execution will not modify already-backfilled rows (region_code IS NULL filter is self-limiting). Safe to re-run.</p>
-                  </div>
-                </div>
-                <div class="ai-finding ok">
-                  <span class="marker">✓</span>
-                  <div>
-                    <strong>No DDL, no destructive ops</strong>
-                    <p>UPPER(substr(...)) is deterministic. Statement parses cleanly against the orders schema.</p>
-                  </div>
-                </div>
+          <div data-install-pane="source" hidden>
+            <div class="code-block">
+              <div class="code-block-head">
+                <span class="mono">shell</span>
+                <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                  <span data-copy-label>copy</span>
+                </button>
               </div>
+<pre><span class="c-com"># infra, then backend (Java 25 · Maven) and frontend (Node 24 · Vite)</span>
+<span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
+</pre>
             </div>
-
-            <!-- Stage 3: Review queue -->
-            <div data-flow-stage="2" hidden>
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Review queue</span>
-                  <span class="seg">All queries</span>
-                  <span class="seg">Audit log</span>
-                  <span class="mono ml-auto">5 results</span>
-                </div>
-                <div>
-                  <div class="review-row">
-                    <span class="id">q_42081</span>
-                    <span class="sql">UPDATE orders SET region_code = UPPER(substr(...))</span>
-                    <span class="who">alice@co · ANALYST</span>
-                    <span class="pill pending">PENDING</span>
-                    <span style="display: flex; gap: 6px;">
-                      <span style="font-size: 11px; color: var(--accent); cursor: pointer;">approve</span>
-                      <span style="font-size: 11px; color: var(--fg-faint);">·</span>
-                      <span style="font-size: 11px; color: var(--danger); cursor: pointer;">reject</span>
-                    </span>
-                  </div>
-                  <div class="review-row">
-                    <span class="id">q_42080</span>
-                    <span class="sql">SELECT user_id, count(*) FROM events GROUP BY 1 LIMIT 100</span>
-                    <span class="who">bob@co · ANALYST</span>
-                    <span class="pill ai">AI REVIEW</span>
-                    <span></span>
-                  </div>
-                  <div class="review-row">
-                    <span class="id">q_42079</span>
-                    <span class="sql">DELETE FROM sessions WHERE expires_at &lt; now() - interval '30 days'</span>
-                    <span class="who">eve@co · REVIEWER</span>
-                    <span class="pill approved">APPROVED</span>
-                    <span></span>
-                  </div>
-                  <div class="review-row">
-                    <span class="id">q_42078</span>
-                    <span class="sql">SELECT * FROM payments WHERE amount &gt; 10000</span>
-                    <span class="who">mark@co · ANALYST</span>
-                    <span class="pill executed">EXECUTED</span>
-                    <span></span>
-                  </div>
-                  <div class="review-row">
-                    <span class="id">q_42077</span>
-                    <span class="sql">DROP TABLE legacy_users</span>
-                    <span class="who">mark@co · ANALYST</span>
-                    <span class="pill rejected">REJECTED</span>
-                    <span></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Stage 4: Execute -->
-            <div data-flow-stage="3" hidden>
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Execution · q_42081</span>
-                  <span class="mono ml-auto"><span class="t-accent">● live</span> · streaming via /ws</span>
-                </div>
-                <div style="padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.9;">
-                  <div class="t-mute">↳ proxy → <span class="t-fg">postgresql://prod-orders.db.internal:5432</span></div>
-                  <div class="t-mute">↳ pool <span class="t-info">pool-prod-orders</span> · borrowed conn #7 of 20</div>
-                  <div class="t-mute">↳ setMaxRows = 10000 (datasource cap)</div>
-                  <div style="margin-top: 8px; color: var(--accent);">↳ executing...</div>
-                  <div style="margin-top: 12px; padding: 12px; background: var(--bg-1); border: 1px solid var(--line); border-radius: 4px;">
-                    <div style="display: flex; justify-content: space-between;">
-                      <span class="t-mute">rows_affected</span>
-                      <span class="t-fg">238,420</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                      <span class="t-mute">duration_ms</span>
-                      <span class="t-fg">4,182</span>
-                    </div>
-                    <div style="display: flex; justify-content: space-between;">
-                      <span class="t-mute">conn_returned</span>
-                      <span class="t-accent">ok</span>
-                    </div>
-                  </div>
-                  <div style="margin-top: 12px; color: var(--accent);">✓ status → EXECUTED · ws event pushed to submitter</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Stage 5: Audit -->
-            <div data-flow-stage="4" hidden>
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Audit log</span>
-                  <span class="mono ml-auto">append-only · HMAC-SHA256 chained</span>
-                </div>
-                <div style="padding: 0; font-family: var(--mono); font-size: 12px;">
-                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span class="t-faint">14:02:51</span>
-                    <span class="t-accent">QUERY_SUBMITTED</span>
-                    <span class="t-dim">alice@co</span>
-                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">q_42081 · datasource=prod-orders</span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span class="t-faint">14:02:52</span>
-                    <span class="t-accent">AI_REVIEW_STARTED</span>
-                    <span class="t-dim">system</span>
-                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">provider=anthropic</span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span class="t-faint">14:02:53</span>
-                    <span class="t-accent">AI_REVIEW_COMPLETED</span>
-                    <span class="t-dim">system</span>
-                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">risk=62 MEDIUM · 3 findings</span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 11px;">
-                    <span class="t-faint">14:04:11</span>
-                    <span class="t-accent">QUERY_APPROVED</span>
-                    <span class="t-dim">eve@co</span>
-                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">stage=1/1 · note="add index first"</span>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 80px 200px 100px 1fr; gap: 12px; padding: 10px 16px; font-size: 11px;">
-                    <span class="t-faint">14:04:12</span>
-                    <span class="t-accent">QUERY_EXECUTED</span>
-                    <span class="t-dim">system</span>
-                    <span style="color: var(--fg-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">rows=238420 · duration=4182ms</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
@@ -867,358 +779,33 @@
         <div class="section-head">
           <span class="eyebrow">Use cases</span>
           <h2>What six different teams are actually trying to fix.</h2>
-          <p>Different teams reach for AccessFlow for different reasons — but underneath it is the same governed checkpoint: one approval pipeline, one audit trail, one place where access policy actually runs. <a class="prose-link" href="/use-cases/">All database access management use cases →</a></p>
+          <p>Different teams, one governed checkpoint underneath. <a class="prose-link" href="/use-cases/">All database access management use cases →</a></p>
         </div>
-
-        <div class="uc-list">
-
-          <!-- 1. Shared credentials -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For platform &amp; infrastructure teams</span>
-              <h3>Production access without shared credentials</h3>
-              <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
-              <ul class="uc-benefits">
-                <li>Every query attributable to a person, a reason, and an approval</li>
-                <li>Credentials AES-256 encrypted — or fetched from Vault / AWS Secrets Manager / Azure Key Vault at connection time — resolved only inside the proxy, never shown to users</li>
-                <li>SQL or NoSQL, the same flow — PostgreSQL and MongoDB governed identically</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Datasource · prod-orders</span>
-                  <span class="mono ml-auto">connection brokered</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">user</span><span class="v">alice@co · ANALYST · SSO</span></div>
-                  <div class="uc-mock-line"><span class="k">database</span><span class="v">postgresql://prod-orders.internal:5432</span></div>
-                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span class="t-accent">held by proxy — never disclosed</span></span></div>
-                  <div class="uc-mock-line"><span class="k">access</span><span><span class="pill approved">GOVERNED</span></span></div>
-                </div>
-                <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
-              </div>
-            </div>
-          </article>
-
-          <!-- 2. JIT + break-glass -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For SRE &amp; on-call teams</span>
-              <h3>Just-in-time access that expires on its own</h3>
-              <p>Standing privileges shrink to zero. Engineers request access for the window they need — minutes to days — to a database or a governed API connection (scoped down to specific operations), and the grant revokes itself when the clock runs out. When production is down at 3 a.m., break-glass lets on-call act immediately: every admin is alerted the moment it happens, and a mandatory retro-review closes the loop.</p>
-              <ul class="uc-benefits">
-                <li>Time-boxed grants — on databases and API connections alike — auto-revoked on expiry, no cleanup tickets</li>
-                <li>Grants can pre-approve the queries they cover — one review for the access, not one per query</li>
-                <li>Break-glass skips the queue, never the guardrails — masking, row security, and row caps still apply</li>
-                <li>Every emergency run gets an after-the-fact review by an admin, never the submitter</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Access grants</span>
-                  <span class="mono ml-auto">auto-expiry on</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
-                  <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
-                  <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
-                </div>
-                <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
-              </div>
-            </div>
-          </article>
-
-          <!-- 3. AI pre-screening -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For engineering managers &amp; DBAs</span>
-              <h3>Review at scale without a ticket queue</h3>
-              <p>A governance process that takes days gets bypassed. AccessFlow's AI reads every query and API call first — risk score, anti-patterns, affected tables — so routing policies can auto-approve safe reads in seconds and send risky changes to the right approvers with the analysis already attached.</p>
-              <ul class="uc-benefits">
-                <li>Low-risk requests auto-approve — reviewers see only what deserves attention</li>
-                <li>Once there's enough review history, pending queries show an approval likelihood learned from your own past decisions — a hint about what to open first, never a decision</li>
-                <li>Approvers decide from Slack, email, or one-tap push, with AI findings inline</li>
-                <li>Multi-stage approval chains for the changes that really matter</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">AI triage</span>
-                  <span class="mono ml-auto">routing policies active</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="v">SELECT … FROM events LIMIT 100</span><span class="k">risk 8</span><span class="pill approved">AUTO-APPROVED</span></div>
-                  <div class="uc-mock-line"><span class="v">UPDATE orders SET region_code …</span><span class="k">risk 62</span><span class="pill pending">→ DBA REVIEW</span></div>
-                  <div class="uc-mock-line"><span class="v">DROP TABLE legacy_users</span><span class="k">risk 97</span><span class="pill rejected">AUTO-REJECTED</span></div>
-                </div>
-                <div class="uc-mock-foot">reviewed by a human: only the one that needs it</div>
-              </div>
-            </div>
-          </article>
-
-          <!-- 4. Audit readiness -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For compliance &amp; security teams</span>
-              <h3>Audit evidence as a download, not a project</h3>
-              <p>When the auditor asks who accessed customer data last quarter — and who approved it — the answer shouldn't be a two-week log archaeology project. Every request, decision, and execution lands in a tamper-evident, HMAC-chained audit trail, with scheduled access recertification campaigns and signed compliance exports on top.</p>
-              <ul class="uc-benefits">
-                <li>Append-only, tamper-evident record of every decision — built for SOC 2, ISO 27001 &amp; GDPR evidence</li>
-                <li>Recertification campaigns certify or revoke standing access on a schedule, with CSV evidence</li>
-                <li>An over-provisioned access report ranks standing grants nobody uses — advisory, never an automatic revocation</li>
-                <li>Signed PDF/CSV compliance reports and a dedicated read-only auditor role</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Audit log</span>
-                  <span class="mono ml-auto">HMAC-SHA256 chained</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">14:02:51</span><span class="v">QUERY_SUBMITTED · alice@co</span><span class="k">#a81f→</span></div>
-                  <div class="uc-mock-line"><span class="k">14:04:11</span><span class="v">QUERY_APPROVED · eve@co</span><span class="k">#c290→</span></div>
-                  <div class="uc-mock-line"><span class="k">14:04:12</span><span class="v">QUERY_EXECUTED · system</span><span class="k">#f11d→</span></div>
-                </div>
-                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span class="t-accent">signed ✓</span></div>
-              </div>
-            </div>
-          </article>
-
-          <!-- 5. Data privacy operations -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For data protection &amp; privacy teams</span>
-              <h3>Privacy obligations as running processes</h3>
-              <p>Classify sensitive fields once — PII, PCI, PHI, GDPR — and let policy do the rest. Masking redacts tagged columns in every result, retention policies age data out on schedule, and right-to-erasure requests run through a governed, approved, audited workflow instead of a spreadsheet.</p>
-              <ul class="uc-benefits">
-                <li>Field-level masking applied to results across SQL and NoSQL engines alike</li>
-                <li>Retention and pseudonymization policies executed through the same governed proxy</li>
-                <li>Right-to-erasure with an approval trail you can show a regulator</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Query result · masked</span>
-                  <span class="mono ml-auto">3 columns tagged</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">email</span><span class="v">a•••@example.com</span><span class="uc-tag">PII</span></div>
-                  <div class="uc-mock-line"><span class="k">card_number</span><span class="v">•••• •••• •••• 4242</span><span class="uc-tag">PCI</span></div>
-                  <div class="uc-mock-line"><span class="k">diagnosis</span><span class="v">▓▓ redacted</span><span class="uc-tag">PHI</span></div>
-                </div>
-                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span class="t-accent">EXECUTED</span></div>
-              </div>
-            </div>
-          </article>
-
-          <!-- 6. API governance -->
-          <article class="uc-row">
-            <div class="uc-copy">
-              <span class="uc-persona">For integration &amp; backend teams</span>
-              <h3>The same governance for your APIs</h3>
-              <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring.</p>
-              <ul class="uc-benefits">
-                <li>One connector catalog for third-party and internal APIs, with schema ingestion</li>
-                <li>Response masking policies and data-classification tags on API payloads</li>
-                <li>Break-glass, scheduling, and audit — identical to the database flow</li>
-              </ul>
-            </div>
-            <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">API requests</span>
-                  <span class="mono ml-auto">REST · SOAP · GraphQL · gRPC</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
-                  <div class="uc-mock-line"><span class="k">POST</span><span class="v">mutation refundCharge(…) · payments-gql</span><span class="pill pending">PENDING</span></div>
-                  <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill executed">EXECUTED</span></div>
-                </div>
-                <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
-              </div>
-            </div>
-          </article>
-
-        </div>
-      </div>
-    </section>
-
-    <!-- Install -->
-    <section class="install scroll-pad" id="install">
-      <div class="wrap">
-        <div class="section-head">
-          <span class="eyebrow">Quick start</span>
-          <h2>Install AccessFlow — governing queries and API calls in under five minutes.</h2>
-          <p>Pick your platform. The backend initializes its database schema on first boot; the first admin is created through the in-app setup wizard the moment you open the SPA.</p>
-        </div>
-
-        <div class="install-grid">
-          <div>
-            <div class="install-tabs" role="tablist" aria-label="Install method">
-              <button class="install-tab active" role="tab" aria-selected="true" data-install-tab="docker">Docker Compose</button>
-              <button class="install-tab" role="tab" aria-selected="false" data-install-tab="helm">Helm / Kubernetes</button>
-              <button class="install-tab" role="tab" aria-selected="false" data-install-tab="source">From source</button>
-            </div>
-
-            <div data-install-pane="docker">
-              <div class="code-block">
-                <div class="code-block-head">
-                  <span class="mono">docker-compose.yml</span>
-                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                    <span data-copy-label>copy</span>
-                  </button>
-                </div>
-<pre><span class="c-com"># Zero-config demo — open http://localhost:5173 and follow the setup wizard.</span>
-<span class="c-com"># Demo-only JWT / encryption keys are embedded in the file; generate your own</span>
-<span class="c-com"># for anything beyond evaluation (see docs/09-deployment.md).</span>
-<span class="c-kw">services</span>:
-  <span class="c-kw">postgres</span>:
-    <span class="c-kw">image</span>: <span class="c-str">postgres:18</span>
-    <span class="c-kw">environment</span>:
-      POSTGRES_DB: <span class="c-str">accessflow</span>
-      POSTGRES_USER: <span class="c-str">accessflow</span>
-      POSTGRES_PASSWORD: <span class="c-str">accessflow</span>
-
-  <span class="c-kw">redis</span>:
-    <span class="c-kw">image</span>: <span class="c-str">redis:8-alpine</span>
-
-  <span class="c-kw">backend</span>:
-    <span class="c-kw">image</span>: <span class="c-str">ghcr.io/bablsoft/accessflow-backend:latest</span>
-    <span class="c-kw">depends_on</span>: [postgres, redis]
-    <span class="c-kw">environment</span>:
-      DB_URL: <span class="c-str">jdbc:postgresql://postgres:5432/accessflow</span>
-      REDIS_URL: <span class="c-str">redis://redis:6379</span>
-      ENCRYPTION_KEY: <span class="c-com"># 64-char hex, demo default embedded</span>
-      JWT_PRIVATE_KEY: <span class="c-com"># PKCS#8 PEM, demo default embedded</span>
-    <span class="c-kw">ports</span>: [<span class="c-str">"8080:8080"</span>]
-
-  <span class="c-kw">frontend</span>:
-    <span class="c-kw">image</span>: <span class="c-str">ghcr.io/bablsoft/accessflow-frontend:latest</span>
-    <span class="c-kw">depends_on</span>: [backend]
-    <span class="c-kw">ports</span>: [<span class="c-str">"5173:80"</span>]
-</pre>
-              </div>
-            </div>
-
-            <div data-install-pane="helm" hidden>
-              <div class="code-block">
-                <div class="code-block-head">
-                  <span class="mono">values.yaml</span>
-                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                    <span data-copy-label>copy</span>
-                  </button>
-                </div>
-<pre><span class="c-com"># helm repo add accessflow https://bablsoft.github.io/accessflow</span>
-<span class="c-com"># helm install accessflow accessflow/accessflow -n accessflow --create-namespace</span>
-<span class="c-com"># Encryption key, JWT key, and Postgres password are auto-generated on first install</span>
-<span class="c-com"># and preserved across upgrades — no Secrets need to be pre-created.</span>
-<span class="c-com">#</span>
-<span class="c-com"># Ready-made starting points for common shapes live under</span>
-<span class="c-com">#   charts/accessflow/examples/   (minimal, production, external-services, bootstrap, airgapped)</span>
-
-<span class="c-kw">replicaCount</span>:
-  <span class="c-kw">backend</span>: 2
-  <span class="c-kw">frontend</span>: 2
-
-<span class="c-com"># Postgres + Redis ship as Bitnami subcharts — toggle off for managed services</span>
-<span class="c-kw">postgresql</span>:
-  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
-<span class="c-kw">redis</span>:
-  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
-
-<span class="c-com"># HPA + PDB are off by default — turn on for production</span>
-<span class="c-kw">autoscaling</span>:
-  <span class="c-kw">backend</span>:
-    <span class="c-kw">enabled</span>: <span class="c-str">false</span>
-    <span class="c-kw">minReplicas</span>: 2
-    <span class="c-kw">maxReplicas</span>: 10
-
-<span class="c-com"># Override only if you want to manage secrets externally</span>
-<span class="c-com"># (sealed-secrets, External Secrets, Vault, …):</span>
-<span class="c-com"># config:</span>
-<span class="c-com">#   encryptionKey: { existingSecret: my-secret, key: value }</span>
-<span class="c-com">#   jwtPrivateKey: { existingSecret: my-secret, key: jwt }</span>
-
-<span class="c-kw">ingress</span>:
-  <span class="c-kw">enabled</span>: <span class="c-str">true</span>
-  <span class="c-kw">className</span>: <span class="c-str">nginx</span>
-  <span class="c-kw">hosts</span>:
-    - <span class="c-kw">host</span>: <span class="c-str">accessflow.company.com</span>
-  <span class="c-com"># TLS is off by default — turn on and supply a Secret to terminate HTTPS</span>
-  <span class="c-kw">tls</span>:
-    <span class="c-kw">enabled</span>: <span class="c-str">false</span>
-</pre>
-              </div>
-            </div>
-
-            <div data-install-pane="source" hidden>
-              <div class="code-block">
-                <div class="code-block-head">
-                  <span class="mono">shell</span>
-                  <button class="copy-btn" type="button" aria-label="Copy to clipboard">
-                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
-                    <span data-copy-label>copy</span>
-                  </button>
-                </div>
-<pre><span class="c-com"># clone</span>
-<span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
-<span class="c-kw">cd</span> accessflow
-
-<span class="c-com"># 1. infrastructure — Postgres 18 + Redis 8 + Mailcrab (dev-only compose)</span>
-<span class="c-kw">docker</span> compose -f backend/docker-compose-dev.yml up -d
-
-<span class="c-com"># 2. backend — Java 25 · Spring Boot 4 · Maven</span>
-<span class="c-kw">cd</span> backend
-<span class="c-kw">./mvnw</span> spring-boot:run
-
-<span class="c-com"># 3. frontend — Node 24 · Vite 8 · React 19</span>
-<span class="c-kw">cd</span> ../frontend
-<span class="c-kw">npm</span> install
-<span class="c-kw">npm</span> run dev
-
-<span class="c-com"># open http://localhost:5173 — the in-app setup wizard creates the first admin</span>
-</pre>
-              </div>
-            </div>
-          </div>
-
-          <div class="install-meta">
-            <h3>System requirements</h3>
-
-            <h4 class="install-meta-sub">Stack</h4>
-            <dl>
-              <dt>Internal DB</dt><dd>PostgreSQL 18</dd>
-              <dt>Cache</dt><dd>Redis 8</dd>
-              <dt>Targets</dt><dd>PG · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · connector catalog</dd>
-              <dt>AI backends</dt><dd>Anthropic · OpenAI · Ollama · OpenAI-compat. · Hugging Face</dd>
-              <dt>License</dt><dd class="t-accent">Apache 2.0</dd>
-            </dl>
-
-            <h4 class="install-meta-sub">Sizing</h4>
-            <dl>
-              <dt>Evaluation</dt><dd>2 vCPU · 4 GB RAM · 10 GB SSD<br /><span class="install-meta-note">single-node Docker Compose</span></dd>
-              <dt>Production</dt><dd>Backend ≥ 2× (2 vCPU · 2 GB) · Postgres (2 vCPU · 4 GB · 50 GB) · Redis (1 vCPU · 1 GB)<br /><span class="install-meta-note">scale backend replicas behind any L7 load balancer</span></dd>
-            </dl>
-            <div style="height: 1px; background: var(--line); margin: 20px 0;"></div>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-              <a href="/docs/install/" class="mono" style="font-size: 12px; color: var(--fg-dim);">
-                → Install &amp; first-run guide
-              </a>
-              <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="mono" style="font-size: 12px; color: var(--fg-dim);">
-                → Environment variables reference
-              </a>
-              <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/README.md" class="mono" style="font-size: 12px; color: var(--fg-dim);">
-                → Helm chart values
-              </a>
-            </div>
-          </div>
+        <div class="docs-grid">
+          <a href="/use-cases/#platform" class="doc-card">
+            <h3>Platform &amp; infrastructure</h3>
+            <p>Production access without shared credentials.</p>
+          </a>
+          <a href="/use-cases/#sre" class="doc-card">
+            <h3>SRE &amp; on-call</h3>
+            <p>Just-in-time access that expires on its own.</p>
+          </a>
+          <a href="/use-cases/#dba" class="doc-card">
+            <h3>Engineering managers &amp; DBAs</h3>
+            <p>Review at scale without a ticket queue.</p>
+          </a>
+          <a href="/use-cases/#compliance" class="doc-card">
+            <h3>Compliance &amp; security</h3>
+            <p>Audit evidence as a download, not a project.</p>
+          </a>
+          <a href="/use-cases/#privacy" class="doc-card">
+            <h3>Data protection &amp; privacy</h3>
+            <p>Privacy obligations as running processes.</p>
+          </a>
+          <a href="/use-cases/#api" class="doc-card">
+            <h3>Integration &amp; backend</h3>
+            <p>The same governance for your APIs.</p>
+          </a>
         </div>
       </div>
     </section>
@@ -1229,7 +816,7 @@
         <div class="section-head">
           <span class="eyebrow">Common questions</span>
           <h2>AccessFlow FAQ — what people ask before they install it.</h2>
-          <p>Short answers. Each one links onward to the chapter that covers it properly.</p>
+          <p>Short answers, with links onward to the pages that cover each properly.</p>
         </div>
         <div class="qa-grid">
           <div class="qa-item">
@@ -1242,31 +829,13 @@
             </p>
           </div>
           <div class="qa-item">
-            <h3>Which databases does AccessFlow support?</h3>
-            <p>
-              PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server, and ClickHouse over JDBC,
-              plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
-              BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Cassandra, ScyllaDB,
-              Elasticsearch, OpenSearch, DynamoDB, and Neo4j. Eighteen in all — see
-              <a href="/docs/configuration/connectors/">Connectors</a>.
-            </p>
-          </div>
-          <div class="qa-item">
-            <h3>Does AccessFlow store or copy my data?</h3>
-            <p>
-              No. AccessFlow proxies queries and streams results back without persisting them.
-              Its own database stores the query text, the approval decisions, and audit metadata —
-              row counts and timings, not rows. Datasource credentials are AES-256-GCM encrypted,
-              or held in Vault, AWS Secrets Manager, or Azure Key Vault.
-            </p>
-          </div>
-          <div class="qa-item">
             <h3>How is AccessFlow different from a VPN or a bastion host?</h3>
             <p>
               A VPN or bastion controls who reaches the database; neither reads the query. Once
               you are through, you hold real credentials and can run anything. AccessFlow governs
               the statement itself — parsing it, scoring its risk, routing it for approval, and
               masking columns at execution time.
+              <a class="prose-link" href="/security/">Database proxy security architecture →</a>
             </p>
           </div>
           <div class="qa-item">
@@ -1278,244 +847,17 @@
               <a href="https://github.com/bablsoft/accessflow">GitHub</a>.
             </p>
           </div>
-          <div class="qa-item">
-            <h3>Can AI agents use AccessFlow?</h3>
-            <p>
-              Yes. AccessFlow ships a built-in MCP server, so an AI agent can discover schemas,
-              validate a query, and submit it through the same governance pipeline a human uses.
-              Agents authenticate with scoped API keys and their queries land in the same review
-              queue and the same audit log.
-            </p>
-          </div>
         </div>
       </div>
     </section>
 
-    <!-- Roadmap -->
+    <!-- Roadmap — stub only; the capability map lives at /roadmap/ (the #roadmap id must stay alive) -->
     <section class="roadmap scroll-pad" id="roadmap">
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Roadmap</span>
           <h2>What AccessFlow can do today, and what's planned.</h2>
-          <p>A capability map of the platform as it stands — driven by community input and adapter contributions. Version-by-version milestone scope lives in <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" style="color: var(--accent); border-bottom: 1px dotted var(--accent-dim);">docs/12-roadmap.md</a>, and per-milestone context — including the release in progress — is on the <a class="prose-link" href="/roadmap/">roadmap page</a>.</p>
-        </div>
-        <h3 class="rm-band-title">Available now</h3>
-        <div class="rm-grid">
-          <div class="rm-cell">
-            <h4 class="rm-cat">Proxy &amp; data access</h4>
-            <ul>
-              <li>SQL proxy · 5 DBs + custom drivers</li>
-              <li>Read-replica routing · result diffing</li>
-              <li>Schema explorer &amp; ER view · sample previews</li>
-              <li>Datasource health dashboard</li>
-              <li>High-volume proxy performance — result caching · query batching · multi-replica load balancing</li>
-              <li>Declarative connector catalog</li>
-              <li>MongoDB · Couchbase (SQL++) · Redis</li>
-              <li>Cassandra &amp; ScyllaDB (CQL)</li>
-              <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
-              <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
-              <li>Cloud data warehouses — Snowflake, BigQuery, Databricks SQL (native auth)</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">AI &amp; monitoring</h4>
-            <ul>
-              <li>Risk scoring + index hints · analytics</li>
-              <li>OpenAI-compatible &amp; Hugging Face providers</li>
-              <li>Editable prompts · Langfuse · text-to-SQL · RAG</li>
-              <li>Offline AI fallback — provider fallback pool with local Ollama</li>
-              <li>Approval-likelihood prediction — advisory triage signal from your own review history</li>
-              <li>Behavioral anomaly detection (UBA)</li>
-              <li>AI optimization &amp; index recommendations</li>
-              <li>Expanded MCP agent toolset</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Review &amp; access</h4>
-            <ul>
-              <li>Multi-stage approvals · auto-approve reads</li>
-              <li>Bulk decisions · scheduled &amp; recurring runs · plan templates</li>
-              <li>Reviewer groups &amp; scoping · JIT access</li>
-              <li>Policy-as-code routing · row-level security · masking</li>
-              <li>Break-glass emergency access</li>
-              <li>Multi-tenant orgs &amp; per-org quotas</li>
-              <li>Real-time collaborative editing</li>
-              <li>Mobile PWA + one-tap push</li>
-              <li>Version history &amp; diff · dry-run sandbox · replay</li>
-              <li>Personalized dashboard &amp; weekly digest</li>
-              <li>Request chaining &amp; grouping</li>
-              <li>Group-based data &amp; API access grants</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">API governance</h4>
-            <ul>
-              <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
-              <li>Operation catalog · response masking · text-to-API</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Deployment governance</h4>
-            <ul>
-              <li>Deployment approval governance — gate CI/CD releases behind approval workflows</li>
-              <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
-              <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
-              <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Compliance</h4>
-            <ul>
-              <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
-              <li>Compliance reports &amp; signed exports · Auditor role</li>
-              <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
-              <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
-              <li>Access recertification campaigns</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Auth &amp; audit</h4>
-            <ul>
-              <li>JWT · SAML · OAuth/OIDC · SCIM provisioning · TOTP · RBAC with custom roles</li>
-              <li>HMAC-chained audit log + CSV export</li>
-              <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Security &amp; ops</h4>
-            <ul>
-              <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
-              <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
-              <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
-              <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
-              <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Automation &amp; IaC</h4>
-            <ul>
-              <li>Terraform / OpenTofu provider</li>
-              <li>Reusable GitHub Actions &amp; GitLab CI template</li>
-            </ul>
-          </div>
-          <div class="rm-cell">
-            <h4 class="rm-cat">Deploy</h4>
-            <ul>
-              <li>Docker Compose · Helm 3 · HPA · health probes</li>
-            </ul>
-          </div>
-        </div>
-        <div class="rm-planned">
-          <h3 class="rm-cat">Planned</h3>
-          <ul>
-            <li>Native wire-protocol gateway</li>
-            <li>Column-level permissions</li>
-            <li>Custom analyzer plugins (SPI / HTTP)</li>
-            <li>Automatic query suggestions</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- Docs -->
-    <section class="docs scroll-pad" id="docs">
-      <div class="wrap">
-        <div class="section-head">
-          <span class="eyebrow">Documentation</span>
-          <h2>AccessFlow documentation — eighteen chapters, read them in any order.</h2>
-          <p>Every subsystem is documented — architecture diagrams, schemas, payload examples, deployment recipes, and security model. Open source in the same repo. New here? The <a href="/docs/">run &amp; configure guide</a> walks you through installing AccessFlow and setting it up step by step.</p>
-        </div>
-        <div class="docs-grid">
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/01-overview.md" class="doc-card">
-            <span class="doc-num">01</span>
-            <h3>Overview</h3>
-            <p>Problem statement, goals, non-goals, value proposition.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md" class="doc-card">
-            <span class="doc-num">02</span>
-            <h3>Architecture</h3>
-            <p>Subsystems, technology stack, request flow.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/03-data-model.md" class="doc-card">
-            <span class="doc-num">03</span>
-            <h3>Data model</h3>
-            <p>Internal entities, audit log schema, retention.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md" class="doc-card">
-            <span class="doc-num">04</span>
-            <h3>REST API</h3>
-            <p>Endpoints, payloads, WebSocket events.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/05-backend.md" class="doc-card">
-            <span class="doc-num">05</span>
-            <h3>Backend</h3>
-            <p>Modular backend, proxy engine, workflow state machine.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/06-frontend.md" class="doc-card">
-            <span class="doc-num">06</span>
-            <h3>Frontend</h3>
-            <p>React/Vite layout, SQL editor, TanStack &amp; Zustand.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md" class="doc-card">
-            <span class="doc-num">07</span>
-            <h3>Security</h3>
-            <p>JWT, SAML, OAuth, encryption, audit integrity.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/08-notifications.md" class="doc-card">
-            <span class="doc-num">08</span>
-            <h3>Notifications</h3>
-            <p>Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow &amp; Jira ticketing, signed webhook delivery.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md" class="doc-card">
-            <span class="doc-num">09</span>
-            <h3>Deployment</h3>
-            <p>Docker Compose, Helm, env-var reference.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md" class="doc-card">
-            <span class="doc-num">11</span>
-            <h3>Development</h3>
-            <p>Repo layout, tests, coding standards, Git workflow.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" class="doc-card">
-            <span class="doc-num">12</span>
-            <h3>Roadmap</h3>
-            <p>Milestones, contribution path.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md" class="doc-card">
-            <span class="doc-num">13</span>
-            <h3>MCP server</h3>
-            <p>Stateless tool surface for AI agents — discover, validate, sample, submit; API keys.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md" class="doc-card">
-            <span class="doc-num">14</span>
-            <h3>Connectors</h3>
-            <p>Declarative connector catalog, manifests, install lifecycle.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md" class="doc-card">
-            <span class="doc-num">15</span>
-            <h3>Engine-plugin SDK</h3>
-            <p>Authoring guide for native NoSQL engine plugins.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md" class="doc-card">
-            <span class="doc-num">16</span>
-            <h3>Infrastructure as Code</h3>
-            <p>Terraform/OpenTofu provider, CI Actions, service-account keys, registry publishing.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md" class="doc-card">
-            <span class="doc-num">17</span>
-            <h3>API Access Governance</h3>
-            <p>Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md" class="doc-card">
-            <span class="doc-num">18</span>
-            <h3>Deployment governance</h3>
-            <p>Gate CI/CD deployments — pipelines, the fail-closed gate, freeze windows, break-glass.</p>
-          </a>
-          <a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md" class="doc-card">
-            <span class="doc-num">★</span>
-            <h3>Agent rulebook</h3>
-            <p>CLAUDE.md — module boundaries, conventions, gates.</p>
-          </a>
+          <p>Everything available now, per-milestone scope, and what comes next live on the <a class="prose-link" href="/roadmap/">AccessFlow roadmap →</a></p>
         </div>
       </div>
     </section>

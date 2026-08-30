@@ -6,6 +6,7 @@ import {
   digest,
   expectedCanonical,
   htmlFiles,
+  mainWordCount,
   normalizeNav,
   pageUrl,
   slice,
@@ -53,7 +54,31 @@ const MISSING_DARK_SCREENSHOTS = [
  * 'unsafe-inline' to 'self' until this reaches 0 (website/_headers). Ratchet only
  * downwards — never raise this number to make a new page pass.
  */
-const INLINE_STYLE_BUDGET = 42;
+const INLINE_STYLE_BUDGET = 36;
+
+/**
+ * AF-789 landing composition: index.html is a hub of teasers, not the
+ * encyclopedia — the full content lives on the spoke pages. Measured at 1,084
+ * words when the cut landed; the budget is a ceiling, not a target. Raising it
+ * past 1300 needs the same scrutiny as raising the inline-style budget.
+ */
+const MAIN_WORD_BUDGET = 1300;
+
+/**
+ * The 8 pages epic AF-782 carved out of the landing page. Hub-and-spoke only
+ * works with no orphans: each must stay reachable from the homepage *body* —
+ * the nav does not count (it is chrome, and AF-791 retargets it separately).
+ */
+const SPOKE_URLS = [
+  '/features/',
+  '/features/database-access-governance/',
+  '/features/api-access-governance/',
+  '/features/deployment-governance/',
+  '/connectors/',
+  '/use-cases/',
+  '/security/',
+  '/roadmap/',
+];
 
 describe('website pages', () => {
   it('finds every page on the site', () => {
@@ -231,6 +256,17 @@ describe('website pages', () => {
     const missing = ['features', 'connectors', 'how', 'use-cases', 'install', 'questions', 'roadmap']
       .filter((id) => !idsOf(html).has(id));
     expect(missing, 'index.html dropped a legacy section id').toEqual([]);
+  });
+
+  it('keeps the landing page within its word budget', () => {
+    const words = mainWordCount(read(path.join(websiteRoot, 'index.html')));
+    expect(words, 'index.html <main> prose word count').toBeLessThanOrEqual(MAIN_WORD_BUDGET);
+  });
+
+  it('links every AF-782 spoke page from the landing page body', () => {
+    const main = slice(read(path.join(websiteRoot, 'index.html')), '<main', '</main>');
+    const unlinked = SPOKE_URLS.filter((u) => !main.includes(`href="${u}"`));
+    expect(unlinked, 'spoke pages not linked from index.html <main>').toEqual([]);
   });
 
   it('keeps sitemap.xml and the pages on disk in sync both ways', () => {

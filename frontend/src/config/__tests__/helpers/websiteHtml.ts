@@ -56,6 +56,51 @@ export const slice = (s: string, a: string, b: string): string => {
 export const digest = (s: string): string =>
   createHash('sha256').update(s).digest('hex').slice(0, 12);
 
+/** Elements that never take a closing tag, so the depth walker below must not descend. */
+const VOID_TAGS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta',
+  'source', 'track', 'wbr',
+]);
+
+/**
+ * The number of prose words inside a page's <main>. "Prose" is what a reader
+ * actually reads: comments, <script>/<style>/<svg>, and aria-hidden subtrees
+ * (decorative mock-UI facsimiles, icon wrappers) are excluded, entities are
+ * decoded, and a token only counts as a word when it contains a letter or a
+ * digit — so the "·" and "→" separator glyphs never inflate the number.
+ */
+export const mainWordCount = (html: string): number => {
+  const main = slice(html, '<main', '</main>')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|svg)[\s\S]*?<\/\1>/g, ' ');
+  let text = '';
+  let depth = 0;
+  let hiddenAt: number | null = null;
+  for (const token of main.match(/<[^>]+>|[^<]+/g) ?? []) {
+    if (token[0] !== '<') {
+      if (hiddenAt === null) text += `${token} `;
+      continue;
+    }
+    const tag = /^<\/?([a-z0-9-]+)/i.exec(token)?.[1]?.toLowerCase() ?? '';
+    if (VOID_TAGS.has(tag) || token.endsWith('/>')) continue;
+    if (token[1] === '/') {
+      depth -= 1;
+      if (hiddenAt !== null && depth <= hiddenAt) hiddenAt = null;
+    } else {
+      if (hiddenAt === null && /\saria-hidden="true"/.test(token)) hiddenAt = depth;
+      depth += 1;
+    }
+  }
+  const decoded = text
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&(?:nbsp|ensp|emsp|thinsp);/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/gi, ' ');
+  return decoded.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+};
+
 /** '<website>/docs/configuration/ai/index.html' -> 'https://accessflow.io/docs/configuration/ai/' */
 export const expectedCanonical = (file: string): string => {
   const rel = path.relative(websiteRoot, file).replace(/index\.html$/, '').replace(/\\/g, '/');
