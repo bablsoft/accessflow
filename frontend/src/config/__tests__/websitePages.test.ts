@@ -57,13 +57,17 @@ const INLINE_STYLE_BUDGET = 42;
 
 describe('website pages', () => {
   it('finds every page on the site', () => {
-    expect(files.length).toBeGreaterThanOrEqual(18);
+    expect(files.length).toBeGreaterThanOrEqual(22);
     expect(files.map(rel)).toContain('index.html');
     expect(files.map(rel)).toContain(path.join('ai-agents', 'index.html'));
     expect(files.map(rel)).toContain(path.join('security', 'index.html'));
     expect(files.map(rel)).toContain(path.join('connectors', 'index.html'));
     expect(files.map(rel)).toContain(path.join('use-cases', 'index.html'));
     expect(files.map(rel)).toContain(path.join('roadmap', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('features', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('features', 'database-access-governance', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('features', 'api-access-governance', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('features', 'deployment-governance', 'index.html'));
   });
 
   it('shares a byte-identical nav across every page', () => {
