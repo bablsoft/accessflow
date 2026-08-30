@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Installation",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-28",
+      "dateModified": "2026-08-30",
       "url": "https://accessflow.io/docs/install/",
       "mainEntityOfPage": "https://accessflow.io/docs/install/",
       "image": "https://accessflow.io/og-image.png",
@@ -229,7 +229,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-28">28 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-30">30 August 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -244,6 +244,36 @@
           <p>
             Three ways. <code>docker compose up</code> against the repo root gives you a running demo stack in under a minute. <code>helm install</code> from the published chart is the production path on Kubernetes, generating its own secrets on first install. Building from source needs JDK 25 and Node.js 24, and is aimed at contributors.
           </p>
+
+          <h3 id="run-sizing">System requirements &amp; sizing</h3>
+          <p>
+            AccessFlow needs PostgreSQL 18 for its internal database and Redis 8 for caching and
+            distributed locks — both ship inside the demo compose stack and the Helm chart. Rough
+            sizing tiers:
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Resources</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Evaluation</td>
+                  <td>2 vCPU · 4 GB RAM · 10 GB SSD</td>
+                  <td>Single-node Docker Compose</td>
+                </tr>
+                <tr>
+                  <td>Production</td>
+                  <td>Backend ≥ 2× (2 vCPU · 2 GB) · Postgres (2 vCPU · 4 GB · 50 GB) · Redis (1 vCPU · 1 GB)</td>
+                  <td>Scale backend replicas behind any L7 load balancer</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h3 id="run-docker-compose">Docker Compose</h3>
           <p>

@@ -10,8 +10,8 @@
 #    command in README.md ("Response headers") and update this line.
 #  - <script type="application/ld+json"> blocks need no hash: browsers never
 #    execute non-JS MIME types, so script-src does not apply to them.
-#  - style-src keeps 'unsafe-inline' only because 42 inline style="" attributes
-#    remain site-wide. There are no inline <style> blocks. Move those 42 into
+#  - style-src keeps 'unsafe-inline' only because 36 inline style="" attributes
+#    remain site-wide. There are no inline <style> blocks. Move those 36 into
 #    styles.css and this can tighten to 'self'. websitePages.test.ts pins the count
 #    and ratchets it down — never raise its budget to make a new page pass.
 
