@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Database access management use cases — six teams, one checkpoint — AccessFlow</title>
+  <title>Database access management use cases — AccessFlow</title>
   <meta name="description" content="Database access management use cases for platform, SRE, DBA, compliance, privacy and integration teams — six problems, one governed access checkpoint." />
 
   <link rel="canonical" href="https://accessflow.io/use-cases/" />
@@ -28,7 +28,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="Database access management use cases — six teams, one checkpoint — AccessFlow" />
+  <meta property="og:title" content="Database access management use cases — AccessFlow" />
   <meta property="og:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
   <meta property="og:url" content="https://accessflow.io/use-cases/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
@@ -38,7 +38,7 @@
   <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Database access management use cases — six teams, one checkpoint — AccessFlow" />
+  <meta name="twitter:title" content="Database access management use cases — AccessFlow" />
   <meta name="twitter:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
@@ -55,7 +55,7 @@
       {
         "@type": "CollectionPage",
         "@id": "https://accessflow.io/use-cases/#page",
-        "name": "Database access management use cases — six teams, one checkpoint — AccessFlow",
+        "name": "Database access management use cases — AccessFlow",
         "headline": "Six access problems, one governed checkpoint",
         "description": "Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls.",
         "inLanguage": "en",
@@ -235,7 +235,7 @@
         <section class="docs-section scroll-pad" id="platform">
           <span class="uc-persona">For platform &amp; infrastructure teams</span>
           <h2>Production access without shared credentials</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
               <p>The credential never leaves the proxy. It is decrypted once when a connection pool is built and handed straight to the pool — or, if you would rather AccessFlow held nothing at all, the datasource stores a reference into HashiCorp Vault, AWS Secrets Manager or Azure Key Vault and the secret is resolved at connection time. Either way the user gets a result set, not a connection string, so rotating a password is a change in one place instead of a message to every engineer who has it.</p>
@@ -261,23 +261,23 @@
                 <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
         <section class="docs-section scroll-pad" id="sre">
           <span class="uc-persona">For SRE &amp; on-call teams</span>
           <h2>Just-in-time access that expires on its own</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>Standing privileges shrink to zero. Engineers request access for the window they need — minutes to days — to a database or a governed API connection (scoped down to specific operations), and the grant revokes itself when the clock runs out. When production is down at 3 a.m., break-glass lets on-call act immediately: every admin is alerted the moment it happens, and a mandatory retro-review closes the loop.</p>
-              <p>Break-glass is a permission, not a role — an admin does not get it by being an admin, and it is granted per user and per datasource. What it skips is the queue, not the controls: masking, row security and row caps still apply to an emergency query, the run is written to the audit log under its own action, and the retro-review is opened against an admin who is never the person who ran it.</p>
+              <p>Break-glass is a permission, not a role — an admin does not get it by being an admin. It is held per datasource, granted to a user directly or through a group, and the effective answer is the most permissive grant that applies. What it skips is the queue, not the controls: masking, row security and row caps still apply to an emergency query, the run is written to the audit log under its own action, and the retro-review is opened against an admin who is never the person who ran it.</p>
               <ul class="uc-benefits">
                 <li>Time-boxed grants — on databases and API connections alike — auto-revoked on expiry, no cleanup tickets</li>
                 <li>Grants can pre-approve the queries they cover — one review for the access, not one per query</li>
                 <li>Break-glass skips the queue, never the guardrails — masking, row security, and row caps still apply</li>
                 <li>Every emergency run gets an after-the-fact review by an admin, never the submitter</li>
               </ul>
-              <p><a class="prose-link" href="/docs/configuration/users-roles/#cfg-access-requests">Access requests and grants →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-break-glass">Break-glass setup →</a></p>
+              <p><a class="prose-link" href="/security/#auth">Who a grant is issued to →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-access-requests">Access requests and grants →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-break-glass">Break-glass setup →</a></p>
             </div>
             <div class="uc-visual">
               <div class="mock">
@@ -293,16 +293,16 @@
                 <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
         <section class="docs-section scroll-pad" id="dba">
           <span class="uc-persona">For engineering managers &amp; DBAs</span>
           <h2>Review at scale without a ticket queue</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>A governance process that takes days gets bypassed. AccessFlow's AI reads every query and API call first — risk score, anti-patterns, affected tables — so routing policies can auto-approve safe reads in seconds and send risky changes to the right approvers with the analysis already attached.</p>
-              <p>Routing policies are typed conditions over what the analysis found, not a free-text rule language: risk band, statement type, the tables touched, who submitted it. That makes the boring majority of a day's traffic — bounded reads against non-sensitive tables — disappear from the queue entirely, and it makes the queue that remains worth opening. Where the AI provider is unavailable the request does not sail through; it falls back to human review.</p>
+              <p>Routing policies are typed conditions, not a free-text rule language, and they see more than the analysis: risk band, statement type, the tables touched, the submitter's role or group, the time of day, and more. That makes the boring majority of a day's traffic — bounded reads against non-sensitive tables — disappear from the queue entirely, and it makes the queue that remains worth opening. Where the AI provider is unavailable the request does not sail through; it falls back to human review.</p>
               <ul class="uc-benefits">
                 <li>Low-risk requests auto-approve — reviewers see only what deserves attention</li>
                 <li>Once there's enough review history, pending queries show an approval likelihood learned from your own past decisions — a hint about what to open first, never a decision</li>
@@ -325,13 +325,13 @@
                 <div class="uc-mock-foot">reviewed by a human: only the one that needs it</div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
         <section class="docs-section scroll-pad" id="compliance">
           <span class="uc-persona">For compliance &amp; security teams</span>
           <h2>Audit evidence as a download, not a project</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>When the auditor asks who accessed customer data last quarter — and who approved it — the answer shouldn't be a two-week log archaeology project. Every request, decision, and execution lands in a tamper-evident, HMAC-chained audit trail, with scheduled access recertification campaigns and signed compliance exports on top.</p>
               <p>The chain is what makes it evidence rather than a log file: each row carries a hash of the one before it, the table is INSERT-only, and the application's database role has no UPDATE or DELETE on it at all — a deleted or edited row breaks the chain and is visible as a break. Recertification then answers the other half of the question, which is not who used access but who still has it.</p>
@@ -357,22 +357,22 @@
                 <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span class="t-accent">signed ✓</span></div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
         <section class="docs-section scroll-pad" id="privacy">
           <span class="uc-persona">For data protection &amp; privacy teams</span>
           <h2>Privacy obligations as running processes</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>Classify sensitive fields once — PII, PCI, PHI, GDPR — and let policy do the rest. Masking redacts tagged columns in every result, retention policies age data out on schedule, and right-to-erasure requests run through a governed, approved, audited workflow instead of a spreadsheet.</p>
-              <p>Classification is not only a labelling exercise: a tag raises the AI risk score of anything that touches the column, so a query against tagged data is routed differently from one that is not, without anybody writing a rule for that table. A scheduled discovery scan can propose the tags in the first place by sampling column data, and an admin confirms or dismisses each proposal — nothing is applied behind your back.</p>
+              <p>Classification is not only a labelling exercise: a query that references a tagged table gets an automatic AI risk-score bump, so one routing policy written against risk level covers sensitive data everywhere without naming a single table. A scheduled discovery scan can propose the tags in the first place by sampling column data, and an admin confirms or dismisses each proposal — nothing is applied behind your back.</p>
               <ul class="uc-benefits">
                 <li>Field-level masking applied to results across SQL and NoSQL engines alike</li>
                 <li>Retention and pseudonymization policies executed through the same governed proxy</li>
                 <li>Right-to-erasure with an approval trail you can show a regulator</li>
               </ul>
-              <p><a class="prose-link" href="/docs/configuration/datasources/#cfg-data-classifications">Data classifications and masking →</a> <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-lifecycle">Retention and erasure →</a></p>
+              <p><a class="prose-link" href="/connectors/">Every engine masking applies to →</a> <a class="prose-link" href="/docs/configuration/datasources/#cfg-data-classifications">Data classifications and masking →</a> <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-lifecycle">Retention and erasure →</a></p>
             </div>
             <div class="uc-visual">
               <div class="mock">
@@ -388,16 +388,16 @@
                 <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span class="t-accent">EXECUTED</span></div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
         <section class="docs-section scroll-pad" id="api">
           <span class="uc-persona">For integration &amp; backend teams</span>
           <h2>The same governance for your APIs</h2>
-          <article class="uc-row">
+          <div class="uc-row">
             <div class="uc-copy">
               <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring.</p>
-              <p>An API connector is registered much like a datasource: you point AccessFlow at an OpenAPI, WSDL, GraphQL or protobuf schema, it ingests the operations, and permissions are granted per operation rather than per host. From there the vocabulary is the one your reviewers already know — the same review plans, the same break-glass permission, the same scheduling, the same audit actions — so governing an outbound call costs no new process.</p>
+              <p>An API connector is registered much like a datasource: you point AccessFlow at an OpenAPI document, a WSDL, a GraphQL or protobuf schema — or a Postman collection, for teams with no spec at all — it ingests the operations, and a grant can then be narrowed from the whole connector down to a named subset of them. From there the vocabulary is the one your reviewers already know — the same review plans, the same break-glass permission, the same scheduling, and an audit trail that mirrors the query one action for action — so governing an outbound call costs no new process.</p>
               <ul class="uc-benefits">
                 <li>One connector catalog for third-party and internal APIs, with schema ingestion</li>
                 <li>Response masking policies and data-classification tags on API payloads</li>
@@ -419,7 +419,7 @@
                 <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
               </div>
             </div>
-          </article>
+          </div>
         </section>
 
       </article>
