@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QuotaService;
@@ -54,8 +55,15 @@ class UserAdminServiceImpl implements UserAdminService {
     @Override
     @Transactional(readOnly = true)
     public PageResponse<UserView> listUsers(UUID organizationId, PageRequest pageRequest) {
+        // Default to newest-first when the caller specifies no sort — without it the
+        // page order is unspecified heap order and a freshly provisioned user can land
+        // on any page. Mirrors DatasourceAdminServiceImpl.listForAdmin.
+        var effective = pageRequest != null && pageRequest.sort().isEmpty()
+                ? new PageRequest(pageRequest.page(), pageRequest.size(),
+                        java.util.List.of(SortOrder.desc("createdAt")))
+                : pageRequest;
         var page = userRepository.findAllByOrganization_Id(
-                organizationId, PageAdapter.toSpringPageable(pageRequest));
+                organizationId, PageAdapter.toSpringPageable(effective));
         return PageAdapter.toPageResponse(page.map(this::toView));
     }
 
