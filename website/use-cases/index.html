@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Database access management use cases — six teams, one checkpoint — AccessFlow</title>
+  <meta name="description" content="Database access management use cases for platform, SRE, DBA, compliance, privacy and integration teams — six problems, one governed access checkpoint." />
+
+  <link rel="canonical" href="https://accessflow.io/use-cases/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Database access management use cases — six teams, one checkpoint — AccessFlow" />
+  <meta property="og:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
+  <meta property="og:url" content="https://accessflow.io/use-cases/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Database access management use cases — six teams, one checkpoint — AccessFlow" />
+  <meta name="twitter:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": "https://accessflow.io/use-cases/#page",
+        "name": "Database access management use cases — six teams, one checkpoint — AccessFlow",
+        "headline": "Six access problems, one governed checkpoint",
+        "description": "Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls.",
+        "inLanguage": "en",
+        "datePublished": "2026-08-30",
+        "dateModified": "2026-08-30",
+        "url": "https://accessflow.io/use-cases/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" },
+        "mainEntity": { "@id": "https://accessflow.io/use-cases/#cases" }
+      },
+      {
+        "@type": "ItemList",
+        "@id": "https://accessflow.io/use-cases/#cases",
+        "name": "Database access management use cases",
+        "numberOfItems": 6,
+        "itemListOrder": "https://schema.org/ItemListUnordered",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Production access without shared credentials", "url": "https://accessflow.io/use-cases/#platform" },
+          { "@type": "ListItem", "position": 2, "name": "Just-in-time access that expires on its own", "url": "https://accessflow.io/use-cases/#sre" },
+          { "@type": "ListItem", "position": 3, "name": "Review at scale without a ticket queue", "url": "https://accessflow.io/use-cases/#dba" },
+          { "@type": "ListItem", "position": 4, "name": "Audit evidence as a download, not a project", "url": "https://accessflow.io/use-cases/#compliance" },
+          { "@type": "ListItem", "position": 5, "name": "Privacy obligations as running processes", "url": "https://accessflow.io/use-cases/#privacy" },
+          { "@type": "ListItem", "position": 6, "name": "The same governance for your APIs", "url": "https://accessflow.io/use-cases/#api" }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Use cases", "item": "https://accessflow.io/use-cases/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/#features">Features</a>
+        <a href="/#connectors">Connectors</a>
+        <a href="/#how">How it works</a>
+        <a href="/#use-cases">Use cases</a>
+        <a href="/#install">Install</a>
+        <a href="/#questions">Questions</a>
+        <a href="/#roadmap">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/#features">Features</a>
+          <a href="/#connectors">Connectors</a>
+          <a href="/#how">How it works</a>
+          <a href="/#use-cases">Use cases</a>
+          <a href="/#install">Install</a>
+          <a href="/#questions">Questions</a>
+          <a href="/#roadmap">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Use cases</p>
+            <a href="#platform">Production access without shared credentials</a>
+            <a href="#sre">Just-in-time access</a>
+            <a href="#dba">Review at scale</a>
+            <a href="#compliance">Audit evidence</a>
+            <a href="#privacy">Privacy obligations</a>
+            <a href="#api">Governance for your APIs</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/security/">Security architecture</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/ai-agents/">AI agents</a>
+            <a href="/docs/">Documentation</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Use cases</span>
+          <h1>Six access problems, one governed checkpoint</h1>
+          <p>
+            Different teams reach for AccessFlow for different reasons. A platform team wants shared
+            production credentials gone; an SRE wants access at 3 a.m. without a standing superuser
+            grant; a DBA wants review that does not become a ticket queue; compliance wants evidence
+            it can hand an auditor. Underneath the six database access management use cases below it
+            is the same thing every time: one approval pipeline, one audit trail, one place where
+            access policy actually runs — over SQL, NoSQL, cloud data warehouses and outbound APIs
+            alike.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/#how" class="btn btn-ghost">See how a query flows</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="platform">
+          <span class="uc-persona">For platform &amp; infrastructure teams</span>
+          <h2>Production access without shared credentials</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
+              <p>The credential never leaves the proxy. It is decrypted once when a connection pool is built and handed straight to the pool — or, if you would rather AccessFlow held nothing at all, the datasource stores a reference into HashiCorp Vault, AWS Secrets Manager or Azure Key Vault and the secret is resolved at connection time. Either way the user gets a result set, not a connection string, so rotating a password is a change in one place instead of a message to every engineer who has it.</p>
+              <ul class="uc-benefits">
+                <li>Every query attributable to a person, a reason, and an approval</li>
+                <li>Credentials AES-256 encrypted — or fetched from Vault / AWS Secrets Manager / Azure Key Vault at connection time — resolved only inside the proxy, never shown to users</li>
+                <li>SQL or NoSQL, the same flow — PostgreSQL and MongoDB governed identically</li>
+              </ul>
+              <p><a class="prose-link" href="/security/#credentials">How credentials are stored →</a> <a class="prose-link" href="/docs/configuration/datasources/#cfg-datasources">Set up a datasource →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Datasource · prod-orders</span>
+                  <span class="mono ml-auto">connection brokered</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">user</span><span class="v">alice@co · ANALYST · SSO</span></div>
+                  <div class="uc-mock-line"><span class="k">database</span><span class="v">postgresql://prod-orders.internal:5432</span></div>
+                  <div class="uc-mock-line"><span class="k">password</span><span class="v">●●●●●●●●●●&ensp;<span class="t-accent">held by proxy — never disclosed</span></span></div>
+                  <div class="uc-mock-line"><span class="k">access</span><span><span class="pill approved">GOVERNED</span></span></div>
+                </div>
+                <div class="uc-mock-foot">0 shared logins · 0 standing superuser grants · every session attributed</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="docs-section scroll-pad" id="sre">
+          <span class="uc-persona">For SRE &amp; on-call teams</span>
+          <h2>Just-in-time access that expires on its own</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>Standing privileges shrink to zero. Engineers request access for the window they need — minutes to days — to a database or a governed API connection (scoped down to specific operations), and the grant revokes itself when the clock runs out. When production is down at 3 a.m., break-glass lets on-call act immediately: every admin is alerted the moment it happens, and a mandatory retro-review closes the loop.</p>
+              <p>Break-glass is a permission, not a role — an admin does not get it by being an admin, and it is granted per user and per datasource. What it skips is the queue, not the controls: masking, row security and row caps still apply to an emergency query, the run is written to the audit log under its own action, and the retro-review is opened against an admin who is never the person who ran it.</p>
+              <ul class="uc-benefits">
+                <li>Time-boxed grants — on databases and API connections alike — auto-revoked on expiry, no cleanup tickets</li>
+                <li>Grants can pre-approve the queries they cover — one review for the access, not one per query</li>
+                <li>Break-glass skips the queue, never the guardrails — masking, row security, and row caps still apply</li>
+                <li>Every emergency run gets an after-the-fact review by an admin, never the submitter</li>
+              </ul>
+              <p><a class="prose-link" href="/docs/configuration/users-roles/#cfg-access-requests">Access requests and grants →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-break-glass">Break-glass setup →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Access grants</span>
+                  <span class="mono ml-auto">auto-expiry on</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
+                  <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
+                  <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
+                </div>
+                <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="docs-section scroll-pad" id="dba">
+          <span class="uc-persona">For engineering managers &amp; DBAs</span>
+          <h2>Review at scale without a ticket queue</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>A governance process that takes days gets bypassed. AccessFlow's AI reads every query and API call first — risk score, anti-patterns, affected tables — so routing policies can auto-approve safe reads in seconds and send risky changes to the right approvers with the analysis already attached.</p>
+              <p>Routing policies are typed conditions over what the analysis found, not a free-text rule language: risk band, statement type, the tables touched, who submitted it. That makes the boring majority of a day's traffic — bounded reads against non-sensitive tables — disappear from the queue entirely, and it makes the queue that remains worth opening. Where the AI provider is unavailable the request does not sail through; it falls back to human review.</p>
+              <ul class="uc-benefits">
+                <li>Low-risk requests auto-approve — reviewers see only what deserves attention</li>
+                <li>Once there's enough review history, pending queries show an approval likelihood learned from your own past decisions — a hint about what to open first, never a decision</li>
+                <li>Approvers decide from Slack, email, or one-tap push, with AI findings inline</li>
+                <li>Multi-stage approval chains for the changes that really matter</li>
+              </ul>
+              <p><a class="prose-link" href="/#how">Watch a query move through review →</a> <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-routing-policies">Routing policies →</a> <a class="prose-link" href="/docs/configuration/ai/#cfg-ai">AI configuration →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">AI triage</span>
+                  <span class="mono ml-auto">routing policies active</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="v">SELECT … FROM events LIMIT 100</span><span class="k">risk 8</span><span class="pill approved">AUTO-APPROVED</span></div>
+                  <div class="uc-mock-line"><span class="v">UPDATE orders SET region_code …</span><span class="k">risk 62</span><span class="pill pending">→ DBA REVIEW</span></div>
+                  <div class="uc-mock-line"><span class="v">DROP TABLE legacy_users</span><span class="k">risk 97</span><span class="pill rejected">AUTO-REJECTED</span></div>
+                </div>
+                <div class="uc-mock-foot">reviewed by a human: only the one that needs it</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="docs-section scroll-pad" id="compliance">
+          <span class="uc-persona">For compliance &amp; security teams</span>
+          <h2>Audit evidence as a download, not a project</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>When the auditor asks who accessed customer data last quarter — and who approved it — the answer shouldn't be a two-week log archaeology project. Every request, decision, and execution lands in a tamper-evident, HMAC-chained audit trail, with scheduled access recertification campaigns and signed compliance exports on top.</p>
+              <p>The chain is what makes it evidence rather than a log file: each row carries a hash of the one before it, the table is INSERT-only, and the application's database role has no UPDATE or DELETE on it at all — a deleted or edited row breaks the chain and is visible as a break. Recertification then answers the other half of the question, which is not who used access but who still has it.</p>
+              <ul class="uc-benefits">
+                <li>Append-only, tamper-evident record of every decision — built for SOC 2, ISO 27001 &amp; GDPR evidence</li>
+                <li>Recertification campaigns certify or revoke standing access on a schedule, with CSV evidence</li>
+                <li>An over-provisioned access report ranks standing grants nobody uses — advisory, never an automatic revocation</li>
+                <li>Signed PDF/CSV compliance reports and a dedicated read-only auditor role</li>
+              </ul>
+              <p><a class="prose-link" href="/security/#audit">How the audit chain works →</a> <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-audit-log">Audit log →</a> <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-attestation">Recertification campaigns →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Audit log</span>
+                  <span class="mono ml-auto">HMAC-SHA256 chained</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">14:02:51</span><span class="v">QUERY_SUBMITTED · alice@co</span><span class="k">#a81f→</span></div>
+                  <div class="uc-mock-line"><span class="k">14:04:11</span><span class="v">QUERY_APPROVED · eve@co</span><span class="k">#c290→</span></div>
+                  <div class="uc-mock-line"><span class="k">14:04:12</span><span class="v">QUERY_EXECUTED · system</span><span class="k">#f11d→</span></div>
+                </div>
+                <div class="uc-mock-foot">export → compliance-report-2026-Q2.pdf · <span class="t-accent">signed ✓</span></div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="docs-section scroll-pad" id="privacy">
+          <span class="uc-persona">For data protection &amp; privacy teams</span>
+          <h2>Privacy obligations as running processes</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>Classify sensitive fields once — PII, PCI, PHI, GDPR — and let policy do the rest. Masking redacts tagged columns in every result, retention policies age data out on schedule, and right-to-erasure requests run through a governed, approved, audited workflow instead of a spreadsheet.</p>
+              <p>Classification is not only a labelling exercise: a tag raises the AI risk score of anything that touches the column, so a query against tagged data is routed differently from one that is not, without anybody writing a rule for that table. A scheduled discovery scan can propose the tags in the first place by sampling column data, and an admin confirms or dismisses each proposal — nothing is applied behind your back.</p>
+              <ul class="uc-benefits">
+                <li>Field-level masking applied to results across SQL and NoSQL engines alike</li>
+                <li>Retention and pseudonymization policies executed through the same governed proxy</li>
+                <li>Right-to-erasure with an approval trail you can show a regulator</li>
+              </ul>
+              <p><a class="prose-link" href="/docs/configuration/datasources/#cfg-data-classifications">Data classifications and masking →</a> <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-lifecycle">Retention and erasure →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Query result · masked</span>
+                  <span class="mono ml-auto">3 columns tagged</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">email</span><span class="v">a•••@example.com</span><span class="uc-tag">PII</span></div>
+                  <div class="uc-mock-line"><span class="k">card_number</span><span class="v">•••• •••• •••• 4242</span><span class="uc-tag">PCI</span></div>
+                  <div class="uc-mock-line"><span class="k">diagnosis</span><span class="v">▓▓ redacted</span><span class="uc-tag">PHI</span></div>
+                </div>
+                <div class="uc-mock-foot">retention policy: 365d · erasure request e_2081 · <span class="t-accent">EXECUTED</span></div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="docs-section scroll-pad" id="api">
+          <span class="uc-persona">For integration &amp; backend teams</span>
+          <h2>The same governance for your APIs</h2>
+          <article class="uc-row">
+            <div class="uc-copy">
+              <p>Sensitive data doesn't only live in databases — it flows through payment processors, CRMs, and internal services. AccessFlow puts outbound REST, SOAP, GraphQL, and gRPC calls through the same submit → AI review → approve → execute pipeline, with response masking and classification-aware risk scoring.</p>
+              <p>An API connector is registered much like a datasource: you point AccessFlow at an OpenAPI, WSDL, GraphQL or protobuf schema, it ingests the operations, and permissions are granted per operation rather than per host. From there the vocabulary is the one your reviewers already know — the same review plans, the same break-glass permission, the same scheduling, the same audit actions — so governing an outbound call costs no new process.</p>
+              <ul class="uc-benefits">
+                <li>One connector catalog for third-party and internal APIs, with schema ingestion</li>
+                <li>Response masking policies and data-classification tags on API payloads</li>
+                <li>Break-glass, scheduling, and audit — identical to the database flow</li>
+              </ul>
+              <p><a class="prose-link" href="/#features">All AccessFlow capabilities →</a> <a class="prose-link" href="/docs/configuration/connectors/#cfg-api-connectors">API connectors →</a> <a class="prose-link" href="/ai-agents/">Governed access for AI agents →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">API requests</span>
+                  <span class="mono ml-auto">REST · SOAP · GraphQL · gRPC</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">GET</span><span class="v">/v3/customers/{id} · billing-api</span><span class="pill approved">APPROVED</span></div>
+                  <div class="uc-mock-line"><span class="k">POST</span><span class="v">mutation refundCharge(…) · payments-gql</span><span class="pill pending">PENDING</span></div>
+                  <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill executed">EXECUTED</span></div>
+                </div>
+                <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/#features">Features</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+            <li><a href="/#roadmap">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

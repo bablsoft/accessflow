@@ -1689,6 +1689,24 @@ img, table, pre { max-width: 100%; }
   grid-template-columns: repeat(2, 1fr);
 }
 
+/* /use-cases/ hosts the homepage .uc-row blocks in the same 820px column. Their own
+   collapse rule is viewport-scoped and never fires here — by the time the viewport is
+   narrow enough, .docs-layout has already gone single-column. .docs-section ul also
+   re-adds the left padding .uc-benefits deliberately drops. */
+.docs-content .uc-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+}
+
+.docs-content .uc-persona {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.docs-content .uc-benefits {
+  padding-left: 0;
+}
+
 .docs-hero {
   margin-bottom: 64px;
   padding-bottom: 40px;
