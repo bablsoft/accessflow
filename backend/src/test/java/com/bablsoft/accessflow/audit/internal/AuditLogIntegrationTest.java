@@ -250,6 +250,43 @@ class AuditLogIntegrationTest {
     }
 
     @Test
+    void verifyReturnsOkForChainWrittenConcurrently() throws Exception {
+        // Regression: record() used to capture created_at BEFORE acquiring the per-org
+        // advisory lock, so concurrent writers could commit in lock order but with
+        // inverted timestamps — forking the (created_at, id)-ordered chain and making
+        // verify() report previous_hash_mismatch.
+        var executor = java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            var futures = new java.util.ArrayList<java.util.concurrent.Future<?>>();
+            for (int i = 0; i < 40; i++) {
+                final int n = i;
+                futures.add(executor.submit(() -> auditLogService.record(new AuditEntry(
+                        AuditAction.QUERY_SUBMITTED,
+                        AuditResourceType.QUERY_REQUEST,
+                        queryRequestId,
+                        organizationId,
+                        submitterId,
+                        Map.of("i", n),
+                        "10.0.0.1",
+                        "ua"))));
+            }
+            for (var f : futures) {
+                f.get();
+            }
+        } finally {
+            executor.shutdown();
+        }
+
+        var result = auditLogService.verify(organizationId, null, null);
+
+        assertThat(result.ok())
+                .withFailMessage("chain broke at row %s (%s)", result.firstBadRowId(),
+                        result.firstBadReason())
+                .isTrue();
+        assertThat(result.rowsChecked()).isEqualTo(40);
+    }
+
+    @Test
     void verifyFlagsRowWhenMetadataIsTamperedWith() {
         UUID third = null;
         for (int i = 0; i < 5; i++) {
