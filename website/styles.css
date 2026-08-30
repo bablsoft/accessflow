@@ -1986,6 +1986,14 @@ img, table, pre { max-width: 100%; }
 @media (min-width: 1025px) {
   .docs-sidebar-mobile { display: block; }
   .docs-sidebar-mobile > summary { display: none; }
+  /* /roadmap/ hosts the homepage .rm-grid in the 820px docs column, where three
+     tracks leave ~200px of text per cell. Scoped to the two-column layout only:
+     below 1025px .docs-content is full width and the .rm-grid viewport collapses
+     (2-up at 1024px, 1-up at 720px) must keep winning, which an unconditional
+     .docs-content override would out-specify. */
+  .docs-content .rm-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 480px) {
