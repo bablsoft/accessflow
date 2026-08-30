@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -10,14 +11,6 @@ const DEFAULT_CHANNEL = 'C0E2E0001';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // The page issues GET /api/v1/admin/slack-app-config on mount: 200 when configured,
@@ -61,7 +54,7 @@ test.describe.serial('AF-362 — Slack integration', () => {
   test('0) the page header deep-links to the matching section of the public docs', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/slack');
     await waitForSlackConfigLoaded(page);
 
@@ -78,7 +71,7 @@ test.describe.serial('AF-362 — Slack integration', () => {
   test('1) admin configures the Slack app → save succeeds and secrets are masked on reload', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/slack');
     await waitForSlackConfigLoaded(page);
 
@@ -116,7 +109,7 @@ test.describe.serial('AF-362 — Slack integration', () => {
   });
 
   test('2) user generates a Slack link code from their profile', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/profile');
 
     const slackCard = page.locator('.ant-card').filter({ hasText: 'Slack account' });

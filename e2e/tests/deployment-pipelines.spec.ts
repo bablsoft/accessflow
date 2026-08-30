@@ -1,21 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
 import { activeTabPanel, clickTab } from '../helpers/ui';
 import {
   createDeploymentPipelineViaApi,
   deleteDeploymentPipelineViaApi,
 } from '../helpers/deployments';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -40,7 +33,7 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
 
   test('creates a pipeline through the admin UI and lands in its settings', async ({ page }) => {
     const name = `e2e-pipeline-ui-${Date.now()}`;
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/deployment-pipelines');
 
     await page.getByRole('button', { name: 'Add pipeline' }).click();
@@ -79,7 +72,7 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     });
     createdPipelineIds.push(pipeline.id);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/deployment-pipelines/${pipeline.id}`);
     await expect(page.getByRole('heading', { name: pipeline.name })).toBeVisible({
       timeout: 15_000,
@@ -91,7 +84,12 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     await envPanel.getByRole('button', { name: 'Add environment' }).click();
     const envDialog = page.getByRole('dialog').filter({ hasText: 'Add environment' });
     await expect(envDialog).toBeVisible();
-    await envDialog.getByLabel('Name', { exact: true }).fill('staging');
+    // The modal's Form can remount just after open (initialValues reset); a
+    // fill that lands in that window is wiped and Save then trips the
+    // required-Name validation instead of POSTing. Assert the value stuck.
+    const envNameInput = envDialog.getByLabel('Name', { exact: true });
+    await envNameInput.fill('staging');
+    await expect(envNameInput).toHaveValue('staging');
     const envResponse = page.waitForResponse(
       (r) =>
         r.request().method() === 'POST' &&
@@ -139,7 +137,7 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
       name: `e2e-pipeline-delete-${Date.now()}`,
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/deployment-pipelines');
     const row = page.locator('.ant-table-row', { hasText: pipeline.name });
     await expect(row).toBeVisible({ timeout: 15_000 });

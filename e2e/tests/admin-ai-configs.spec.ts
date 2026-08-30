@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page, type Route } from '@playwright/test';
 import { deleteDatasource, loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -29,14 +30,6 @@ function apiBase(): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/admin/ai-configs that AiConfigListPage issues on
@@ -252,7 +245,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       `Stack already has ${existing.length} AI configurations; empty-state assertion is only valid on a fresh database`,
     );
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -281,7 +274,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       detail: 'AI provider responded with risk_level=LOW',
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openWizardFresh(page);
 
     // Step 1 — pick Ollama. Provider tiles are <button type="button"> rendering
@@ -374,7 +367,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
         detail: `AI provider responded with risk_level=LOW (${provider.providerEnum})`,
       });
 
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
       await openWizardFresh(page);
 
       // Step 1 — pick the provider. Anchor the regex at the start of the tile's
@@ -447,7 +440,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   }) => {
     test.skip(!primaryAiConfigId, 'Test 2 must succeed to seed the primary config');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -500,7 +493,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   test('5) edit-page Test button → success then error', async ({ page }) => {
     test.skip(!primaryAiConfigId, 'Test 2 must succeed to seed the primary config');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/ai-configs/${primaryAiConfigId}`);
     await expect(
       page.getByRole('heading', {
@@ -563,7 +556,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       detail: 'AI provider responded with risk_level=LOW',
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -598,7 +591,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       detail: 'Connection refused: ollama:11434',
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -617,7 +610,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   test('8) delete primary (unbound) → row removed', async ({ page }) => {
     test.skip(!primaryAiConfigId, 'Test 2 must succeed to seed the primary config');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -678,7 +671,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     );
     boundDatasourceId = boundDs.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/ai-configs');
     await waitForAiConfigsListReady(page);
 
@@ -743,7 +736,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     });
     duplicateAiConfigId = existing.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openWizardFresh(page);
 
     await page.getByRole('button', { name: /Ollama/ }).click();
@@ -779,7 +772,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       detail: 'AI provider responded with risk_level=LOW (OPENAI_COMPATIBLE)',
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openWizardFresh(page);
 
     // Step 1 — pick the Custom (OpenAI-compatible) tile.
@@ -854,7 +847,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       detail: 'AI provider responded with risk_level=LOW (HUGGING_FACE)',
     });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await openWizardFresh(page);
 
     // Step 1 — pick the Hugging Face tile.
@@ -927,7 +920,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     });
     promptAiConfigId = cfg.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/ai-configs/${promptAiConfigId}`);
     await expect(
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(PROMPT_NAME)}`) }),
@@ -992,7 +985,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     });
     ragAiConfigId = cfg.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/ai-configs/${ragAiConfigId}`);
     await expect(
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(RAG_NAME)}`) }),
@@ -1067,7 +1060,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     });
     orchAiConfigId = cfg.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/ai-configs/${orchAiConfigId}`);
     await expect(
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(ORCH_NAME)}`) }),
@@ -1137,7 +1130,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     });
     fallbackAiConfigId = cfg.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/admin/ai-configs/${fallbackAiConfigId}`);
     await expect(
       page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(FALLBACK_NAME)}`) }),

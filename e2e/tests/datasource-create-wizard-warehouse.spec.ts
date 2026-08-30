@@ -1,15 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { login } from '../helpers/login';
 
-const ADMIN_EMAIL = 'e2e@accessflow.test';
-const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function login(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function openWizard(page: Page): Promise<void> {
   await page.goto('/datasources');

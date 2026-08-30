@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   cancelQueryViaApi,
@@ -10,27 +10,17 @@ import {
   grantPermissionViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const SUBMITTER_PASSWORD = 'Submitter-Pwd!123';
-
-// loginViaUi mirrors the file-local helper in ws-realtime.spec.ts — no shared
-// module exists yet, so duplicating matches the current convention.
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Provisioning the submitter via Mailcrab (invite → wait → accept) plus seeding
 // queries costs a few seconds; give the same headroom ws-realtime.spec.ts uses.
@@ -51,7 +41,6 @@ test.describe.serial('notification bell — delete all (#611)', () => {
     // reviewer-targeted, so a separate submitter is what puts rows in the
     // admin's inbox — the admin submitting their own query would not.
     submitterEmail = `notif-bell-submitter-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -129,7 +118,7 @@ test.describe.serial('notification bell — delete all (#611)', () => {
       seededQueryIds.push(submitted.id);
     }
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     const bell = page.getByLabel('Notifications');
     // The badge is the unread count; it must be non-zero before we clear.

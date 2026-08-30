@@ -4,7 +4,6 @@ import {
   findUserByEmailViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
 import { getCurrentUserIdViaApi } from '../helpers/apiConnectors';
@@ -84,7 +83,6 @@ test.describe('reviewer delegation', () => {
   test.beforeAll(async ({ request }) => {
     adminToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
     delegateEmail = `af622-delegate-${Date.now()}@accessflow.test`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, delegateEmail, 'AF-622 Delegate', 'REVIEWER');
     const token = await waitForInviteToken(request, delegateEmail);
     await acceptInvitationViaApi(request, token, DELEGATE_PASSWORD, 'AF-622 Delegate');

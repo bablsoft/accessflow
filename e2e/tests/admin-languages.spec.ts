@@ -3,9 +3,9 @@ import {
   expect,
   type APIRequestContext,
   type Browser,
-  type Page,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -18,14 +18,6 @@ const ALL_SUPPORTED_LANGUAGES = ['en', 'es', 'de', 'fr', 'zh-CN', 'ru', 'hy'];
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Reset both the org's localization_config row and the admin user's
@@ -113,7 +105,7 @@ test.describe.serial('/admin/languages + per-user preference', () => {
   });
 
   test('1) admin restricts allowed languages to EN+ES via UI', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/languages');
     // Wait for GET /api/v1/admin/localization-config so the form values are populated.
     await page.waitForResponse(
@@ -173,7 +165,7 @@ test.describe.serial('/admin/languages + per-user preference', () => {
   });
 
   test('3) topbar language switcher applies Spanish UI', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     // The topbar switcher is in the post-login app shell; /editor is fine.
     await page.locator('.af-language-switcher').first().click();
 
@@ -205,7 +197,7 @@ test.describe.serial('/admin/languages + per-user preference', () => {
     // Spanish. Use the type-attribute selector for the only form submit on the
     // page instead of getByRole({ name: 'Save' }) so the assertion stays
     // language-agnostic.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/languages');
     await page.waitForResponse(
       (r) =>
@@ -310,7 +302,7 @@ test.describe.serial('/admin/languages + per-user preference', () => {
   test('5) per-user preference outside allow-list returns 400 LANGUAGE_NOT_IN_ALLOWED_LIST', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     // Allow-list is EN+ES at this point (set in test 1). Asking for 'de'
     // must be rejected by DefaultUserPreferenceService.setPreferredLanguage.
     const apiResult = await page.evaluate(async () => {

@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   apiBase,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
 } from '../helpers/datasources';
 import {
@@ -17,18 +16,11 @@ import {
   waitForApiRequestStatus,
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const SUBMITTER_PASSWORD = 'Submitter-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Provisioning the submitter (invite → Mailcrab → accept) takes 1–2s, so bump
 // the per-test budget beyond the 30s default.
@@ -51,7 +43,6 @@ test.describe.serial('api request review (#567)', () => {
     // bootstrap admin (canDecide requires submitter !== reviewer). It needs an
     // explicit can_write grant to submit against the connector.
     submitterEmail = `fe567-submitter-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminAccessToken, submitterEmail, 'FE-567 Submitter', 'ANALYST');
     const token = await waitForInviteToken(request, submitterEmail);
     await acceptInvitationViaApi(request, token, SUBMITTER_PASSWORD, 'FE-567 Submitter');
@@ -97,7 +88,7 @@ test.describe.serial('api request review (#567)', () => {
     const reviewerCtx = await browser.newContext();
     try {
       const reviewerPage = await reviewerCtx.newPage();
-      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await reviewerPage.goto(`/api-requests/${submitted.id}`);
 
       // The inline reviewer decision block renders Approve/Reject for a
@@ -151,7 +142,7 @@ test.describe.serial('api request review (#567)', () => {
     const reviewerCtx = await browser.newContext();
     try {
       const reviewerPage = await reviewerCtx.newPage();
-      await loginViaUi(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
       await reviewerPage.goto('/api-reviews');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: '/anything/queue-row-view' });
@@ -179,7 +170,6 @@ test.describe.serial('api request review (#567)', () => {
     // never exercised the real reviewer path.
     const reviewerEmail = `af566-reviewer-${randomUUID()}@e2e.local`;
     const reviewerPassword = 'Reviewer-Pwd!123';
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminAccessToken, reviewerEmail, 'AF-566 Reviewer', 'REVIEWER');
     const inviteToken = await waitForInviteToken(request, reviewerEmail);
     await acceptInvitationViaApi(request, inviteToken, reviewerPassword, 'AF-566 Reviewer');

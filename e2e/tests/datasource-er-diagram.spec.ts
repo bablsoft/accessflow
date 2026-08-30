@@ -5,20 +5,13 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 
 const UNIQUE_SUFFIX = `af348-${Date.now()}`;
 const DS_NAME = `Postgres E2E ${UNIQUE_SUFFIX} ER-DIAGRAM`;
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForSettingsReady(page: Page, dsId: string): Promise<void> {
   await page.waitForResponse(
@@ -63,7 +56,7 @@ test.describe('datasource ER diagram tab', () => {
     if (!datasource) throw new Error('beforeAll did not create the datasource');
     const dsId = datasource.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${dsId}/settings`);
     await waitForSettingsReady(page, dsId);
 

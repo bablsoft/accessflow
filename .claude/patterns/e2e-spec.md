@@ -19,6 +19,16 @@ Three stacks, three configs, three ports:
 
 Seeded admin on the main stack: `e2e@accessflow.test` / `E2ePassword!123`.
 
+The main suite is two Playwright projects (`playwright.config.ts`): **`parallel`**
+(the default — files run concurrently across workers, `fullyParallel` off so
+in-file order and `describe.serial` survive) and **`serial`** (one file at a
+time, after the parallel leg; membership = the `SERIAL_SPECS` list). A spec
+goes in `serial` only when it mutates stack-shared state — org-singleton
+config rows, the seeded admin's credentials/locale — or asserts on org-wide
+aggregates (audit log, dashboards). Everything else must self-isolate and
+stay in `parallel`. Log in via `helpers/login.ts` `login(page[, email, pwd])`
+(API login + refresh-cookie boot), not a hand-rolled /login form drive.
+
 ```ts
 // e2e/tests/attestation-campaign.spec.ts
 import { createAttestationCampaignViaApi, createPostgresDatasource } from '../helpers/datasources';
@@ -38,8 +48,22 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
 - [ ] Seed state through the `*ViaApi` helpers and the `bootstrap` module's env vars — **never a
       test-only endpoint**. Production code must not grow a backdoor for tests.
 - [ ] New seeding logic goes in `e2e/helpers/`, not inline in the spec, so the next spec reuses it.
-- [ ] `test.describe.serial` whenever the spec mutates shared org state — the suite runs with one
-      worker against one seeded admin.
+- [ ] `test.describe.serial` whenever later tests in the file depend on earlier ones' state.
+      Cross-file safety is the project split: shared-org-state mutators and org-wide-aggregate
+      readers go in `SERIAL_SPECS` (`playwright.config.ts`); everything else runs in the
+      `parallel` project and must isolate itself with `Date.now()`/`randomUUID()`-suffixed names
+      and run-unique invitee emails.
+- [ ] `login(page[, email, password])` from `helpers/login.ts` for authentication — only specs
+      whose subject is the login/credential flow itself drive the /login form.
+- [ ] **No `purgeMailcrab` in `parallel`-project specs** — the mailbox is stack-shared; a purge
+      destroys mail a concurrent spec is polling for. Unique recipients + the recipient-filtered
+      `waitForInviteToken` make it unnecessary.
+- [ ] Asserting "my row is in this org-shared paginated table" (users, review plans, /reviews
+      queue) → `findRowAcrossPages(page, row)` from `helpers/ui.ts`, never a bare page-1
+      `toBeVisible` — concurrent specs push rows past page 1.
+- [ ] A plan whose approver's *queue view* the spec asserts on (emptiness, row counts) needs a
+      `userId`-scoped approver entry, not `role: 'ADMIN'` — role-scoped plans put every
+      concurrent spec's queries into that approver's queue.
 - [ ] An explicit generous `test.describe.configure({ timeout })` for multi-user setups.
 - [ ] Changing an `id`, `aria-label`, or visible label that a spec depends on → update the spec in
       the same commit set.

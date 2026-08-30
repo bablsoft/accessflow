@@ -20,7 +20,7 @@
 // GrantUsageRecommenderTest; the endpoint contract by
 // OverProvisionedAccessControllerIntegrationTest.
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   exportOverProvisionedCsvViaApi,
@@ -29,20 +29,13 @@ import {
   loginViaApi,
   waitForInviteToken,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const ANALYST_PASSWORD = 'Analyst-Pwd!123';
 const ROUTE = '/admin/over-provisioned-access';
 const LIST_ENDPOINT = /\/api\/v1\/admin\/over-provisioned-access(\?|$)/;
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -63,7 +56,7 @@ test.describe.serial('over-provisioned access report (#625)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Gate on the network: the table (or empty state) only renders once the query resolves.
       const [initial] = await Promise.all([
@@ -148,7 +141,7 @@ test.describe.serial('over-provisioned access report (#625)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, analystEmail, ANALYST_PASSWORD);
+      await login(page, analystEmail, ANALYST_PASSWORD);
       await page.goto(ROUTE);
 
       // AuthGuard sends an unauthorized user to their home path rather than showing a 403.

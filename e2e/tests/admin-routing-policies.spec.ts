@@ -6,6 +6,7 @@ import {
   submitQueryViaApi,
   waitForQueryStatus,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -20,14 +21,6 @@ const DEFAULT_API_BASE = 'http://localhost:8080';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 async function waitForRoutingPoliciesListReady(page: Page): Promise<void> {
@@ -99,7 +92,7 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
   });
 
   test('creates a routing policy via the guided builder', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/routing-policies');
     await waitForRoutingPoliciesListReady(page);
 
@@ -150,7 +143,7 @@ test.describe.serial('/admin/routing-policies — routing engine', () => {
     );
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'REJECTED', 20_000);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await page.waitForResponse(
       (r) =>

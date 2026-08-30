@@ -54,6 +54,10 @@ class DefaultAuditLogServiceTest {
         // Default behaviour: no rows / void result.
         when(auditJdbcTemplate.query(any(String.class), any(ResultSetExtractor.class), any(Object[].class)))
                 .thenReturn(null);
+        // The created_at read (SELECT clock_timestamp(), taken under the advisory lock)
+        // uses the no-args query(sql, ResultSetExtractor) overload.
+        when(auditJdbcTemplate.query(any(String.class), any(ResultSetExtractor.class)))
+                .thenReturn(java.time.Instant.parse("2026-01-01T00:00:00Z"));
         when(auditJdbcTemplate.update(any(PreparedStatementCreator.class))).thenReturn(1);
     }
 

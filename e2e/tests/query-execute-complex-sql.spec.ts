@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   apiBase,
@@ -10,13 +10,13 @@ import {
   executeQueryViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -27,18 +27,6 @@ const APPROVER_PASSWORD = 'Approver-Pwd!123';
 // suffix — a bare UUID contains '-' which isn't a legal unquoted identifier.
 const TABLE = `af595_${randomUUID().replace(/-/g, '')}`;
 const FUNC = `${TABLE}_dbl`;
-
-async function loginViaUi(
-  page: Page,
-  email: string,
-  password: string,
-): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Two contexts / logins per UI case plus a handful of API round-trips push the
 // slower tests past the default 30s budget; mirror query-execute.spec.ts.
@@ -128,7 +116,6 @@ test.describe.serial('complex SQL execution against Postgres (AF-595)', () => {
     // approver MUST differ from the admin submitter. Fresh per run so re-runs
     // don't trip the (email) uniqueness constraint.
     approverEmail = `approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -201,7 +188,7 @@ test.describe.serial('complex SQL execution against Postgres (AF-595)', () => {
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
     await approveQueryViaApi(request, approverAccessToken, submitted.id);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Approved'),
@@ -318,7 +305,7 @@ test.describe.serial('complex SQL execution against Postgres (AF-595)', () => {
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
     await approveQueryViaApi(request, approverAccessToken, submitted.id);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/queries/${submitted.id}`);
     await expect(
       page.getByRole('heading', { level: 1 }).getByText('Approved'),

@@ -64,9 +64,6 @@ class DefaultAuditLogService implements AuditLogService {
         var orgId = entry.organizationId();
         long lockKey = orgId.getMostSignificantBits() ^ orgId.getLeastSignificantBits();
         var id = UUID.randomUUID();
-        // Postgres TIMESTAMPTZ stores microsecond precision; truncate so the value used in the
-        // HMAC canonical form matches what verify() reads back from the database.
-        var createdAt = Instant.now().truncatedTo(ChronoUnit.MICROS);
         var metadataJson = serializeMetadata(entry.metadata());
 
         auditTransactionTemplate.executeWithoutResult(status -> {
@@ -75,6 +72,22 @@ class DefaultAuditLogService implements AuditLogService {
             // EmptyResultDataAccessException check.
             auditJdbcTemplate.query("SELECT pg_advisory_xact_lock(?)",
                     (ResultSetExtractor<Object>) rs -> null, lockKey);
+
+            // The row's chain position is its (created_at, id) order, so the timestamp MUST
+            // be taken while holding the advisory lock: a timestamp captured before lock
+            // acquisition can commit out of created_at order under concurrent writers, which
+            // forks the chain (verify() then reports previous_hash_mismatch).
+            // clock_timestamp() rather than now() — now() is frozen at transaction start,
+            // which also precedes the lock — and the DB clock keeps the order consistent
+            // across app replicas. Truncated to microseconds so the value used in the HMAC
+            // canonical form matches what verify() reads back from TIMESTAMPTZ.
+            var createdAt = auditJdbcTemplate
+                    .query("SELECT clock_timestamp()",
+                            (ResultSetExtractor<Instant>) rs -> {
+                                rs.next();
+                                return rs.getObject(1, java.time.OffsetDateTime.class).toInstant();
+                            })
+                    .truncatedTo(ChronoUnit.MICROS);
 
             byte[] prevHash = auditJdbcTemplate.query(
                     "SELECT current_hash FROM audit_log WHERE organization_id = ? "

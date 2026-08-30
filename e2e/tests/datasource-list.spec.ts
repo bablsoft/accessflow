@@ -5,6 +5,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -45,14 +46,6 @@ let adminAccessToken = '';
 // other `Postgres E2E …` datasources in the org (the e2e stack reuses one
 // database between `stack:up` cycles).
 const UNIQUE_SUFFIX = `af271-${Date.now()}`;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Wait for the GET /api/v1/datasources response that backs the list page and
 // the page-level "Loading datasources…" copy to disappear. The page also
@@ -97,7 +90,7 @@ test.describe.serial('datasource list — search, delete-via-settings, empty sta
   test('lists arranged datasources and search narrows by name', async ({ page }) => {
     if (!datasourceA || !datasourceB) throw new Error('beforeAll did not create datasources');
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/datasources');
     await waitForListReady(page);
 
@@ -130,7 +123,7 @@ test.describe.serial('datasource list — search, delete-via-settings, empty sta
     const bravoName = datasourceB.name;
     const bravoId = datasourceB.id;
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/datasources');
     await waitForListReady(page);
 
@@ -225,7 +218,7 @@ test.describe.serial('datasource list — search, delete-via-settings, empty sta
       });
     });
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/datasources');
     await waitForListReady(page);
 

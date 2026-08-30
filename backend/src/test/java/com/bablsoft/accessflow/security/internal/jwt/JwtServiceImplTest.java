@@ -87,6 +87,17 @@ class JwtServiceImplTest {
     }
 
     @Test
+    void tokensMintedInTheSameInstantAreDistinct() {
+        // JWT NumericDate has second resolution and RS256 signing is deterministic, so
+        // without a unique jti two same-second logins would yield byte-identical refresh
+        // tokens — and rotating one session's token would revoke the other's.
+        var first = jwtService.generateRefreshToken(testUser);
+        var second = jwtService.generateRefreshToken(testUser);
+
+        assertThat(first).isNotEqualTo(second);
+    }
+
+    @Test
     void accessTokenRejectedWhenParsedAsRefresh() {
         var token = jwtService.generateAccessToken(testUser);
 

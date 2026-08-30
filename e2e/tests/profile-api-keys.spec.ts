@@ -1,5 +1,6 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // Bootstrap admin reconciled by the backend on every startup via
 // ACCESSFLOW_BOOTSTRAP_ADMIN_* (see e2e/docker-compose.e2e.yml:120-122).
@@ -10,14 +11,6 @@ const DEFAULT_API_BASE = 'http://localhost:8080';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Best-effort cleanup: delete any leftover api keys whose name starts with the
@@ -69,7 +62,7 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
   const KEY_NAME_DUP = `${KEY_NAME_PREFIX}dup-${SUFFIX}`;
 
   test.beforeEach(async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/profile');
     await expect(page.getByRole('heading', { name: 'Profile settings' })).toBeVisible({
       timeout: 10_000,

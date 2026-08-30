@@ -9,7 +9,6 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
@@ -41,7 +40,6 @@ test.describe.serial('query scheduling (AF-345)', () => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     approverEmail = `sched-approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
     await inviteUserViaApi(
       request,
       adminAccessToken,
@@ -119,13 +117,16 @@ test.describe.serial('query scheduling (AF-345)', () => {
     expect(detail.scheduled_for).not.toBeNull();
     expect(['APPROVED', 'EXECUTED']).toContain(detail.status);
 
-    // Wait for the scheduler to fire (poll interval = 1s, scheduled +3s).
+    // Wait for the scheduler to fire. The e2e stack polls every 1s, but
+    // ScheduledQueryRunJob's @SchedulerLock carries lockAtLeastFor=PT30S, so
+    // effective ticks land up to ~30s apart — the wait must cover a full tick
+    // interval after the +3s due time, or this flakes on tick phase alone.
     await waitForQueryStatus(
       request,
       adminAccessToken,
       submitted.id,
       'EXECUTED',
-      20_000,
+      45_000,
     );
   });
 

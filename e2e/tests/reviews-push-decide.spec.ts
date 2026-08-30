@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   createPostgresDatasource,
@@ -7,25 +7,17 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const APPROVER_PASSWORD = 'Approver-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 // Real OS push delivery (a phone receiving a notification) is not reproducible in CI, so this spec
 // covers the two parts that are: the PWA install surface (manifest + service worker + the push
@@ -43,7 +35,6 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
     approverEmail = `af444-approver-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
 
     await inviteUserViaApi(request, adminAccessToken, approverEmail, 'AF-444 Approver', 'ADMIN');
     const token = await waitForInviteToken(request, approverEmail);
@@ -67,7 +58,7 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
   });
 
   test('app is installable as a PWA and the review queue offers push opt-in', async ({ page }) => {
-    await loginViaUi(page, approverEmail, APPROVER_PASSWORD);
+    await login(page, approverEmail, APPROVER_PASSWORD);
 
     // Manifest is served and well-formed.
     const manifestRes = await page.request.get('/manifest.webmanifest');
@@ -108,7 +99,7 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
     const approverCtx = await browser.newContext();
     try {
       const approverPage = await approverCtx.newPage();
-      await loginViaUi(approverPage, approverEmail, APPROVER_PASSWORD);
+      await login(approverPage, approverEmail, APPROVER_PASSWORD);
 
       // The notificationclick deep link the service worker opens.
       await approverPage.goto(`/reviews/${submitted.id}/decide?action=approve`);
@@ -146,7 +137,7 @@ test.describe.serial('mobile PWA + one-tap push decide (AF-444)', () => {
     await waitForQueryStatus(request, adminAccessToken, submitted.id, 'PENDING_REVIEW');
 
     // The admin is the submitter here.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/reviews/${submitted.id}/decide?action=approve`);
 
     // The decide page surfaces the self-approval block and offers no step-up form.

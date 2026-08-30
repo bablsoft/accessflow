@@ -9,11 +9,12 @@ import {
   deleteReviewPlanViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   submitQueryViaApi,
   waitForInviteToken,
   waitForQueryStatus,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -36,14 +37,6 @@ function apiBase(): string {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Wait for the GET /api/v1/review-plans that ReviewPlansPage issues on mount,
@@ -169,7 +162,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
       `Stack already has ${existing.content.length} review plans; empty-state assertion is only valid on a fresh database`,
     );
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
@@ -188,7 +181,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   test('2) create a two-stage plan via the modal → table shows it', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
@@ -258,6 +251,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     const planRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(TWO_STAGE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
     await expect(planRow.getByText('AF-283 two-stage description')).toBeVisible();
     // approvers_count i18n key renders the count as bare "{{count}}".
@@ -269,13 +263,14 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   }) => {
     test.skip(!planId, 'Test 2 must succeed to seed the plan');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
     const planRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(TWO_STAGE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
     await planRow.getByRole('button', { name: 'Edit' }).click();
 
@@ -305,6 +300,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     const updatedRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(TWO_STAGE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, updatedRow);
     await expect(updatedRow.getByText(newDescription)).toBeVisible();
     await expect(updatedRow.getByText('AF-283 two-stage description')).toHaveCount(0);
   });
@@ -321,7 +317,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     });
     boundDatasourceId = datasource.id;
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
     // Wait for the settings tab to render — the page issues a GET first.
@@ -385,7 +381,6 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     // their own query. Mirrors AF-268's multi-approver setup.
     const approverAEmail = `af283-approver-a-${randomUUID()}@e2e.local`;
     const approverBEmail = `af283-approver-b-${randomUUID()}@e2e.local`;
-    await purgeMailcrab(request);
 
     await inviteUserViaApi(
       request,
@@ -467,13 +462,14 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   test('6) delete an in-use plan → 409 → error toast', async ({ page }) => {
     test.skip(!planId, 'Test 2 must succeed to seed the plan');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
     const planRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(TWO_STAGE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
     await planRow.getByRole('button', { name: 'Delete' }).click();
 
@@ -513,7 +509,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   test('7) create with a duplicate name → 409 → error toast', async ({ page }) => {
     test.skip(!planId, 'Test 2 must succeed to seed the plan');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
@@ -582,13 +578,14 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
       );
     }
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/review-plans');
     await waitForReviewPlansListReady(page);
 
     const planRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(TWO_STAGE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
     await planRow.getByRole('button', { name: 'Delete' }).click();
 
@@ -622,7 +619,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
   test('9) create a plan from the "Strict" template → form prefills and POST persists defaults', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     // GET /api/v1/review-plans/templates fires on page mount; register the
     // listener BEFORE navigating so a fast in-flight response can't slip past
@@ -697,6 +694,7 @@ test.describe.serial('/admin/review-plans — CRUD with multi-stage approvers', 
     const planRow = page.getByRole('row', {
       name: new RegExp(escapeRegex(STRICT_TEMPLATE_PLAN_NAME)),
     });
+    await findRowAcrossPages(page, planRow);
     await expect(planRow).toBeVisible();
   });
 });

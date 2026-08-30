@@ -7,7 +7,7 @@
 // Pattern (mirrors attestation-campaign.spec.ts): seed via API, drive the
 // governance decisions (dry-run preview, erasure approve) through the UI.
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   createPostgresDatasource,
@@ -21,18 +21,11 @@ import {
   waitForInviteToken,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const ANALYST_PASSWORD = 'Analyst-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -79,7 +72,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
       await page.goto('/admin/lifecycle/policies');
 
       const row = page.getByRole('row', { name: new RegExp(policyName) });
@@ -99,7 +92,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
+      await login(page, submitterEmail, ANALYST_PASSWORD);
       await page.goto('/lifecycle/erasure');
 
       // No POST /erasure-requests may fire — validation must block the call client-side.
@@ -143,7 +136,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     const ctx = await browser.newContext();
     try {
       const page = await ctx.newPage();
-      await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
+      await login(page, submitterEmail, ANALYST_PASSWORD);
       await page.goto('/lifecycle/erasure');
 
       // Select the Postgres datasource — its schema introspects the AccessFlow DB itself.
@@ -195,7 +188,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     const subCtx = await browser.newContext();
     try {
       const page = await subCtx.newPage();
-      await loginViaUi(page, submitterEmail, ANALYST_PASSWORD);
+      await login(page, submitterEmail, ANALYST_PASSWORD);
       await page.goto('/lifecycle/erasure');
       await expect(page.getByText(subjectEmail, { exact: true })).toBeVisible({ timeout: 15_000 });
       await expect(page.getByText('Conditions', { exact: true }).first()).toBeVisible();
@@ -208,7 +201,7 @@ test.describe.serial('data lifecycle manager (AF-499)', () => {
     const adminCtx = await browser.newContext();
     try {
       const page = await adminCtx.newPage();
-      await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       const row = page.getByRole('row', { name: new RegExp(subjectEmail) });
       await expect(async () => {

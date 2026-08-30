@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   acceptInvitationViaApi,
   apiBase,
   createReviewPlanViaApi,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
@@ -17,6 +16,7 @@ import {
   type CreatedApiConnector,
 } from '../helpers/apiConnectors';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 // AF-567 — "Request access" for API connectors. End-to-end: an analyst requests
 // time-boxed access to an API connector (scoped to one operation) → an admin
@@ -39,14 +39,6 @@ const OPENAPI_DOC = JSON.stringify({
     },
   },
 });
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -73,7 +65,6 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     // Requester is a fresh ANALYST with NO permission on the connector — JIT access
     // exists precisely to obtain one — and distinct from the admin approver so the
     // self-approval block never trips.
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, requesterEmail, 'AF-567 Requester', 'ANALYST');
     const token = await waitForInviteToken(request, requesterEmail);
     await acceptInvitationViaApi(request, token, REQUESTER_PASSWORD, 'AF-567 Requester');
@@ -87,7 +78,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     const connectorName = connector!.name;
 
     // 1. Requester submits a connector access request scoped to one operation.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
     // The Segmented control's radio inputs are visually hidden — click the visible label.
     await page.locator('.ant-segmented-item-label', { hasText: 'API Connection' }).click();
@@ -109,7 +100,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     await expect(myRow.getByText('1 operation', { exact: true })).toBeVisible();
 
     // 2. Admin approves it in the shared access-request queue.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
     const queueRow = page.getByRole('row').filter({ hasText: requesterEmail });
     await expect(queueRow).toBeVisible({ timeout: 15_000 });
@@ -129,7 +120,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     await expect(permissionRow.getByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/)).toBeVisible();
 
     // 4. Requester sees the APPROVED grant with a remaining-TTL chip.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
     await expect(page.getByText('Approved', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/left$/).first()).toBeVisible({ timeout: 15_000 });
@@ -153,7 +144,7 @@ test.describe.serial('access requests for API connectors (AF-567)', () => {
     await page.reload();
     await expect(page.getByText('Revoked', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/api-connectors/${connector!.id}/settings`);
     await page.getByRole('tab', { name: 'Permissions' }).click();
     await expect(

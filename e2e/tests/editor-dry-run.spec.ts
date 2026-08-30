@@ -5,20 +5,13 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 
 let datasource: CreatedDatasource | null = null;
 let adminAccessToken = '';
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function typeInEditor(page: Page, sql: string): Promise<void> {
   const content = page.locator('.cm-content');
@@ -56,7 +49,7 @@ test.describe.serial('query dry-run from /editor (AF-445)', () => {
   test('admin dry-runs a SELECT and sees a non-committing execution plan', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
     await selectDatasource(page);
 
     await typeInEditor(page, 'SELECT 1');
@@ -91,7 +84,7 @@ test.describe.serial('query dry-run from /editor (AF-445)', () => {
   test('Dry run is disabled when SQL is empty', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
     await selectDatasource(page);
 
     const dryRunButton = page.getByRole('button', { name: 'Dry run' });

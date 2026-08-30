@@ -6,17 +6,10 @@ import {
   deleteDeploymentPipelineViaApi,
   type CreatedDeploymentPipeline,
 } from '../helpers/deployments';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function openFreezeWindowsTab(page: Page, pipeline: CreatedDeploymentPipeline) {
   await page.goto(`/admin/deployment-pipelines/${pipeline.id}`);
@@ -61,7 +54,7 @@ test.describe.serial('deployment freeze windows (#696)', () => {
 
   test('creates a recurring weekly window and renders the week strip', async ({ page }) => {
     if (!pipeline) throw new Error('pipeline not created in beforeAll');
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const panel = await openFreezeWindowsTab(page, pipeline);
 
     await panel.getByRole('button', { name: 'Add freeze window' }).click();
@@ -103,7 +96,7 @@ test.describe.serial('deployment freeze windows (#696)', () => {
 
   test('edits the window behavior to auto-reject', async ({ page }) => {
     if (!pipeline) throw new Error('pipeline not created in beforeAll');
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const panel = await openFreezeWindowsTab(page, pipeline);
 
     const row = panel.locator('.ant-table-row', { hasText: 'weekend freeze' });
@@ -131,7 +124,7 @@ test.describe.serial('deployment freeze windows (#696)', () => {
 
   test('rejects a one-off window whose end precedes its start (client-side)', async ({ page }) => {
     if (!pipeline) throw new Error('pipeline not created in beforeAll');
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const panel = await openFreezeWindowsTab(page, pipeline);
 
     await panel.getByRole('button', { name: 'Add freeze window' }).click();

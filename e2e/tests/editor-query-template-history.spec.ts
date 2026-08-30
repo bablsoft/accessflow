@@ -6,6 +6,7 @@ import {
   loginViaApi,
   type CreatedDatasource,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // AF-442: version history & diff for saved query templates. Seed two versions via the
 // API (create → update), then drive the editor UI: open the Templates drawer, open a
@@ -20,14 +21,6 @@ const TEMPLATE_NAME = `Versioned query ${SUFFIX}`;
 let datasource: CreatedDatasource | null = null;
 let adminAccessToken = '';
 let createdTemplateId: string | null = null;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function pickDatasource(page: Page, name: string): Promise<void> {
   const dsSelect = page.getByRole('combobox').first();
@@ -88,7 +81,7 @@ test.describe.serial('query template version history from /editor', () => {
   test('open History, see the diff between two versions, and restore the first', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
     // Register the schema wait BEFORE picking — the fetch can complete before a
     // later-registered listener attaches (localhost round-trips).

@@ -5,6 +5,8 @@ import {
   type Page,
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
+import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -24,14 +26,6 @@ const SCIM_USER_EMAIL = `scim-e2e-${RUN_ID}@accessflow.test`;
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Gate before driving the form: wait for the GET that ScimConfigPage issues on
@@ -74,6 +68,9 @@ async function resetScimConfig(
 //
 // describe.serial because each scenario depends on state established by the
 // previous one; afterAll disables the config so adjacent specs are unaffected.
+// Generous budget: the serial leg runs after the parallel leg, so test 4's
+// walk through the (now multi-page) admin users table takes real time.
+test.describe.configure({ timeout: 90_000 });
 test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', () => {
   let adminAccessToken = '';
   let rawScimToken = '';
@@ -93,7 +90,7 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
   });
 
   test('1) initial load → defaults rendered, SCIM disabled', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/scim');
     await waitForScimConfigLoaded(page);
 
@@ -107,7 +104,7 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
   });
 
   test('2) enable + save → toast', async ({ page }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/scim');
     await waitForScimConfigLoaded(page);
 
@@ -135,7 +132,7 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     page,
     request,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/scim');
     await waitForScimConfigLoaded(page);
 
@@ -223,10 +220,14 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     const filterBody = (await filterRes.json()) as { totalResults?: number };
     expect(filterBody.totalResults).toBe(1);
 
-    // The provisioned user shows up in the admin users page.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    // The provisioned user shows up in the admin users page. The parallel leg
+    // leaves well over a page of invited users behind, so walk the pagination.
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/users');
-    await expect(page.getByText(SCIM_USER_EMAIL)).toBeVisible({ timeout: 15_000 });
+    await findRowAcrossPages(
+      page,
+      page.getByRole('row', { name: new RegExp(SCIM_USER_EMAIL) }),
+    );
   });
 
   test('5) Entra-shaped PATCH active=false → user deactivated', async ({ request }) => {
@@ -262,7 +263,7 @@ test.describe.serial('/admin/scim — config, tokens, and provisioning (#621)', 
     page,
     request,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/scim');
     await waitForScimConfigLoaded(page);
 

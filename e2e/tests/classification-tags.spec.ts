@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   createPostgresDatasource,
   deleteDatasource,
@@ -6,17 +6,10 @@ import {
   type CreatedDatasource,
 } from '../helpers/datasources';
 import { clickTab } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -40,7 +33,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
   test('tagging a column via the Classification tab derives a masking policy', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
     await clickTab(page, /Classification/);
@@ -78,7 +71,7 @@ test.describe.serial('data classification tagging (AF-447)', () => {
   test('deleting a tag keeps the derived masking policy', async ({ page }) => {
     if (!datasource) throw new Error('datasource not created in beforeAll');
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto(`/datasources/${datasource.id}/settings`);
 
     await clickTab(page, /Classification/);

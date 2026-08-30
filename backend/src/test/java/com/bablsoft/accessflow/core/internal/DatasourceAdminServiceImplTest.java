@@ -81,6 +81,30 @@ class DatasourceAdminServiceImplTest {
     private final UUID adminId = UUID.randomUUID();
 
     @Test
+    void listForAdminDefaultsToNewestFirstWhenNoSortRequested() {
+        // Without a default sort the page order is unspecified heap order, and the
+        // datasource-health dashboard (which reads only page 0) misses fresh rows.
+        org.mockito.Mockito.when(datasourceRepository.findAllByOrganization_Id(
+                        org.mockito.ArgumentMatchers.eq(orgId),
+                        org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenAnswer(inv -> new org.springframework.data.domain.PageImpl<
+                        com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceEntity>(
+                        java.util.List.of(), inv.getArgument(1), 0));
+
+        service.listForAdmin(orgId, com.bablsoft.accessflow.core.api.PageRequest.of(0, 50));
+
+        var pageableCaptor = org.mockito.ArgumentCaptor.forClass(
+                org.springframework.data.domain.Pageable.class);
+        org.mockito.Mockito.verify(datasourceRepository)
+                .findAllByOrganization_Id(org.mockito.ArgumentMatchers.eq(orgId),
+                        pageableCaptor.capture());
+        var order = pageableCaptor.getValue().getSort().getOrderFor("createdAt");
+        org.assertj.core.api.Assertions.assertThat(order).isNotNull();
+        org.assertj.core.api.Assertions.assertThat(order.getDirection())
+                .isEqualTo(org.springframework.data.domain.Sort.Direction.DESC);
+    }
+
+    @Test
     void createEncryptsPasswordAndAppliesDefaults() {
         var org = new OrganizationEntity();
         org.setId(orgId);

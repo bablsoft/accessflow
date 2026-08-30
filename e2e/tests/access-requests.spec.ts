@@ -7,11 +7,11 @@ import {
   deleteDatasource,
   inviteUserViaApi,
   loginViaApi,
-  purgeMailcrab,
   waitForInviteToken,
   type CreatedDatasource,
   type CreatedReviewPlan,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // AF-378 — just-in-time time-bound access requests. End-to-end happy path:
 // an analyst submits a scoped access request → an admin approves it in the
@@ -25,14 +25,6 @@ import {
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
 const REQUESTER_PASSWORD = 'Requester-Pwd!123';
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function submitAccessRequest(page: Page, datasourceName: string): Promise<void> {
   await page.goto('/access-requests');
@@ -68,7 +60,6 @@ test.describe.serial('access requests (AF-378)', () => {
     });
     // Requester is a fresh ANALYST — distinct from the admin approver so the
     // self-approval block never trips, and ANALYST cannot reach the queue.
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, requesterEmail, 'AF-378 Requester', 'ANALYST');
     const token = await waitForInviteToken(request, requesterEmail);
     await acceptInvitationViaApi(request, token, REQUESTER_PASSWORD, 'AF-378 Requester');
@@ -82,20 +73,20 @@ test.describe.serial('access requests (AF-378)', () => {
     const dsName = datasource!.name;
 
     // 1. Requester submits a scoped access request.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, dsName);
     // "My requests" shows the new PENDING row.
     await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
     // 2. Admin approves it in the access-request queue.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
     await expect(page.getByText(requesterEmail)).toBeVisible({ timeout: 15_000 });
     await page.getByRole('button', { name: 'Approve' }).first().click();
     await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
 
     // 3. Back as the requester: the grant is materialised — APPROVED + a TTL chip.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
     await expect(page.getByText('Approved', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/left$/).first()).toBeVisible({ timeout: 15_000 });
@@ -105,7 +96,7 @@ test.describe.serial('access requests (AF-378)', () => {
     // A non-admin requester holds no permission grant on the datasource, yet must be able to
     // introspect schema/table names to scope the request — served by the JIT-scoped endpoint
     // GET /access-requests/datasources/{id}/schema (not the permission-gated datasource schema).
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
 
     // Select the datasource (first combobox in the form).
@@ -123,7 +114,7 @@ test.describe.serial('access requests (AF-378)', () => {
   });
 
   test('requester can cancel a pending request', async ({ page }) => {
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, datasource!.name);
 
     // Cancel the just-submitted PENDING request (row action opens a Popconfirm).
@@ -150,7 +141,6 @@ test.describe.serial('access requests — admin fallback with no review plan', (
     datasource = await createPostgresDatasource(request, adminToken, {
       name: `AF-noplan DS ${Date.now()}`,
     });
-    await purgeMailcrab(request);
     await inviteUserViaApi(request, adminToken, requesterEmail, 'AF NoPlan Requester', 'ANALYST');
     const token = await waitForInviteToken(request, requesterEmail);
     await acceptInvitationViaApi(request, token, REQUESTER_PASSWORD, 'AF NoPlan Requester');
@@ -162,12 +152,12 @@ test.describe.serial('access requests — admin fallback with no review plan', (
 
   test('admin sees and approves a request on a plan-less datasource', async ({ page }) => {
     // 1. Requester submits against the plan-less datasource.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await submitAccessRequest(page, datasource!.name);
     await expect(page.getByText('Pending', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
 
     // 2. Admin still finds it in the queue (the fallback) and approves it.
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
     const row = page.getByRole('row').filter({ hasText: requesterEmail });
     await expect(row).toBeVisible({ timeout: 15_000 });
@@ -175,7 +165,7 @@ test.describe.serial('access requests — admin fallback with no review plan', (
     await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
 
     // 3. The grant materialised: requester's row flips to APPROVED with a TTL chip.
-    await loginViaUi(page, requesterEmail, REQUESTER_PASSWORD);
+    await login(page, requesterEmail, REQUESTER_PASSWORD);
     await page.goto('/access-requests');
     await expect(page.getByText('Approved', { exact: true }).first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/left$/).first()).toBeVisible({ timeout: 15_000 });

@@ -4,6 +4,7 @@ import {
   deleteDatasource,
   loginViaApi,
 } from '../helpers/datasources';
+import { login } from '../helpers/login';
 
 // AF-365 — admin datasource health dashboard. The endpoint lists one snapshot row
 // per datasource in the caller's org (pool gauges + 24h query volume / latency /
@@ -16,14 +17,6 @@ const ADMIN_PASSWORD = 'E2ePassword!123';
 
 const UNIQUE_SUFFIX = `af365-${Date.now()}`;
 const DATASOURCE_NAME = `health-ds-${UNIQUE_SUFFIX}`;
-
-async function loginViaUi(page: Page): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(ADMIN_EMAIL);
-  await page.locator('#login-password').fill(ADMIN_PASSWORD);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
-}
 
 async function waitForHealthResponse(page: Page): Promise<void> {
   await page.waitForResponse(
@@ -54,7 +47,7 @@ test.describe.serial('/admin/datasource-health dashboard', () => {
   });
 
   test('renders a health card for the seeded datasource', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/admin/datasource-health');
     await waitForHealthResponse(page);
 
@@ -72,7 +65,7 @@ test.describe.serial('/admin/datasource-health dashboard', () => {
   });
 
   test('is reachable from the admin sidebar nav', async ({ page }) => {
-    await loginViaUi(page);
+    await login(page);
     await page.goto('/editor');
     await page.getByRole('link', { name: 'Datasource health' }).click();
     await page.waitForURL('**/admin/datasource-health', { timeout: 10_000 });

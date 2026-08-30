@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
 import { activeTabPanel } from '../helpers/ui';
+import { login } from '../helpers/login';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -27,14 +28,6 @@ const GOOGLE_CLIENT_SECRET = 'e2e-google-client-secret';
 
 function apiBase(): string {
   return process.env.E2E_API_BASE ?? DEFAULT_API_BASE;
-}
-
-async function loginViaUi(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/login');
-  await page.locator('#login-email').fill(email);
-  await page.locator('#login-password').fill(password);
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL('**/dashboard', { timeout: 15_000 });
 }
 
 // Gate before driving the OAuth2 form: wait for the GET that OAuth2ConfigPage
@@ -71,7 +64,13 @@ async function probeLoginGoogleButton(browser: Browser): Promise<{
       { timeout: 10_000 },
     );
     const button = page.getByRole('button', { name: /Continue with Google/i });
-    const visible = await button.isVisible().catch(() => false);
+    // The button renders a beat after the providers response lands — an
+    // immediate isVisible() races the React commit. Bounded wait keeps the
+    // negative probes (visible=false) correct too, at a 3s cost.
+    const visible = await button
+      .waitFor({ state: 'visible', timeout: 3_000 })
+      .then(() => true)
+      .catch(() => false);
     return { visible };
   } finally {
     await context.close();
@@ -117,7 +116,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -146,7 +145,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -188,7 +187,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
   test('3) reload → fields persisted, secret masked, mask-preserve roundtrip', async ({
     page,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -233,7 +232,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     // button, and the assertion below calls navigator.clipboard.readText().
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -254,7 +253,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     page,
     browser,
   }) => {
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -295,7 +294,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     );
     expect([200, 204, 404]).toContain(delRes.status());
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
@@ -353,7 +352,7 @@ test.describe.serial('/admin/oauth2 — config CRUD (no provider roundtrip)', ()
     );
     expect([200, 204, 404]).toContain(delRes.status());
 
-    await loginViaUi(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/oauth2');
     await waitForOAuth2ConfigLoaded(page);
 
