@@ -73,7 +73,7 @@
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://accessflow.io/features/" },
-          { "@type": "ListItem", "position": 3, "name": "Deployment governance", "item": "https://accessflow.io/features/deployment-governance/" }
+          { "@type": "ListItem", "position": 3, "name": "Deployment approval governance", "item": "https://accessflow.io/features/deployment-governance/" }
         ]
       },
       {
@@ -221,7 +221,7 @@
         <section class="docs-section scroll-pad" id="pipelines">
           <h2>Pipelines, environments and who may trigger them</h2>
           <p>A deployment pipeline is the governed unit — a name, a provider (GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic), an optional repository reference, a review plan, and its own AI switch. Under it sit ordered environments: <code>dev</code>, <code>staging</code>, <code>production</code>. Each environment can require review, override the required approval count and the review plan, and opt in to break-glass, which is off by default.</p>
-          <p>Who may trigger a release is a per-pipeline grant rather than a global role. Grants exist per user and per group, each carrying trigger and break-glass flags and an optional expiry, and the effective answer is the most-permissive union of a user's direct grant and their unexpired group grants. The trigger endpoint, the gate and the outcome endpoint all resolve permission through that one path, so they cannot disagree. Administration needs a deployment-pipeline permission, reviewing needs a deployment-review permission, and every read is organization-scoped: an id from another organization returns 404, never 403, so no endpoint can be used to probe for what exists.</p>
+          <p>Who may trigger a release is a per-pipeline grant rather than a global role: a non-admin needs one, and an org admin short-circuits that check — but never the break-glass one. Grants exist per user and per group, each carrying trigger and break-glass flags and an optional expiry, and the effective answer is the most-permissive union of a user's direct grant and their unexpired group grants. The trigger endpoint, the gate and the outcome endpoint all resolve permission through that one path, so they cannot disagree. Administration needs a deployment-pipeline permission, reviewing needs a deployment-review permission, and every read is organization-scoped: an id from another organization returns 404, never 403, so no endpoint can be used to probe for what exists.</p>
           <p>Deleting a pipeline removes its configuration but not its history — past requests, decisions and rollback reviews survive as evidence.</p>
         </section>
 
@@ -249,7 +249,7 @@
           <h2>One step in your pipeline</h2>
           <p>The wiring is deliberately small. AccessFlow ships composite GitHub Actions, hidden GitLab CI jobs, and an Azure Pipelines step template that each do the same four things: submit the request idempotently by run id, poll the gate, confirm execution, and report the outcome. There is a documented plain-<code>curl</code> walkthrough for everything else.</p>
           <p>All of them are fail-closed in the direction that matters: an unknown release or any non-retryable error fails the job rather than letting it through. Pipelines are addressed by id rather than by name, because a trigger-only key is not permitted to resolve names — which is the same fail-closed instinct applied to identifiers. <a href="/docs/iac/#iac-deployment-gate">CI gate setup →</a> <a href="/docs/iac/#iac-service-account">Service-account API keys →</a></p>
-          <p>The teams that reach for this are usually the same ones removing shared production credentials elsewhere — see <a href="/use-cases/#platform">the platform-engineering use case</a> — and the pipeline is often already declared as code, alongside datasources and review plans, through <a href="/docs/iac/#iac-provider">the Terraform provider</a>.</p>
+          <p>The teams that reach for this are usually the same ones removing shared production credentials elsewhere — see <a href="/use-cases/#platform">the platform-engineering use case</a>. Pipelines and environments are configured in the admin UI; the Terraform provider covers the rest of the estate — datasources, review plans, routing, masking and row-security policies, AI configs and notification channels. <a href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
         </section>
 
       </article>

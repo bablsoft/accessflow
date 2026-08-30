@@ -79,8 +79,8 @@
           { "@type": "ListItem", "position": 3, "name": "Configurable review workflows" },
           { "@type": "ListItem", "position": 4, "name": "Request chaining & grouping" },
           { "@type": "ListItem", "position": 5, "name": "Data lifecycle & right-to-erasure" },
-          { "@type": "ListItem", "position": 6, "name": "API access governance" },
-          { "@type": "ListItem", "position": 7, "name": "Deployment approval governance" },
+          { "@type": "ListItem", "position": 6, "name": "Governed outbound API calls" },
+          { "@type": "ListItem", "position": 7, "name": "Gated CI/CD releases" },
           { "@type": "ListItem", "position": 8, "name": "Workforce-ready auth" },
           { "@type": "ListItem", "position": 9, "name": "Tamper-evident audit & compliance reports" },
           { "@type": "ListItem", "position": 10, "name": "Personalized dashboard" },
@@ -203,9 +203,9 @@
             <a href="#deployment">Deployment approval governance</a>
             <a href="#platform">Platform, auth &amp; operations</a>
             <p class="docs-toc-label">Deep dives</p>
-            <a href="/features/database-access-governance/">Database access governance</a>
-            <a href="/features/api-access-governance/">API access governance</a>
-            <a href="/features/deployment-governance/">Deployment approval governance</a>
+            <a href="/features/database-access-governance/">Database access governance in depth</a>
+            <a href="/features/api-access-governance/">API access governance in depth</a>
+            <a href="/features/deployment-governance/">Deployment approval governance in depth</a>
             <p class="docs-toc-label">Related</p>
             <a href="/use-cases/">Use cases</a>
             <a href="/connectors/">Database connectors</a>
@@ -303,7 +303,7 @@
               <div class="feat-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="16" cy="17" r="1.6" fill="currentColor"/></svg>
               </div>
-              <h3>API Access Governance</h3>
+              <h3>Governed outbound API calls</h3>
               <p>Govern outbound API calls with the machinery that governs queries. Register a REST, SOAP, GraphQL, or gRPC connector with its base URL, default headers, and an auth method — API key, bearer, basic, OAuth2, custom header, or mTLS — every secret encrypted and never returned. Upload a schema and AccessFlow parses a normalized operation catalog with read/write classification, then shares governed connectivity through per-user permissions. Calls then flow through the same AI scoring, routing, approval, and audit path. <a class="prose-link" href="/features/api-access-governance/">API access governance in depth →</a></p>
               <span class="tag">REST · SOAP · GraphQL · gRPC · OpenAPI / WSDL / SDL / proto / Postman</span>
             </div>
@@ -320,7 +320,7 @@
               <div class="feat-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
               </div>
-              <h3>Deployment approval governance</h3>
+              <h3>Gated CI/CD releases</h3>
               <p>Gate CI/CD deployments behind the same review machinery as a query. Define a pipeline with ordered environments — each with its own required approvals, review plan, and break-glass opt-in — and grant trigger rights per user or group. A CI job opens a request with an API key, the AI analyzer scores the release, routing policies set the bar, and reviewers decide in the UI, where nobody can approve their own deployment. The job then blocks on a fail-closed gate. <a class="prose-link" href="/features/deployment-governance/">Deployment approval governance in depth →</a></p>
               <span class="tag">GitHub Actions · GitLab CI · Azure Pipelines · Jenkins · CircleCI · Bitbucket · freeze windows · break-glass · rollback tracking</span>
             </div>
@@ -365,7 +365,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
               </div>
               <h3>Cloud-native deploy</h3>
-              <p>Run it on a laptop with one command, or on Kubernetes for production. One <span class="mono">docker compose up</span> covers local and small environments; a Helm 3 chart covers Kubernetes, with HPA, PDB, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas. <a class="prose-link" href="/docs/install/">Install &amp; first-run docs →</a></p>
+              <p>Run it on a laptop with one command, or on Kubernetes for production. One <span class="mono">docker compose up</span> covers local and small environments; a Helm 3 chart covers Kubernetes, with horizontal autoscaling, pod disruption budgets, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas. <a class="prose-link" href="/docs/install/">Install &amp; first-run docs →</a></p>
               <span class="tag">Docker · Helm · Kubernetes</span>
             </div>
 
