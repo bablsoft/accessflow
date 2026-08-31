@@ -31,7 +31,7 @@ When you change one of the source files on the left, check the corresponding sec
 the right.
 
 > **Since [#789](https://github.com/bablsoft/accessflow/issues/789) the homepage is a hub of
-> teasers**: `/` keeps the hero, a screenshot placeholder (`#proof`, filled by
+> teasers**: `/` keeps the hero, one real product screenshot (`#proof`, filled by
 > [#790](https://github.com/bablsoft/accessflow/issues/790)), the request-flow tablist, three
 > pillar cards under `#features`, the connector logo grid, one-command install tabs, six
 > persona tiles, three FAQ answers, and a `#roadmap` stub — everything else lives on the
@@ -47,7 +47,7 @@ the right.
 | (no upstream — derived from the chapter it opens) | The question-form `<h3>` + answer block at the top of each [`docs/`](docs/) chapter, and the `Last updated <time>` line under every docs `<h1>`. The `datetime` attribute must stay equal to that page's JSON-LD `dateModified` **and** its [`sitemap.xml`](sitemap.xml) `<lastmod>` — move all three together, which `frontend/src/config/__tests__/websitePages.test.ts` now enforces |
 | [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/09-deployment.md`](../docs/09-deployment.md) (`ENCRYPTION_KEY` / `JWT_PRIVATE_KEY` / `AUDIT_DB_USER`, observability vars) | **`/security/` page** ([`security/index.html`](security/index.html)) — the buying-question security answer: architecture canvas + Encryption / Runtime / Observability callouts, credential storage (AES-256-GCM at rest vs. Vault / AWS Secrets Manager / Azure Key Vault secret references), the "Workforce-ready auth" tile, the "Tamper-evident audit &amp; compliance reports" tile, and the data-handling answer. Note the `/features/` hub carries **shortened rewrites** of those same two tiles. `docs/02-architecture.md` still owns the *design* question — this page answers the *buying* one. Since [#789](https://github.com/bablsoft/accessflow/issues/789) cut the homepage `#architecture` section, feature tiles and data-handling FAQ entry, this page holds the **only** copy of the architecture canvas and the data-handling answer — no homepage twin to keep in sync |
 | [`docs/14-connectors.md`](../docs/14-connectors.md), the [`connectors/`](../connectors/) manifests (`connector.json` — `category`, `bundled`, `driver.type`), [`CLAUDE.md`](../CLAUDE.md) *Project at a Glance* engine table, [`docs/05-backend.md`](../docs/05-backend.md) per-engine sections (the warehouse auth models), [`docs/15-engine-sdk.md`](../docs/15-engine-sdk.md) (the SPI / `ServiceLoader` claims), [`charts/accessflow/values.yaml`](../charts/accessflow/values.yaml) `driverCache.persistence` + [`docs/09-deployment.md`](../docs/09-deployment.md) `ACCESSFLOW_DRIVER_CACHE` / `ACCESSFLOW_DRIVERS_OFFLINE` (the cache-persistence and air-gap claims) | **`/connectors/` page** ([`connectors/index.html`](connectors/index.html)) — the "does it support my database?" answer: the full logo catalog split **SQL / cloud data warehouses / NoSQL**, a per-engine reference table (engine · `category` · in-process JDBC vs. engine plugin · install path), the manifest / SHA-256-pin / `ServiceLoader` catalog internals, uploaded-driver `CUSTOM` datasources, and the "Which databases does AccessFlow support?" answer. Since [#789](https://github.com/bablsoft/accessflow/issues/789), `/`'s `#connectors` block keeps only the logo grid under a retargeted h2 ("Eighteen engines, one governed checkpoint") — the catalog-internals prose and the "Which databases…" answer live **only** here, and the phrase "database connectors" belongs to this page's `h1` (plus `/`'s exact-match anchor text into it). The **logo grid** is still duplicated on `/` — change both copies together. Note `/` still groups the three warehouse engines under its **NoSQL** eyebrow — this page corrects that, and `/` is left alone because a third eyebrow there needs a fourth inline `style=""` |
-| [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/05-backend.md`](../docs/05-backend.md) (JIT access, break-glass AF-385, routing policies AF-379, masking, lifecycle AF-499, attestation AF-384, compliance AF-459, discovery AF-623, apigov AF-500/AF-518), [`docs/07-security.md`](../docs/07-security.md) (credential resolution, the hash-chained audit log), [`docs/17-api-governance.md`](../docs/17-api-governance.md) (the `#api` block) | **`/use-cases/` page** ([`use-cases/index.html`](use-cases/index.html)) — the "is this my problem?" answer: six persona sections, each an anchor (`#platform`, `#sre`, `#dba`, `#compliance`, `#privacy`, `#api`), carrying the prose, the benefit list and the mock UI panel from the homepage `#use-cases` row, expanded with a second paragraph of mechanism and sideways links into `/security/`, `/connectors/`, `/ai-agents/` and `/docs/**`. Since [#789](https://github.com/bablsoft/accessflow/issues/789) cut the homepage `#use-cases` rows to six one-line persona tiles linking these anchors, this page holds the only full copy of each persona story — a tile's one-liner is its section's h2 phrasing, so rename both together. The `#api` block is the canonical copy, and `/features/api-access-governance/#pipeline` now links to it rather than duplicating it. Its `/#features` links still point at the homepage section; retargeting them to `/features/` is an open follow-up that no sub-issue owns, since [#789](https://github.com/bablsoft/accessflow/issues/789) only slims `/`'s `#features` block |
+| [`docs/02-architecture.md`](../docs/02-architecture.md), [`docs/05-backend.md`](../docs/05-backend.md) (JIT access, break-glass AF-385, routing policies AF-379, masking, lifecycle AF-499, attestation AF-384, compliance AF-459, discovery AF-623, apigov AF-500/AF-518), [`docs/07-security.md`](../docs/07-security.md) (credential resolution, the hash-chained audit log), [`docs/17-api-governance.md`](../docs/17-api-governance.md) (the `#api` block) | **`/use-cases/` page** ([`use-cases/index.html`](use-cases/index.html)) — the "is this my problem?" answer: six persona sections, each an anchor (`#platform`, `#sre`, `#dba`, `#compliance`, `#privacy`, `#api`), carrying the prose, the benefit list and the mock UI panel from the homepage `#use-cases` row — except `#sre`, whose mock [#790](https://github.com/bablsoft/accessflow/issues/790) replaced with the real `access-requests-queue` screenshot — expanded with a second paragraph of mechanism and sideways links into `/security/`, `/connectors/`, `/ai-agents/` and `/docs/**`. Since [#789](https://github.com/bablsoft/accessflow/issues/789) cut the homepage `#use-cases` rows to six one-line persona tiles linking these anchors, this page holds the only full copy of each persona story — a tile's one-liner is its section's h2 phrasing, so rename both together. The `#api` block is the canonical copy, and `/features/api-access-governance/#pipeline` now links to it rather than duplicating it. Its `/#features` links still point at the homepage section; retargeting them to `/features/` is an open follow-up that no sub-issue owns, since [#789](https://github.com/bablsoft/accessflow/issues/789) only slims `/`'s `#features` block |
 | [`backend/pom.xml`](../backend/pom.xml), [`frontend/package.json`](../frontend/package.json) | From-source toolchain versions — the Install-tab comment on `/` and the from-source steps in [`docs/install/index.html`](docs/install/index.html); `/security/` owns the architecture callouts since [#789](https://github.com/bablsoft/accessflow/issues/789) |
 | (no upstream — copy lives in the website) | System requirements &amp; sizing tiers (Evaluation / Production) — `#run-sizing` in [`docs/install/index.html`](docs/install/index.html), moved off `/` by [#789](https://github.com/bablsoft/accessflow/issues/789) |
 | [`docs/07-security.md`](../docs/07-security.md) | "Workforce-ready auth" feature tile |
@@ -145,7 +145,7 @@ website/
 │   ├── workflows/   #   end-user: submit, track, review, approve
 │   └── iac/         #   Terraform / OpenTofu provider + CI Actions
 ├── images/
-│   └── docs/        # Lossless WebP screenshots of admin SPA pages, light + dark per screen
+│   └── docs/        # Lossless WebP screenshots of SPA pages, light + dark per screen (9 are light-only)
 └── README.md        # this file
 ```
 
@@ -389,21 +389,39 @@ to finish it is cosmetic-but-real: scanners such as Mozilla Observatory dock poi
 
 Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` — see below.
 
-### Docs screenshots
+### Product screenshots
 
 `images/docs/` holds **lossless WebP**, not PNG — pixel-identical to a PNG screenshot but
-~70% smaller (8.1 MB → 2.4 MB across 69 files). They are written by
+~70% smaller — 3.2 MB across 85 files. They are written by
 [`e2e/screenshots/capture.ts`](../e2e/screenshots/capture.ts), which encodes through `sharp`
 because Playwright can only emit PNG/JPEG. **That script is the only writer** — do not add
 PNGs alongside, or the two formats will drift and the site will serve stale screenshots.
 
-Each screen has a `-light` and `-dark` variant wrapped in a `<picture>`:
+The directory is named `docs/` for historical reasons; since
+[#790](https://github.com/bablsoft/accessflow/issues/790) the marketing pages draw from it too,
+one figure each:
+
+| Page | Section | Base name |
+|---|---|---|
+| `/` | `#proof` | `dashboard` |
+| `/features/` | `#database` | `review-plans-create` |
+| `/features/database-access-governance/` | `#review` | `routing-policies` |
+| `/features/api-access-governance/` | `#connectors` | `api-connectors-list` |
+| `/features/deployment-governance/` | `#gate` | `deployment-detail` |
+| `/security/` | `#audit` | `audit-log` |
+| `/use-cases/` | `#sre` | `access-requests-queue` |
+
+Each screen has a `-light` and `-dark` variant wrapped in a `<picture>`, referenced by
+root-absolute path so the same markup works from any directory depth:
 
 ```html
-<picture>
-  <source srcset="../images/docs/foo-light.webp" media="(prefers-color-scheme: light)" />
-  <img src="../images/docs/foo-dark.webp" alt="…" loading="lazy" width="1440" height="900" />
-</picture>
+<figure class="docs-figure">
+  <picture>
+    <source srcset="/images/docs/foo-light.webp" media="(prefers-color-scheme: light)" />
+    <img src="/images/docs/foo-dark.webp" alt="…" loading="lazy" width="1440" height="900" />
+  </picture>
+  <figcaption><code>/route</code> — what the reader is looking at.</figcaption>
+</figure>
 ```
 
 `prefers-color-scheme` covers the default case; the site's own theme toggle is handled by
@@ -412,6 +430,14 @@ and the `<img src>` — when a `<source>` media query matches, it wins over `img
 rewriting `img.src` alone leaves the toggle silently broken for visitors on a light-themed
 OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
 swap will not find it.
+
+**Only reference a base name that has both twins.** The rewrite is unconditional, so a
+light-only screenshot 404s the moment a visitor toggles to dark. Nine base names are light-only
+today — regenerating them is
+[#798](https://github.com/bablsoft/accessflow/issues/798), and until it lands the ones already
+referenced from `/docs/**` sit in `MISSING_DARK_SCREENSHOTS` in
+[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts). That test fails
+on any *new* light-only reference; do not add to the allowlist to get past it.
 
 ---
 

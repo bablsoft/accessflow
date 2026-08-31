@@ -280,18 +280,15 @@
               <p><a class="prose-link" href="/security/#auth">Who a grant is issued to →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-access-requests">Access requests and grants →</a> <a class="prose-link" href="/docs/configuration/users-roles/#cfg-break-glass">Break-glass setup →</a></p>
             </div>
             <div class="uc-visual">
-              <div class="mock">
-                <div class="mock-bar">
-                  <span class="seg on">Access grants</span>
-                  <span class="mono ml-auto">auto-expiry on</span>
-                </div>
-                <div class="uc-mock-body">
-                  <div class="uc-mock-line"><span class="k">g_1042</span><span class="v">orders_readonly · alice@co</span><span class="pill approved">EXPIRES 2H 41M</span></div>
-                  <div class="uc-mock-line"><span class="k">g_1039</span><span class="v">payments_rw · bob@co</span><span class="pill pending">PENDING</span></div>
-                  <div class="uc-mock-line"><span class="k">g_1031</span><span class="v">sessions_ro · dana@co</span><span class="pill rejected">EXPIRED · REVOKED</span></div>
-                </div>
-                <div class="uc-mock-foot"><span class="t-warn">break-glass</span> · INC-2114 · carol@co · admins alerted · retro-review due</div>
-              </div>
+              <figure class="docs-figure">
+                <picture>
+                  <source srcset="/images/docs/access-requests-queue-light.webp" media="(prefers-color-scheme: light)" />
+                  <img src="/images/docs/access-requests-queue-dark.webp"
+                       alt="The AccessFlow access requests queue: one pending row naming the requester, the datasource being asked for, the read capability, a four-hour duration, the written justification and how long ago it was raised, with approve and reject actions at the row&#39;s right edge."
+                       loading="lazy" width="1440" height="900" />
+                </picture>
+                <figcaption><code>/admin/access-requests</code> — each request names the scope and the window; the grant revokes itself when the window closes.</figcaption>
+              </figure>
             </div>
           </div>
         </section>

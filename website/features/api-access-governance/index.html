@@ -221,6 +221,15 @@
           <h2>Register the API, not the credential</h2>
           <p>An admin registers a connector: a name, a protocol — REST, SOAP, GraphQL or gRPC — a base URL, any default headers, a per-call timeout, and an auth method. Auth can be an API key, a bearer token, basic credentials, OAuth2, a custom header, or mTLS. Whatever the secret is, it is AES-256-GCM encrypted before storage and never returned by any endpoint; read views expose only which method is configured and whether a credential exists. From that point on nobody on the team needs the token, because nobody is the one making the call.</p>
           <p>OAuth2 connectors go a step further and mint the token themselves rather than relying on one pasted in by hand. AccessFlow supports the client-credentials, refresh-token and resource-owner-password grants, caches the token until just before it expires, and refreshes it on expiry or on a single upstream 401. A test-connection probe checks reachability at setup time — and for OAuth2 connectors performs a live token fetch, so a wrong token endpoint surfaces during configuration rather than during an incident.</p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/api-connectors-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/api-connectors-list-dark.webp"
+                   alt="The API Connectors admin screen listing one registered REST connector: its base URL, an auth-method column and a schema column both reading None for this sandbox target, an active badge, and a test-connection action."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/api-connectors</code> — the registry of governed API targets. Where a connector does carry a credential, it is stored encrypted and never returned by any endpoint.</figcaption>
+          </figure>
         </section>
 
         <section class="docs-section scroll-pad" id="catalog">

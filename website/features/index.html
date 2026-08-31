@@ -241,6 +241,15 @@
         <section class="docs-section scroll-pad" id="database">
           <h2>Database access governance</h2>
           <p>Five capabilities that follow one query end to end — parsed at the proxy, scored by AI, routed to a reviewer, optionally bundled with other steps, and eventually retired by a lifecycle rule. <a href="/features/database-access-governance/">The deep dive walks the whole path →</a></p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/review-plans-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/review-plans-create-dark.webp"
+                   alt="The Add review plan dialog in AccessFlow: toggles for requiring AI review and human approval, fields for minimum approvals, approval timeout in hours, escalate-after and nudge-every cadences, an auto-approve LOW-risk reads switch, and a repeatable approver row naming a role and the stage it belongs to."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> — a plan decides who must sign off, how long they have, and what happens when nobody does.</figcaption>
+          </figure>
           <div class="feat-grid">
 
             <div class="feat">

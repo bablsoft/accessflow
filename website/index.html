@@ -276,20 +276,23 @@
       </div>
     </section>
 
-    <!-- Product proof — the placeholder frame is replaced by a real screenshot in #790 -->
+    <!-- Product proof -->
     <section class="scroll-pad" id="proof">
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">In the product</span>
-          <h2>The review queue your team will actually work in.</h2>
-          <p>Pending queries, AI risk scores inline, one decision per row — this is where reviewers spend their day.</p>
+          <h2>One dashboard for approvals, queries and anomalies.</h2>
+          <p>Counters for what is still open, a panel for each thing awaiting your decision, and your own recent requests — every number scoped to what you are allowed to see.</p>
         </div>
-        <div class="mock" aria-hidden="true">
-          <div class="mock-bar">
-            <span class="seg on">Review queue</span>
-            <span class="mono ml-auto">AccessFlow</span>
-          </div>
-        </div>
+        <figure class="docs-figure">
+          <picture>
+            <source srcset="/images/docs/dashboard-light.webp" media="(prefers-color-scheme: light)" />
+            <img src="/images/docs/dashboard-dark.webp"
+                 alt="The AccessFlow dashboard on a demo instance: counters reading six open queries and zero pending approvals, anomalies, suggestions and API requests, above panels for pending approvals and attestations due showing their empty states, and a list of five recent SELECT queries badged pending review or approved."
+                 loading="lazy" width="1440" height="900" />
+          </picture>
+          <figcaption><code>/dashboard</code> — where most users land after sign-in, assembled from panels each of them can reorder or hide.</figcaption>
+        </figure>
       </div>
     </section>
 

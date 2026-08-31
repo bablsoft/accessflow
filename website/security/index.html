@@ -60,7 +60,7 @@
         "inLanguage": "en",
         "articleSection": "Security",
         "datePublished": "2026-08-29",
-        "dateModified": "2026-08-29",
+        "dateModified": "2026-08-30",
         "url": "https://accessflow.io/security/",
         "mainEntityOfPage": "https://accessflow.io/security/",
         "image": "https://accessflow.io/og-image.png",
@@ -371,6 +371,15 @@
             tamper-<em>evident</em> rather than merely tamper-resistant, so an edit made around the
             split still surfaces as a broken chain.
           </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/audit-log-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/audit-log-dark.webp"
+                   alt="The AccessFlow audit log: a filterable table of append-only events, each row naming when it happened, which actor triggered it, the action, the resource and its id, and the originating IP address, with export-CSV and verify-chain actions in the header."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/audit-log</code> — every action, its actor and its resource, with a chain-verification pass and a CSV export.</figcaption>
+          </figure>
           <div class="feat-grid">
             <div class="feat">
               <div class="feat-icon" aria-hidden="true">
