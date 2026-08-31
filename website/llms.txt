@@ -12,6 +12,7 @@ It is self-hosted (Docker Compose or Helm), ships a built-in MCP server so AI ag
 
 ## Product
 
+- [AccessFlow](https://accessflow.io/): The product homepage — what AccessFlow is, the one approval pipeline it puts in front of databases, outbound APIs and CI/CD deployments, the eighteen engines it governs, the install commands, and the FAQ
 - [Database access control — all 12 capabilities](https://accessflow.io/features/): Every AccessFlow capability in one place, grouped into database access governance, API access governance, deployment approval governance and the platform underneath — each card links to the deep dive that carries the mechanism
 - [Database access governance](https://accessflow.io/features/database-access-governance/): The full path one query takes — parsed at the proxy against a schema allow-list, risk-scored by the AI analyzer, routed to a reviewer by policy, executed under dynamic masking and row-level security, optionally bundled into a grouped request, and retired by a retention or right-to-erasure rule
 - [API access governance](https://accessflow.io/features/api-access-governance/): Governing outbound REST, SOAP, GraphQL and gRPC calls — connectors holding AES-256-GCM encrypted auth with OAuth2 token minting, OpenAPI / WSDL / SDL / proto / Postman schema ingestion into a read/write-classified operation catalog, response masking and classification tags, and the same review pipeline as a database query

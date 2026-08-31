@@ -442,6 +442,20 @@ describe('website pages', () => {
     expect(declared, 'sitemap.xml <priority> values').toEqual(SITEMAP_PRIORITY);
   });
 
+  it('links every page in llms.txt, homepage included', () => {
+    // The reverse of the check below: llms.txt is what an AI crawler reads instead
+    // of the site, so a page missing from it is invisible to that path. The homepage
+    // was absent — it appeared only as the /#install and /#questions fragments.
+    const llms = readFileSync(path.join(websiteRoot, 'llms.txt'), 'utf8');
+    const linked = new Set(
+      [...llms.matchAll(/\]\((https:\/\/accessflow\.io[^)#\s]*)/g)].map((m) =>
+        m[1]!.replace('https://accessflow.io', '') || '/',
+      ),
+    );
+    const missing = files.map(pageUrl).filter((u) => !linked.has(u));
+    expect(missing.sort(), 'pages absent from llms.txt').toEqual([]);
+  });
+
   it('points every llms.txt URL at something that exists', () => {
     const llms = readFileSync(path.join(websiteRoot, 'llms.txt'), 'utf8');
     const idsByUrl = new Map(files.map((f) => [pageUrl(f), idsOf(read(f))]));
