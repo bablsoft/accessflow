@@ -85,6 +85,32 @@ const SPOKE_URLS = [
   '/roadmap/',
 ];
 
+/**
+ * The header nav AF-791 swapped in: six real page links, replacing seven homepage
+ * fragments plus /docs/. AF-782 rejected a dropdown deliberately — it would need new
+ * app.js (click-outside, Escape, roving focus, aria-expanded) shipped to every page on
+ * a site whose CSP forbids inline script, and a crawler cannot follow one. `/` and
+ * `/ai-agents/` are reachable from the logo and the footer, so neither is a nav item.
+ *
+ * Byte-identity below only proves the pages agree with each other; this pins *what*
+ * they agree on, so a revert to `/#features`-style anchors fails loudly rather than
+ * passing 22 times over.
+ */
+const NAV_LINKS = [
+  ['/features/', 'Features'],
+  ['/connectors/', 'Connectors'],
+  ['/use-cases/', 'Use cases'],
+  ['/security/', 'Security'],
+  ['/roadmap/', 'Roadmap'],
+  ['/docs/', 'Docs'],
+] as const satisfies readonly (readonly [href: string, label: string])[];
+
+/** The nav item a page sits under: the longest nav href that prefixes its URL. */
+const navSection = (url: string): string | undefined =>
+  NAV_LINKS.map(([href]) => href)
+    .filter((href) => url.startsWith(href))
+    .sort((a, b) => b.length - a.length)[0];
+
 describe('website pages', () => {
   it('finds every page on the site', () => {
     expect(files.length).toBeGreaterThanOrEqual(22);
@@ -112,13 +138,54 @@ describe('website pages', () => {
     expect([...groups.values()]).toHaveLength(1);
   });
 
+  it('gives every page the same six page links, in both the desktop and mobile nav', () => {
+    for (const f of files) {
+      const html = read(f);
+      for (const [block, marker, end] of [
+        ['desktop', '<nav class="nav-links"', '</nav>'],
+        // Only the region above the divider: below it the panel carries the Quick start
+        // entry and the theme toggle, which are controls rather than section links.
+        ['mobile', '<nav class="nav-mobile-panel"', '<div class="nav-mobile-divider"'],
+      ] as const) {
+        const nav = slice(html, marker, end);
+        // Count the anchor openings separately: the capture below anchors on `<a href="`,
+        // so a link written attribute-first would be absent from `links` rather than wrong,
+        // and would slip past a contents-only comparison on all 22 pages at once.
+        expect([...nav.matchAll(/<a[\s>]/g)], `${rel(f)} ${block} nav link count`).toHaveLength(
+          NAV_LINKS.length,
+        );
+        const links = [...nav.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => [
+          m[1]!,
+          m[2]!,
+        ]);
+        expect(links, `${rel(f)} ${block} nav`).toEqual(NAV_LINKS.map(([h, l]) => [h, l]));
+      }
+    }
+  });
+
+  it('keeps a Quick start entry inside the mobile panel', () => {
+    // The collapse ladder in styles.css hides .nav-right's ghost CTA below 1280px, the
+    // GitHub chip below 1140px and the primary CTA below 520px, so on a phone this panel
+    // IS the header nav. AF-791 took `Install` out of the six section links, which would
+    // have left no route to /#install in the header at all on the width where the install
+    // command matters most. It sits below the divider, with the theme toggle.
+    for (const f of files) {
+      const panel = slice(read(f), '<div class="nav-mobile-divider"', '</nav>');
+      expect(panel, `${rel(f)} mobile panel lost its Quick start entry`).toContain(
+        '<a href="/#install">Quick start</a>',
+      );
+    }
+  });
+
   it('marks the nav link for the section it is in, and only that one', () => {
-    // normalizeNav strips these markers before hashing so /, /ai-agents/ and the
-    // chapters compare equal — which would otherwise retire the check entirely.
-    // Both the desktop nav and the mobile panel carry the marker, hence two hits.
+    // normalizeNav strips these markers before hashing so pages in different sections
+    // compare equal — which would otherwise retire the check entirely. Both the desktop
+    // nav and the mobile panel carry the marker, hence two hits.
     for (const f of files) {
       const nav = slice(read(f), '<header class="nav">', '<main');
-      const expected = pageUrl(f).startsWith('/docs/') ? ['/docs/', '/docs/'] : [];
+      const section = navSection(pageUrl(f));
+      // `/` and `/ai-agents/` are not nav items, so they mark nothing.
+      const expected = section ? [section, section] : [];
       expect(activeNavHrefs(nav), `${rel(f)} marks the wrong nav link active`).toEqual(expected);
     }
   });
@@ -256,7 +323,9 @@ describe('website pages', () => {
 
   it('keeps the legacy homepage section ids alive', () => {
     // Fragments never reach the server, so no redirect can ever repair these.
-    // They are in the nav of every deployed page, in llms.txt, and in the wild.
+    // AF-791 took five of the seven out of the header nav, which does NOT retire them:
+    // they are still in the footer (#how, #install, #questions), in llms.txt, in the nav
+    // of every already-deployed page, and in the wild.
     const html = read(path.join(websiteRoot, 'index.html'));
     const missing = ['features', 'connectors', 'how', 'use-cases', 'install', 'questions', 'roadmap']
       .filter((id) => !idsOf(html).has(id));

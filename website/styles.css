@@ -1516,8 +1516,11 @@ footer {
 /* responsive */
 
 /* nav collapse ladder — every nav item stays on a single line at any width:
-   drop the duplicate "Quick start" CTA first, then the GitHub chip, then fold
-   the links into the hamburger, and finally drop the primary CTA on phones. */
+   drop the "Quick start" CTA first, then the GitHub chip, then fold the links
+   into the hamburger, and finally drop the primary CTA on phones. Below 520px
+   every .nav-right control is gone, so the hamburger panel is the whole header
+   nav — which is why it carries its own "Quick start" entry below the divider
+   (AF-791). Never remove that entry without also un-hiding a .nav-right CTA. */
 @media (max-width: 1280px) {
   .nav-right .btn-ghost { display: none; }
 }
