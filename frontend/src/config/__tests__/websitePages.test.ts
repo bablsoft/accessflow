@@ -34,6 +34,21 @@ const isAsset = (url: string) => /\.[a-z0-9]+$/.test(url);
 
 const idsOf = (html: string) => new Set([...html.matchAll(/id="([a-z0-9-]+)"/g)].map((m) => m[1]!));
 
+/** One node of a page's JSON-LD `@graph`. Only the keys the guards read are named. */
+type GraphNode = {
+  '@type': string;
+  '@id'?: string;
+  breadcrumb?: { '@id': string };
+  itemListElement?: { name: string; item: string }[];
+} & Record<string, unknown>;
+
+/** The `@graph` of the single JSON-LD block on a page. */
+const graphOf = (html: string, label: string): GraphNode[] => {
+  const block = html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/);
+  expect(block, `${label} has no JSON-LD block`).not.toBeNull();
+  return JSON.parse(block![1]!)['@graph'] as GraphNode[];
+};
+
 /**
  * Inline style="" attributes left on the site. style-src cannot tighten from
  * 'unsafe-inline' to 'self' until this reaches 0 (website/_headers). Ratchet only
@@ -536,9 +551,7 @@ describe('website pages', () => {
     // fact; drifting them apart is the failure this catches.
     for (const f of files) {
       const html = read(f);
-      const graph = JSON.parse(
-        html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)![1]!,
-      )['@graph'] as Record<string, never>[];
+      const graph = graphOf(html, rel(f));
       const crumbs = graph.find((n) => n['@type'] === 'BreadcrumbList');
       if (pageUrl(f) === '/') {
         expect(crumbs, 'the homepage needs no breadcrumb').toBeUndefined();
@@ -549,7 +562,7 @@ describe('website pages', () => {
       const nav = html.match(/<nav class="breadcrumb"[\s\S]*?<\/nav>/)?.[0];
       expect(nav, `${rel(f)} declares a BreadcrumbList but renders no trail`).toBeDefined();
 
-      const items = crumbs!['itemListElement'] as unknown as { name: string; item: string }[];
+      const items = crumbs!.itemListElement!;
       const visible = [...nav!.matchAll(/<(?:a href="[^"]*"|span aria-current="page")>([^<]+)</g)]
         .map((m) => m[1]!.replace(/&amp;/g, '&'));
       expect(visible, `${rel(f)} visible trail`).toEqual(items.map((i) => i.name));
@@ -562,11 +575,9 @@ describe('website pages', () => {
 
       // And the graph has to point at it, or the list floats unattached.
       const page = graph.find((n) =>
-        ['TechArticle', 'CollectionPage', 'WebPage'].includes(n['@type'] as string),
+        ['TechArticle', 'CollectionPage', 'WebPage'].includes(n['@type']),
       );
-      expect((page as unknown as { breadcrumb?: { '@id': string } }).breadcrumb?.['@id']).toBe(
-        crumbs!['@id'],
-      );
+      expect(page?.breadcrumb?.['@id'], `${rel(f)} page node breadcrumb`).toBe(crumbs!['@id']);
     }
   });
 
@@ -576,17 +587,8 @@ describe('website pages', () => {
     // and referenced as bare {"@id": …} stubs everywhere else, so on 21 of 22 pages
     // TechArticle.about and .isPartOf pointed at a typeless nothing.
     for (const f of files) {
-      const block = read(f).match(
-        /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/,
-      );
-      expect(block, `${rel(f)} has no JSON-LD block`).not.toBeNull();
-      const graph = JSON.parse(block![1]!)['@graph'] as unknown[];
-      const defined = new Set(
-        graph.filter(
-          (n): n is Record<string, unknown> =>
-            typeof n === 'object' && n !== null && '@id' in n && '@type' in n,
-        ).map((n) => n['@id'] as string),
-      );
+      const graph = graphOf(read(f), rel(f));
+      const defined = new Set(graph.filter((n) => n['@id'] && n['@type']).map((n) => n['@id']!));
       const refs = new Set<string>();
       const walk = (x: unknown): void => {
         if (Array.isArray(x)) x.forEach(walk);
@@ -610,16 +612,15 @@ describe('website pages', () => {
       expect(html, `${rel(f)} still anchors the org on GitHub`).not.toContain(
         '"@id": "https://github.com/bablsoft#org"',
       );
-      const org = JSON.parse(
-        html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)![1]!,
-      )['@graph'].find((n: { '@type'?: string }) => n['@type'] === 'Organization');
+      const org = graphOf(html, rel(f)).find((n) => n['@type'] === 'Organization');
       expect(org, `${rel(f)} has no Organization node`).toBeDefined();
-      expect(org['@id'], `${rel(f)} Organization @id`).toBe('https://accessflow.io/#org');
-      expect(org.url, `${rel(f)} Organization url`).toBe('https://accessflow.io/');
+      expect(org!['@id'], `${rel(f)} Organization @id`).toBe('https://accessflow.io/#org');
+      expect(org!.url, `${rel(f)} Organization url`).toBe('https://accessflow.io/');
       // Google's logo guidelines accept raster only; an SVG is silently ineligible.
-      expect(org.logo, `${rel(f)} Organization logo must be raster`).toMatch(/\.(png|jpg|gif)$/);
-      expect(existsSync(path.join(websiteRoot, new URL(org.logo).pathname))).toBe(true);
-      expect(org.sameAs, `${rel(f)} keeps GitHub in sameAs`).toContain(
+      const logo = org!.logo as string;
+      expect(logo, `${rel(f)} Organization logo must be raster`).toMatch(/\.(png|jpg|gif)$/);
+      expect(existsSync(path.join(websiteRoot, new URL(logo).pathname))).toBe(true);
+      expect(org!.sameAs, `${rel(f)} keeps GitHub in sameAs`).toContain(
         'https://github.com/bablsoft',
       );
     }
