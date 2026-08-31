@@ -96,14 +96,14 @@ const SPOKE_URLS = [
  * they agree on, so a revert to `/#features`-style anchors fails loudly rather than
  * passing 22 times over.
  */
-const NAV_LINKS: readonly (readonly [href: string, label: string])[] = [
+const NAV_LINKS = [
   ['/features/', 'Features'],
   ['/connectors/', 'Connectors'],
   ['/use-cases/', 'Use cases'],
   ['/security/', 'Security'],
   ['/roadmap/', 'Roadmap'],
   ['/docs/', 'Docs'],
-];
+] as const satisfies readonly (readonly [href: string, label: string])[];
 
 /** The nav item a page sits under: the longest nav href that prefixes its URL. */
 const navSection = (url: string): string | undefined =>
@@ -141,14 +141,39 @@ describe('website pages', () => {
   it('gives every page the same six page links, in both the desktop and mobile nav', () => {
     for (const f of files) {
       const html = read(f);
-      for (const [block, marker] of [
-        ['desktop', '<nav class="nav-links"'],
-        ['mobile', '<nav class="nav-mobile-panel"'],
+      for (const [block, marker, end] of [
+        ['desktop', '<nav class="nav-links"', '</nav>'],
+        // Only the region above the divider: below it the panel carries the Quick start
+        // entry and the theme toggle, which are controls rather than section links.
+        ['mobile', '<nav class="nav-mobile-panel"', '<div class="nav-mobile-divider"'],
       ] as const) {
-        const links = [...slice(html, marker, '</nav>').matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)]
-          .map((m) => [m[1]!, m[2]!] as const);
-        expect(links, `${rel(f)} ${block} nav`).toEqual(NAV_LINKS);
+        const nav = slice(html, marker, end);
+        // Count the anchor openings separately: the capture below anchors on `<a href="`,
+        // so a link written attribute-first would be absent from `links` rather than wrong,
+        // and would slip past a contents-only comparison on all 22 pages at once.
+        expect([...nav.matchAll(/<a[\s>]/g)], `${rel(f)} ${block} nav link count`).toHaveLength(
+          NAV_LINKS.length,
+        );
+        const links = [...nav.matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map((m) => [
+          m[1]!,
+          m[2]!,
+        ]);
+        expect(links, `${rel(f)} ${block} nav`).toEqual(NAV_LINKS.map(([h, l]) => [h, l]));
       }
+    }
+  });
+
+  it('keeps a Quick start entry inside the mobile panel', () => {
+    // The collapse ladder in styles.css hides .nav-right's ghost CTA below 1280px, the
+    // GitHub chip below 1140px and the primary CTA below 520px, so on a phone this panel
+    // IS the header nav. AF-791 took `Install` out of the six section links, which would
+    // have left no route to /#install in the header at all on the width where the install
+    // command matters most. It sits below the divider, with the theme toggle.
+    for (const f of files) {
+      const panel = slice(read(f), '<div class="nav-mobile-divider"', '</nav>');
+      expect(panel, `${rel(f)} mobile panel lost its Quick start entry`).toContain(
+        '<a href="/#install">Quick start</a>',
+      );
     }
   });
 
@@ -298,7 +323,9 @@ describe('website pages', () => {
 
   it('keeps the legacy homepage section ids alive', () => {
     // Fragments never reach the server, so no redirect can ever repair these.
-    // They are in the nav of every deployed page, in llms.txt, and in the wild.
+    // AF-791 took five of the seven out of the header nav, which does NOT retire them:
+    // they are still in the footer (#how, #install, #questions), in llms.txt, in the nav
+    // of every already-deployed page, and in the wild.
     const html = read(path.join(websiteRoot, 'index.html'));
     const missing = ['features', 'connectors', 'how', 'use-cases', 'install', 'questions', 'roadmap']
       .filter((id) => !idsOf(html).has(id));
