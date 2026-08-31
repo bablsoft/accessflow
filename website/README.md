@@ -252,16 +252,45 @@ with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 ## SEO
 
 Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
-`theme-color`, and a JSON-LD `@graph` (`SoftwareApplication` + `Organization` + `WebSite`
-on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter, on
-`/security/`, on `/ai-agents/` and on the three `/features/` spokes; `CollectionPage` + `ItemList` +
-`BreadcrumbList` + `Organization` on the `/connectors/`, `/use-cases/` and `/features/`
-catalog pages; plain `WebPage` + `BreadcrumbList` + `Organization` on `/roadmap/`). Only the
-homepage declares `SoftwareApplication` — every other page references it as
-`{"@id": ".../#software"}`. `BreadcrumbList` depth follows URL depth: two levels for a
+`theme-color`, and a JSON-LD `@graph`. The page-specific node is `WebPage` on the homepage;
+`TechArticle` on each docs chapter, on `/security/`, on `/ai-agents/` and on the three
+`/features/` spokes; `CollectionPage` + `ItemList` on the `/connectors/`, `/use-cases/` and
+`/features/` catalog pages; plain `WebPage` on `/roadmap/`. Every page except the homepage
+also carries a `BreadcrumbList`.
+
+**Every graph is self-contained.** `Organization`, `SoftwareApplication` and `WebSite` are
+repeated on all 22 pages — in full on the homepage, as a minimal typed stub (`@type` + `@id` +
+`name` + `url`) elsewhere. They used to be defined only on the homepage and referenced as bare
+`{"@id": ".../#software"}` stubs, which resolved to a typeless nothing on the other 21 pages:
+schema consumers parse per-document, and cross-document `@id` merging is not guaranteed. The
+guard in [`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts) fails
+on any `@id` reference a page cannot resolve within itself.
+
+**The organization entity is anchored on `accessflow.io`, never on GitHub.** `@id` is
+`https://accessflow.io/#org` and `url` is `https://accessflow.io/`; the GitHub org and repo
+live in `sameAs`. "AccessFlow" is also an Alcor IGA product and an accessiBe product, so the
+publishing entity has to bind to the domain being ranked or it competes with two incumbents
+for its own name. `logo` must be raster (`logo.png`, 512×512, rasterized from `favicon.svg`) —
+Google's logo guidelines reject SVG, so the earlier `favicon.svg` was silently ineligible.
+Both facts are tested.
+
+`BreadcrumbList` depth follows URL depth: two levels for a
 top-level page, three for anything nested — the eleven `docs/` chapters
 (AccessFlow → Documentation → the chapter) and the three `/features/` spokes
 (AccessFlow → Features → the spoke).
+
+**Every `BreadcrumbList` has a visible counterpart.** The trail renders as
+`<nav class="breadcrumb">` at the top of `<header class="docs-hero">`, and the page node
+carries `"breadcrumb": {"@id": "…#breadcrumb"}` so the list is attached to the graph rather
+than floating in it. Google expects breadcrumb markup to describe a trail the reader can
+actually see; it also gives every deep page a real link back up its own hierarchy. The
+visible trail, its link targets and the JSON-LD are asserted to match item for item, so the
+two cannot drift. Breadcrumb links are deliberately excluded from the `.docs-hero a` /
+`.docs-content a` prose link style — they are chrome, not prose.
+
+`datePublished` is each page's own first-commit date and is guarded: it must be a real ISO
+date, never before the project's first commit (2026-04-30), never after `dateModified`. It sat
+at a `2026-04-01` placeholder on 13 pages until the guard was added.
 
 ### Regenerating og-image.png
 
@@ -382,7 +411,7 @@ every navigation. `_headers` overrides that:
 
 | Path | Cache-Control | Why |
 |---|---|---|
-| `/db-icons/*`, `/favicon.svg` | 1 year, `immutable` | Vendor logos — effectively static |
+| `/db-icons/*`, `/favicon.svg`, `/logo.png` | 1 year, `immutable` | Vendor logos, the favicon, and the raster Organization logo for JSON-LD — effectively static |
 | `/fonts/*` | 1 year, `immutable` | Subsetted Geist woff2 — content-stable, and `geist-latin.woff2` is preloaded on every page |
 | `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
 | `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
@@ -391,6 +420,26 @@ every navigation. `_headers` overrides that:
 `Permissions-Policy`, and a `Content-Security-Policy` on `/*`. The file is parsed as config
 by the assets runtime and is never served — **do not add it to `.assetsignore`**, which
 would stop it uploading and silently disable every rule.
+
+### Third parties in the CSP
+
+The site talks to exactly **two** third-party origins, both Cloudflare Web Analytics:
+`https://static.cloudflareinsights.com` in `script-src` and `https://cloudflareinsights.com`
+in `connect-src`. Everything else — fonts, images, scripts, styles — is first-party, which is
+why `default-src` is `'self'`.
+
+Web Analytics is enabled in the Cloudflare dashboard with **automatic injection**: the beacon
+`<script src>` is added at the edge and appears in no file in this repo. It is also only
+injected for requests carrying a browser `Accept` header, so a plain `curl` of any page shows
+no trace of it and looks byte-identical to the source here. That combination hid a real bug —
+`script-src` did not list the origin, so the browser blocked the beacon on every page load and
+Web Analytics had never once received a hit. `curl` of the beacon URL returns 200; the same
+URL inside the page recorded as a blocked request.
+
+If you ever disable Web Analytics, remove both origins and the `ALLOWED` list in
+[`websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts) — which pins the
+permitted origin list precisely so a third party cannot drift in unnoticed the way this one
+drifted out.
 
 ### Regenerating the CSP script hash
 
@@ -475,13 +524,20 @@ rewriting `img.src` alone leaves the toggle silently broken for visitors on a li
 OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
 swap will not find it.
 
-**Only reference a base name that has both twins.** The rewrite is unconditional, so a
-light-only screenshot 404s the moment a visitor toggles to dark. Nine base names are light-only
-today — regenerating them is
-[#798](https://github.com/bablsoft/accessflow/issues/798), and until it lands the ones already
-referenced from `/docs/**` sit in `MISSING_DARK_SCREENSHOTS` in
-[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts). That test fails
-on any *new* light-only reference; do not add to the allowlist to get past it.
+**A light-only figure must name the same file in both places.** `swapDocsImages()` runs on
+page *load*, not only on click, and the default theme is dark — so an unconditional rewrite
+made every light-only screenshot a 404 for most visitors, not a toggle-only glitch.
+`hasBothThemeVariants()` now decides once, from the authored attributes: a `<picture>` whose
+`<source srcset>` and `<img src>` name **different** files is claiming a `-light`/`-dark` pair
+and gets swapped; one that names the **same** file is light-only and is left alone. The verdict
+is cached in `data-theme-pair` because after a swap the two attributes can legitimately match.
+
+So a light-only screenshot renders light on a dark page — visually inconsistent, never broken.
+Nine base names are light-only today (`capture.ts` marks those pages `darkToo: false`);
+regenerating them for visual parity is
+[#798](https://github.com/bablsoft/accessflow/issues/798). The guard in
+[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts) fails if a
+`<picture>` declares a pair whose other half is not on disk.
 
 ---
 
@@ -495,6 +551,14 @@ reserved for the Helm chart index.
 Because there is no Worker script, `_headers` governs every response header; if a Worker
 `main` is ever added, note that Cloudflare does **not** apply `_headers` to Worker-generated
 responses — those must set headers in code.
+
+`assets.not_found_handling` is `"404-page"`, so an unknown path serves `404.html` with a 404
+status. The default (`"none"`) returns the right status with a **zero-byte body** — no nav, no
+branding, no way back. `404.html` reuses the same nav, footer and theme-bootstrap script as
+every other page (so the existing CSP hash covers it) and is `noindex, follow` with no
+canonical, which is why the helper in
+[`websiteHtml.ts`](../frontend/src/config/__tests__/helpers/websiteHtml.ts) excludes it from the
+per-page canonical and sitemap-parity guards. It has its own test instead.
 
 Any other static host works too (Netlify, Vercel, S3 + CloudFront — no build command), but
 `_headers` and `.assetsignore` are Cloudflare-specific and would need porting.

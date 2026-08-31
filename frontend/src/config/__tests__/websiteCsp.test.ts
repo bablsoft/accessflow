@@ -71,6 +71,28 @@ describe('website CSP', () => {
     expect(declared.filter((h) => !live.has(h))).toEqual([]);
   });
 
+  it('permits exactly one third party, and only where it is needed', () => {
+    // The site was zero-third-party until Cloudflare Web Analytics. That is enabled
+    // with AUTOMATIC injection, so the beacon <script src> is added at the edge and
+    // exists in no file in this repo — which is how script-src silently blocked it
+    // for its whole life. Pinning the origin list here means the next third party
+    // has to be an explicit edit to this test, not a quiet addition to _headers.
+    const ALLOWED = ['https://static.cloudflareinsights.com', 'https://cloudflareinsights.com'];
+    const csp = headers.match(/Content-Security-Policy:\s*(.+)/)?.[1] ?? '';
+    const origins = [...csp.matchAll(/https?:\/\/[^\s;']+/g)].map((m) => m[0]);
+    expect([...new Set(origins)].sort(), 'unexpected third-party origin in CSP').toEqual(
+      [...ALLOWED].sort(),
+    );
+    // The beacon loads as a script and posts its payload; nothing else is opened up.
+    const directive = (name: string) =>
+      csp.split(';').map((d) => d.trim()).find((d) => d.startsWith(`${name} `)) ?? '';
+    expect(directive('script-src')).toContain('https://static.cloudflareinsights.com');
+    expect(directive('connect-src')).toContain('https://cloudflareinsights.com');
+    for (const d of ['img-src', 'font-src', 'style-src', 'default-src', 'base-uri', 'form-action']) {
+      expect(directive(d), `${d} must stay first-party`).not.toMatch(/https?:\/\//);
+    }
+  });
+
   it('keeps the policy locked to our own origin', () => {
     const csp = headers.match(/Content-Security-Policy:\s*(.+)/)?.[1] ?? '';
     expect(csp).toContain("default-src 'self'");

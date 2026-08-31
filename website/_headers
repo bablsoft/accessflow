@@ -5,11 +5,19 @@
 # CSP notes:
 #  - The script-src sha256 is the inline theme-bootstrap script that runs before
 #    first paint to prevent a flash of the wrong theme. It is byte-identical in
-#    index.html and docs/index.html, so one hash covers both. EDITING THAT SCRIPT
-#    INVALIDATES THE HASH and the theme flash returns — regenerate with the
-#    command in README.md ("Response headers") and update this line.
+#    index.html, docs/index.html and 404.html, so one hash covers all three.
+#    EDITING THAT SCRIPT INVALIDATES THE HASH and the theme flash returns —
+#    regenerate with the command in README.md ("Response headers") and update
+#    this line.
 #  - <script type="application/ld+json"> blocks need no hash: browsers never
 #    execute non-JS MIME types, so script-src does not apply to them.
+#  - static.cloudflareinsights.com / cloudflareinsights.com are Cloudflare Web
+#    Analytics. It is enabled in the dashboard with AUTOMATIC injection, so the
+#    beacon <script src> is added at the edge and appears in no file here — which
+#    is exactly why it went unnoticed that script-src was blocking it and the
+#    beacon had never once run. These two origins are the ONLY third parties the
+#    site talks to; websiteCsp.test.ts pins that list, so a third one has to be a
+#    deliberate edit rather than a quiet drift.
 #  - style-src keeps 'unsafe-inline' only because 36 inline style="" attributes
 #    remain site-wide. There are no inline <style> blocks. Move those 36 into
 #    styles.css and this can tighten to 'self'. websitePages.test.ts pins the count
@@ -21,7 +29,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-m1EaAXpDarTf/8ASCyWPa6/ZDODIJgodhhLFdCZAbT0='; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-m1EaAXpDarTf/8ASCyWPa6/ZDODIJgodhhLFdCZAbT0=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self' https://cloudflareinsights.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
 
 # Vendor connector logos and the favicon: effectively static, safe to pin hard.
 /db-icons/*
@@ -33,6 +41,11 @@
   Cache-Control: public, max-age=31536000, immutable
 
 /favicon.svg
+  Cache-Control: public, max-age=31536000, immutable
+
+# Organization logo for structured data — rasterized from favicon.svg, same
+# treatment: it changes by being replaced, never by being edited in place.
+/logo.png
   Cache-Control: public, max-age=31536000, immutable
 
 # Docs screenshots are regenerated at release time under the SAME filenames

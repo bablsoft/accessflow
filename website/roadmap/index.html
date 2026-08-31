@@ -55,6 +55,7 @@
       {
         "@type": "WebPage",
         "@id": "https://accessflow.io/roadmap/#page",
+        "breadcrumb": { "@id": "https://accessflow.io/roadmap/#breadcrumb" },
         "name": "Roadmap — available now and what's planned — AccessFlow",
         "headline": "What AccessFlow can do today, and what's planned",
         "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
@@ -65,11 +66,12 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" }
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/roadmap/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Roadmap", "item": "https://accessflow.io/roadmap/" }
@@ -77,15 +79,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -189,6 +207,12 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Roadmap</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Roadmap</span>
           <h1>What AccessFlow can do today, and what's planned</h1>
           <p>
@@ -401,6 +425,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

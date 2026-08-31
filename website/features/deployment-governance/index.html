@@ -53,6 +53,7 @@
       {
         "@type": "TechArticle",
         "@id": "https://accessflow.io/features/deployment-governance/#article",
+        "breadcrumb": { "@id": "https://accessflow.io/features/deployment-governance/#breadcrumb" },
         "headline": "Deployment approval governance — gate every CI/CD release",
         "name": "Deployment approval governance for CI/CD — AccessFlow",
         "description": "Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollback follow-ups.",
@@ -65,11 +66,12 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" }
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/features/deployment-governance/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://accessflow.io/features/" },
@@ -78,15 +80,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -196,14 +214,21 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/features/">Features</a></li>
+              <li><span aria-current="page">Deployment approval governance</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Capabilities</span>
           <h1>Deployment approval governance — gate every CI/CD release</h1>
           <p>
-            Shipping to production is an access decision. Most pipelines record it as a protected-branch
-            rule or a chat message, which is neither reviewable nor auditable after the fact. AccessFlow
-            puts a release request through the same machinery as a database query — AI analysis, routing
-            policies, named approvers, an audit trail — and gives your CI job a gate to block on that
-            answers <em>not releasable</em> whenever it is unsure.
+            AccessFlow puts a CI/CD release request through the same machinery as a database query —
+            AI analysis, routing policies, named approvers, an audit trail — and gives your CI job a
+            gate to block on that answers <em>not releasable</em> whenever it is unsure. Shipping to
+            production is an access decision, and most pipelines record it as a protected-branch rule
+            or a chat message, which is neither reviewable nor auditable after the fact.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -282,6 +307,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

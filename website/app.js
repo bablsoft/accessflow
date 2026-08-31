@@ -132,6 +132,23 @@
       return mql && mql.matches ? 'light' : 'dark';
     }
 
+    // A figure only has both variants when the authored markup points its <source>
+    // and its <img> at different files. The end-user screenshots are captured
+    // light-only (capture.ts marks those darkToo:false), so both attributes carry
+    // the same -light.webp and rewriting them to -dark.webp is a guaranteed 404.
+    // Read the pairing off the authored attributes once and cache it: after a swap
+    // the two can legitimately match, so this cannot be re-derived later.
+    function hasBothThemeVariants(pic) {
+      if (pic.getAttribute('data-theme-pair') === null) {
+        var src = pic.querySelector('source[srcset]');
+        var img = pic.querySelector('img[src]');
+        var paired = !!src && !!img &&
+          src.getAttribute('srcset') !== img.getAttribute('src');
+        pic.setAttribute('data-theme-pair', paired ? '1' : '0');
+      }
+      return pic.getAttribute('data-theme-pair') === '1';
+    }
+
     function swapDocsImages(theme) {
       // <picture><source media="(prefers-color-scheme: light)"> tracks the OS, not
       // our data-theme attribute, so an explicit toggle has to rewrite the markup.
@@ -143,6 +160,7 @@
       var other = theme === 'light' ? '-dark.webp'  : '-light.webp';
 
       document.querySelectorAll('picture').forEach(function (pic) {
+        if (!hasBothThemeVariants(pic)) return;
         pic.querySelectorAll('source[srcset]').forEach(function (src) {
           if (src.srcset.indexOf(other) !== -1) {
             src.srcset = src.srcset.replace(other, want);

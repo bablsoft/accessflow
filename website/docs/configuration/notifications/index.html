@@ -56,12 +56,13 @@
     {
       "@type": "TechArticle",
       "@id": "https://accessflow.io/docs/configuration/notifications/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/configuration/notifications/#breadcrumb" },
       "headline": "Notifications",
       "name": "Notification channels & SMTP \u2014 AccessFlow docs",
       "description": "Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP.",
       "inLanguage": "en",
       "articleSection": "Configuration",
-      "datePublished": "2026-04-01",
+      "datePublished": "2026-08-03",
       "dateModified": "2026-08-31",
       "url": "https://accessflow.io/docs/configuration/notifications/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/notifications/",
@@ -73,14 +74,15 @@
         "@id": "https://accessflow.io/#software"
       },
       "author": {
-        "@id": "https://github.com/bablsoft#org"
+        "@id": "https://accessflow.io/#org"
       },
       "publisher": {
-        "@id": "https://github.com/bablsoft#org"
+        "@id": "https://accessflow.io/#org"
       }
     },
     {
       "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/configuration/notifications/#breadcrumb",
       "itemListElement": [
         {
           "@type": "ListItem",
@@ -104,15 +106,31 @@
     },
     {
       "@type": "Organization",
-      "@id": "https://github.com/bablsoft#org",
+      "@id": "https://accessflow.io/#org",
       "name": "bablsoft",
-      "url": "https://github.com/bablsoft",
-      "logo": "https://accessflow.io/favicon.svg",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
       "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
       "sameAs": [
         "https://github.com/bablsoft",
         "https://github.com/bablsoft/accessflow"
       ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
     }
   ]
 }
@@ -223,6 +241,13 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><span aria-current="page">Notifications</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Notifications.</h1>
           <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
@@ -395,6 +420,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

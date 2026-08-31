@@ -34,21 +34,20 @@ const isAsset = (url: string) => /\.[a-z0-9]+$/.test(url);
 
 const idsOf = (html: string) => new Set([...html.matchAll(/id="([a-z0-9-]+)"/g)].map((m) => m[1]!));
 
-/**
- * Screenshots whose -dark.webp twin does not exist yet, so app.js's unconditional
- * -light -> -dark rewrite 404s on theme toggle. Regenerating them is tracked in
- * https://github.com/bablsoft/accessflow/issues/798 — this list must shrink to []
- * when that lands, and the test below fails if an entry becomes unnecessary.
- */
-const MISSING_DARK_SCREENSHOTS = [
-  '/images/docs/editor',
-  '/images/docs/editor-query-templates',
-  '/images/docs/editor-schedule',
-  '/images/docs/editor-text-to-sql',
-  '/images/docs/queries-list',
-  '/images/docs/reviews-queue',
-  '/images/docs/reviews-queue-bulk',
-];
+/** One node of a page's JSON-LD `@graph`. Only the keys the guards read are named. */
+type GraphNode = {
+  '@type': string;
+  '@id'?: string;
+  breadcrumb?: { '@id': string };
+  itemListElement?: { name: string; item: string }[];
+} & Record<string, unknown>;
+
+/** The `@graph` of the single JSON-LD block on a page. */
+const graphOf = (html: string, label: string): GraphNode[] => {
+  const block = html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/);
+  expect(block, `${label} has no JSON-LD block`).not.toBeNull();
+  return JSON.parse(block![1]!)['@graph'] as GraphNode[];
+};
 
 /**
  * Inline style="" attributes left on the site. style-src cannot tighten from
@@ -412,6 +411,48 @@ describe('website pages', () => {
     });
   });
 
+  it('leaves no page reachable from only a handful of others', () => {
+    // The three /features/ spokes are the longest commercial pages on the site and
+    // had 4 inbound links each: absent from the nav, the footer and every docs
+    // sidebar, reachable only from prose on / and /features/ and from each other.
+    // Nothing noticed, because every individual link was valid. A floor does.
+    const MIN_INBOUND = 10;
+    const urls = new Set(files.map(pageUrl));
+    const inbound = new Map([...urls].map((u) => [u, new Set<string>()]));
+    for (const f of files) {
+      const from = pageUrl(f);
+      for (const m of read(f).matchAll(/href="(\/[^"\s]*)"/g)) {
+        const to = m[1]!.split('#')[0] || '/';
+        if (urls.has(to) && to !== from) inbound.get(to)!.add(from);
+      }
+    }
+    const starved = [...inbound.entries()]
+      .filter(([, from]) => from.size < MIN_INBOUND)
+      .map(([u, from]) => `${u} (${from.size})`);
+    expect(starved.sort(), `pages with fewer than ${MIN_INBOUND} inbound pages`).toEqual([]);
+  });
+
+  it('serves a real 404 page that recovers the visitor instead of dead-ending', () => {
+    // Cloudflare's default not_found_handling returns a correct 404 status with a
+    // zero-byte body. wrangler.jsonc opts into 404-page; this pins the page it needs.
+    const html = readFileSync(path.join(websiteRoot, '404.html'), 'utf8');
+    expect(html, '404 must not be indexable').toMatch(
+      /<meta name="robots" content="noindex, follow" \/>/,
+    );
+    expect(html, '404 must not claim a canonical URL').not.toContain('rel="canonical"');
+    expect(html, '404 must not be advertised in the sitemap').not.toContain('404.html');
+    // It has to be a way back in, not just a branded dead end.
+    expect(slice(html, '<header class="nav">', '<main'), '404 has no site nav').not.toBe('');
+    expect(slice(html, '<footer>', '</footer>'), '404 has no site footer').not.toBe('');
+    for (const href of ['/', '/features/', '/connectors/', '/security/', '/docs/']) {
+      expect(html, `404 does not link ${href}`).toContain(`href="${href}"`);
+    }
+    const sitemap = readFileSync(path.join(websiteRoot, 'sitemap.xml'), 'utf8');
+    expect(sitemap).not.toContain('404');
+    const wrangler = readFileSync(path.join(websiteRoot, 'wrangler.jsonc'), 'utf8');
+    expect(wrangler, 'wrangler must opt into the 404 page').toContain('"not_found_handling": "404-page"');
+  });
+
   it('keeps sitemap.xml and the pages on disk in sync both ways', () => {
     const sitemap = readFileSync(path.join(websiteRoot, 'sitemap.xml'), 'utf8');
     const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
@@ -437,6 +478,20 @@ describe('website pages', () => {
     expect(declared, 'sitemap.xml <priority> values').toEqual(SITEMAP_PRIORITY);
   });
 
+  it('links every page in llms.txt, homepage included', () => {
+    // The reverse of the check below: llms.txt is what an AI crawler reads instead
+    // of the site, so a page missing from it is invisible to that path. The homepage
+    // was absent — it appeared only as the /#install and /#questions fragments.
+    const llms = readFileSync(path.join(websiteRoot, 'llms.txt'), 'utf8');
+    const linked = new Set(
+      [...llms.matchAll(/\]\((https:\/\/accessflow\.io[^)#\s]*)/g)].map((m) =>
+        m[1]!.replace('https://accessflow.io', '') || '/',
+      ),
+    );
+    const missing = files.map(pageUrl).filter((u) => !linked.has(u));
+    expect(missing.sort(), 'pages absent from llms.txt').toEqual([]);
+  });
+
   it('points every llms.txt URL at something that exists', () => {
     const llms = readFileSync(path.join(websiteRoot, 'llms.txt'), 'utf8');
     const idsByUrl = new Map(files.map((f) => [pageUrl(f), idsOf(read(f))]));
@@ -456,18 +511,142 @@ describe('website pages', () => {
     expect([...new Set(dead)], 'llms.txt points at missing content').toEqual([]);
   });
 
-  it('ships a -dark.webp twin for every -light.webp the pages reference', () => {
-    // app.js swapDocsImages() rewrites -light -> -dark unconditionally on toggle,
-    // so a base name without both twins is a live 404 for anyone on light OS theme.
+  it('ships both halves of every <picture> that declares a theme pair', () => {
+    // app.js swapDocsImages() rewrites -light <-> -dark at load, not just on click,
+    // and the default theme is dark — so a figure that promises a pair it cannot
+    // deliver is a 404 for most visitors, not a toggle-only glitch. hasBothThemeVariants()
+    // skips a figure whose authored <source> and <img> name the SAME file (the
+    // light-only end-user screenshots, capture.ts darkToo:false — visual parity for
+    // those is tracked in https://github.com/bablsoft/accessflow/issues/798). Anything
+    // that names two different files is claiming a pair, and both halves must exist.
     const missing = new Set<string>();
     for (const f of files) {
-      for (const m of read(f).matchAll(/(\/images\/[a-z0-9/-]+)-light\.webp/g)) {
-        if (!existsSync(path.join(websiteRoot, `${m[1]!}-dark.webp`))) missing.add(m[1]!);
+      for (const block of read(f).matchAll(/<picture>[\s\S]*?<\/picture>/g)) {
+        const source = block[0].match(/<source[^>]*\ssrcset="([^"]+)"/)?.[1];
+        const img = block[0].match(/<img[^>]*\ssrc="([^"]+)"/)?.[1];
+        if (!source || !img || source === img) continue;
+        for (const url of [source, img]) {
+          if (!existsSync(path.join(websiteRoot, url))) missing.add(`${rel(f)} -> ${url}`);
+        }
       }
     }
-    expect([...missing].filter((b) => !MISSING_DARK_SCREENSHOTS.includes(b)).sort()).toEqual([]);
-    // Keeps the allowlist honest: an entry that no longer fails must be deleted.
-    expect(MISSING_DARK_SCREENSHOTS.filter((b) => !missing.has(b)), 'stale allowlist entries').toEqual([]);
+    expect([...missing].sort()).toEqual([]);
+  });
+
+  it('skips the theme swap for a light-only figure instead of inventing a -dark URL', () => {
+    // The runtime guard is only sound while it reads the pairing off the authored
+    // attributes: after one swap both can legitimately match, so it must be cached.
+    const js = readFileSync(path.join(websiteRoot, 'app.js'), 'utf8');
+    expect(js, 'swapDocsImages must consult the pairing guard').toMatch(
+      /if \(!hasBothThemeVariants\(pic\)\) return;/,
+    );
+    expect(js, 'the pairing verdict must be cached on the element').toMatch(
+      /setAttribute\('data-theme-pair'/,
+    );
+  });
+
+  it('renders a visible breadcrumb that matches its BreadcrumbList exactly', () => {
+    // BreadcrumbList was declared on all 21 non-home pages while no page rendered a
+    // trail, so the markup described navigation that did not exist. The two are one
+    // fact; drifting them apart is the failure this catches.
+    for (const f of files) {
+      const html = read(f);
+      const graph = graphOf(html, rel(f));
+      const crumbs = graph.find((n) => n['@type'] === 'BreadcrumbList');
+      if (pageUrl(f) === '/') {
+        expect(crumbs, 'the homepage needs no breadcrumb').toBeUndefined();
+        expect(html, 'the homepage must not render one either').not.toContain('class="breadcrumb"');
+        continue;
+      }
+      expect(crumbs, `${rel(f)} has no BreadcrumbList`).toBeDefined();
+      const nav = html.match(/<nav class="breadcrumb"[\s\S]*?<\/nav>/)?.[0];
+      expect(nav, `${rel(f)} declares a BreadcrumbList but renders no trail`).toBeDefined();
+
+      const items = crumbs!.itemListElement!;
+      const visible = [...nav!.matchAll(/<(?:a href="[^"]*"|span aria-current="page")>([^<]+)</g)]
+        .map((m) => m[1]!.replace(/&amp;/g, '&'));
+      expect(visible, `${rel(f)} visible trail`).toEqual(items.map((i) => i.name));
+      // Only the last crumb is the current page; the rest must be real links up.
+      const hrefs = [...nav!.matchAll(/<a href="([^"]*)"/g)].map((m) => m[1]!);
+      expect(hrefs, `${rel(f)} crumb links`).toEqual(
+        items.slice(0, -1).map((i) => i.item.replace('https://accessflow.io', '')),
+      );
+      expect(nav!.match(/aria-current="page"/g), `${rel(f)} one current crumb`).toHaveLength(1);
+
+      // And the graph has to point at it, or the list floats unattached.
+      const page = graph.find((n) =>
+        ['TechArticle', 'CollectionPage', 'WebPage'].includes(n['@type']),
+      );
+      expect(page?.breadcrumb?.['@id'], `${rel(f)} page node breadcrumb`).toBe(crumbs!['@id']);
+    }
+  });
+
+  it('resolves every JSON-LD @id reference inside its own document', () => {
+    // Schema consumers parse per-document; cross-document @id merging is not
+    // guaranteed. #software and #website used to be defined only on the homepage
+    // and referenced as bare {"@id": …} stubs everywhere else, so on 21 of 22 pages
+    // TechArticle.about and .isPartOf pointed at a typeless nothing.
+    for (const f of files) {
+      const graph = graphOf(read(f), rel(f));
+      const defined = new Set(graph.filter((n) => n['@id'] && n['@type']).map((n) => n['@id']!));
+      const refs = new Set<string>();
+      const walk = (x: unknown): void => {
+        if (Array.isArray(x)) x.forEach(walk);
+        else if (typeof x === 'object' && x !== null) {
+          const keys = Object.keys(x);
+          if (keys.length === 1 && keys[0] === '@id') refs.add((x as { '@id': string })['@id']);
+          Object.values(x).forEach(walk);
+        }
+      };
+      walk(graph);
+      expect([...refs].filter((r) => !defined.has(r)).sort(), `${rel(f)} dangling @id`).toEqual([]);
+    }
+  });
+
+  it('anchors the organization entity on accessflow.io, not on GitHub', () => {
+    // "AccessFlow" is also an Alcor IGA product and an accessiBe product, so the
+    // publishing entity has to be bound to the domain being ranked. GitHub belongs
+    // in sameAs, never in @id or url.
+    for (const f of files) {
+      const html = read(f);
+      expect(html, `${rel(f)} still anchors the org on GitHub`).not.toContain(
+        '"@id": "https://github.com/bablsoft#org"',
+      );
+      const org = graphOf(html, rel(f)).find((n) => n['@type'] === 'Organization');
+      expect(org, `${rel(f)} has no Organization node`).toBeDefined();
+      expect(org!['@id'], `${rel(f)} Organization @id`).toBe('https://accessflow.io/#org');
+      expect(org!.url, `${rel(f)} Organization url`).toBe('https://accessflow.io/');
+      // Google's logo guidelines accept raster only; an SVG is silently ineligible.
+      const logo = org!.logo as string;
+      expect(logo, `${rel(f)} Organization logo must be raster`).toMatch(/\.(png|jpg|gif)$/);
+      expect(existsSync(path.join(websiteRoot, new URL(logo).pathname))).toBe(true);
+      expect(org!.sameAs, `${rel(f)} keeps GitHub in sameAs`).toContain(
+        'https://github.com/bablsoft',
+      );
+    }
+  });
+
+  it('gives every page a datePublished that is real, and not later than dateModified', () => {
+    // dateModified had a three-way guard; datePublished had none, and drifted to a
+    // 2026-04-01 placeholder on 13 pages — 29 days before the repo's first commit.
+    // Floor is that first commit: nothing on this site can predate the project.
+    const PROJECT_START = '2026-04-30';
+    for (const f of files) {
+      const html = read(f);
+      const published = [...html.matchAll(/"datePublished":\s*"([0-9-]+)"/g)].map((m) => m[1]!);
+      const modified = [...html.matchAll(/"dateModified":\s*"([0-9-]+)"/g)].map((m) => m[1]!);
+      expect(published, `${rel(f)} has no JSON-LD datePublished`).not.toHaveLength(0);
+      for (const d of published) {
+        expect(d, `${rel(f)} datePublished is not an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(
+          d >= PROJECT_START,
+          `${rel(f)} datePublished ${d} predates the project (${PROJECT_START})`,
+        ).toBe(true);
+        for (const m of modified) {
+          expect(d <= m, `${rel(f)} datePublished ${d} is after dateModified ${m}`).toBe(true);
+        }
+      }
+    }
   });
 
   it('agrees on each page last-modified date across all three places it is published', () => {

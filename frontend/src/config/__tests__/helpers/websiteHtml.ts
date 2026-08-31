@@ -17,8 +17,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 /** Absolute path of the website/ directory. */
 export const websiteRoot = path.resolve(here, '../../../../../website');
 
-/** Google Search Console verification token — a 0-line stub, not a page. */
-const NOT_A_PAGE = ['googlef4908e4bf779aae8.html'];
+/**
+ * Files that are .html but are not addressable pages of the site, so the per-page
+ * guards (canonical, og:url, sitemap parity) must not run against them:
+ *  - the Google Search Console verification token, a 0-line stub;
+ *  - 404.html, which is served for unknown paths, is deliberately noindex and has
+ *    no canonical URL of its own. It is guarded separately in websitePages.test.ts.
+ */
+const NOT_A_PAGE = ['googlef4908e4bf779aae8.html', '404.html'];
 
 /**
  * Every guardable page under `root`, sorted. Paths in `exclude` are skipped

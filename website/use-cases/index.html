@@ -55,6 +55,7 @@
       {
         "@type": "CollectionPage",
         "@id": "https://accessflow.io/use-cases/#page",
+        "breadcrumb": { "@id": "https://accessflow.io/use-cases/#breadcrumb" },
         "name": "Database access management use cases — AccessFlow",
         "headline": "Six access problems, one governed checkpoint",
         "description": "Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls.",
@@ -65,8 +66,8 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" },
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" },
         "mainEntity": { "@id": "https://accessflow.io/use-cases/#cases" }
       },
       {
@@ -86,6 +87,7 @@
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/use-cases/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Use cases", "item": "https://accessflow.io/use-cases/" }
@@ -93,15 +95,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -208,16 +226,22 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Use cases</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Use cases</span>
           <h1>Six access problems, one governed checkpoint</h1>
           <p>
-            Different teams reach for AccessFlow for different reasons. A platform team wants shared
-            production credentials gone; an SRE wants access at 3 a.m. without a standing superuser
-            grant; a DBA wants review that does not become a ticket queue; compliance wants evidence
-            it can hand an auditor. Underneath the six database access management use cases below it
-            is the same thing every time: one approval pipeline, one audit trail, one place where
-            access policy actually runs — over SQL, NoSQL, cloud data warehouses and outbound APIs
-            alike.
+            AccessFlow gives six different teams the same thing: one approval pipeline, one audit
+            trail, one place where access policy actually runs — over SQL, NoSQL, cloud data
+            warehouses and outbound APIs alike. What differs is why each one reaches for it, and the
+            six database access management use cases below are those reasons. A platform team wants
+            shared production credentials gone; an SRE wants access at 3 a.m. without a standing
+            superuser grant; a DBA wants review that does not become a ticket queue; compliance wants
+            evidence it can hand an auditor.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -440,6 +464,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

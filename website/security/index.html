@@ -54,6 +54,7 @@
       {
         "@type": "TechArticle",
         "@id": "https://accessflow.io/security/#article",
+        "breadcrumb": { "@id": "https://accessflow.io/security/#breadcrumb" },
         "headline": "Where credentials live, and what the proxy can actually see",
         "name": "Database proxy security architecture — AccessFlow",
         "description": "Where credentials live, and what the proxy can actually see. AccessFlow's security architecture: AES-256-GCM or external secret stores, SAML / OAuth / SCIM sign-in, and an INSERT-only hash-chained audit log — open source, Apache 2.0.",
@@ -66,11 +67,12 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" }
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/security/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Security", "item": "https://accessflow.io/security/" }
@@ -78,15 +80,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -192,6 +210,12 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Security</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Security</span>
           <h1>Where credentials live, and what the proxy can actually see</h1>
           <p>
@@ -440,6 +464,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

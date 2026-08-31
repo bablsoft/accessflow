@@ -6,7 +6,10 @@
     "enabled": true
   },
   "assets": {
-    "directory": "."
+    "directory": ".",
+    // Without this the runtime answers an unknown path with a bare 404 and a
+    // zero-byte body — correct status, but a dead end with no nav and no branding.
+    "not_found_handling": "404-page"
   },
   "compatibility_flags": [
     "nodejs_compat"

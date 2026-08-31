@@ -54,6 +54,7 @@
       {
         "@type": "TechArticle",
         "@id": "https://accessflow.io/ai-agents/#article",
+        "breadcrumb": { "@id": "https://accessflow.io/ai-agents/#breadcrumb" },
         "headline": "Governed database access for AI agents",
         "name": "Governed database access for AI agents — AccessFlow",
         "description": "Let AI agents query production databases through the same review pipeline as people. Agents get a scoped key, an MCP tool surface, AI risk analysis, human approval, and a tamper-evident audit trail — open source, Apache 2.0.",
@@ -66,11 +67,12 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" }
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/ai-agents/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "AI agents", "item": "https://accessflow.io/ai-agents/" }
@@ -78,15 +80,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -171,13 +189,19 @@
     <div class="wrap wrap-narrow">
 
       <header class="docs-hero">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <ol>
+            <li><a href="/">AccessFlow</a></li>
+            <li><span aria-current="page">AI agents</span></li>
+          </ol>
+        </nav>
         <span class="eyebrow">AI agents</span>
         <h1>Your agent doesn't need your database. It needs an answer.</h1>
         <p class="hero-sub" style="margin-top: 14px;">
-          Point an AI agent at a database over MCP and it inherits whatever the connection string
-          can do — every table, every row, every <code>DELETE</code>. AccessFlow gives it a
-          different shape of access: it can ask, and the query goes through the same parse, AI risk
-          analysis, human approval, and audit trail as one a person submitted.
+          AccessFlow gives an AI agent a governed shape of database access: it can ask, and the
+          query goes through the same parse, AI risk analysis, human approval, and audit trail as one
+          a person submitted. Point an agent at a database over MCP without that and it inherits
+          whatever the connection string can do — every table, every row, every <code>DELETE</code>.
         </p>
         <div class="hero-cta" style="margin-top: 22px;">
           <a href="/#install" class="btn btn-primary">
@@ -437,6 +461,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>

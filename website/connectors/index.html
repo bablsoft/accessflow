@@ -55,6 +55,7 @@
       {
         "@type": "CollectionPage",
         "@id": "https://accessflow.io/connectors/#page",
+        "breadcrumb": { "@id": "https://accessflow.io/connectors/#breadcrumb" },
         "name": "Database connectors — SQL, NoSQL and warehouses — AccessFlow",
         "headline": "Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines",
         "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload.",
@@ -65,8 +66,8 @@
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
         "about": { "@id": "https://accessflow.io/#software" },
-        "author": { "@id": "https://github.com/bablsoft#org" },
-        "publisher": { "@id": "https://github.com/bablsoft#org" },
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" },
         "mainEntity": { "@id": "https://accessflow.io/connectors/#engines" }
       },
       {
@@ -98,6 +99,7 @@
       },
       {
         "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/connectors/#breadcrumb",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
           { "@type": "ListItem", "position": 2, "name": "Connectors", "item": "https://accessflow.io/connectors/" }
@@ -105,15 +107,31 @@
       },
       {
         "@type": "Organization",
-        "@id": "https://github.com/bablsoft#org",
+        "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
-        "url": "https://github.com/bablsoft",
-        "logo": "https://accessflow.io/favicon.svg",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
         ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
       }
     ]
   }
@@ -219,6 +237,12 @@
       <article class="docs-content">
 
         <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Connectors</span></li>
+            </ol>
+          </nav>
           <span class="eyebrow">Connectors</span>
           <h1>Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines</h1>
           <p>
@@ -256,37 +280,37 @@
           <div class="conn-grid">
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/postgresql.svg" alt="PostgreSQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/postgresql.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">PostgreSQL</span>
               <span class="conn-tag">Built in</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/mysql.svg" alt="MySQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/mysql.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">MySQL</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/mariadb.svg" alt="MariaDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/mariadb.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">MariaDB</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/oracle.svg" alt="Oracle Database" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/oracle.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Oracle</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/mssql.svg" alt="Microsoft SQL Server" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/mssql.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">SQL Server</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/clickhouse.svg" alt="ClickHouse" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/clickhouse.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">ClickHouse</span>
               <span class="conn-tag">1-click install</span>
             </div>
@@ -308,19 +332,19 @@
           <div class="conn-grid">
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/snowflake.svg" alt="Snowflake" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/snowflake.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Snowflake</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/bigquery.svg" alt="Google BigQuery" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/bigquery.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">BigQuery</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/databricks.svg" alt="Databricks SQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/databricks.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Databricks</span>
               <span class="conn-tag">1-click install</span>
             </div>
@@ -336,55 +360,55 @@
           <div class="conn-grid">
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/mongodb.svg" alt="MongoDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/mongodb.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">MongoDB</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/couchbase.svg" alt="Couchbase" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/couchbase.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Couchbase</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/redis.svg" alt="Redis" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/redis.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Redis</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/dynamodb.svg" alt="Amazon DynamoDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/dynamodb.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">DynamoDB</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/cassandra.svg" alt="Apache Cassandra" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/cassandra.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Cassandra</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/scylladb.svg" alt="ScyllaDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/scylladb.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">ScyllaDB</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/elasticsearch.svg" alt="Elasticsearch" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/elasticsearch.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Elasticsearch</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/opensearch.svg" alt="OpenSearch" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/opensearch.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">OpenSearch</span>
               <span class="conn-tag">1-click install</span>
             </div>
 
             <div class="conn-card">
-              <span class="conn-logo"><img src="/db-icons/neo4j.svg" alt="Neo4j" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-logo"><img src="/db-icons/neo4j.svg" alt="" width="40" height="40" loading="lazy" /></span>
               <span class="conn-name">Neo4j</span>
               <span class="conn-tag">1-click install</span>
             </div>
@@ -544,6 +568,9 @@
           <h3>Product</h3>
           <ul>
             <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
             <li><a href="/connectors/">Connectors</a></li>
             <li><a href="/use-cases/">Use cases</a></li>
             <li><a href="/security/">Security</a></li>
