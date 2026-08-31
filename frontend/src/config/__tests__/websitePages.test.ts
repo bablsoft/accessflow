@@ -86,6 +86,45 @@ const SPOKE_URLS = [
 ];
 
 /**
+ * Sitemap <priority>, one entry per URL. AF-782 called this "the only priority
+ * signal there is": 22 identical values tell a crawler nothing about which page
+ * matters, and flattening is the easy accident because nothing renders it. Pinned
+ * exactly, like INLINE_STYLE_BUDGET above — a page added later has to pick a tier
+ * on purpose instead of inheriting one.
+ *
+ * The tiers: the landing page alone at 1.0; the three hubs a visitor starts from
+ * (/features/, /ai-agents/, /docs/) at 0.9; the six topic pages plus /docs/install/
+ * and /docs/workflows/, the two chapters every reader opens, at 0.8; the remaining
+ * nine chapters — the eight under /docs/configuration/ and /docs/iac/ — at 0.7,
+ * each answering a question only some deployments ask; /roadmap/ at 0.6, since it
+ * reports status rather than competing for a query.
+ */
+const SITEMAP_PRIORITY = {
+  '/': '1.0',
+  '/features/': '0.9',
+  '/ai-agents/': '0.9',
+  '/docs/': '0.9',
+  '/features/database-access-governance/': '0.8',
+  '/features/api-access-governance/': '0.8',
+  '/features/deployment-governance/': '0.8',
+  '/security/': '0.8',
+  '/connectors/': '0.8',
+  '/use-cases/': '0.8',
+  '/docs/install/': '0.8',
+  '/docs/workflows/': '0.8',
+  '/docs/configuration/users-roles/': '0.7',
+  '/docs/configuration/datasources/': '0.7',
+  '/docs/configuration/connectors/': '0.7',
+  '/docs/configuration/review-workflows/': '0.7',
+  '/docs/configuration/ai/': '0.7',
+  '/docs/configuration/auth/': '0.7',
+  '/docs/configuration/notifications/': '0.7',
+  '/docs/configuration/audit-compliance/': '0.7',
+  '/docs/iac/': '0.7',
+  '/roadmap/': '0.6',
+} as const satisfies Record<string, string>;
+
+/**
  * The header nav AF-791 swapped in: six real page links, replacing seven homepage
  * fragments plus /docs/. AF-782 rejected a dropdown deliberately — it would need new
  * app.js (click-outside, Escape, roving focus, aria-expanded) shipped to every page on
@@ -379,6 +418,23 @@ describe('website pages', () => {
     const canonicals = files.map(expectedCanonical);
     expect(canonicals.filter((c) => !locs.includes(c)), 'pages missing from sitemap.xml').toEqual([]);
     expect(locs.filter((l) => !canonicals.includes(l)), 'sitemap.xml URLs with no page on disk').toEqual([]);
+  });
+
+  it('keeps every sitemap priority on its tier', () => {
+    // Both directions in one assertion: a page whose <url> block lost its
+    // <priority>, a new page nobody assigned a tier, and a wholesale flatten to
+    // one value all surface as the same diff.
+    const sitemap = readFileSync(path.join(websiteRoot, 'sitemap.xml'), 'utf8');
+    const blocks = sitemap.split('<url>').slice(1);
+    const declared = Object.fromEntries(
+      blocks.map((block) => [
+        block.match(/<loc>https:\/\/accessflow\.io([^<]*)<\/loc>/)?.[1] ?? '(no loc)',
+        block.match(/<priority>([^<]+)<\/priority>/)?.[1] ?? '(no priority)',
+      ]),
+    );
+    // fromEntries would swallow a URL listed twice, so count the blocks too.
+    expect(Object.keys(declared), 'duplicate <loc> in sitemap.xml').toHaveLength(blocks.length);
+    expect(declared, 'sitemap.xml <priority> values').toEqual(SITEMAP_PRIORITY);
   });
 
   it('points every llms.txt URL at something that exists', () => {
