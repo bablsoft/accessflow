@@ -1723,6 +1723,54 @@ img, table, pre { max-width: 100%; }
   margin-bottom: 0;
 }
 
+/* Breadcrumb — the visible counterpart to the BreadcrumbList JSON-LD. Google
+   expects the markup to describe a trail the reader can actually see, and it
+   gives every deep page a real link back up its own hierarchy. */
+.breadcrumb {
+  margin-bottom: 20px;
+}
+
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--fg-mute);
+}
+
+.breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb li + li::before {
+  content: '/';
+  color: var(--line-strong);
+}
+
+.breadcrumb a {
+  color: var(--fg-mute);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.breadcrumb a:hover,
+.breadcrumb a:focus-visible {
+  color: var(--fg);
+  border-bottom-color: var(--line-strong);
+}
+
+.breadcrumb [aria-current='page'] {
+  color: var(--fg);
+}
+
 .docs-hero {
   margin-bottom: 64px;
   padding-bottom: 40px;
@@ -1751,15 +1799,15 @@ img, table, pre { max-width: 100%; }
   margin-top: -8px;
 }
 
-.docs-hero a:not(.btn),
-.docs-content a:not(.btn) {
+.docs-hero a:not(.btn):not(.breadcrumb a),
+.docs-content a:not(.btn):not(.breadcrumb a) {
   color: var(--accent);
   border-bottom: 1px dotted var(--accent-dim);
   transition: color 0.12s, border-color 0.12s;
 }
 
-.docs-hero a:not(.btn):hover,
-.docs-content a:not(.btn):hover {
+.docs-hero a:not(.btn):not(.breadcrumb a):hover,
+.docs-content a:not(.btn):not(.breadcrumb a):hover {
   color: var(--fg);
   border-bottom-color: var(--fg-mute);
 }

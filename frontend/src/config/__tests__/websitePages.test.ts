@@ -530,6 +530,46 @@ describe('website pages', () => {
     );
   });
 
+  it('renders a visible breadcrumb that matches its BreadcrumbList exactly', () => {
+    // BreadcrumbList was declared on all 21 non-home pages while no page rendered a
+    // trail, so the markup described navigation that did not exist. The two are one
+    // fact; drifting them apart is the failure this catches.
+    for (const f of files) {
+      const html = read(f);
+      const graph = JSON.parse(
+        html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)![1]!,
+      )['@graph'] as Record<string, never>[];
+      const crumbs = graph.find((n) => n['@type'] === 'BreadcrumbList');
+      if (pageUrl(f) === '/') {
+        expect(crumbs, 'the homepage needs no breadcrumb').toBeUndefined();
+        expect(html, 'the homepage must not render one either').not.toContain('class="breadcrumb"');
+        continue;
+      }
+      expect(crumbs, `${rel(f)} has no BreadcrumbList`).toBeDefined();
+      const nav = html.match(/<nav class="breadcrumb"[\s\S]*?<\/nav>/)?.[0];
+      expect(nav, `${rel(f)} declares a BreadcrumbList but renders no trail`).toBeDefined();
+
+      const items = crumbs!['itemListElement'] as unknown as { name: string; item: string }[];
+      const visible = [...nav!.matchAll(/<(?:a href="[^"]*"|span aria-current="page")>([^<]+)</g)]
+        .map((m) => m[1]!.replace(/&amp;/g, '&'));
+      expect(visible, `${rel(f)} visible trail`).toEqual(items.map((i) => i.name));
+      // Only the last crumb is the current page; the rest must be real links up.
+      const hrefs = [...nav!.matchAll(/<a href="([^"]*)"/g)].map((m) => m[1]!);
+      expect(hrefs, `${rel(f)} crumb links`).toEqual(
+        items.slice(0, -1).map((i) => i.item.replace('https://accessflow.io', '')),
+      );
+      expect(nav!.match(/aria-current="page"/g), `${rel(f)} one current crumb`).toHaveLength(1);
+
+      // And the graph has to point at it, or the list floats unattached.
+      const page = graph.find((n) =>
+        ['TechArticle', 'CollectionPage', 'WebPage'].includes(n['@type'] as string),
+      );
+      expect((page as unknown as { breadcrumb?: { '@id': string } }).breadcrumb?.['@id']).toBe(
+        crumbs!['@id'],
+      );
+    }
+  });
+
   it('resolves every JSON-LD @id reference inside its own document', () => {
     // Schema consumers parse per-document; cross-document @id merging is not
     // guaranteed. #software and #website used to be defined only on the homepage

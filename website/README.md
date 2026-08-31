@@ -279,6 +279,15 @@ top-level page, three for anything nested — the eleven `docs/` chapters
 (AccessFlow → Documentation → the chapter) and the three `/features/` spokes
 (AccessFlow → Features → the spoke).
 
+**Every `BreadcrumbList` has a visible counterpart.** The trail renders as
+`<nav class="breadcrumb">` at the top of `<header class="docs-hero">`, and the page node
+carries `"breadcrumb": {"@id": "…#breadcrumb"}` so the list is attached to the graph rather
+than floating in it. Google expects breadcrumb markup to describe a trail the reader can
+actually see; it also gives every deep page a real link back up its own hierarchy. The
+visible trail, its link targets and the JSON-LD are asserted to match item for item, so the
+two cannot drift. Breadcrumb links are deliberately excluded from the `.docs-hero a` /
+`.docs-content a` prose link style — they are chrome, not prose.
+
 `datePublished` is each page's own first-commit date and is guarded: it must be a real ISO
 date, never before the project's first commit (2026-04-30), never after `dateModified`. It sat
 at a `2026-04-01` placeholder on 13 pages until the guard was added.
