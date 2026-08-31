@@ -249,6 +249,15 @@
           <h2>Who signs off — and what happens when nobody does</h2>
           <p>A review plan is attached per datasource and says who must approve what. Chains can be multi-stage, reads can be auto-approved while writes are not, decisions can be taken in bulk, and each queue is scoped to the right team by user or by group. One rule holds everywhere and is enforced in the workflow service rather than the UI: nobody approves their own query, regardless of role.</p>
           <p>Routing policies sit in front of the plan and decide where a request goes without anyone touching it — auto-approve, auto-reject, escalate, or demand extra approvals, keyed on query type, AI risk, who is asking, time of day, and where the request came from. Standing just-in-time grants can pre-approve queries within their capability and table scope, but they lose to any matching routing policy and are suppressed on high or critical risk, on an open anomaly, and whenever the SQL fails to re-parse.</p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/routing-policies-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/routing-policies-dark.webp"
+                   alt="The routing policies admin screen: an ordered, priority-numbered list of rules scoped to a datasource, one auto-approving selects that carry a WHERE clause, the next escalating deletes, inserts and updates whose AI risk level is critical or high, each with a reorder control and an enable toggle."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/routing-policies</code> — rules are evaluated in priority order, and the first match decides where the request goes.</figcaption>
+          </figure>
           <h3>Reviews that stall</h3>
           <p>The failure mode of an approval workflow is silence, so both remedies are built in and both are notify-only — waiting never changes who is allowed to approve.</p>
           <ul>
