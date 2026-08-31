@@ -318,7 +318,7 @@ The repository ships two GitHub Actions workflows:
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` (+ `feature/AF-782-website-restructure` while [#782](https://github.com/bablsoft/accessflow/issues/782) is open) | Single CI workflow with conditional area jobs (`backend`, `frontend`, `helm`) gated by `dorny/paths-filter@v4` and aggregated into one `CI Gate` check — see "Branch-protection-friendly CI" below |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` | Single CI workflow with conditional area jobs (`backend`, `frontend`, `helm`) gated by `dorny/paths-filter@v4` and aggregated into one `CI Gate` check — see "Branch-protection-friendly CI" below |
 | [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes the Helm chart to `gh-pages`, and creates a GitHub Release with auto-generated notes |
 
 ### Branch-protection-friendly CI (`ci.yml`)
