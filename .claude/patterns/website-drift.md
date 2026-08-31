@@ -41,8 +41,9 @@ nav — normalized for `aria-current` — and footer, self-referencing canonical
 canonical, one `h1` and no skipped heading levels, no duplicate element ids, no dead fragment or
 internal links, no parent-relative `href`, no `FAQPage`/`HowTo` structured data,
 `<meta name="description">` within the SERP limit, the pinned legacy `/` section ids, bidirectional
-`sitemap.xml` ↔ disk, every `llms.txt` URL resolving, a `-dark.webp` twin for every referenced
-`-light.webp`, and a ratcheting site-wide inline-`style=""` budget.
+`sitemap.xml` ↔ disk, a pinned `<priority>` per sitemap URL, every `llms.txt` URL resolving, a
+`-dark.webp` twin for every referenced `-light.webp`, and a ratcheting site-wide
+inline-`style=""` budget.
 
 `websiteDocs.test.ts` keeps only what is docs-specific: every chapter linked from every chapter
 sidebar, and cross-chapter links resolving.
@@ -59,7 +60,11 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
       visible `<p class="docs-updated"><time datetime>`. `websitePages.test.ts` fails when they
       disagree or one goes missing; **no test can tell you the date is stale**, only that the
       three agree, so bumping is still on you.
-- [ ] New page → a new `<url>` block in `sitemap.xml`.
+- [ ] New page → a new `<url>` block in `sitemap.xml`, **and a tier for it in
+      `SITEMAP_PRIORITY`** (`websitePages.test.ts`). The gradient is pinned exactly, not as a
+      range: `/` 1.0, hubs 0.9, topic pages and the two widely-read docs chapters 0.8, the
+      remaining chapters 0.7, `/roadmap/` 0.6. Flattening it is the SEO regression nothing on
+      the page would show you.
 - [ ] Moving a section between chapters → update `DOCS_ANCHOR_PAGES` **and** the `id` in the target
       chapter **and** `LEGACY_DOCS_ANCHORS`.
 - [ ] `<meta name="description">` ≤ **160 rendered characters** (Google truncates past that and

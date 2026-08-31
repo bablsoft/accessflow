@@ -93,11 +93,13 @@ const SPOKE_URLS = [
  * on purpose instead of inheriting one.
  *
  * The tiers: the landing page alone at 1.0; the three hubs a visitor starts from
- * at 0.9; the topic pages and the two docs chapters that answer a whole question
- * at 0.8; the configuration chapters at 0.7; /roadmap/ at 0.6, since it reports
- * status rather than competing for a query.
+ * (/features/, /ai-agents/, /docs/) at 0.9; the six topic pages plus /docs/install/
+ * and /docs/workflows/, the two chapters every reader opens, at 0.8; the remaining
+ * nine chapters — the eight under /docs/configuration/ and /docs/iac/ — at 0.7,
+ * each answering a question only some deployments ask; /roadmap/ at 0.6, since it
+ * reports status rather than competing for a query.
  */
-const SITEMAP_PRIORITY: Record<string, string> = {
+const SITEMAP_PRIORITY = {
   '/': '1.0',
   '/features/': '0.9',
   '/ai-agents/': '0.9',
@@ -120,7 +122,7 @@ const SITEMAP_PRIORITY: Record<string, string> = {
   '/docs/configuration/audit-compliance/': '0.7',
   '/docs/iac/': '0.7',
   '/roadmap/': '0.6',
-};
+} as const satisfies Record<string, string>;
 
 /**
  * The header nav AF-791 swapped in: six real page links, replacing seven homepage
