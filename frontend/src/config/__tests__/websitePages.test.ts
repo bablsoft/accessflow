@@ -35,22 +35,6 @@ const isAsset = (url: string) => /\.[a-z0-9]+$/.test(url);
 const idsOf = (html: string) => new Set([...html.matchAll(/id="([a-z0-9-]+)"/g)].map((m) => m[1]!));
 
 /**
- * Screenshots whose -dark.webp twin does not exist yet, so app.js's unconditional
- * -light -> -dark rewrite 404s on theme toggle. Regenerating them is tracked in
- * https://github.com/bablsoft/accessflow/issues/798 — this list must shrink to []
- * when that lands, and the test below fails if an entry becomes unnecessary.
- */
-const MISSING_DARK_SCREENSHOTS = [
-  '/images/docs/editor',
-  '/images/docs/editor-query-templates',
-  '/images/docs/editor-schedule',
-  '/images/docs/editor-text-to-sql',
-  '/images/docs/queries-list',
-  '/images/docs/reviews-queue',
-  '/images/docs/reviews-queue-bulk',
-];
-
-/**
  * Inline style="" attributes left on the site. style-src cannot tighten from
  * 'unsafe-inline' to 'self' until this reaches 0 (website/_headers). Ratchet only
  * downwards — never raise this number to make a new page pass.
@@ -412,6 +396,27 @@ describe('website pages', () => {
     });
   });
 
+  it('serves a real 404 page that recovers the visitor instead of dead-ending', () => {
+    // Cloudflare's default not_found_handling returns a correct 404 status with a
+    // zero-byte body. wrangler.jsonc opts into 404-page; this pins the page it needs.
+    const html = readFileSync(path.join(websiteRoot, '404.html'), 'utf8');
+    expect(html, '404 must not be indexable').toMatch(
+      /<meta name="robots" content="noindex, follow" \/>/,
+    );
+    expect(html, '404 must not claim a canonical URL').not.toContain('rel="canonical"');
+    expect(html, '404 must not be advertised in the sitemap').not.toContain('404.html');
+    // It has to be a way back in, not just a branded dead end.
+    expect(slice(html, '<header class="nav">', '<main'), '404 has no site nav').not.toBe('');
+    expect(slice(html, '<footer>', '</footer>'), '404 has no site footer').not.toBe('');
+    for (const href of ['/', '/features/', '/connectors/', '/security/', '/docs/']) {
+      expect(html, `404 does not link ${href}`).toContain(`href="${href}"`);
+    }
+    const sitemap = readFileSync(path.join(websiteRoot, 'sitemap.xml'), 'utf8');
+    expect(sitemap).not.toContain('404');
+    const wrangler = readFileSync(path.join(websiteRoot, 'wrangler.jsonc'), 'utf8');
+    expect(wrangler, 'wrangler must opt into the 404 page').toContain('"not_found_handling": "404-page"');
+  });
+
   it('keeps sitemap.xml and the pages on disk in sync both ways', () => {
     const sitemap = readFileSync(path.join(websiteRoot, 'sitemap.xml'), 'utf8');
     const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]!);
@@ -456,18 +461,61 @@ describe('website pages', () => {
     expect([...new Set(dead)], 'llms.txt points at missing content').toEqual([]);
   });
 
-  it('ships a -dark.webp twin for every -light.webp the pages reference', () => {
-    // app.js swapDocsImages() rewrites -light -> -dark unconditionally on toggle,
-    // so a base name without both twins is a live 404 for anyone on light OS theme.
+  it('ships both halves of every <picture> that declares a theme pair', () => {
+    // app.js swapDocsImages() rewrites -light <-> -dark at load, not just on click,
+    // and the default theme is dark — so a figure that promises a pair it cannot
+    // deliver is a 404 for most visitors, not a toggle-only glitch. hasBothThemeVariants()
+    // skips a figure whose authored <source> and <img> name the SAME file (the
+    // light-only end-user screenshots, capture.ts darkToo:false — visual parity for
+    // those is tracked in https://github.com/bablsoft/accessflow/issues/798). Anything
+    // that names two different files is claiming a pair, and both halves must exist.
     const missing = new Set<string>();
     for (const f of files) {
-      for (const m of read(f).matchAll(/(\/images\/[a-z0-9/-]+)-light\.webp/g)) {
-        if (!existsSync(path.join(websiteRoot, `${m[1]!}-dark.webp`))) missing.add(m[1]!);
+      for (const block of read(f).matchAll(/<picture>[\s\S]*?<\/picture>/g)) {
+        const source = block[0].match(/<source[^>]*\ssrcset="([^"]+)"/)?.[1];
+        const img = block[0].match(/<img[^>]*\ssrc="([^"]+)"/)?.[1];
+        if (!source || !img || source === img) continue;
+        for (const url of [source, img]) {
+          if (!existsSync(path.join(websiteRoot, url))) missing.add(`${rel(f)} -> ${url}`);
+        }
       }
     }
-    expect([...missing].filter((b) => !MISSING_DARK_SCREENSHOTS.includes(b)).sort()).toEqual([]);
-    // Keeps the allowlist honest: an entry that no longer fails must be deleted.
-    expect(MISSING_DARK_SCREENSHOTS.filter((b) => !missing.has(b)), 'stale allowlist entries').toEqual([]);
+    expect([...missing].sort()).toEqual([]);
+  });
+
+  it('skips the theme swap for a light-only figure instead of inventing a -dark URL', () => {
+    // The runtime guard is only sound while it reads the pairing off the authored
+    // attributes: after one swap both can legitimately match, so it must be cached.
+    const js = readFileSync(path.join(websiteRoot, 'app.js'), 'utf8');
+    expect(js, 'swapDocsImages must consult the pairing guard').toMatch(
+      /if \(!hasBothThemeVariants\(pic\)\) return;/,
+    );
+    expect(js, 'the pairing verdict must be cached on the element').toMatch(
+      /setAttribute\('data-theme-pair'/,
+    );
+  });
+
+  it('gives every page a datePublished that is real, and not later than dateModified', () => {
+    // dateModified had a three-way guard; datePublished had none, and drifted to a
+    // 2026-04-01 placeholder on 13 pages — 29 days before the repo's first commit.
+    // Floor is that first commit: nothing on this site can predate the project.
+    const PROJECT_START = '2026-04-30';
+    for (const f of files) {
+      const html = read(f);
+      const published = [...html.matchAll(/"datePublished":\s*"([0-9-]+)"/g)].map((m) => m[1]!);
+      const modified = [...html.matchAll(/"dateModified":\s*"([0-9-]+)"/g)].map((m) => m[1]!);
+      expect(published, `${rel(f)} has no JSON-LD datePublished`).not.toHaveLength(0);
+      for (const d of published) {
+        expect(d, `${rel(f)} datePublished is not an ISO date`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(
+          d >= PROJECT_START,
+          `${rel(f)} datePublished ${d} predates the project (${PROJECT_START})`,
+        ).toBe(true);
+        for (const m of modified) {
+          expect(d <= m, `${rel(f)} datePublished ${d} is after dateModified ${m}`).toBe(true);
+        }
+      }
+    }
   });
 
   it('agrees on each page last-modified date across all three places it is published', () => {

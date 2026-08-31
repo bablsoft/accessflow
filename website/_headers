@@ -5,7 +5,8 @@
 # CSP notes:
 #  - The script-src sha256 is the inline theme-bootstrap script that runs before
 #    first paint to prevent a flash of the wrong theme. It is byte-identical in
-#    index.html and docs/index.html, so one hash covers both. EDITING THAT SCRIPT
+#    index.html, docs/index.html and 404.html, so one hash covers all three.
+#    EDITING THAT SCRIPT
 #    INVALIDATES THE HASH and the theme flash returns — regenerate with the
 #    command in README.md ("Response headers") and update this line.
 #  - <script type="application/ld+json"> blocks need no hash: browsers never

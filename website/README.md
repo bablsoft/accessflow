@@ -475,13 +475,20 @@ rewriting `img.src` alone leaves the toggle silently broken for visitors on a li
 OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
 swap will not find it.
 
-**Only reference a base name that has both twins.** The rewrite is unconditional, so a
-light-only screenshot 404s the moment a visitor toggles to dark. Nine base names are light-only
-today — regenerating them is
-[#798](https://github.com/bablsoft/accessflow/issues/798), and until it lands the ones already
-referenced from `/docs/**` sit in `MISSING_DARK_SCREENSHOTS` in
-[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts). That test fails
-on any *new* light-only reference; do not add to the allowlist to get past it.
+**A light-only figure must name the same file in both places.** `swapDocsImages()` runs on
+page *load*, not only on click, and the default theme is dark — so an unconditional rewrite
+made every light-only screenshot a 404 for most visitors, not a toggle-only glitch.
+`hasBothThemeVariants()` now decides once, from the authored attributes: a `<picture>` whose
+`<source srcset>` and `<img src>` name **different** files is claiming a `-light`/`-dark` pair
+and gets swapped; one that names the **same** file is light-only and is left alone. The verdict
+is cached in `data-theme-pair` because after a swap the two attributes can legitimately match.
+
+So a light-only screenshot renders light on a dark page — visually inconsistent, never broken.
+Nine base names are light-only today (`capture.ts` marks those pages `darkToo: false`);
+regenerating them for visual parity is
+[#798](https://github.com/bablsoft/accessflow/issues/798). The guard in
+[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts) fails if a
+`<picture>` declares a pair whose other half is not on disk.
 
 ---
 
@@ -495,6 +502,14 @@ reserved for the Helm chart index.
 Because there is no Worker script, `_headers` governs every response header; if a Worker
 `main` is ever added, note that Cloudflare does **not** apply `_headers` to Worker-generated
 responses — those must set headers in code.
+
+`assets.not_found_handling` is `"404-page"`, so an unknown path serves `404.html` with a 404
+status. The default (`"none"`) returns the right status with a **zero-byte body** — no nav, no
+branding, no way back. `404.html` reuses the same nav, footer and theme-bootstrap script as
+every other page (so the existing CSP hash covers it) and is `noindex, follow` with no
+canonical, which is why the helper in
+[`websiteHtml.ts`](../frontend/src/config/__tests__/helpers/websiteHtml.ts) excludes it from the
+per-page canonical and sitemap-parity guards. It has its own test instead.
 
 Any other static host works too (Netlify, Vercel, S3 + CloudFront — no build command), but
 `_headers` and `.assetsignore` are Cloudflare-specific and would need porting.
