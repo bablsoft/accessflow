@@ -85,6 +85,32 @@ const SPOKE_URLS = [
   '/roadmap/',
 ];
 
+/**
+ * The header nav AF-791 swapped in: six real page links, replacing seven homepage
+ * fragments plus /docs/. AF-782 rejected a dropdown deliberately — it would need new
+ * app.js (click-outside, Escape, roving focus, aria-expanded) shipped to every page on
+ * a site whose CSP forbids inline script, and a crawler cannot follow one. `/` and
+ * `/ai-agents/` are reachable from the logo and the footer, so neither is a nav item.
+ *
+ * Byte-identity below only proves the pages agree with each other; this pins *what*
+ * they agree on, so a revert to `/#features`-style anchors fails loudly rather than
+ * passing 22 times over.
+ */
+const NAV_LINKS: readonly (readonly [href: string, label: string])[] = [
+  ['/features/', 'Features'],
+  ['/connectors/', 'Connectors'],
+  ['/use-cases/', 'Use cases'],
+  ['/security/', 'Security'],
+  ['/roadmap/', 'Roadmap'],
+  ['/docs/', 'Docs'],
+];
+
+/** The nav item a page sits under: the longest nav href that prefixes its URL. */
+const navSection = (url: string): string | undefined =>
+  NAV_LINKS.map(([href]) => href)
+    .filter((href) => url.startsWith(href))
+    .sort((a, b) => b.length - a.length)[0];
+
 describe('website pages', () => {
   it('finds every page on the site', () => {
     expect(files.length).toBeGreaterThanOrEqual(22);
@@ -112,13 +138,29 @@ describe('website pages', () => {
     expect([...groups.values()]).toHaveLength(1);
   });
 
+  it('gives every page the same six page links, in both the desktop and mobile nav', () => {
+    for (const f of files) {
+      const html = read(f);
+      for (const [block, marker] of [
+        ['desktop', '<nav class="nav-links"'],
+        ['mobile', '<nav class="nav-mobile-panel"'],
+      ] as const) {
+        const links = [...slice(html, marker, '</nav>').matchAll(/<a href="([^"]+)"[^>]*>([^<]+)<\/a>/g)]
+          .map((m) => [m[1]!, m[2]!] as const);
+        expect(links, `${rel(f)} ${block} nav`).toEqual(NAV_LINKS);
+      }
+    }
+  });
+
   it('marks the nav link for the section it is in, and only that one', () => {
-    // normalizeNav strips these markers before hashing so /, /ai-agents/ and the
-    // chapters compare equal — which would otherwise retire the check entirely.
-    // Both the desktop nav and the mobile panel carry the marker, hence two hits.
+    // normalizeNav strips these markers before hashing so pages in different sections
+    // compare equal — which would otherwise retire the check entirely. Both the desktop
+    // nav and the mobile panel carry the marker, hence two hits.
     for (const f of files) {
       const nav = slice(read(f), '<header class="nav">', '<main');
-      const expected = pageUrl(f).startsWith('/docs/') ? ['/docs/', '/docs/'] : [];
+      const section = navSection(pageUrl(f));
+      // `/` and `/ai-agents/` are not nav items, so they mark nothing.
+      const expected = section ? [section, section] : [];
       expect(activeNavHrefs(nav), `${rel(f)} marks the wrong nav link active`).toEqual(expected);
     }
   });
