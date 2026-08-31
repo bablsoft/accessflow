@@ -122,7 +122,8 @@ handled *before* any empty-values deny-all guard.
 
 - **Never run the build** — no `mvn`, no test execution. `af-verifier` owns exit codes; if its
   report is available, read it rather than duplicating it.
-- **Never review** `frontend/`, `e2e/`, `website/`, or `docs/` content.
+- **Never review** `frontend/` or `e2e/` (that is `af-frontend-reviewer`'s), nor `website/` or
+  `docs/` content (that is `af-content-reviewer`'s).
 - **Never do fan-out completeness sweeps or same-commit-set drift checks** — `RowSecurityOperator`
   / `NotificationEventType` / `DbType` site sweeps, locale-file parity, connector pins, api-spec
   and deployment-doc drift, Bean Validation ↔ `Form.Item` parity are all `af-reviewer`'s.

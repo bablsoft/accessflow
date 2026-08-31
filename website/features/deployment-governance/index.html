@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Deployment approval governance for CI/CD — AccessFlow</title>
+  <meta name="description" content="Gate every CI/CD release behind approval: pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollback follow-ups." />
+
+  <link rel="canonical" href="https://accessflow.io/features/deployment-governance/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Deployment approval governance for CI/CD — AccessFlow" />
+  <meta property="og:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollback follow-ups." />
+  <meta property="og:url" content="https://accessflow.io/features/deployment-governance/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Deployment approval governance for CI/CD — AccessFlow" />
+  <meta name="twitter:description" content="Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollback follow-ups." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.io/features/deployment-governance/#article",
+        "headline": "Deployment approval governance — gate every CI/CD release",
+        "name": "Deployment approval governance for CI/CD — AccessFlow",
+        "description": "Gating CI/CD releases behind approval — pipelines and environments, AI release-risk scoring, a fail-closed gate, freeze windows and rollback follow-ups.",
+        "articleSection": "Features",
+        "inLanguage": "en",
+        "datePublished": "2026-08-30",
+        "dateModified": "2026-08-31",
+        "url": "https://accessflow.io/features/deployment-governance/",
+        "mainEntityOfPage": "https://accessflow.io/features/deployment-governance/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://accessflow.io/features/" },
+          { "@type": "ListItem", "position": 3, "name": "Deployment approval governance", "item": "https://accessflow.io/features/deployment-governance/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/" aria-current="page" class="nav-link-active">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/" aria-current="page" class="nav-link-active">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Deployment governance</p>
+            <a href="#pipelines">Pipelines and environments</a>
+            <a href="#gate">The fail-closed gate</a>
+            <a href="#freeze">Freeze windows and break-glass</a>
+            <a href="#outcome">After the deploy</a>
+            <a href="#ci">One step in your pipeline</a>
+            <p class="docs-toc-label">More capabilities</p>
+            <a href="/features/">All 12 capabilities</a>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/features/api-access-governance/">API access governance</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/use-cases/#platform">The platform-team use case</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+            <a href="/docs/">Documentation</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Capabilities</span>
+          <h1>Deployment approval governance — gate every CI/CD release</h1>
+          <p>
+            Shipping to production is an access decision. Most pipelines record it as a protected-branch
+            rule or a chat message, which is neither reviewable nor auditable after the fact. AccessFlow
+            puts a release request through the same machinery as a database query — AI analysis, routing
+            policies, named approvers, an audit trail — and gives your CI job a gate to block on that
+            answers <em>not releasable</em> whenever it is unsure.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md" class="btn btn-ghost">Deployment governance reference</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="pipelines">
+          <h2>Pipelines, environments and who may trigger them</h2>
+          <p>A deployment pipeline is the governed unit — a name, a provider (GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines, or generic), an optional repository reference, a review plan, and its own AI switch. Under it sit ordered environments: <code>dev</code>, <code>staging</code>, <code>production</code>. Each environment can require review, override the required approval count and the review plan, and opt in to break-glass, which is off by default.</p>
+          <p>Who may trigger a release is a per-pipeline grant rather than a global role: a non-admin needs one, and an org admin short-circuits that check — but never the break-glass one. Grants exist per user and per group, each carrying trigger and break-glass flags and an optional expiry, and the effective answer is the most-permissive union of a user's direct grant and their unexpired group grants. The trigger endpoint, the gate and the outcome endpoint all resolve permission through that one path, so they cannot disagree. Administration needs a deployment-pipeline permission, reviewing needs a deployment-review permission, and every read is organization-scoped: an id from another organization returns 404, never 403, so no endpoint can be used to probe for what exists.</p>
+          <p>Deleting a pipeline removes its configuration but not its history — past requests, decisions and rollback reviews survive as evidence.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="gate">
+          <h2>The gate is fail-closed by construction</h2>
+          <p>A CI job opens a request by calling AccessFlow with an ordinary API key — no deployment-specific token, and the key's owning user is the submitter, which is what makes the self-approval ban meaningful for a machine-triggered release. The trigger is idempotent on the CI run id at the database level, so a retried step never opens a second review.</p>
+          <p>From there the request behaves like any other: the AI analyzer scores the release metadata, routing policies keyed on environment, provider, version glob, risk or time window can auto-approve, auto-reject or raise the approval bar, and reviewers decide in the UI. Review is single-stage, a rejection is immediately terminal, and self-approval is refused first and always — including for the submitting API key's owner, and including for an admin. Where the resolved review plan names approvers, only those users may decide.</p>
+          <p>The job then polls one endpoint and branches on one field. A release is releasable only when all three hold: the request is exactly approved, no freeze window is active, and any scheduled time has already passed. Everything else answers <em>not releasable</em> — a pending request, a rejected one, an unknown pipeline or version, a caller who may not see the request, and any internal error at all. A failure to evaluate degrades to a refusal, never to an accidental yes.</p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-detail-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-detail-dark.webp"
+                   alt="A deployment request in AccessFlow: pipeline, target environment, version and commit alongside a pending-review status, the submitter&#39;s justification, an approvals table reading 0 of 1, and an approval timeline running submitted, AI analysis skipped on this request, human review awaiting a reviewer, then release."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployments/&lt;id&gt;</code> — this one is still pending review, so the gate answers <em>not releasable</em>; approval is what flips it.</figcaption>
+          </figure>
+        </section>
+
+        <section class="docs-section scroll-pad" id="freeze">
+          <h2>Freeze windows, and the emergency exit</h2>
+          <p>A freeze window suspends releases across an organization, one pipeline, or a single environment. It is either one-off — a start and an end — or recurring on chosen weekdays in a named timezone, evaluated as local wall-clock so a window that crosses midnight behaves the way an operator means it to. Among simultaneously active windows the most specific scope wins.</p>
+          <p>Windows come in two behaviours. A rejecting window turns a release away at submission. A holding window lets the request be analyzed, reviewed and approved as normal and only withholds releasability at the gate — so the release proceeds the moment the window closes, with no re-approval. A window that cannot be evaluated at all fails closed to a hold, never to a rejection: a broken definition can stall deployments but can never destroy requests.</p>
+          <p>Break-glass deploys are gated twice with no admin bypass — the submitter needs a break-glass grant on the pipeline <em>and</em> the environment must allow it. In exchange they fan out instantly to every org admin, record an audit entry naming any freeze window they bypassed, and open a mandatory retro-review that an admin, never the submitter, must acknowledge. <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">Deployment pipeline docs →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="outcome">
+          <h2>What happened after the deploy</h2>
+          <p>Approval without an outcome is half a record, so the pipeline reports back: succeeded, failed, or rolled back. Repeating the same report is idempotent; reporting a <em>different</em> outcome is a conflict rather than a silent overwrite. A failure report flips the request from executed to failed — the one post-terminal transition the state machine allows.</p>
+          <p>A rollback on an environment that requires review opens a follow-up review in the same transaction, so a governed rollback can never exist without one. As everywhere else, the submitter cannot close their own: acknowledgement is somebody else's, and it is a latch rather than a contested decision.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="ci">
+          <h2>One step in your pipeline</h2>
+          <p>The wiring is deliberately small. AccessFlow ships composite GitHub Actions, hidden GitLab CI jobs, and an Azure Pipelines step template that each do the same four things: submit the request idempotently by run id, poll the gate, confirm execution, and report the outcome. There is a documented plain-<code>curl</code> walkthrough for everything else.</p>
+          <p>All of them are fail-closed in the direction that matters: an unknown release or any non-retryable error fails the job rather than letting it through. Pipelines are addressed by id rather than by name, because a trigger-only key is not permitted to resolve names — which is the same fail-closed instinct applied to identifiers. <a href="/docs/iac/#iac-deployment-gate">CI gate setup →</a> <a href="/docs/iac/#iac-service-account">Service-account API keys →</a></p>
+          <p>The teams that reach for this are usually the same ones removing shared production credentials elsewhere — see <a href="/use-cases/#platform">the platform-engineering use case</a>. Pipelines and environments are configured in the admin UI; the Terraform provider covers the rest of the estate — datasources, review plans, routing, masking and row-security policies, AI configs and notification channels. <a href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

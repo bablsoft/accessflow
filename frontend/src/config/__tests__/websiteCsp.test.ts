@@ -45,7 +45,7 @@ describe('website CSP', () => {
   const htmlFiles = readHtmlFiles();
 
   it('finds the HTML files it is meant to guard', () => {
-    expect(htmlFiles.length).toBeGreaterThanOrEqual(13);
+    expect(htmlFiles.length).toBeGreaterThanOrEqual(23);
   });
 
   it('every inline script in the site is allowed by a hash in _headers', () => {

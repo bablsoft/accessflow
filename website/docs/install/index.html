@@ -34,13 +34,13 @@
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Installing AccessFlow — Docker Compose, Helm, from source" />
   <meta name="twitter:description" content="Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
-  <meta name="twitter:image:alt" content="AccessFlow — governed database &amp; API access, built for engineers." />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
 
@@ -62,7 +62,7 @@
       "inLanguage": "en",
       "articleSection": "Installation",
       "datePublished": "2026-04-01",
-      "dateModified": "2026-08-28",
+      "dateModified": "2026-08-31",
       "url": "https://accessflow.io/docs/install/",
       "mainEntityOfPage": "https://accessflow.io/docs/install/",
       "image": "https://accessflow.io/og-image.png",
@@ -135,13 +135,11 @@
         accessflow
       </a>
       <nav class="nav-links" aria-label="Primary">
-        <a href="/#features">Features</a>
-        <a href="/#connectors">Connectors</a>
-        <a href="/#how">How it works</a>
-        <a href="/#use-cases">Use cases</a>
-        <a href="/#install">Install</a>
-        <a href="/#questions">Questions</a>
-        <a href="/#roadmap">Roadmap</a>
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
         <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
       </nav>
       <details class="nav-mobile">
@@ -151,15 +149,14 @@
           </svg>
         </summary>
         <nav class="nav-mobile-panel" aria-label="Mobile primary">
-          <a href="/#features">Features</a>
-          <a href="/#connectors">Connectors</a>
-          <a href="/#how">How it works</a>
-          <a href="/#use-cases">Use cases</a>
-          <a href="/#install">Install</a>
-          <a href="/#questions">Questions</a>
-          <a href="/#roadmap">Roadmap</a>
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
           <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
           <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
           <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
             <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
               <circle cx="12" cy="12" r="4"/>
@@ -229,7 +226,7 @@
         <header class="docs-hero">
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-03">3 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -244,6 +241,36 @@
           <p>
             Three ways. <code>docker compose up</code> against the repo root gives you a running demo stack in under a minute. <code>helm install</code> from the published chart is the production path on Kubernetes, generating its own secrets on first install. Building from source needs JDK 25 and Node.js 24, and is aimed at contributors.
           </p>
+
+          <h3 id="run-sizing">System requirements &amp; sizing</h3>
+          <p>
+            AccessFlow needs PostgreSQL 18 for its internal database and Redis 8 for caching and
+            distributed locks — both ship inside the demo compose stack and the Helm chart. Rough
+            sizing tiers:
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr>
+                  <th>Tier</th>
+                  <th>Resources</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Evaluation</td>
+                  <td>2 vCPU · 4 GB RAM · 10 GB SSD</td>
+                  <td>Single-node Docker Compose</td>
+                </tr>
+                <tr>
+                  <td>Production</td>
+                  <td>Backend ≥ 2× (2 vCPU · 2 GB) · Postgres (2 vCPU · 4 GB · 50 GB) · Redis (1 vCPU · 1 GB)</td>
+                  <td>Scale backend replicas behind any L7 load balancer</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
           <h3 id="run-docker-compose">Docker Compose</h3>
           <p>
@@ -674,23 +701,26 @@
         <div class="footer-col">
           <h3>Product</h3>
           <ul>
-            <li><a href="/#features">Features</a></li>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
             <li><a href="/#how">How it works</a></li>
-            <li><a href="/#use-cases">Use cases</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
             <li><a href="/#install">Quick start</a></li>
             <li><a href="/#questions">Questions</a></li>
-            <li><a href="/#roadmap">Roadmap</a></li>
-            <li><a href="/ai-agents/">AI agents</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h3>Docs</h3>
           <ul>
             <li><a href="/docs/">User documentation</a></li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/02-architecture.md">Architecture</a></li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API</a></li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/07-security.md">Security</a></li>
-            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md">Deployment</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
           </ul>
         </div>
         <div class="footer-col">

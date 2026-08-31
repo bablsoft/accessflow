@@ -109,8 +109,8 @@ module is a Concern. Changed components with branching UI need their branches as
 
 - **Never run npm / the build** — `af-verifier` owns exit codes; if its report is available, read
   it rather than duplicating it.
-- **Never review** `website/**` (marketing drift is af-reviewer's website-drift check), Java, or
-  `docs/`.
+- **Never review** `website/**` or `docs/` — their content is `af-content-reviewer`'s, and
+  whether the update was made at all is `af-reviewer`'s drift check. Never review Java.
 - **Never check backend↔frontend validation parity, locale-file parity, or enum fan-out
   completeness** — those span stacks and belong to `af-reviewer`. A missing `Form.Item` rule
   mirroring a DTO constraint is not your finding.

@@ -147,6 +147,10 @@ Before opening the PR, dispatch — **in a single message so they run concurrent
 - **`af-reviewer`** — `DbType` fan-out completeness (migration, `.sql.conf`, **both** credential
   gates, i18n ×7, frontend union / `engineModes` / icon) plus the connector pin and docs/website
   drift.
+- **`af-content-reviewer`** — the docs and website copy the engine adds: the new engine's row in
+  the supported-database lists, its connection-field wording, and the quick-start it appears in,
+  checked against `website/README.md`'s content-source map. An engine ships a public claim about
+  what AccessFlow connects to, and step 10 writes that claim in five places.
 - **`af-verifier`** — runs the Definition-of-done gates and reports real exit codes.
 
 `af-frontend-reviewer` is deliberately omitted: step 9's frontend registration is mechanical
@@ -165,7 +169,7 @@ explicitly with reasoning, and carry surviving Concerns into the PR description 
 - [ ] `mvn -q -f backend/pom.xml test -Dtest='ApplicationModulesTest,ApiPackageDependencyTest,MessagesParityTest'` green
 - [ ] `cd frontend && npm run typecheck && npm run test:coverage` green (locale parity included)
 - [ ] Every item in `docs/15-engine-sdk.md` → "Checklist: adding a new engine" ticked
-- [ ] `af-java-reviewer`, `af-reviewer`, `af-verifier` ran; Blockers fixed or rebutted, surviving Concerns in the PR description
+- [ ] `af-java-reviewer`, `af-reviewer`, `af-content-reviewer`, `af-verifier` ran; Blockers fixed or rebutted, surviving Concerns in the PR description
 - [ ] Branch `feature/AF-<n>-<id>-engine`, PR references the issue
 
 ## Out of scope

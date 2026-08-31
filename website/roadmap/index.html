@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Roadmap — available now and what's planned — AccessFlow</title>
+  <meta name="description" content="What ships in AccessFlow today across SQL, NoSQL, warehouse, API and deployment governance — plus the milestone in progress and what's planned next." />
+
+  <link rel="canonical" href="https://accessflow.io/roadmap/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Roadmap — available now and what's planned — AccessFlow" />
+  <meta property="og:description" content="What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones." />
+  <meta property="og:url" content="https://accessflow.io/roadmap/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Roadmap — available now and what's planned — AccessFlow" />
+  <meta name="twitter:description" content="What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.io/roadmap/#page",
+        "name": "Roadmap — available now and what's planned — AccessFlow",
+        "headline": "What AccessFlow can do today, and what's planned",
+        "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
+        "inLanguage": "en",
+        "datePublished": "2026-08-30",
+        "dateModified": "2026-08-31",
+        "url": "https://accessflow.io/roadmap/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Roadmap", "item": "https://accessflow.io/roadmap/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/" aria-current="page" class="nav-link-active">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/" aria-current="page" class="nav-link-active">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Roadmap</p>
+            <a href="#available">Available now</a>
+            <a href="#milestones">How the grid maps to releases</a>
+            <a href="#planned">What's next</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/use-cases/">Use cases</a>
+            <a href="/docs/">Documentation</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Roadmap</span>
+          <h1>What AccessFlow can do today, and what's planned</h1>
+          <p>
+            AccessFlow ships as a single open-source product under Apache 2.0 — every capability on
+            this page is in the same release, so the roadmap is a capability map rather than a sales
+            document. The grid below is grouped by what the platform does, not by the release that
+            introduced it; version-by-version milestone scope lives in
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md">docs/12-roadmap.md</a>,
+            and the release currently in progress is tracked on the
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub milestones</a>.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md" class="btn btn-ghost">Milestone-by-milestone scope</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="available">
+          <h2>Available now</h2>
+          <p>
+            Everything in this grid is generally available today in v2.4 — self-hosted with Docker
+            Compose or Helm, and governed by the same review pipeline and tamper-evident audit log
+            throughout. The map itself is driven by community input and adapter contributions.
+          </p>
+        <div class="rm-grid">
+          <div class="rm-cell">
+            <h3 class="rm-cat">Proxy &amp; data access</h3>
+            <ul>
+              <li>SQL proxy · 6 DBs + custom drivers</li>
+              <li>Read-replica routing · result diffing</li>
+              <li>Schema explorer &amp; ER view · sample previews</li>
+              <li>Datasource health dashboard</li>
+              <li>High-volume proxy performance — result caching · query batching · multi-replica load balancing</li>
+              <li>Declarative connector catalog</li>
+              <li>MongoDB · Couchbase (SQL++) · Redis</li>
+              <li>Cassandra &amp; ScyllaDB (CQL)</li>
+              <li>Elasticsearch &amp; OpenSearch · DynamoDB (PartiQL)</li>
+              <li>Neo4j (Cypher) · text-to-query for NoSQL</li>
+              <li>Cloud data warehouses — Snowflake, BigQuery, Databricks SQL (native auth)</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">AI &amp; monitoring</h3>
+            <ul>
+              <li>Risk scoring + index hints · analytics</li>
+              <li>OpenAI-compatible &amp; Hugging Face providers</li>
+              <li>Editable prompts · Langfuse · text-to-SQL · RAG</li>
+              <li>Offline AI fallback — provider fallback pool with local Ollama</li>
+              <li>Approval-likelihood prediction — advisory triage signal from your own review history</li>
+              <li>Behavioral anomaly detection (UBA)</li>
+              <li>AI optimization &amp; index recommendations</li>
+              <li>Expanded MCP agent toolset</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Review &amp; access</h3>
+            <ul>
+              <li>Multi-stage approvals · auto-approve reads</li>
+              <li>Bulk decisions · scheduled &amp; recurring runs · plan templates</li>
+              <li>Reviewer groups &amp; scoping · JIT access</li>
+              <li>Policy-as-code routing · row-level security · masking</li>
+              <li>Break-glass emergency access</li>
+              <li>Multi-tenant orgs &amp; per-org quotas</li>
+              <li>Real-time collaborative editing</li>
+              <li>Mobile PWA + one-tap push</li>
+              <li>Version history &amp; diff · dry-run sandbox · replay</li>
+              <li>Personalized dashboard &amp; weekly digest</li>
+              <li>Request chaining &amp; grouping</li>
+              <li>Group-based data &amp; API access grants</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">API governance</h3>
+            <ul>
+              <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
+              <li>Operation catalog · response masking · text-to-API</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Deployment governance</h3>
+            <ul>
+              <li>Deployment approval governance — gate CI/CD releases behind approval workflows</li>
+              <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
+              <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
+              <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Compliance</h3>
+            <ul>
+              <li>Data classification tagging (PII/PCI/PHI/GDPR)</li>
+              <li>Compliance reports &amp; signed exports · Auditor role</li>
+              <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
+              <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
+              <li>Access recertification campaigns</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Auth &amp; audit</h3>
+            <ul>
+              <li>JWT · SAML · OAuth/OIDC · SCIM provisioning · TOTP · RBAC with custom roles</li>
+              <li>HMAC-chained audit log + CSV export</li>
+              <li>SIEM audit streaming &amp; WORM archival — Splunk HEC · syslog/CEF · signed HTTPS · S3 Object Lock</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Security &amp; ops</h3>
+            <ul>
+              <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
+              <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
+              <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
+              <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
+              <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Automation &amp; IaC</h3>
+            <ul>
+              <li>Terraform / OpenTofu provider</li>
+              <li>Reusable GitHub Actions &amp; GitLab CI template</li>
+            </ul>
+          </div>
+          <div class="rm-cell">
+            <h3 class="rm-cat">Deploy</h3>
+            <ul>
+              <li>Docker Compose · Helm 3 · HPA · health probes</li>
+            </ul>
+          </div>
+        </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="milestones">
+          <h2>How the capability grid maps to releases</h2>
+          <p>
+            AccessFlow releases in small, themed milestones a few weeks apart rather than one large
+            annual version. A capability graduates from the Planned band into a milestone, ships
+            through the normal review-pipeline and audit machinery, and joins the grid above. The
+            grid never says which release introduced an item —
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md">docs/12-roadmap.md</a>
+            does, version by version since v1.0.
+          </p>
+          <p>
+            The two most recent themes: <strong>v2.3</strong> was data-aware governance and reviewer
+            intelligence — automated sensitive-data discovery, advisory approval-likelihood
+            prediction, recurring approved queries, least-privilege analytics over unused grants,
+            reviewer delegation and escalation, result-export DLP, and SIEM / WORM audit streaming.
+            <strong>v2.4</strong> added deployment approval governance: CI/CD pipelines ask
+            AccessFlow for permission to release and block on a fail-closed gate, with
+            per-environment policies, freeze windows, audited break-glass, and native GitHub
+            Actions, GitLab CI and Azure Pipelines steps.
+          </p>
+          <p>
+            In progress now is
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestone/9">milestone 2.5.0</a>,
+            which carries deployment governance past the approval gate into what is actually running
+            where: per-environment version tags and current-version state, rollback semantics that
+            restore the prior recorded version rather than merely reopening a review, a
+            version-inventory and drift API that answers which environments are behind and by how
+            much, and a version matrix, per-environment history timeline and drift badges in the web
+            UI. Every open and closed milestone — with the issues inside it — is on
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub</a>.
+          </p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="planned">
+          <h2>What's next</h2>
+          <p>
+            The Planned band holds capabilities that are not yet scheduled into a milestone; an item
+            leaves it when it lands in a milestone, and enters the grid above when it ships. The
+            absence of an engine here is never a blocker — any JDBC-compatible database can be
+            governed today by uploading its driver JAR, and first-class engine plugins are open to
+            contribution.
+          </p>
+        <div class="rm-planned">
+          <h3 class="rm-cat">Planned</h3>
+          <ul>
+            <li>Native wire-protocol gateway</li>
+            <li>Column-level permissions</li>
+            <li>Custom analyzer plugins (SPI / HTTP)</li>
+            <li>Automatic query suggestions</li>
+          </ul>
+        </div>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

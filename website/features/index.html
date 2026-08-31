@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Database access control — all 12 capabilities — AccessFlow</title>
+  <meta name="description" content="The full database access control feature set — the query proxy, AI review, approval workflows, masking, audit, and API and deployment governance." />
+
+  <link rel="canonical" href="https://accessflow.io/features/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Database access control — all 12 capabilities — AccessFlow" />
+  <meta property="og:description" content="Database access control, feature by feature — twelve capabilities grouped into database, API and deployment governance, plus the platform underneath." />
+  <meta property="og:url" content="https://accessflow.io/features/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Database access control — all 12 capabilities — AccessFlow" />
+  <meta name="twitter:description" content="Database access control, feature by feature — twelve capabilities grouped into database, API and deployment governance, plus the platform underneath." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": "https://accessflow.io/features/#page",
+        "name": "Database access control — all 12 capabilities — AccessFlow",
+        "headline": "Database access control, feature by feature",
+        "description": "Database access control, feature by feature — twelve capabilities grouped into database, API and deployment governance, plus the platform underneath.",
+        "inLanguage": "en",
+        "datePublished": "2026-08-30",
+        "dateModified": "2026-08-31",
+        "url": "https://accessflow.io/features/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" },
+        "mainEntity": { "@id": "https://accessflow.io/features/#capabilities" }
+      },
+      {
+        "@type": "ItemList",
+        "@id": "https://accessflow.io/features/#capabilities",
+        "name": "AccessFlow capabilities",
+        "numberOfItems": 12,
+        "itemListOrder": "https://schema.org/ItemListUnordered",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Full query proxy — SQL and NoSQL" },
+          { "@type": "ListItem", "position": 2, "name": "AI query analysis" },
+          { "@type": "ListItem", "position": 3, "name": "Configurable review workflows" },
+          { "@type": "ListItem", "position": 4, "name": "Request chaining & grouping" },
+          { "@type": "ListItem", "position": 5, "name": "Data lifecycle & right-to-erasure" },
+          { "@type": "ListItem", "position": 6, "name": "Governed outbound API calls" },
+          { "@type": "ListItem", "position": 7, "name": "Gated CI/CD releases" },
+          { "@type": "ListItem", "position": 8, "name": "Workforce-ready auth" },
+          { "@type": "ListItem", "position": 9, "name": "Tamper-evident audit & compliance reports" },
+          { "@type": "ListItem", "position": 10, "name": "Personalized dashboard" },
+          { "@type": "ListItem", "position": 11, "name": "Cloud-native deploy" },
+          { "@type": "ListItem", "position": 12, "name": "Infrastructure as Code" }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Features", "item": "https://accessflow.io/features/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/" aria-current="page" class="nav-link-active">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/" aria-current="page" class="nav-link-active">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Capabilities</p>
+            <a href="#database">Database access governance</a>
+            <a href="#api">API access governance</a>
+            <a href="#deployment">Deployment approval governance</a>
+            <a href="#platform">Platform, auth &amp; operations</a>
+            <p class="docs-toc-label">Deep dives</p>
+            <a href="/features/database-access-governance/">Database access governance in depth</a>
+            <a href="/features/api-access-governance/">API access governance in depth</a>
+            <a href="/features/deployment-governance/">Deployment approval governance in depth</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/use-cases/">Use cases</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/roadmap/">Roadmap</a>
+            <a href="/docs/">Documentation</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Capabilities</span>
+          <h1>Database access control, feature by feature — the middle ground between blanket access and a DBA ticket queue.</h1>
+          <p>
+            AccessFlow sits between your team and your databases: every query is parsed, risk-scored,
+            routed to the right approver, and written to an audit log nobody can quietly edit. This page
+            is the whole capability list — twelve of them, grouped by the three things AccessFlow governs
+            plus the platform underneath. Each card is the short version; the three
+            <a href="#database">deep dives</a> carry the mechanism. Everything runs inside your own
+            infrastructure under Apache 2.0 &mdash; and with a local Ollama analyzer, air-gap friendly.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/use-cases/" class="btn btn-ghost">Use cases by team</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="database">
+          <h2>Database access governance</h2>
+          <p>Five capabilities that follow one query end to end — parsed at the proxy, scored by AI, routed to a reviewer, optionally bundled with other steps, and eventually retired by a lifecycle rule. <a href="/features/database-access-governance/">The deep dive walks the whole path →</a></p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/review-plans-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/review-plans-create-dark.webp"
+                   alt="The Add review plan dialog in AccessFlow: toggles for requiring AI review and human approval, fields for minimum approvals, approval timeout in hours, escalate-after and nudge-every cadences, an auto-approve LOW-risk reads switch, and a repeatable approver row naming a role and the stage it belongs to."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/review-plans</code> — a plan decides who must sign off, how long they have, and what happens when nobody does.</figcaption>
+          </figure>
+          <div class="feat-grid">
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
+              </div>
+              <h3>Full query proxy — SQL and NoSQL</h3>
+              <p>Every query is parsed and policy-checked before it reaches the database. AccessFlow sorts each statement by type — read, write, or schema change — validates the tables it touches against a schema allow-list walked from the parse tree, and routes it through your review policy. NoSQL engines and the cloud warehouses run identical checks, with server-side and destructive commands blocked up front. Layer on row-level security, dynamic masking, and PII/PCI/PHI/GDPR classification tags that raise a query's risk score automatically. <a class="prose-link" href="/features/database-access-governance/#proxy">How the proxy inspects a query →</a></p>
+              <span class="tag">PostgreSQL · MySQL · MariaDB · Oracle · MSSQL · ClickHouse · MongoDB · Couchbase · Redis · Cassandra · ScyllaDB · Elasticsearch · OpenSearch · DynamoDB · Neo4j · Snowflake · BigQuery · Databricks · connector catalog · custom drivers · read-replica load balancing · result caching · dynamic masking · row-level security · data classification</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M9 3a3 3 0 0 0-3 3v1a3 3 0 0 0-2 2.83V11a3 3 0 0 0 1 2.24V15a3 3 0 0 0 3 3h1v3h4V3H9z"/>
+                  <path d="M15 3v18h4a3 3 0 0 0 3-3v-2.76A3 3 0 0 0 23 13v-1.17A3 3 0 0 0 21 9V7a3 3 0 0 0-3-3h-3z"/>
+                </svg>
+              </div>
+              <h3>AI query analysis</h3>
+              <p>An AI reviewer reads every query before a human does. Each one comes back with a 0–100 risk score, missing-index detection, and anti-pattern flags, plus concrete fixes offered as a draft edit. Pick the provider per organization — Anthropic, OpenAI, Ollama, any OpenAI-compatible backend, or Hugging Face — and tune the analyzer with an editable system prompt. The analysis is evidence a reviewer reads, never a decision on its own. <a class="prose-link" href="/features/database-access-governance/#ai">Voting, guardrails and anomaly detection →</a></p>
+              <span class="tag">Anthropic · OpenAI · Ollama · OpenAI-compatible · Hugging Face · Multi-model voting · Guardrails · Fallback pool · Per-model cost &amp; latency · Optimization suggestions · Text-to-query · RAG · Langfuse · Anomaly detection (UBA) · Approval likelihood (advisory) · History dashboard</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <h3>Configurable review workflows</h3>
+              <p>Decide who must sign off before a query runs, and route each request there automatically. Approval chains are per-datasource and multi-stage, with auto-approved reads, approval timeouts, bulk decisions, and queues scoped to a user or a group. Policy-as-code routing can auto-approve, escalate, or raise the approval bar on query type, AI risk, requester, time of day, or origin. Users can request just-in-time access for a window; genuine emergencies use audited break-glass. <a class="prose-link" href="/features/database-access-governance/#review">Delegation, escalation and where reviewers decide →</a></p>
+              <span class="tag">State machine · Per-datasource reviewers · Groups · Policy-as-code routing · JIT time-bound access · Break-glass emergency access · Bulk decisions · Real-time co-authoring · Inline comments · Slack approve/reject · Mobile PWA · One-tap push approvals · Email · Slack · Discord · Telegram · Teams · PagerDuty · ServiceNow · Jira · Webhooks</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="4" width="9" height="5" rx="1.2"/><rect x="3.5" y="15" width="9" height="5" rx="1.2"/><path d="M8 9v6"/><path d="M12.5 6.5h5a2 2 0 0 1 2 2v9"/><path d="m17.5 15 2 2.5 2-2.5"/></svg>
+              </div>
+              <h3>Request chaining &amp; grouping</h3>
+              <p>Bundle several steps into one grouped request, reviewed and approved once, then executed in order. Members mix queries across datasources with calls to governed API connectors, and the builder shows a per-step risk preview beside an aggregate badge. Bundling never weakens a member's policy: the required approvers are the union of every member plan, and you can never approve your own group. <a class="prose-link" href="/features/database-access-governance/#grouping">Ordered execution, and why there is no rollback →</a></p>
+              <span class="tag">Grouped requests · queries + API calls · ordered execution · no distributed rollback</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 8v4l2.5 1.5"/><circle cx="12" cy="12" r="8.5"/></svg>
+              </div>
+              <h3>Data lifecycle &amp; right-to-erasure</h3>
+              <p>Govern when data is retired, not just who reads it. Retention rules target a table, a column set, or a classification tag per datasource, with a retention window, arbitrary conditions, and an action — hard-delete, soft-delete, or pseudonymize — on an optional cron schedule with a dry-run preview. GDPR and CCPA right-to-erasure requests take the same configuration and route through peer review before anything is removed. <a class="prose-link" href="/features/database-access-governance/#lifecycle">How erasure is enforced at read time →</a></p>
+              <span class="tag">Retention · conditions · cron · pseudonymization · peer-reviewed erasure</span>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="api">
+          <h2>API access governance</h2>
+          <p>The same pipeline, pointed at outbound REST, SOAP, GraphQL and gRPC calls instead of SQL — because the shared credentials and the missing audit trail are the same problem in a different protocol.</p>
+          <div class="feat-grid">
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="16" cy="17" r="1.6" fill="currentColor"/></svg>
+              </div>
+              <h3>Governed outbound API calls</h3>
+              <p>Govern outbound API calls with the machinery that governs queries. Register a REST, SOAP, GraphQL, or gRPC connector with its base URL, default headers, and an auth method — API key, bearer, basic, OAuth2, custom header, or mTLS — every secret encrypted and never returned. Upload a schema and AccessFlow parses a normalized operation catalog with read/write classification, then shares governed connectivity through per-user permissions. Calls then flow through the same AI scoring, routing, approval, and audit path. <a class="prose-link" href="/features/api-access-governance/">API access governance in depth →</a></p>
+              <span class="tag">REST · SOAP · GraphQL · gRPC · OpenAPI / WSDL / SDL / proto / Postman</span>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="deployment">
+          <h2>Deployment approval governance</h2>
+          <p>A release is an access decision too. The same reviewers, routing policies and audit trail gate a production deploy, behind a gate your CI job blocks on until the release is actually approved.</p>
+          <div class="feat-grid">
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
+              </div>
+              <h3>Gated CI/CD releases</h3>
+              <p>Gate CI/CD deployments behind the same review machinery as a query. Define a pipeline with ordered environments — each with its own required approvals, review plan, and break-glass opt-in — and grant trigger rights per user or group. A CI job opens a request with an API key, the AI analyzer scores the release, routing policies set the bar, and reviewers decide in the UI, where nobody can approve their own deployment. The job then blocks on a fail-closed gate. <a class="prose-link" href="/features/deployment-governance/">Deployment approval governance in depth →</a></p>
+              <span class="tag">GitHub Actions · GitLab CI · Azure Pipelines · Jenkins · CircleCI · Bitbucket · freeze windows · break-glass · rollback tracking</span>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="platform">
+          <h2>Platform, auth &amp; operations</h2>
+          <p>The parts that hold the rest up: who may sign in, what gets recorded, what you see when you land, and how the whole thing is deployed and declared as code. These have no deep-dive page — the operator docs carry them.</p>
+          <div class="feat-grid">
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <h3>Workforce-ready auth</h3>
+              <p>Sign in with the accounts your company already runs — SAML 2.0 SSO and OAuth 2.0 / OIDC, with templates for Google, GitHub, Microsoft and GitLab and a generic provider for any other IdP. Roles and group memberships sync on every login, with optional TOTP two-factor. SCIM 2.0 provisioning hands the whole lifecycle to the IdP: a leaver's sessions and standing access grants are revoked the moment they are offboarded. <a class="prose-link" href="/security/#auth">How authentication is wired →</a></p>
+              <span class="tag">JWT · SAML · OAuth · SCIM provisioning · IdP group sync · TOTP · Multi-tenant orgs · Per-org quotas</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+              </div>
+              <h3>Tamper-evident audit &amp; compliance reports</h3>
+              <p>Every decision lands in an append-only, cryptographically chained log that cannot be quietly edited after the fact — searchable, exportable, and holding no row data. Pre-built compliance reports cover classified-data access and the DDL/DELETE trail with approver names, export as digitally signed PDF or CSV that verify offline, and are surfaced to a dedicated read-only Auditor role. <a class="prose-link" href="/security/#audit">The chain, the exports and the SIEM sinks →</a></p>
+              <span class="tag">HMAC-SHA256 chain · signed exports · SIEM streaming · WORM archival</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+              </div>
+              <h3>Personalized dashboard</h3>
+              <p>A self-scoped home that answers "what's waiting on me?" — pending approvals, your recent queries with status and risk trends, an AI optimization backlog you can open straight in the editor, and your own anomaly alerts. Drag the widgets into the layout you want and it sticks; export the week as a signed PDF or CSV, or take it as a weekly email digest. <a class="prose-link" href="/docs/configuration/audit-compliance/#cfg-dashboard">Dashboard docs →</a></p>
+              <span class="tag">Customizable widgets · weekly digest · signed export</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>
+              </div>
+              <h3>Cloud-native deploy</h3>
+              <p>Run it on a laptop with one command, or on Kubernetes for production. One <span class="mono">docker compose up</span> covers local and small environments; a Helm 3 chart covers Kubernetes, with horizontal autoscaling, pod disruption budgets, and Bitnami Postgres/Redis subcharts. Redis-backed distributed locks keep scheduled jobs safe across replicas. <a class="prose-link" href="/docs/install/">Install &amp; first-run docs →</a></p>
+              <span class="tag">Docker · Helm · Kubernetes</span>
+            </div>
+
+            <div class="feat">
+              <div class="feat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+              </div>
+              <h3>Infrastructure as Code</h3>
+              <p>Manage AccessFlow the way you manage the rest of your stack. An official Terraform / OpenTofu provider declares datasources, review plans, routing, row-level-security and masking policies, AI configs, and notification channels as code, applied idempotently. Reusable GitHub Actions and a GitLab CI template wrap provisioning a datasource and submitting a governed query from a pipeline, each authenticating with a service-account API key. <a class="prose-link" href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
+              <span class="tag">Terraform · OpenTofu · GitHub Actions · GitLab CI · GitOps · Service-account API keys</span>
+            </div>
+
+          </div>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

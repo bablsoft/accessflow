@@ -1,12 +1,12 @@
 # Agents
 
-Six read-only agents that explain a change and give it a second opinion. They are dispatched by
+Seven read-only agents that explain a change and give it a second opinion. They are dispatched by
 [`impl-gh-issue`](../skills/impl-gh-issue/SKILL.md) at step 5b (and
 [`add-engine`](../skills/add-engine/SKILL.md) at step 13) before a change becomes a PR, and by
 [`review-gh-pr`](../skills/review-gh-pr/SKILL.md) against a PR that already exists: `af-reviewer`
 and `af-security-reviewer` always run; the stack specialists run when their paths are touched;
 `af-verifier` runs pre-PR always and post-PR only under `--verify`; `af-pr-summarizer` runs
-whenever a human is about to read the result. All six work standalone on any branch.
+whenever a human is about to read the result. All seven work standalone on any branch.
 
 | Agent | Job | Tools |
 |---|---|---|
@@ -16,6 +16,7 @@ whenever a human is about to read the result. All six work standalone on any bra
 | [`af-security-reviewer`](af-security-reviewer.md) | Security specialist, whole repo but security lens only: proxy bypass, row security failing open, self-approval and tenant scoping, credential handling, the auth surface, SSRF, audit tamper-evidence, plugin supply chain. Same output format. | Read, Grep, Glob, Bash |
 | [`af-java-reviewer`](af-java-reviewer.md) | Backend/engine code specialist (`backend/**`, `engines/**`): CLAUDE.md backend rules + the backend/engine [`patterns/`](../patterns/) checklists, incl. test parity. Same output format. | Read, Grep, Glob, Bash |
 | [`af-frontend-reviewer`](af-frontend-reviewer.md) | Frontend/e2e code specialist (`frontend/**`, `e2e/**`): the frontend non-negotiables + the frontend/e2e [`patterns/`](../patterns/) checklists, incl. e2e selector drift. Same output format. | Read, Grep, Glob, Bash |
+| [`af-content-reviewer`](af-content-reviewer.md) | Docs/website content specialist (`docs/**`, `website/**`, `README.md`): claims checked against `website/README.md`'s content-source map, readability, and the SEO surface the website tests do not cover. Same output format. | Read, Grep, Glob, Bash |
 
 ## Why neither has an Edit tool
 
@@ -38,11 +39,21 @@ SHA pins and the patterns' `## Required` checklists, a reviewer here has real gr
 check against rather than only taste.
 
 The review side splits once more, by ownership rather than stack size: the **specialists own
-code-level correctness within their stack** (`af-java-reviewer` for `backend/`+`engines/`,
-`af-frontend-reviewer` for `frontend/`+`e2e/`), while **`af-reviewer` owns everything that spans
-files, stacks, or artifacts** — fan-out completeness, drift, locale parity, validation parity,
-website. Every finding thus has exactly one natural owner; when two reviewers still report the
-same `path:line`, the dispatching skill keeps the specialist's version.
+correctness within their territory** (`af-java-reviewer` for `backend/`+`engines/`,
+`af-frontend-reviewer` for `frontend/`+`e2e/`, `af-content-reviewer` for
+`docs/`+`website/`+`README.md`), while **`af-reviewer` owns everything that spans files, stacks, or
+artifacts** — fan-out completeness, drift, locale parity, validation parity. Every finding thus has
+exactly one natural owner; when two reviewers still report the same `path:line`, the dispatching
+skill keeps the specialist's version.
+
+The docs/website boundary is the one that reads as ambiguous and is not. **Did the change update
+the website** is drift: it is answered from the *code* half of the diff, which is why it stays with
+`af-reviewer`. **Is what was written any good** — does the command still run, does the claim match
+`pom.xml`, does the title read in a SERP, is `<lastmod>` actually today — is answered only by
+reading the prose, which no other agent does. CI covers the mechanical half of `website/` unusually
+well (canonicals, heading order, description length, sitemap sync, date *agreement*), so
+`af-content-reviewer` is pointed deliberately at the remainder: wording, accuracy, and the fact that
+three dates agreeing with each other says nothing about whether they agree with today.
 
 `af-security-reviewer` cuts across all of them on a **different axis**: not "which stack" but "what
 does this let an attacker do". A query proxy holding every customer credential earns a reviewer

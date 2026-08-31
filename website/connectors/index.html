@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Database connectors — SQL, NoSQL and warehouses — AccessFlow</title>
+  <meta name="description" content="The database connectors AccessFlow ships: eighteen SQL, cloud-data-warehouse and NoSQL engines, each a one-click install, plus any JDBC engine you upload." />
+
+  <link rel="canonical" href="https://accessflow.io/connectors/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
+  <meta property="og:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload." />
+  <meta property="og:url" content="https://accessflow.io/connectors/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
+  <meta name="twitter:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": "https://accessflow.io/connectors/#page",
+        "name": "Database connectors — SQL, NoSQL and warehouses — AccessFlow",
+        "headline": "Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines",
+        "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload.",
+        "inLanguage": "en",
+        "datePublished": "2026-08-29",
+        "dateModified": "2026-08-31",
+        "url": "https://accessflow.io/connectors/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://github.com/bablsoft#org" },
+        "publisher": { "@id": "https://github.com/bablsoft#org" },
+        "mainEntity": { "@id": "https://accessflow.io/connectors/#engines" }
+      },
+      {
+        "@type": "ItemList",
+        "@id": "https://accessflow.io/connectors/#engines",
+        "name": "Database engines AccessFlow connects to",
+        "numberOfItems": 18,
+        "itemListOrder": "https://schema.org/ItemListUnordered",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "PostgreSQL" },
+          { "@type": "ListItem", "position": 2, "name": "MySQL" },
+          { "@type": "ListItem", "position": 3, "name": "MariaDB" },
+          { "@type": "ListItem", "position": 4, "name": "Oracle Database" },
+          { "@type": "ListItem", "position": 5, "name": "Microsoft SQL Server" },
+          { "@type": "ListItem", "position": 6, "name": "ClickHouse" },
+          { "@type": "ListItem", "position": 7, "name": "Snowflake" },
+          { "@type": "ListItem", "position": 8, "name": "Google BigQuery" },
+          { "@type": "ListItem", "position": 9, "name": "Databricks SQL" },
+          { "@type": "ListItem", "position": 10, "name": "MongoDB" },
+          { "@type": "ListItem", "position": 11, "name": "Couchbase" },
+          { "@type": "ListItem", "position": 12, "name": "Redis" },
+          { "@type": "ListItem", "position": 13, "name": "Amazon DynamoDB" },
+          { "@type": "ListItem", "position": 14, "name": "Apache Cassandra" },
+          { "@type": "ListItem", "position": 15, "name": "ScyllaDB" },
+          { "@type": "ListItem", "position": 16, "name": "Elasticsearch" },
+          { "@type": "ListItem", "position": 17, "name": "OpenSearch" },
+          { "@type": "ListItem", "position": 18, "name": "Neo4j" }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Connectors", "item": "https://accessflow.io/connectors/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://github.com/bablsoft#org",
+        "name": "bablsoft",
+        "url": "https://github.com/bablsoft",
+        "logo": "https://accessflow.io/favicon.svg",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "foundingDate": "2026-04",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Connectors</p>
+            <a href="#catalog">The catalog</a>
+            <a href="#matrix">Engine reference</a>
+            <a href="#how-it-works">How an install works</a>
+            <a href="#custom">Anything not in the catalog</a>
+            <a href="#questions">Common questions</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/docs/configuration/connectors/">Connectors setup</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/ai-agents/">AI agents</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <span class="eyebrow">Connectors</span>
+          <h1>Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines</h1>
+          <p>
+            A connector is simply how AccessFlow talks to one kind of database. Eighteen are in the
+            catalog, spanning relational engines, cloud data warehouses, document and key-value stores,
+            wide-column and search engines, and a graph database — and anything else that speaks JDBC
+            works from a driver JAR you upload. Whichever you pick, the governance is the same: every
+            statement is parsed, risk-analysed, routed through whatever approval chain you configured,
+            masked and row-filtered on the way out, and written to the audit log. Only the query
+            language and the row-security mechanics differ.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/docs/configuration/connectors/#cfg-connectors" class="btn btn-ghost">Connector setup guide</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="catalog">
+          <h2>Every engine in the catalog</h2>
+          <p>
+            Find the database your team runs, click <strong>Install</strong> in the admin connector
+            marketplace, and it is ready to govern. The catalog groups into three families, which is
+            also how AccessFlow itself classifies them internally.
+          </p>
+
+          <h3>SQL</h3>
+          <p>
+            Relational engines run over pooled JDBC inside the AccessFlow process, with schema
+            introspection and WHERE-clause row-level security. The first five have their own SQL
+            dialect built in; ClickHouse rides the generic dialect, as an uploaded driver does.
+          </p>
+          <div class="conn-grid">
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/postgresql.svg" alt="PostgreSQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">PostgreSQL</span>
+              <span class="conn-tag">Built in</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/mysql.svg" alt="MySQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">MySQL</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/mariadb.svg" alt="MariaDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">MariaDB</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/oracle.svg" alt="Oracle Database" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Oracle</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/mssql.svg" alt="Microsoft SQL Server" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">SQL Server</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/clickhouse.svg" alt="ClickHouse" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">ClickHouse</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card conn-card-custom">
+              <span class="conn-logo conn-logo-plus" aria-hidden="true">+</span>
+              <span class="conn-name">Custom driver</span>
+              <span class="conn-tag">Upload any driver</span>
+            </div>
+
+          </div>
+
+          <h3>Cloud data warehouses</h3>
+          <p>
+            Warehouses connect through native engines that use each vendor's own authentication model
+            — key-pair JWT or password, service-account JSON, and personal access tokens respectively — rather
+            than a pooled JDBC connection.
+          </p>
+          <div class="conn-grid">
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/snowflake.svg" alt="Snowflake" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Snowflake</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/bigquery.svg" alt="Google BigQuery" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">BigQuery</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/databricks.svg" alt="Databricks SQL" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Databricks</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+          </div>
+
+          <h3>NoSQL</h3>
+          <p>
+            Document, key-value, wide-column, search and graph engines each ship as a native engine
+            plugin that speaks the database's own query language — no SQL translation layer in
+            between.
+          </p>
+          <div class="conn-grid">
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/mongodb.svg" alt="MongoDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">MongoDB</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/couchbase.svg" alt="Couchbase" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Couchbase</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/redis.svg" alt="Redis" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Redis</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/dynamodb.svg" alt="Amazon DynamoDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">DynamoDB</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/cassandra.svg" alt="Apache Cassandra" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Cassandra</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/scylladb.svg" alt="ScyllaDB" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">ScyllaDB</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/elasticsearch.svg" alt="Elasticsearch" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Elasticsearch</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/opensearch.svg" alt="OpenSearch" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">OpenSearch</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+            <div class="conn-card">
+              <span class="conn-logo"><img src="/db-icons/neo4j.svg" alt="Neo4j" width="40" height="40" loading="lazy" /></span>
+              <span class="conn-name">Neo4j</span>
+              <span class="conn-tag">1-click install</span>
+            </div>
+
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="matrix">
+          <h2>Engine reference — category, runtime and install path</h2>
+          <p>
+            Every engine carries a category that decides how AccessFlow loads it. Relational engines
+            run in-process over a pooled JDBC connection; everything else runs as a self-contained
+            engine plugin resolved on demand. Every engine links through to the connector setup guide.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table" aria-label="Supported database engines by category, runtime and install path">
+              <thead>
+                <tr>
+                  <th>Engine</th>
+                  <th>Category</th>
+                  <th>Runs as</th>
+                  <th>Install</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">PostgreSQL</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>Bundled</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">MySQL</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">MariaDB</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Oracle Database</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Microsoft SQL Server</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">ClickHouse</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Snowflake</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Google BigQuery</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Databricks SQL</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">MongoDB</a></td><td>DOCUMENT</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Couchbase</a></td><td>DOCUMENT</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Redis</a></td><td>KEY_VALUE</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Amazon DynamoDB</a></td><td>KEY_VALUE</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Apache Cassandra</a></td><td>WIDE_COLUMN</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">ScyllaDB</a></td><td>WIDE_COLUMN</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Elasticsearch</a></td><td>SEARCH</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">OpenSearch</a></td><td>SEARCH</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/connectors/#cfg-connectors">Neo4j</a></td><td>GRAPH</td><td>Engine plugin</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/datasources/">Any other JDBC engine</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>Upload a JAR</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Two pairs share one artefact: ScyllaDB is served by the Cassandra plugin and OpenSearch by
+            the Elasticsearch plugin, because each pair is wire-compatible. ClickHouse is the one SQL
+            engine outside the built-in five dialects — it carries the <code>CUSTOM</code> dialect and
+            is resolved through its own classloader, which is exactly the mechanism an uploaded driver
+            uses. Query languages, connection fields and the per-engine row-security rules are in
+            <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors-matrix">the engine matrix →</a>
+          </p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="how-it-works">
+          <h2>How an install works</h2>
+          <p>
+            The catalog is declarative. Each connector is a small manifest describing display name,
+            logo, default port and SSL mode, the connection template, and where to fetch the artefact
+            — a Maven coordinate for JDBC drivers, a direct URL for engine plugins — together with
+            that artefact's pinned SHA-256. Adding or updating a supported database is a data change,
+            not a code change. Every artefact is verified against its pin at install time, and CI
+            rebuilds each engine plugin and fails the build if the resulting checksum has drifted
+            from the manifest.
+          </p>
+          <p>
+            Clicking <strong>Install</strong> downloads the artefact, verifies it against the pinned
+            checksum, and caches it. That cache is shared by JDBC drivers and engine plugins alike and
+            can be backed by a persistent volume in the Helm chart, so installs survive restarts
+            instead of re-downloading. Nothing
+            about a connector is "installed" in a database table — status is derived from what is in
+            the cache, which means a restored volume is a restored install.
+          </p>
+          <p>
+            Non-relational artefacts are engine plugins rather than drivers: self-contained JARs
+            implementing AccessFlow's engine SPI, discovered through Java's <code>ServiceLoader</code>
+            and loaded into an isolated classloader with no transitive resolution, so two engines can
+            never fight over a shared dependency version. This is why the container image does not
+            have to ship every database driver on earth, and why adding an engine costs you a download
+            instead of a redeploy. Air-gapped installs pre-seed the cache directory with the JARs they
+            need and run with downloads disabled.
+          </p>
+          <p>
+            Outbound API connectors are registered rather than downloaded — there is no artefact to
+            pin — but once registered they are governed identically, and the review, masking and
+            audit guarantees are the same across every connector type. See
+            <a class="prose-link" href="/security/">the security architecture →</a>
+          </p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="custom">
+          <h2>Anything not in the catalog — upload your own driver</h2>
+          <p>
+            If your engine speaks JDBC but is not in the list, an admin uploads its driver JAR, enters
+            the driver class and its SHA-256, and creates a <strong>Custom</strong> datasource against
+            it. The JAR is org-scoped and gets the same isolated classloader a catalog connector does;
+            queries against it are parsed, reviewed and audited exactly like any other. For engines
+            with no JDBC driver at all, the
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">engine-plugin SDK</a>
+            documents the service-provider interface a native engine implements — the same contract
+            every plugin in the catalog is built on. That route is a contribution rather than an
+            upload: a new engine ships as a plugin project plus a manifest merged into the catalog.
+          </p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="questions">
+          <h2>Common questions</h2>
+          <div class="qa-grid">
+            <div class="qa-item">
+              <h3>Which databases does AccessFlow support?</h3>
+              <p>
+                PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server and ClickHouse over JDBC,
+                plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
+                BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Amazon DynamoDB, Apache
+                Cassandra, ScyllaDB, Elasticsearch, OpenSearch and Neo4j. Eighteen connectors in all,
+                each installable in one click from the admin marketplace. See
+                <a href="/docs/configuration/connectors/">Connectors</a>.
+              </p>
+            </div>
+            <div class="qa-item">
+              <h3>Do I have to install every connector?</h3>
+              <p>
+                No. PostgreSQL is bundled and everything else is opt-in — install only the engines you
+                actually govern, and the rest never download. That keeps the container image small and
+                the supply chain narrow, since the only third-party artefacts on disk are the ones you
+                asked for.
+              </p>
+            </div>
+          </div>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

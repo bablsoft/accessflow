@@ -170,6 +170,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   padding: 0 var(--pad);
 }
 
+/* Prose column on a sidebar-less page. A class rather than an inline style: the
+   CSP style-src can only tighten to 'self' once the inline style="" attributes
+   are gone, so don't add more of them. */
+.wrap-narrow { max-width: 860px; }
+
 .mono { font-family: var(--mono); }
 
 .eyebrow {
@@ -1511,8 +1516,11 @@ footer {
 /* responsive */
 
 /* nav collapse ladder — every nav item stays on a single line at any width:
-   drop the duplicate "Quick start" CTA first, then the GitHub chip, then fold
-   the links into the hamburger, and finally drop the primary CTA on phones. */
+   drop the "Quick start" CTA first, then the GitHub chip, then fold the links
+   into the hamburger, and finally drop the primary CTA on phones. Below 520px
+   every .nav-right control is gone, so the hamburger panel is the whole header
+   nav — which is why it carries its own "Quick start" entry below the divider
+   (AF-791). Never remove that entry without also un-hiding a .nav-right CTA. */
 @media (max-width: 1280px) {
   .nav-right .btn-ghost { display: none; }
 }
@@ -1667,6 +1675,54 @@ img, table, pre { max-width: 100%; }
   max-width: 820px;
 }
 
+/* The homepage grids are sized for the full 1280px wrap. Inside the 820px docs
+   column they need fewer tracks. Their existing collapse rules are viewport-scoped
+   and never fire here: by the time the viewport is narrow enough, .docs-layout has
+   already gone single-column and the block is full width again. */
+.docs-content .feat-grid,
+.docs-content .qa-grid {
+  grid-template-columns: 1fr;
+}
+
+.docs-content .arch-callouts {
+  grid-template-columns: 1fr;
+}
+
+.docs-content .arch-services {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* /use-cases/ hosts the homepage .uc-row blocks in the same 820px column, where two
+   tracks would squeeze the mock panels. These override the base rules outright rather
+   than relying on the viewport collapse at 1024px, which only fires once .docs-layout
+   has itself gone single-column. .docs-section ul likewise re-adds the left padding
+   .uc-benefits deliberately drops. The explicit order:0 keeps the mock below the copy
+   structurally: .uc-row:nth-child(even) .uc-visual would otherwise flip it above the
+   moment anything is inserted before a .uc-row, and only above 1024px. */
+.docs-content .uc-row {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+}
+
+.docs-content .uc-row .uc-visual {
+  order: 0;
+}
+
+.docs-content .uc-persona {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.docs-content .uc-benefits {
+  padding-left: 0;
+}
+
+/* .uc-copy spaces its children with a flex gap; .docs-section p would add a margin
+   on top of it, so the paragraphs would sit further apart here than on the homepage. */
+.docs-content .uc-copy > p {
+  margin-bottom: 0;
+}
+
 .docs-hero {
   margin-bottom: 64px;
   padding-bottom: 40px;
@@ -1695,15 +1751,15 @@ img, table, pre { max-width: 100%; }
   margin-top: -8px;
 }
 
-.docs-hero a,
-.docs-content a {
+.docs-hero a:not(.btn),
+.docs-content a:not(.btn) {
   color: var(--accent);
   border-bottom: 1px dotted var(--accent-dim);
   transition: color 0.12s, border-color 0.12s;
 }
 
-.docs-hero a:hover,
-.docs-content a:hover {
+.docs-hero a:not(.btn):hover,
+.docs-content a:not(.btn):hover {
   color: var(--fg);
   border-bottom-color: var(--fg-mute);
 }
@@ -1933,6 +1989,14 @@ img, table, pre { max-width: 100%; }
 @media (min-width: 1025px) {
   .docs-sidebar-mobile { display: block; }
   .docs-sidebar-mobile > summary { display: none; }
+  /* /roadmap/ hosts the homepage .rm-grid in the 820px docs column, where three
+     tracks leave ~200px of text per cell. Scoped to the two-column layout only:
+     below 1025px .docs-content is full width and the .rm-grid viewport collapses
+     (2-up at 1024px, 1-up at 720px) must keep winning, which an unconditional
+     .docs-content override would out-specify. */
+  .docs-content .rm-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 480px) {
