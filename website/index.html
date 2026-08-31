@@ -104,7 +104,6 @@
         "url": "https://github.com/bablsoft",
         "logo": "https://accessflow.io/favicon.svg",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
-        "foundingDate": "2026-04",
         "sameAs": [
           "https://github.com/bablsoft",
           "https://github.com/bablsoft/accessflow"
@@ -273,12 +272,50 @@
       </div>
     </section>
 
+    <!-- Features -->
+    <section class="features scroll-pad" id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Capabilities</span>
+          <h2>One open-source approval pipeline — databases, APIs and deployments.</h2>
+          <p>Three governance surfaces, one approval pipeline and one audit trail behind all of them. Self-hosted in your own infrastructure — and with a local Ollama analyzer, air-gap friendly. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
+        </div>
+        <div class="feat-grid">
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
+            </div>
+            <h3>Databases</h3>
+            <p>Every SQL and NoSQL query is parsed, classified, AI risk-scored, and routed through human review before it reaches production — with dynamic masking, row-level security, and data-classification tags applied to what comes back. <a class="prose-link" href="/features/database-access-governance/">Database access governance →</a></p>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="16" cy="17" r="1.6" fill="currentColor"/></svg>
+            </div>
+            <h3>APIs</h3>
+            <p>Outbound REST, SOAP, GraphQL, and gRPC calls flow through the same submit → AI review → approve → execute pipeline, with schema-ingested operation catalogs and connector-level response masking. <a class="prose-link" href="/features/api-access-governance/">API access governance →</a></p>
+          </div>
+
+          <div class="feat">
+            <div class="feat-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
+            </div>
+            <h3>Deployments</h3>
+            <p>CI/CD releases block on a fail-closed approval gate — freeze windows, audited break-glass, and rollback tracking included — triggered from GitHub Actions, GitLab CI, Azure Pipelines, and more. <a class="prose-link" href="/features/deployment-governance/">Deployment approval governance →</a></p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
     <!-- Product proof -->
     <section class="scroll-pad" id="proof">
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">In the product</span>
-          <h2>One dashboard for approvals, queries and anomalies.</h2>
+          <h2>One dashboard for approvals — queries, API calls and deployments.</h2>
           <p>Counters for what is still open, a panel for each thing awaiting your decision, and your own recent requests — every number scoped to what you are allowed to see.</p>
         </div>
         <figure class="docs-figure">
@@ -298,8 +335,8 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Request flow</span>
-          <h2>How query approval works — from keystroke to commit, observable at every step.</h2>
-          <p>Every query follows the same predictable path — submitted, AI-analyzed, approved, executed, audited — and outbound API calls and grouped requests travel it too.</p>
+          <h2>How approval works — from submission to execution, observable at every step.</h2>
+          <p>Every request follows the same predictable path — submitted, AI-analyzed, approved, executed, audited — whether it is a SQL query, an outbound API call, a grouped request, or a CI/CD deployment waiting on its gate.</p>
         </div>
 
         <div class="flow-grid">
@@ -307,15 +344,15 @@
             <div class="flow-step active" role="tab" aria-controls="flow-pane-0" aria-selected="true">
               <div class="flow-num">01</div>
               <div>
-                <h3>Submit a query</h3>
-                <p>Analyst writes SQL in the built-in CodeMirror editor. The frontend posts to <span class="mono">/queries</span>; the proxy parses and classifies it.</p>
+                <h3>Submit a request</h3>
+                <p>SQL written in the built-in editor, an outbound API call, or a deployment triggered from CI — the proxy parses and classifies every request the same way.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-controls="flow-pane-1" aria-selected="false">
               <div class="flow-num">02</div>
               <div>
                 <h3>AI reviews it</h3>
-                <p>Risk score, anti-pattern flags, missing indexes. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
+                <p>Risk score, anti-pattern flags, missing indexes — API calls and deployment plans get the same scoring. The status moves <span class="mono">PENDING_AI → PENDING_REVIEW</span>.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-controls="flow-pane-2" aria-selected="false">
@@ -328,8 +365,8 @@
             <div class="flow-step" role="tab" aria-controls="flow-pane-3" aria-selected="false">
               <div class="flow-num">04</div>
               <div>
-                <h3>Proxy executes</h3>
-                <p>AccessFlow opens a connection from the per-datasource connection pool, executes, captures metadata.</p>
+                <h3>Execute or release</h3>
+                <p>Queries and API calls execute through the proxy's per-datasource pools; an approved deployment flips its fail-closed CI gate to releasable.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-controls="flow-pane-4" aria-selected="false">
@@ -410,7 +447,7 @@
               <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">Review queue</span>
-                  <span class="seg">All queries</span>
+                  <span class="seg">All requests</span>
                   <span class="seg">Audit log</span>
                   <span class="mono ml-auto">5 results</span>
                 </div>
@@ -427,8 +464,8 @@
                     </span>
                   </div>
                   <div class="review-row">
-                    <span class="id">q_42080</span>
-                    <span class="sql">SELECT user_id, count(*) FROM events GROUP BY 1 LIMIT 100</span>
+                    <span class="id">api_1207</span>
+                    <span class="sql">POST /billing/refunds · connector: payments-api</span>
                     <span class="who">bob@co · ANALYST</span>
                     <span class="pill ai">AI REVIEW</span>
                     <span></span>
@@ -441,8 +478,8 @@
                     <span></span>
                   </div>
                   <div class="review-row">
-                    <span class="id">q_42078</span>
-                    <span class="sql">SELECT * FROM payments WHERE amount &gt; 10000</span>
+                    <span class="id">dep_310</span>
+                    <span class="sql">deploy web-api v2.4.1 → production · gate released</span>
                     <span class="who">mark@co · ANALYST</span>
                     <span class="pill executed">EXECUTED</span>
                     <span></span>
@@ -532,44 +569,6 @@
             </div>
 
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Features -->
-    <section class="features scroll-pad" id="features">
-      <div class="wrap">
-        <div class="section-head">
-          <span class="eyebrow">Capabilities</span>
-          <h2>The open-source database access proxy, capability by capability.</h2>
-          <p>Three governance surfaces, one approval pipeline and one audit trail behind all of them. Self-hosted in your own infrastructure — and with a local Ollama analyzer, air-gap friendly. <a class="prose-link" href="/features/">All 12 capabilities →</a></p>
-        </div>
-        <div class="feat-grid">
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5l-8-3z"/></svg>
-            </div>
-            <h3>Databases</h3>
-            <p>Every SQL and NoSQL query is parsed, classified, AI risk-scored, and routed through human review before it reaches production — with dynamic masking, row-level security, and data-classification tags applied to what comes back. <a class="prose-link" href="/features/database-access-governance/">Database access governance →</a></p>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.6" fill="currentColor"/><circle cx="16" cy="17" r="1.6" fill="currentColor"/></svg>
-            </div>
-            <h3>APIs</h3>
-            <p>Outbound REST, SOAP, GraphQL, and gRPC calls flow through the same submit → AI review → approve → execute pipeline, with schema-ingested operation catalogs and connector-level response masking. <a class="prose-link" href="/features/api-access-governance/">API access governance →</a></p>
-          </div>
-
-          <div class="feat">
-            <div class="feat-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2.5 4 6.5v5c0 4.6 3.2 8.4 8 10 4.8-1.6 8-5.4 8-10v-5z"/><path d="m9 12 2 2 4-4.5"/></svg>
-            </div>
-            <h3>Deployments</h3>
-            <p>CI/CD releases block on a fail-closed approval gate — freeze windows, audited break-glass, and rollback tracking included — triggered from GitHub Actions, GitLab CI, Azure Pipelines, and more. <a class="prose-link" href="/features/deployment-governance/">Deployment approval governance →</a></p>
-          </div>
-
         </div>
       </div>
     </section>
@@ -712,7 +711,7 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">Quick start</span>
-          <h2>Install AccessFlow — governing queries and API calls in under five minutes.</h2>
+          <h2>Install AccessFlow — governing queries, API calls and deployments in under five minutes.</h2>
           <p>Pick your platform. The backend initializes its schema on first boot, and the in-app setup wizard creates the first admin. <a class="prose-link" href="/docs/install/">Full install guide →</a></p>
         </div>
 
@@ -889,7 +888,7 @@
          true as the repo grows — see website/README.md before editing. -->
     <section class="provenance" id="provenance" aria-labelledby="provenance-title">
       <div class="wrap">
-        <h2 id="provenance-title">Built in the open since April 2026.</h2>
+        <h2 id="provenance-title">Built in the open.</h2>
         <p>
           AccessFlow sits in front of production data, so how it is built should be as
           checkable as what it does. Every claim below links to the evidence.
