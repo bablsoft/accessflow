@@ -402,7 +402,7 @@ every navigation. `_headers` overrides that:
 
 | Path | Cache-Control | Why |
 |---|---|---|
-| `/db-icons/*`, `/favicon.svg` | 1 year, `immutable` | Vendor logos — effectively static |
+| `/db-icons/*`, `/favicon.svg`, `/logo.png` | 1 year, `immutable` | Vendor logos, the favicon, and the raster Organization logo for JSON-LD — effectively static |
 | `/fonts/*` | 1 year, `immutable` | Subsetted Geist woff2 — content-stable, and `geist-latin.woff2` is preloaded on every page |
 | `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
 | `/styles.css`, `/app.js` | 1 hour, `must-revalidate` | Unhashed filenames; any site edit changes them in place |
@@ -411,6 +411,26 @@ every navigation. `_headers` overrides that:
 `Permissions-Policy`, and a `Content-Security-Policy` on `/*`. The file is parsed as config
 by the assets runtime and is never served — **do not add it to `.assetsignore`**, which
 would stop it uploading and silently disable every rule.
+
+### Third parties in the CSP
+
+The site talks to exactly **two** third-party origins, both Cloudflare Web Analytics:
+`https://static.cloudflareinsights.com` in `script-src` and `https://cloudflareinsights.com`
+in `connect-src`. Everything else — fonts, images, scripts, styles — is first-party, which is
+why `default-src` is `'self'`.
+
+Web Analytics is enabled in the Cloudflare dashboard with **automatic injection**: the beacon
+`<script src>` is added at the edge and appears in no file in this repo. It is also only
+injected for requests carrying a browser `Accept` header, so a plain `curl` of any page shows
+no trace of it and looks byte-identical to the source here. That combination hid a real bug —
+`script-src` did not list the origin, so the browser blocked the beacon on every page load and
+Web Analytics had never once received a hit. `curl` of the beacon URL returns 200; the same
+URL inside the page recorded as a blocked request.
+
+If you ever disable Web Analytics, remove both origins and the `ALLOWED` list in
+[`websiteCsp.test.ts`](../frontend/src/config/__tests__/websiteCsp.test.ts) — which pins the
+permitted origin list precisely so a third party cannot drift in unnoticed the way this one
+drifted out.
 
 ### Regenerating the CSP script hash
 
