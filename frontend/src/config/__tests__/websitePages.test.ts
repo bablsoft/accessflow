@@ -396,6 +396,27 @@ describe('website pages', () => {
     });
   });
 
+  it('leaves no page reachable from only a handful of others', () => {
+    // The three /features/ spokes are the longest commercial pages on the site and
+    // had 4 inbound links each: absent from the nav, the footer and every docs
+    // sidebar, reachable only from prose on / and /features/ and from each other.
+    // Nothing noticed, because every individual link was valid. A floor does.
+    const MIN_INBOUND = 10;
+    const urls = new Set(files.map(pageUrl));
+    const inbound = new Map([...urls].map((u) => [u, new Set<string>()]));
+    for (const f of files) {
+      const from = pageUrl(f);
+      for (const m of read(f).matchAll(/href="(\/[^"\s]*)"/g)) {
+        const to = m[1]!.split('#')[0] || '/';
+        if (urls.has(to) && to !== from) inbound.get(to)!.add(from);
+      }
+    }
+    const starved = [...inbound.entries()]
+      .filter(([, from]) => from.size < MIN_INBOUND)
+      .map(([u, from]) => `${u} (${from.size})`);
+    expect(starved.sort(), `pages with fewer than ${MIN_INBOUND} inbound pages`).toEqual([]);
+  });
+
   it('serves a real 404 page that recovers the visitor instead of dead-ending', () => {
     // Cloudflare's default not_found_handling returns a correct 404 status with a
     // zero-byte body. wrangler.jsonc opts into 404-page; this pins the page it needs.
