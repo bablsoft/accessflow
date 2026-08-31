@@ -252,16 +252,36 @@ with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 ## SEO
 
 Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
-`theme-color`, and a JSON-LD `@graph` (`SoftwareApplication` + `Organization` + `WebSite`
-on the homepage; `TechArticle` + `BreadcrumbList` + `Organization` on each docs chapter, on
-`/security/`, on `/ai-agents/` and on the three `/features/` spokes; `CollectionPage` + `ItemList` +
-`BreadcrumbList` + `Organization` on the `/connectors/`, `/use-cases/` and `/features/`
-catalog pages; plain `WebPage` + `BreadcrumbList` + `Organization` on `/roadmap/`). Only the
-homepage declares `SoftwareApplication` — every other page references it as
-`{"@id": ".../#software"}`. `BreadcrumbList` depth follows URL depth: two levels for a
+`theme-color`, and a JSON-LD `@graph`. The page-specific node is `WebPage` on the homepage;
+`TechArticle` on each docs chapter, on `/security/`, on `/ai-agents/` and on the three
+`/features/` spokes; `CollectionPage` + `ItemList` on the `/connectors/`, `/use-cases/` and
+`/features/` catalog pages; plain `WebPage` on `/roadmap/`. Every page except the homepage
+also carries a `BreadcrumbList`.
+
+**Every graph is self-contained.** `Organization`, `SoftwareApplication` and `WebSite` are
+repeated on all 22 pages — in full on the homepage, as a minimal typed stub (`@type` + `@id` +
+`name` + `url`) elsewhere. They used to be defined only on the homepage and referenced as bare
+`{"@id": ".../#software"}` stubs, which resolved to a typeless nothing on the other 21 pages:
+schema consumers parse per-document, and cross-document `@id` merging is not guaranteed. The
+guard in [`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts) fails
+on any `@id` reference a page cannot resolve within itself.
+
+**The organization entity is anchored on `accessflow.io`, never on GitHub.** `@id` is
+`https://accessflow.io/#org` and `url` is `https://accessflow.io/`; the GitHub org and repo
+live in `sameAs`. "AccessFlow" is also an Alcor IGA product and an accessiBe product, so the
+publishing entity has to bind to the domain being ranked or it competes with two incumbents
+for its own name. `logo` must be raster (`logo.png`, 512×512, rasterized from `favicon.svg`) —
+Google's logo guidelines reject SVG, so the earlier `favicon.svg` was silently ineligible.
+Both facts are tested.
+
+`BreadcrumbList` depth follows URL depth: two levels for a
 top-level page, three for anything nested — the eleven `docs/` chapters
 (AccessFlow → Documentation → the chapter) and the three `/features/` spokes
 (AccessFlow → Features → the spoke).
+
+`datePublished` is each page's own first-commit date and is guarded: it must be a real ISO
+date, never before the project's first commit (2026-04-30), never after `dateModified`. It sat
+at a `2026-04-01` placeholder on 13 pages until the guard was added.
 
 ### Regenerating og-image.png
 

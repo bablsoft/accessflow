@@ -495,6 +495,61 @@ describe('website pages', () => {
     );
   });
 
+  it('resolves every JSON-LD @id reference inside its own document', () => {
+    // Schema consumers parse per-document; cross-document @id merging is not
+    // guaranteed. #software and #website used to be defined only on the homepage
+    // and referenced as bare {"@id": …} stubs everywhere else, so on 21 of 22 pages
+    // TechArticle.about and .isPartOf pointed at a typeless nothing.
+    for (const f of files) {
+      const block = read(f).match(
+        /<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/,
+      );
+      expect(block, `${rel(f)} has no JSON-LD block`).not.toBeNull();
+      const graph = JSON.parse(block![1]!)['@graph'] as unknown[];
+      const defined = new Set(
+        graph.filter(
+          (n): n is Record<string, unknown> =>
+            typeof n === 'object' && n !== null && '@id' in n && '@type' in n,
+        ).map((n) => n['@id'] as string),
+      );
+      const refs = new Set<string>();
+      const walk = (x: unknown): void => {
+        if (Array.isArray(x)) x.forEach(walk);
+        else if (typeof x === 'object' && x !== null) {
+          const keys = Object.keys(x);
+          if (keys.length === 1 && keys[0] === '@id') refs.add((x as { '@id': string })['@id']);
+          Object.values(x).forEach(walk);
+        }
+      };
+      walk(graph);
+      expect([...refs].filter((r) => !defined.has(r)).sort(), `${rel(f)} dangling @id`).toEqual([]);
+    }
+  });
+
+  it('anchors the organization entity on accessflow.io, not on GitHub', () => {
+    // "AccessFlow" is also an Alcor IGA product and an accessiBe product, so the
+    // publishing entity has to be bound to the domain being ranked. GitHub belongs
+    // in sameAs, never in @id or url.
+    for (const f of files) {
+      const html = read(f);
+      expect(html, `${rel(f)} still anchors the org on GitHub`).not.toContain(
+        '"@id": "https://github.com/bablsoft#org"',
+      );
+      const org = JSON.parse(
+        html.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)![1]!,
+      )['@graph'].find((n: { '@type'?: string }) => n['@type'] === 'Organization');
+      expect(org, `${rel(f)} has no Organization node`).toBeDefined();
+      expect(org['@id'], `${rel(f)} Organization @id`).toBe('https://accessflow.io/#org');
+      expect(org.url, `${rel(f)} Organization url`).toBe('https://accessflow.io/');
+      // Google's logo guidelines accept raster only; an SVG is silently ineligible.
+      expect(org.logo, `${rel(f)} Organization logo must be raster`).toMatch(/\.(png|jpg|gif)$/);
+      expect(existsSync(path.join(websiteRoot, new URL(org.logo).pathname))).toBe(true);
+      expect(org.sameAs, `${rel(f)} keeps GitHub in sameAs`).toContain(
+        'https://github.com/bablsoft',
+      );
+    }
+  });
+
   it('gives every page a datePublished that is real, and not later than dateModified', () => {
     // dateModified had a three-way guard; datePublished had none, and drifted to a
     // 2026-04-01 placeholder on 13 pages — 29 days before the repo's first commit.
