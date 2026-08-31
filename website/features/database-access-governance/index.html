@@ -216,11 +216,12 @@
           <span class="eyebrow">Capabilities</span>
           <h1>Database access governance — every query reviewed before it runs</h1>
           <p>
-            Most teams govern database access one of two ways: hand out a shared read-only credential
-            and hope, or route everything through a DBA and watch the queue grow. AccessFlow is the
-            middle: a proxy that every query passes through, where the query is parsed, risk-scored,
-            routed to whoever should decide, executed under masking and row-level security, and recorded
-            in a log nobody can quietly edit. This page follows one query the whole way.
+            AccessFlow is a proxy that every database query passes through: the query is parsed,
+            risk-scored, routed to whoever should decide, executed under masking and row-level
+            security, and recorded in a log nobody can quietly edit. It is the middle ground between
+            the two ways most teams govern database access — hand out a shared read-only credential
+            and hope, or route everything through a DBA and watch the queue grow. This page follows
+            one query the whole way.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
