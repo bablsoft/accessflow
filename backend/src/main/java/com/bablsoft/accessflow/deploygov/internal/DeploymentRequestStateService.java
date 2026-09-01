@@ -46,6 +46,7 @@ public class DeploymentRequestStateService {
     private final DeploymentRequestRepository repository;
     private final DeploygovAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeploymentVersionTrackerService versionTracker;
 
     private static Map<QueryStatus, Set<QueryStatus>> allowedTransitions() {
         var allowed = new EnumMap<QueryStatus, Set<QueryStatus>>(QueryStatus.class);
@@ -85,6 +86,12 @@ public class DeploymentRequestStateService {
         }
         entity.setStatus(next);
         repository.save(entity);
+        if (next == QueryStatus.EXECUTED) {
+            // #741: maintain the per-environment deployed-version projection in this transaction.
+            // EXECUTED is only reachable from APPROVED, and the same-status early return above
+            // keeps a redelivered confirmation from double-shifting current → previous.
+            versionTracker.recordExecution(entity);
+        }
         eventPublisher.publishEvent(new DeploymentStatusChangedEvent(
                 entity.getId(), entity.getSubmittedBy(), previous, next));
     }

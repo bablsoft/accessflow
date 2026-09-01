@@ -114,7 +114,8 @@ class DeploymentPipelineControllerTest {
         when(pipelineService.createEnvironment(eq(pipelineId), eq(orgId), any()))
                 .thenReturn(environmentView());
 
-        var body = new CreateDeploymentEnvironmentRequest("production", 1, true, 2, null, false);
+        var body = new CreateDeploymentEnvironmentRequest("production", 1, true, 2, null, false,
+                null);
         var response = controller.createEnvironment(pipelineId, body, auth());
 
         assertThat(response.name()).isEqualTo("production");
@@ -130,7 +131,7 @@ class DeploymentPipelineControllerTest {
                 .thenReturn(environmentView());
 
         var body = new UpdateDeploymentEnvironmentRequest(null, 3, null, null, true, null, null,
-                null);
+                null, null);
         controller.updateEnvironment(pipelineId, environmentId, body, auth());
 
         verify(pipelineService).updateEnvironment(eq(pipelineId), eq(orgId), eq(environmentId),
@@ -255,7 +256,7 @@ class DeploymentPipelineControllerTest {
 
     private DeploymentEnvironmentView environmentView() {
         return new DeploymentEnvironmentView(UUID.randomUUID(), pipelineId, "production", 1, true,
-                2, null, false, Instant.now());
+                2, null, false, Instant.now(), List.of());
     }
 
     private DeploymentPermissionView permissionView() {

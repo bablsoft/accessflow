@@ -2378,7 +2378,7 @@ break-glass retro-review can target an API request.
 
 ---
 
-## Deployment governance (`deploygov`, #684–#695 / epic #682)
+## Deployment governance (`deploygov`, #684–#741 / epic #682)
 
 Migrations **V149** (definitions) and **V150** (request pipeline) lay the persistence foundation of
 the `deploygov` module: gate CI/CD deployments behind AccessFlow approval workflows. New pg enums
@@ -2391,6 +2391,8 @@ verbatim, exactly as the apigov tables do. Cross-module references (`organizatio
 `review_plan_id`, `ai_config_id`, `submitted_by`, `user_id`, `created_by`) are bare UUIDs (no FK);
 the group-permission table keeps the real FKs of its V111 template. **V151** seeds the
 `DEPLOYMENT_PIPELINE_MANAGE` (ADMIN) and `DEPLOYMENT_REVIEW` (ADMIN + REVIEWER) permissions.
+**V156** (#741) adds free-form environment `tags` and the `deployment_environment_versions`
+current-version projection.
 
 The feature narrative — lifecycle, gate contract, freeze-window semantics, CI wrappers — is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -2415,7 +2417,12 @@ The feature narrative — lifecycle, gate contract, freeze-window semantics, CI 
 Promotion environments per pipeline (`pipeline_id` FK `ON DELETE CASCADE`, unique
 `(pipeline_id, name)`, ordered by `sort_order`): `require_review` (default TRUE), nullable
 `required_approvals` / `review_plan_id` per-environment overrides, `allow_break_glass`
-(default FALSE), `created_at`.
+(default FALSE), `created_at`, and — from **V156** (#741) — `tags TEXT[] NOT NULL DEFAULT
+ARRAY[]::TEXT[]` with a GIN index (`idx_deployment_environments_tags_gin`). Tags are free-form
+labels (customer, region, tier, …) capped in Java at 10 per environment / 32 chars each,
+mirroring `query_templates.tags` (AF-364); a customer-specific target is simply its own
+environment row tagged accordingly (e.g. `prod-acme` tagged `acme`) — there is no customer
+entity and no fixed semantics on tag values.
 
 ### deployment_freeze_windows
 
@@ -2498,6 +2505,36 @@ follow-up review. Status enum `deployment_rollback_review_status` = `PENDING_REV
 | `created_at` | TIMESTAMPTZ | |
 
 Index: `(organization_id, status, created_at DESC)` — the reviewer worklist.
+
+### deployment_environment_versions
+
+Per-environment deployed-version projection (V156, #741) — one row per environment answering
+"what is deployed here right now", maintained by the module-private
+`DeploymentVersionTrackerService` inside the same transactions as the `APPROVED → EXECUTED`
+transition and the outcome report. A **read model only**: it never feeds back into gate,
+approval, or routing decisions, and deployment *history* stays fully derived from
+`deployment_requests` — this table holds only the current/previous projection. On execution,
+current shifts to previous and the request becomes current; a `FAILED`/`ROLLED_BACK` outcome
+for the current request reverts current to previous and nulls the previous fields (single-level
+undo — a second consecutive rollback honestly leaves `current_version` NULL, "unknown, see
+history"); an outcome for a non-current request changes nothing.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | UUID PK | |
+| `organization_id` / `pipeline_id` | UUID | Bare UUIDs (no FK), denormalized for org-wide listing; indexed together. |
+| `environment_id` | UUID NOT NULL UNIQUE, FK → `deployment_environments` `ON DELETE CASCADE` | One row per environment; goes with it. |
+| `current_version` / `current_request_id` / `deployed_at` | VARCHAR(255) / UUID / TIMESTAMPTZ | The current deploy; all nullable (NULL current = unknown after a double rollback). |
+| `previous_version` / `previous_request_id` / `previous_deployed_at` | — | The one-deep undo slot; nulled once spent. |
+| `last_outcome` | `deployment_outcome` | Nullable; after a revert it records the outcome of the *reverted* request while `current_*` points at the older deploy. |
+| `updated_at` | TIMESTAMPTZ NOT NULL | |
+| `version_lock` | BIGINT | `@Version` optimistic lock — concurrent writers on one environment resolve here. |
+
+Index: `(organization_id, pipeline_id)`. Listing goes through a Specification with optional
+pipeline and tag filters — the tag filter is a correlated `EXISTS` over
+`deployment_environments.tags` via `array_position(...) > 0` (Hibernate renders
+`array_position` null-safely as `coalesce(…, 0)`, so the `IS NOT NULL` shape would match
+everything; `> 0` is correct under both renderings). #742 consumes it; #741 ships no API or UI.
 
 ### deployment_routing_policies
 

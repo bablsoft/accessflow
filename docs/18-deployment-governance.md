@@ -19,8 +19,9 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 > scheduled deploys and the review-timeout job (#692), the fail-closed gate with execution
 > confirmation, outcome reporting and rollback follow-up reviews (#693), the GitHub / GitLab /
 > Azure / generic-curl CI wrappers (#694), the notification and audit fan-out (#695), and the web
-> UI (#696). Multi-environment version tracking, the drift API, and the version matrix
-> (#741 / #742 / #743) are **not** part of this release.
+> UI (#696). The multi-environment version-tracking foundation — environment tags and the
+> per-environment deployed-version projection (#741) — landed after v2.4; the drift API and the
+> version matrix (#742 / #743) are **not yet shipped**.
 
 ---
 
@@ -77,6 +78,19 @@ and `review_plan_id` **overrides** that win over the pipeline's, and an `allow_b
 opt-in that defaults to `false`. Approval count resolves in a fixed precedence:
 `environment.required_approvals` → the resolved plan's `minApprovalsRequired()` → 1. Plan
 resolution follows the same shape: the environment override wins over the pipeline's.
+
+Environments also carry free-form **tags** (#741) — at most 10, each ≤ 32 chars, no fixed
+semantics — for grouping across pipelines by customer, region, or tier; the "same application,
+different versions, different customers" case is modelled as one environment row per customer
+(`prod-acme` tagged `acme`). Each environment that has ever been deployed to also carries a
+`deployment_environment_versions` row (created on its first execution): a current/previous
+projection of what is deployed there, maintained by the module-private version tracker inside
+the EXECUTED and outcome transactions.
+Execution shifts current → previous; a `FAILED`/`ROLLED_BACK` outcome for the current deploy
+reverts to previous (single-level undo — a second consecutive rollback leaves the current
+version honestly unknown); an outcome for a non-current request changes nothing. The projection
+is a **read model only** — it never feeds gate, approval, or routing decisions, and history
+stays derived from `deployment_requests`. The listing API and UI arrive with #742/#743.
 
 **Who may trigger** is a per-pipeline grant, not a functional permission. Both a per-user table
 and a per-group table carry `can_trigger`, `can_break_glass` and an optional `expires_at`, and

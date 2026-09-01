@@ -145,6 +145,7 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         entity.setRequiredApprovals(command.requiredApprovals());
         entity.setReviewPlanId(command.reviewPlanId());
         entity.setAllowBreakGlass(Boolean.TRUE.equals(command.allowBreakGlass()));
+        entity.setTags(toTagArray(command.tags()));
         return toEnvironmentView(environmentRepository.save(entity));
     }
 
@@ -180,6 +181,9 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
         }
         if (command.allowBreakGlass() != null) {
             entity.setAllowBreakGlass(command.allowBreakGlass());
+        }
+        if (command.tags() != null) {
+            entity.setTags(toTagArray(command.tags()));
         }
         return toEnvironmentView(environmentRepository.save(entity));
     }
@@ -223,7 +227,19 @@ public class DefaultDeploymentPipelineAdminService implements DeploymentPipeline
     private static DeploymentEnvironmentView toEnvironmentView(DeploymentEnvironmentEntity e) {
         return new DeploymentEnvironmentView(
                 e.getId(), e.getPipelineId(), e.getName(), e.getSortOrder(), e.isRequireReview(),
-                e.getRequiredApprovals(), e.getReviewPlanId(), e.isAllowBreakGlass(), e.getCreatedAt());
+                e.getRequiredApprovals(), e.getReviewPlanId(), e.isAllowBreakGlass(), e.getCreatedAt(),
+                List.of(e.getTags()));
+    }
+
+    private static String[] toTagArray(List<String> tags) {
+        if (tags == null) {
+            return new String[0];
+        }
+        return tags.stream()
+                .filter(t -> t != null && !t.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toArray(String[]::new);
     }
 
     private static Pageable toPageable(PageRequest pageRequest) {

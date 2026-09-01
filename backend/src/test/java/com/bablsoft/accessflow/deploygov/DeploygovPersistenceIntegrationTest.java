@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRoutingAction;
 import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentEntity;
+import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentEnvironmentVersionEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentFreezeWindowEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentPipelineGroupPermissionEntity;
@@ -18,6 +19,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRollbackReviewStatus;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRollbackReviewEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRoutingPolicyEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentVersionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentFreezeWindowRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineGroupPermissionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
@@ -41,13 +43,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Validates that the V149–V152 migrations apply and every deploygov JPA entity maps to its table —
+ * Validates that the V149–V156 migrations apply and every deploygov JPA entity maps to its table —
  * entity ↔ DDL parity under {@code ddl-auto=validate}, including the pg enum
  * {@code columnDefinition}s ({@code pipeline_provider}, {@code freeze_behavior},
  * {@code deployment_outcome}, and the shared {@code query_status} / {@code decision} /
- * {@code api_routing_action}), the jsonb / {@code smallint[]} / {@code TIME} columns, and the
- * partial unique trigger-idempotency index — booting the full application context so the new
- * module wires cleanly.
+ * {@code api_routing_action}), the jsonb / {@code smallint[]} / {@code text[]} / {@code TIME}
+ * columns, the partial unique trigger-idempotency index, and the one-row-per-environment
+ * version-tracking table (#741) — booting the full application context so the new module wires
+ * cleanly.
  */
 @SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
@@ -71,6 +74,8 @@ class DeploygovPersistenceIntegrationTest {
     private DeploymentPipelineGroupPermissionRepository groupPermissionRepository;
     @Autowired
     private DeploymentRollbackReviewRepository rollbackReviewRepository;
+    @Autowired
+    private DeploymentEnvironmentVersionRepository environmentVersionRepository;
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -125,6 +130,88 @@ class DeploygovPersistenceIntegrationTest {
         assertThat(reloadedEnvironment.getRequiredApprovals()).isEqualTo(2);
         assertThat(reloadedEnvironment.isRequireReview()).isTrue();
         assertThat(reloadedEnvironment.isAllowBreakGlass()).isTrue();
+    }
+
+    @Test
+    void environmentTagsRoundTripAsATextArray() {
+        var pipeline = newPipeline();
+        var environment = newEnvironment(pipeline.getId(), "prod-acme");
+        environment.setTags(new String[]{"acme", "eu"});
+        environmentRepository.saveAndFlush(environment);
+
+        var reloaded = environmentRepository.findById(environment.getId()).orElseThrow();
+        assertThat(reloaded.getTags()).containsExactly("acme", "eu");
+
+        var untagged = environmentRepository
+                .findById(newEnvironment(pipeline.getId(), "staging").getId()).orElseThrow();
+        assertThat(untagged.getTags()).isEmpty();
+    }
+
+    @Test
+    void persistsAndReloadsEnvironmentVersionRow() {
+        var pipeline = newPipeline();
+        var environment = newEnvironment(pipeline.getId(), "production");
+
+        var row = new DeploymentEnvironmentVersionEntity();
+        row.setId(UUID.randomUUID());
+        row.setOrganizationId(pipeline.getOrganizationId());
+        row.setPipelineId(pipeline.getId());
+        row.setEnvironmentId(environment.getId());
+        row.setCurrentVersion("2.4.1");
+        row.setCurrentRequestId(UUID.randomUUID());
+        row.setDeployedAt(Instant.parse("2026-08-24T12:00:00Z"));
+        row.setPreviousVersion("2.4.0");
+        row.setPreviousRequestId(UUID.randomUUID());
+        row.setPreviousDeployedAt(Instant.parse("2026-08-20T09:00:00Z"));
+        row.setLastOutcome(DeploymentOutcome.SUCCEEDED);
+        environmentVersionRepository.saveAndFlush(row);
+
+        var reloaded = environmentVersionRepository.findByEnvironmentId(environment.getId())
+                .orElseThrow();
+        assertThat(reloaded.getCurrentVersion()).isEqualTo("2.4.1");
+        assertThat(reloaded.getPreviousVersion()).isEqualTo("2.4.0");
+        assertThat(reloaded.getLastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(reloaded.getUpdatedAt()).isNotNull();
+        assertThat(reloaded.getVersionLock()).isZero();
+        assertThat(environmentVersionRepository.findByPipelineId(pipeline.getId())).hasSize(1);
+
+        // All projection fields are nullable — the post-double-rollback "unknown" shape persists.
+        reloaded.setCurrentVersion(null);
+        reloaded.setCurrentRequestId(null);
+        reloaded.setDeployedAt(null);
+        reloaded.setPreviousVersion(null);
+        reloaded.setPreviousRequestId(null);
+        reloaded.setPreviousDeployedAt(null);
+        reloaded.setLastOutcome(DeploymentOutcome.ROLLED_BACK);
+        environmentVersionRepository.saveAndFlush(reloaded);
+        assertThat(environmentVersionRepository.findByEnvironmentId(environment.getId())
+                .orElseThrow().getCurrentVersion()).isNull();
+    }
+
+    @Test
+    void environmentVersionRowIsUniquePerEnvironmentAndCascadesWithIt() {
+        var pipeline = newPipeline();
+        var environment = newEnvironment(pipeline.getId(), "production");
+
+        var row = new DeploymentEnvironmentVersionEntity();
+        row.setId(UUID.randomUUID());
+        row.setOrganizationId(pipeline.getOrganizationId());
+        row.setPipelineId(pipeline.getId());
+        row.setEnvironmentId(environment.getId());
+        environmentVersionRepository.saveAndFlush(row);
+
+        var duplicate = new DeploymentEnvironmentVersionEntity();
+        duplicate.setId(UUID.randomUUID());
+        duplicate.setOrganizationId(pipeline.getOrganizationId());
+        duplicate.setPipelineId(pipeline.getId());
+        duplicate.setEnvironmentId(environment.getId());
+        assertThatThrownBy(() -> environmentVersionRepository.saveAndFlush(duplicate))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        // The FK is ON DELETE CASCADE: the projection row goes with its environment.
+        jdbcTemplate.update("DELETE FROM deployment_environments WHERE id = ?",
+                environment.getId());
+        assertThat(environmentVersionRepository.findByEnvironmentId(environment.getId())).isEmpty();
     }
 
     @Test

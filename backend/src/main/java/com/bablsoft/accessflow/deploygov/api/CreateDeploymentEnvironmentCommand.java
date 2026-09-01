@@ -1,11 +1,14 @@
 package com.bablsoft.accessflow.deploygov.api;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Create a deployment environment. {@code sortOrder} defaults to 0, {@code requireReview} to
  * {@code true} and {@code allowBreakGlass} to {@code false} when null; {@code requiredApprovals}
  * and {@code reviewPlanId} are nullable per-environment overrides of the pipeline's plan.
+ * {@code tags} are free-form labels (null or empty = no tags); the service trims, drops blanks
+ * and de-duplicates.
  */
 public record CreateDeploymentEnvironmentCommand(
         String name,
@@ -13,5 +16,6 @@ public record CreateDeploymentEnvironmentCommand(
         Boolean requireReview,
         Integer requiredApprovals,
         UUID reviewPlanId,
-        Boolean allowBreakGlass) {
+        Boolean allowBreakGlass,
+        List<String> tags) {
 }

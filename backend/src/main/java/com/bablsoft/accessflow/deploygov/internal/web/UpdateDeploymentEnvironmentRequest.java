@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.deploygov.api.UpdateDeploymentEnvironmentCommand;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
 import java.util.UUID;
 
 public record UpdateDeploymentEnvironmentRequest(
@@ -16,11 +17,13 @@ public record UpdateDeploymentEnvironmentRequest(
         Boolean clearRequiredApprovals,
         UUID reviewPlanId,
         Boolean clearReviewPlan,
-        Boolean allowBreakGlass) {
+        Boolean allowBreakGlass,
+        @Size(max = 10, message = "{validation.deployment_environment_tags.max}")
+        List<@Size(max = 32, message = "{validation.deployment_environment_tag.size}") String> tags) {
 
     UpdateDeploymentEnvironmentCommand toCommand() {
         return new UpdateDeploymentEnvironmentCommand(name, sortOrder, requireReview,
                 requiredApprovals, clearRequiredApprovals, reviewPlanId, clearReviewPlan,
-                allowBreakGlass);
+                allowBreakGlass, tags);
     }
 }

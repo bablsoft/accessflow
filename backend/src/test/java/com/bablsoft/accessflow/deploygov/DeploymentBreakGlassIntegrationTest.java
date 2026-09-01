@@ -176,7 +176,7 @@ class DeploymentBreakGlassIntegrationTest {
                 true, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
                 new CreateDeploymentEnvironmentCommand("production", 1, true, 2, null,
-                        allowBreakGlass));
+                        allowBreakGlass, null));
         permissionService.grantPermission(pipeline.id(), org.getId(), user.getId(),
                 new GrantDeploymentPermissionCommand(user.getId(), true, canBreakGlass, null));
         return new Fixture(org.getId(), user.getId(), pipeline.id());

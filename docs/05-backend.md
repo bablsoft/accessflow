@@ -1634,7 +1634,7 @@ It then re-submits through the existing `QuerySubmissionService.submit(...)` wit
 | `update` / `delete` | Apply the `get` rule first, then require `owner_id == caller`; non-owner TEAM access throws `QueryTemplateAccessDeniedException` (403, not 404 — the row is already visible) |
 | `create` | Inserts `owner_id = caller`; unique index `(organization_id, owner_id, LOWER(name))` enforces per-owner name uniqueness |
 
-**Tag storage** is a native PostgreSQL `text[]` column mapped via Hibernate 6's `@JdbcTypeCode(SqlTypes.ARRAY)` on a `String[]` field — no `hypersistence-utils` dependency. The list endpoint's tag filter uses `array_position(tags, :tag) IS NOT NULL` for index-friendly containment lookups, and the GIN index `idx_query_templates_tags_gin` keeps that path cheap.
+**Tag storage** is a native PostgreSQL `text[]` column mapped via Hibernate 6's `@JdbcTypeCode(SqlTypes.ARRAY)` on a `String[]` field — no `hypersistence-utils` dependency. The list endpoint's tag filter builds an `array_position(tags, :tag)` containment lookup, and the GIN index `idx_query_templates_tags_gin` keeps that path cheap. **Known defect:** the filter still uses the `IS NOT NULL` shape, which Hibernate's null-safe rendering (`coalesce(array_position(…), 0)`) turns into a match-everything predicate — see the deploygov "Version tracking (#741)" section below for why `> 0` is the correct comparison; the fix here is tracked separately.
 
 **Audit.** Every successful mutation calls `auditLogService.record(...)` with one of `QUERY_TEMPLATE_CREATED`, `QUERY_TEMPLATE_UPDATED`, `QUERY_TEMPLATE_DELETED`, `QUERY_TEMPLATE_RESTORED` and resource type `QUERY_TEMPLATE`.
 
@@ -2955,7 +2955,8 @@ analysis, the routing engine, and the status state machine; **#692 adds the huma
 reviewer queue and decision endpoints, break-glass deploys with the mandatory retro-review,
 scheduled-deploy semantics, and the review-timeout job; **#693 adds the machine contract** — the
 fail-closed gate endpoint, execution confirmation, outcome reporting with rollback follow-up
-reviews, and the release-announcement job.
+reviews, and the release-announcement job; **#741 adds multi-environment version tracking** —
+free-form environment tags and the per-environment deployed-version projection.
 
 The user- and operator-facing narrative for all of it is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -3301,6 +3302,34 @@ source of truth, the event is a polling optimization for #695's push-style webho
 template, the Azure Pipelines step template, and a generic curl walkthrough — live in
 `.github/actions/` and `ci-templates/`; see [`ci-templates/README.md`](../ci-templates/README.md)
 and [docs/16-iac.md](16-iac.md).
+
+### Version tracking (#741)
+
+**`deploygov/internal/DeploymentVersionTrackerService`** (+ `Default*`) maintains the
+`deployment_environment_versions` read model — one row per environment answering "what is
+deployed here right now". Deliberately **module-private** (not `api/`): nothing outside deploygov
+may depend on the projection, and it never feeds back into gate, approval, or routing decisions.
+It is not `@Transactional` itself; like `DeploymentRequestStateService.apply` it participates in
+the caller's transaction, so the projection commits atomically with the status change it mirrors.
+Two hooks:
+
+- `apply(entity, EXECUTED)` calls `recordExecution` (inside `confirmExecution`'s transaction):
+  shift current → previous, install the request's `version`/id as current with
+  `deployed_at = clock.instant()`, clear `last_outcome`; upsert the row when absent. Hooking the
+  `apply` chokepoint covers any future EXECUTED writer, and the same-status no-op means a
+  redelivered confirmation never double-shifts.
+- `reportOutcome` calls `recordOutcome` after the outcome is applied (and, for `FAILED`, after
+  the `EXECUTED → FAILED` flip), only on a *first* report:
+  `SUCCEEDED` stamps `last_outcome`; `FAILED`/`ROLLED_BACK` **for the current request** reverts
+  current ← previous and nulls the previous fields (single-level undo — a second consecutive
+  rollback leaves current honestly NULL, "unknown, see history"). An outcome for a non-current
+  request, or for an environment with no row, is a no-op.
+
+Listing for #742 goes through `DeploymentEnvironmentVersionSpecifications.forList(org, pipeline?,
+tag?)`; the tag filter is a correlated `EXISTS` over `deployment_environments.tags` using
+`array_position(...) > 0` — not `IS NOT NULL`, because Hibernate renders `array_position`
+null-safely as `coalesce(…, 0)`, which would make the null check match every row. Concurrent
+writers on one environment resolve on the `version_lock` optimistic lock.
 
 ## MCP server (mcp module)
 
