@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Documentation",
       "datePublished": "2026-05-14",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/",
       "mainEntityOfPage": "https://accessflow.io/docs/",
       "image": "https://accessflow.io/og-image.png",
@@ -219,6 +219,18 @@
             <a href="#chapters">Every chapter</a>
             <a href="#further-reading">Further reading</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -244,7 +256,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Run and configure AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section id="getting-started" class="docs-section">
@@ -303,60 +315,65 @@
 
         <section id="chapters" class="docs-section">
           <h2>Every chapter</h2>
-          <p>Read them in any order — each one stands alone.</p>
+          <p>The reference chapters stand alone and can be read in any order. The <a href="/docs/guides/">Guides</a> are ordered — start with running your first query.</p>
           <div class="docs-grid">
             <a href="/docs/install/" class="doc-card">
               <span class="doc-num">01</span>
               <h3>Install & first run</h3>
               <p>Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap.</p>
             </a>
-            <a href="/docs/configuration/users-roles/" class="doc-card">
+            <a href="/docs/guides/" class="doc-card">
               <span class="doc-num">02</span>
+              <h3>Guides</h3>
+              <p>Step-by-step manuals for setting up AccessFlow — your first governed query, datasources, notifications, users, SSO, AI analysis, API and deployment governance.</p>
+            </a>
+            <a href="/docs/configuration/users-roles/" class="doc-card">
+              <span class="doc-num">03</span>
               <h3>Users & roles</h3>
               <p>Configure AccessFlow organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access.</p>
             </a>
             <a href="/docs/configuration/datasources/" class="doc-card">
-              <span class="doc-num">03</span>
+              <span class="doc-num">04</span>
               <h3>Datasources</h3>
               <p>Add governed datasources to AccessFlow, tag sensitive columns, apply masking, row-level security, and result-export policies, upload JDBC drivers, and watch pool health.</p>
             </a>
             <a href="/docs/configuration/connectors/" class="doc-card">
-              <span class="doc-num">04</span>
+              <span class="doc-num">05</span>
               <h3>Connectors</h3>
               <p>Install SQL, NoSQL and data-warehouse engine connectors from the AccessFlow catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors.</p>
             </a>
             <a href="/docs/configuration/review-workflows/" class="doc-card">
-              <span class="doc-num">05</span>
+              <span class="doc-num">06</span>
               <h3>Review workflows</h3>
               <p>Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns.</p>
             </a>
             <a href="/docs/configuration/ai/" class="doc-card">
-              <span class="doc-num">06</span>
+              <span class="doc-num">07</span>
               <h3>AI</h3>
               <p>Configure AI providers for AccessFlow query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection.</p>
             </a>
             <a href="/docs/configuration/auth/" class="doc-card">
-              <span class="doc-num">07</span>
+              <span class="doc-num">08</span>
               <h3>Auth & SSO</h3>
               <p>Connect AccessFlow to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more.</p>
             </a>
             <a href="/docs/configuration/notifications/" class="doc-card">
-              <span class="doc-num">08</span>
+              <span class="doc-num">09</span>
               <h3>Notifications</h3>
               <p>Route AccessFlow review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP.</p>
             </a>
             <a href="/docs/configuration/audit-compliance/" class="doc-card">
-              <span class="doc-num">09</span>
+              <span class="doc-num">10</span>
               <h3>Audit & compliance</h3>
               <p>Read the AccessFlow tamper-evident audit log, generate signed compliance exports, run retention and right-to-erasure policies, and use the personalized dashboard.</p>
             </a>
             <a href="/docs/workflows/" class="doc-card">
-              <span class="doc-num">10</span>
+              <span class="doc-num">11</span>
               <h3>End-user workflows</h3>
               <p>How analysts submit queries and API calls in AccessFlow, draft SQL from natural language, schedule one-off or recurring runs, and how reviewers approve or reject them.</p>
             </a>
             <a href="/docs/iac/" class="doc-card">
-              <span class="doc-num">11</span>
+              <span class="doc-num">12</span>
               <h3>Infrastructure as Code</h3>
               <p>Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates.</p>
             </a>
@@ -428,6 +445,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

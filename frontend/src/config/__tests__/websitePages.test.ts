@@ -97,6 +97,11 @@ const SPOKE_URLS = [
  * nine chapters — the eight under /docs/configuration/ and /docs/iac/ — at 0.7,
  * each answering a question only some deployments ask; /roadmap/ at 0.6, since it
  * reports status rather than competing for a query.
+ *
+ * AF-773 added the /docs/guides/ section: the hub at 0.8, because it is an entry
+ * point a visitor lands on and browses rather than a leaf they arrive at; each
+ * individual guide at 0.7, alongside the reference chapters — a guide answers one
+ * task, which is the same size of question a chapter answers.
  */
 const SITEMAP_PRIORITY = {
   '/': '1.0',
@@ -111,6 +116,16 @@ const SITEMAP_PRIORITY = {
   '/use-cases/': '0.8',
   '/docs/install/': '0.8',
   '/docs/workflows/': '0.8',
+  '/docs/guides/': '0.8',
+  '/docs/guides/first-query/': '0.7',
+  '/docs/guides/datasource/': '0.7',
+  '/docs/guides/notifications/': '0.7',
+  '/docs/guides/team/': '0.7',
+  '/docs/guides/sso/': '0.7',
+  '/docs/guides/ai-analysis/': '0.7',
+  '/docs/guides/api-governance/': '0.7',
+  '/docs/guides/deployment-approval/': '0.7',
+  '/docs/guides/terraform/': '0.7',
   '/docs/configuration/users-roles/': '0.7',
   '/docs/configuration/datasources/': '0.7',
   '/docs/configuration/connectors/': '0.7',

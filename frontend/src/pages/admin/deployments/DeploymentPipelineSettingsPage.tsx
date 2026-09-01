@@ -176,6 +176,7 @@ export function DeploymentPipelineSettingsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <PageHeader
+        docsAnchor="guide-deployment-approval"
         title={pipeline?.name ?? t('deploygov.pipelines.title')}
         subtitle={pipeline ? pipelineProviderLabel(t, pipeline.provider) : undefined}
         actions={

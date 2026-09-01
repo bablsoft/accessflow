@@ -335,6 +335,12 @@ gate → confirm execution → report the outcome** — and every one of them **
 `404`, a terminal status, or the configured wait timeout. A pipeline is identified by UUID, since a
 trigger-only key cannot resolve names.
 
+> **Operator runbook.** The end-to-end setup — service account, API key, pipeline, environments,
+> the `can_trigger` grant, approver scoping and the first gated release — is written up as a
+> step-by-step guide at
+> [accessflow.io/docs/guides/deployment-approval/](https://accessflow.io/docs/guides/deployment-approval/)
+> (AF-773). This chapter is the architecture behind it.
+
 | Provider | Wrapper |
 |---|---|
 | GitHub Actions | `.github/actions/deployment-gate` + `.github/actions/deployment-outcome` composite actions |

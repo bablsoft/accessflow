@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/notifications/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/notifications/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -250,11 +262,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Notifications.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-notification-channels">Notification channels</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/notifications/">Set up email and chat notifications</a>
+            starts with system SMTP — the piece that makes email invitations work at all. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> Where AccessFlow sends review notifications — when a query is
             submitted, approved, rejected, times out, or scores <code>CRITICAL</code> on AI risk. Wire
@@ -263,7 +279,7 @@
           </p>
           <h3>Where can AccessFlow send review notifications?</h3>
           <p>
-            Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, Jira, and signed HTTP webhooks. Configure as many channels as you need per organization and pick which events each one receives — query submitted, approved, rejected, timed out, or scored CRITICAL by AI risk analysis.
+            Email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, Jira, and signed HTTP webhooks. Configure as many channels as you need per organization. Organization-wide events — high AI risk, anomalies, break-glass, the weekly digest, deployments — reach every active channel; the ordinary query lifecycle follows the channels bound to the datasource's review plan. PagerDuty, ServiceNow and Jira additionally carry their own trigger list. There is no general per-channel event picker.
           </p>
           <p>
             <strong>Configure it.</strong> Manage channels at <code>/admin/notifications</code>:
@@ -281,7 +297,7 @@
             <li><strong>Open <code>/admin/notifications</code></strong> and click <em>Add channel</em>.</li>
             <li><strong>Pick a type:</strong>
               <ul>
-                <li><strong>Email</strong> — supply SMTP host, port, optional user / password, TLS, and the <em>From</em> address / display name. Leave the SMTP fields blank to fall back on the <a href="#cfg-smtp">system SMTP</a>.</li>
+                <li><strong>Email</strong> — supply SMTP host, port, password, TLS, the <em>From</em> address and an optional user / display name. The user is optional; the password is not. An email channel is a full, independent SMTP configuration — it does not inherit <a href="#cfg-smtp">system SMTP</a>, and leaving its fields blank does not fall back to it. The system-SMTP fallback is decided per event, over the channels resolved for that event — not over the organization's channel list — so adding an email channel here does not on its own switch it off.</li>
                 <li><strong>Slack</strong> — paste an incoming-webhook URL for one-way Block Kit messages (header, SQL preview, and a <em>View in AccessFlow</em> link). For interactive <strong>Approve / Reject</strong> buttons, configure a Slack <strong>app</strong> instead (see below).</li>
                 <li><strong>Webhook</strong> — supply a target URL and a signing secret. Every POST carries <code>X-AccessFlow-Signature: sha256=...</code> computed from the body and the secret.</li>
                 <li><strong>Discord</strong> — paste a channel webhook URL (Server Settings → Integrations → Webhooks). Optional <em>username</em> and <em>avatar URL</em> override the bot identity per-message. Messages render as a rich embed with the SQL preview in a fenced code block.</li>
@@ -438,6 +454,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

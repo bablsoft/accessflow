@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Set up email and chat notifications — AccessFlow guide</title>
+  <meta name="description" content="Configure system SMTP so invitations work, then route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty and signed webhooks." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/notifications/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Set up email and chat notifications — AccessFlow guide" />
+  <meta property="og:description" content="Configure system SMTP so invitations work, then route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty and signed webhooks." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/notifications/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Set up email and chat notifications — AccessFlow guide" />
+  <meta name="twitter:description" content="Configure system SMTP so invitations work, then route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty and signed webhooks." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/notifications/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/notifications/#breadcrumb" },
+      "headline": "Set up email and chat notifications",
+      "name": "Set up email and chat notifications — AccessFlow guide",
+      "description": "Configure system SMTP so invitations work, then route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty and signed webhooks.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/notifications/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/notifications/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/notifications/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Send notifications",
+          "item": "https://accessflow.io/docs/guides/notifications/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/" class="docs-toc-current" aria-current="page">Send notifications</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-notifications">What you are building</a>
+            <a href="#guide-notifications-smtp">1. System SMTP</a>
+            <a href="#guide-notifications-channels">2. Add a channel</a>
+            <a href="#guide-notifications-routing">3. Understand what goes where</a>
+            <a href="#guide-notifications-webhook">4. Webhooks, and verifying them</a>
+            <a href="#guide-notifications-tickets">5. Two-way sync with ServiceNow or Jira</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Send notifications</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Set up email and chat notifications.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-notifications">What you are building</h2>
+          <p>
+            Two different things share one page, and it saves confusion to separate them up front:
+          </p>
+          <ul>
+            <li><strong>System SMTP</strong> — the mail server AccessFlow itself uses. Without it,
+              user invitations and password resets do not work at all.</li>
+            <li><strong>Notification channels</strong> — where review and audit events are announced:
+              email, Slack, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow, Jira, or a
+              signed webhook.</li>
+          </ul>
+          <p>
+            Both live at <strong>Notifications</strong> in the admin section. Set up SMTP first —
+            several other things depend on it.
+          </p>
+
+          <h3>Do I have to configure email to use AccessFlow?</h3>
+          <p>
+            No, but two features stop working without it: inviting a user by email, and password
+            reset. Both fail with a clear error rather than silently doing nothing. You can run
+            AccessFlow perfectly well with no mail at all if you create accounts with passwords and
+            use single sign-on.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-notifications-smtp">1. System SMTP</h2>
+          <p>
+            The <strong>System SMTP</strong> card sits at the top of the Notifications page. Choose
+            <strong>Configure</strong> and fill in <strong>Host</strong>, <strong>Port</strong>,
+            <strong>From address</strong>, and the password if your provider needs one.
+            <strong>Username</strong> and <strong>From display name</strong> are optional, and
+            <strong>STARTTLS</strong> is on by default.
+          </p>
+          <p>
+            Use <strong>Send test</strong> before you move on. It takes an optional recipient and
+            defaults to the from-address, and it tells you whether the server accepted the message —
+            which is a far quicker signal than discovering it later through a failed invitation.
+          </p>
+          <div class="docs-callout info">
+            <strong>What system SMTP is actually used for.</strong> Three things: user invitation
+            emails, password resets, and a fallback path so a notification still reaches somebody
+            when no email channel was resolved for it. That last one is per-event, not per-
+            organization — see <a href="#guide-notifications-routing">what goes where</a> below, and
+            do not assume adding an email channel switches it off.
+          </div>
+          <p>
+            Passwords are stored encrypted and never returned; the form shows a masked value, and
+            leaving it untouched keeps the stored one.
+          </p>
+          <p>
+            To declare it rather than click it, set
+            <code>ACCESSFLOW_BOOTSTRAP_ENABLED=true</code> and
+            <strong><code>ACCESSFLOW_BOOTSTRAP_SYSTEM_SMTP_ENABLED=true</code></strong>, then supply
+            <code>_HOST</code>, <code>_PORT</code>, <code>_FROM_ADDRESS</code> and the optional
+            <code>_USERNAME</code>, <code>_PASSWORD</code>, <code>_TLS</code> and
+            <code>_FROM_NAME</code>. Both switches are required: with the section flag unset,
+            bootstrap skips system SMTP silently — no error, and nothing configured.
+          </p>
+          <p>
+            Bootstrap is the source of truth for what it declares, but it does not re-write
+            unchanged rows: it stores a fingerprint of each declared spec and skips any resource
+            whose spec has not changed since the last run. So an edit you make in the admin UI
+            survives a restart, and is only overwritten once you change the declared values
+            themselves. Treat the declared set as authoritative anyway — anything else drifts.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Check <code>ACCESSFLOW_PUBLIC_BASE_URL</code> too.</strong> It is the origin
+            AccessFlow builds links from in the mail it sends. Its default points at a local
+            development frontend, so if you leave it alone, your invitation and notification links
+            will point somewhere your users cannot reach.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-notifications-channels">2. Add a channel</h2>
+          <p>
+            <strong>Add channel</strong>, give it a name, pick a type, and fill in what that type
+            needs. The nine types and their required fields:
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Type</th><th>You must supply</th><th>Also available</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Email</strong></td><td>SMTP host, SMTP port, SMTP password, From address</td><td>SMTP user, TLS, From name</td></tr>
+                <tr><td><strong>Slack</strong></td><td>Webhook URL</td><td>Channel override, mention list</td></tr>
+                <tr><td><strong>Discord</strong></td><td>Discord webhook URL</td><td>Override username and avatar</td></tr>
+                <tr><td><strong>Telegram</strong></td><td>Bot token, Chat ID</td><td>—</td></tr>
+                <tr><td><strong>Microsoft Teams</strong></td><td>Teams webhook URL</td><td>—</td></tr>
+                <tr><td><strong>Webhook</strong></td><td>URL, Secret</td><td>Timeout in seconds</td></tr>
+                <tr><td><strong>PagerDuty</strong></td><td>Integration routing key, default severity, at least one trigger</td><td>—</td></tr>
+                <tr><td><strong>ServiceNow</strong></td><td>Instance URL, username, password, at least one trigger</td><td>Assignment group, urgency, two-way sync</td></tr>
+                <tr><td><strong>Jira</strong></td><td>Site URL, account email, API token, project key, at least one trigger</td><td>Issue type, two-way sync</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="docs-callout warn">
+            <strong>An email channel needs its own SMTP password.</strong> It does not inherit the
+            system SMTP settings, and leaving its fields blank does not fall back to them — an email
+            channel is a full, independent SMTP configuration.
+          </div>
+          <p>
+            Every secret you enter — SMTP passwords, webhook secrets, bot tokens, PagerDuty routing
+            keys, ServiceNow passwords, Jira API tokens — is encrypted before it is stored and
+            replaced by a mask when read back. On edit, leaving the mask alone keeps the stored
+            value; secrets are only required when you first create the channel.
+          </p>
+          <p>
+            Each channel has a <strong>Test</strong> button. For email channels it asks for an
+            optional override recipient first. Test messages are deliberately kept out of the in-app
+            inbox, so a successful test is quiet everywhere except the channel you are testing.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-notifications-routing">3. Understand what goes where</h2>
+          <p>
+            This is the part worth reading carefully, because it is not what most people assume.
+            <strong>There is no per-channel event picker.</strong> Routing works two ways, depending
+            on the event:
+          </p>
+          <ul>
+            <li><strong>Organization-wide events go to every active channel.</strong> High AI risk,
+              a detected anomaly, a break-glass execution, the weekly digest, a recertification
+              campaign opening, a stale grant, a sensitive result export, a failed connector token,
+              and all five deployment events. Add a channel and it starts receiving these
+              immediately.</li>
+            <li><strong>Everything else — the ordinary query lifecycle — follows the review
+              plan.</strong> Those notifications go to the channels bound to the review plan of the
+              datasource the query targeted.</li>
+          </ul>
+          <div class="docs-callout warn">
+            <strong>Binding channels to a review plan has no form field yet.</strong> The review
+            plan carries the list, and the REST API, Terraform provider and bootstrap all accept it,
+            but the review-plan screen does not render an input for it. Until it does, set it
+            through one of those three — <a href="/docs/guides/terraform/">Terraform</a> is the
+            least painful if you are already declaring plans there.
+          </div>
+          <p>
+            PagerDuty and the two ticketing types are the exception: they carry their own trigger
+            list, so you choose exactly which events raise an incident or open a ticket.
+          </p>
+          <ul>
+            <li><strong>PagerDuty — Trigger on:</strong> AI critical-risk query, review timeout,
+              behavioural anomaly detected, break-glass query executed, routing-policy escalation,
+              review stalled.</li>
+            <li><strong>ServiceNow and Jira — Create a ticket on:</strong> query rejected, review
+              timeout, routing-policy escalation.</li>
+          </ul>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-notifications-webhook">4. Webhooks, and verifying them</h2>
+          <p>
+            A webhook channel posts JSON to your URL with three headers:
+            <code>X-AccessFlow-Event</code> naming the event type,
+            <code>X-AccessFlow-Delivery</code> carrying a unique delivery id, and
+            <code>X-AccessFlow-Signature</code> holding
+            <code>sha256=&lt;hex&gt;</code> — an HMAC-SHA256 of the raw request body, keyed by the
+            secret you configured.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Verify the signature over the raw bytes.</strong> Compute the HMAC before your
+            framework parses, re-serialises or pretty-prints the body — any of those changes the
+            bytes and the signature will not match. Compare in constant time.
+          </div>
+          <p>
+            Delivery is one attempt plus up to three retries, after roughly 30 seconds, 2 minutes
+            and 10 minutes. Tune them with
+            <code>ACCESSFLOW_NOTIFICATIONS_RETRY_FIRST</code>, <code>_SECOND</code> and
+            <code>_THIRD</code>. When all four attempts fail the exhaustion is recorded in the audit
+            log with the attempt count and the last HTTP status, so a quietly broken endpoint is
+            discoverable rather than invisible. A channel deleted or deactivated mid-retry is not
+            retried again.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-notifications-tickets">5. Two-way sync with ServiceNow or Jira</h2>
+          <p>
+            A ticketing channel opens a ticket when one of its triggers fires. Switch on
+            <strong>Bi-directional status sync</strong> and the reverse also works: resolving the
+            ticket in ServiceNow or Jira approves or rejects the waiting query in AccessFlow.
+          </p>
+          <p>
+            Enabling it makes <strong>Webhook secret</strong> mandatory — the inbound endpoint is
+            unauthenticated apart from the signature, so without a secret there is nothing to trust.
+            Point your ticketing system's outbound webhook at the per-channel URL under
+            <code>/api/v1/integrations/servicenow/webhook/</code> or
+            <code>/api/v1/integrations/jira/webhook/</code>, and sign each request with
+            <code>X-AccessFlow-Timestamp</code> and <code>X-AccessFlow-Signature</code>. Requests
+            older than five minutes are rejected as replays; adjust with
+            <code>ACCESSFLOW_NOTIFICATIONS_TICKETING_SIGNATURE_TOLERANCE</code>.
+          </p>
+          <p>
+            Which resolutions count is configurable per channel. Out of the box, statuses like
+            <em>resolved</em>, <em>closed</em>, <em>done</em>, <em>approved</em> and
+            <em>complete</em> approve; <em>rejected</em>, <em>declined</em> and <em>cancelled</em>
+            reject. Matching is case-insensitive, and a decision already made in AccessFlow wins —
+            a late ticket resolution cannot overturn it.
+          </p>
+          <p>
+            Channel-by-channel field reference, message formats and the full event list:
+            <a href="/docs/configuration/notifications/">Notifications</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

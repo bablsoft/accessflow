@@ -795,10 +795,14 @@ A page opts in by passing the anchor to its existing `PageHeader`:
 />
 ```
 
-The deployment-governance admin surface uses `cfg-deployment-pipelines`
-(`/docs/configuration/review-workflows/#cfg-deployment-pipelines`) on `DeploymentPipelinesPage`;
-the CI-side setup lives at `/docs/iac/#iac-deployment-gate`, which no page links to from the app
-and so needs no anchor entry.
+The deployment-governance admin surface uses two anchors: `cfg-deployment-pipelines`
+(`/docs/configuration/review-workflows/#cfg-deployment-pipelines`) on `DeploymentPipelinesPage` —
+the conceptual reference — and `guide-deployment-approval`
+(`/docs/guides/deployment-approval/#guide-deployment-approval`) on
+`DeploymentPipelineSettingsPage`, the step-by-step setup runbook, which is what someone standing on
+a half-configured pipeline actually needs (AF-773). The wider CI reference at
+`/docs/iac/#iac-deployment-gate` is linked from both of those pages rather than from the app, so it
+needs no anchor entry of its own.
 
 `PageHeader` renders it as a "View docs" link (`target="_blank"` + `rel="noopener noreferrer"`,
 label and `aria-label` via `t()`) in the header row, to the left of `actions` — so it stays clear of

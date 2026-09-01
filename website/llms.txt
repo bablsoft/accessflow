@@ -50,6 +50,16 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [Governed database access for AI agents](https://accessflow.io/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit
 - [Documentation home](https://accessflow.io/docs/): Hub for the operator and admin documentation — install AccessFlow, complete first-run setup, and configure every entity in the review pipeline
 - [Install & first run](https://accessflow.io/docs/install/): Run AccessFlow with Docker Compose, Kubernetes and Helm, or from source, then complete first-time setup with the browser wizard or GitOps bootstrap
+- [Guides](https://accessflow.io/docs/guides/): Step-by-step manuals for setting up AccessFlow, in the order a new deployment needs them
+- [Run your first query](https://accessflow.io/docs/guides/first-query/): From a fresh install to a query that is reviewed, approved and executed — the guide to start with
+- [Add a datasource](https://accessflow.io/docs/guides/datasource/): Install an engine connector, connect a database, read its schema, and limit and mask what can be queried
+- [Send notifications](https://accessflow.io/docs/guides/notifications/): Configure system email so invitations work, then route review events to Slack, Teams, PagerDuty or a signed webhook
+- [Invite your team](https://accessflow.io/docs/guides/team/): Create accounts, choose roles, group people, and grant database access that expires on its own
+- [Connect SSO](https://accessflow.io/docs/guides/sso/): Sign in through your identity provider with OAuth 2.0 / OIDC or SAML 2.0, and provision users over SCIM
+- [Turn on AI analysis](https://accessflow.io/docs/guides/ai-analysis/): Point AccessFlow at an AI provider so every query reaches review with a risk level and an explanation
+- [Govern an API call](https://accessflow.io/docs/guides/api-governance/): Put review and approval in front of outbound REST, SOAP, GraphQL and gRPC calls
+- [Gate a CI/CD pipeline](https://accessflow.io/docs/guides/deployment-approval/): Make a CI/CD deploy job wait for human approval before it releases, and record who approved it
+- [Automate with Terraform](https://accessflow.io/docs/guides/terraform/): Declare datasources, review plans and policies as code with the Terraform / OpenTofu provider
 - [Users & roles](https://accessflow.io/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
 - [Datasources](https://accessflow.io/docs/configuration/datasources/): Add governed datasources, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health
 - [Connectors](https://accessflow.io/docs/configuration/connectors/): Install SQL, NoSQL and data-warehouse engine connectors from the catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors

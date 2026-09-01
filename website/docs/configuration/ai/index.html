@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/ai/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/ai/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -252,11 +264,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>AI configuration.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-ai">AI configurations</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/ai-analysis/">Turn on AI risk analysis</a>
+            is the short version: pick a provider, bind it to a datasource, and know what happens when it fails. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> The AI brain behind query risk analysis and natural-language
             "text-to-query". Configure it per organization and point it at the provider that fits your
@@ -265,7 +281,7 @@
           </p>
           <h3>Which AI providers does AccessFlow support?</h3>
           <p>
-            Anthropic, OpenAI, Ollama, Hugging Face, and any OpenAI-compatible endpoint. You configure one provider per organization and supply its API key, base URL, and model. Ollama keeps every prompt on your own infrastructure, so no query text leaves the network — the usual choice when data-egress policy forbids a hosted model.
+            Anthropic, OpenAI, Ollama, Hugging Face, and any OpenAI-compatible endpoint. Configure as many as you need — each datasource binds to one — and supply each with its API key, endpoint and model. Ollama keeps every prompt on your own infrastructure, so no query text leaves the network — the usual choice when data-egress policy forbids a hosted model.
           </p>
           <ul>
             <li><strong>Anthropic</strong> — default model <code>claude-sonnet-4-20250514</code>.</li>
@@ -286,7 +302,7 @@
           <p><strong>Configure it.</strong> Create a configuration with the three-step wizard at
             <code>/admin/ai-configs</code>:</p>
           <ol>
-            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>New configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible / Hugging Face). The wizard pre-fills the default model for the provider you chose.</li>
+            <li><strong>Provider.</strong> Open <code>/admin/ai-configs</code>, click <em>Add AI configuration</em>, and pick a provider tile (OpenAI / Anthropic / Ollama / Custom OpenAI-compatible / Hugging Face). The wizard pre-fills the default model for the provider you chose.</li>
             <li><strong>Connection.</strong> Name the configuration, optionally override the model, and paste the API key (left empty for Ollama and custom keyless servers; for Ollama, Custom OpenAI-compatible, and Hugging Face providers supply an <em>Endpoint</em> URL instead — required for the custom provider, pre-filled with the router URL for Hugging Face and editable to a local TGI / Dedicated Endpoint). Tune <em>Timeout</em>, <em>Max prompt tokens</em>, and <em>Max completion tokens</em> if your provider has stricter limits.</li>
             <li><strong>Test.</strong> The wizard sends a synthetic SQL snippet to the provider and shows the score, risk level, and any issues so you can confirm the credentials and model are working before you save.</li>
           </ol>
@@ -598,6 +614,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

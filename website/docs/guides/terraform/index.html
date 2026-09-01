@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manage AccessFlow with Terraform — AccessFlow guide</title>
+  <meta name="description" content="Declare AccessFlow governance as code: create a service account and API key, configure the Terraform or OpenTofu provider, and apply your first resource." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/terraform/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Manage AccessFlow with Terraform — AccessFlow guide" />
+  <meta property="og:description" content="Declare AccessFlow governance as code: create a service account and API key, configure the Terraform or OpenTofu provider, and apply your first resource." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/terraform/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Manage AccessFlow with Terraform — AccessFlow guide" />
+  <meta name="twitter:description" content="Declare AccessFlow governance as code: create a service account and API key, configure the Terraform or OpenTofu provider, and apply your first resource." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/terraform/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/terraform/#breadcrumb" },
+      "headline": "Manage AccessFlow with Terraform",
+      "name": "Manage AccessFlow with Terraform — AccessFlow guide",
+      "description": "Declare AccessFlow governance as code: create a service account and API key, configure the Terraform or OpenTofu provider, and apply your first resource.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/terraform/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/terraform/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/terraform/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Automate with Terraform",
+          "item": "https://accessflow.io/docs/guides/terraform/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/" class="docs-toc-current" aria-current="page">Automate with Terraform</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-terraform">What you are building</a>
+            <a href="#guide-terraform-credentials">1. Get a service-account API key</a>
+            <a href="#guide-terraform-provider">2. Configure the provider</a>
+            <a href="#guide-terraform-apply">3. Declare something and apply it</a>
+            <a href="#guide-terraform-resources">What the provider manages</a>
+            <a href="#guide-terraform-ci">Running it from CI, without Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Automate with Terraform</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Manage AccessFlow with Terraform.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-terraform">What you are building</h2>
+          <p>
+            Everything you configured by clicking — datasources, review plans, routing, masking and
+            row-security policies, AI configs, notification channels — can be declared in HCL
+            instead and applied from CI. This guide gets you from nothing to a first
+            <code>apply</code>.
+          </p>
+          <p>
+            The provider is published as <code>bablsoft/accessflow</code> and works with both
+            <strong>Terraform</strong> and <strong>OpenTofu</strong>; the two registries carry the
+            same namespace and name. You need an AccessFlow instance reachable from wherever you
+            run <code>terraform</code>, and about fifteen minutes.
+          </p>
+
+          <h3>Can AccessFlow be managed with Terraform?</h3>
+          <p>
+            Yes. The official provider manages datasources, review plans, routing, row-security and
+            masking policies, AI configs and notification channels over the REST API, authenticating
+            with a service-account API key. Requests themselves — queries, API calls, deployments —
+            are runtime objects and are deliberately not Terraform-managed.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-terraform-credentials">1. Get a service-account API key</h2>
+          <p>
+            Terraform needs credentials that do not depend on anyone's browser session. The
+            intended path is a <strong>service account</strong>: an API-key-only user whose password
+            login is disabled and whose key you generate yourself, so AccessFlow only ever stores
+            its hash.
+          </p>
+          <p>Generate a key first — it is just a random token with an <code>af_</code> prefix:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">create the secret</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>kubectl create secret generic accessflow-bootstrap-secrets \
+  --from-literal=admin-password=<span class="c-str">"$(openssl rand -base64 24)"</span> \
+  --from-literal=ci-api-key=<span class="c-str">"af_$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')"</span>
+</pre>
+          </div>
+          <p>Then declare the account in your Helm values. Bootstrap creates it on the next start:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">values.yaml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>bootstrap:
+  enabled: true
+  serviceAccounts:
+    - email: terraform@acme.example.com
+      displayName: Terraform CI
+      role: ADMIN
+      apiKeyName: terraform
+      apiKeySecretRef:
+        name: accessflow-bootstrap-secrets
+        key: ci-api-key
+      <span class="c-com"># Optional ISO-8601 instant; never expires when omitted.</span>
+      <span class="c-com"># apiKeyExpiresAt: "2027-01-01T00:00:00Z"</span>
+</pre>
+          </div>
+          <p>
+            Outside Kubernetes the same fields are environment variables —
+            <code>ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL</code>,
+            <code>_DISPLAY_NAME</code>, <code>_ROLE</code>, <code>_API_KEY_NAME</code>,
+            <code>_API_KEY</code> and the optional <code>_API_KEY_EXPIRES_AT</code>. Rotating the
+            key is a matter of changing the secret: bootstrap re-imports it in place.
+          </p>
+          <div class="docs-callout info">
+            <strong>Just evaluating?</strong> Any user can mint a key for themselves at
+            <strong>Profile settings</strong> → <strong>API keys</strong>. The raw value is shown
+            once. It works fine for a first <code>apply</code>, but a personal key inherits that
+            person's account — use a service account for anything that outlives the experiment.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-terraform-provider">2. Configure the provider</h2>
+          <p>
+            Two arguments, both optional in HCL because each falls back to an environment variable —
+            which is what you want in CI, so the key never lands in a state file or a diff.
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">main.tf</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>terraform {
+  required_providers {
+    accessflow = {
+      source = <span class="c-str">"bablsoft/accessflow"</span>
+    }
+  }
+}
+
+<span class="c-com"># endpoint and api_key also read ACCESSFLOW_ENDPOINT and ACCESSFLOW_API_KEY.</span>
+provider <span class="c-str">"accessflow"</span> {
+  endpoint = <span class="c-str">"https://accessflow.example.com"</span>
+  api_key  = var.accessflow_api_key
+}
+
+variable <span class="c-str">"accessflow_api_key"</span> {
+  type      = string
+  sensitive = true
+}
+</pre>
+          </div>
+          <p>
+            An explicit HCL value wins over the environment variable. Supply neither and the
+            provider stops with a message naming the argument and the variable it looked for.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-terraform-apply">3. Declare something and apply it</h2>
+          <p>
+            Start with a review plan and a datasource that references it — the smallest pair that
+            does something real.
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">main.tf</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>resource <span class="c-str">"accessflow_review_plan"</span> <span class="c-str">"standard"</span> {
+  name                    = <span class="c-str">"standard"</span>
+  description             = <span class="c-str">"AI review then one human approval; reads auto-approved."</span>
+  requires_ai_review      = true
+  requires_human_approval = true
+  min_approvals_required  = 1
+  approval_timeout_hours  = 24
+  auto_approve_reads      = true
+
+  approvers = [
+    {
+      user_id = <span class="c-str">"11111111-1111-1111-1111-111111111111"</span>
+      stage   = 1
+    }
+  ]
+}
+
+resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">"prod_postgres"</span> {
+  name          = <span class="c-str">"prod-postgres"</span>
+  db_type       = <span class="c-str">"POSTGRESQL"</span>
+  host          = <span class="c-str">"postgres.prod.internal"</span>
+  port          = 5432
+  database_name = <span class="c-str">"app"</span>
+  username      = <span class="c-str">"af_reader"</span>
+  password      = var.prod_postgres_password <span class="c-com"># write-only</span>
+  ssl_mode      = <span class="c-str">"REQUIRE"</span>
+
+  require_review_writes = true
+  ai_analysis_enabled   = true
+  review_plan_id        = accessflow_review_plan.standard.id
+}
+</pre>
+          </div>
+          <p>Then the usual three commands — <code>tofu</code> works identically:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">apply</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>export ACCESSFLOW_ENDPOINT=<span class="c-str">"https://accessflow.example.com"</span>
+export ACCESSFLOW_API_KEY=<span class="c-str">"af_…"</span>
+
+terraform init
+terraform plan
+terraform apply
+</pre>
+          </div>
+          <div class="docs-callout warn">
+            <strong>Secrets do not appear in a plan.</strong> Database passwords, AI API keys and
+            notification channel config are write-only: AccessFlow never returns them, so Terraform
+            cannot detect that one changed outside its state. Change the value in your variable and
+            it is applied; change it in the AccessFlow UI and Terraform will not notice.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-terraform-resources">What the provider manages</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Resource</th><th>Manages</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>accessflow_datasource</code></td><td>A governed database connection — host, credentials, SSL mode, and the review plan and AI config attached to it.</td></tr>
+                <tr><td><code>accessflow_review_plan</code></td><td>An approval policy: AI review, human approval, minimum approvals, timeout, and the approver rows.</td></tr>
+                <tr><td><code>accessflow_routing_policy</code></td><td>Attribute-based routing — auto-approve, auto-reject, require more approvals, or escalate.</td></tr>
+                <tr><td><code>accessflow_row_security_policy</code></td><td>A row-level predicate, nested under a datasource.</td></tr>
+                <tr><td><code>accessflow_masking_policy</code></td><td>A column masking strategy, nested under a datasource.</td></tr>
+                <tr><td><code>accessflow_ai_config</code></td><td>An AI analyzer configuration. Its API key is write-only.</td></tr>
+                <tr><td><code>accessflow_notification_channel</code></td><td>A notification channel — email, Slack, webhook, Discord, Telegram, Microsoft Teams or PagerDuty. Changing its type replaces the resource.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Two data sources — <code>accessflow_datasource</code> and
+            <code>accessflow_review_plan</code> — look an existing object up by id.
+          </p>
+          <div class="docs-callout info">
+            <strong>Not covered by the provider.</strong> API connectors and deployment pipelines
+            are configured in the app, not in HCL. Their <em>runtime</em> half has its own
+            automation: see <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>.
+          </div>
+          <p>
+            Every resource supports <code>terraform import</code>. The two nested policies take a
+            composite id:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">import</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com"># Nested policies import as datasource_id/policy_id.</span>
+terraform import accessflow_row_security_policy.tenant_isolation \
+  11111111-2222-3333-4444-555555555555/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+</pre>
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-terraform-ci">Running it from CI, without Terraform</h2>
+          <p>
+            If you only need one or two operations in a pipeline, the ready-made CI wrappers are
+            lighter than standing up Terraform state. Both authenticate with the same
+            service-account key.
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.gitlab-ci.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>include:
+  - remote: <span class="c-str">"https://raw.githubusercontent.com/bablsoft/accessflow/main/ci-templates/gitlab/accessflow.gitlab-ci.yml"</span>
+
+provision_prod_db:
+  stage: provision
+  extends: .accessflow_provision_datasource
+  variables:
+    ACCESSFLOW_ENDPOINT: <span class="c-str">"https://accessflow.example.com"</span>
+    AF_NAME: <span class="c-str">"prod-postgres"</span>
+    AF_DB_TYPE: <span class="c-str">"POSTGRESQL"</span>
+    AF_HOST: <span class="c-str">"postgres.prod.internal"</span>
+    AF_PORT: <span class="c-str">"5432"</span>
+    AF_DATABASE_NAME: <span class="c-str">"app"</span>
+    AF_USERNAME: <span class="c-str">"af_reader"</span>
+    AF_PASSWORD: <span class="c-str">"$PROD_DB_PASSWORD"</span>
+    AF_SSL_MODE: <span class="c-str">"REQUIRE"</span>
+</pre>
+          </div>
+          <p>
+            Note the two names that are <em>not</em> <code>AF_</code>-prefixed:
+            <code>ACCESSFLOW_ENDPOINT</code> and <code>ACCESSFLOW_API_KEY</code>. Set the key as a
+            masked, protected variable rather than inline. The equivalent GitHub Actions are
+            <code>provision-datasource</code> and <code>run-query</code>; a run-query job submits
+            the SQL, waits for the decision, and executes it once approved.
+          </p>
+          <p>
+            Full argument reference for every resource, the CI action inputs and the release
+            process live in <a href="/docs/iac/#iac">Infrastructure as Code</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

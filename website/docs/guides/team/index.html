@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invite your team and assign roles — AccessFlow guide</title>
+  <meta name="description" content="Create users, understand what each AccessFlow role can do, group people, and grant time-limited just-in-time access to a datasource." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/team/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Invite your team and assign roles — AccessFlow guide" />
+  <meta property="og:description" content="Create users, understand what each AccessFlow role can do, group people, and grant time-limited just-in-time access to a datasource." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/team/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Invite your team and assign roles — AccessFlow guide" />
+  <meta name="twitter:description" content="Create users, understand what each AccessFlow role can do, group people, and grant time-limited just-in-time access to a datasource." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/team/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/team/#breadcrumb" },
+      "headline": "Invite your team and assign roles",
+      "name": "Invite your team and assign roles — AccessFlow guide",
+      "description": "Create users, understand what each AccessFlow role can do, group people, and grant time-limited just-in-time access to a datasource.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/team/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/team/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/team/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Invite your team",
+          "item": "https://accessflow.io/docs/guides/team/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/" class="docs-toc-current" aria-current="page">Invite your team</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-team">What you are building</a>
+            <a href="#guide-team-create">1. Create the accounts</a>
+            <a href="#guide-team-roles">2. Pick the right role</a>
+            <a href="#guide-team-grants">3. Grant access to a datasource</a>
+            <a href="#guide-team-groups">4. Use groups once individual grants stop scaling</a>
+            <a href="#guide-team-jit">5. Let people ask, instead of granting up front</a>
+            <a href="#guide-team-offboarding">6. When someone leaves</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Invite your team</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Invite your team and assign roles.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-team">What you are building</h2>
+          <p>
+            Accounts for the people who will use AccessFlow, with each one able to do what their job
+            needs and no more. That means three separate decisions, and it helps to keep them
+            separate in your head: <strong>what a person may do in the product</strong> (their
+            role), <strong>which databases they may touch</strong> (a grant on each datasource), and
+            <strong>for how long</strong> (an expiry, or a request that grants itself temporarily).
+          </p>
+
+          <h3>What is the difference between a role and a grant?</h3>
+          <p>
+            A <strong>role</strong> decides which parts of AccessFlow a person can use — whether
+            they can submit writes, review other people's queries, or open admin pages. A
+            <strong>grant</strong> decides which datasource they can query and with what
+            capabilities. Neither implies the other: an analyst with no grants can reach no data,
+            and a grant on its own does not let anyone review.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-create">1. Create the accounts</h2>
+          <p>
+            Sidebar → <em>Security &amp; Access</em> → <strong>Users</strong>. The control at the
+            top right is a split button with two different paths behind it.
+          </p>
+          <ul>
+            <li><strong>Invite via email</strong> — the main half of the button. Opens
+              <em>Invite a teammate</em>: <strong>Email</strong>, an optional <strong>Display
+              name</strong>, and a <strong>Role</strong>. <strong>Send invitation</strong> emails
+              them a link they use to set their own password. This is the path you want on a real
+              deployment.</li>
+            <li><strong>Create with password</strong> — behind the small arrow. Opens <em>Invite
+              user</em>, which asks for an <strong>Initial password</strong> alongside the same
+              fields and creates the account immediately. Despite its <strong>Send invite</strong>
+              button, this path sends no mail at all.</li>
+          </ul>
+          <div class="docs-callout warn">
+            <strong>Invite via email needs system SMTP first.</strong> Without it the action fails
+            with <code>422 SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE</code> before it creates anything.
+            Set email up with the <a href="/docs/guides/notifications/#guide-notifications-smtp">notifications
+            guide</a>, or use the password path meanwhile.
+          </div>
+          <p>
+            Sent invitations appear in a <strong>Pending invitations</strong> table below the user
+            list, where you can resend or revoke one. Links expire after seven days by default
+            (<code>ACCESSFLOW_SECURITY_INVITATION_TTL</code>), and they are built from
+            <code>ACCESSFLOW_PUBLIC_BASE_URL</code> — if that is wrong, your invitees get a link
+            pointing somewhere they cannot reach.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/users-invite-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/users-invite-dark.webp"
+                   alt="The admin users page with the create-user form open, showing the email, initial password, display name and role fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Sidebar → <em>Security &amp; Access</em> → <strong>Users</strong>, with the create-with-password form open.</figcaption>
+          </figure>
+          <div class="docs-callout info">
+            <strong>Searching does not span pages.</strong> The search box and the role and provider
+            filters narrow the page you are looking at, twenty users at a time — they are not a
+            server-side search. On a large directory, page to the user rather than expecting the box
+            to find them.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-roles">2. Pick the right role</h2>
+          <p>
+            Five roles ship with AccessFlow. They are built in: you cannot edit or delete them, and
+            each is a superset of the one above it apart from Auditor, which is a different shape
+            entirely.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Role</th><th>What it can do</th><th>Give it to</th></tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Read-only</strong></td>
+                  <td>Submit SELECT queries, and nothing else.</td>
+                  <td>People who only ever read, and contractors.</td>
+                </tr>
+                <tr>
+                  <td><strong>Analyst</strong></td>
+                  <td>Read-only, plus INSERT, UPDATE and DELETE. No schema changes.</td>
+                  <td>The default for engineers and analysts. Most of your users.</td>
+                </tr>
+                <tr>
+                  <td><strong>Reviewer</strong></td>
+                  <td>Everything an analyst can do, plus seeing every query in the organization and
+                    deciding them — along with access requests, API calls, deployments, erasure
+                    requests and recertification items.</td>
+                  <td>Team leads and data owners. Note it carries no admin or configuration
+                    access.</td>
+                </tr>
+                <tr>
+                  <td><strong>Auditor</strong></td>
+                  <td>Compliance reports, recertification evidence, access-usage reports and the
+                    break-glass log. <strong>Cannot submit queries at all</strong>, which is why
+                    signing in as one lands on the compliance dashboard rather than a dashboard with
+                    an editor.</td>
+                  <td>Compliance and internal audit.</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin</strong></td>
+                  <td>Everything, including every permission added in future releases.</td>
+                  <td>As few people as the job allows — see the warning below.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="docs-callout warn">
+            <strong>Admin is not just "more access".</strong> It carries the review-override
+            permission, which bypasses the approver lists on review plans by design. Any scoping you
+            configure elsewhere — including on
+            <a href="/docs/guides/deployment-approval/#guide-deployment-approvers">deployment
+            pipelines</a> — is scoping over non-admins. Grant it deliberately.
+          </div>
+          <p>
+            If none of the five fits, build your own: <strong>Roles</strong> under the admin section
+            creates an organization-scoped role from the permission catalog. It needs a name and at
+            least one permission. Custom role names work as approver rules on review plans just as
+            the built-in ones do.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-grants">3. Grant access to a datasource</h2>
+          <p>
+            Open the datasource → <strong>Permissions</strong> tab → <strong>Grant access</strong>.
+            Grants go to an individual or to a group, and carry rather more than an on/off switch:
+          </p>
+          <ul>
+            <li><strong>Can read</strong>, <strong>Can write</strong>, <strong>Can run DDL</strong>
+              — at least one is required.</li>
+            <li><strong>Row limit override</strong> — a tighter cap than the datasource's default
+              for this person.</li>
+            <li><strong>Allowed schemas</strong> and <strong>Allowed tables</strong> — leave empty
+              for everything, or narrow it. Submitting a query that touches anything outside the
+              list is refused.</li>
+            <li><strong>Restricted columns</strong> — masked in this person's results.</li>
+            <li><strong>Expires at</strong> — optional, and the single most useful field on the
+              form. Access that removes itself is access nobody has to remember to remove.</li>
+          </ul>
+          <p>
+            Where someone has both a direct grant and one through a group, the effective result is
+            the most permissive combination of the two.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Break-glass is granted here too, and it is not an ordinary capability.</strong>
+            <strong>Can break-glass</strong> lets its holder bypass review entirely and execute
+            immediately. It is compensated rather than prevented: every admin is notified, the
+            action is prominently audited, and an admin who is not the submitter has to acknowledge
+            it afterwards. It does not stand alone — the user still needs the matching read, write
+            or DDL capability. Set an expiry on it.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-groups">4. Use groups once individual grants stop scaling</h2>
+          <p>
+            Sidebar → <strong>User groups</strong>. A group is a named set of people that can hold
+            datasource and API-connector grants of its own, so joining the group is what confers
+            access and leaving it is what removes it.
+          </p>
+          <p>
+            Membership can be manual, or synced from your identity provider — the members table
+            shows each person's source as Manual, IdP or SCIM. If you are heading towards
+            IdP-managed groups, <a href="/docs/guides/sso/">connect single sign-on</a> first and let
+            the group memberships arrive with the users.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-jit">5. Let people ask, instead of granting up front</h2>
+          <p>
+            Standing access is the thing you are trying to avoid. Any signed-in user can open
+            <strong>Request access</strong> and ask for a scoped, time-boxed grant: a datasource,
+            the capabilities they need, optionally specific schemas and tables, a duration, and a
+            justification. Durations run from one hour to seven days.
+          </p>
+          <p>
+            Requests land in the <strong>Access requests</strong> queue for anyone who can review
+            them. Approving materialises a real grant that expires by itself; a background job
+            revokes it when the clock runs out. Rejecting requires a comment.
+          </p>
+          <div class="docs-callout info">
+            <strong>Pre-approve queries under this grant</strong> is worth understanding before
+            someone ticks it. It lets queries covered by the grant's capability and table scope skip
+            human review for as long as the grant is active — useful for a bounded on-call window,
+            and a much bigger decision than the checkbox looks. High-risk queries and routing
+            policies still apply.
+          </div>
+          <p>
+            Duration bounds are configurable with
+            <code>ACCESSFLOW_ACCESS_MIN_DURATION</code> (15 minutes by default) and
+            <code>ACCESSFLOW_ACCESS_MAX_DURATION</code> (30 days).
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-team-offboarding">6. When someone leaves</h2>
+          <p>
+            On the users page, open the row's menu and choose <strong>Deactivate</strong>. Three
+            things happen: the account is disabled, every one of its sessions is signed out
+            immediately, and every active just-in-time grant it holds is revoked.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Standing grants are not revoked.</strong> Deactivation removes the temporary
+            grants somebody requested, not the permanent rows an admin created on a datasource's
+            Permissions tab. Those survive the account being disabled, and would apply again if it
+            were ever reactivated. Remove them explicitly.
+          </div>
+          <p>
+            You cannot deactivate yourself — the API refuses it, so an organization can never lock
+            out its last admin by accident.
+          </p>
+          <p>
+            If your identity provider is the source of truth, this should not be a manual step at
+            all: SCIM deprovisioning raises the same event and takes the same actions. See
+            <a href="/docs/guides/sso/#guide-sso-scim">SCIM provisioning</a>.
+          </p>
+          <p>
+            Full reference for roles, the permission matrix, groups and grants:
+            <a href="/docs/configuration/users-roles/">Users &amp; roles</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

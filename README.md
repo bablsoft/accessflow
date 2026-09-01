@@ -58,7 +58,7 @@ A glance at the day-to-day flows engineers and approvers actually use.
 
 *Connect a database in the admin UI — credentials are AES-256-GCM encrypted at rest, the proxy holds them, and end users never see them.*
 
-> **More walkthroughs** — Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP all have step-by-step screenshots on the [public documentation site](https://accessflow.io/docs/).
+> **More walkthroughs** — the [Guides section](https://accessflow.io/docs/guides/) carries step-by-step manuals for the setup tasks: [your first governed query](https://accessflow.io/docs/guides/first-query/), [adding a datasource](https://accessflow.io/docs/guides/datasource/), [notifications and SMTP](https://accessflow.io/docs/guides/notifications/), [users and roles](https://accessflow.io/docs/guides/team/), [single sign-on](https://accessflow.io/docs/guides/sso/), [AI risk analysis](https://accessflow.io/docs/guides/ai-analysis/), [outbound API calls](https://accessflow.io/docs/guides/api-governance/), [gating a CI/CD pipeline](https://accessflow.io/docs/guides/deployment-approval/) and [Terraform](https://accessflow.io/docs/guides/terraform/). Review plans, AI provider configuration, notification channels (Email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira, webhooks), OAuth 2.0 / OIDC sign-in, SAML 2.0 SSO, users & invitations, and system SMTP each have their own reference chapter with screenshots on the [public documentation site](https://accessflow.io/docs/).
 
 ---
 

@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/" class="docs-toc-current" aria-current="page">Users & roles</a>
             <p class="docs-toc-label">On this page</p>
             <a href="#cfg-organizations">Organizations & quotas</a>
@@ -253,11 +265,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-organizations">Organizations &amp; quotas</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/team/">Invite your team and assign roles</a>
+            is the step-by-step version: create the accounts, pick roles, grant datasource access, and offboard cleanly. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> Multi-tenancy. A single AccessFlow deployment hosts
             <strong>one or more organizations</strong>, each a fully-isolated tenant — every user,
@@ -268,7 +284,7 @@
           </p>
           <p>
             <strong>Platform admin (super-admin).</strong> Managing organizations across the cluster
-            requires the <em>platform-admin</em> capability — a flag on a user, separate from the four
+            requires the <em>platform-admin</em> capability — a flag on a user, separate from the five
             roles below. A platform admin keeps their normal org role and additionally sees a
             <strong>Platform</strong> navigation group with the <code>/admin/organizations</code>
             screen. The first admin you create (via the setup wizard or the
@@ -402,7 +418,7 @@
             user on <code>/admin/users</code>; the matrix below is what each built-in role may do.
           </p>
           <p>
-            <strong>Platform admin is separate from the four roles.</strong> The
+            <strong>Platform admin is separate from the five roles.</strong> The
             <a href="#cfg-organizations">platform-admin</a> capability is an orthogonal flag, not a
             fifth role — a platform admin keeps whatever role their home org assigns and is
             <em>additionally</em> allowed to manage organizations across the cluster
@@ -648,6 +664,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

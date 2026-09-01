@@ -21,6 +21,7 @@ website/
 └── docs/
     ├── index.html              # hub
     ├── install/
+    ├── guides/                 # task-oriented setup manuals: hub + 9 guides (AF-773)
     ├── configuration/{users-roles,datasources,connectors,review-workflows,ai,auth,notifications,audit-compliance}/
     ├── workflows/
     └── iac/
@@ -46,7 +47,9 @@ halves on disk for every `<picture>` that declares a theme pair, and a ratchetin
 inline-`style=""` budget.
 
 `websiteDocs.test.ts` keeps only what is docs-specific: every chapter linked from every chapter
-sidebar, and cross-chapter links resolving.
+sidebar, and cross-chapter links resolving. Since AF-773 that sidebar carries three labelled
+groups — **Documentation**, **Guides**, **Reference** — so a new page under `website/docs/` has to
+be added to the right group in *every* docs page, not appended to one flat list.
 
 **Freshness is now half-tested.** `websitePages.test.ts` asserts a page's three published
 last-modified dates agree — visible `<time datetime>`, JSON-LD `dateModified`, `sitemap.xml`
@@ -62,9 +65,11 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
       three agree, so bumping is still on you.
 - [ ] New page → a new `<url>` block in `sitemap.xml`, **and a tier for it in
       `SITEMAP_PRIORITY`** (`websitePages.test.ts`). The gradient is pinned exactly, not as a
-      range: `/` 1.0, hubs 0.9, topic pages and the two widely-read docs chapters 0.8, the
-      remaining chapters 0.7, `/roadmap/` 0.6. Flattening it is the SEO regression nothing on
-      the page would show you.
+      range: `/` 1.0, top-level hubs 0.9, topic pages and the widely-read docs entry points 0.8
+      (`/docs/install/`, `/docs/workflows/`, and the `/docs/guides/` sub-hub — a sub-hub sits at
+      0.8, not 0.9, which is reserved for the three hubs a visitor starts a session on), the
+      remaining chapters and every individual guide 0.7, `/roadmap/` 0.6. Flattening it is the
+      SEO regression nothing on the page would show you.
 - [ ] Moving a section between chapters → update `DOCS_ANCHOR_PAGES` **and** the `id` in the target
       chapter **and** `LEGACY_DOCS_ANCHORS`.
 - [ ] `<meta name="description">` ≤ **160 rendered characters** (Google truncates past that and
