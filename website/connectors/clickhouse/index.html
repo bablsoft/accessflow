@@ -286,7 +286,7 @@ com.clickhouse.jdbc.ClickHouseDriver</pre>
 
         <section class="docs-section scroll-pad" id="refuses">
           <h2>What it refuses</h2>
-          <p>Multi-statement input is refused, as is anything the parser cannot read. The rejection happens before a connection is taken from the pool.</p>
+          <p>Multi-statement input is refused, as is anything the parser cannot read. The rejection happens before AccessFlow reaches the database at all.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="row-security">

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Database connectors — SQL, NoSQL and warehouses — AccessFlow</title>
-  <meta name="description" content="The database connectors AccessFlow ships: eighteen SQL, cloud-data-warehouse and NoSQL engines, each a one-click install, plus any JDBC engine you upload." />
+  <meta name="description" content="The database connectors AccessFlow ships: eighteen SQL, cloud-data-warehouse and NoSQL engines. PostgreSQL is built in, the rest install in one click." />
 
   <link rel="canonical" href="https://accessflow.io/connectors/" />
   <meta name="robots" content="index, follow" />
@@ -273,8 +273,9 @@
 
           <h3>SQL</h3>
           <p>
-            Relational engines are reached through the database's own driver, which AccessFlow loads
-            once and then keeps its connections open, with schema introspection and WHERE-clause row-level security. The first
+            Relational engines are reached through the database's own driver, with schema introspection
+            and WHERE-clause row-level security. AccessFlow loads that driver once and keeps its
+            connections to the database open. The first
             five have their own SQL dialect built in; ClickHouse rides the generic dialect, as an
             uploaded driver does.
           </p>
@@ -529,8 +530,8 @@
                 PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server and ClickHouse through their
                 own drivers, plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
                 BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Amazon DynamoDB, Apache
-                Cassandra, ScyllaDB, Elasticsearch, OpenSearch and Neo4j. Eighteen connectors in all,
-                each installable in one click from the admin marketplace. See
+                Cassandra, ScyllaDB, Elasticsearch, OpenSearch and Neo4j. Eighteen connectors in all:
+                PostgreSQL is built in, the rest install in one click from the admin marketplace. See
                 <a href="/docs/configuration/connectors/">Connectors</a>.
               </p>
             </div>

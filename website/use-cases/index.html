@@ -258,7 +258,7 @@
           <div class="uc-row">
             <div class="uc-copy">
               <p>Shared logins and standing admin access are how breaches — and audit findings — happen. AccessFlow holds the database credentials, encrypted, and brokers every query through one checkpoint. Engineers sign in as themselves; nobody copies a password out of a vault again.</p>
-              <p>The credential never leaves the proxy. It is decrypted once, when AccessFlow opens its connections to the database, and handed straight to them — or, if you would rather AccessFlow held nothing at all, the datasource stores a reference into HashiCorp Vault, AWS Secrets Manager or Azure Key Vault and the secret is resolved at connection time. Either way the user gets a result set, not a connection string, so rotating a password is a change in one place instead of a message to every engineer who has it.</p>
+              <p>The credential never leaves the proxy. It is decrypted once, to open AccessFlow's connections to the database, and never held beyond that — or, if you would rather AccessFlow held nothing at all, the datasource stores a reference into HashiCorp Vault, AWS Secrets Manager or Azure Key Vault and the secret is resolved at connection time. Either way the user gets a result set, not a connection string, so rotating a password is a change in one place instead of a message to every engineer who has it.</p>
               <ul class="uc-benefits">
                 <li>Every query attributable to a person, a reason, and an approval</li>
                 <li>Credentials AES-256 encrypted — or fetched from Vault / AWS Secrets Manager / Azure Key Vault at connection time — resolved only inside the proxy, never shown to users</li>
