@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elasticsearch access governance — AccessFlow</title>
+  <meta name="description" content="How AccessFlow governs Elasticsearch: Query DSL classified, Painless scripting refused, and row security as a non-widening bool filter." />
+
+  <link rel="canonical" href="https://accessflow.io/connectors/elasticsearch/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Elasticsearch access governance — AccessFlow" />
+  <meta property="og:description" content="Elasticsearch Query DSL classified, Painless scripting and system indices refused, and row security applied as a bool filter that provably cannot widen the query." />
+  <meta property="og:url" content="https://accessflow.io/connectors/elasticsearch/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Elasticsearch access governance — AccessFlow" />
+  <meta name="twitter:description" content="Elasticsearch Query DSL classified, Painless scripting and system indices refused, and row security applied as a bool filter that provably cannot widen the query." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.io/connectors/elasticsearch/#article",
+        "breadcrumb": { "@id": "https://accessflow.io/connectors/elasticsearch/#breadcrumb" },
+        "headline": "Elasticsearch access governance — every query reviewed before it runs",
+        "name": "Elasticsearch access governance — AccessFlow",
+        "description": "Elasticsearch Query DSL classified, Painless scripting and system indices refused, and row security applied as a bool filter that provably cannot widen the query.",
+        "articleSection": "Connectors",
+        "inLanguage": "en",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "url": "https://accessflow.io/connectors/elasticsearch/",
+        "mainEntityOfPage": "https://accessflow.io/connectors/elasticsearch/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/connectors/elasticsearch/#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Connectors", "item": "https://accessflow.io/connectors/" },
+          { "@type": "ListItem", "position": 3, "name": "Elasticsearch", "item": "https://accessflow.io/connectors/elasticsearch/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Elasticsearch</p>
+            <a href="#connection">How AccessFlow connects</a>
+            <a href="#language">What AccessFlow understands</a>
+            <a href="#refuses">What it refuses</a>
+            <a href="#row-security">Row-level security and masking</a>
+            <a href="#example">What the rewrite actually does</a>
+            <a href="#introspection">Introspection and execution limits</a>
+            <p class="docs-toc-label">Every connector</p>
+            <a href="/connectors/">All 18 connectors</a>
+            <a href="/connectors/postgresql/">PostgreSQL</a>
+            <a href="/connectors/mysql/">MySQL</a>
+            <a href="/connectors/mariadb/">MariaDB</a>
+            <a href="/connectors/oracle/">Oracle Database</a>
+            <a href="/connectors/mssql/">Microsoft SQL Server</a>
+            <a href="/connectors/clickhouse/">ClickHouse</a>
+            <a href="/connectors/snowflake/">Snowflake</a>
+            <a href="/connectors/bigquery/">Google BigQuery</a>
+            <a href="/connectors/databricks/">Databricks SQL</a>
+            <a href="/connectors/mongodb/">MongoDB</a>
+            <a href="/connectors/couchbase/">Couchbase</a>
+            <a href="/connectors/redis/">Redis</a>
+            <a href="/connectors/dynamodb/">Amazon DynamoDB</a>
+            <a href="/connectors/cassandra/">Apache Cassandra</a>
+            <a href="/connectors/scylladb/">ScyllaDB</a>
+            <a href="/connectors/elasticsearch/" class="docs-toc-current" aria-current="page">Elasticsearch</a>
+            <a href="/connectors/opensearch/">OpenSearch</a>
+            <a href="/connectors/neo4j/">Neo4j</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/configuration/datasources/">Datasources &amp; masking</a>
+            <a href="/docs/configuration/connectors/">Installing connectors</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/connectors/">Connectors</a></li>
+              <li><span aria-current="page">Elasticsearch</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Connector</span>
+          <h1>Elasticsearch access governance — every query reviewed before it runs</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p>AccessFlow governs Elasticsearch through the same submit, analyse, approve, execute pipeline as a SQL database. Queries are JSON rather than statements, so the scripting ban is a scan of the whole request tree, and row-level security is applied by wrapping the user query in a bool filter — a rewrite that provably cannot widen what the original query matched.</p>
+          <dl class="engine-facts">
+            <div><dt>Family</dt><dd>Search</dd></div>
+            <div><dt>Query language</dt><dd>JSON Query DSL</dd></div>
+            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Default port</dt><dd><code>9200</code></dd></div>
+            <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
+            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+          </dl>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/connectors/" class="btn">All 18 connectors</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="connection">
+          <h2>How AccessFlow connects</h2>
+          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network. The plugin works at the low-level REST client so it controls every header, which means it sends no product-check or version-compatibility media type of its own.</p>
+          <p>The base URL is built from host and port (<code>9200</code> by default) with the scheme from the SSL mode, or supplied verbatim as an override. Authentication is HTTP basic, or an <strong>API key</strong> stored in its own encrypted field and sent as an ApiKey authorization header. One REST client is cached per datasource.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="language">
+          <h2>What AccessFlow understands</h2>
+          <p>A query is a JSON envelope: a single object whose first recognised command key names the operation, and whose value is the target index or pattern. <code>search</code> and <code>count</code> are reads — and <code>get</code> and <code>mget</code> are lowered into a search over an ids query, so there is exactly one row-security path rather than three. <code>index</code> and <code>bulk</code> are inserts, <code>update_by_query</code> is an update, <code>delete_by_query</code> is a delete, and index and mapping management is DDL.</p>
+          <p>Grants target the lowercased index name or pattern.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="refuses">
+          <h2>What it refuses</h2>
+          <p>Painless scripting is refused <strong>anywhere in the request tree</strong>, not merely at the top level: <code>script</code>, <code>script_fields</code>, <code>script_score</code>, <code>scripted_metric</code> and <code>runtime_mappings</code>. Cluster-level APIs are refused, and so is any index name beginning with an underscore or a dot, which is how system indices are addressed.</p>
+          <p>A bulk request may carry only index actions. Update and delete actions inside a bulk are rejected so that the submission classifies cleanly as a single insert, rather than being one reviewable unit that quietly performs three different kinds of write.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="row-security">
+          <h2>Row-level security and masking</h2>
+          <p>The user's query is <strong>wrapped</strong>, never merged: it becomes the <code>must</code> clause of a new boolean query whose <code>filter</code> carries the policy clauses. Wrapping is what makes the rewrite provably non-widening — merging into an existing boolean query could change how the original clauses combine.</p>
+          <p>Equality becomes a term clause, inequality a negated term, ranges become range clauses, and set membership becomes terms. An empty value list becomes a negated match-all, which matches nothing — fail-closed by construction. A write into a policied index is rejected, since a write cannot be filtered.</p>
+          <p>One honest caveat: term clauses match exact <strong>keyword</strong> fields. A policy pointed at an analysed text field will match tokens rather than the literal value, which is why introspection surfaces field types — the search analogue of Cassandra's key-column limit, and worth checking when you write the policy.</p>
+          <p>Masking recurses by dot-path, so a rule on <code>user.email</code> redacts the nested leaf while the rest of the object stays visible, and the top-level column is flagged restricted when it or any descendant has a rule.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="example">
+          <h2>What the rewrite actually does</h2>
+          <p>A policy restricting the <code>orders</code> index to the caller's region wraps the submitted query rather than merging into it:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">JSON Query DSL</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>// submitted
+{ "search": "orders", "query": { "match": { "status": "OPEN" } } }
+
+// executed — the original query becomes must, the policy becomes filter
+{ "search": "orders",
+  "query": { "bool": { "must":   [ { "match": { "status": "OPEN" } } ],
+                       "filter": [ { "term":  { "region": "EU" } } ] } } }</pre>
+          </div>
+          <p>Wrapping is what makes the rewrite provably non-widening — merging clauses into an existing boolean query could change how the original ones combine. An empty policy value list becomes a negated match-all, which matches nothing.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="introspection">
+          <h2>Introspection and execution limits</h2>
+          <p>The connection test issues a cluster-info request. Introspection reads the index mappings, surfacing every non-system index as a table and each mapped field, flattened to a dot-path, as a column, with a synthetic id column as the primary key — the only stable identity the engine exposes.</p>
+          <p>Searches page to one more than the row cap so truncation is detectable, clamped so the offset and size never exceed the index result window. A search that reports itself timed out — which Elasticsearch returns with an HTTP 200 — and a bulk that reports errors are both translated into execution failures, so a partial result never masquerades as success.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

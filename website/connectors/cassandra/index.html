@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Apache Cassandra access governance — CQL query approval — AccessFlow</title>
+  <meta name="description" content="How AccessFlow governs Cassandra: CQL parsed and classified, batches and UDFs refused, and key-aware row security that never injects ALLOW FILTERING." />
+
+  <link rel="canonical" href="https://accessflow.io/connectors/cassandra/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Apache Cassandra access governance — CQL query approval — AccessFlow" />
+  <meta property="og:description" content="Cassandra CQL parsed and classified, batches and user-defined functions refused, and key-aware row security that fails closed rather than inject ALLOW FILTERING." />
+  <meta property="og:url" content="https://accessflow.io/connectors/cassandra/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Apache Cassandra access governance — CQL query approval — AccessFlow" />
+  <meta name="twitter:description" content="Cassandra CQL parsed and classified, batches and user-defined functions refused, and key-aware row security that fails closed rather than inject ALLOW FILTERING." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        "@id": "https://accessflow.io/connectors/cassandra/#article",
+        "breadcrumb": { "@id": "https://accessflow.io/connectors/cassandra/#breadcrumb" },
+        "headline": "Cassandra access governance — every CQL statement reviewed before it runs",
+        "name": "Apache Cassandra access governance — CQL query approval — AccessFlow",
+        "description": "Cassandra CQL parsed and classified, batches and user-defined functions refused, and key-aware row security that fails closed rather than inject ALLOW FILTERING.",
+        "articleSection": "Connectors",
+        "inLanguage": "en",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "url": "https://accessflow.io/connectors/cassandra/",
+        "mainEntityOfPage": "https://accessflow.io/connectors/cassandra/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/connectors/cassandra/#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Connectors", "item": "https://accessflow.io/connectors/" },
+          { "@type": "ListItem", "position": 3, "name": "Apache Cassandra", "item": "https://accessflow.io/connectors/cassandra/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/" aria-current="page" class="nav-link-active">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Apache Cassandra</p>
+            <a href="#connection">How AccessFlow connects</a>
+            <a href="#language">What AccessFlow understands</a>
+            <a href="#refuses">What it refuses</a>
+            <a href="#row-security">Row-level security is key-aware, and fails closed</a>
+            <a href="#example">What the rewrite actually does</a>
+            <a href="#introspection">Introspection</a>
+            <p class="docs-toc-label">Every connector</p>
+            <a href="/connectors/">All 18 connectors</a>
+            <a href="/connectors/postgresql/">PostgreSQL</a>
+            <a href="/connectors/mysql/">MySQL</a>
+            <a href="/connectors/mariadb/">MariaDB</a>
+            <a href="/connectors/oracle/">Oracle Database</a>
+            <a href="/connectors/mssql/">Microsoft SQL Server</a>
+            <a href="/connectors/clickhouse/">ClickHouse</a>
+            <a href="/connectors/snowflake/">Snowflake</a>
+            <a href="/connectors/bigquery/">Google BigQuery</a>
+            <a href="/connectors/databricks/">Databricks SQL</a>
+            <a href="/connectors/mongodb/">MongoDB</a>
+            <a href="/connectors/couchbase/">Couchbase</a>
+            <a href="/connectors/redis/">Redis</a>
+            <a href="/connectors/dynamodb/">Amazon DynamoDB</a>
+            <a href="/connectors/cassandra/" class="docs-toc-current" aria-current="page">Apache Cassandra</a>
+            <a href="/connectors/scylladb/">ScyllaDB</a>
+            <a href="/connectors/elasticsearch/">Elasticsearch</a>
+            <a href="/connectors/opensearch/">OpenSearch</a>
+            <a href="/connectors/neo4j/">Neo4j</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/configuration/datasources/">Datasources &amp; masking</a>
+            <a href="/docs/configuration/connectors/">Installing connectors</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/connectors/">Connectors</a></li>
+              <li><span aria-current="page">Apache Cassandra</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Connector</span>
+          <h1>Cassandra access governance — every CQL statement reviewed before it runs</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p>AccessFlow governs Apache Cassandra through the same submit, analyse, approve, execute pipeline as a SQL database. The interesting part is row-level security: CQL can only filter on key columns without ALLOW FILTERING, and a governance proxy must never silently inject that — so the splice is key-aware and refuses anything it cannot express safely.</p>
+          <dl class="engine-facts">
+            <div><dt>Family</dt><dd>Wide-column</dd></div>
+            <div><dt>Query language</dt><dd>CQL</dd></div>
+            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Default port</dt><dd><code>9042</code></dd></div>
+            <div><dt>Default SSL mode</dt><dd><code>DISABLE</code></dd></div>
+            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+          </dl>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/connectors/" class="btn">All 18 connectors</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="connection">
+          <h2>How AccessFlow connects</h2>
+          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
+          <p>One native session is cached per datasource; the driver pools and load-balances internally. The contact point comes from host and port (<code>9042</code> by default), and a <strong>local datacenter</strong> is a required field — the driver's default load-balancing policy mandates it, so it is a real part of the datasource rather than an optional tuning knob. The database name field selects the session's default keyspace.</p>
+          <p>SSL defaults to disabled, reflecting the common in-cluster deployment; enabling it encrypts without certificate verification, and the verifying modes use the JVM trust store.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="language">
+          <h2>What AccessFlow understands</h2>
+          <p>A single CQL statement per submission, tokenized quote- and comment-aware. <code>SELECT</code> is a read; <code>INSERT</code> is an insert, including a lightweight transaction with <code>IF NOT EXISTS</code>; <code>UPDATE</code> is an update, including the conditional form; <code>DELETE</code> is a delete; and creating, altering or dropping a table, keyspace, index, type or materialized view — plus <code>TRUNCATE</code> — is DDL.</p>
+          <p>Grants target every referenced table, whether written bare and resolved against the datasource keyspace or fully qualified.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="refuses">
+          <h2>What it refuses</h2>
+          <p>Two constructs fail closed with their own HTTP 422 messages. <code>BEGIN … BATCH</code> is refused as the CQL multi-statement carrier — a batch bundles operations that would need to be reviewed and audited as one. Creating or dropping a function or aggregate is refused as server-side code, the CQL counterpart of the ban every other engine has on running arbitrary logic inside the database.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="row-security">
+          <h2>Row-level security is key-aware, and fails closed</h2>
+          <p>CQL can only filter on partition and clustering key columns unless a query carries <code>ALLOW FILTERING</code> — and a proxy that silently added that to satisfy a policy would turn a targeted read into a full cluster scan. AccessFlow does not add it.</p>
+          <p>Instead the applier resolves the target table's real key columns from live cluster metadata and splices a policy in only when its column is a key column and its operator is one CQL's <code>WHERE</code> can express — equality, <code>IN</code>, or a range comparison. Values are bound as named parameters, never concatenated.</p>
+          <p>A policy on a non-key column, an operator CQL has no form for (there is no not-equals or not-in), or an empty value list is refused with HTTP 422 rather than executed unfiltered. An <code>INSERT</code> into a policied table is rejected outright, Cassandra inserts being upserts. Masking is applied after fetch by the shared masker.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="example">
+          <h2>What the rewrite actually does</h2>
+          <p>This is where Cassandra differs from every other SQL-shaped engine. A policy on a <strong>key</strong> column splices cleanly; a policy on anything else is refused rather than made to work with <code>ALLOW FILTERING</code>:</p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">CQL</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre>-- submitted
+SELECT id, email FROM orders WHERE tenant_id = 'acme';
+
+-- executed — region is a clustering key, so it splices
+SELECT id, email FROM orders WHERE tenant_id = 'acme' AND region = :af_rls_1;
+
+-- but a policy on a non-key column, e.g. orders.owner_email
+HTTP 422 — row-level security cannot be expressed for this statement</pre>
+          </div>
+          <p>The alternative would be injecting <code>ALLOW FILTERING</code> to make the predicate legal, which would silently convert a targeted read into a full cluster scan. A governance proxy should not change the cost profile of your queries to satisfy its own policy engine.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="introspection">
+          <h2>Introspection</h2>
+          <p>The connection test runs a trivial read against the local system table. Introspection reads the driver's cluster metadata, surfacing every non-system keyspace as a schema and its tables as tables, with partition and clustering columns flagged as the primary key — the same key-column source the row-security applier uses, so what you see in the ER diagram is exactly what the policy engine can act on. Wide-column schemas have no foreign keys.</p>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
