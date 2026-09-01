@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Run your first governed query — AccessFlow guide</title>
+  <meta name="description" content="Go from a fresh AccessFlow install to a query that is reviewed, approved and executed: create the organization, add a datasource, submit, approve, run." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/first-query/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Run your first governed query — AccessFlow guide" />
+  <meta property="og:description" content="Go from a fresh AccessFlow install to a query that is reviewed, approved and executed: create the organization, add a datasource, submit, approve, run." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/first-query/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Run your first governed query — AccessFlow guide" />
+  <meta name="twitter:description" content="Go from a fresh AccessFlow install to a query that is reviewed, approved and executed: create the organization, add a datasource, submit, approve, run." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/first-query/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/first-query/#breadcrumb" },
+      "headline": "Run your first governed query",
+      "name": "Run your first governed query — AccessFlow guide",
+      "description": "Go from a fresh AccessFlow install to a query that is reviewed, approved and executed: create the organization, add a datasource, submit, approve, run.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/first-query/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/first-query/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/first-query/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Run your first query",
+          "item": "https://accessflow.io/docs/guides/first-query/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/" class="docs-toc-current" aria-current="page">Run your first query</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-first-query">What you are building</a>
+            <a href="#guide-first-query-setup">1. First run</a>
+            <a href="#guide-first-query-datasource">2. Connect a database</a>
+            <a href="#guide-first-query-plan">3. Decide who approves</a>
+            <a href="#guide-first-query-access">4. Create the person who will submit</a>
+            <a href="#guide-first-query-submit">5. Submit a query</a>
+            <a href="#guide-first-query-approve">6. Approve it, and watch it run</a>
+            <a href="#guide-first-query-next">Where to go next</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Run your first query</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Run your first governed query.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-first-query">What you are building</h2>
+          <p>
+            A query that a person writes, an AI scores, a human approves, and AccessFlow then runs
+            against a real database — with the whole sequence recorded. It is the shape every other
+            part of the product is built on, so it is worth doing once end to end before you
+            configure anything else.
+          </p>
+          <p>
+            Allow about half an hour. You need AccessFlow running (the
+            <a href="/docs/install/#running">install chapter</a> covers Docker Compose, Helm and
+            running from source) and a database you are willing to point it at — a scratch one is
+            ideal.
+          </p>
+
+          <h3>How does a query get approved in AccessFlow?</h3>
+          <p>
+            A user picks a datasource and writes SQL. AccessFlow parses it, checks it against that
+            user's permissions, optionally has an AI model score its risk, and then holds it for
+            whoever the datasource's review plan names as an approver. Once approved it runs through
+            the proxy, under masking, row limits and any row-level rules that apply.
+          </p>
+
+          <div class="docs-callout info">
+            <strong>You will need two accounts.</strong> Nobody can approve their own query — not
+            even an admin. So this walkthrough uses your admin account as the approver and creates a
+            second, ordinary account to submit from. That is not a quirk of the demo; it is the rule
+            the whole product rests on.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-setup">1. First run</h2>
+          <p>
+            Open AccessFlow in a browser. While no admin exists, every route redirects to
+            <code>/setup</code> and you get a two-step form.
+          </p>
+          <ol>
+            <li><strong>Create the first admin.</strong> <strong>Organization name</strong>,
+              <strong>Email</strong>, <strong>Password</strong> (8–128 characters) and its
+              confirmation are required; <strong>Display name</strong> is optional.</li>
+            <li><strong>Configure system SMTP</strong> — or do not. The second step is explicitly
+              optional and offers <strong>Skip for now</strong> beside <strong>Save &amp;
+              finish</strong>. Skipping is fine for now; you can set it up later with the
+              <a href="/docs/guides/notifications/">notifications guide</a>.</li>
+          </ol>
+          <p>
+            Either button finishes setup and drops you at <code>/queries</code>. Sign in from then
+            on at the normal login screen, which lands you on your dashboard.
+          </p>
+          <div class="docs-callout info">
+            <strong>Deploying with GitOps?</strong> The wizard has an equivalent: set
+            <code>ACCESSFLOW_BOOTSTRAP_ENABLED=true</code> and declare the organization, the first
+            admin and much else in configuration, reconciled on every start. See
+            <a href="/docs/install/#first-run">first-time setup</a>.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-datasource">2. Connect a database</h2>
+          <p>
+            Sidebar → <strong>Datasources</strong> → the button that adds one. The wizard has four
+            steps: <strong>Database type</strong>, <strong>Connection details</strong>,
+            <strong>Connection test</strong>, <strong>Configuration</strong>.
+          </p>
+          <p>
+            PostgreSQL, MySQL, MariaDB, Oracle and SQL Server connect straight away. Everything else
+            — MongoDB, Redis, Snowflake, BigQuery and the rest — needs its connector installed
+            first, which is a one-click job from the catalog. Either way, use credentials scoped to
+            what you actually want reachable: AccessFlow governs <em>who may ask</em>, but the
+            database account still bounds <em>what is possible</em>.
+          </p>
+          <p>
+            Run the connection test before continuing. A datasource that is not active does not
+            appear in the editor at all, so a failure here is worth fixing now rather than
+            debugging later as a missing dropdown entry.
+          </p>
+          <p>
+            <a href="/docs/guides/datasource/">Add your first datasource</a> covers the wizard field
+            by field, plus the table allow-list, masking and row-level security you will want before
+            this touches anything real.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-plan">3. Decide who approves</h2>
+          <p>
+            A <strong>review plan</strong> is the policy that says what has to happen to a query
+            before it runs. Sidebar → <em>Security &amp; Access</em> → <strong>Review plans</strong>
+            → <strong>Add review plan</strong>.
+          </p>
+          <p>
+            Almost everything is pre-filled sensibly — AI review on, human approval on,
+            <strong>Minimum approvals</strong> 1, <strong>Approval timeout (hours)</strong> 24. In
+            practice you need to supply two things:
+          </p>
+          <ol>
+            <li><strong>A name.</strong></li>
+            <li><strong>One approver row.</strong> Leave <strong>Role</strong> on
+              <code>Reviewer</code> and <strong>Stage</strong> on <code>1</code>. A row needs either
+              a role or a specific user; a role is easier to live with.</li>
+          </ol>
+          <p>
+            Then attach it: open the datasource's settings, <strong>Configuration</strong> tab,
+            <strong>Review plan</strong>. A plan is attached to a datasource, not to a person.
+          </p>
+          <div class="docs-callout warn">
+            <strong>A datasource with no review plan is not a shortcut.</strong> Queries against it
+            go to human review anyway — AccessFlow fails closed rather than letting an unconfigured
+            datasource through. If you want queries to skip human approval, that is a deliberate
+            setting: a plan with <strong>Require human approval</strong> switched off.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-access">4. Create the person who will submit</h2>
+          <p>
+            Sidebar → <em>Security &amp; Access</em> → <strong>Users</strong>. The control at the
+            top right is a split button: its main half is <strong>Invite via email</strong>, which
+            needs system SMTP. If you skipped SMTP in step 1, use the small arrow beside it and pick
+            <strong>Create with password</strong> instead — that path creates the account directly
+            and sends nothing. <a href="/docs/guides/team/">Invite your team</a> covers both paths,
+            and the roles, in full.
+          </p>
+          <p>
+            Leave the role on <strong>Analyst</strong>. An analyst may submit reads and writes; it
+            is the ordinary shape of a person who queries production.
+          </p>
+          <p>
+            A role does not grant access to any particular database, though. Open the datasource →
+            <strong>Permissions</strong> tab → <strong>Grant access</strong>, choose the new user,
+            and leave <strong>Can read</strong> on. You can also cap rows, restrict the grant to
+            named schemas and tables, mask specific columns, and set an expiry — all optional, and
+            all worth revisiting once the basics work.
+          </p>
+          <div class="docs-callout info">
+            <strong>Admins are the exception.</strong> An account holding the query-admin permission
+            bypasses the per-datasource check entirely, which is why your own admin account can
+            query without a grant. Everyone else needs a row here — that is the mechanism, and it is
+            deliberate.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-submit">5. Submit a query</h2>
+          <p>
+            Sign in as the analyst — a private window keeps your admin session alive — and open the
+            <strong>SQL editor</strong>. Pick the datasource and write something harmless:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">SQL editor</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">SELECT</span> count(*) <span class="c-kw">FROM</span> orders;
+</pre>
+          </div>
+          <p>
+            Fill in <strong>Justification</strong>. Nothing rejects an empty one, but it is the
+            first thing a reviewer reads and an empty box makes their decision harder than it needs
+            to be.
+          </p>
+          <p>
+            Then <strong>Submit for review</strong>. The editor navigates to the query's own page,
+            where you can watch it move through its statuses.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Submit greyed out?</strong> On a datasource with AI analysis enabled you have to
+            run <strong>Analyze</strong> first — the button's tooltip says so, and it is the single
+            most common reason a first submission appears stuck. The other causes are an empty
+            editor and a scheduled time in the past.
+          </div>
+          <p>
+            A submitted query passes through <strong>Pending AI</strong> to <strong>Pending
+            review</strong>. If you have not <a href="/docs/guides/ai-analysis/">configured an AI
+            provider</a> yet, it simply moves on without a risk verdict — analysis is optional, and
+            a failed analysis sends the query to a human rather than through.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-approve">6. Approve it, and watch it run</h2>
+          <p>
+            Back on your admin account, open the <strong>Review queue</strong>. The query is there
+            with its SQL, its submitter, its justification and its AI verdict if there is one.
+            <strong>Approve</strong> it. Rejecting is also available, and requires a comment —
+            a rejection without a reason is not much use to the person who has to fix it.
+          </p>
+          <p>
+            The status moves to <strong>Approved</strong> and then <strong>Executed</strong>, and
+            the results appear on the query's page for the submitter. That is the whole loop.
+          </p>
+          <div class="docs-callout ok">
+            <strong>Try the rule that matters.</strong> Submit a query as your admin account and go
+            looking for it in the review queue. It is not there, and the approve button on its
+            detail page is gone. Self-approval is blocked in the service layer, not just hidden in
+            the interface — the API answers <code>403</code> to anyone who tries it directly,
+            admins included.
+          </div>
+          <p>
+            Every query the analyst submits is listed under <strong>Query history</strong>, with the
+            statuses you just watched: Pending AI, Pending review, Approved, Executed — plus
+            Rejected, Timed out, Failed and Cancelled for the paths you did not take this time.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-first-query-next">Where to go next</h2>
+          <p>You now have a working pipeline. The usual next steps, roughly in order of urgency:</p>
+          <ul>
+            <li><a href="/docs/guides/datasource/">Add a datasource</a> — limit which tables can be
+              queried at all, mask sensitive columns, and add row-level rules. Do this before you
+              point AccessFlow at anything that matters.</li>
+            <li><a href="/docs/guides/notifications/">Send notifications</a> — so reviewers find out
+              a query is waiting without watching a page.</li>
+            <li><a href="/docs/guides/team/">Invite your team</a> — roles, groups, and access that
+              expires by itself.</li>
+            <li><a href="/docs/guides/ai-analysis/">Turn on AI analysis</a> — give reviewers a risk
+              level and a reason before they decide.</li>
+            <li><a href="/docs/configuration/review-workflows/#cfg-routing-policies">Routing
+              policies</a> — once the queue is busy enough that reviewing every read by hand stops
+              being sensible.</li>
+            <li><a href="/docs/workflows/">End-user workflows</a> — the same loop written for the
+              people who will live in it: submitting, tracking, scheduling and reviewing.</li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

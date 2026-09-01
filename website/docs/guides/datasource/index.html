@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Add your first datasource — AccessFlow guide</title>
+  <meta name="description" content="Connect a database to AccessFlow: install the engine connector, enter credentials, read the schema, set the table allow-list, then add masking and row security." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/datasource/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Add your first datasource — AccessFlow guide" />
+  <meta property="og:description" content="Connect a database to AccessFlow: install the engine connector, enter credentials, read the schema, set the table allow-list, then add masking and row security." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/datasource/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Add your first datasource — AccessFlow guide" />
+  <meta name="twitter:description" content="Connect a database to AccessFlow: install the engine connector, enter credentials, read the schema, set the table allow-list, then add masking and row security." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/datasource/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/datasource/#breadcrumb" },
+      "headline": "Add your first datasource",
+      "name": "Add your first datasource — AccessFlow guide",
+      "description": "Connect a database to AccessFlow: install the engine connector, enter credentials, read the schema, set the table allow-list, then add masking and row security.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/datasource/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/datasource/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/datasource/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Add a datasource",
+          "item": "https://accessflow.io/docs/guides/datasource/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/" class="docs-toc-current" aria-current="page">Add a datasource</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-datasource">What you are building</a>
+            <a href="#guide-datasource-connect">1. Connect it</a>
+            <a href="#guide-datasource-schema">2. Look at what you just connected</a>
+            <a href="#guide-datasource-allowlist">3. Limit which tables can be queried</a>
+            <a href="#guide-datasource-masking">4. Mask the columns that should not be read</a>
+            <a href="#guide-datasource-rowsecurity">5. Limit which rows come back</a>
+            <a href="#guide-datasource-operate">6. Keep an eye on it</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Add a datasource</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Add your first datasource.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-datasource">What you are building</h2>
+          <p>
+            A database AccessFlow can put queries in front of — connected, introspected, and then
+            narrowed down so that even an approved query cannot reach more than it should. The
+            connecting part takes a few minutes. The narrowing part is the work that matters, and it
+            is the second half of this guide.
+          </p>
+
+          <h3>What do I need before adding a datasource?</h3>
+          <p>
+            A reachable host, and a database account for AccessFlow to use. Scope that account
+            deliberately: AccessFlow governs <em>who may ask for what</em>, but the credentials you
+            hand it still bound what is physically possible. A read-only account for a read-only
+            datasource is the cheapest control you will ever apply.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-connect">1. Connect it</h2>
+          <p>
+            Sidebar → <strong>Datasources</strong> → add one. The wizard is four steps:
+            <strong>Database type</strong>, <strong>Connection details</strong>, <strong>Connection
+            test</strong>, <strong>Configuration</strong>.
+          </p>
+          <p>
+            The type picker is grouped into <strong>Bundled drivers</strong>,
+            <strong>Connectors</strong> and <strong>Custom drivers</strong>, and each tile carries a
+            badge telling you what will happen when you save:
+          </p>
+          <ul>
+            <li><strong>Bundled</strong> — ships inside the image. Only PostgreSQL.</li>
+            <li><strong>Downloaded</strong> — already fetched and cached on this deployment.</li>
+            <li><strong>Will download</strong> — fetched on first use, checksum-verified, then
+              cached. Expect a slower first save, not a failure.</li>
+            <li><strong>Unavailable</strong> — the deployment is in offline driver mode or the cache
+              is not writable.</li>
+          </ul>
+          <div class="docs-callout info">
+            <strong>You do not have to visit the connector catalog first.</strong> Saving the
+            datasource resolves and verifies whatever it needs. Installing ahead of time from
+            <strong>Connectors</strong> in the admin section just moves the wait earlier. Every
+            download is checked against a pinned SHA-256 — and re-checked every time it is resolved,
+            not only at install.
+          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-create-dark.webp"
+                   alt="The datasource creation wizard showing the database type step with engine tiles grouped into bundled drivers, connectors and custom drivers."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Step 1 — pick the engine. The badge on each tile says whether its driver is bundled, cached, or will be downloaded on save.</figcaption>
+          </figure>
+          <p>
+            <strong>Connection details</strong> adapts to the engine. Most ask for host, port,
+            database name, username and password. Some do not:
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Engine</th><th>What it asks for instead</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>BigQuery</strong></td><td>A GCP project and a service-account key in JSON. No host, port or username.</td></tr>
+                <tr><td><strong>Databricks</strong></td><td>Workspace host, a required warehouse HTTP path, and a personal access token. No username.</td></tr>
+                <tr><td><strong>Snowflake</strong></td><td>An account host and either a password or an unencrypted private key for key-pair auth. No port.</td></tr>
+                <tr><td><strong>DynamoDB</strong></td><td>An AWS region in place of the database name, plus an access key id and secret.</td></tr>
+                <tr><td><strong>Elasticsearch / OpenSearch</strong></td><td>Either a username and password, or an API key.</td></tr>
+                <tr><td><strong>Cassandra / ScyllaDB</strong></td><td>A local datacenter name, which is required.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <strong>SSL mode</strong> is pre-filled from the engine's own default rather than one
+            global default — PostgreSQL starts at full verification, while several others (ClickHouse
+            and a number of the NoSQL engines) start disabled. Check it rather than assuming it.
+          </p>
+          <p>
+            Run the <strong>Connection test</strong>. It opens a real connection and runs a trivial
+            probe — the plugin's own equivalent for non-JDBC engines. You can skip it, but a
+            datasource that cannot connect is a datasource nobody can query.
+          </p>
+          <div class="docs-callout warn">
+            <strong>A connection-shape mistake can report a confusing error.</strong> Per-engine
+            requirements — a missing warehouse path, a JDBC URL a custom driver needs — are checked
+            when you save, and the message you get back is currently a generic one about datasource
+            permissions rather than the specific field. If a save is rejected and the message does
+            not seem to fit, re-check the engine-specific fields in the table above.
+          </div>
+          <p>
+            Finally, <strong>Configuration</strong>: connection pool size, max rows per query, the
+            <a href="/docs/guides/first-query/#guide-first-query-plan">review plan</a>, whether reads
+            and writes each require review, and the AI switches. Turning on AI analysis or text-to-SQL
+            requires choosing an AI configuration in the same step — see
+            <a href="/docs/guides/ai-analysis/">turn on AI risk analysis</a>.
+          </p>
+          <p>
+            Credentials are encrypted before storage and are never returned by any endpoint. If you
+            keep secrets elsewhere, the password field also accepts a reference into HashiCorp Vault,
+            AWS Secrets Manager or Azure Key Vault instead of a literal value.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-schema">2. Look at what you just connected</h2>
+          <p>
+            Open the datasource's settings. The <strong>Schema</strong> tab shows the introspected
+            objects as a searchable tree; clicking a table previews sample rows — through the
+            governed path, so masked columns show masked values, never the raw ones. The <strong>ER
+            diagram</strong> tab renders the same schema as a graph, which is often the faster way to
+            spot the tables you did not know were there.
+          </p>
+          <p>
+            This is worth doing before you write any policy. The next three sections all reference
+            specific tables and columns, and the schema tab is where you find their real names.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-allowlist">3. Limit which tables can be queried</h2>
+          <p>
+            The table allow-list lives on the <strong>grant</strong>, not on the datasource. On the
+            <strong>Permissions</strong> tab, a grant carries <strong>Allowed schemas</strong> and
+            <strong>Allowed tables</strong>, both fed by the introspected schema.
+          </p>
+          <p>
+            AccessFlow enforces this by walking the parsed query and collecting every table it
+            actually touches, then checking each one against the list. It is not a text match on the
+            SQL, so aliases, comments and formatting cannot slip past it.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Empty means unrestricted.</strong> A grant with both lists empty can reach every
+            table the database account can. That is the default when you create a grant, so
+            narrowing it is a thing you do, not a thing that happens.
+          </div>
+          <p>
+            Two matching details worth knowing. Names are compared case-insensitively with quoting
+            stripped, so <code>"Orders"</code> and <code>orders</code> are the same entry. But
+            qualification is significant: an unqualified <code>orders</code> in the list matches an
+            unqualified <code>FROM orders</code>, so list the form your users actually write — or
+            allow the schema instead, which covers both.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-masking">4. Mask the columns that should not be read</h2>
+          <p>
+            The <strong>Masking</strong> tab defines column-level policies applied to results. Each
+            policy names a column as <code>schema.table.column</code>, picks a strategy, and lists who
+            may see through it.
+          </p>
+          <ul>
+            <li><strong>Full mask</strong> — the value is replaced entirely.</li>
+            <li><strong>Partial</strong> — keeps a number of trailing characters, for the last four
+              digits of a card or an account.</li>
+            <li><strong>Hash</strong> — a SHA-256 digest, so values remain comparable without being
+              readable.</li>
+            <li><strong>Email-preserving</strong> and <strong>format-preserving</strong> — keep the
+              shape so downstream tools and eyeballs still recognise it.</li>
+          </ul>
+          <p>
+            <strong>Reveal to</strong> names the roles, groups or people who see the real value.
+            Leave it empty and the column is masked for everyone, admins included — masking is
+            opt-in for the reader, not opt-out.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-masking-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-masking-dark.webp"
+                   alt="The masking tab of a datasource settings page listing masking policies with their column, strategy, reveal-to list and enabled state."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Datasource settings → <strong>Masking</strong> — one policy per column, with the strategy and who may see through it.</figcaption>
+          </figure>
+          <div class="docs-callout info">
+            <strong>Let AccessFlow find them for you.</strong> The <strong>Discovery</strong> tab
+            samples column data through the governed path and proposes classifications — email
+            addresses, card numbers, national ids, bank account numbers, phone numbers — which you
+            confirm or dismiss. Confirming a proposal tags the column and can derive its masking
+            policy for you. Raw sampled values are never stored, and never sent to an AI provider;
+            the optional AI pass sees redacted samples only.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-rowsecurity">5. Limit which rows come back</h2>
+          <p>
+            The <strong>Row security</strong> tab filters rows rather than columns. A policy names a
+            table and a column, an operator, and a value to compare against — either a literal, or a
+            variable resolved per user such as their region attribute, their role, or their groups.
+          </p>
+          <p>
+            AccessFlow applies it by rewriting the query: a SELECT gets its table wrapped in a
+            filtered subquery, an UPDATE or DELETE gets the predicate added to its WHERE clause. The
+            comparison value is always bound as a parameter, never concatenated into the SQL.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Row security fails closed, in both directions.</strong> If the per-user value
+            cannot be resolved — the attribute is missing, the list is empty — the policy matches
+            nothing and the user sees zero rows rather than everything. And a query whose shape
+            cannot be safely rewritten, such as one using set operations or common table expressions
+            over a protected table, is <strong>rejected</strong> rather than run unfiltered. Expect
+            some legitimate queries to be refused; that is the trade being made.
+          </div>
+          <p>
+            Non-relational engines each fail closed in their own way. Redis, for instance, cannot
+            express row security at all, so a policy over it denies rather than degrades; Cassandra
+            refuses policies on non-key columns instead of quietly scanning the whole table.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/datasources-row-security-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/datasources-row-security-dark.webp"
+                   alt="The row security tab of a datasource settings page listing policies with their table, predicate, applies-to scope and enabled state."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Datasource settings → <strong>Row security</strong> — a per-table predicate compared against a per-user value.</figcaption>
+          </figure>
+          <p>
+            Unlike masking, row security applies to <em>everyone</em> by default: leaving
+            <strong>Applies to</strong> empty means the policy is in force for all users. Narrow it
+            to specific roles or groups if that is not what you want.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-datasource-operate">6. Keep an eye on it</h2>
+          <p>
+            <strong>Datasource health</strong> in the admin section shows connection-pool use, query
+            volume, error counts and execution latency per datasource over the last day. It is the
+            first place to look when queries start timing out — an exhausted pool looks very
+            different from a slow database, and the page distinguishes them.
+          </p>
+          <p>
+            Field-by-field reference for every engine, the full policy options and the tuning env
+            vars: <a href="/docs/configuration/datasources/">Datasources</a>. Engine-specific
+            behaviour and install detail: <a href="/docs/configuration/connectors/">Connectors</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

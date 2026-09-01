@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -252,11 +264,17 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-review-plans">Review plans</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/first-query/#guide-first-query-plan">Run your first governed query</a>
+            walks through building a review plan and attaching it, and
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a> applies the same machinery to
+            deployments — including the approver scoping that is easy to miss. This chapter is the reference behind both.
+          </div>
           <p>
             <strong>What it is.</strong> The approval policy attached to a datasource — it decides how
             a submitted query gets from "submitted" to "executed". Use it to require AI scoring, one or
@@ -671,7 +689,9 @@ APPROVED → FAILED (execution error)</pre>
             <code>can_break_glass</code> grants with an optional expiry — a user's effective grant is
             the most-permissive union of their direct grant and every unexpired group grant),
             <strong>Freeze windows</strong>, and <strong>Routing policies</strong>. The CI setup
-            tab renders a copy-paste snippet for the pipeline's provider. Reviewers work
+            tab carries copy-paste snippets for GitHub Actions, GitLab CI, Azure Pipelines and
+            curl, chosen from a toggle rather than preselected from the pipeline's provider; a
+            pipeline set to Jenkins, CircleCI, Bitbucket Pipelines or generic uses the curl one. Reviewers work
             deployments at <code>/deployment-reviews</code> (requires <code>DEPLOYMENT_REVIEW</code>,
             held by <code>ADMIN</code> and <code>REVIEWER</code>); everyone sees their own at
             <code>/deployments</code>.
@@ -680,7 +700,7 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipelines-list-dark.webp"
-                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, CI provider, repository, environment count and whether AI analysis is enabled."
+                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, CI provider, repository, whether AI analysis is enabled, and whether they are active."
                    loading="lazy" width="1440" height="900" />
             </picture>
             <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its CI provider and environment count.</figcaption>
@@ -746,10 +766,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-pipeline-ci-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-ci-dark.webp"
-                   alt="The CI setup tab of a deployment pipeline settings page, rendering a copy-paste CI snippet for the pipeline provider along with the pipeline identifier the job needs."
+                   alt="The CI setup tab of a deployment pipeline settings page, with a provider toggle above a copy-paste CI snippet carrying the pipeline identifier the job needs."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>CI setup</strong> — a copy-paste snippet for the pipeline's provider, carrying the pipeline id the job gates on.</figcaption>
+            <figcaption>Pipeline settings → <strong>CI setup</strong> — snippets for GitHub Actions, GitLab CI, Azure Pipelines and curl, each carrying the pipeline id the job gates on.</figcaption>
           </figure>
           <p>
             <strong>Tune it.</strong> <code>ACCESSFLOW_DEPLOYGOV_TIMEOUT_CHECK</code> (how often
@@ -804,6 +824,7 @@ APPROVED → FAILED (execution error)</pre>
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

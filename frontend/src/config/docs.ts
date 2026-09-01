@@ -14,9 +14,11 @@ export const DOCS_BASE_URL = 'https://accessflow.io/docs/';
  * should point straight at the chapter so they cost no redirect.
  *
  * Adding a section? Add its anchor here AND ship the matching `id` in that chapter
- * file under website/docs/ — config/__tests__/docs.test.ts enforces both halves.
+ * or guide file under website/docs/ — config/__tests__/docs.test.ts enforces both
+ * halves, and website/app.js needs the same forwarder entry.
  */
 export const DOCS_ANCHOR_PAGES = {
+  'guide-deployment-approval': 'guides/deployment-approval/',
   'cfg-organizations': 'configuration/users-roles/',
   'cfg-languages': 'configuration/users-roles/',
   'cfg-users': 'configuration/users-roles/',

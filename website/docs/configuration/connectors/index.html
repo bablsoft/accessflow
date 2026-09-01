@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/" class="docs-toc-current" aria-current="page">Connectors</a>
@@ -255,6 +267,10 @@
 
 <section class="docs-section">
 <h2 id="cfg-connectors">Connectors</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/api-governance/">Govern an outbound API call</a>
+            walks a REST, SOAP, GraphQL or gRPC API from registration to an approved call. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> The catalog of databases AccessFlow can talk to, and the
             one-click way to enable them. Use it to turn on support for an engine before you add a
@@ -366,8 +382,12 @@
           <p>
             <strong>Configure it (admin).</strong> Create a connector with a base URL, protocol, and an
             auth method — <em>None</em>, <em>API key</em>, <em>Bearer token</em>, <em>Basic</em>,
-            <em>OAuth2 client-credentials</em>, <em>Custom header</em>, or <em>mTLS</em>. Secrets are
-            AES-256-GCM encrypted at rest and never returned. For <em>OAuth2 client-credentials</em>,
+            <em>OAuth2 client-credentials</em>, or <em>Custom header</em>. Secrets are
+            AES-256-GCM encrypted at rest and never returned. Two caveats worth knowing before you
+            pick one: <em>mTLS</em> is offered in the form but is not yet wired at execution time —
+            the call goes out without a client certificate — and only <em>OAuth2
+            client-credentials</em> has secret fields in the settings screen today, so the other
+            secret-bearing methods take their credential through the connector REST API. For <em>OAuth2 client-credentials</em>,
             AccessFlow fetches, caches, and refreshes the upstream access token itself — configure the
             token endpoint, client ID/secret, scopes, audience, grant type (client-credentials,
             refresh-token, or resource-owner password), and client-auth method (Basic header or POST
@@ -509,6 +529,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

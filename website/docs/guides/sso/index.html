@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connect single sign-on — AccessFlow guide</title>
+  <meta name="description" content="Sign in to AccessFlow with your identity provider: OAuth 2.0 / OIDC with Google, GitHub, Microsoft or GitLab, SAML 2.0, and SCIM user provisioning." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/sso/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Connect single sign-on — AccessFlow guide" />
+  <meta property="og:description" content="Sign in to AccessFlow with your identity provider: OAuth 2.0 / OIDC with Google, GitHub, Microsoft or GitLab, SAML 2.0, and SCIM user provisioning." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/sso/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Connect single sign-on — AccessFlow guide" />
+  <meta name="twitter:description" content="Sign in to AccessFlow with your identity provider: OAuth 2.0 / OIDC with Google, GitHub, Microsoft or GitLab, SAML 2.0, and SCIM user provisioning." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/sso/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/sso/#breadcrumb" },
+      "headline": "Connect single sign-on",
+      "name": "Connect single sign-on — AccessFlow guide",
+      "description": "Sign in to AccessFlow with your identity provider: OAuth 2.0 / OIDC with Google, GitHub, Microsoft or GitLab, SAML 2.0, and SCIM user provisioning.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/sso/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/sso/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/sso/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Connect SSO",
+          "item": "https://accessflow.io/docs/guides/sso/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/" class="docs-toc-current" aria-current="page">Connect SSO</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-sso">What you are building</a>
+            <a href="#guide-sso-oauth">1. OAuth 2.0 / OIDC</a>
+            <a href="#guide-sso-saml">2. SAML 2.0</a>
+            <a href="#guide-sso-scim">3. SCIM provisioning</a>
+            <a href="#guide-sso-troubleshooting">If sign-in does not work</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Connect SSO</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Connect single sign-on.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-sso">What you are building</h2>
+          <p>
+            Sign-in through your existing identity provider, so AccessFlow stops being another
+            password to manage and offboarding somebody in one place actually removes their access.
+            There are three pieces, and you do not need all of them:
+          </p>
+          <ul>
+            <li><strong>OAuth 2.0 / OIDC</strong> — the simplest path, with ready-made templates for
+              Google, GitHub, Microsoft and GitLab, and a generic option for anything else.</li>
+            <li><strong>SAML 2.0</strong> — for enterprise identity providers that expect it.</li>
+            <li><strong>SCIM 2.0</strong> — provisioning, so accounts are created and deactivated by
+              the identity provider rather than by hand.</li>
+          </ul>
+
+          <h3>Should I use OAuth, SAML or SCIM for AccessFlow single sign-on?</h3>
+          <p>
+            If your provider speaks both, prefer OAuth 2.0 / OIDC — the setup is one redirect URL
+            and a client secret. Reach for SAML when that is what your identity team supports. Add
+            SCIM on top of either once you care about accounts disappearing automatically when
+            somebody leaves.
+          </p>
+
+          <div class="docs-callout warn">
+            <strong>Everything here hangs off one setting.</strong> The redirect and endpoint URLs
+            your provider needs point at the <strong>backend</strong>, and AccessFlow builds them
+            from the API base URL the frontend is configured with. Get that wrong and the URLs you
+            copy will be wrong too. Each screen shows you the exact string to register — copy it
+            from there rather than assembling it yourself.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-sso-oauth">1. OAuth 2.0 / OIDC</h2>
+          <p>
+            Admin section → <strong>OAuth providers</strong>. Each provider is a tab: Google,
+            GitHub, Microsoft, GitLab, GitHub Enterprise, GitLab (self-managed), and
+            <strong>OpenID Connect</strong> for everything else — Keycloak, Auth0, Okta, Authentik,
+            Zitadel and the rest.
+          </p>
+          <ol>
+            <li><strong>Copy the redirect URI first.</strong> The page shows it read-only with a
+              copy button, labelled <strong>Redirect URI to register with the provider</strong>.
+              Paste that exact string into your provider's console — AccessFlow accepts the callback
+              at that path and no other.</li>
+            <li><strong>Create the application</strong> in your identity provider and collect its
+              client id and secret.</li>
+            <li><strong>Fill in AccessFlow.</strong> <strong>Client ID</strong> and <strong>Client
+              secret</strong>, then set <strong>Default role for new users</strong>, and switch
+              <strong>Active</strong> on.</li>
+          </ol>
+          <p>
+            Two provider-specific fields appear where they apply. Microsoft asks for a
+            <strong>Tenant ID</strong> — <code>common</code> for any Microsoft account,
+            <code>organizations</code> for any work or school account, or a specific tenant. The two
+            self-hosted templates require a <strong>Server base URL</strong>: the origin of your
+            instance, with no path and no query string.
+          </p>
+          <div class="docs-callout info">
+            <strong>Using the generic OpenID Connect tab?</strong> It asks for five URLs —
+            authorization, token, UserInfo, JWK set and issuer — all required, plus a display name
+            for the sign-in button. The four claim-name fields underneath are optional and fall back
+            to the standard OIDC claims. Unlike the named templates, whose endpoints are compiled in
+            and cannot be repointed, these URLs are yours to set, so check them carefully.
+          </div>
+          <p>
+            <strong>Restrict who can get in.</strong> <strong>Allowed email domains</strong> accepts
+            a list matched case-insensitively against the email domain; empty means any domain is
+            accepted, which on a public provider like Google means anyone with an account. On GitHub
+            and GitLab, <strong>Allowed organizations</strong> restricts sign-in to members of named
+            organizations — on GitHub that needs the <code>read:org</code> scope, and the page warns
+            you when you set a list without it.
+          </p>
+          <div class="docs-callout warn">
+            <strong>New users arrive as Analyst, not read-only.</strong> That is the default in
+            every one of the three SSO paths, and an analyst can submit writes. Set <strong>Default
+            role for new users</strong> to <strong>Read-only</strong> if you would rather grant
+            upwards deliberately. Bear in mind a role grants no database access on its own — see
+            <a href="/docs/guides/team/#guide-team-grants">granting datasource access</a>.
+          </div>
+          <p>
+            The client secret is encrypted at rest and never returned; the form shows a mask, and
+            leaving it untouched keeps the stored value.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-sso-saml">2. SAML 2.0</h2>
+          <p>
+            Admin section → <strong>SAML / SSO</strong>. The form has three parts: what your
+            identity provider is, what AccessFlow calls itself, and how attributes map onto users.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Both identity-provider fields are required, not alternatives.</strong>
+            <strong>IdP metadata URL</strong> and <strong>Signing certificate (PEM)</strong> must
+            both be filled in. If either is blank, SAML stays switched off — it logs a warning and
+            declines to build the configuration rather than failing loudly at sign-in, so a
+            half-filled form looks saved but does nothing.
+          </div>
+          <p>
+            Under <strong>Service provider</strong>, set <strong>ACS URL</strong> explicitly to your
+            backend origin followed by <code>/api/v1/auth/saml/acs/default</code>. That is the path
+            AccessFlow actually processes assertions on, and the same URL you register with your
+            identity provider as the assertion consumer service.
+          </p>
+          <p>
+            Most identity providers would rather import metadata than have you type fields. Point
+            yours at your backend origin followed by
+            <code>/api/v1/auth/saml/metadata/default</code>.
+          </p>
+          <p>
+            Under <strong>Attribute mapping</strong>, <strong>Email attribute</strong> and
+            <strong>Display-name attribute</strong> are required and default to <code>email</code>
+            and <code>displayName</code>. <strong>Role attribute</strong> is optional: set it and
+            AccessFlow reads the user's role from that assertion attribute, falling back to the
+            default role when it is missing or unrecognised.
+          </p>
+          <p>
+            The signing certificate you paste is encrypted at rest and masked on read. AccessFlow
+            signs its own requests with a keypair it generates and stores on first use, unless you
+            pin one with <code>ACCESSFLOW_SAML_SP_SIGNING_KEY_PEM</code> and
+            <code>ACCESSFLOW_SAML_SP_SIGNING_CERT_PEM</code>. Configuration changes take effect
+            immediately — there is no restart, and no metadata refresh cycle to wait for.
+          </p>
+          <div class="docs-callout info">
+            <strong>Single logout is not implemented.</strong> The <strong>SLO URL</strong> field
+            stores what you type and nothing consumes it. Signing out of AccessFlow ends the
+            AccessFlow session only.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-sso-scim">3. SCIM provisioning</h2>
+          <p>
+            Admin section → <strong>SCIM Provisioning</strong>. This is the piece that makes
+            offboarding real: your identity provider creates, updates and deactivates AccessFlow
+            accounts as people join and leave.
+          </p>
+          <ol>
+            <li><strong>Switch it on</strong> and copy the <strong>Base URL</strong> the page shows
+              — your backend origin followed by <code>/scim/v2</code>. That is what your identity
+              provider asks for.</li>
+            <li><strong>Create a token.</strong> Under <strong>Bearer tokens</strong>, choose
+              <strong>Create token</strong> and name it after the system that will use it. The raw
+              <code>af_scim_…</code> value is shown once and never again — paste it into your
+              provider immediately. Only a hash is stored, and the list shows a short prefix so you
+              can tell tokens apart.</li>
+            <li><strong>Map the attributes.</strong> Choose which SCIM attribute carries the email
+              and which carries the display name, and set the role provisioned users get.</li>
+          </ol>
+          <p>
+            Tokens are scoped to your organization, and revoking one cuts that identity provider off
+            immediately.
+          </p>
+          <div class="docs-callout ok">
+            <strong>What deactivation actually does.</strong> When your identity provider marks
+            someone inactive, AccessFlow disables the account, revokes every one of its sessions
+            straight away, and revokes each active just-in-time access grant it holds. Standing
+            grants an admin created by hand are not removed — remove those explicitly.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-sso-troubleshooting">If sign-in does not work</h2>
+          <ul>
+            <li><strong>The provider rejects the redirect.</strong> The registered URL does not match
+              the one AccessFlow expects, character for character. Re-copy it from the OAuth
+              providers page rather than retyping.</li>
+            <li><strong>Sign-in succeeds, then the app rejects it.</strong> Read the error code on
+              the callback screen. It distinguishes a missing email claim, an unverified email, a
+              domain or organization that is not on the allow-list, an address that already exists
+              as a local account, and a disabled account.</li>
+            <li><strong>SAML appears configured but nothing happens.</strong> Almost always one of
+              the two required identity-provider fields is blank. Fill in both.</li>
+            <li><strong>Browser errors about origins.</strong> Check
+              <code>CORS_ALLOWED_ORIGIN</code>: AccessFlow allows exactly one frontend origin, and
+              the post-sign-in redirect targets are derived from it.</li>
+          </ul>
+          <p>
+            Provider-by-provider walkthroughs, the full field reference and the error-code list:
+            <a href="/docs/configuration/auth/">Auth &amp; SSO</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

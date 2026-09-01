@@ -107,6 +107,7 @@ the right.
 | [`docs/05-backend.md`](../docs/05-backend.md) (proxy pipeline, AI analyzer, routing policies AF-379, JIT access, break-glass AF-385, masking AF-381, row security, discovery AF-623, cost estimate AF-624, request groups AF-501, lifecycle AF-499), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md) (delegation, escalation, ticketing) | **`/features/database-access-governance/` spoke** ([`features/database-access-governance/index.html`](features/database-access-governance/index.html)) — the mechanism the hub summarises, following one query end to end: `#proxy`, `#ai`, `#review`, `#grouping`, `#lifecycle`, plus a closing `#teams` band that hands off to the personas. Primary keyword **database access governance**, which is why `/`'s `#architecture` and `#use-cases` h2s no longer carry that phrase ([#787](https://github.com/bablsoft/accessflow/issues/787)). Keep the honest caveats: approval likelihood is advisory only, and a grouped request has no distributed rollback |
 | [`docs/17-api-governance.md`](../docs/17-api-governance.md) (connectors + OAuth2 token sourcing §1, schema ingestion §2, the governed-call pipeline §4, masking &amp; classification §5, dynamic variables §6) | **`/features/api-access-governance/` spoke** ([`features/api-access-governance/index.html`](features/api-access-governance/index.html)) — `#connectors`, `#catalog`, `#pipeline`, `#masking`. Primary keyword **API access governance**. Its `#pipeline` section **links** [`use-cases/index.html`](use-cases/index.html) `#api` rather than restating the persona story — that block stays the canonical copy, which is the arrangement [#788](https://github.com/bablsoft/accessflow/issues/788) asked for |
 | [`docs/18-deployment-governance.md`](../docs/18-deployment-governance.md) (pipelines &amp; grants §1, the CI trigger §2, review and break-glass §4, the gate §5, freeze windows §6, outcome reporting §7), [`docs/16-iac.md`](../docs/16-iac.md) + [`ci-templates/`](../ci-templates/) for the CI wrappers | **`/features/deployment-governance/` spoke** ([`features/deployment-governance/index.html`](features/deployment-governance/index.html)) — `#pipelines`, `#gate`, `#freeze`, `#outcome`, `#ci`. Primary keyword **deployment approval governance**. Two claims are easy to get wrong: triggering is a per-pipeline `can_trigger` **grant**, not the `DEPLOYMENT_PIPELINE_MANAGE` permission, and the CI wrappers address a pipeline by id because a trigger-only key may not resolve names |
+| The app itself (real UI labels, routes and error codes, read out of [`frontend/src/locales/en.json`](../frontend/src/locales/en.json) and the pages that use them), plus [`docs/09-deployment.md`](../docs/09-deployment.md) *One-time setup*, [`docs/18-deployment-governance.md`](../docs/18-deployment-governance.md), [`docs/16-iac.md`](../docs/16-iac.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/14-connectors.md`](../docs/14-connectors.md) and [`docs/17-api-governance.md`](../docs/17-api-governance.md) (AF-773) | The **Guides** section ([`docs/guides/`](docs/guides/)) — a hub plus nine task-oriented manuals, each anchored `guide-*`. These are **verified against code, not against the reference chapters**: where the two disagreed, AF-773 fixed the chapter. Every guide links to the chapter it operationalises, and each of those ten chapters carries a reciprocal *There is a guide for this* callout under its first `h2` — the pair moves together. Sidebar labels are deliberately verb-first ("Add a datasource") so they never collide with the noun-labelled reference chapters ("Datasources") in the shared sidebar |
 | [`docs/`](../docs/) chapter filenames + H1s (01–18, incl. [`docs/14-connectors.md`](../docs/14-connectors.md), the [`docs/15-engine-sdk.md`](../docs/15-engine-sdk.md) engine-author guide, the [`docs/16-iac.md`](../docs/16-iac.md) IaC guide, the [`docs/17-api-governance.md`](../docs/17-api-governance.md) API-governance guide, and the [`docs/18-deployment-governance.md`](../docs/18-deployment-governance.md) deployment-governance guide) | The further-reading links inside [`docs/index.html`](docs/index.html), and the footer "Docs" column — which [#791](https://github.com/bablsoft/accessflow/issues/791) repointed at the on-site chapters. Note the four footer labels are copied verbatim from the **docs sidebar TOC**, not from these markdown H1s and not from the chapters' own on-page `h1`s (all three differ): rename a sidebar label and all 22 footers move with it. The targets are `/docs/`, `/docs/install/`, `/docs/configuration/auth/`, `/docs/workflows/` and `/docs/iac/`, leaving exactly one engineering-reference link to `github.com/blob` — [`docs/04-api-spec.md`](../docs/04-api-spec.md), the one of the four with no on-site equivalent, labelled `REST API (GitHub)` so the off-site jump is legible and the name still matches the further-reading list. The homepage `#docs` grid of raw `github.com/blob` cards was **deleted** (not moved) by [#789](https://github.com/bablsoft/accessflow/issues/789); `/docs/` is the docs hub |
 | [`CLAUDE.md`](../CLAUDE.md) (supported db list, env-var defaults) | Hero meta strip (the features `.tag` chips moved to the `/features/` hub with [#789](https://github.com/bablsoft/accessflow/issues/789)) |
 | [`charts/accessflow/`](../charts/accessflow/) | Helm install tab |
@@ -152,6 +153,9 @@ website/
 ├── docs/            # Public user documentation — one page per chapter
 │   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
 │   ├── install/     #   Docker Compose / Helm / from source + first-run setup
+│   ├── guides/      #   Task-oriented setup manuals (AF-773) — hub + 9 guides:
+│   │                #   first-query, datasource, notifications, team, sso,
+│   │                #   ai-analysis, api-governance, deployment-approval, terraform
 │   ├── configuration/  # users-roles, datasources, connectors, review-workflows,
 │   │                   # ai, auth, notifications, audit-compliance
 │   ├── workflows/   #   end-user: submit, track, review, approve
@@ -176,6 +180,12 @@ that one page could only ever compete for one query — and AI engines citing a 
 URL. Each chapter is now its own indexable page, with the cross-chapter sidebar built into
 every file.
 
+Since [#773](https://github.com/bablsoft/accessflow/issues/773) the sidebar carries three groups
+rather than one flat list — **Documentation** (overview and install), **Guides** (the hub and the
+nine task-oriented manuals), and **Reference** (the eight configuration chapters, end-user
+workflows and IaC). Every page still links every other page, which is what
+`websiteDocs.test.ts` enforces; the groups only decide how that list reads.
+
 **Two rules when editing them:**
 
 1. **Every in-app deep link is a contract.** `frontend/src/config/docs.ts` maps each anchor
@@ -184,15 +194,15 @@ every file.
    updating that map in the same commit.
 2. **`app.js` holds a PERMANENT legacy-anchor forwarder.** AccessFlow is self-hosted, so every
    already-released frontend links to the old `/docs/#cfg-<x>` form forever; those installs
-   never update. `LEGACY_DOCS_ANCHORS` forwards all 55 old anchors to their new chapter, and
+   never update. `LEGACY_DOCS_ANCHORS` forwards all 56 anchors to their owning chapter, and
    the test asserts it agrees with `docs.ts`. Never delete it as "migration cruft".
 
 Because there is no build step, the nav, `<head>`, and footer are duplicated across the
-chapter files — a nav change is a 22-file edit (~170 KB of duplicated shell). That is the
+chapter files — a nav change is a whole-site edit (~170 KB of duplicated shell). That is the
 deliberate trade for keeping this folder buildless.
 
 Nothing can remove that edit cost without a build step, but the *risk* it creates — editing
-21 files and missing the 22nd — is guarded.
+every page but one — is guarded.
 [`frontend/src/config/__tests__/websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts)
 runs over **every** page, `index.html` and `ai-agents/` included, and fails CI unless each
 shares a byte-identical nav (normalized for the active-link markers, which are asserted
@@ -205,7 +215,7 @@ both directions.
 is meaningless outside `docs/`: every chapter linked from every chapter sidebar, and
 cross-chapter links resolving.
 
-So: editing all 22 files is on you; forgetting one is on CI.
+So: editing every one of them is on you; forgetting one is on CI.
 
 ### The header nav is six page links
 
@@ -216,7 +226,7 @@ and `Questions` moved to the footer.
 
 There is deliberately **no dropdown**. Six items do not need one, and the version worth having
 opens on click — which means new behaviour in `app.js` (click-outside, Escape, roving focus,
-`aria-expanded`) shipped to all 22 pages, on a site whose CSP forbids inline script and which
+`aria-expanded`) shipped to every page on the site, on a site whose CSP forbids inline script and which
 has no build step to tree-shake it. The `/features/` sidebar is the discoverability affordance
 instead, and unlike a click-driven menu it is plain markup a crawler already sees.
 
@@ -263,7 +273,7 @@ Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitt
 also carries a `BreadcrumbList`.
 
 **Every graph is self-contained.** `Organization`, `SoftwareApplication` and `WebSite` are
-repeated on all 22 pages — in full on the homepage, as a minimal typed stub (`@type` + `@id` +
+repeated on every page — in full on the homepage, as a minimal typed stub (`@type` + `@id` +
 `name` + `url`) elsewhere. They used to be defined only on the homepage and referenced as bare
 `{"@id": ".../#software"}` stubs, which resolved to a typeless nothing on the other 21 pages:
 schema consumers parse per-document, and cross-document `@id` merging is not guaranteed. The
@@ -421,9 +431,11 @@ in both directions, so a page without an entry (or an entry without a page) fail
 `<priority>` is pinned per URL by the same test, because a flat sitemap is the one SEO
 regression nothing on the page would show you. The tiers: `/` alone at 1.0; the three hubs a
 visitor starts from (`/features/`, `/ai-agents/`, `/docs/`) at 0.9; the six topic pages, plus
-`/docs/install/` and `/docs/workflows/` — the two chapters every reader opens — at 0.8; the
-remaining nine chapters, the eight under `/docs/configuration/` and `/docs/iac/`, at 0.7,
-since each answers a question only some deployments ask; `/roadmap/` at 0.6, since it reports
+`/docs/install/` and `/docs/workflows/` — the two chapters every reader opens — at 0.8, joined
+by the `/docs/guides/` hub, which is an entry point a visitor browses rather than a leaf they
+arrive at; the remaining nine chapters, the eight under `/docs/configuration/` and `/docs/iac/`,
+at 0.7 alongside the nine individual guides, since each answers a question only some deployments
+ask; `/roadmap/` at 0.6, since it reports
 status rather than competing for a query. A new page fails CI until someone picks its tier in
 `SITEMAP_PRIORITY`.
 

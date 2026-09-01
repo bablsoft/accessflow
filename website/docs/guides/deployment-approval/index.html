@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gate a CI/CD pipeline behind approval — AccessFlow guide</title>
+  <meta name="description" content="Make a GitHub Actions, GitLab CI or Azure pipeline wait for human approval before it releases: service account, pipeline, environments, approvers, CI snippet." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/deployment-approval/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Gate a CI/CD pipeline behind approval — AccessFlow guide" />
+  <meta property="og:description" content="Make a GitHub Actions, GitLab CI or Azure pipeline wait for human approval before it releases: service account, pipeline, environments, approvers, CI snippet." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/deployment-approval/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Gate a CI/CD pipeline behind approval — AccessFlow guide" />
+  <meta name="twitter:description" content="Make a GitHub Actions, GitLab CI or Azure pipeline wait for human approval before it releases: service account, pipeline, environments, approvers, CI snippet." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/deployment-approval/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/deployment-approval/#breadcrumb" },
+      "headline": "Gate a deployment pipeline",
+      "name": "Gate a CI/CD pipeline behind approval — AccessFlow guide",
+      "description": "Make a GitHub Actions, GitLab CI or Azure pipeline wait for human approval before it releases: service account, pipeline, environments, approvers, CI snippet.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/deployment-approval/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/deployment-approval/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Gate a CI/CD pipeline",
+          "item": "https://accessflow.io/docs/guides/deployment-approval/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/" class="docs-toc-current" aria-current="page">Gate a CI/CD pipeline</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-deployment-approval">What you are building</a>
+            <a href="#guide-deployment-account">1. Create the CI service account</a>
+            <a href="#guide-deployment-key">2. Mint its API key</a>
+            <a href="#guide-deployment-pipeline">3. Create the pipeline</a>
+            <a href="#guide-deployment-environments">4. Add environments</a>
+            <a href="#guide-deployment-trigger">5. Grant the service account permission to trigger</a>
+            <a href="#guide-deployment-approvers">6. Restrict who may approve</a>
+            <a href="#guide-deployment-ci">7. Add the gate to your pipeline</a>
+            <a href="#guide-deployment-run">8. Your first gated release</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Gate a CI/CD pipeline</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Gate a deployment pipeline.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-approval">What you are building</h2>
+          <p>
+            By the end of this guide a deploy job stops and waits. It asks AccessFlow for
+            permission to release, a human approves or rejects it, and only then does the job run
+            <code>helm upgrade</code> — or whatever your deploy step actually is. Every release
+            leaves a request, a named approver and an audit trail behind it.
+          </p>
+          <p>
+            The eight steps below are the order an operator actually performs them in, and several
+            of them are not guessable from the
+            <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">reference
+            page</a>. Budget about twenty minutes. You need an admin account on a running
+            AccessFlow instance, and a CI pipeline you can edit.
+          </p>
+
+          <h3>How do I gate a deployment behind approval?</h3>
+          <p>
+            Create a service account for the CI job, give it an API key and a can-trigger grant on
+            a deployment pipeline, attach a review plan that says who may approve, then add the two
+            AccessFlow steps to your workflow around your existing deploy step. The first step
+            blocks until someone approves; the second reports how the deploy went.
+          </p>
+
+          <div class="docs-callout warn">
+            <strong>The gate is fail-closed.</strong> A deployment is releasable only when its
+            status is <code>APPROVED</code>, no freeze window is active, and any scheduled time has
+            passed. Anything else — an error, an unreachable instance, a request the key cannot see
+            — answers <em>not releasable</em>, and the CI wrappers fail the job. That is the point,
+            but it has a consequence worth accepting before you start: <strong>if AccessFlow is
+            down, your deployments stop.</strong>
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-account">1. Create the CI service account</h2>
+          <p>
+            The API key's owning user <em>is</em> the submitter of every deployment it opens, and
+            nobody can approve their own deployment. So the CI identity must be an account that
+            never approves — not your admin account.
+          </p>
+          <ol>
+            <li><strong>Open the users page.</strong> Sidebar → <em>Security &amp; Access</em> →
+              <strong>Users</strong>.</li>
+            <li><strong>Use the dropdown arrow, not the button.</strong> The control at the top
+              right is a split button. Its main half is <strong>Invite via email</strong>; the path
+              you want, <strong>Create with password</strong>, is behind the small arrow beside
+              it.</li>
+            <li><strong>Fill the form.</strong> <strong>Email</strong>, <strong>Initial
+              password</strong>, <strong>Display name</strong>. Leave <strong>Role</strong> on
+              <strong>Analyst</strong> — the right to trigger deployments comes from the
+              per-pipeline grant in step 5, not from the role.</li>
+            <li><strong>Submit.</strong> The button reads <strong>Send invite</strong> even on this
+              path. No mail is sent.</li>
+          </ol>
+          <div class="docs-callout warn">
+            <strong>Invite via email fails without SMTP.</strong> The email path checks that system
+            SMTP is configured before it does anything else, and returns
+            <code>422 SYSTEM_SMTP_NOT_CONFIGURED_FOR_INVITE</code> when it is not. If you have not
+            <a href="/docs/guides/notifications/">set up notifications</a> yet, the password path is
+            the only one that works.
+          </div>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/users-invite-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/users-invite-dark.webp"
+                   alt="The admin users page with the create-user form open, showing the email, initial password, display name and role fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Sidebar → <em>Security &amp; Access</em> → <strong>Users</strong>. <strong>Create with password</strong> lives behind the split button's arrow.</figcaption>
+          </figure>
+          <div class="docs-callout info">
+            <strong>Prefer not to hand a service account a password?</strong> Steps 1 and 2 can be
+            declared instead, with <code>bootstrap.serviceAccounts[]</code> — it creates the user
+            with password login disabled and imports a key you generated yourself. See
+            <a href="/docs/guides/terraform/#guide-terraform-credentials">Automate with
+            Terraform</a>, or <a href="/docs/iac/#iac-service-account">service-account API keys</a>
+            for the full property list. On a pipeline you intend to keep, this is the better path.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-key">2. Mint its API key</h2>
+          <p>
+            API keys are self-service. There is no admin screen that mints a key on someone else's
+            behalf, so you have to sign in <em>as</em> the service account once.
+          </p>
+          <ol>
+            <li><strong>Sign in as the service account</strong> — a private browser window keeps
+              your admin session intact.</li>
+            <li><strong>Open its keys.</strong> User menu → <strong>Profile settings</strong> →
+              <strong>API keys</strong> → <strong>Create API key</strong>.</li>
+            <li><strong>Name it and copy the value.</strong> The raw <code>af_…</code> key is shown
+              once and never again. Paste it straight into your CI secret store.</li>
+          </ol>
+          <div class="docs-callout info">
+            <strong>Keys minted in the browser never expire.</strong> The form takes only a name.
+            The REST API does accept an expiry, so a key you create through
+            <code>POST /api/v1/me/api-keys</code> or through bootstrap can be given one.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-pipeline">3. Create the pipeline</h2>
+          <p>
+            Back on your admin account: sidebar → <em>Data sources</em> → <strong>Deployment
+            Pipelines</strong> → <strong>Add pipeline</strong>. Give it a name and pick the
+            provider that matches your CI system — GitHub Actions, GitLab CI, Azure Pipelines,
+            Jenkins, CircleCI, Bitbucket Pipelines, or generic.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Copy the pipeline id out of the address bar now.</strong> Creating a pipeline
+            lands you on <code>/admin/deployment-pipelines/&lt;uuid&gt;</code>, and
+            <strong>that UUID is the pipeline id</strong> your CI job needs. There is no id column
+            on the pipeline list and no copy-id button; the only other place it appears is
+            interpolated inside the CI snippet in step 7, whose copy control copies the whole
+            snippet rather than the bare id. A copyable id is tracked in
+            <a href="https://github.com/bablsoft/accessflow/issues/771">issue&nbsp;771</a>.
+          </div>
+          <p>
+            The pipeline is identified by that UUID rather than by name because a trigger-only API
+            key is not allowed to list pipelines, so it has nothing to resolve a name against.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipelines-list-dark.webp"
+                   alt="The admin deployment pipelines page listing configured pipelines with their CI provider, repository, whether AI analysis is enabled, and whether they are active."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline. Open one to reach its six settings tabs.</figcaption>
+          </figure>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-environments">4. Add environments</h2>
+          <p>
+            An environment is what a deploy targets, and it is where you decide whether a release
+            needs a human at all. On the pipeline's <strong>Environments</strong> tab, choose
+            <strong>Add environment</strong>. Name it exactly as your CI job will name it —
+            <code>staging</code>, <code>production</code> — turn <strong>Requires review</strong>
+            on, and set <strong>Required approvals</strong>.
+          </p>
+          <p>
+            Two rules decide how many approvals a release actually needs, and which people count:
+          </p>
+          <ul>
+            <li>An environment's <strong>Required approvals</strong> <em>replaces</em> the review
+              plan's minimum when it is set. It does not add to it.</li>
+            <li>An environment's <strong>Review plan</strong> override beats the one attached to the
+              pipeline. Leave it on <strong>Plan default</strong> to inherit.</li>
+          </ul>
+          <p>
+            Environments are also where <strong>break-glass</strong> is switched on. An emergency
+            deploy needs both a break-glass grant on the pipeline and this opt-in on the target
+            environment; there is no admin bypass for either half. Leave it off unless you have
+            somebody who genuinely needs it.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipeline-environments-dark.webp"
+                   alt="The environments tab of a deployment pipeline, listing ordered environments with their required approval count, review requirement, review plan override and break-glass opt-in."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, required approvals, review-plan override and break-glass, per environment.</figcaption>
+          </figure>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-trigger">5. Grant the service account permission to trigger</h2>
+          <p>
+            On the <strong>Permissions</strong> tab, choose the service account in the
+            <strong>User</strong> box, leave <strong>Can trigger</strong> on, and click
+            <strong>Grant</strong>. Without this the CI job cannot open a deployment request at all.
+          </p>
+          <p>
+            Grants can go to groups as well as to individuals. Where both apply, the effective
+            grant is the most permissive combination of a user's own grant and every group grant
+            that has not expired.
+          </p>
+          <div class="docs-callout info">
+            <strong>If the account is not in the list,</strong> note that this control loads a
+            single page of a hundred active users and searches within it, rather than querying the
+            server. On a large instance a freshly created service account may not be among them.
+            Creating the account immediately before this step is the reliable way to have it
+            present.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-approvers">6. Restrict who may approve</h2>
+          <div class="docs-callout warn">
+            <strong>Do not skip this step.</strong> The permission that lets somebody approve a
+            deployment is held by <strong>both ADMIN and REVIEWER</strong>. On any instance where
+            reviewers exist who should not be shipping releases, a review plan that scopes approval
+            is the only thing standing between them and your production deploy. It is mandatory,
+            not optional.
+          </div>
+          <ol>
+            <li><strong>Create the plan.</strong> Sidebar → <em>Security &amp; Access</em> →
+              <strong>Review plans</strong> → <strong>Add review plan</strong>. Set
+              <strong>Minimum approvals</strong>.</li>
+            <li><strong>Add one approver row.</strong> Set <strong>Role</strong> to
+              <code>Admin</code> and <strong>Stage</strong> to <code>1</code>.</li>
+            <li><strong>Attach it.</strong> On the pipeline's <strong>General</strong> tab, pick it
+              under <strong>Review plan</strong>.</li>
+          </ol>
+          <p>Three things about approver rows regularly catch people out:</p>
+          <ul>
+            <li><strong>A plan with no approver rows restricts nothing.</strong> Attaching an empty
+              plan looks like configuration but leaves the request open to everyone who holds the
+              deployment-review permission.</li>
+            <li><strong>Deployment review is single-stage.</strong> Only rows at stage
+              <code>1</code> are consulted. A row at stage 2 or higher is ignored silently — no
+              warning, no error.</li>
+            <li><strong>Review override bypasses the approver list entirely.</strong> It is an
+              admin-only permission and it is meant to work this way, which means the rule that
+              ultimately protects your pipeline is simply: do not make someone an admin unless they
+              should be allowed to ship.</li>
+          </ul>
+          <p>
+            To pin approval to one named person rather than to every admin, put their user id in
+            the row's <strong>User</strong> box. It is a plain text field expecting a UUID, and user
+            ids are not shown anywhere in the users screen — read one from
+            <code>GET /api/v1/admin/users</code>.
+          </p>
+          <p>
+            Whatever you configure, one rule cannot be configured away: the submitter can never
+            approve their own deployment, admins and override holders included. That is why step 1
+            insisted on a separate account.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-ci">7. Add the gate to your pipeline</h2>
+          <p>
+            The pipeline's <strong>CI setup</strong> tab carries ready-made snippets with the
+            pipeline id already filled in. Copy from there rather than retyping the UUID. It offers
+            four, chosen from a toggle that always opens on GitHub Actions — it does not preselect
+            the provider you set in step 3: <strong>GitHub Actions</strong>, <strong>GitLab
+            CI</strong>, <strong>Azure Pipelines</strong> and <strong>curl</strong>. Pipelines set
+            to Jenkins, CircleCI, Bitbucket Pipelines or generic use the curl sequence.
+          </p>
+          <p>Every provider follows the same four beats:</p>
+          <ol>
+            <li><strong>Submit</strong> a deployment request. It is idempotent on the CI run id, so
+              a retried job never opens a second review.</li>
+            <li><strong>Poll</strong> the gate until it answers releasable.</li>
+            <li><strong>Confirm</strong> execution, immediately before deploying.</li>
+            <li><strong>Report</strong> the outcome once the deploy finishes.</li>
+          </ol>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">.github/workflows/deploy.yml</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-com">- id: gate</span>
+  uses: bablsoft/accessflow/.github/actions/deployment-gate@v1
+  with:
+    accessflow-url: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    pipeline-id: <span class="c-str">1f0c9d02-1c2a-4a19-9f0e-6b2f8f1a4c77</span>
+    environment: production
+    version: ${{ github.ref_name }}
+    commit-sha: ${{ github.sha }}
+    wait-timeout: <span class="c-str">30m</span>
+
+- run: ./deploy.sh
+
+- uses: bablsoft/accessflow/.github/actions/deployment-outcome@v1
+  <span class="c-com">if: always()</span>
+  with:
+    accessflow-url: <span class="c-str">https://accessflow.example.com</span>
+    api-key: ${{ secrets.ACCESSFLOW_API_KEY }}
+    request-id: ${{ steps.gate.outputs.request-id }}
+    job-status: ${{ job.status }}
+</pre>
+          </div>
+          <p>
+            The outcome step is separate, and runs under <code>if: always()</code>, because a
+            composite action has no post-run hook to report from. Pass an explicit
+            <code>outcome: ROLLED_BACK</code> when you roll back — on an environment that requires
+            review that opens a follow-up the submitter is not allowed to close.
+          </p>
+          <p>
+            GitLab CI, Azure Pipelines and the plain-curl sequence for anything else are documented
+            alongside the full input reference in
+            <a href="/docs/iac/#iac-deployment-gate">the deployment gate in CI</a>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-pipeline-ci-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-pipeline-ci-dark.webp"
+                   alt="The CI setup tab of a deployment pipeline rendering a copy-paste snippet for the pipeline's provider with the pipeline id filled in."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>Pipeline settings → <strong>CI setup</strong> — snippets for GitHub Actions, GitLab CI, Azure Pipelines and curl, each carrying the pipeline id the job gates on.</figcaption>
+          </figure>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-deployment-run">8. Your first gated release</h2>
+          <p>
+            Run the workflow. The gate step opens a request and then waits, printing its poll
+            attempts. In AccessFlow the request appears for reviewers at
+            <code>/deployment-reviews</code>, carrying the version, the target environment, the
+            commit and the AI release-risk verdict if you enabled analysis. It never appears there
+            for the account that submitted it.
+          </p>
+          <p>
+            An approver opens it and approves. Within a poll interval the gate answers releasable,
+            the CI job unblocks, your deploy step runs, and the outcome step records how it went.
+            The submitter can watch the whole thing at <code>/deployments</code>.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/deployment-reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/deployment-reviews-queue-dark.webp"
+                   alt="The deployment review queue listing deployments awaiting a decision with pipeline, environment, version, submitter, risk and age, and approve and reject actions."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/deployment-reviews</code> — where an approver picks the release up. A deployment never appears here for its own submitter.</figcaption>
+          </figure>
+          <h3>If the job fails instead</h3>
+          <ul>
+            <li><strong>The gate returns 404.</strong> The key cannot see that request — usually a
+              wrong pipeline id, or a key belonging to an account with no can-trigger grant.
+              AccessFlow answers 404 rather than 403 on purpose, so a key cannot probe for pipelines
+              it has no business knowing about.</li>
+            <li><strong>It waits and then times out.</strong> Nobody approved inside
+              <code>wait-timeout</code>, or a freeze window is holding the release. Check the
+              request at <code>/deployments</code> — a held release resumes on its own when the
+              window closes, with no re-approval.</li>
+            <li><strong>Approved, but still not releasing.</strong> Approval alone is not a green
+              light. The job branches on <em>releasable</em>, which also requires no active freeze
+              window and any scheduled time to have passed.</li>
+          </ul>
+          <div class="docs-callout ok">
+            <strong>A real worked example.</strong> The AccessFlow public demo deploys itself
+            through its own gate. The workflow, the exact one-time setup it needed and the recovery
+            path when the instance is down are written up in
+            <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#the-public-demo-environment">docs/09-deployment.md
+            → The public demo environment</a>.
+          </div>
+          <p>
+            From here: <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment
+            pipelines</a> covers freeze windows, routing policies, break-glass and rollback reviews
+            in full.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

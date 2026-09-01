@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Govern an outbound API call — AccessFlow guide</title>
+  <meta name="description" content="Put review and approval in front of a REST, SOAP, GraphQL or gRPC API: register the connector, load its schema, grant permissions, then approve a call." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/api-governance/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Govern an outbound API call — AccessFlow guide" />
+  <meta property="og:description" content="Put review and approval in front of a REST, SOAP, GraphQL or gRPC API: register the connector, load its schema, grant permissions, then approve a call." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/api-governance/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Govern an outbound API call — AccessFlow guide" />
+  <meta name="twitter:description" content="Put review and approval in front of a REST, SOAP, GraphQL or gRPC API: register the connector, load its schema, grant permissions, then approve a call." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/api-governance/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/api-governance/#breadcrumb" },
+      "headline": "Govern an outbound API call",
+      "name": "Govern an outbound API call — AccessFlow guide",
+      "description": "Put review and approval in front of a REST, SOAP, GraphQL or gRPC API: register the connector, load its schema, grant permissions, then approve a call.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/api-governance/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/api-governance/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/api-governance/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Govern an API call",
+          "item": "https://accessflow.io/docs/guides/api-governance/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/" class="docs-toc-current" aria-current="page">Govern an API call</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-api">What you are building</a>
+            <a href="#guide-api-connector">1. Register the API</a>
+            <a href="#guide-api-schema">2. Load its schema</a>
+            <a href="#guide-api-permissions">3. Grant access</a>
+            <a href="#guide-api-masking">4. Mask what comes back</a>
+            <a href="#guide-api-call">5. Make a governed call</a>
+            <a href="#guide-api-next">Worth knowing</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Govern an API call</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Govern an outbound API call.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-api">What you are building</h2>
+          <p>
+            The same review-and-approve pipeline you already have in front of a database, put in
+            front of an outbound API call. Somebody composes a request against a registered API,
+            AccessFlow scores it, a reviewer approves it, and only then does the call go out — with
+            the response masked according to policy and the whole thing recorded.
+          </p>
+          <p>
+            This is useful wherever a third-party or internal API is as sensitive as a database:
+            payment providers, HR systems, customer-support tooling, anything that will happily
+            action a request from whoever holds the token.
+          </p>
+
+          <h3>What can AccessFlow govern besides SQL?</h3>
+          <p>
+            Outbound REST, SOAP, GraphQL and gRPC calls. You register the API once as a
+            <strong>connector</strong>, load its schema so AccessFlow knows its operations, and grant
+            people access to it the same way you grant access to a datasource.
+          </p>
+          <p>
+            You need the connector-manage permission, which admins hold. Work through
+            <a href="/docs/guides/first-query/">your first governed query</a> first if you have not —
+            the review machinery is shared, and this guide assumes you have met it.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-connector">1. Register the API</h2>
+          <p>
+            Sidebar → <strong>API Connectors</strong> → <strong>New connector</strong>. Give it a
+            name, choose the <strong>Protocol</strong> — REST, SOAP, GraphQL or gRPC — and set the
+            <strong>Base URL</strong>.
+          </p>
+          <p>
+            Then <strong>Auth method</strong>. AccessFlow holds the credential so callers never do,
+            which is much of the point: people get to make governed calls without ever holding the
+            token themselves.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Only OAuth 2.0 client credentials can be entered in the form today.</strong>
+            Picking <strong>OAuth2 Client Credentials</strong> reveals the fields you would expect —
+            token endpoint, grant type, client authentication, client id and secret, scopes,
+            audience. The other secret-bearing methods (API key, bearer token, basic, custom header)
+            are supported by the engine but the settings screen does not render an input for their
+            secret, so it has to be supplied through the connector REST API. Choose OAuth 2.0 where
+            your API offers it.
+          </div>
+          <div class="docs-callout warn">
+            <strong>mTLS is selectable but not yet wired.</strong> Choosing it does not attach a
+            client certificate — the call goes out without one and a warning is logged. Do not rely
+            on it as an authentication method.
+          </div>
+          <p>
+            <strong>Default headers</strong> are merged into every governed call, which is a tidy
+            place for a version header or a tenant id. <strong>Timeout</strong> and <strong>Max
+            response bytes</strong> bound what a single call can cost you.
+          </p>
+          <p>
+            Use <strong>Test connection</strong> before going further. It checks the API is
+            reachable and, for OAuth 2.0 connectors, that a token can actually be fetched — which is
+            where a wrong client secret shows up.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-schema">2. Load its schema</h2>
+          <p>
+            A connector without a schema can still be called free-form, but loading one is what
+            makes the rest work: an operation catalog to grant against, read/write classification,
+            better AI analysis, and plain-English request drafting.
+          </p>
+          <p>
+            On the <strong>Schema</strong> tab, supply it one of three ways — <strong>Paste</strong>,
+            <strong>Upload file</strong>, or <strong>From URL</strong>, which AccessFlow fetches
+            server-side. Five formats are understood: OpenAPI, WSDL, GraphQL SDL, gRPC proto, and a
+            Postman Collection export. Files are capped at 5&nbsp;MB.
+          </p>
+          <p>
+            Large APIs import better with an <strong>Import filter</strong>: exclude paths, keep only
+            certain paths, drop verbs, operation ids or tags, and skip deprecated operations. The
+            <strong>Preview</strong> tells you how many of the total operations survive before you
+            commit to the import.
+          </p>
+          <p>
+            The parsed result lands on the <strong>Operations</strong> tab, one row per operation
+            with its verb, path, and whether AccessFlow classified it as a <strong>Read</strong> or a
+            <strong>Write</strong>. That classification drives review: a connector can require review
+            for writes but not reads, exactly as a datasource can.
+          </p>
+          <div class="docs-callout info">
+            <strong>Postman collections are examples, not schemas.</strong> AccessFlow will infer
+            operations from one, and says so on screen, but the result is only as complete as the
+            requests somebody happened to save. Any credentials in the export are ignored. Prefer a
+            real OpenAPI document where one exists.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-permissions">3. Grant access</h2>
+          <p>
+            On the <strong>Permissions</strong> tab, grant to a user or a group. The fields are
+            deliberately close to a datasource grant:
+          </p>
+          <ul>
+            <li><strong>Read</strong> and <strong>Write</strong> — matched against each operation's
+              classification.</li>
+            <li><strong>Allowed operations</strong> — leave empty for all of them, or name a subset.
+              This is the tightest and most useful control on the form.</li>
+            <li><strong>Masked response fields</strong> — dot-paths masked for this person
+              specifically, on top of any connector-wide masking.</li>
+            <li><strong>Expires</strong> — as with datasources, access that removes itself.</li>
+            <li><strong>Break-glass</strong> and <strong>Override variables</strong> — leave both
+              off unless somebody has a concrete need.</li>
+          </ul>
+          <p>
+            Without a grant, a connector simply does not appear in the editor. That is the intended
+            behaviour, and the editor says so rather than showing an empty dropdown.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-masking">4. Mask what comes back</h2>
+          <p>
+            Governing the request is only half of it — the response is where the sensitive data
+            actually is. The <strong>Masking</strong> tab defines policies over response fields,
+            applied before the response is stored.
+          </p>
+          <p>Each policy matches a field one of four ways:</p>
+          <ul>
+            <li><strong>Schema field</strong> — by name, against the loaded schema.</li>
+            <li><strong>JSON path</strong> — for JSON responses, e.g. <code>data.ssn</code>.</li>
+            <li><strong>XML path (XPath)</strong> — for SOAP.</li>
+            <li><strong>Regex</strong> — the fallback when structure does not help.</li>
+          </ul>
+          <p>
+            Then a strategy: full mask, partial with a visible suffix, SHA-256 hash,
+            email-preserving, or format-preserving. A <strong>Reveal to</strong> list names the
+            roles, groups or people who see the real value; leave it empty and it is masked for
+            everyone.
+          </p>
+          <p>
+            The <strong>Classification</strong> tab is the shortcut worth knowing about. Tag response
+            fields as PII, PCI, PHI, GDPR, Financial or Sensitive, switch on <strong>Auto-apply
+            masking</strong>, and AccessFlow derives sensible policies for you — partial masking for
+            PII, GDPR and financial data, full masking for card and health data, hashing for
+            anything merely sensitive. The same tags raise the AI risk score for calls that touch
+            those operations, so a reviewer sees the stakes without having to know the schema.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-call">5. Make a governed call</h2>
+          <p>
+            Sidebar → <strong>API Editor</strong>. Pick the connector, then either choose an
+            operation from the catalog or compose a free-form call. Fill in query parameters,
+            headers and a body across the tabs; connector default headers are shown read-only so you
+            can see what will be sent alongside yours.
+          </p>
+          <p>
+            Add a <strong>Justification</strong>, optionally use <strong>Analyze risk</strong> to see
+            the AI verdict before committing, and <strong>Submit for review</strong>. You land on the
+            request's own page and can follow it from there.
+          </p>
+          <div class="docs-callout info">
+            <strong>Text-to-API.</strong> With a schema loaded and the feature switched on for the
+            connector, you can describe the call in plain English and have AccessFlow draft it. It
+            produces a draft you review and edit — it does not submit anything, and the draft goes
+            through exactly the same approval path as one you typed yourself.
+          </div>
+          <p>
+            Reviewers work the queue at <strong>API Reviews</strong>, with the same approve and
+            reject controls as queries, and the same rule that nobody decides their own request.
+            Approved calls execute and the response — masked — appears on the request page.
+            Everyone's own requests are listed under <strong>API Requests</strong>.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-api-next">Worth knowing</h2>
+          <ul>
+            <li><strong>Scheduled calls</strong> work as they do for queries: set a time and the call
+              runs after approval rather than immediately.</li>
+            <li><strong>Break-glass for API calls</strong> exists in the engine and is gated on a
+              per-connector grant, but there is no button for it in the editor — it can only be
+              exercised through the REST API today. Executions still land in the break-glass log for
+              retrospective review.</li>
+            <li><strong>Request and response size caps</strong> are configurable with
+              <code>ACCESSFLOW_APIGOV_MAX_REQUEST_BODY_BYTES</code> and
+              <code>ACCESSFLOW_APIGOV_MAX_RESPONSE_BYTES</code>; review timeout with
+              <code>ACCESSFLOW_APIGOV_REVIEW_TIMEOUT</code>.</li>
+            <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
+              into one approval. Note there is no distributed rollback: if a later member fails, the
+              earlier ones have already happened.</li>
+          </ul>
+          <p>
+            Connector fields, schema parsing detail and the full masking reference:
+            <a href="/docs/configuration/connectors/#cfg-api-connectors">API connectors</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

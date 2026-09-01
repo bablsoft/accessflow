@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/" class="docs-toc-current" aria-current="page">Datasources</a>
             <p class="docs-toc-label">On this page</p>
@@ -251,11 +263,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-datasources">Datasources</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/datasource/">Add your first datasource</a>
+            walks the wizard end to end and then narrows the datasource down with an allow-list, masking and row security. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> A governed connection to one of your databases. Every query a
             user runs against it passes through AccessFlow's review, masking, and row-security guards
@@ -285,7 +301,7 @@
           </figure>
           <ol>
             <li><strong>Database type.</strong> Pick a bundled driver tile (PostgreSQL ships built-in; other drivers download on first use and are verified against a pinned SHA-256 checksum). Pick <em>Custom</em> to use a JDBC driver you uploaded under <em>Admin → Custom JDBC drivers</em>.</li>
-            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> defaults to <code>REQUIRE</code>; switch to <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. For <strong>Snowflake</strong> the wizard asks for the <em>account host</em> (<code>&lt;account&gt;.snowflakecomputing.com</code>; the port field is hidden — always 443), the database, the user, a credential that is either a <em>password or an unencrypted PKCS#8 private key (PEM)</em> for key-pair authentication, and an optional <em>JDBC URL override</em> — a full <code>jdbc:snowflake://</code> URL carrying warehouse / role / schema parameters. For <strong>Google BigQuery</strong> the connection is cloud credentials: the wizard hides host/port/username and asks for the <em>GCP project</em> (optionally <code>project.dataset</code> to pin a default dataset) and the <em>service-account key JSON</em>, plus an optional <em>custom endpoint</em> (BigQuery emulator). For <strong>Databricks SQL</strong> the wizard asks for the <em>workspace host</em>, the required <em>warehouse HTTP path</em> (<code>/sql/1.0/warehouses/&lt;id&gt;</code> from the warehouse's connection details), an optional <em>Unity Catalog catalog</em>, and a <em>personal access token</em>. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response. When an external secrets manager is enabled (see <a href="/docs/install/#run-docker-compose">Run &amp; deploy</a>), any credential field also accepts a <em>secret reference</em> — <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>, <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or <code>azure:&lt;secret-name&gt;</code> — stored as-is and resolved through the store at connection time; the form shows the syntax hints for whichever providers are enabled.</li>
+            <li><strong>Connection details.</strong> Name the datasource, then enter host, port, database name, service-account username, and password. <em>SSL mode</em> is pre-filled from the engine's own default rather than one global value — PostgreSQL starts at <code>VERIFY_FULL</code>, several NoSQL engines start at <code>DISABLE</code>, and the rest at <code>REQUIRE</code>. Check it rather than assuming it, and prefer <code>VERIFY_FULL</code> in production. For <strong>Cassandra</strong> and <strong>ScyllaDB</strong> the wizard also requires a <em>local datacenter</em> (the driver's load-balancing datacenter); this field is unused for every other engine. For <strong>Elasticsearch</strong> and <strong>OpenSearch</strong> the wizard offers an <em>Authentication</em> toggle — basic (username + password) or an <em>API key</em> — and the database-name field is optional. For <strong>Amazon DynamoDB</strong> the connection is cloud credentials, not host/port: the wizard hides host/port and instead asks for the <em>AWS region</em> (the database-name field), the <em>access key ID</em> and <em>secret access key</em> (the username/password fields), and an optional <em>custom endpoint</em> (DynamoDB Local / VPC; blank for AWS). For <strong>Neo4j</strong> the wizard takes the standard host/port/database/username/password (the SSL mode is encoded in the Bolt scheme) plus an optional <em>Bolt connection URI</em> (advanced) — a full <code>bolt://</code> / <code>neo4j+s://</code> URI for Neo4j Aura or clustered routing that, when set, overrides host/port. For <strong>Snowflake</strong> the wizard asks for the <em>account host</em> (<code>&lt;account&gt;.snowflakecomputing.com</code>; the port field is hidden — always 443), the database, the user, a credential that is either a <em>password or an unencrypted PKCS#8 private key (PEM)</em> for key-pair authentication, and an optional <em>JDBC URL override</em> — a full <code>jdbc:snowflake://</code> URL carrying warehouse / role / schema parameters. For <strong>Google BigQuery</strong> the connection is cloud credentials: the wizard hides host/port/username and asks for the <em>GCP project</em> (optionally <code>project.dataset</code> to pin a default dataset) and the <em>service-account key JSON</em>, plus an optional <em>custom endpoint</em> (BigQuery emulator). For <strong>Databricks SQL</strong> the wizard asks for the <em>workspace host</em>, the required <em>warehouse HTTP path</em> (<code>/sql/1.0/warehouses/&lt;id&gt;</code> from the warehouse's connection details), an optional <em>Unity Catalog catalog</em>, and a <em>personal access token</em>. The password (and API key / secret access key) are AES-256-GCM encrypted on write, decrypted once into the connection pool, and never returned in any GET response. When an external secrets manager is enabled (see <a href="/docs/install/#run-docker-compose">Run &amp; deploy</a>), any credential field also accepts a <em>secret reference</em> — <code>vault:&lt;mount&gt;/&lt;path&gt;#&lt;field&gt;</code>, <code>aws:&lt;name-or-arn&gt;[#jsonField]</code>, or <code>azure:&lt;secret-name&gt;</code> — stored as-is and resolved through the store at connection time; the form shows the syntax hints for whichever providers are enabled.</li>
             <li><strong>Connection test.</strong> AccessFlow opens a real JDBC connection, runs a heartbeat query, and surfaces any SSL / authentication errors before you save.</li>
             <li><strong>Configuration.</strong> Pick the <em>Review plan</em> that gates this datasource, toggle <em>Require review on reads / writes</em>, and (optionally) enable AI analysis and/or <em>text-to-query</em> + pick an <em>AI configuration</em>. The AI configuration is shared by both features, so it is required whenever either toggle is on. With text-to-query on, users can draft a query from a natural-language prompt in the editor — in the engine's native query language (SQL or a NoSQL query) — and the draft still flows through the normal review pipeline. Pool size, max rows, and statement timeout default sensibly but can be tightened per datasource.</li>
           </ol>
@@ -614,6 +630,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

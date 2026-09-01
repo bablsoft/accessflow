@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Turn on AI risk analysis — AccessFlow guide</title>
+  <meta name="description" content="Point AccessFlow at Anthropic, OpenAI, Ollama or Hugging Face so every submitted query arrives at review with a risk level and an explanation." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/ai-analysis/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Turn on AI risk analysis — AccessFlow guide" />
+  <meta property="og:description" content="Point AccessFlow at Anthropic, OpenAI, Ollama or Hugging Face so every submitted query arrives at review with a risk level and an explanation." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/ai-analysis/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Turn on AI risk analysis — AccessFlow guide" />
+  <meta name="twitter:description" content="Point AccessFlow at Anthropic, OpenAI, Ollama or Hugging Face so every submitted query arrives at review with a risk level and an explanation." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/ai-analysis/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/ai-analysis/#breadcrumb" },
+      "headline": "Turn on AI risk analysis",
+      "name": "Turn on AI risk analysis — AccessFlow guide",
+      "description": "Point AccessFlow at Anthropic, OpenAI, Ollama or Hugging Face so every submitted query arrives at review with a risk level and an explanation.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-01",
+      "dateModified": "2026-09-01",
+      "url": "https://accessflow.io/docs/guides/ai-analysis/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/ai-analysis/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/ai-analysis/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Turn on AI analysis",
+          "item": "https://accessflow.io/docs/guides/ai-analysis/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/" class="docs-toc-current" aria-current="page">Turn on AI analysis</a>
+            <p class="docs-toc-label">On this page</p>
+            <a href="#guide-ai">What you are building</a>
+            <a href="#guide-ai-config">1. Create the configuration</a>
+            <a href="#guide-ai-enable">2. Turn it on for a datasource</a>
+            <a href="#guide-ai-failure">3. Know what happens when it fails</a>
+            <a href="#guide-ai-prompt">4. Adjust the prompt, if you need to</a>
+            <a href="#guide-ai-results">5. See what it is doing</a>
+            <a href="#guide-ai-more">Going further</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Turn on AI analysis</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Turn on AI risk analysis.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-ai">What you are building</h2>
+          <p>
+            A risk verdict attached to every submitted query, so a reviewer opens their queue and
+            sees a score, a level and an explanation rather than a wall of raw SQL. It does not
+            decide anything on its own — a human still approves — but it turns "read this and
+            judge it" into "check whether I agree".
+          </p>
+
+          <h3>Do I have to send my queries to a third party?</h3>
+          <p>
+            No. Anthropic and OpenAI are hosted options, but Ollama runs models on your own hardware
+            and the OpenAI-compatible option covers anything speaking that protocol — vLLM, LM
+            Studio, a local text-generation server. What is sent is the SQL, the database type, and
+            optionally schema names; never query results.
+          </p>
+
+          <div class="docs-callout info">
+            <strong>You can have more than one.</strong> Configurations are not one-per-organization.
+            Create as many as you need — a cheap fast model for one datasource, something stronger
+            for another — and bind each datasource to one of them. Adding a fallback priority turns
+            the set into a pool that fails over when a provider is unavailable.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-config">1. Create the configuration</h2>
+          <p>
+            Admin section → <strong>AI configurations</strong> → <strong>Add AI
+            configuration</strong>. The wizard is three steps: <strong>Provider</strong>,
+            <strong>Connection</strong>, <strong>Test</strong>.
+          </p>
+          <div class="docs-table-wrap">
+            <table class="docs-table">
+              <thead>
+                <tr><th>Provider</th><th>Default model</th><th>API key</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><strong>Anthropic</strong></td><td><code>claude-sonnet-4-20250514</code></td><td>Required</td></tr>
+                <tr><td><strong>OpenAI</strong></td><td><code>gpt-4o</code></td><td>Required</td></tr>
+                <tr><td><strong>Ollama</strong></td><td><code>llama3.1:70b</code></td><td>Not used — set the endpoint to your server</td></tr>
+                <tr><td><strong>Hugging Face</strong></td><td><code>meta-llama/Llama-3.3-70B-Instruct</code></td><td>Optional — needed for the hosted router, not for a local server</td></tr>
+                <tr><td><strong>Custom (OpenAI-compatible)</strong></td><td>You supply one</td><td>Optional</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Picking a tile pre-fills the model and, where relevant, the endpoint. On the
+            <strong>Connection</strong> step, give the configuration a <strong>name</strong> you will
+            recognise in a dropdown later, then set the model and the key.
+          </p>
+          <p>
+            Three limits are required and pre-filled sensibly: <strong>Timeout (ms)</strong>,
+            <strong>Max prompt tokens</strong> and <strong>Max completion tokens</strong>. They are
+            two separate token budgets, not one — the prompt budget bounds how much schema context
+            can be sent, the completion budget bounds the answer.
+          </p>
+          <p>
+            The final step sends a test prompt. Do it: a wrong key or an unreachable endpoint is far
+            easier to diagnose here than as a stream of failed analyses later.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/ai-configs-create-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/ai-configs-create-dark.webp"
+                   alt="The AI configuration creation wizard showing the connection step with model, endpoint, API key and token limit fields."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption>The AI configuration wizard — provider, then connection details, then a live test prompt.</figcaption>
+          </figure>
+          <div class="docs-callout warn">
+            <strong><code>ENCRYPTION_KEY</code> has to be set properly.</strong> API keys are
+            encrypted with it before storage. It must be a 32-byte value as 64 hex characters, and
+            the application will not start without one — but if you are running the zero-config demo
+            stack, yours is the committed insecure default. Generate a real one before storing a real
+            provider key.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-enable">2. Turn it on for a datasource</h2>
+          <p>
+            Analysis is enabled per datasource, not globally. Open the datasource's settings, and on
+            the <strong>Configuration</strong> tab switch on <strong>Enable AI analysis</strong> and
+            pick your configuration under <strong>AI configuration</strong>.
+          </p>
+          <p>
+            The two go together: switching analysis on without choosing a configuration is rejected
+            with a message telling you exactly that. The same applies to
+            <strong>text-to-SQL</strong>, which lets people describe a query in plain English and
+            uses the same configuration to draft it.
+          </p>
+          <p>
+            Submit a query against that datasource and it now passes through
+            <strong>Pending AI</strong> before reaching a reviewer, arriving with a risk score, a
+            level of <strong>Low</strong>, <strong>Medium</strong>, <strong>High</strong> or
+            <strong>Critical</strong>, a summary and a list of issues.
+          </p>
+          <div class="docs-callout warn">
+            <strong>Analysis becomes a gate on submission.</strong> Once a datasource has AI analysis
+            enabled, the editor requires the submitter to run <strong>Analyze</strong> before the
+            submit button becomes available. This surprises people the first time — it is the most
+            common reason a submission appears stuck.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-failure">3. Know what happens when it fails</h2>
+          <div class="docs-callout ok">
+            <strong>An AI outage does not let queries through.</strong> When a provider is
+            unreachable, over budget, rate-limited, or returns something unparseable, AccessFlow
+            records the analysis as <strong>Critical</strong> at the maximum risk score, with the
+            failure reason as the reviewer-facing summary. The query goes to a human with a loud
+            marker on it — it is never quietly approved.
+          </div>
+          <p>
+            If you configured a fallback pool, the other configurations are tried before it comes to
+            that. Turning analysis <em>off</em> for a datasource is different again: queries simply
+            skip the AI step and proceed to review with no verdict, and no analysis record is
+            written.
+          </p>
+          <p>
+            Two guardrails are worth setting before you point this at a busy instance.
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> defaults to 30, and
+            <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> defaults to unlimited — set the
+            latter if you would rather hit a ceiling you chose than one your provider's billing
+            chooses for you.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-prompt">4. Adjust the prompt, if you need to</h2>
+          <p>
+            The built-in prompt is a reasonable default. Where your organization has rules the model
+            cannot infer — naming conventions that mark sensitive tables, a compliance regime, a
+            house style for what counts as high risk — the <strong>System prompt</strong> field takes
+            an override. Use <strong>Load / reset to default</strong> to start from the built-in one
+            rather than from scratch.
+          </p>
+          <div class="docs-callout warn">
+            <strong>A custom prompt must contain <code>{{sql}}</code>.</strong> Without it the query
+            never reaches the model and the save is rejected. Six placeholders are substituted in
+            total — <code>{{sql}}</code>, <code>{{db_type}}</code>, <code>{{schema_context}}</code>,
+            <code>{{rag_context}}</code>, <code>{{cost_estimate}}</code> and
+            <code>{{language}}</code> — and any of them may resolve to a "not available" note, so
+            write a prompt that reads sensibly when they do.
+          </div>
+          <p>
+            The response has to come back as JSON matching the expected shape. If it does not,
+            AccessFlow treats it as a failed analysis rather than guessing, which is the behaviour
+            described above. Keep that in mind when instructing the model about its output.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-results">5. See what it is doing</h2>
+          <p>
+            <strong>AI analyses</strong> in the admin section charts risk over time, the issue
+            categories coming up most often, the most active submitters, and token cost and latency
+            per model. It is the page that tells you whether your prompt is working and what the
+            feature is costing you.
+          </p>
+          <p>
+            <strong>Anomalies</strong> is a separate, complementary thing: rather than scoring one
+            query, it watches each person's pattern of activity and flags deviations — unusual
+            volumes, access at odd hours. Anomalies are acknowledged or dismissed from that page.
+          </p>
+          <figure class="docs-figure">
+            <picture>
+              <source srcset="/images/docs/ai-analyses-dashboard-light.webp" media="(prefers-color-scheme: light)" />
+              <img src="/images/docs/ai-analyses-dashboard-dark.webp"
+                   alt="The AI analyses dashboard showing risk score over time, top issue categories, top submitters and token cost per model."
+                   loading="lazy" width="1440" height="900" />
+            </picture>
+            <figcaption><code>/admin/ai-analyses</code> — risk trends, issue categories, and what the analysis is costing per model.</figcaption>
+          </figure>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-ai-more">Going further</h2>
+          <ul>
+            <li><strong>A knowledge base.</strong> Switching on retrieval-augmented generation (RAG) within a configuration lets you
+              add documents — data dictionaries, internal policy — that are retrieved and injected
+              into the analysis, so the model knows things about your schema that the schema itself
+              does not say. Add the documents after saving the configuration.</li>
+            <li><strong>Tracing.</strong> Connecting Langfuse records a trace for every analysis and
+              can serve the prompt itself, so prompt changes become versioned rather than typed into
+              a form.</li>
+            <li><strong>Acting on the verdict automatically.</strong> Once you trust the scores,
+              <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing
+              policies</a> can auto-approve low-risk reads or demand extra approvals on anything
+              critical — which is where the AI stops being advisory and starts saving reviewers
+              time.</li>
+          </ul>
+          <p>
+            Every field, the default prompt in full, and the RAG and Langfuse reference:
+            <a href="/docs/configuration/ai/">AI</a>.
+          </p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

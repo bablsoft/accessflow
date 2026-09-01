@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/iac/",
       "mainEntityOfPage": "https://accessflow.io/docs/iac/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -250,11 +262,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
           <h2>Infrastructure as Code (Terraform / OpenTofu &amp; CI Actions)</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/terraform/">Manage AccessFlow with Terraform</a>
+            is the step-by-step version: mint a service-account key, configure the provider, apply a first resource. This chapter is the reference behind it.
+          </div>
           <p>
             Beyond the env-driven GitOps bootstrap, AccessFlow ships an official
             <strong>Terraform / OpenTofu provider</strong> (<code>bablsoft/accessflow</code>) and
@@ -540,6 +556,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>

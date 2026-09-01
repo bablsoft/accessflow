@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/configuration/auth/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/auth/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,18 @@
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
             <a href="/docs/configuration/connectors/">Connectors</a>
@@ -251,11 +263,15 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Authentication & SSO.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section class="docs-section">
 <h2 id="cfg-oauth">OAuth 2.0 / OIDC</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/sso/">Connect single sign-on</a>
+            is the step-by-step version for OAuth 2.0 / OIDC, SAML 2.0 and SCIM provisioning. This chapter is the reference behind it.
+          </div>
           <p>
             <strong>What it is.</strong> Single sign-on through an external identity provider, so
             people log in with accounts they already have instead of an AccessFlow password. Google,
@@ -283,7 +299,7 @@
             <figcaption><code>/admin/oauth2</code> — one tab per built-in provider (Google / GitHub / Microsoft / GitLab), two self-hosted tabs (GitHub Enterprise / GitLab self-managed), plus a generic OpenID Connect tab. Each tab carries its own redirect URI and provider-specific guidance.</figcaption>
           </figure>
           <ol>
-            <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The format is <code>{ACCESSFLOW_PUBLIC_BASE_URL}/api/v1/auth/oauth2/callback/{provider}</code>.</li>
+            <li><strong>Register an OAuth app at the provider</strong> using the redirect URI shown in the AccessFlow tab (copy it directly from the info callout). The path is <code>/api/v1/auth/oauth2/callback/{provider}</code> on the <strong>backend</strong> origin — not the frontend, and not <code>ACCESSFLOW_PUBLIC_BASE_URL</code>, which is the base for links inside notification emails. Copy the value the page renders rather than assembling it.</li>
             <li><strong>Open <code>/admin/oauth2</code></strong>, pick the provider tab, and paste the <em>Client ID</em> and <em>Client secret</em>. Microsoft additionally needs a <em>Tenant ID</em>; other providers expose optional <em>Scopes override</em> for custom claims. For <strong>GitHub Enterprise</strong> and <strong>GitLab (self-managed)</strong>, also enter the <em>Server base URL</em> of your self-hosted instance (origin only — no path, no query; <code>https://</code> only). AccessFlow appends <code>/login/oauth/authorize</code>, <code>/login/oauth/access_token</code>, and <code>/api/v3/*</code> for GitHub Enterprise, and <code>/oauth/authorize</code>, <code>/oauth/token</code>, <code>/oauth/userinfo</code>, <code>/oauth/discovery/keys</code> for self-managed GitLab. For the <strong>OpenID Connect</strong> tab, also enter the IdP's <em>Display name</em> (rendered on the login button as "Continue with …"), <em>Authorization endpoint URL</em>, <em>Token endpoint URL</em>, <em>UserInfo endpoint URL</em>, <em>JWK set URL</em>, and <em>Issuer URL</em> — most IdPs publish all five at <code>/.well-known/openid-configuration</code>. Optional attribute-claim fields (<em>User-name claim</em>, <em>Email claim</em>, <em>Email-verified claim</em>, <em>Display-name claim</em>) default to the standard OIDC names (<code>sub</code>, <code>email</code>, <code>email_verified</code>, <code>name</code>) and only need to be set if your IdP uses non-standard claims.</li>
             <li><strong>(Optional) Restrict who may sign in.</strong> Use <em>Allowed organizations</em> and <em>Allowed email domains</em> on the same tab:
               <ul>
@@ -297,7 +313,7 @@
               </ul>
               Empty lists mean no restriction. Users who fail the check are redirected to the login page with <code>OAUTH2_ORG_NOT_ALLOWED</code> or <code>OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED</code>.
             </li>
-            <li><strong>Pick a default role</strong> for first-time sign-ins (defaults to <code>READONLY</code>) and flip <em>Active</em> on to enable the provider's button on the login page.</li>
+            <li><strong>Pick a default role</strong> for first-time sign-ins (defaults to <code>ANALYST</code>, which can submit writes — set it to <code>READONLY</code> if you would rather grant upwards deliberately) and flip <em>Active</em> on to enable the provider's button on the login page.</li>
             <li><strong>Set <code>ACCESSFLOW_OAUTH2_FRONTEND_CALLBACK_URL</code></strong> if the frontend lives at a different origin than the backend's CORS origin (default <code>{CORS_ALLOWED_ORIGIN}/auth/oauth/callback</code>).</li>
           </ol>
           <p>
@@ -338,7 +354,7 @@
           </figure>
           <ol>
             <li><strong>Open <code>/admin/saml</code></strong>.</li>
-            <li><strong>Identity provider.</strong> Paste the <em>IdP metadata URL</em> (preferred — AccessFlow refreshes it periodically), or fall back to <em>IdP entity ID</em> + <em>Signing certificate (PEM)</em> when the IdP doesn't publish metadata over HTTP.</li>
+            <li><strong>Identity provider.</strong> Paste both the <em>IdP metadata URL</em> and the <em>Signing certificate (PEM)</em> — they are not alternatives. If either is blank, SAML stays switched off: AccessFlow logs a warning and declines to build the configuration rather than failing at sign-in. Metadata is fetched once and cached until you save a change; there is no periodic refresh.</li>
             <li><strong>Service provider.</strong> Set <em>SP entity ID</em>, <em>ACS URL</em>, and <em>SLO URL</em> — register these with your IdP.</li>
             <li><strong>Attributes.</strong> Map the IdP assertion attributes that carry <em>email</em>, <em>display name</em>, and <em>role</em>. Pick a default role for users whose assertion doesn't include one, then flip <em>Active</em> on to enable the SAML button on the login page.</li>
           </ol>
@@ -479,6 +495,7 @@
           <ul>
             <li><a href="/docs/">User documentation</a></li>
             <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
             <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
             <li><a href="/docs/workflows/">End-user workflows</a></li>
             <li><a href="/docs/iac/">Infrastructure as Code</a></li>
