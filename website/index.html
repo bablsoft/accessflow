@@ -65,7 +65,7 @@
         "operatingSystem": "Linux, macOS, Windows (Docker)",
         "softwareVersion": "2.4.0",
         "datePublished": "2026-04-30",
-        "dateModified": "2026-08-31",
+        "dateModified": "2026-09-01",
         "license": "https://www.apache.org/licenses/LICENSE-2.0",
         "image": "https://accessflow.io/og-image.png",
         "isAccessibleForFree": true,
@@ -127,7 +127,7 @@
         "primaryImageOfPage": "https://accessflow.io/og-image.png",
         "inLanguage": "en",
         "datePublished": "2026-05-14",
-        "dateModified": "2026-08-31"
+        "dateModified": "2026-09-01"
       }
     ]
   }
@@ -366,14 +366,14 @@
               <div class="flow-num">04</div>
               <div>
                 <h3>Execute or release</h3>
-                <p>Queries and API calls execute through the proxy's per-datasource pools; an approved deployment flips its fail-closed CI gate to releasable.</p>
+                <p>Queries and API calls execute through the proxy's own connections to each datasource; an approved deployment flips its fail-closed CI gate to releasable.</p>
               </div>
             </div>
             <div class="flow-step" role="tab" aria-controls="flow-pane-4" aria-selected="false">
               <div class="flow-num">05</div>
               <div>
                 <h3>Audit forever</h3>
-                <p>Append-only metadata audit row. WebSocket pushes result to the submitter. Status becomes <span class="mono">EXECUTED</span>.</p>
+                <p>Append-only metadata audit row. The result is pushed to the submitter live. Status becomes <span class="mono">EXECUTED</span>.</p>
               </div>
             </div>
           </div>
@@ -496,7 +496,7 @@
             </div>
 
             <!-- Stage 4: Execute -->
-            <div data-flow-stage="3" hidden id="flow-pane-3" role="tabpanel" aria-label="Illustration: the live execution log streamed over WebSocket">
+            <div data-flow-stage="3" hidden id="flow-pane-3" role="tabpanel" aria-label="Illustration: the execution log streamed live to the submitter">
               <div class="mock" aria-hidden="true">
                 <div class="mock-bar">
                   <span class="seg on">Execution · q_42081</span>
@@ -579,7 +579,7 @@
         <div class="section-head">
           <span class="eyebrow">Connectors</span>
           <h2>Eighteen engines, one governed checkpoint.</h2>
-          <p>PostgreSQL to Snowflake to MongoDB — find your engine, click <strong>Install</strong>, and AccessFlow fetches its driver and SHA-256-verifies it before governing a single query. Using something else? Upload any JDBC driver. <a class="prose-link" href="/connectors/">All database connectors →</a></p>
+          <p>PostgreSQL to Snowflake to MongoDB — find your engine and start governing. PostgreSQL is already there; for the rest, <strong>Install</strong> fetches the driver and SHA-256-verifies it before a single query runs. Using something else? Upload any JDBC driver. <a class="prose-link" href="/connectors/">All database connectors →</a></p>
         </div>
         <p class="eyebrow" style="margin-top:8px">SQL</p>
         <div class="conn-grid">

@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Document</dd></div>
             <div><dt>Query language</dt><dd>SQL++ (N1QL)</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>11210</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>DISABLE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
+          <p>Couchbase is served by an AccessFlow engine on its own release line, pinned in the catalog to one file and one SHA-256 — so the Couchbase support you install today is byte-for-byte the copy everyone else installs, and a mismatch stops the load rather than warning about it. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>One native cluster client is cached per datasource. Connection strings are built from host and port, with the scheme chosen by SSL mode: plaintext when disabled, or TLS with trust-any-certificate, CA validation, or full SDK defaults as the mode tightens. A full URL can be supplied verbatim instead.</p>
           <p>Scan consistency defaults to request-plus, meaning a read observes mutations submitted before it — the predictable choice for a governance proxy, where a reviewer approving a statement should not then see a stale result. The faster unbounded default is available if you would rather have it.</p>
         </section>

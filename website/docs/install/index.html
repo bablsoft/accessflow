@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Installation",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-08-31",
+      "dateModified": "2026-09-01",
       "url": "https://accessflow.io/docs/install/",
       "mainEntityOfPage": "https://accessflow.io/docs/install/",
       "image": "https://accessflow.io/og-image.png",
@@ -250,7 +250,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-08-31">31 August 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -359,7 +359,7 @@
             <code>ACCESSFLOW_LOGGING_STRUCTURED_FORMAT=logstash</code> (or <code>ecs</code> /
             <code>gelf</code>) on the backend container and every log line becomes a single JSON
             object — `traceId` and `spanId` from the Micrometer tracing bridge are top-level
-            fields, so correlation works out of the box. The Spring Boot ASCII banner is hidden by
+            fields, so correlation works out of the box. The startup ASCII banner is hidden by
             default; set <code>SPRING_MAIN_BANNER_MODE=console</code> to restore it.
           </p>
           <p>
@@ -685,8 +685,8 @@
           <div class="docs-callout info">
             <strong>Multi-replica safety.</strong> Bootstrap is safe under
             <code>replicaCount.backend &gt; 1</code>: every pod races for a Redis-backed
-            <code>bootstrapReconcile</code> lock (the same Redis instance that powers ShedLock
-            and JWT refresh tokens), so exactly one replica performs the upserts per startup
+            <code>bootstrapReconcile</code> lock (the same Redis instance that powers scheduled-job
+            locking and JWT refresh tokens), so exactly one replica performs the upserts per startup
             wave. The other replicas log an INFO line and keep serving traffic. No additional
             env vars to configure.
           </div>

@@ -60,7 +60,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-08-31",
+        "dateModified": "2026-09-01",
         "url": "https://accessflow.io/features/database-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/database-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -243,7 +243,7 @@
 
         <section class="docs-section scroll-pad" id="proxy">
           <h2>Every query is parsed before it runs</h2>
-          <p>AccessFlow is a full proxy, not a linter bolted onto a client. Nothing reaches the database except through it, and nothing goes through it unparsed. Each submitted statement is turned into a syntax tree first; anything that will not parse is rejected outright rather than passed along and hoped for. From that tree AccessFlow reads the statement type — read, write, or schema change — and the exact set of tables and columns referenced, which is what the schema allow-list is checked against. Matching on the tree rather than on the text is the difference between a rule you can rely on and one that a comment or an alias can walk straight past.</p>
+          <p>AccessFlow is a full proxy, not a linter bolted onto a client. Nothing reaches the database except through it, and nothing goes through it unparsed. Each submitted statement is parsed first; anything that will not parse is rejected outright rather than passed along and hoped for. From the parsed statement AccessFlow reads the statement type — read, write, or schema change — and the exact set of tables and columns referenced, which is what the schema allow-list is checked against. Matching on what the statement really references rather than on its text is the difference between a rule you can rely on and one that a comment or an alias can walk straight past.</p>
           <p>The same treatment covers the engines that are not plain SQL. MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch, DynamoDB and Neo4j each bring their own classifier, and so do the cloud warehouses — Snowflake, BigQuery and Databricks — so a document-store command and a warehouse query reach the same checks by a different route. Server-side scripting and the destructive administrative commands are blocked before review rather than after it. <a href="/connectors/">Every engine AccessFlow connects to →</a></p>
           <h3>What the proxy enforces at execution</h3>
           <p>Approval decides whether a query runs; these decide what it is allowed to see when it does.</p>
@@ -296,7 +296,7 @@
           <h2>Several steps, one approval</h2>
           <p>A migration is rarely one statement. A grouped request bundles ordered members — queries across different datasources, calls to governed API connectors, or both — into a single element that is reviewed, approved and executed as a unit. The builder lets you add steps, drag to reorder them, and read a per-step AI risk preview beside an aggregate badge for the whole group.</p>
           <p>Bundling never weakens a member's policy. Each member is validated against your permission for its own target, a break-glass group requires the break-glass grant on every target rather than one, the required approvers are the union across all member plans, and the group is approved only when every member's plan is satisfied. You still cannot approve your own group.</p>
-          <p>One property is worth stating plainly rather than discovering: <strong>there is no distributed rollback.</strong> On execute, members run in order and the first failure stops the run, skipping the rest — or, if you chose continue-on-error, the remainder still run. Either way an approved group is not atomic, and members that already applied stay applied. The UI says so before you submit. Each member records its own snapshot and audit row alongside the group-level audit and live progress over WebSocket. <a href="/docs/workflows/#flow-request-groups">Grouped request docs →</a></p>
+          <p>One property is worth stating plainly rather than discovering: <strong>there is no distributed rollback.</strong> On execute, members run in order and the first failure stops the run, skipping the rest — or, if you chose continue-on-error, the remainder still run. Either way an approved group is not atomic, and members that already applied stay applied. The UI says so before you submit. Each member records its own snapshot and audit row alongside the group-level audit, and progress is streamed live while the group runs. <a href="/docs/workflows/#flow-request-groups">Grouped request docs →</a></p>
         </section>
 
         <section class="docs-section scroll-pad" id="lifecycle">

@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Wide-column</dd></div>
             <div><dt>Query language</dt><dd>CQL</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>9042</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>DISABLE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,9 +261,9 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
-          <p>One native session is cached per datasource; the driver pools and load-balances internally. The contact point comes from host and port (<code>9042</code> by default), and a <strong>local datacenter</strong> is a required field — the driver's default load-balancing policy mandates it, so it is a real part of the datasource rather than an optional tuning knob. The database name field selects the session's default keyspace.</p>
-          <p>SSL defaults to disabled, reflecting the common in-cluster deployment; enabling it encrypts without certificate verification, and the verifying modes use the JVM trust store.</p>
+          <p>Cassandra's engine is one checksum-pinned download that AccessFlow verifies before it will load. It carries its own copy of the CQL client, so upgrading Cassandra support disturbs no other engine you have installed. The one exception is ScyllaDB, which speaks the identical CQL protocol and is served by this same file — the pair moves together. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>One native session is cached per datasource; the driver reuses and load-balances its own connections. The contact point comes from host and port (<code>9042</code> by default), and a <strong>local datacenter</strong> is a required field — the driver's default load-balancing policy mandates it, so it is a real part of the datasource rather than an optional tuning knob. The database name field selects the session's default keyspace.</p>
+          <p>SSL defaults to disabled, reflecting the common in-cluster deployment; enabling it encrypts without certificate verification, and the verifying modes use the certificate trust store AccessFlow runs with.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">

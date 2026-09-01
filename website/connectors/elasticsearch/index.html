@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Search</dd></div>
             <div><dt>Query language</dt><dd>JSON Query DSL</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>9200</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network. The plugin works at the low-level REST client so it controls every header, which means it sends no product-check or version-compatibility media type of its own.</p>
+          <p>The Elasticsearch engine is one checksum-pinned download, verified before it loads. It talks to Elasticsearch at the lowest HTTP level rather than through a convenience client, so it controls every header it sends and adds no product-check or version-compatibility media type of its own. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>The base URL is built from host and port (<code>9200</code> by default) with the scheme from the SSL mode, or supplied verbatim as an override. Authentication is HTTP basic, or an <strong>API key</strong> stored in its own encrypted field and sent as an ApiKey authorization header. One REST client is cached per datasource.</p>
         </section>
 

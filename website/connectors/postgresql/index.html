@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PostgreSQL access governance — SQL query approval — AccessFlow</title>
-  <meta name="description" content="How AccessFlow governs PostgreSQL: every statement parsed to an AST, risk-scored, approved, then run under masking and row-level security." />
+  <meta name="description" content="How AccessFlow governs PostgreSQL: every statement is parsed and checked, risk-scored, approved, then run under masking and row-level security." />
 
   <link rel="canonical" href="https://accessflow.io/connectors/postgresql/" />
   <meta name="robots" content="index, follow" />
@@ -27,7 +27,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="PostgreSQL access governance — SQL query approval — AccessFlow" />
-  <meta property="og:description" content="Every PostgreSQL statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta property="og:description" content="Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta property="og:url" content="https://accessflow.io/connectors/postgresql/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -37,7 +37,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="PostgreSQL access governance — SQL query approval — AccessFlow" />
-  <meta name="twitter:description" content="Every PostgreSQL statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta name="twitter:description" content="Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -56,7 +56,7 @@
         "breadcrumb": { "@id": "https://accessflow.io/connectors/postgresql/#breadcrumb" },
         "headline": "PostgreSQL access governance — every statement reviewed before it runs",
         "name": "PostgreSQL access governance — SQL query approval — AccessFlow",
-        "description": "Every PostgreSQL statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
+        "description": "Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
         "articleSection": "Connectors",
         "inLanguage": "en",
         "datePublished": "2026-09-01",
@@ -241,11 +241,11 @@
           <span class="eyebrow">Connector</span>
           <h1>PostgreSQL access governance — every statement reviewed before it runs</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
-          <p>AccessFlow governs PostgreSQL as a full query proxy: your team connects to AccessFlow, not to Postgres, and every statement is parsed to an abstract syntax tree, checked against a schema allow-list, risk-scored, routed to an approver, and only then executed — under column masking, row-level security and a row cap. PostgreSQL is the one engine that needs no install step: it is bundled, and it is also the database AccessFlow itself runs on.</p>
+          <p>AccessFlow governs PostgreSQL as a full query proxy: your team connects to AccessFlow, not to Postgres, and every statement is parsed, checked against a schema allow-list, risk-scored, routed to an approver, and only then executed — under column masking, row-level security and a row cap. PostgreSQL is the one engine that needs no install step: it is bundled, and it is also the database AccessFlow itself runs on.</p>
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Relational</dd></div>
             <div><dt>Query language</dt><dd>SQL</dd></div>
-            <div><dt>Runs as</dt><dd>In-process pooled JDBC</dd></div>
+            <div><dt>Connects via</dt><dd>Database driver</dd></div>
             <div><dt>Default port</dt><dd><code>5432</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>VERIFY_FULL</code></dd></div>
             <div><dt>Install</dt><dd>Bundled — nothing to download</dd></div>
@@ -261,20 +261,20 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>PostgreSQL runs on the in-process JDBC lane — a pooled HikariCP datasource inside the AccessFlow process, not a downloaded engine plugin. The driver ships with the application, so the connector is marked <code>bundled</code> in the catalog and a fresh install can govern a Postgres datasource with no network fetch at all.</p>
-          <p>The datasource takes the usual host, port (<code>5432</code> by default), database name, username and password. The password is AES-256-GCM encrypted at rest and decrypted exactly once, at pool initialisation — it is never held in the heap beyond that, and never serialized into any API response. It can also be stored as a reference to HashiCorp Vault, AWS Secrets Manager or Azure Key Vault instead of in the AccessFlow database at all.</p>
+          <p>PostgreSQL is the one connector whose driver ships inside AccessFlow rather than being downloaded — the connector is marked <code>bundled</code> in the catalog, so a fresh install can govern a Postgres datasource with no network fetch at all. AccessFlow keeps a warm set of connections to it and reuses them across queries.</p>
+          <p>The datasource takes the usual host, port (<code>5432</code> by default), database name, username and password. The password is AES-256-GCM encrypted at rest and decrypted exactly once, when AccessFlow opens its connections — it is never held in the heap beyond that, and never serialized into any API response. It can also be stored as a reference to HashiCorp Vault, AWS Secrets Manager or Azure Key Vault instead of in the AccessFlow database at all.</p>
           <p>PostgreSQL is the only connector whose default SSL mode is <code>VERIFY_FULL</code> — full certificate and hostname verification, rather than the <code>REQUIRE</code> most connectors default to. A datasource with a read replica configured routes <code>SELECT</code>s to the replica and writes to the primary.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">
           <h2>What AccessFlow understands</h2>
-          <p>Every submitted statement is parsed by JSqlParser into a real syntax tree before anything else happens. That tree is what the allow-list is checked against — AccessFlow walks the AST to collect referenced tables rather than matching strings, so a table name hidden in a comment, a CTE alias or a quoted literal cannot smuggle access past the check.</p>
+          <p>Every submitted statement is parsed before anything else happens, and it is the parsed statement — not the text you typed — that the allow-list is checked against. AccessFlow collects the tables a statement really references rather than matching strings, so a table name hidden in a comment, a CTE alias or a quoted literal cannot smuggle access past the check.</p>
           <p>The parsed statement is classified onto a query type — <code>SELECT</code>, <code>INSERT</code>, <code>UPDATE</code>, <code>DELETE</code> or <code>DDL</code> — and that classification drives the per-user read, write and DDL capabilities, the routing-policy engine and the approval workflow. Unparseable SQL is rejected with HTTP 422 before it reaches a connection.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="refuses">
           <h2>What it refuses</h2>
-          <p>Multi-statement input is rejected outright, with one deliberate exception: a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous batch of <code>INSERT</code>, <code>UPDATE</code> or <code>DELETE</code> statements, which runs under a single JDBC transaction and rolls back as a unit on failure. Inside that envelope, <code>SELECT</code>, DDL, <code>ROLLBACK</code>, <code>SAVEPOINT</code> and a nested <code>BEGIN</code> are each rejected with their own message.</p>
+          <p>Multi-statement input is rejected outright, with one deliberate exception: a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous batch of <code>INSERT</code>, <code>UPDATE</code> or <code>DELETE</code> statements, which runs inside a single database transaction and rolls back as a unit on failure. Inside that envelope, <code>SELECT</code>, DDL, <code>ROLLBACK</code>, <code>SAVEPOINT</code> and a nested <code>BEGIN</code> are each rejected with their own message.</p>
           <p>Nothing the proxy executes is ever built by string concatenation. Every value — including the ones row-level security itself injects — is bound through a prepared statement, so a policy value can never alter the shape of the statement it is filtering.</p>
         </section>
 

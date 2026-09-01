@@ -242,14 +242,14 @@
           <span class="eyebrow">Connector</span>
           <h1>MongoDB access governance — every command reviewed before it runs</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
-          <p>AccessFlow governs MongoDB through the same pipeline as a SQL database: a submitted command is parsed, classified, risk-scored by the AI analyzer, routed to an approver, and only then executed — with row-level security injected into the filter and fields masked on the way out. MongoDB is not JDBC, so it runs as a signed engine plugin the catalog resolves on demand.</p>
+          <p>AccessFlow governs MongoDB through the same pipeline as a SQL database: a submitted command is parsed, classified, risk-scored by the AI analyzer, routed to an approver, and only then executed — with row-level security injected into the filter and fields masked on the way out. MongoDB is not a SQL database, so AccessFlow governs it through an AccessFlow engine the catalog installs on demand.</p>
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Document</dd></div>
             <div><dt>Query language</dt><dd>Mongo shell / JSON command</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>27017</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -262,8 +262,8 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>MongoDB is an engine plugin, not an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
-          <p>The plugin caches one native <code>MongoClient</code> per datasource and the driver pools connections internally. The connection string is built from host, port (<code>27017</code> by default), database, credentials and SSL mode. A datasource with a read replica configured routes reads with <code>secondaryPreferred</code>.</p>
+          <p>The MongoDB engine is not bundled with AccessFlow. The catalog pins it to one exact file and its SHA-256, downloads it the first time you install the connector, and refuses to load it if the checksum does not match. An air-gapped install puts that file in the cache directory up front and runs with downloads switched off. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>AccessFlow caches one native <code>MongoClient</code> per datasource, and that client reuses its own connections. The connection string is built from host, port (<code>27017</code> by default), database, credentials and SSL mode. A datasource with a read replica configured routes reads with <code>secondaryPreferred</code>.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">

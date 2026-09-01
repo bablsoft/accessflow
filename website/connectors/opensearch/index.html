@@ -242,14 +242,14 @@
           <span class="eyebrow">Connector</span>
           <h1>OpenSearch access governance — every query reviewed before it runs</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
-          <p>AccessFlow governs OpenSearch through the same submit, analyse, approve, execute pipeline as any other engine. OpenSearch speaks the same REST API and Query DSL as Elasticsearch for everything AccessFlow governs, so it is served by the same engine plugin — the two differ only in the HTTP client stack underneath.</p>
+          <p>AccessFlow governs OpenSearch through the same submit, analyse, approve, execute pipeline as any other engine. OpenSearch speaks the same REST API and Query DSL as Elasticsearch for everything AccessFlow governs, so it is served by the same AccessFlow engine — the two differ only in the HTTP client underneath.</p>
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Search</dd></div>
             <div><dt>Query language</dt><dd>JSON Query DSL</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (shared with Elasticsearch)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine (shared with Elasticsearch)</dd></div>
             <div><dt>Default port</dt><dd><code>9200</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -262,7 +262,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>OpenSearch and Elasticsearch share one plugin JAR, which registers two engine providers. They genuinely need separate code at exactly one layer: Elasticsearch ships on one major version of the Apache HTTP client and OpenSearch on the next, so the JAR bundles both stacks, each relocated separately, behind a small transport abstraction. Parsing, row security, masking and introspection are shared code.</p>
+          <p>OpenSearch and Elasticsearch share one download, which registers two engines. Parsing, row security, masking and introspection are one implementation used by both — the code diverges at exactly one layer, described in <a class="prose-link" href="#shared-engine">what is shared with Elasticsearch</a> below.</p>
           <p>The base URL is built from host and port (<code>9200</code> by default) with the scheme from the SSL mode, or supplied verbatim. Authentication is HTTP basic or an API key held in its own encrypted field.</p>
         </section>
 
@@ -311,8 +311,8 @@
 
         <section class="docs-section scroll-pad" id="shared-engine">
           <h2>What is shared with Elasticsearch, and what is not</h2>
-          <p>OpenSearch has its own catalog entry, manifest and database type because the connector catalog allows one connector per dialect — not because the governance behaviour differs. Both manifests pin the same JAR by the same SHA-256, and the catalog picks the right provider out of it by matching the connector id against the engine id at load time.</p>
-          <p>There is exactly one layer where the code genuinely diverges, and it is not a governance layer: Elasticsearch and OpenSearch ship on different major versions of the Apache HTTP client. The JAR therefore bundles both stacks, each relocated under its own package prefix so they cannot collide, behind a small transport abstraction. Everything above that line — the query parser, the classification, the scripting ban, the bool-filter row security, the dot-path masker and introspection — is one implementation used by both.</p>
+          <p>OpenSearch has its own catalog entry, manifest and database type because the connector catalog allows one connector per dialect — not because the governance behaviour differs. Both manifests pin the same download by the same SHA-256, and AccessFlow picks the right engine out of it by matching the connector name at load time.</p>
+          <p>There is exactly one layer where the code genuinely diverges, and it is not a governance layer: Elasticsearch and OpenSearch ship on different major versions of the Apache HTTP client. The download therefore carries both, each kept under its own name so they cannot collide, behind one small transport layer. Everything above that line — the query parser, the classification, the scripting ban, the bool-filter row security, the dot-path masker and introspection — is one implementation used by both.</p>
           <p>So every limit documented on the <a href="/connectors/elasticsearch/">Elasticsearch connector page</a> applies here unchanged, including the important one: a row-security policy pointed at an analysed text field matches tokens rather than the literal value, because term clauses only match exact keyword fields.</p>
         </section>
 

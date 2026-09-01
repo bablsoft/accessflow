@@ -27,7 +27,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Oracle Database access governance — SQL query approval — AccessFlow" />
-  <meta property="og:description" content="Every Oracle Database statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta property="og:description" content="Every Oracle Database statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta property="og:url" content="https://accessflow.io/connectors/oracle/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -37,7 +37,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Oracle Database access governance — SQL query approval — AccessFlow" />
-  <meta name="twitter:description" content="Every Oracle Database statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta name="twitter:description" content="Every Oracle Database statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -56,7 +56,7 @@
         "breadcrumb": { "@id": "https://accessflow.io/connectors/oracle/#breadcrumb" },
         "headline": "Oracle Database access governance — every statement reviewed before it runs",
         "name": "Oracle Database access governance — SQL query approval — AccessFlow",
-        "description": "Every Oracle Database statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
+        "description": "Every Oracle Database statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
         "articleSection": "Connectors",
         "inLanguage": "en",
         "datePublished": "2026-09-01",
@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Relational</dd></div>
             <div><dt>Query language</dt><dd>SQL</dd></div>
-            <div><dt>Runs as</dt><dd>In-process pooled JDBC</dd></div>
+            <div><dt>Connects via</dt><dd>Database driver</dd></div>
             <div><dt>Default port</dt><dd><code>1521</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -262,7 +262,7 @@
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
           <p>The Oracle driver is <code>com.oracle.database.jdbc:ojdbc11</code>, resolved from the connector catalog on first use. <strong>Oracle license terms apply to that driver</strong> — it is fetched from Oracle rather than redistributed by AccessFlow, and accepting those terms is your call to make, not something the installer can make for you.</p>
-          <p>The datasource takes host, port (<code>1521</code> by default), the service or database name, username and password — AES-256-GCM encrypted at rest and decrypted exactly once at pool initialisation, or supplied as a Vault, AWS Secrets Manager or Azure Key Vault reference. SSL defaults to <code>REQUIRE</code>.</p>
+          <p>The datasource takes host, port (<code>1521</code> by default), the service or database name, username and password — AES-256-GCM encrypted at rest and decrypted once when AccessFlow opens its connections, or supplied as a Vault, AWS Secrets Manager or Azure Key Vault reference. SSL defaults to <code>REQUIRE</code>.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>
           <div class="code-block">
             <div class="code-block-head">
@@ -275,17 +275,17 @@
 <pre>jdbc:oracle:thin:@//{host}:{port}/{database_name}
 oracle.jdbc.OracleDriver</pre>
           </div>
-          <p>Drivers are resolved on demand — the first time a datasource of this type is created or tested — and each one gets its own classloader. Two datasources pointing at different driver versions, even two Oracle Database datasources, load disjoint copies and cannot interfere with each other through static state.</p>
+          <p>The driver is fetched the first time a datasource of this type is created or tested, and every driver AccessFlow loads is kept separate from every other one. Two datasources on different driver versions — even two Oracle Database datasources — never share a copy and cannot interfere with each other.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">
           <h2>What AccessFlow parses</h2>
-          <p>Statements are parsed to a syntax tree, and the schema allow-list is enforced against that tree — so an allow-list entry means a real table reference, not a string that happened to appear somewhere in the text. The parsed type decides which capability the caller needs and which approval chain applies.</p>
+          <p>Statements are parsed before anything else happens, and the schema allow-list is enforced against the tables the statement really references — so an allow-list entry means a real table reference, not a string that happened to appear somewhere in the text. The parsed type decides which capability the caller needs and which approval chain applies.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="refuses">
           <h2>What it refuses</h2>
-          <p>Multi-statement input is refused, with the single exception of a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous write batch. Anything the parser cannot read is rejected with HTTP 422 before a connection is taken from the pool, so a malformed statement never reaches the database at all.</p>
+          <p>Multi-statement input is refused, with the single exception of a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous write batch. Anything the parser cannot read is rejected with HTTP 422 before AccessFlow opens a connection, so a malformed statement never reaches the database at all.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="row-security">
