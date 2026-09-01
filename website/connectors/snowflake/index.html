@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Snowflake access governance — AccessFlow</title>
-  <meta name="description" content="How AccessFlow governs Snowflake: key-pair auth, no connection pool, fail-closed WHERE splice, and a scan-byte estimate before anyone approves." />
+  <meta name="description" content="How AccessFlow governs Snowflake: key-pair auth, a short-lived connection per query, fail-closed WHERE splice, and a scan-byte estimate before anyone approves." />
 
   <link rel="canonical" href="https://accessflow.io/connectors/snowflake/" />
   <meta name="robots" content="index, follow" />
@@ -241,14 +241,14 @@
           <span class="eyebrow">Connector</span>
           <h1>Snowflake access governance — every statement reviewed before it runs</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
-          <p>AccessFlow governs Snowflake through the same submit, analyse, approve, execute pipeline as any other engine — but Snowflake gets its own engine plugin rather than the pooled JDBC lane, because its connection and auth model does not fit host, port, username and password. Warehouse sessions are billed while a warehouse is resumed, so the shape of the connection is itself a governance decision.</p>
+          <p>AccessFlow governs Snowflake through the same submit, analyse, approve, execute pipeline as any other engine — but Snowflake gets its own AccessFlow engine rather than a database driver, because its connection and authentication model does not fit host, port, username and password. Warehouse sessions are billed while a warehouse is resumed, so the shape of the connection is itself a governance decision.</p>
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Cloud data warehouse</dd></div>
             <div><dt>Query language</dt><dd>Snowflake SQL</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>443</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,9 +261,9 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
+          <p>Snowflake's engine is one checksum-pinned download that AccessFlow verifies before loading, and it brings Snowflake's own client with it — there is nothing to install on the host and no vendor package to keep current separately. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>The host is the account host, the database name is the Snowflake database, and the stored credential is either a password or an unencrypted PKCS#8 private-key PEM — detected by its header and used for the driver's key-pair JWT authentication. Encrypted PEMs are rejected with a specific message rather than failing obscurely. A full connection URL can be supplied instead, carrying warehouse, role and schema parameters.</p>
-          <p>There is <strong>no connection pool</strong>. Each request opens a short-lived connection and closes it. That is deliberate: warehouse sessions are billed while the warehouse is resumed, governance traffic is sparse rather than continuous, and per-request connections also rule out session-state leaking between two users' queries.</p>
+          <p><strong>Nothing is held open between requests.</strong> Each request opens a short-lived connection and closes it. That is deliberate: warehouse sessions are billed while the warehouse is resumed, governance traffic is sparse rather than continuous, and per-request connections also rule out session-state leaking between two users' queries.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">

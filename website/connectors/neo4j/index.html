@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Graph</dd></div>
             <div><dt>Query language</dt><dd>Cypher</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>7687</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
+          <p>The Neo4j engine is one checksum-pinned download carrying Neo4j's own driver and its Bolt stack. AccessFlow verifies the file before it loads and will not run a copy whose checksum does not match the catalog. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>Neo4j connects over Bolt, and the SSL mode is encoded in the URI scheme: plaintext when disabled, encrypted trusting any certificate at the default, and encrypted with trust-store verification for the verifying modes. A full URI can be supplied verbatim instead, which is how a managed Aura instance or a clustered routing URI is configured.</p>
           <p>The database name is required and selects the Neo4j database for the session. One driver is cached per datasource; the driver pools and routes Bolt connections internally.</p>
         </section>

@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Key-value</dd></div>
             <div><dt>Query language</dt><dd>redis-cli commands</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>6379</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>DISABLE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,8 +261,8 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network.</p>
-          <p>One pooled client is cached per datasource. The connection is built from host and port (<code>6379</code> by default), the scheme chosen by SSL mode, the optional ACL username, and the database name field used as the numeric database index. The password is AES-256-GCM encrypted at rest and decrypted only when the client is built.</p>
+          <p>Redis support arrives as a single checksum-pinned download the first time you install the connector, and it shares nothing with any other engine — the version of the Redis client it carries is fixed by that one file, so upgrading Redis support moves nothing else. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>One client is cached per datasource and reuses its own connections. The connection is built from host and port (<code>6379</code> by default), the scheme chosen by SSL mode, the optional ACL username, and the database name field used as the numeric database index. The password is AES-256-GCM encrypted at rest and decrypted only when the client is built.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">

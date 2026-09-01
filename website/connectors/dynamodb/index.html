@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Key-value</dd></div>
             <div><dt>Query language</dt><dd>PartiQL</dd></div>
-            <div><dt>Runs as</dt><dd>Engine plugin (SHA-256 pinned)</dd></div>
+            <div><dt>Connects via</dt><dd>AccessFlow engine</dd></div>
             <div><dt>Default port</dt><dd><code>8000</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>It is an engine plugin rather than an in-process JDBC datasource: a standalone shaded JAR, pinned in the connector catalog by URL and SHA-256, downloaded on first use, hash-verified, and loaded into an isolated classloader. If the hash does not match, it does not load. In an air-gapped install the JAR can be pre-seeded into the driver cache and the runtime told never to reach the network. The AWS SDK is bundled with the URL-connection HTTP client rather than the default async stack, which keeps the JAR free of a second Netty and small.</p>
+          <p>The DynamoDB engine is one checksum-pinned download, verified before it loads. It carries the AWS SDK wired to a plain HTTP client rather than the asynchronous default, which keeps the download small and keeps a second networking stack out of AccessFlow entirely. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>DynamoDB has no host or port, so the datasource fields are remapped: the database name field holds the AWS <strong>region</strong>, which is required because the SDK needs it to sign requests even against a custom endpoint; the username is the access key id; the password is the secret access key, AES-256-GCM encrypted at rest and decrypted only when the client is constructed; and the URL override optionally points at DynamoDB Local or a VPC endpoint.</p>
         </section>
 

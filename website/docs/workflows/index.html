@@ -430,7 +430,7 @@
             group left awaiting review past the review timeout is auto-rejected to
             <code>TIMED_OUT</code> by <code>GroupTimeoutJob</code> (cadence
             <code>ACCESSFLOW_REQUESTGROUPS_TIMEOUT_POLL_INTERVAL</code>, default <code>PT5M</code>).
-            Both are clustered-safe (ShedLock).
+            Both are clustered-safe: exactly one replica runs each tick.
           </p>
 
           <h3 id="flow-review">Reviewing &amp; bulk approval</h3>

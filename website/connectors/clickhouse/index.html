@@ -27,7 +27,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="ClickHouse access governance — SQL query approval — AccessFlow" />
-  <meta property="og:description" content="Every ClickHouse statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta property="og:description" content="Every ClickHouse statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta property="og:url" content="https://accessflow.io/connectors/clickhouse/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -37,7 +37,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="ClickHouse access governance — SQL query approval — AccessFlow" />
-  <meta name="twitter:description" content="Every ClickHouse statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
+  <meta name="twitter:description" content="Every ClickHouse statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -56,7 +56,7 @@
         "breadcrumb": { "@id": "https://accessflow.io/connectors/clickhouse/#breadcrumb" },
         "headline": "ClickHouse access governance — every statement reviewed before it runs",
         "name": "ClickHouse access governance — SQL query approval — AccessFlow",
-        "description": "Every ClickHouse statement parsed to an AST against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
+        "description": "Every ClickHouse statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
         "articleSection": "Connectors",
         "inLanguage": "en",
         "datePublished": "2026-09-01",
@@ -245,10 +245,10 @@
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Relational</dd></div>
             <div><dt>Query language</dt><dd>SQL</dd></div>
-            <div><dt>Runs as</dt><dd>In-process pooled JDBC</dd></div>
+            <div><dt>Connects via</dt><dd>Database driver</dd></div>
             <div><dt>Default port</dt><dd><code>8123</code></dd></div>
             <div><dt>Default SSL mode</dt><dd><code>REQUIRE</code></dd></div>
-            <div><dt>Install</dt><dd>One-click from the connector catalog</dd></div>
+            <div><dt>Install</dt><dd>One click — checksum-verified download</dd></div>
           </dl>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -261,8 +261,8 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
-          <p>ClickHouse is a built-in catalog connector on the <strong>generic JDBC lane</strong> rather than one of the five first-class dialects. Its driver, <code>com.clickhouse:clickhouse-jdbc</code>, is pinned in the catalog and installed in one click, and it loads under a connector-scoped classloader of its own.</p>
-          <p>That generic lane is the same mechanism any other JDBC-compatible engine can use: upload a driver JAR with its SHA-256, and AccessFlow will govern it the same way. ClickHouse is simply a driver that ships pre-declared in the catalog so you do not have to.</p>
+          <p>ClickHouse is a built-in catalog connector that uses the <strong>generic SQL dialect</strong> rather than one of the five with a dialect of their own. Its driver, <code>com.clickhouse:clickhouse-jdbc</code>, is pinned in the catalog and installed in one click, and it is loaded on its own rather than alongside anything else.</p>
+          <p>That generic dialect is the same path any other JDBC-compatible engine can use: upload a driver JAR with its SHA-256, and AccessFlow will govern it the same way. ClickHouse is simply a driver that ships pre-declared in the catalog so you do not have to.</p>
           <p>The datasource takes host, port (<code>8123</code> by default for the HTTP interface), database, username and password, AES-256-GCM encrypted at rest. SSL defaults to <code>DISABLE</code>, reflecting the common in-cluster deployment — set it to <code>REQUIRE</code> or a verifying mode for anything crossing a network boundary.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>
           <div class="code-block">
@@ -276,12 +276,12 @@
 <pre>jdbc:ch://{host}:{port}/{database_name}
 com.clickhouse.jdbc.ClickHouseDriver</pre>
           </div>
-          <p>Drivers are resolved on demand — the first time a datasource of this type is created or tested — and each one gets its own classloader. Two datasources pointing at different driver versions, even two ClickHouse datasources, load disjoint copies and cannot interfere with each other through static state.</p>
+          <p>The driver is fetched the first time a datasource of this type is created or tested, and every driver AccessFlow loads is kept separate from every other one. Two datasources on different driver versions — even two ClickHouse datasources — never share a copy and cannot interfere with each other.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="language">
           <h2>What AccessFlow parses</h2>
-          <p>Statements are parsed to a syntax tree and the schema allow-list is enforced against that tree. Because ClickHouse runs on the generic dialect, the parse is the standard SQL grammar rather than a ClickHouse-aware one — a statement using syntax outside that grammar is refused with HTTP 422 rather than passed through unparsed, which is the fail-closed direction.</p>
+          <p>Statements are parsed before anything else happens, and the schema allow-list is enforced against the tables the statement really references. Because ClickHouse runs on the generic dialect, the parse uses the standard SQL grammar rather than a ClickHouse-aware one — a statement using syntax outside that grammar is refused with HTTP 422 rather than passed through unparsed, which is the fail-closed direction.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="refuses">

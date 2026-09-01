@@ -61,7 +61,7 @@
         "inLanguage": "en",
         "articleSection": "Security",
         "datePublished": "2026-08-29",
-        "dateModified": "2026-08-31",
+        "dateModified": "2026-09-01",
         "url": "https://accessflow.io/security/",
         "mainEntityOfPage": "https://accessflow.io/security/",
         "image": "https://accessflow.io/og-image.png",
@@ -242,8 +242,8 @@
             Nobody gets the database password or the API credentials — not even your own team.
             AccessFlow sits in the middle and is the only thing that ever connects to the real
             database or upstream API, and only after a request is approved. Users sign in to
-            AccessFlow, never to the target; behind the scenes the proxy holds the real database
-            connection pools and the connectors' encrypted credentials, and reaches out on their
+            AccessFlow, never to the target; behind the scenes the proxy holds the connections to the
+            real databases and the connectors' encrypted credentials, and reaches out on their
             behalf.
           </p>
           <p>
@@ -264,7 +264,7 @@
             <div class="arch-row">
               <div class="arch-cell accent arch-cell-md">
                 <span class="label">API GATEWAY</span>
-                <span class="value">REST + WebSocket gateway · JWT · modular service</span>
+                <span class="value">REST + live updates · JWT · modular service</span>
               </div>
             </div>
             <div class="arch-conn" aria-hidden="true"></div>
@@ -335,9 +335,10 @@
             redeploy and no copy left behind.
           </p>
           <p>
-            Either way the plaintext has a deliberately short life. It is decrypted once, handed to
-            the connection pool at initialisation, and not retained in application memory beyond
-            that point; the query path works against a warm pool, never against a password.
+            Either way the plaintext has a deliberately short life. It is decrypted once, when
+            AccessFlow first opens its connections to that database, and is not retained in
+            application memory beyond that point; the query path works against connections that are
+            already open, never against a password.
           </p>
           <p>
             Three other keys matter operationally, and they are deliberately not all sourced the

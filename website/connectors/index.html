@@ -29,7 +29,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
-  <meta property="og:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload." />
+  <meta property="og:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload." />
   <meta property="og:url" content="https://accessflow.io/connectors/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -39,7 +39,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
-  <meta name="twitter:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload." />
+  <meta name="twitter:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -58,7 +58,7 @@
         "breadcrumb": { "@id": "https://accessflow.io/connectors/#breadcrumb" },
         "name": "Database connectors — SQL, NoSQL and warehouses — AccessFlow",
         "headline": "Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines",
-        "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each pinned to an SHA-256-verified artefact — plus any JDBC engine you upload.",
+        "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload.",
         "inLanguage": "en",
         "datePublished": "2026-08-29",
         "dateModified": "2026-09-01",
@@ -273,9 +273,10 @@
 
           <h3>SQL</h3>
           <p>
-            Relational engines run over pooled JDBC inside the AccessFlow process, with schema
-            introspection and WHERE-clause row-level security. The first five have their own SQL
-            dialect built in; ClickHouse rides the generic dialect, as an uploaded driver does.
+            Relational engines are reached through the database's own driver, which AccessFlow loads
+            and keeps warm, with schema introspection and WHERE-clause row-level security. The first
+            five have their own SQL dialect built in; ClickHouse rides the generic dialect, as an
+            uploaded driver does.
           </p>
           <div class="conn-grid">
 
@@ -325,9 +326,10 @@
 
           <h3>Cloud data warehouses</h3>
           <p>
-            Warehouses connect through native engines that use each vendor's own authentication model
-            — key-pair JWT or password, service-account JSON, and personal access tokens respectively — rather
-            than a pooled JDBC connection.
+            Warehouses connect through AccessFlow engines that use each vendor's own authentication
+            model — key-pair JWT or password, service-account JSON, and personal access tokens
+            respectively — rather than the host, port, username and password a relational database
+            takes.
           </p>
           <div class="conn-grid">
 
@@ -353,9 +355,9 @@
 
           <h3>NoSQL</h3>
           <p>
-            Document, key-value, wide-column, search and graph engines each ship as a native engine
-            plugin that speaks the database's own query language — no SQL translation layer in
-            between.
+            Document, key-value, wide-column, search and graph databases are each governed by an
+            AccessFlow engine that speaks the database's own query language — no SQL translation
+            layer in between.
           </p>
           <div class="conn-grid">
 
@@ -417,51 +419,51 @@
         </section>
 
         <section class="docs-section scroll-pad" id="matrix">
-          <h2>Engine reference — category, runtime and install path</h2>
+          <h2>Engine reference — category, connection and install path</h2>
           <p>
-            Every engine carries a category that decides how AccessFlow loads it. Relational engines
-            run in-process over a pooled JDBC connection; everything else runs as a self-contained
-            engine plugin resolved on demand. Every engine links through to the connector setup guide.
+            Every engine carries a category that decides how AccessFlow reaches it. For a relational
+            database AccessFlow loads that database's own driver; for everything else it loads an
+            AccessFlow engine built for that database, downloaded and checksum-verified the first
+            time you install it. Every engine links through to the connector setup guide.
           </p>
           <div class="docs-table-wrap">
-            <table class="docs-table" aria-label="Supported database engines by category, runtime and install path">
+            <table class="docs-table" aria-label="Supported database engines by category, how AccessFlow connects, and install path">
               <thead>
                 <tr>
                   <th>Engine</th>
                   <th>Category</th>
-                  <th>Runs as</th>
+                  <th>Connects via</th>
                   <th>Install</th>
                 </tr>
               </thead>
               <tbody>
-                <tr><td><a href="/connectors/postgresql/">PostgreSQL</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>Bundled</td></tr>
-                <tr><td><a href="/connectors/mysql/">MySQL</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/mariadb/">MariaDB</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/oracle/">Oracle Database</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/mssql/">Microsoft SQL Server</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/clickhouse/">ClickHouse</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/snowflake/">Snowflake</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/bigquery/">Google BigQuery</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/databricks/">Databricks SQL</a></td><td>WAREHOUSE</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/mongodb/">MongoDB</a></td><td>DOCUMENT</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/couchbase/">Couchbase</a></td><td>DOCUMENT</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/redis/">Redis</a></td><td>KEY_VALUE</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/dynamodb/">Amazon DynamoDB</a></td><td>KEY_VALUE</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/cassandra/">Apache Cassandra</a></td><td>WIDE_COLUMN</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/scylladb/">ScyllaDB</a></td><td>WIDE_COLUMN</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/elasticsearch/">Elasticsearch</a></td><td>SEARCH</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/opensearch/">OpenSearch</a></td><td>SEARCH</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/connectors/neo4j/">Neo4j</a></td><td>GRAPH</td><td>Engine plugin</td><td>1-click</td></tr>
-                <tr><td><a href="/docs/configuration/datasources/">Any other JDBC engine</a></td><td>RELATIONAL</td><td>In-process JDBC</td><td>Upload a JAR</td></tr>
+                <tr><td><a href="/connectors/postgresql/">PostgreSQL</a></td><td>RELATIONAL</td><td>Database driver</td><td>Bundled</td></tr>
+                <tr><td><a href="/connectors/mysql/">MySQL</a></td><td>RELATIONAL</td><td>Database driver</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/mariadb/">MariaDB</a></td><td>RELATIONAL</td><td>Database driver</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/oracle/">Oracle Database</a></td><td>RELATIONAL</td><td>Database driver</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/mssql/">Microsoft SQL Server</a></td><td>RELATIONAL</td><td>Database driver</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/clickhouse/">ClickHouse</a></td><td>RELATIONAL</td><td>Database driver</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/snowflake/">Snowflake</a></td><td>WAREHOUSE</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/bigquery/">Google BigQuery</a></td><td>WAREHOUSE</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/databricks/">Databricks SQL</a></td><td>WAREHOUSE</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/mongodb/">MongoDB</a></td><td>DOCUMENT</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/couchbase/">Couchbase</a></td><td>DOCUMENT</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/redis/">Redis</a></td><td>KEY_VALUE</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/dynamodb/">Amazon DynamoDB</a></td><td>KEY_VALUE</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/cassandra/">Apache Cassandra</a></td><td>WIDE_COLUMN</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/scylladb/">ScyllaDB</a></td><td>WIDE_COLUMN</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/elasticsearch/">Elasticsearch</a></td><td>SEARCH</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/opensearch/">OpenSearch</a></td><td>SEARCH</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/connectors/neo4j/">Neo4j</a></td><td>GRAPH</td><td>AccessFlow engine</td><td>1-click</td></tr>
+                <tr><td><a href="/docs/configuration/datasources/">Any other JDBC engine</a></td><td>RELATIONAL</td><td>Database driver</td><td>Upload a JAR</td></tr>
               </tbody>
             </table>
           </div>
           <p>
-            Two pairs share one artefact: ScyllaDB is served by the Cassandra plugin and OpenSearch by
-            the Elasticsearch plugin, because each pair is wire-compatible. ClickHouse is the one SQL
-            engine outside the built-in five dialects — it carries the <code>CUSTOM</code> dialect and
-            is resolved through its own classloader, which is exactly the mechanism an uploaded driver
-            uses. Query languages, connection fields and the per-engine row-security rules are in
+            Two pairs share one download: ScyllaDB is served by the Cassandra engine and OpenSearch
+            by the Elasticsearch engine, because each pair is wire-compatible. ClickHouse is the one
+            SQL engine outside the built-in five dialects — it carries the <code>CUSTOM</code>
+            dialect and is loaded on its own, exactly the way a driver you upload yourself is. Query languages, connection fields and the per-engine row-security rules are in
             <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors-matrix">the engine matrix →</a>
           </p>
         </section>
@@ -470,32 +472,32 @@
           <h2>How an install works</h2>
           <p>
             The catalog is declarative. Each connector is a small manifest describing display name,
-            logo, default port and SSL mode, the connection template, and where to fetch the artefact
-            — a Maven coordinate for JDBC drivers, a direct URL for engine plugins — together with
-            that artefact's pinned SHA-256. Adding or updating a supported database is a data change,
-            not a code change. Every artefact is verified against its pin at install time, and CI
-            rebuilds each engine plugin and fails the build if the resulting checksum has drifted
-            from the manifest.
+            logo, default port and SSL mode, the connection template, and where to fetch the file it
+            needs — a public package repository for a database driver, a direct download URL for an
+            AccessFlow engine — together with that file's pinned SHA-256. Adding or updating a
+            supported database is a data change, not a code change. Every download is verified
+            against its pin at install time, and CI rebuilds each AccessFlow engine and fails the
+            build if the resulting checksum has drifted from the manifest.
           </p>
           <p>
-            Clicking <strong>Install</strong> downloads the artefact, verifies it against the pinned
-            checksum, and caches it. That cache is shared by JDBC drivers and engine plugins alike and
-            can be backed by a persistent volume in the Helm chart, so installs survive restarts
-            instead of re-downloading. Nothing
-            about a connector is "installed" in a database table — status is derived from what is in
-            the cache, which means a restored volume is a restored install.
+            Clicking <strong>Install</strong> downloads the file, verifies it against the pinned
+            checksum, and caches it. Database drivers and AccessFlow engines share that one cache,
+            which can be backed by a persistent volume in the Helm chart, so installs survive
+            restarts instead of re-downloading. Nothing about a connector is "installed" in a
+            database table — status is derived from what is in the cache, which means a restored
+            volume is a restored install.
           </p>
           <p>
-            Non-relational artefacts are engine plugins rather than drivers: self-contained JARs
-            implementing AccessFlow's engine SPI, discovered through Java's <code>ServiceLoader</code>
-            and loaded into an isolated classloader with no transitive resolution, so two engines can
-            never fight over a shared dependency version. This is why the container image does not
-            have to ship every database driver on earth, and why adding an engine costs you a download
-            instead of a redeploy. Air-gapped installs pre-seed the cache directory with the JARs they
-            need and run with downloads disabled.
+            Every database that is not relational is governed by an AccessFlow engine rather than by
+            a database driver: one self-contained download, built by AccessFlow against a documented
+            contract, carrying its own copy of everything it needs and kept separate from every other
+            engine — so two engines can never fight over the same dependency version. This is why the
+            container image does not have to ship every database driver on earth, and why adding a
+            database costs you a download instead of a redeploy. Air-gapped installs put the files
+            they need into the cache directory up front and run with downloads switched off.
           </p>
           <p>
-            Outbound API connectors are registered rather than downloaded — there is no artefact to
+            Outbound API connectors are registered rather than downloaded — there is no file to
             pin — but once registered they are governed identically, and the review, masking and
             audit guarantees are the same across every connector type. See
             <a class="prose-link" href="/security/">the security architecture →</a>
@@ -507,13 +509,13 @@
           <p>
             If your engine speaks JDBC but is not in the list, an admin uploads its driver JAR, enters
             the driver class and its SHA-256, and creates a <strong>Custom</strong> datasource against
-            it. The JAR is org-scoped and gets the same isolated classloader a catalog connector does;
-            queries against it are parsed, reviewed and audited exactly like any other. For engines
-            with no JDBC driver at all, the
-            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">engine-plugin SDK</a>
-            documents the service-provider interface a native engine implements — the same contract
-            every plugin in the catalog is built on. That route is a contribution rather than an
-            upload: a new engine ships as a plugin project plus a manifest merged into the catalog.
+            it. The upload belongs to your organization alone and is kept as separate from everything
+            else as a catalog connector is; queries against it are parsed, reviewed and audited
+            exactly like any other. For databases with no JDBC driver at all, the
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">guide to building an AccessFlow engine</a>
+            documents the contract a native engine implements — the same one every engine in the
+            catalog is built on. That route is a contribution rather than an
+            upload: a new engine ships as its own project plus a manifest merged into the catalog.
           </p>
         </section>
 
@@ -523,8 +525,8 @@
             <div class="qa-item">
               <h3>Which databases does AccessFlow support?</h3>
               <p>
-                PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server and ClickHouse over JDBC,
-                plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
+                PostgreSQL, MySQL, MariaDB, Oracle, Microsoft SQL Server and ClickHouse through their
+                own drivers, plus any other JDBC engine via an uploaded driver. Cloud warehouses: Snowflake, Google
                 BigQuery, Databricks SQL. NoSQL: MongoDB, Couchbase, Redis, Amazon DynamoDB, Apache
                 Cassandra, ScyllaDB, Elasticsearch, OpenSearch and Neo4j. Eighteen connectors in all,
                 each installable in one click from the admin marketplace. See
@@ -536,7 +538,7 @@
               <p>
                 No. PostgreSQL is bundled and everything else is opt-in — install only the engines you
                 actually govern, and the rest never download. That keeps the container image small and
-                the supply chain narrow, since the only third-party artefacts on disk are the ones you
+                the supply chain narrow, since the only third-party files on disk are the ones you
                 asked for.
               </p>
             </div>
