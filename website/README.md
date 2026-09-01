@@ -139,6 +139,10 @@ website/
 ├── ai-agents/       # Topic page — governed database access for AI agents
 ├── security/        # Topic page — credential storage, auth, audit (AF-783)
 ├── connectors/      # Topic page — the engine catalog, per-engine reference (AF-784)
+│   └── <engine>/    # 18 leaf pages, one per connector manifest — postgresql, mysql,
+│                    #   mariadb, oracle, mssql, clickhouse, snowflake, bigquery,
+│                    #   databricks, mongodb, couchbase, redis, dynamodb, cassandra,
+│                    #   scylladb, elasticsearch, opensearch, neo4j
 ├── use-cases/       # Topic page — the six persona use cases and their mocks (AF-785)
 ├── roadmap/         # Topic page — available-now grid, milestone context, planned band (AF-786)
 ├── features/        # Topic hub — all 12 capabilities, grouped by governance area (AF-787)
@@ -291,6 +295,34 @@ two cannot drift. Breadcrumb links are deliberately excluded from the `.docs-her
 `datePublished` is each page's own first-commit date and is guarded: it must be a real ISO
 date, never before the project's first commit (2026-04-30), never after `dateModified`. It sat
 at a `2026-04-01` placeholder on 13 pages until the guard was added.
+
+### The per-engine connector pages
+
+`/connectors/<engine>/` is one page per entry in the repo-root [`connectors/`](../connectors/)
+catalog — eighteen of them, and the set is **1:1 with the manifests**. Adding a connector to the
+catalog without adding its page (or vice versa) breaks the sitemap-parity and llms.txt guards, which
+is the intended coupling: the catalog is the source of truth for which engines exist.
+
+The slug is the manifest id verbatim, including `mssql` rather than `sql-server`. That trades a
+slightly better keyword slug for a mechanical invariant a test can check, which is the right trade
+when the page title and `h1` already carry the full product name.
+
+**These pages exist because each engine genuinely differs**, and they must keep earning that. The
+shared pipeline — parse, risk-score, route, approve, execute, audit — is deliberately *not* restated
+on eighteen pages; each links to
+[`/features/database-access-governance/`](features/database-access-governance/) for it and spends
+its own words on what is specific: the driver or plugin it loads, the query forms it parses, the
+constructs it refuses, the exact shape of the row-security rewrite and where that rewrite fails
+closed, and its dry-run behaviour. Every page carries a worked example showing a real statement
+before and after the rewrite.
+
+When you add or edit one, check the numbers rather than trusting the prose: at the time of writing
+each page is **79–100% unique at sentence level** against the other seventeen, 611–905 words. An
+earlier draft of the five relational pages sat at 34–50% unique because they restated the shared
+mechanics — that is the failure mode this tier is prone to, and the fix was to cut the restatement
+and link out, not to add words. `scylladb` and `opensearch` are the other trap: they share an engine
+JAR with `cassandra` and `elasticsearch`, so they are written to answer "is it the same?" directly
+rather than to paraphrase their sibling.
 
 ### Regenerating og-image.png
 
