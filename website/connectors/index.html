@@ -327,8 +327,8 @@
           <h3>Cloud data warehouses</h3>
           <p>
             Warehouses connect through AccessFlow engines that use each vendor's own authentication
-            model — key-pair JWT or password, service-account JSON, and personal access tokens
-            respectively.
+            model: key-pair JWT or password for Snowflake, service-account JSON for BigQuery, and a
+            personal access token for Databricks SQL.
           </p>
           <div class="conn-grid">
 
@@ -512,7 +512,7 @@
             the driver class and its SHA-256, and creates a <strong>Custom</strong> datasource against
             it. The upload belongs to your organization alone and is kept as separate from everything
             else as a catalog connector is; queries against it are parsed, reviewed and audited
-            exactly like any other. For databases with no JDBC driver at all, the
+            exactly like any other. For databases with no JDBC driver at all,
             <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">the engine SDK guide</a>
             documents the contract a native engine implements — the same one every engine in the
             catalog is built on. That route is a contribution rather than an

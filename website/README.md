@@ -311,7 +311,7 @@ when the page title and `h1` already carry the full product name.
 shared pipeline — parse, risk-score, route, approve, execute, audit — is deliberately *not* restated
 on eighteen pages; each links to
 [`/features/database-access-governance/`](features/database-access-governance/) for it and spends
-its own words on what is specific: the driver or plugin it loads, the query forms it parses, the
+its own words on what is specific: the database driver or AccessFlow engine it loads, the query forms it parses, the
 constructs it refuses, the exact shape of the row-security rewrite and where that rewrite fails
 closed, and its dry-run behaviour. Every page carries a worked example showing a real statement
 before and after the rewrite.
@@ -320,8 +320,8 @@ When you add or edit one, check the numbers rather than trusting the prose: at t
 each page is **79–100% unique at sentence level** against the other seventeen, 611–905 words. An
 earlier draft of the five relational pages sat at 34–50% unique because they restated the shared
 mechanics — that is the failure mode this tier is prone to, and the fix was to cut the restatement
-and link out, not to add words. `scylladb` and `opensearch` are the other trap: they share an engine
-JAR with `cassandra` and `elasticsearch`, so they are written to answer "is it the same?" directly
+and link out, not to add words. `scylladb` and `opensearch` are the other trap: they share an AccessFlow
+engine with `cassandra` and `elasticsearch`, so they are written to answer "is it the same?" directly
 rather than to paraphrase their sibling.
 
 ### Regenerating og-image.png
