@@ -263,7 +263,7 @@
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
           <p>The driver is <code>com.microsoft.sqlserver:mssql-jdbc</code>, resolved from the connector catalog on first use and verified before it loads.</p>
-          <p>The datasource takes host, port (<code>1433</code> by default), database, username and password — AES-256-GCM encrypted at rest, decrypted once at pool initialisation, or held as a secret-manager reference. SSL defaults to <code>REQUIRE</code>.</p>
+          <p>The datasource takes host, port (<code>1433</code> by default), database, username and password — AES-256-GCM encrypted at rest, decrypted once when AccessFlow opens its connections, or held as a secret-manager reference. SSL defaults to <code>REQUIRE</code>.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>
           <div class="code-block">
             <div class="code-block-head">

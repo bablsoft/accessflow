@@ -262,7 +262,7 @@
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
           <p>The Oracle driver is <code>com.oracle.database.jdbc:ojdbc11</code>, resolved from the connector catalog on first use. <strong>Oracle license terms apply to that driver</strong> — it is fetched from Oracle rather than redistributed by AccessFlow, and accepting those terms is your call to make, not something the installer can make for you.</p>
-          <p>The datasource takes host, port (<code>1521</code> by default), the service or database name, username and password — AES-256-GCM encrypted at rest and decrypted exactly once at pool initialisation, or supplied as a Vault, AWS Secrets Manager or Azure Key Vault reference. SSL defaults to <code>REQUIRE</code>.</p>
+          <p>The datasource takes host, port (<code>1521</code> by default), the service or database name, username and password — AES-256-GCM encrypted at rest and decrypted once when AccessFlow opens its connections, or supplied as a Vault, AWS Secrets Manager or Azure Key Vault reference. SSL defaults to <code>REQUIRE</code>.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>
           <div class="code-block">
             <div class="code-block-head">

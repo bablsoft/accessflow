@@ -262,7 +262,7 @@
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
           <p>MariaDB has its own driver, <code>org.mariadb.jdbc:mariadb-java-client</code> — it is a first-class connector rather than an alias pointed at the MySQL one, so the driver, the connection handling and the catalog entry are MariaDB's own.</p>
-          <p>The datasource takes host, port (<code>3306</code> by default), database, username and password — encrypted at rest with AES-256-GCM, decrypted once at pool initialisation, or held as a secret-manager reference instead. SSL defaults to <code>REQUIRE</code>.</p>
+          <p>The datasource takes host, port (<code>3306</code> by default), database, username and password — encrypted at rest with AES-256-GCM, decrypted once when AccessFlow opens its connections, or held as a secret-manager reference instead. SSL defaults to <code>REQUIRE</code>.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>
           <div class="code-block">
             <div class="code-block-head">

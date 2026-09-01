@@ -262,7 +262,7 @@
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
           <p>PostgreSQL is the one connector whose driver ships inside AccessFlow rather than being downloaded — the connector is marked <code>bundled</code> in the catalog, so a fresh install can govern a Postgres datasource with no network fetch at all. AccessFlow keeps a warm set of connections to it and reuses them across queries.</p>
-          <p>The datasource takes the usual host, port (<code>5432</code> by default), database name, username and password. The password is AES-256-GCM encrypted at rest and decrypted exactly once, at pool initialisation — it is never held in the heap beyond that, and never serialized into any API response. It can also be stored as a reference to HashiCorp Vault, AWS Secrets Manager or Azure Key Vault instead of in the AccessFlow database at all.</p>
+          <p>The datasource takes the usual host, port (<code>5432</code> by default), database name, username and password. The password is AES-256-GCM encrypted at rest and decrypted exactly once, when AccessFlow opens its connections — it is never held in the heap beyond that, and never serialized into any API response. It can also be stored as a reference to HashiCorp Vault, AWS Secrets Manager or Azure Key Vault instead of in the AccessFlow database at all.</p>
           <p>PostgreSQL is the only connector whose default SSL mode is <code>VERIFY_FULL</code> — full certificate and hostname verification, rather than the <code>REQUIRE</code> most connectors default to. A datasource with a read replica configured routes <code>SELECT</code>s to the replica and writes to the primary.</p>
         </section>
 

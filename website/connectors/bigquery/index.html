@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>The BigQuery engine is one checksum-pinned download, verified before it loads. It carries Google's own HTTP client, so BigQuery support moves on its own release line and nothing else in AccessFlow moves with it. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>The BigQuery engine is one checksum-pinned download, verified before it loads. It carries Google's own HTTP client, and it moves on its own release line — so updating BigQuery support leaves every other engine where it is. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>There is no host or port. The database name field holds the GCP project id, optionally as <code>project.dataset</code> to pin a default dataset — project and dataset ids cannot contain dots, so that split is unambiguous. The stored credential is the service-account key JSON, AES-256-GCM encrypted at rest and decrypted only when the client is constructed.</p>
           <p>A custom endpoint can be supplied to point the client at an emulator, in which case it runs without credentials. One cheap client stub is cached per datasource and dropped whenever the datasource configuration changes or is deactivated.</p>
         </section>

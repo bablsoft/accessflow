@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>The Databricks engine is the smallest AccessFlow ships: one checksum-pinned download whose only bundled dependency is a JSON library. There is no Databricks driver, no vendor SDK, and nothing held open between requests to manage. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>The Databricks engine is the smallest AccessFlow ships: one checksum-pinned download whose only bundled dependency is a JSON library, with nothing held open between requests to manage. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>The host is the workspace host and the stored credential is a personal access token, sent as a bearer token and AES-256-GCM encrypted at rest. The URL override field is required here — the one connector where that is true — because it carries the SQL warehouse HTTP path, whose last segment is the warehouse id the API needs. The database name optionally selects a Unity Catalog catalog.</p>
         </section>
 

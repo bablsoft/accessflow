@@ -29,7 +29,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
-  <meta property="og:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload." />
+  <meta property="og:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. PostgreSQL is built in; the other seventeen install in one click, checksum-verified — plus any JDBC engine you upload." />
   <meta property="og:url" content="https://accessflow.io/connectors/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -39,7 +39,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Database connectors — SQL, NoSQL and warehouses — AccessFlow" />
-  <meta name="twitter:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload." />
+  <meta name="twitter:description" content="A growing catalog of SQL, NoSQL and data-warehouse engines. PostgreSQL is built in; the other seventeen install in one click, checksum-verified — plus any JDBC engine you upload." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -58,7 +58,7 @@
         "breadcrumb": { "@id": "https://accessflow.io/connectors/#breadcrumb" },
         "name": "Database connectors — SQL, NoSQL and warehouses — AccessFlow",
         "headline": "Database connectors — a growing catalog of SQL, NoSQL and data-warehouse engines",
-        "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. Eighteen one-click connectors, each checksum-verified before it loads — plus any JDBC engine you upload.",
+        "description": "A growing catalog of SQL, NoSQL and data-warehouse engines. PostgreSQL is built in; the other seventeen install in one click, checksum-verified — plus any JDBC engine you upload.",
         "inLanguage": "en",
         "datePublished": "2026-08-29",
         "dateModified": "2026-09-01",
@@ -274,7 +274,7 @@
           <h3>SQL</h3>
           <p>
             Relational engines are reached through the database's own driver, which AccessFlow loads
-            and keeps warm, with schema introspection and WHERE-clause row-level security. The first
+            once and then keeps its connections open, with schema introspection and WHERE-clause row-level security. The first
             five have their own SQL dialect built in; ClickHouse rides the generic dialect, as an
             uploaded driver does.
           </p>
@@ -514,7 +514,7 @@
             else as a catalog connector is; queries against it are parsed, reviewed and audited
             exactly like any other. For databases with no JDBC driver at all,
             <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">the engine SDK guide</a>
-            documents the contract a native engine implements — the same one every engine in the
+            documents the contract an AccessFlow engine implements — the same one every engine in the
             catalog is built on. That route is a contribution rather than an
             upload: a new engine ships as its own project plus a manifest merged into the catalog.
           </p>
