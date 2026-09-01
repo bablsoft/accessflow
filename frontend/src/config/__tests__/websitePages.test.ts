@@ -533,10 +533,10 @@ describe('website pages', () => {
     // app.js swapDocsImages() rewrites -light <-> -dark at load, not just on click,
     // and the default theme is dark — so a figure that promises a pair it cannot
     // deliver is a 404 for most visitors, not a toggle-only glitch. hasBothThemeVariants()
-    // skips a figure whose authored <source> and <img> name the SAME file (the
-    // light-only end-user screenshots, capture.ts darkToo:false — visual parity for
-    // those is tracked in https://github.com/bablsoft/accessflow/issues/798). Anything
-    // that names two different files is claiming a pair, and both halves must exist.
+    // skips a figure whose authored <source> and <img> name the SAME file — the
+    // light-only escape hatch, which no figure uses since #798 made capture.ts write
+    // both twins for every screen. Anything that names two different files is claiming
+    // a pair, and both halves must exist.
     const missing = new Set<string>();
     for (const f of files) {
       for (const block of read(f).matchAll(/<picture>[\s\S]*?<\/picture>/g)) {
@@ -698,7 +698,6 @@ describe('website pages', () => {
     const total = files.reduce((n, f) => n + [...read(f).matchAll(/style="/g)].length, 0);
     // Exact, not <=: removing an inline style must also lower the constant, which is
     // what forces website/_headers and website/README.md down in the same commit.
-    // Same reason the dark-screenshot allowlist above is asserted exactly consumed.
     expect(total, 'inline style="" attributes site-wide').toBe(INLINE_STYLE_BUDGET);
   });
 

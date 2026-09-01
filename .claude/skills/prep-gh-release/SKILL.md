@@ -40,7 +40,7 @@ If the user omits the version, ask for it once and stop. Do not guess from the r
   - `website/index.html` — landing page (pitch, supported DBs, AI providers, auth methods, feature tiles, roadmap section, quick-start, tech stack, docs grid, footer).
   - `website/docs/index.html` — public operator docs (deployment, configuration entities, RBAC matrix, env vars).
   - `website/README.md` — content-source map. Authoritative for "which app/docs source feeds which website section". Read it before judging website coverage.
-  - `website/images/docs/` — admin-SPA screenshots (light + dark pairs for most pages; light-only for editor / queries / reviews by precedent).
+  - `website/images/docs/` — SPA screenshots, a light + dark pair for every page.
 
 ## Workflow
 
@@ -204,8 +204,8 @@ Canonical list — these are the WebP files that exist today plus the routes the
 | `/admin/attestation` campaign list (AF-384) | `attestation-campaigns-light.webp`, `attestation-campaigns-dark.webp` |
 | `/api-connectors` connector catalog (AF-500) | `api-connectors-list-light.webp`, `api-connectors-list-dark.webp` |
 | `/admin/lifecycle/policies` retention-policy list (AF-499) | `lifecycle-policies-light.webp`, `lifecycle-policies-dark.webp` |
-| `/request-groups` list (AF-501) | `request-groups-list-light.webp` (light-only by precedent) |
-| `/api-requests` list (AF-500) | `api-requests-list-light.webp` (light-only by precedent) |
+| `/request-groups` list (AF-501) | `request-groups-list-light.webp`, `request-groups-list-dark.webp` |
+| `/api-requests` list (AF-500) | `api-requests-list-light.webp`, `api-requests-list-dark.webp` |
 | `/deployments` list with seeded data (AF-682) | `deployments-list-light.webp`, `deployments-list-dark.webp` |
 | `/deployments/<id>` detail (AF-682) | `deployment-detail-light.webp`, `deployment-detail-dark.webp` |
 | `/deployment-reviews` queue (AF-682) | `deployment-reviews-queue-light.webp`, `deployment-reviews-queue-dark.webp` |
@@ -214,22 +214,22 @@ Canonical list — these are the WebP files that exist today plus the routes the
 | `/admin/deployment-pipelines/<id>` → Environments tab | `deployment-pipeline-environments-light.webp`, `deployment-pipeline-environments-dark.webp` |
 | `/admin/deployment-pipelines/<id>` → Freeze windows tab | `deployment-pipeline-freeze-windows-light.webp`, `deployment-pipeline-freeze-windows-dark.webp` |
 | `/admin/deployment-pipelines/<id>` → CI setup tab | `deployment-pipeline-ci-light.webp`, `deployment-pipeline-ci-dark.webp` |
-| `/editor` with a sample query and the AI hint panel visible | `editor-light.webp` (light-only by precedent) |
-| `/editor` → schedule date picker open | `editor-schedule-light.webp` (light-only by precedent) |
-| `/editor` → query-templates drawer open | `editor-query-templates-light.webp` (light-only by precedent) |
-| `/editor` → text-to-SQL bar with a natural-language prompt (AF-335) | `editor-text-to-sql-light.webp` (light-only by precedent) |
-| `/queries` list with seeded data | `queries-list-light.webp` (light-only by precedent) |
-| `/reviews` queue with seeded data | `reviews-queue-light.webp` (light-only by precedent) |
-| `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.webp` (light-only by precedent) |
+| `/editor` with a sample query and the AI hint panel visible | `editor-light.webp`, `editor-dark.webp` |
+| `/editor` → schedule date picker open | `editor-schedule-light.webp`, `editor-schedule-dark.webp` |
+| `/editor` → query-templates drawer open | `editor-query-templates-light.webp`, `editor-query-templates-dark.webp` |
+| `/editor` → text-to-SQL bar with a natural-language prompt (AF-335) | `editor-text-to-sql-light.webp`, `editor-text-to-sql-dark.webp` |
+| `/queries` list with seeded data | `queries-list-light.webp`, `queries-list-dark.webp` |
+| `/reviews` queue with seeded data | `reviews-queue-light.webp`, `reviews-queue-dark.webp` |
+| `/reviews` queue → rows selected for bulk action | `reviews-queue-bulk-light.webp`, `reviews-queue-bulk-dark.webp` |
 
 Adding a row means editing `capture.ts`, not doing anything by hand:
 
 1. Add a `prep(page)` function — navigate with `gotoAndSettle`, then open the drawer / wizard / tab
    with accessible-name selectors (`getByRole('tab', { name: /Freeze windows/i })`), never brittle CSS.
-2. Add a `{ name, prep, darkToo }` entry to `targets[]`. `darkToo: false` is the precedent for
-   end-user pages. An entry that needs a seeded id takes a closure over the `seedData()` return
-   (`(p) => prepDeploymentDetail(p, seed.deploymentRequestId!)`) and is spread in only when the
-   best-effort seed produced it.
+2. Add a `{ name, prep }` entry to `targets[]`. Both theme variants are always captured — since
+   #798 there is no per-target opt-out. An entry that needs a seeded id takes a closure over the
+   `seedData()` return (`(p) => prepDeploymentDetail(p, seed.deploymentRequestId!)`) and is spread
+   in only when the best-effort seed produced it.
 3. If the page needs data, extend `seedData()` — wrapped in `try/catch`, so a failed seed leaves the
    page on its empty state rather than aborting the whole run.
 4. Theme is flipped by writing the `af-preferences` localStorage key and reloading (`setTheme()`);

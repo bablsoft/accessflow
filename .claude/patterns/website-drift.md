@@ -41,8 +41,8 @@ nav — normalized for `aria-current` — and footer, self-referencing canonical
 canonical, one `h1` and no skipped heading levels, no duplicate element ids, no dead fragment or
 internal links, no parent-relative `href`, no `FAQPage`/`HowTo` structured data,
 `<meta name="description">` within the SERP limit, the pinned legacy `/` section ids, bidirectional
-`sitemap.xml` ↔ disk, a pinned `<priority>` per sitemap URL, every `llms.txt` URL resolving, a
-`-dark.webp` twin for every referenced `-light.webp`, and a ratcheting site-wide
+`sitemap.xml` ↔ disk, a pinned `<priority>` per sitemap URL, every `llms.txt` URL resolving, both
+halves on disk for every `<picture>` that declares a theme pair, and a ratcheting site-wide
 inline-`style=""` budget.
 
 `websiteDocs.test.ts` keeps only what is docs-specific: every chapter linked from every chapter
@@ -90,9 +90,11 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
 - **Moving a doc section without touching `LEGACY_DOCS_ANCHORS`** → every already-deployed
   self-hosted frontend's *View docs* button 404s. Those forwarders are permanent, not transitional.
 - **`href="../index.html"`** → a 307 on every click, and it splits link equity.
-- **A screenshot shipped light-only** → `app.js`'s `swapDocsImages` rewrites `-light.webp` to
-  `-dark.webp` unconditionally, so the theme toggle 404s the image. Ship both twins, or the
-  `-dark.webp` guard fails.
+- **A `<picture>` shipped with only one twin on disk** → `websitePages.test.ts` fails. A figure
+  is a theme pair when its `<source srcset>` and `<img src>` name *different* files, and
+  `app.js`'s `swapDocsImages` only rewrites those; naming the same file in both marks a figure
+  light-only, which renders light on a dark page. Capture writes both twins for every screen —
+  ship both.
 - **Assuming a build step exists** → there isn't one. What you write is what ships.
 
 ## Extending

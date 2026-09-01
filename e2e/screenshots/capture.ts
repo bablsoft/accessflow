@@ -496,23 +496,15 @@ async function shoot(page: Page, file: string) {
   console.log(`  -> ${file}`);
 }
 
-// Capture one (or both) variant(s) of a target. `prep` runs before each
-// capture so closing drawers / theme flips don't leave residual state.
-async function capture(
-  page: Page,
-  baseName: string,
-  prep: (p: Page) => Promise<void>,
-  opts: { darkToo?: boolean } = {},
-) {
-  const { darkToo = true } = opts;
+// Capture both theme variants of a target. `prep` runs before each capture so
+// closing drawers / theme flips don't leave residual state.
+async function capture(page: Page, baseName: string, prep: (p: Page) => Promise<void>) {
   await setTheme(page, 'light');
   await prep(page);
   await shoot(page, `${baseName}-light.webp`);
-  if (darkToo) {
-    await setTheme(page, 'dark');
-    await prep(page);
-    await shoot(page, `${baseName}-dark.webp`);
-  }
+  await setTheme(page, 'dark');
+  await prep(page);
+  await shoot(page, `${baseName}-dark.webp`);
 }
 
 async function dismissEverything(page: Page) {
@@ -1002,91 +994,86 @@ async function main() {
   type Target = {
     name: string;
     prep: (p: Page) => Promise<void>;
-    darkToo: boolean;
     role?: 'admin' | 'reviewer';
   };
   const targets: Target[] = [
-    // Admin pages (light + dark)
-    { name: 'users-invite', prep: prepUsersInvite, darkToo: true },
-    { name: 'datasources-create', prep: prepDatasourcesCreate, darkToo: true },
-    { name: 'review-plans-create', prep: prepReviewPlansCreate, darkToo: true },
-    { name: 'review-plans-templates', prep: prepReviewPlansTemplates, darkToo: true },
-    { name: 'ai-configs-create', prep: prepAiConfigsCreate, darkToo: true },
-    { name: 'notification-channels-create', prep: prepNotificationsCreate, darkToo: true },
-    { name: 'system-smtp-edit', prep: prepSystemSmtpEdit, darkToo: true },
-    { name: 'oauth2-google', prep: prepOAuth2Google, darkToo: true },
-    { name: 'saml-config', prep: prepSamlConfig, darkToo: true },
+    // Admin pages
+    { name: 'users-invite', prep: prepUsersInvite },
+    { name: 'datasources-create', prep: prepDatasourcesCreate },
+    { name: 'review-plans-create', prep: prepReviewPlansCreate },
+    { name: 'review-plans-templates', prep: prepReviewPlansTemplates },
+    { name: 'ai-configs-create', prep: prepAiConfigsCreate },
+    { name: 'notification-channels-create', prep: prepNotificationsCreate },
+    { name: 'system-smtp-edit', prep: prepSystemSmtpEdit },
+    { name: 'oauth2-google', prep: prepOAuth2Google },
+    { name: 'saml-config', prep: prepSamlConfig },
 
-    // End-user pages (light only)
-    { name: 'editor', prep: prepEditor, darkToo: false },
-    { name: 'queries-list', prep: prepQueriesList, darkToo: false },
-    { name: 'editor-schedule', prep: prepEditorSchedule, darkToo: false },
-    { name: 'editor-query-templates', prep: prepEditorTemplates, darkToo: false },
+    // End-user pages
+    { name: 'editor', prep: prepEditor },
+    { name: 'queries-list', prep: prepQueriesList },
+    { name: 'editor-schedule', prep: prepEditorSchedule },
+    { name: 'editor-query-templates', prep: prepEditorTemplates },
     // v1.4 end-user (AF-335 text-to-SQL)
-    { name: 'editor-text-to-sql', prep: prepEditorTextToSql, darkToo: false },
+    { name: 'editor-text-to-sql', prep: prepEditorTextToSql },
 
     // v1.1 admin
-    { name: 'audit-log', prep: prepAuditLog, darkToo: true },
-    { name: 'ai-analyses-dashboard', prep: prepAiAnalyses, darkToo: true },
-    { name: 'drivers-list', prep: prepDriversList, darkToo: true },
+    { name: 'audit-log', prep: prepAuditLog },
+    { name: 'ai-analyses-dashboard', prep: prepAiAnalyses },
+    { name: 'drivers-list', prep: prepDriversList },
     {
       name: 'datasources-er-diagram',
       prep: (p) => prepDatasourcesErDiagram(p, seed.datasourceId),
-      darkToo: true,
     },
 
     // v1.2 admin (AF-365 health, AF-362 Slack, AF-353 groups)
-    { name: 'datasource-health', prep: prepDatasourceHealth, darkToo: true },
-    { name: 'slack-config', prep: prepSlackConfig, darkToo: true },
-    { name: 'groups-list', prep: prepGroupsList, darkToo: true },
+    { name: 'datasource-health', prep: prepDatasourceHealth },
+    { name: 'slack-config', prep: prepSlackConfig },
+    { name: 'groups-list', prep: prepGroupsList },
 
     // v1.3 admin (AF-379 routing, AF-378 access requests, AF-381 masking, AF-380 row security)
-    { name: 'routing-policies', prep: prepRoutingPolicies, darkToo: true },
-    { name: 'access-requests-queue', prep: prepAccessRequestsQueue, darkToo: true },
+    { name: 'routing-policies', prep: prepRoutingPolicies },
+    { name: 'access-requests-queue', prep: prepAccessRequestsQueue },
     {
       name: 'datasources-masking',
       prep: (p) => prepDatasourcesMasking(p, seed.datasourceId),
-      darkToo: true,
     },
     {
       name: 'datasources-row-security',
       prep: (p) => prepDatasourcesRowSecurity(p, seed.datasourceId),
-      darkToo: true,
     },
 
     // v1.4 admin (AF-333 Langfuse, AF-336 RAG knowledge base)
-    { name: 'langfuse-config', prep: prepLangfuseConfig, darkToo: true },
-    { name: 'ai-configs-rag', prep: prepAiConfigsRag, darkToo: true },
+    { name: 'langfuse-config', prep: prepLangfuseConfig },
+    { name: 'ai-configs-rag', prep: prepAiConfigsRag },
 
     // v2.0 admin (AF-456 orgs, AF-459 auditor, AF-383 anomalies, AF-385 break-glass)
-    { name: 'organizations-list', prep: prepOrganizationsList, darkToo: true },
-    { name: 'auditor-dashboard', prep: prepAuditorDashboard, darkToo: true },
-    { name: 'anomalies-dashboard', prep: prepAnomaliesDashboard, darkToo: true },
-    { name: 'break-glass-log', prep: prepBreakGlassLog, darkToo: true },
+    { name: 'organizations-list', prep: prepOrganizationsList },
+    { name: 'auditor-dashboard', prep: prepAuditorDashboard },
+    { name: 'anomalies-dashboard', prep: prepAnomaliesDashboard },
+    { name: 'break-glass-log', prep: prepBreakGlassLog },
 
     // v2.1 admin (AF-498 dashboard, AF-384 attestation, AF-500 apigov, AF-499 lifecycle)
-    { name: 'dashboard', prep: prepDashboard, darkToo: true },
-    { name: 'attestation-campaigns', prep: prepAttestationCampaigns, darkToo: true },
-    { name: 'api-connectors-list', prep: prepApiConnectorsList, darkToo: true },
-    { name: 'lifecycle-policies', prep: prepLifecyclePolicies, darkToo: true },
+    { name: 'dashboard', prep: prepDashboard },
+    { name: 'attestation-campaigns', prep: prepAttestationCampaigns },
+    { name: 'api-connectors-list', prep: prepApiConnectorsList },
+    { name: 'lifecycle-policies', prep: prepLifecyclePolicies },
 
-    // v2.1 end-user (light only, by precedent)
-    { name: 'request-groups-list', prep: prepRequestGroupsList, darkToo: false },
-    { name: 'api-requests-list', prep: prepApiRequestsList, darkToo: false },
+    // v2.1 end-user
+    { name: 'request-groups-list', prep: prepRequestGroupsList },
+    { name: 'api-requests-list', prep: prepApiRequestsList },
 
     // v2.4 deploygov (AF-682). The id-dependent entries are spread in only when
     // the best-effort seed actually produced them — a failed seed drops those
     // shots rather than capturing a 404 page.
-    { name: 'deployments-list', prep: prepDeploymentsList, darkToo: true },
-    { name: 'deployment-reviews-queue', prep: prepDeploymentReviewsQueue, darkToo: true },
-    { name: 'deployment-rollback-reviews', prep: prepDeploymentRollbackReviews, darkToo: true },
-    { name: 'deployment-pipelines-list', prep: prepDeploymentPipelinesList, darkToo: true },
+    { name: 'deployments-list', prep: prepDeploymentsList },
+    { name: 'deployment-reviews-queue', prep: prepDeploymentReviewsQueue },
+    { name: 'deployment-rollback-reviews', prep: prepDeploymentRollbackReviews },
+    { name: 'deployment-pipelines-list', prep: prepDeploymentPipelinesList },
     ...(seed.deploymentRequestId
       ? [
           {
             name: 'deployment-detail',
             prep: (p: Page) => prepDeploymentDetail(p, seed.deploymentRequestId!),
-            darkToo: true,
           },
         ]
       : []),
@@ -1095,24 +1082,21 @@ async function main() {
           {
             name: 'deployment-pipeline-environments',
             prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /Environments/i),
-            darkToo: true,
           },
           {
             name: 'deployment-pipeline-freeze-windows',
             prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /Freeze windows/i),
-            darkToo: true,
           },
           {
             name: 'deployment-pipeline-ci',
             prep: (p: Page) => prepPipelineTab(p, seed.deploymentPipelineId!, /CI setup/i),
-            darkToo: true,
           },
         ]
       : []),
 
     // Reviewer-role captures run LAST so we only flip session once.
-    { name: 'reviews-queue', prep: prepReviewsQueue, darkToo: false, role: 'reviewer' },
-    { name: 'reviews-queue-bulk', prep: prepReviewsBulk, darkToo: false, role: 'reviewer' },
+    { name: 'reviews-queue', prep: prepReviewsQueue, role: 'reviewer' },
+    { name: 'reviews-queue-bulk', prep: prepReviewsBulk, role: 'reviewer' },
   ];
 
   const only = process.env.ONLY ? process.env.ONLY.split(',') : null;
@@ -1125,7 +1109,7 @@ async function main() {
       } else {
         await ensureAdminSession(page);
       }
-      await capture(page, t.name, t.prep, { darkToo: t.darkToo });
+      await capture(page, t.name, t.prep);
     } catch (err) {
       console.error(`  FAIL: ${t.name}:`, (err as Error).message);
     }
