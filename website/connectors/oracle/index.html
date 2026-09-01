@@ -285,7 +285,7 @@ oracle.jdbc.OracleDriver</pre>
 
         <section class="docs-section scroll-pad" id="refuses">
           <h2>What it refuses</h2>
-          <p>Multi-statement input is refused, with the single exception of a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous write batch. Anything the parser cannot read is rejected with HTTP 422 before a connection is taken from the pool, so a malformed statement never reaches the database at all.</p>
+          <p>Multi-statement input is refused, with the single exception of a <code>BEGIN; … COMMIT;</code> envelope wrapping a homogeneous write batch. Anything the parser cannot read is rejected with HTTP 422 before AccessFlow opens a connection, so a malformed statement never reaches the database at all.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="row-security">
