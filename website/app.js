@@ -133,11 +133,12 @@
     }
 
     // A figure only has both variants when the authored markup points its <source>
-    // and its <img> at different files. The end-user screenshots are captured
-    // light-only (capture.ts marks those darkToo:false), so both attributes carry
-    // the same -light.webp and rewriting them to -dark.webp is a guaranteed 404.
-    // Read the pairing off the authored attributes once and cache it: after a swap
-    // the two can legitimately match, so this cannot be re-derived later.
+    // and its <img> at different files. capture.ts writes both twins for every
+    // screen, so nothing on the site is light-only today; a figure that carries the
+    // same -light.webp in both attributes has no -dark.webp on disk, and rewriting
+    // it would be a guaranteed 404. Read the pairing off the authored attributes
+    // once and cache it: after a swap the two can legitimately match, so this
+    // cannot be re-derived later.
     function hasBothThemeVariants(pic) {
       if (pic.getAttribute('data-theme-pair') === null) {
         var src = pic.querySelector('source[srcset]');

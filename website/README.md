@@ -113,7 +113,7 @@ the right.
 | [`README.md`](../README.md) quick start + [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md), [`docs/08-notifications.md`](../docs/08-notifications.md), [`docs/09-deployment.md`](../docs/09-deployment.md) | The [`/docs/` hub](docs/index.html) and its twelve chapter pages — user documentation (run + configure) |
 | [`.github/workflows/release.yml`](../.github/workflows/release.yml) pre-release handling, [`docs/09-deployment.md`](../docs/09-deployment.md) "Installing a pre-release / beta build", [`docs/11-development.md`](../docs/11-development.md) "Pre-release (beta) builds" | "Beta / pre-release channel" subsection (`#run-beta`) under "Running AccessFlow" in [`docs/install/index.html`](docs/install/index.html) |
 | [`frontend/src/pages/admin/`](../frontend/src/pages/admin/), [`frontend/src/pages/datasources/`](../frontend/src/pages/datasources/) — admin SPA pages | The [`docs/configuration/`](docs/configuration/) chapter walkthroughs (Users, User groups, Datasources + Schema explorer (searchable object tree + RLS/masking-aware sample-data previews, AF-443; see [`docs/05-backend.md`](../docs/05-backend.md) "Sample data path" + [`docs/04-api-spec.md`](../docs/04-api-spec.md) `/datasources/{id}/sample-rows`) + ER diagram + Masking + Row security tabs, Connectors, Custom JDBC drivers, Review plans + templates, Routing policies, Access requests queue, AI configs + Langfuse + RAG, AI analyses dashboard, Datasource health, Organizations (multi-tenant management + quotas), Auditor dashboard, Anomalies (UBA), Break-glass log, Notifications, System SMTP, OAuth, SAML, Slack app, Audit log) + matching PNGs under [`images/docs/`](images/docs/) (incl. `routing-policies`, `access-requests-queue`, `datasources-masking`, `datasources-row-security`, `langfuse-config`, `ai-configs-rag`, `organizations-list`, `auditor-dashboard`, `anomalies-dashboard`, `break-glass-log`, `dashboard`, `attestation-campaigns`, `api-connectors-list`, `lifecycle-policies`, `deployments-list`, `deployment-detail`, `deployment-reviews-queue`, `deployment-rollback-reviews`, `deployment-pipelines-list`, `deployment-pipeline-environments`, `deployment-pipeline-freeze-windows`, `deployment-pipeline-ci`, light + dark) |
-| [`frontend/src/pages/editor/QueryEditorPage.tsx`](../frontend/src/pages/editor/QueryEditorPage.tsx), [`frontend/src/pages/reviews/ReviewQueuePage.tsx`](../frontend/src/pages/reviews/ReviewQueuePage.tsx) — end-user SPA pages | [`docs/workflows/index.html`](docs/workflows/index.html) — the "End-user workflows" chapter (Submitting / Scheduling a query, Drafting queries from natural language, Query templates library, Reviewing &amp; bulk approval) + matching PNGs under [`images/docs/`](images/docs/) (`editor-light`, `editor-text-to-sql-light`, `editor-schedule-light`, `editor-query-templates-light`, `reviews-queue-bulk-light`, `request-groups-list-light`, `api-requests-list-light`) |
+| [`frontend/src/pages/editor/QueryEditorPage.tsx`](../frontend/src/pages/editor/QueryEditorPage.tsx), [`frontend/src/pages/reviews/ReviewQueuePage.tsx`](../frontend/src/pages/reviews/ReviewQueuePage.tsx) — end-user SPA pages | [`docs/workflows/index.html`](docs/workflows/index.html) — the "End-user workflows" chapter (Submitting / Scheduling a query, Drafting queries from natural language, Query templates library, Reviewing &amp; bulk approval) + matching screenshots under [`images/docs/`](images/docs/) (`editor`, `editor-text-to-sql`, `editor-schedule`, `editor-query-templates`, `queries-list`, `reviews-queue`, `reviews-queue-bulk`, light + dark) |
 | Existing on-page copy (hero, features, supported DBs, license) | SEO meta block (canonical, OG, Twitter, JSON-LD) on every page — [`index.html`](index.html), the eight topic pages and the twelve docs chapters |
 | Homepage meta description + the eight topic pages' own descriptions + [`docs/`](../docs/) chapter list | [`llms.txt`](llms.txt) — llmstxt.org index for LLM agents. The `>` summary blockquote is the text LLM crawlers quote — change it only when the pitch changes, and never reword it incidentally. `## Product` carries one line per topic page (the homepage `#docs` grid it used to mirror was deleted by [#789](https://github.com/bablsoft/accessflow/issues/789)), `## Docs` the on-site chapters plus `/ai-agents/`, `## Engineering reference` the raw-markdown URLs. `/#install` and `/#questions` under `## Optional` depend on those two ids staying alive on `/`. Update in the same change set as the pitch, supported-DB list, docs chapters, or any new page |
 
@@ -157,7 +157,7 @@ website/
 │   ├── workflows/   #   end-user: submit, track, review, approve
 │   └── iac/         #   Terraform / OpenTofu provider + CI Actions
 ├── images/
-│   └── docs/        # Lossless WebP screenshots of SPA pages, light + dark per screen (9 are light-only)
+│   └── docs/        # Lossless WebP screenshots of SPA pages, light + dark per screen
 └── README.md        # this file
 ```
 
@@ -517,7 +517,7 @@ Fonts are self-hosted in `fonts/` precisely so this policy can stay `'self'` —
 ### Product screenshots
 
 `images/docs/` holds **lossless WebP**, not PNG — pixel-identical to a PNG screenshot but
-~70% smaller — 3.2 MB across 85 files. They are written by
+~70% smaller — 3.6 MB across 94 files. They are written by
 [`e2e/screenshots/capture.ts`](../e2e/screenshots/capture.ts), which encodes through `sharp`
 because Playwright can only emit PNG/JPEG. **That script is the only writer** — do not add
 PNGs alongside, or the two formats will drift and the site will serve stale screenshots.
@@ -556,20 +556,23 @@ rewriting `img.src` alone leaves the toggle silently broken for visitors on a li
 OS. Keep every image inside a `<picture>` with that exact `-light` / `-dark` naming, or the
 swap will not find it.
 
-**A light-only figure must name the same file in both places.** `swapDocsImages()` runs on
-page *load*, not only on click, and the default theme is dark — so an unconditional rewrite
-made every light-only screenshot a 404 for most visitors, not a toggle-only glitch.
-`hasBothThemeVariants()` now decides once, from the authored attributes: a `<picture>` whose
-`<source srcset>` and `<img src>` name **different** files is claiming a `-light`/`-dark` pair
-and gets swapped; one that names the **same** file is light-only and is left alone. The verdict
-is cached in `data-theme-pair` because after a swap the two attributes can legitimately match.
+**Every screen ships both variants.** `capture()` in `capture.ts` writes a `-light` and a
+`-dark` file for every target; since [#798](https://github.com/bablsoft/accessflow/issues/798)
+there is no per-target opt-out, so there are no light-only figures left on the site.
 
-So a light-only screenshot renders light on a dark page — visually inconsistent, never broken.
-Nine base names are light-only today (`capture.ts` marks those pages `darkToo: false`);
-regenerating them for visual parity is
-[#798](https://github.com/bablsoft/accessflow/issues/798). The guard in
-[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts) fails if a
-`<picture>` declares a pair whose other half is not on disk.
+`swapDocsImages()` runs on page *load*, not only on click, and the default theme is dark, so
+if that rule is ever broken an unconditional `-light` → `-dark` rewrite would make the offending
+screenshot a 404 for most visitors, not a toggle-only glitch. `hasBothThemeVariants()` in
+`app.js` is the runtime safety net for exactly that. It decides once, from the authored
+attributes: a `<picture>` whose `<source srcset>` and `<img src>` name **different** files is
+claiming a `-light`/`-dark` pair and gets swapped; one that names the **same** file is treated
+as light-only and left alone, rendering light on a dark page — visually inconsistent, never
+broken. The verdict is cached in `data-theme-pair` because after a swap the two attributes can
+legitimately match.
+
+The build-time counterpart is the assertion in
+[`websitePages.test.ts`](../frontend/src/config/__tests__/websitePages.test.ts), which fails if
+a `<picture>` declares a pair whose other half is not on disk.
 
 ---
 
