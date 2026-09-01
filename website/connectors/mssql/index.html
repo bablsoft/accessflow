@@ -317,7 +317,7 @@ SELECT TOP 100 [id], [amount] FROM [claims]
 
         <section class="docs-section scroll-pad" id="introspection">
           <h2>Introspection, dry-run and cost estimates</h2>
-          <p>A dry-run plans the statement with <code>SET SHOWPLAN_ALL ON</code>. It is the one place in AccessFlow where a statement is sent without bound parameters, and it is a documented, deliberate exception: the Microsoft driver returns no plan rows at all over the parameterised path, so a plain batch is the only shape that yields one. It carries no user values and it never executes the statement.</p>
+          <p>A dry-run plans the statement with <code>SET SHOWPLAN_ALL ON</code>. It is the one place in AccessFlow that steps outside the parameterised path every other query takes, and it is a documented, deliberate exception: the Microsoft driver returns no plan rows at all over the parameterised path, so a plain batch is the only shape that yields one. It carries no user values and it never executes the statement.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="dry-run-limit">

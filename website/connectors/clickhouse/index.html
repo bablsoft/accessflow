@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>The driver and the connection</h2>
-          <p>ClickHouse is a built-in catalog connector that uses the <strong>generic SQL dialect</strong> rather than one of the five with a dialect of their own. Its driver, <code>com.clickhouse:clickhouse-jdbc</code>, is pinned in the catalog and installed in one click, and it is loaded on its own rather than alongside anything else.</p>
+          <p>ClickHouse is a built-in catalog connector that uses the <strong>generic SQL dialect</strong> rather than one of the five with a dialect of their own. Its driver, <code>com.clickhouse:clickhouse-jdbc</code>, is pinned in the catalog and installed in one click, and it is loaded on its own — so the ClickHouse driver version you pick cannot disturb any other datasource.</p>
           <p>That generic dialect is the same path any other JDBC-compatible engine can use: upload a driver JAR with its SHA-256, and AccessFlow will govern it the same way. ClickHouse is simply a driver that ships pre-declared in the catalog so you do not have to.</p>
           <p>The datasource takes host, port (<code>8123</code> by default for the HTTP interface), database, username and password, AES-256-GCM encrypted at rest. SSL defaults to <code>DISABLE</code>, reflecting the common in-cluster deployment — set it to <code>REQUIRE</code> or a verifying mode for anything crossing a network boundary.</p>
           <p>AccessFlow builds the connection string from the datasource fields using the template the connector manifest declares, so what actually reaches the driver is predictable and reviewable:</p>

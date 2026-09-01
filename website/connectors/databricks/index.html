@@ -241,7 +241,7 @@
           <span class="eyebrow">Connector</span>
           <h1>Databricks SQL access governance — every statement reviewed before it runs</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
-          <p>AccessFlow governs Databricks SQL through the same submit, analyse, approve, execute pipeline as any other engine — and does it with no vendor driver or SDK at all. The AccessFlow engine talks to the SQL Statement Execution API over the JDK HTTP client, which is why it is the smallest engine AccessFlow ships.</p>
+          <p>AccessFlow governs Databricks SQL through the same submit, analyse, approve, execute pipeline as any other engine — and does it with no vendor driver or SDK at all. The AccessFlow engine calls the SQL Statement Execution API directly over HTTPS, carrying nothing of Databricks' own with it.</p>
           <dl class="engine-facts">
             <div><dt>Family</dt><dd>Cloud data warehouse</dd></div>
             <div><dt>Query language</dt><dd>Databricks SQL</dd></div>
@@ -261,7 +261,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>The Databricks engine is the smallest AccessFlow ships: one checksum-pinned download whose only bundled dependency is a JSON library. There is no Databricks driver, no vendor SDK, and nothing held open between requests to manage. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
+          <p>That makes it the smallest engine AccessFlow ships: one checksum-pinned download whose only bundled dependency is a JSON library. There is no Databricks driver, no vendor SDK, and nothing held open between requests to manage. <a class="prose-link" href="/connectors/#how-it-works">How an install works →</a></p>
           <p>The host is the workspace host and the stored credential is a personal access token, sent as a bearer token and AES-256-GCM encrypted at rest. The URL override field is required here — the one connector where that is true — because it carries the SQL warehouse HTTP path, whose last segment is the warehouse id the API needs. The database name optionally selects a Unity Catalog catalog.</p>
         </section>
 

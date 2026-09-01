@@ -328,8 +328,7 @@
           <p>
             Warehouses connect through AccessFlow engines that use each vendor's own authentication
             model — key-pair JWT or password, service-account JSON, and personal access tokens
-            respectively — rather than the host, port, username and password a relational database
-            takes.
+            respectively.
           </p>
           <div class="conn-grid">
 
@@ -463,7 +462,9 @@
             Two pairs share one download: ScyllaDB is served by the Cassandra engine and OpenSearch
             by the Elasticsearch engine, because each pair is wire-compatible. ClickHouse is the one
             SQL engine outside the built-in five dialects — it carries the <code>CUSTOM</code>
-            dialect and is loaded on its own, exactly the way a driver you upload yourself is. Query languages, connection fields and the per-engine row-security rules are in
+            dialect and is loaded on its own, exactly the way a driver you upload yourself is, so
+            its driver version cannot disturb any other datasource. Query languages, connection
+            fields and the per-engine row-security rules are in
             <a class="prose-link" href="/docs/configuration/connectors/#cfg-connectors-matrix">the engine matrix →</a>
           </p>
         </section>
@@ -512,7 +513,7 @@
             it. The upload belongs to your organization alone and is kept as separate from everything
             else as a catalog connector is; queries against it are parsed, reviewed and audited
             exactly like any other. For databases with no JDBC driver at all, the
-            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">guide to building an AccessFlow engine</a>
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md">the engine SDK guide</a>
             documents the contract a native engine implements — the same one every engine in the
             catalog is built on. That route is a contribution rather than an
             upload: a new engine ships as its own project plus a manifest merged into the catalog.

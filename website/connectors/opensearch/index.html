@@ -262,7 +262,7 @@
 
         <section class="docs-section scroll-pad" id="connection">
           <h2>How AccessFlow connects</h2>
-          <p>OpenSearch and Elasticsearch share one download, which registers two engines. They genuinely need separate code at exactly one layer: Elasticsearch ships on one major version of the Apache HTTP client and OpenSearch on the next, so the download carries both, each kept apart from the other, behind a small shared abstraction. Parsing, row security, masking and introspection are one implementation used by both.</p>
+          <p>OpenSearch and Elasticsearch share one download, which registers two engines. Parsing, row security, masking and introspection are one implementation used by both — the code diverges at exactly one layer, described in <a class="prose-link" href="#shared-engine">what is shared with Elasticsearch</a> below.</p>
           <p>The base URL is built from host and port (<code>9200</code> by default) with the scheme from the SSL mode, or supplied verbatim. Authentication is HTTP basic or an API key held in its own encrypted field.</p>
         </section>
 
