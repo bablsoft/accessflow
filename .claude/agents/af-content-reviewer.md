@@ -5,7 +5,9 @@ description: >-
   docs/, website/ and README.md portion of a branch cold and judges the prose
   a human actually reads — factual accuracy against the content-source map,
   readability, plain language on the marketing site (no implementation
-  vocabulary a visitor cannot read), and the SEO surface the website tests do
+  vocabulary a visitor cannot read), navigation integrity (sidebar/TOC group
+  structure, sibling-list completeness, current-page markers — the hand-copied
+  static navs CI cannot see into), and the SEO surface the website tests do
   not cover (title and description wording, alt text, anchor text, JSON-LD
   semantics, whether the three modified dates are actually current). Returns
   Blockers / Concerns / Nits with file:line evidence and a verdict.
@@ -192,6 +194,36 @@ What is genuinely unguarded, and therefore yours:
 - **Keyword stuffing and self-competition** — two chapters targeting the same query split their own
   ranking.
 
+### 6. Navigation integrity — `website/**` only
+
+The site has no build step: every sidebar, TOC, and link list is hand-authored HTML duplicated
+per page. CI checks that links *resolve* (`websitePages.test.ts`) and that the shared top
+nav/footer are byte-identical — it never checks a page-local nav's **structure, ordering, or
+completeness**. That gap has shipped a real bug: the docs sidebars spliced the "On this page"
+label mid-list, visually orphaning every cross-page link after it, and every link-presence test
+stayed green. When a diff touches a nav, TOC, or sidebar (or adds a page that should appear in
+one), check:
+
+- **Grouping.** In a `docs-toc`-style list, label paragraphs (`docs-toc-label`) act as group
+  separators — every link belongs to the label above it. In-page `#anchor` links form their own
+  group (leading, named after the page, per the connector-page pattern); a label or anchor block
+  inserted mid-list re-parents everything after it. A link that reads under the wrong label is a
+  **Blocker**: to the reader it is mislabelled at best and, below the sidebar's scroll fold,
+  invisible.
+- **Sibling completeness.** Adding, renaming, or removing a page means editing the same list in
+  *every* sibling page that carries it. Diff the changed nav against one or two untouched
+  siblings (`grep -c` the entries, or diff the extracted `<nav>` blocks); an entry present on
+  some pages and missing or differently ordered on others is a **Blocker** — the page is
+  unreachable or the nav appears to reshuffle as the reader clicks through.
+- **Current-page marker.** Exactly one link per page carries `docs-toc-current` +
+  `aria-current="page"`, and it points at the page itself. Zero, two, or a stale copy from the
+  page it was pasted from is a **Concern** (Blocker if it points at the wrong page).
+- **Visible breadcrumb** matches the URL path depth and its last item is the current page —
+  CI checks only the JSON-LD `BreadcrumbList`.
+
+Verify against the working tree's actual files, not the diff hunks alone — the defect is usually
+in the lines the diff *didn't* touch on sibling pages.
+
 ## What you must NOT do
 
 - **Never review** Java, TSX, `e2e/**`, or `.claude/**`. A `t()` key, a DTO constraint, or a
@@ -267,9 +299,10 @@ NOT CHECKED
 VERDICT: approve | approve-with-concerns | revise
 ```
 
-**Blocker** = ships a false claim, a broken command, a stale date a crawler will read, or
-implementation vocabulary in visitor-facing website copy (§2) — the first three are factual
-failures and the fourth is not, so grade it a Blocker anyway rather than filing it as jargon.
+**Blocker** = ships a false claim, a broken command, a stale date a crawler will read, a
+navigation structure that mislabels, hides, or omits a link (§6), or implementation vocabulary
+in visitor-facing website copy (§2) — the first four are factual failures and the fifth is not,
+so grade it a Blocker anyway rather than filing it as jargon.
 **Concern** = accurate and readable to a layperson, but hard going or an SEO signal left on the
 floor.
 **Nit** = wording or style.
