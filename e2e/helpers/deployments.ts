@@ -334,3 +334,110 @@ export async function approveDeploymentViaApi(
     resultingStatus: body.resulting_status ?? null,
   };
 }
+
+export interface DeploymentRoutingConditionsWire {
+  environments: string[];
+  providers: string[];
+  min_risk_level: string | null;
+  version_globs: string[];
+  days_of_week: number[];
+  start_time: string | null;
+  end_time: string | null;
+  timezone: string | null;
+}
+
+export interface DeploymentRoutingPolicyWire {
+  id: string;
+  pipeline_id: string | null;
+  name: string;
+  action: string;
+  required_approvals: number | null;
+  priority: number;
+  enabled: boolean;
+  conditions: DeploymentRoutingConditionsWire;
+}
+
+const ROUTING_POLICIES_PATH = '/api/v1/admin/deployment-routing-policies';
+
+/** Lists every deployment routing policy in the org (the endpoint returns a bare array). */
+export async function listDeploymentRoutingPoliciesViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<DeploymentRoutingPolicyWire[]> {
+  const res = await request.get(`${apiBase()}${ROUTING_POLICIES_PATH}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok()) {
+    throw new Error(`List deployment routing policies failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as DeploymentRoutingPolicyWire[];
+}
+
+/**
+ * The next priority no policy holds yet.
+ *
+ * `priority` is UNIQUE per organization across scoped *and* global policies, and the create modal
+ * defaults it to 100 — so a spec that accepts the default 409s forever once anything else in the
+ * org sits at 100. Every policy a spec creates must take its priority from here.
+ */
+export async function nextFreeRoutingPriorityViaApi(
+  request: APIRequestContext,
+  token: string,
+): Promise<number> {
+  const existing = await listDeploymentRoutingPoliciesViaApi(request, token);
+  return existing.reduce((max, p) => Math.max(max, p.priority), 100) + 10;
+}
+
+/** Creates a routing policy directly, for conditions the modal cannot comfortably drive. */
+export async function createDeploymentRoutingPolicyViaApi(
+  request: APIRequestContext,
+  token: string,
+  options: {
+    name: string;
+    action: string;
+    priority: number;
+    pipelineId?: string | null;
+    requiredApprovals?: number | null;
+    enabled?: boolean;
+    conditions?: Partial<DeploymentRoutingConditionsWire>;
+  },
+): Promise<DeploymentRoutingPolicyWire> {
+  const res = await request.post(`${apiBase()}${ROUTING_POLICIES_PATH}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      name: options.name,
+      action: options.action,
+      priority: options.priority,
+      pipeline_id: options.pipelineId ?? null,
+      required_approvals: options.requiredApprovals ?? null,
+      // Sent explicitly rather than defaulted: an enabled org-global policy is a cross-spec
+      // weapon, so a spec should never be able to create one by omission.
+      enabled: options.enabled ?? true,
+      ...(options.conditions === undefined ? {} : { conditions: options.conditions }),
+    },
+  });
+  if (!res.ok()) {
+    throw new Error(`Create deployment routing policy failed: ${res.status()} ${await res.text()}`);
+  }
+  return (await res.json()) as DeploymentRoutingPolicyWire;
+}
+
+/**
+ * Best-effort delete tolerating 404, for afterAll cleanup.
+ *
+ * `deployment_routing_policies` has no FK on `pipeline_id`, so deleting the pipeline does not
+ * remove its policies — it orphans them and burns their priorities. Delete policies first.
+ */
+export async function deleteDeploymentRoutingPolicyViaApi(
+  request: APIRequestContext,
+  token: string,
+  policyId: string,
+): Promise<void> {
+  const res = await request.delete(`${apiBase()}${ROUTING_POLICIES_PATH}/${policyId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok() && res.status() !== 404) {
+    // eslint-disable-next-line no-console
+    console.warn(`Routing policy cleanup skipped: ${res.status()} ${await res.text()}`);
+  }
+}

@@ -335,7 +335,7 @@ is covered indirectly by `admin-users-invitations.spec.ts`,
 `admin-users-crud.spec.ts`, and `reviews-self-approval-blocked.spec.ts` — this
 spec stays single-purpose on the React guard.
 
-**Deployment governance** (epic AF-682) is covered by three specs, all seeding
+**Deployment governance** (epic AF-682) is covered by six specs, all seeding
 their pipeline through the real admin API and cleaning it up in `afterAll`:
 
 `tests/deployment-pipelines.spec.ts` drives pipeline administration at
@@ -374,10 +374,43 @@ still being refused is the guarantee worth asserting. The spec then covers:
    (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`), and an admin closes it
    from the **Rollback reviews** tab of `/deployment-reviews`.
 
+`tests/deployment-versions.spec.ts` covers the version matrix (#743) — drift
+badges, the tag and behind-only filters, the environment history drawer, the
+standalone per-pipeline route, a tag round trip through the admin editor, and
+the reverted badge. Its environment names *and* tags carry the run stamp: the
+org-wide matrix is shared, so an unstamped tag would pull in rows from any
+concurrently-running spec.
+
+`tests/deployment-routing-policies.spec.ts` drives the **Routing policies** tab
+and then closes the loop on what a policy actually does: an `AUTO_APPROVE`
+policy created in the modal approves the next deployment, editing it to
+`AUTO_REJECT` rejects the next one, disabling it hands the deployment back to
+the environment's review gate, the full typed condition set renders and
+round-trips into the edit modal, a duplicate priority is refused with the
+server's own 409 detail, and the policy is finally re-scoped global and
+deleted. Two constraints shape it: `priority` is unique per organization
+across scoped *and* global policies (so every policy takes its priority from
+`nextFreeRoutingPriorityViaApi`, never the modal's default 100), and
+`deployment_routing_policies` has no FK on `pipeline_id` (so `afterAll`
+deletes policies *before* the pipeline, or they are orphaned and hold their
+priorities against every later run). It never leaves an enabled global policy
+behind — that would decide deployments belonging to every other spec.
+
+`tests/deployment-ci-snippet.spec.ts` covers the **CI setup** panel, but
+deliberately does not re-snapshot the four snippets — `CiSnippetPanel.test.tsx`
+already asserts every distinctive line. It asserts the two things only a live
+stack can show: that `apiBaseUrl()` resolves to the real backend in all four
+platform snippets (the panel uses the served runtime config, never
+`window.location.origin`, because the SPA origin has no `/api` proxy), and that
+the documented curl request actually works — including the
+`Authorization: ApiKey …` scheme, which the other deploygov specs never
+exercise because they all send `X-API-Key`.
+
 Shared seeding lives in [`helpers/deployments.ts`](helpers/deployments.ts)
 (pipeline / environment / grant creation, trigger, status polling, gate read,
 confirm-execution, outcome reporting, rollback-review listing and
-acknowledgement); `createApiKeyViaApi` is in
+acknowledgement, plus routing-policy listing / creation / deletion and the
+next-free-priority lookup); `createApiKeyViaApi` is in
 [`helpers/datasources.ts`](helpers/datasources.ts) with the rest of the
 `*ViaApi` layer.
 

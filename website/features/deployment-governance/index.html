@@ -204,7 +204,7 @@
             <a href="/features/database-access-governance/">Database access governance</a>
             <a href="/features/api-access-governance/">API access governance</a>
             <p class="docs-toc-label">Related</p>
-            <a href="/use-cases/#platform">The platform-team use case</a>
+            <a href="/use-cases/#deploy">The release-engineering use case</a>
             <a href="/security/">Security architecture</a>
             <a href="/docs/iac/">Infrastructure as Code</a>
             <a href="/docs/">Documentation</a>
@@ -287,7 +287,7 @@
           <h2>One step in your pipeline</h2>
           <p>The wiring is deliberately small. AccessFlow ships composite GitHub Actions, hidden GitLab CI jobs, and an Azure Pipelines step template that each do the same four things: submit the request idempotently by run id, poll the gate, confirm execution, and report the outcome. There is a documented plain-<code>curl</code> walkthrough for everything else.</p>
           <p>All of them are fail-closed in the direction that matters: an unknown release or any non-retryable error fails the job rather than letting it through. Pipelines are addressed by id rather than by name, because a trigger-only key is not permitted to resolve names — which is the same fail-closed instinct applied to identifiers. <a href="/docs/iac/#iac-deployment-gate">CI gate setup →</a> <a href="/docs/iac/#iac-service-account">Service-account API keys →</a></p>
-          <p>The teams that reach for this are usually the same ones removing shared production credentials elsewhere — see <a href="/use-cases/#platform">the platform-engineering use case</a>. Pipelines and environments are configured in the admin UI; the Terraform provider covers the rest of the estate — datasources, review plans, routing, masking and row-security policies, AI configs and notification channels. <a href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
+          <p>The teams that reach for this are usually the same ones removing shared production credentials elsewhere — see <a href="/use-cases/#deploy">the release-engineering use case</a> and <a href="/use-cases/#platform">the platform-engineering one</a>. Pipelines and environments are configured in the admin UI; the Terraform provider covers the rest of the estate — datasources, review plans, routing, masking and row-security policies, AI configs and notification channels. <a href="/docs/iac/#iac-provider">Terraform provider docs →</a></p>
         </section>
 
       </article>

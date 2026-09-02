@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Database access management use cases — AccessFlow</title>
-  <meta name="description" content="Database access management use cases for platform, SRE, DBA, compliance, privacy and integration teams — six problems, one governed access checkpoint." />
+  <meta name="description" content="Database access management use cases for platform, SRE, DBA, compliance, privacy, integration and release teams — seven problems, one governed checkpoint." />
 
   <link rel="canonical" href="https://accessflow.io/use-cases/" />
   <meta name="robots" content="index, follow" />
@@ -29,7 +29,7 @@
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:title" content="Database access management use cases — AccessFlow" />
-  <meta property="og:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
+  <meta property="og:description" content="Seven access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, outbound API calls, and production deploys." />
   <meta property="og:url" content="https://accessflow.io/use-cases/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -39,7 +39,7 @@
 
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Database access management use cases — AccessFlow" />
-  <meta name="twitter:description" content="Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls." />
+  <meta name="twitter:description" content="Seven access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, outbound API calls, and production deploys." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -57,11 +57,11 @@
         "@id": "https://accessflow.io/use-cases/#page",
         "breadcrumb": { "@id": "https://accessflow.io/use-cases/#breadcrumb" },
         "name": "Database access management use cases — AccessFlow",
-        "headline": "Six access problems, one governed checkpoint",
-        "description": "Six access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, and outbound API calls.",
+        "headline": "Seven access problems, one governed checkpoint",
+        "description": "Seven access problems and one governed checkpoint: shared production credentials, just-in-time access, review at scale, audit evidence, privacy obligations, outbound API calls, and production deploys.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-01",
+        "dateModified": "2026-09-02",
         "url": "https://accessflow.io/use-cases/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -74,7 +74,7 @@
         "@type": "ItemList",
         "@id": "https://accessflow.io/use-cases/#cases",
         "name": "Database access management use cases",
-        "numberOfItems": 6,
+        "numberOfItems": 7,
         "itemListOrder": "https://schema.org/ItemListUnordered",
         "itemListElement": [
           { "@type": "ListItem", "position": 1, "name": "Production access without shared credentials", "url": "https://accessflow.io/use-cases/#platform" },
@@ -82,7 +82,8 @@
           { "@type": "ListItem", "position": 3, "name": "Review at scale without a ticket queue", "url": "https://accessflow.io/use-cases/#dba" },
           { "@type": "ListItem", "position": 4, "name": "Audit evidence as a download, not a project", "url": "https://accessflow.io/use-cases/#compliance" },
           { "@type": "ListItem", "position": 5, "name": "Privacy obligations as running processes", "url": "https://accessflow.io/use-cases/#privacy" },
-          { "@type": "ListItem", "position": 6, "name": "The same governance for your APIs", "url": "https://accessflow.io/use-cases/#api" }
+          { "@type": "ListItem", "position": 6, "name": "The same governance for your APIs", "url": "https://accessflow.io/use-cases/#api" },
+          { "@type": "ListItem", "position": 7, "name": "Releases that wait for an approval", "url": "https://accessflow.io/use-cases/#deploy" }
         ]
       },
       {
@@ -214,6 +215,7 @@
             <a href="#compliance">Audit evidence</a>
             <a href="#privacy">Privacy obligations</a>
             <a href="#api">Governance for your APIs</a>
+            <a href="#deploy">Releases that wait for an approval</a>
             <p class="docs-toc-label">Related</p>
             <a href="/security/">Security architecture</a>
             <a href="/connectors/">Database connectors</a>
@@ -233,15 +235,16 @@
             </ol>
           </nav>
           <span class="eyebrow">Use cases</span>
-          <h1>Six access problems, one governed checkpoint</h1>
+          <h1>Seven access problems, one governed checkpoint</h1>
           <p>
-            AccessFlow gives six different teams the same thing: one approval pipeline, one audit
+            AccessFlow gives seven different teams the same thing: one approval pipeline, one audit
             trail, one place where access policy actually runs — over SQL, NoSQL, cloud data
-            warehouses and outbound APIs alike. What differs is why each one reaches for it, and the
-            six database access management use cases below are those reasons. A platform team wants
-            shared production credentials gone; an SRE wants access at 3 a.m. without a standing
-            superuser grant; a DBA wants review that does not become a ticket queue; compliance wants
-            evidence it can hand an auditor.
+            warehouses, outbound APIs and production deploys alike. What differs is why each one
+            reaches for it, and the seven database access management use cases below are those
+            reasons. A platform team wants shared production credentials gone; an SRE wants access at
+            3 a.m. without a standing superuser grant; a DBA wants review that does not become a
+            ticket queue; compliance wants evidence it can hand an auditor; a release engineer wants
+            the pipeline to stop before it ships.
           </p>
           <div class="hero-cta">
             <a href="/#install" class="btn btn-primary">
@@ -434,6 +437,37 @@
                   <div class="uc-mock-line"><span class="k">RPC</span><span class="v">CrmService/ExportContacts · crm-grpc</span><span class="pill executed">EXECUTED</span></div>
                 </div>
                 <div class="uc-mock-foot">response masked per connector policy · full body in audit snapshot</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="deploy">
+          <span class="uc-persona">For release engineering &amp; CI/CD owners</span>
+          <h2>Releases that wait for an approval</h2>
+          <div class="uc-row">
+            <div class="uc-copy">
+              <p>The database is not the only thing that reaches production — so does the deploy that changes it, and it usually goes out because a pipeline said so. AccessFlow puts a checkpoint in front of that step: the CI job asks whether this version may go to this environment, and waits for the answer. The approvals come from the same review plans, the same reviewers and the same audit trail as every query.</p>
+              <p>The answer is deliberately hard to get wrong. A release nobody recognises, an approval that has not been granted, a freeze window that is open, a deploy scheduled for later, or an outright error all come back the same way: not releasable. Each environment carries its own rules, a freeze can either hold a release or turn it away outright, emergencies have a break-glass path that tells every admin at once and demands a review afterwards, and the pipeline reports back what actually happened — succeeded, failed, or rolled back — so the record does not stop at "approved".</p>
+              <ul class="uc-benefits">
+                <li>A gate that fails closed: anything unclear answers "not releasable", never "go ahead"</li>
+                <li>Per-environment rules, freeze windows, scheduled releases and audited break-glass</li>
+                <li>A version matrix of what is live where, and how far behind each environment has fallen</li>
+              </ul>
+              <p><a class="prose-link" href="/features/deployment-governance/">How the deployment gate works →</a> <a class="prose-link" href="/docs/guides/deployment-approval/">Set up deployment approvals →</a> <a class="prose-link" href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">Deployment pipelines →</a></p>
+            </div>
+            <div class="uc-visual">
+              <div class="mock">
+                <div class="mock-bar">
+                  <span class="seg on">Deployments · payments-api</span>
+                  <span class="mono ml-auto">GitHub · GitLab · Azure · curl</span>
+                </div>
+                <div class="uc-mock-body">
+                  <div class="uc-mock-line"><span class="k">2.4.1</span><span class="v">→ production · approved, held by a freeze until Mon</span><span class="pill approved">APPROVED</span></div>
+                  <div class="uc-mock-line"><span class="k">2.4.2</span><span class="v">→ staging · waiting on 1 of 2 approvals</span><span class="pill pending">PENDING</span></div>
+                  <div class="uc-mock-line"><span class="k">2.3.9</span><span class="v">→ production · deployed 6 days ago</span><span class="pill executed">EXECUTED</span></div>
+                </div>
+                <div class="uc-mock-foot">the gate answers <span class="t-accent">releasable</span> only when nothing is holding the release back</div>
               </div>
             </div>
           </div>
