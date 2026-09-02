@@ -98,6 +98,15 @@ interface DashboardWidgetPreferencesV0 {
 interface PreferencesState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
+  /**
+   * Ids of sidebar sub-sections the user has collapsed (AF-837). A deny-list, so a sub-section
+   * that ships after the prefs were first persisted starts expanded with no migration — and the
+   * key's absence from an older `af-preferences` payload falls back to `[]` via zustand's
+   * shallow merge over the initial state, which is why persist `version` stays at 1. Nothing
+   * prunes the list: an id dropped in a future nav refactor simply stops matching, so a retired
+   * id lingering in a user's `af-preferences` is inert and needs no migration.
+   */
+  navCollapsedSubgroups: string[];
   setupProgressCollapsed: boolean;
   setupProgressSkipped: SetupStepId[];
   language: Language;
@@ -105,6 +114,7 @@ interface PreferencesState {
   dashboardTrendsRange: DashboardTrendsRange;
   setTheme: (t: ThemeMode) => void;
   toggleSidebar: () => void;
+  toggleNavSubgroup: (id: string) => void;
   toggleSetupProgress: () => void;
   skipSetupStep: (id: SetupStepId) => void;
   unskipSetupStep: (id: SetupStepId) => void;
@@ -154,6 +164,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set, get) => ({
       theme: initialTheme(),
       sidebarCollapsed: false,
+      navCollapsedSubgroups: [],
       setupProgressCollapsed: false,
       setupProgressSkipped: [],
       language: 'en',
@@ -162,6 +173,12 @@ export const usePreferencesStore = create<PreferencesState>()(
       setTheme: (theme) => set({ theme }),
       toggleSidebar: () =>
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      toggleNavSubgroup: (id) =>
+        set((s) => ({
+          navCollapsedSubgroups: s.navCollapsedSubgroups.includes(id)
+            ? s.navCollapsedSubgroups.filter((x) => x !== id)
+            : [...s.navCollapsedSubgroups, id],
+        })),
       toggleSetupProgress: () =>
         set((s) => ({ setupProgressCollapsed: !s.setupProgressCollapsed })),
       skipSetupStep: (id) =>

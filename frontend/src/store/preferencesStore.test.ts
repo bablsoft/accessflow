@@ -12,6 +12,7 @@ function reset() {
   usePreferencesStore.setState({
     theme: 'light',
     sidebarCollapsed: false,
+    navCollapsedSubgroups: [],
     setupProgressCollapsed: false,
     setupProgressSkipped: [],
     language: 'en',
@@ -31,6 +32,16 @@ describe('preferencesStore base actions', () => {
   it('setTheme updates the theme', () => {
     usePreferencesStore.getState().setTheme('dark');
     expect(usePreferencesStore.getState().theme).toBe('dark');
+  });
+
+  it('toggleNavSubgroup adds then removes a sidebar sub-section id (AF-837)', () => {
+    usePreferencesStore.getState().toggleNavSubgroup('security-identity');
+    expect(usePreferencesStore.getState().navCollapsedSubgroups).toEqual(['security-identity']);
+    usePreferencesStore.getState().toggleNavSubgroup('workflow-api');
+    expect(usePreferencesStore.getState().navCollapsedSubgroups)
+      .toEqual(['security-identity', 'workflow-api']);
+    usePreferencesStore.getState().toggleNavSubgroup('security-identity');
+    expect(usePreferencesStore.getState().navCollapsedSubgroups).toEqual(['workflow-api']);
   });
 
   it('toggleSidebar flips collapsed state', () => {
@@ -194,6 +205,20 @@ describe('migratePreferences (v0 → v1)', () => {
     expect(migrated.dashboardWidgets.hidden).toEqual([]);
     expect(migrated.dashboardWidgets.order).toEqual(DASHBOARD_WIDGET_IDS);
     expect(migrated.dashboardWidgets.size).toEqual({});
+  });
+
+  it('leaves a v1 payload that predates navCollapsedSubgroups without the key (AF-837)', () => {
+    // The issue asked whether persist `version` needs a bump. It does not: the key is simply
+    // absent from an older payload, and zustand's default shallow merge over the initial state
+    // supplies `[]`. This pins that — if someone adds a `partialize`/custom `merge` that turns it
+    // into `undefined`, Sidebar's `.includes()` would throw on the first render.
+    const legacy = { theme: 'dark', sidebarCollapsed: true };
+    const passed = migratePreferences(legacy, 1) as Record<string, unknown>;
+    expect(passed).toBe(legacy);
+    expect(passed.navCollapsedSubgroups).toBeUndefined();
+
+    const hydrated = { ...usePreferencesStore.getState(), ...passed };
+    expect(hydrated.navCollapsedSubgroups).toEqual([]);
   });
 
   it('passes v1 state and non-object payloads through unchanged', () => {
