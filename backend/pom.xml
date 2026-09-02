@@ -20,7 +20,7 @@
 
     <properties>
         <java.version>25</java.version>
-        <spring-modulith.version>2.1.0</spring-modulith.version>
+        <spring-modulith.version>2.1.1</spring-modulith.version>
         <spring-ai.version>2.0.1</spring-ai.version>
         <shedlock.version>7.9.0</shedlock.version>
         <slack.sdk.version>1.50.0</slack.sdk.version>
