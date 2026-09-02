@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-01",
+      "dateModified": "2026-09-02",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -264,7 +264,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-02">2 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -682,9 +682,10 @@ APPROVED → FAILED (execution error)</pre>
             <strong>Configure it.</strong> Create pipelines at
             <code>/admin/deployment-pipelines</code> (requires the
             <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
-            pipeline's settings page carries six tabs. Alongside <strong>General</strong> and the
+            pipeline's settings page carries seven tabs. Alongside <strong>General</strong> and the
             <strong>CI setup</strong> snippet sit <strong>Environments</strong> (promotion
-            order, required approvals, review-plan override, break-glass opt-in),
+            order, tags, required approvals, review-plan override, break-glass opt-in),
+            <strong>Versions</strong> (which version each environment is running — see below),
             <strong>Permissions</strong> (per-user and per-group <code>can_trigger</code> /
             <code>can_break_glass</code> grants with an optional expiry — a user's effective grant is
             the most-permissive union of their direct grant and every unexpired group grant),
@@ -709,11 +710,42 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-environments-dark.webp"
-                   alt="The Environments tab of a deployment pipeline settings page, listing ordered environments with their required approval count, review requirement, review-plan override and break-glass opt-in."
+                   alt="The Environments tab of a deployment pipeline settings page, listing ordered environments with their tags, required approval count, review requirement, review-plan override and break-glass opt-in."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, required approvals, review-plan override and break-glass opt-in, per environment.</figcaption>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override and break-glass opt-in, per environment.</figcaption>
           </figure>
+          <p>
+            <strong>Environment tags.</strong> Each environment can carry short free-form
+            <strong>tags</strong> — at most ten, each up to 32 characters — with no fixed meaning:
+            a customer, a region, a tier, whatever you group by. They exist so one application
+            deployed for many customers can be modelled as one environment per customer, all
+            tagged alike, and then read back as a single view. Add them in the <strong>Tags</strong>
+            field on the <strong>Environments</strong> tab and filter on them in the version matrix
+            below.
+          </p>
+          <p>
+            <strong>Which version is where.</strong> Once releases have flowed through the gate,
+            <code>/deployment-versions</code> shows one row per environment that has been deployed
+            to: its tags, the version it is running now, the version it was running before, when
+            it got there, and how the last deploy ended. Filter by pipeline, tag, environment
+            name, or narrow to just the environments that have fallen behind. The page is open to
+            pipeline admins, deployment reviewers and admins; someone who can only trigger a
+            pipeline reaches that pipeline's own matrix by picking it in the pipeline filter on
+            <code>/deployments</code> and choosing <strong>Version matrix</strong>. The pipeline's
+            own <strong>Versions</strong> tab shows the same rows, and additionally lists
+            environments nothing has been deployed to yet.
+          </p>
+          <p>
+            Each row says how far behind it is: how many newer releases have gone out since it
+            last moved, and how many days passed between its deploy and the newest one. "Behind"
+            is a plain comparison against the newest release that succeeded on the pipeline —
+            version strings are yours, so nothing is parsed or ordered numerically. An environment
+            whose last deploy failed or was rolled back shows the version it reverted to, or says
+            the version is unknown when two rollbacks in a row left no earlier record to fall back
+            on. Every environment also keeps a history, newest first, of every deployment aimed at
+            it.
+          </p>
           <p>
             <strong>Freeze windows.</strong> A freeze window suspends releases for the whole
             organization, one pipeline, or a single environment. It is either <strong>one-off</strong>

@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-01",
+      "dateModified": "2026-09-02",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -275,7 +275,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-02">2 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -431,6 +431,14 @@
               pipeline. Leave it on <strong>Plan default</strong> to inherit.</li>
           </ul>
           <p>
+            While you are here, fill in <strong>Tags</strong> — short words of your choosing, at
+            most ten. They have no meaning to AccessFlow; they exist so you can group environments
+            across pipelines and read them back together. If you run one copy of your application
+            per customer, the usual shape is one environment named <code>prod-acme</code> tagged
+            <code>acme</code> and <code>prod</code>, so you can later ask for everything belonging
+            to that customer, or everything in production, in one view.
+          </p>
+          <p>
             Environments are also where <strong>break-glass</strong> is switched on. An emergency
             deploy needs both a break-glass grant on the pipeline and this opt-in on the target
             environment; there is no admin bypass for either half. Leave it off unless you have
@@ -440,10 +448,10 @@
             <picture>
               <source srcset="/images/docs/deployment-pipeline-environments-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipeline-environments-dark.webp"
-                   alt="The environments tab of a deployment pipeline, listing ordered environments with their required approval count, review requirement, review plan override and break-glass opt-in."
+                   alt="The environments tab of a deployment pipeline, listing ordered environments with their tags, required approval count, review requirement, review plan override and break-glass opt-in."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, required approvals, review-plan override and break-glass, per environment.</figcaption>
+            <figcaption>Pipeline settings → <strong>Environments</strong> — promotion order, tags, required approvals, review-plan override and break-glass, per environment.</figcaption>
           </figure>
         </section>
 
@@ -626,6 +634,12 @@
             <a href="https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#the-public-demo-environment">docs/09-deployment.md
             → The public demo environment</a>.
           </div>
+          <p>
+            Once a few releases have gone out this way, <code>/deployment-versions</code> becomes
+            useful: it lists every environment you deploy to, the version each is running now, and
+            how far behind the newest release it has fallen — filterable by the tags you set in
+            step 4.
+          </p>
           <p>
             From here: <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment
             pipelines</a> covers freeze windows, routing policies, break-glass and rollback reviews

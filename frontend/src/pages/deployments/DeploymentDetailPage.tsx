@@ -15,6 +15,11 @@ import {
   getDeploymentGate,
   getDeploymentRequest,
 } from '@/api/deploymentRequests';
+import {
+  deploymentVersionKeys,
+  listPipelineEnvironmentVersions,
+} from '@/api/deploymentVersions';
+import { DriftChip } from '@/components/deployments/versionMatrixCells';
 import { useAuthStore } from '@/store/authStore';
 import {
   pipelineProviderLabel,
@@ -61,6 +66,51 @@ export default function DeploymentDetailPage() {
     retry: false,
   });
   const gate = gateQuery.data;
+
+  // The environment's live version state, for the drift chip below. Same treatment as the gate:
+  // a 404 (this caller may not see the pipeline's matrix) simply hides the row.
+  const matrixQuery = useQuery({
+    queryKey: deploymentVersionKeys.matrix(request?.pipeline_id ?? ''),
+    queryFn: () => listPipelineEnvironmentVersions(request?.pipeline_id ?? ''),
+    enabled: !!request?.pipeline_id,
+    retry: false,
+  });
+  const environmentVersion = matrixQuery.data?.find(
+    (row) => row.environment.id === request?.environment_id,
+  );
+
+  /**
+   * Drift describes the environment as it stands now, so it only means something for a request
+   * that actually reached the environment. The live deploy gets the chip; a request that ran and
+   * has since been replaced says so; one that never ran — pending, approved-but-unreleased,
+   * rejected, cancelled — was never on the environment and gets no row at all.
+   */
+  const driftRow = (() => {
+    if (request == null || environmentVersion == null) return null;
+    const label = t('deploygov.versions.drift');
+    if (environmentVersion.current_request_id === request.id) {
+      return {
+        key: 'drift',
+        label,
+        children: (
+          <DriftChip row={environmentVersion} note={t('deploygov.versions.driftOnCurrent')} />
+        ),
+      };
+    }
+    if (request.status !== 'EXECUTED' && request.status !== 'FAILED') return null;
+    return {
+      key: 'drift',
+      label,
+      children: (
+        <span className="muted" style={{ fontSize: 12 }}>
+          {t('deploygov.versions.superseded', {
+            environment: environmentVersion.environment.name,
+            version: environmentVersion.current_version ?? '—',
+          })}
+        </span>
+      ),
+    };
+  })();
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelDeploymentRequest(id),
@@ -175,6 +225,7 @@ export default function DeploymentDetailPage() {
                     label: t('deploygov.detail.version'),
                     children: <span className="mono">{request.version}</span>,
                   },
+                  ...(driftRow ? [driftRow] : []),
                   {
                     key: 'commit',
                     label: t('deploygov.detail.commit'),

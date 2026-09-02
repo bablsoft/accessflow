@@ -99,10 +99,11 @@ describe('Sidebar', () => {
 });
 
 describe('Sidebar — deployment governance (#696)', () => {
-  it('shows all three deployment entries for an admin', () => {
+  it('shows all four deployment entries for an admin', () => {
     renderSidebar(adminUser);
     expect(screen.getByText('Deployments')).toBeInTheDocument();
     expect(screen.getByText('Deployment Reviews')).toBeInTheDocument();
+    expect(screen.getByText('Version Matrix')).toBeInTheDocument();
     expect(screen.getByText('Deployment Pipelines')).toBeInTheDocument();
   });
 
@@ -113,12 +114,15 @@ describe('Sidebar — deployment governance (#696)', () => {
       permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
     });
     expect(screen.getByText('Deployment Reviews')).toBeInTheDocument();
+    // The version matrix is any-of MANAGE / REVIEW / QUERY_ADMIN, so DEPLOYMENT_REVIEW is enough.
+    expect(screen.getByText('Version Matrix')).toBeInTheDocument();
     expect(screen.queryByText('Deployment Pipelines')).not.toBeInTheDocument();
   });
 
   it('hides the review queue and pipelines from a READONLY user', () => {
     renderSidebar(readonlyUser);
     expect(screen.queryByText('Deployment Reviews')).not.toBeInTheDocument();
+    expect(screen.queryByText('Version Matrix')).not.toBeInTheDocument();
     expect(screen.queryByText('Deployment Pipelines')).not.toBeInTheDocument();
     // Deployments list rides on QUERY_SUBMIT_SELECT, which READONLY has.
     expect(screen.getByText('Deployments')).toBeInTheDocument();

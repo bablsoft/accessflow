@@ -38,6 +38,7 @@ import {
   FieldTimeOutlined,
   CheckSquareOutlined,
   BlockOutlined,
+  DeploymentUnitOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
@@ -97,6 +98,7 @@ export function Sidebar({
         { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, permissions: ['API_REQUEST_REVIEW'] },
         { id: 'deployments', to: '/deployments', label: t('nav.deployments'), icon: <RocketOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
         { id: 'deployment-reviews', to: '/deployment-reviews', label: t('nav.deploymentReviews'), icon: <InboxOutlined />, permissions: ['DEPLOYMENT_REVIEW'] },
+        { id: 'deployment-versions', to: '/deployment-versions', label: t('nav.deploymentVersions'), icon: <DeploymentUnitOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'] },
         { id: 'request-groups', to: '/request-groups', label: t('nav.requestGroups'), icon: <BlockOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
         { id: 'request-group-reviews', to: '/request-groups/reviews', label: t('nav.requestGroupReviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'] },
         { id: 'request-access', to: '/access-requests', label: t('nav.request_access'), icon: <KeyOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },

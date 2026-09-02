@@ -49,7 +49,13 @@ export async function createDeploymentEnvironmentViaApi(
   request: APIRequestContext,
   token: string,
   pipelineId: string,
-  options: { name: string; requiredApprovals?: number; requireReview?: boolean },
+  options: {
+    name: string;
+    requiredApprovals?: number;
+    requireReview?: boolean;
+    /** Free-form grouping labels (#741) — at most 10, each at most 32 chars. */
+    tags?: string[];
+  },
 ): Promise<CreatedDeploymentEnvironment> {
   const res = await request.post(
     `${apiBase()}/api/v1/deployment-pipelines/${pipelineId}/environments`,
@@ -57,6 +63,7 @@ export async function createDeploymentEnvironmentViaApi(
       headers: { Authorization: `Bearer ${token}` },
       data: {
         name: options.name,
+        ...(options.tags === undefined ? {} : { tags: options.tags }),
         ...(options.requiredApprovals === undefined
           ? {}
           : { required_approvals: options.requiredApprovals }),

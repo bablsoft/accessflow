@@ -6,11 +6,34 @@ import { App as AntdApp } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
-import type { DeploymentRequest, DeploymentRequestPage } from '@/types/api';
+import type {
+  DeploymentEnvironmentVersion,
+  DeploymentRequest,
+  DeploymentRequestPage,
+} from '@/types/api';
 
-const { listDeploymentRequestsMock, listDeploymentPipelinesMock } = vi.hoisted(() => ({
+const {
+  listDeploymentRequestsMock,
+  listDeploymentPipelinesMock,
+  listPipelineEnvironmentVersionsMock,
+  navigateMock,
+} = vi.hoisted(() => ({
   listDeploymentRequestsMock: vi.fn(),
   listDeploymentPipelinesMock: vi.fn(),
+  listPipelineEnvironmentVersionsMock: vi.fn(),
+  navigateMock: vi.fn(),
+}));
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => navigateMock };
+});
+
+vi.mock('@/api/deploymentVersions', () => ({
+  listPipelineEnvironmentVersions: listPipelineEnvironmentVersionsMock,
+  deploymentVersionKeys: {
+    matrix: (pipelineId: string) => ['deployment-versions', 'matrix', pipelineId] as const,
+  },
 }));
 
 vi.mock('@/api/deploymentRequests', () => ({
@@ -108,10 +131,31 @@ function wrap(node: ReactNode) {
   );
 }
 
+const liveVersion: DeploymentEnvironmentVersion = {
+  pipeline_id: 'pipe-1',
+  pipeline_name: 'Checkout Service',
+  environment: { id: 'env-1', name: 'production', tags: ['prod'], sort_order: 10 },
+  current_version: '2.4.1',
+  current_request_id: 'req-1',
+  deployed_at: '2026-05-01T10:00:00Z',
+  previous_version: '2.3.9',
+  last_outcome: 'SUCCEEDED',
+  drift: {
+    latest_version: '2.5.0',
+    latest_deployed_at: '2026-05-05T10:00:00Z',
+    drifted: true,
+    days_behind: 4,
+    deployments_behind: 2,
+  },
+};
+
 describe('DeploymentListPage', () => {
   beforeEach(() => {
     listDeploymentRequestsMock.mockReset();
     listDeploymentPipelinesMock.mockReset();
+    listPipelineEnvironmentVersionsMock.mockReset();
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([]);
+    navigateMock.mockReset();
     seedUser([]);
   });
 
@@ -172,5 +216,55 @@ describe('DeploymentListPage', () => {
 
     expect(await screen.findByText('No deployment requests yet')).toBeInTheDocument();
     expect(screen.getByText('0 deployments')).toBeInTheDocument();
+  });
+
+  it('badges the request that is live on its environment with the environment drift', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([liveVersion]);
+
+    render(wrap(<DeploymentListPage />));
+
+    expect(await screen.findByText('2 versions / 4 days behind')).toBeInTheDocument();
+    expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalledWith('pipe-1');
+  });
+
+  it('leaves a superseded request unbadged — drift describes the environment, not the request', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([
+      { ...liveVersion, current_request_id: 'req-newer' },
+    ]);
+
+    render(wrap(<DeploymentListPage />));
+
+    await screen.findByText('2.4.1');
+    expect(screen.queryByText('2 versions / 4 days behind')).not.toBeInTheDocument();
+  });
+
+  it('leaves rows unbadged when the caller cannot read that pipeline matrix', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
+    listPipelineEnvironmentVersionsMock.mockRejectedValue(new Error('404'));
+
+    render(wrap(<DeploymentListPage />));
+
+    await screen.findByText('2.4.1');
+    await waitFor(() => expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalled());
+    expect(screen.queryByText(/behind/)).not.toBeInTheDocument();
+  });
+
+  it('offers the per-pipeline version matrix once a pipeline is selected', async () => {
+    listDeploymentRequestsMock.mockResolvedValue(pageOf([baseRequest]));
+
+    render(wrap(<DeploymentListPage />));
+    await screen.findByText('2.4.1');
+
+    const button = screen.getByRole('button', { name: /version matrix/i });
+    expect(button).toBeDisabled();
+
+    fireEvent.mouseDown(screen.getByLabelText('Pipeline'));
+    fireEvent.click(await screen.findByTitle('Checkout Service'));
+
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    expect(navigateMock).toHaveBeenCalledWith('/deployment-versions/pipe-1');
   });
 });

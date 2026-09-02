@@ -7,6 +7,7 @@ import {
   attestationItemDecisionColor,
   breakGlassStatusColor,
   deploymentOutcomeColor,
+  driftColor,
   deploymentRollbackReviewStatusColor,
   grantUsageRecommendationColor,
   statusColor,
@@ -148,5 +149,20 @@ describe('deploymentRollbackReviewStatusColor (#696)', () => {
   it('flags pending rollback reviews and settles reviewed ones', () => {
     expect(deploymentRollbackReviewStatusColor('PENDING_REVIEW').fg).toBe('var(--risk-crit)');
     expect(deploymentRollbackReviewStatusColor('REVIEWED').fg).toBe('var(--risk-low)');
+  });
+});
+
+describe('driftColor (#743)', () => {
+  it('warns on drift and settles an up-to-date environment', () => {
+    expect(driftColor(true).fg).toBe('var(--status-warn)');
+    expect(driftColor(false).fg).toBe('var(--risk-low)');
+  });
+
+  it('returns a full token triple in both states', () => {
+    for (const drifted of [true, false]) {
+      const triple = driftColor(drifted);
+      expect(triple.bg).toMatch(/^var\(--/);
+      expect(triple.border).toMatch(/^var\(--/);
+    }
   });
 });

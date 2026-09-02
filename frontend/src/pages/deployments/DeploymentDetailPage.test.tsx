@@ -6,14 +6,30 @@ import { App as AntdApp } from 'antd';
 import type { ReactNode } from 'react';
 import '@/i18n';
 import { useAuthStore } from '@/store/authStore';
-import type { DeploymentGateStatus, DeploymentRequest } from '@/types/api';
+import type {
+  DeploymentEnvironmentVersion,
+  DeploymentGateStatus,
+  DeploymentRequest,
+} from '@/types/api';
 
-const { getDeploymentRequestMock, getDeploymentGateMock, cancelDeploymentRequestMock } =
-  vi.hoisted(() => ({
-    getDeploymentRequestMock: vi.fn(),
-    getDeploymentGateMock: vi.fn(),
-    cancelDeploymentRequestMock: vi.fn(),
-  }));
+const {
+  getDeploymentRequestMock,
+  getDeploymentGateMock,
+  cancelDeploymentRequestMock,
+  listPipelineEnvironmentVersionsMock,
+} = vi.hoisted(() => ({
+  getDeploymentRequestMock: vi.fn(),
+  getDeploymentGateMock: vi.fn(),
+  cancelDeploymentRequestMock: vi.fn(),
+  listPipelineEnvironmentVersionsMock: vi.fn(),
+}));
+
+vi.mock('@/api/deploymentVersions', () => ({
+  listPipelineEnvironmentVersions: listPipelineEnvironmentVersionsMock,
+  deploymentVersionKeys: {
+    matrix: (pipelineId: string) => ['deployment-versions', 'matrix', pipelineId] as const,
+  },
+}));
 
 vi.mock('@/api/deploymentRequests', () => ({
   getDeploymentRequest: getDeploymentRequestMock,
@@ -83,6 +99,24 @@ const releasableGate: DeploymentGateStatus = {
   ai_risk_level: 'MEDIUM',
 };
 
+const liveVersion: DeploymentEnvironmentVersion = {
+  pipeline_id: 'pipe-1',
+  pipeline_name: 'Checkout Service',
+  environment: { id: 'env-1', name: 'production', tags: ['prod'], sort_order: 10 },
+  current_version: '2.4.1',
+  current_request_id: 'req-1',
+  deployed_at: '2026-05-01T10:00:00Z',
+  previous_version: '2.3.9',
+  last_outcome: 'SUCCEEDED',
+  drift: {
+    latest_version: '2.5.0',
+    latest_deployed_at: '2026-05-05T10:00:00Z',
+    drifted: true,
+    days_behind: 4,
+    deployments_behind: 2,
+  },
+};
+
 function seedUser(id: string) {
   useAuthStore.setState({
     user: {
@@ -121,6 +155,8 @@ describe('DeploymentDetailPage', () => {
     getDeploymentRequestMock.mockReset();
     getDeploymentGateMock.mockReset();
     cancelDeploymentRequestMock.mockReset();
+    listPipelineEnvironmentVersionsMock.mockReset();
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([]);
     seedUser('u-me');
   });
 
@@ -241,5 +277,63 @@ describe('DeploymentDetailPage', () => {
     await waitFor(() => {
       expect(cancelDeploymentRequestMock).toHaveBeenCalledWith('req-1');
     });
+  });
+
+  it('shows the environment drift when this request is the live deploy', async () => {
+    getDeploymentRequestMock.mockResolvedValue(baseRequest);
+    getDeploymentGateMock.mockResolvedValue(releasableGate);
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([liveVersion]);
+    seedUser('u-me');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(await screen.findByText('2 versions / 4 days behind')).toBeInTheDocument();
+    expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalledWith('pipe-1');
+  });
+
+  it('says the request is superseded when it ran and the environment has moved on', async () => {
+    getDeploymentRequestMock.mockResolvedValue({ ...baseRequest, status: 'EXECUTED' });
+    getDeploymentGateMock.mockResolvedValue(releasableGate);
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([
+      { ...liveVersion, current_request_id: 'req-newer', current_version: '2.5.0' },
+    ]);
+    seedUser('u-me');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(
+      await screen.findByText('Superseded — production now runs 2.5.0'),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the drift row entirely when the matrix is not visible to this caller', async () => {
+    getDeploymentRequestMock.mockResolvedValue(baseRequest);
+    getDeploymentGateMock.mockResolvedValue(releasableGate);
+    listPipelineEnvironmentVersionsMock.mockRejectedValue(new Error('404'));
+    seedUser('u-me');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await screen.findByText('Ship the checkout fix');
+    await waitFor(() => expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalled());
+    expect(screen.queryByText('Drift')).not.toBeInTheDocument();
+  });
+
+  it('shows no drift row for a request that never reached the environment', async () => {
+    // APPROVED but not yet released: it was never on the environment, so "superseded" would be
+    // an outright false claim rather than merely unhelpful.
+    getDeploymentRequestMock.mockResolvedValue(baseRequest);
+    getDeploymentGateMock.mockResolvedValue(releasableGate);
+    listPipelineEnvironmentVersionsMock.mockResolvedValue([
+      { ...liveVersion, current_request_id: 'req-newer', current_version: '2.5.0' },
+    ]);
+    seedUser('u-me');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await screen.findByText('Ship the checkout fix');
+    await waitFor(() => expect(listPipelineEnvironmentVersionsMock).toHaveBeenCalled());
+    expect(screen.queryByText(/^Superseded/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Drift')).not.toBeInTheDocument();
   });
 });
