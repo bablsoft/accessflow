@@ -38,8 +38,14 @@ get 401 on the next request. Idempotent: revoking an already-revoked key is a no
 
 ### Expiry (optional)
 
-A future release will accept an `expires_at` timestamp at creation. The DB column and filter
-already honour it; the UI control is tracked under [FE-09](https://github.com/bablsoft/accessflow/issues/80).
+`POST /api/v1/api-keys` accepts an optional `expires_at` timestamp. Once it passes, the key stops
+authenticating exactly as a revoked one does — 401 on the next request, on `/mcp/**` and on any REST
+endpoint. Expiry is checked at every resolve, so nothing has to run for it to take effect, and the
+key's `expires_at` is shown in the profile list.
+
+The browser form does not expose the control yet — keys minted there never expire, so set an expiry
+through the API or through a bootstrap service account (`apiKeyExpiresAt`) when you want one. The
+form field is tracked under [#824](https://github.com/bablsoft/accessflow/issues/824).
 
 ---
 
