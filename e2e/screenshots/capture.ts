@@ -365,9 +365,15 @@ async function seedData() {
     deploy.pipelineId = pipeline.id;
     console.log(`[seed] deployment pipeline ${pipeline.id}`);
 
-    for (const name of ['staging', 'production']) {
+    // Tags (#741) are what the version matrix filters on, so seed them: the Environments and
+    // Versions figures both show the column, and an empty one would illustrate nothing.
+    for (const [name, tags] of [
+      ['staging', ['staging', 'eu-west']],
+      ['production', ['prod', 'eu-west']],
+    ] as const) {
       await createDeploymentEnvironmentViaApi(api, adminToken, pipeline.id, {
         name,
+        tags: [...tags],
         requiredApprovals: 1,
         requireReview: true,
       });

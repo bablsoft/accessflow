@@ -57,7 +57,15 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     // Create navigates straight into the settings page.
     await page.waitForURL(`**/admin/deployment-pipelines/${created.id}`, { timeout: 15_000 });
     await expect(page.getByRole('heading', { name })).toBeVisible();
-    for (const tab of ['General', 'Environments', 'Permissions', 'Freeze windows', 'Routing policies', 'CI setup']) {
+    for (const tab of [
+      'General',
+      'Environments',
+      'Versions',
+      'Permissions',
+      'Freeze windows',
+      'Routing policies',
+      'CI setup',
+    ]) {
       await expect(page.getByRole('tab', { name: tab })).toBeVisible();
     }
   });

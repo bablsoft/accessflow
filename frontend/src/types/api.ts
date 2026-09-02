@@ -3732,6 +3732,8 @@ export interface DeploymentEnvironment {
   id: string;
   pipeline_id: string;
   name: string;
+  /** Free-form grouping labels (#741). Never null — the server defaults to `[]`. */
+  tags: string[];
   sort_order: number;
   require_review: boolean;
   required_approvals: number | null;
@@ -3742,6 +3744,7 @@ export interface DeploymentEnvironment {
 
 export interface CreateDeploymentEnvironmentInput {
   name: string;
+  tags?: string[];
   sort_order?: number;
   require_review?: boolean;
   required_approvals?: number | null;
@@ -3751,6 +3754,11 @@ export interface CreateDeploymentEnvironmentInput {
 
 export interface UpdateDeploymentEnvironmentInput {
   name?: string | null;
+  /**
+   * Omitted or null leaves the stored tags unchanged — send `[]` to clear them.
+   * There is deliberately no `clear_tags` flag on the server.
+   */
+  tags?: string[] | null;
   sort_order?: number | null;
   require_review?: boolean | null;
   required_approvals?: number | null;
@@ -4010,3 +4018,60 @@ export interface DeploymentGateStatus {
   scheduled_for: string | null;
   ai_risk_level: RiskLevel | null;
 }
+
+// ─── Deployment version inventory & drift (#742 API, #743 UI) ───
+
+/** The environment projection embedded in a matrix row — a subset of DeploymentEnvironment. */
+export interface DeploymentVersionEnvironmentRef {
+  id: string;
+  name: string;
+  tags: string[];
+  sort_order: number;
+}
+
+/**
+ * Never null on the wire — the server always emits the block, and `drifted` is a Java
+ * primitive so it is always present. Only the inner quantities go null.
+ */
+export interface DeploymentVersionDrift {
+  /** Null when the pipeline has no qualifying latest (every tracker row FAILED/ROLLED_BACK). */
+  latest_version: string | null;
+  latest_deployed_at: string | null;
+  drifted: boolean;
+  /** Null when the row has no `deployed_at` or there is no qualifying latest; 0 when not drifted. */
+  days_behind: number | null;
+  /** Null when the row has no `deployed_at`; 0 when not drifted. */
+  deployments_behind: number | null;
+}
+
+export interface DeploymentEnvironmentVersion {
+  pipeline_id: string;
+  pipeline_name: string;
+  environment: DeploymentVersionEnvironmentRef;
+  /** Null on a never-deployed environment, or after consecutive rollbacks exhausted `previous`. */
+  current_version: string | null;
+  current_request_id: string | null;
+  deployed_at: string | null;
+  previous_version: string | null;
+  last_outcome: DeploymentOutcome | null;
+  drift: DeploymentVersionDrift;
+}
+
+export type DeploymentEnvironmentVersionPage = PageEnvelope<DeploymentEnvironmentVersion>;
+
+export interface DeploymentVersionHistoryEntry {
+  request_id: string;
+  version: string;
+  status: QueryStatus;
+  outcome: DeploymentOutcome | null;
+  outcome_reported_at: string | null;
+  submitted_by: string;
+  submission_reason: SubmissionReason;
+  commit_sha: string | null;
+  run_url: string | null;
+  created_at: string;
+  /** Null for requests that never reached EXECUTED. */
+  executed_at: string | null;
+}
+
+export type DeploymentVersionHistoryPage = PageEnvelope<DeploymentVersionHistoryEntry>;

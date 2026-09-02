@@ -44,6 +44,7 @@ const staging: DeploymentEnvironment = {
   id: 'env-1',
   pipeline_id: 'pipe-1',
   name: 'staging',
+  tags: ['eu-west', 'acme'],
   sort_order: 0,
   require_review: true,
   required_approvals: 2,
@@ -56,6 +57,7 @@ const production: DeploymentEnvironment = {
   id: 'env-2',
   pipeline_id: 'pipe-1',
   name: 'production',
+  tags: [],
   sort_order: 10,
   require_review: true,
   required_approvals: null,
@@ -129,6 +131,7 @@ describe('PipelineEnvironmentsTab', () => {
     expect(pipelineId).toBe('pipe-1');
     expect(input).toEqual({
       name: 'qa',
+      tags: [],
       // Default sort order = existing rows * 10.
       sort_order: 20,
       require_review: true,
@@ -161,6 +164,7 @@ describe('PipelineEnvironmentsTab', () => {
     expect(input).toEqual(
       expect.objectContaining({
         name: 'staging',
+        tags: ['eu-west', 'acme'],
         required_approvals: null,
         clear_required_approvals: true,
         review_plan_id: 'plan-1',
@@ -185,5 +189,67 @@ describe('PipelineEnvironmentsTab', () => {
 
     await waitFor(() => expect(deleteDeploymentEnvironment).toHaveBeenCalledTimes(1));
     expect(deleteDeploymentEnvironment).toHaveBeenCalledWith('pipe-1', 'env-1');
+  });
+
+  it('renders tag chips, and an em dash for an untagged environment', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+
+    await screen.findByText('staging');
+    // staging carries two tags; production carries none.
+    expect(screen.getByText('acme')).toBeInTheDocument();
+    const tagCells = screen.getAllByText('—');
+    expect(tagCells.length).toBeGreaterThan(0);
+  });
+
+  it('submits an emptied tag list as [] so the server does not read it as "leave unchanged"', async () => {
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('staging'));
+
+    // Remove both prefilled tags via their close buttons.
+    for (const close of [...dialog.querySelectorAll('.ant-select-selection-item-remove')]) {
+      fireEvent.click(close);
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateDeploymentEnvironment).toHaveBeenCalledTimes(1));
+    expect(updateDeploymentEnvironment.mock.calls[0]![2]).toEqual(
+      expect.objectContaining({ tags: [] }),
+    );
+  });
+
+  it('blocks a save when more than ten tags are entered', async () => {
+    listDeploymentEnvironments.mockResolvedValue([
+      { ...staging, tags: Array.from({ length: 11 }, (_, i) => `t${i}`) },
+    ]);
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('staging'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('An environment may have at most 10 tags')).toBeInTheDocument();
+    expect(updateDeploymentEnvironment).not.toHaveBeenCalled();
+  });
+
+  it('blocks a save when a tag is longer than 32 characters', async () => {
+    listDeploymentEnvironments.mockResolvedValue([{ ...staging, tags: ['x'.repeat(33)] }]);
+    render(wrap(<PipelineEnvironmentsTab pipelineId="pipe-1" />));
+    await screen.findByText('staging');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('staging'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(
+      await screen.findByText('Each tag must be at most 32 characters'),
+    ).toBeInTheDocument();
+    expect(updateDeploymentEnvironment).not.toHaveBeenCalled();
   });
 });

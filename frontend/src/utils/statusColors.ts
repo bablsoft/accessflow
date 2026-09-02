@@ -175,3 +175,12 @@ export const deploymentRollbackReviewStatusColor = (
       return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
   }
 };
+
+/**
+ * Version-drift chip (#743). Being behind the latest release is an operational fact, not a
+ * failure, so a drifted row takes the warn triple and never the critical one.
+ */
+export const driftColor = (drifted: boolean): ColorTriple =>
+  drifted
+    ? { fg: 'var(--status-warn)', bg: 'var(--status-warn-bg)', border: 'var(--status-warn-border)' }
+    : { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };

@@ -60,7 +60,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-08-31",
+        "dateModified": "2026-09-02",
         "url": "https://accessflow.io/features/deployment-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/deployment-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -197,6 +197,7 @@
             <a href="#gate">The fail-closed gate</a>
             <a href="#freeze">Freeze windows and break-glass</a>
             <a href="#outcome">After the deploy</a>
+            <a href="#versions">Which version is where</a>
             <a href="#ci">One step in your pipeline</a>
             <p class="docs-toc-label">More capabilities</p>
             <a href="/features/">All 12 capabilities</a>
@@ -273,6 +274,13 @@
           <h2>What happened after the deploy</h2>
           <p>Approval without an outcome is half a record, so the pipeline reports back: succeeded, failed, or rolled back. Repeating the same report is idempotent; reporting a <em>different</em> outcome is a conflict rather than a silent overwrite. A failure report flips the request from executed to failed — the one post-terminal transition the state machine allows.</p>
           <p>A rollback on an environment that requires review opens a follow-up review in the same transaction, so a governed rollback can never exist without one. As everywhere else, the submitter cannot close their own: acknowledgement is somebody else's, and it is a latch rather than a contested decision.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="versions">
+          <h2>Which version is where</h2>
+          <p>A matrix lists every environment you deploy to, the version it is running now, the one it was running before, when it got there, and how that deploy ended. It answers the question the gate cannot: not whether a release may go out, but what is already out there.</p>
+          <p>Each row also says how far behind it has fallen, counted two ways — how many newer releases have gone out since it last moved, and how many days passed between its deploy and the newest one. "Behind" is a plain comparison against the newest release that succeeded on that pipeline, not an attempt to parse your version numbers, so it works whether you ship <code>2.4.1</code>, a date, or a commit hash. Nothing is scheduled and nothing is alerted on: the comparison is made when you look.</p>
+          <p>Environments carry short tags of your choosing — up to ten each, a customer, a region, a tier — and the matrix filters on them. That is what turns one application deployed for many customers into a single readable view: one environment per customer, all tagged alike, all lined up beside their versions. Each environment also keeps its own history, newest first, and a rolled-back environment says what it reverted to rather than quietly showing a version it is no longer running.</p>
         </section>
 
         <section class="docs-section scroll-pad" id="ci">

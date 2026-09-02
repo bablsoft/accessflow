@@ -21,8 +21,10 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 > Azure / generic-curl CI wrappers (#694), the notification and audit fan-out (#695), and the web
 > UI (#696). The multi-environment version-tracking foundation — environment tags and the
 > per-environment deployed-version projection (#741) — landed after v2.4, followed by the
-> read-only version inventory & drift API (#742, section 9 below); the version-matrix UI (#743)
-> is **not yet shipped**.
+> read-only version inventory & drift API (#742, section 9 below) and the version-matrix UI
+> (#743): the org-wide matrix at `/deployment-versions`, the per-pipeline matrix and
+> environment-history drawer, drift badges on the deployment list and detail pages, and the tags
+> field on the environment editor.
 
 ---
 
@@ -95,7 +97,7 @@ reverts to previous (single-level undo — a second consecutive rollback leaves 
 version honestly unknown); an outcome for a non-current request changes nothing. The projection
 is a **read model only** — it never feeds gate, approval, or routing decisions, and history
 stays derived from `deployment_requests`. The read API over it — the version matrices, history,
-and the drift indicator — is section 9 below (#742); the UI arrives with #743.
+and the drift indicator — is section 9 below (#742), surfaced in the web UI by #743.
 
 **Who may trigger** is a per-pipeline grant, not a functional permission. Both a per-user table
 and a per-group table carry `can_trigger`, `can_break_glass` and an optional `expires_at`, and
@@ -413,6 +415,25 @@ everything; a `can_trigger` grant holder sees their pipelines' matrices and hist
 these environments from CI, after all). Anything else — including a pipeline in another org —
 reads as a 404, never a 403. The org-wide matrix is the one functional-permission-only surface:
 trigger-only callers get 403 there.
+
+**In the UI** (#743, [06-frontend.md](06-frontend.md) → "Deployment governance pages"):
+
+- **`/deployment-versions`** — the org-wide matrix, filterable by pipeline, tag, environment name
+  and a drift tri-state (any / behind only / up to date only). Each row carries the environment's
+  tag chips, its current and previous version, a drift badge quantified as "N versions / D days
+  behind", and — after a failure or rollback — what it reverted to, or an honest "unknown — see
+  history" once consecutive rollbacks exhausted the previous slot. Nav entry `Version Matrix`,
+  gated on the same three functional permissions as the endpoint.
+- **The pipeline settings *Versions* tab**, and the same matrix as a standalone
+  `/deployment-versions/:pipelineId` route. The route is deliberately unguarded on the client: the
+  404-never-403 rule is the gate, and it is what gives a `can_trigger`-only user a reachable
+  surface, since the settings page and the pipeline-list endpoint are both admin-only. They get
+  there from `/deployments`.
+- **A per-environment history drawer** — the deployment timeline, newest first. It respects the
+  drill-down asymmetry above: a pipeline admin who did not submit a request reads its timeline row
+  but gets muted text rather than a link that would 404.
+- **Drift badges on `/deployments` and `/deployments/:id`**, shown only where the request in front
+  of you is the one currently live on its environment; a superseded request says so instead.
 
 ---
 

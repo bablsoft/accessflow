@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { App, Button, Empty, Form, Input, Select, Skeleton, Switch, Tabs } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
@@ -15,6 +15,7 @@ import { PIPELINE_PROVIDERS, enumOptions, pipelineProviderLabel } from '@/utils/
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { PipelineEnvironmentsTab } from '@/components/deployments/PipelineEnvironmentsTab';
+import { PipelineVersionsTab } from '@/components/deployments/PipelineVersionsTab';
 import { PipelinePermissionsTab } from '@/components/deployments/PipelinePermissionsTab';
 import { PipelineFreezeWindowsTab } from '@/components/deployments/PipelineFreezeWindowsTab';
 import { PipelineRoutingPoliciesTab } from '@/components/deployments/PipelineRoutingPoliciesTab';
@@ -161,10 +162,25 @@ function GeneralTab({ pipeline }: { pipeline: DeploymentPipeline }) {
   );
 }
 
+const TAB_KEYS = [
+  'general',
+  'environments',
+  'versions',
+  'permissions',
+  'freeze-windows',
+  'routing-policies',
+  'ci',
+] as const;
+
 export function DeploymentPipelineSettingsPage() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // The active tab is kept in the URL so a tab is linkable from the docs and deep links survive
+  // a reload — worth more with seven tabs than it was with six.
+  const requestedTab = searchParams.get('tab');
+  const activeTab = TAB_KEYS.find((key) => key === requestedTab) ?? 'general';
 
   const pipelineQuery = useQuery({
     queryKey: deploymentPipelineKeys.detail(id),
@@ -192,6 +208,18 @@ export function DeploymentPipelineSettingsPage() {
         )}
         {pipeline && (
           <Tabs
+            activeKey={activeTab}
+            onChange={(key) =>
+              setSearchParams(
+                (previous) => {
+                  const next = new URLSearchParams(previous);
+                  if (key === 'general') next.delete('tab');
+                  else next.set('tab', key);
+                  return next;
+                },
+                { replace: true },
+              )
+            }
             items={[
               {
                 key: 'general',
@@ -202,6 +230,11 @@ export function DeploymentPipelineSettingsPage() {
                 key: 'environments',
                 label: t('deploygov.settings.tabEnvironments'),
                 children: <PipelineEnvironmentsTab pipelineId={pipeline.id} />,
+              },
+              {
+                key: 'versions',
+                label: t('deploygov.settings.tabVersions'),
+                children: <PipelineVersionsTab pipelineId={pipeline.id} />,
               },
               {
                 key: 'permissions',

@@ -37,6 +37,9 @@ vi.mock('@/api/admin', () => ({
 vi.mock('@/components/deployments/PipelineEnvironmentsTab', () => ({
   PipelineEnvironmentsTab: () => null,
 }));
+vi.mock('@/components/deployments/PipelineVersionsTab', () => ({
+  PipelineVersionsTab: () => <div>versions tab</div>,
+}));
 vi.mock('@/components/deployments/PipelinePermissionsTab', () => ({
   PipelinePermissionsTab: () => null,
 }));
@@ -63,11 +66,11 @@ const basePipeline: DeploymentPipeline = {
   updated_at: null,
 };
 
-function wrap(node: ReactNode) {
+function wrap(node: ReactNode, entry = '/admin/deployment-pipelines/pipe-1') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={['/admin/deployment-pipelines/pipe-1']}>
+      <MemoryRouter initialEntries={[entry]}>
         <AntdApp>
           <Routes>
             <Route path="/admin/deployment-pipelines/:id" element={node} />
@@ -89,7 +92,7 @@ describe('DeploymentPipelineSettingsPage', () => {
     listAiConfigs.mockResolvedValue([]);
   });
 
-  it('shows the pipeline name in the header and all six tabs', async () => {
+  it('shows the pipeline name in the header and all seven tabs', async () => {
     render(wrap(<DeploymentPipelineSettingsPage />));
 
     expect(await screen.findByText('Prod Deploy')).toBeInTheDocument();
@@ -97,6 +100,7 @@ describe('DeploymentPipelineSettingsPage', () => {
     for (const tab of [
       'General',
       'Environments',
+      'Versions',
       'Permissions',
       'Freeze windows',
       'Routing policies',
@@ -150,5 +154,30 @@ describe('DeploymentPipelineSettingsPage', () => {
 
     expect(await screen.findByText('Pipeline not found')).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: 'General' })).not.toBeInTheDocument();
+  });
+
+  it('opens the tab named in the URL and writes the active tab back to it', async () => {
+    render(wrap(<DeploymentPipelineSettingsPage />, '/admin/deployment-pipelines/pipe-1?tab=versions'));
+
+    expect(await screen.findByText('versions tab')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Versions' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Permissions' }));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Permissions' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      ),
+    );
+  });
+
+  it('falls back to General for an unknown tab in the URL', async () => {
+    render(wrap(<DeploymentPipelineSettingsPage />, '/admin/deployment-pipelines/pipe-1?tab=nope'));
+
+    await screen.findByText('Prod Deploy');
+    expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true');
   });
 });

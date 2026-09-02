@@ -100,6 +100,8 @@ const DeploymentDetailPage = lazy(() => import('@/pages/deployments/DeploymentDe
 const DeploymentReviewQueuePage = lazy(
   () => import('@/pages/deployments/DeploymentReviewQueuePage'),
 );
+const DeploymentVersionsPage = lazy(() => import('@/pages/deployments/DeploymentVersionsPage'));
+const PipelineVersionsPage = lazy(() => import('@/pages/deployments/PipelineVersionsPage'));
 const DeploymentPipelinesPage = lazy(() =>
   import('@/pages/admin/deployments/DeploymentPipelinesPage').then((m) => ({
     default: m.DeploymentPipelinesPage,
@@ -251,6 +253,32 @@ export function App() {
                   <DeploymentReviewQueuePage />
                 </Suspense>
               </AuthGuard>
+            }
+          />
+          <Route
+            path="/deployment-versions"
+            element={
+              <AuthGuard
+                requirePermission={[
+                  'DEPLOYMENT_PIPELINE_MANAGE',
+                  'DEPLOYMENT_REVIEW',
+                  'QUERY_ADMIN',
+                ]}
+              >
+                <Suspense fallback={null}>
+                  <DeploymentVersionsPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          {/* No permission guard: the server answers 404-never-403 on this pipeline, which is what
+              lets a can_trigger-only user reach their own pipeline's matrix. */}
+          <Route
+            path="/deployment-versions/:pipelineId"
+            element={
+              <Suspense fallback={null}>
+                <PipelineVersionsPage />
+              </Suspense>
             }
           />
           <Route

@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { App, Button, Form, Input, InputNumber, Modal, Popconfirm, Select, Switch, Table } from 'antd';
+import {
+  App,
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Switch,
+  Table,
+  Tag,
+} from 'antd';
 import type { TableColumnsType } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +23,7 @@ import {
   listDeploymentEnvironments,
   updateDeploymentEnvironment,
 } from '@/api/deploymentPipelines';
+import { deploymentVersionKeys } from '@/api/deploymentVersions';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
@@ -18,6 +31,7 @@ import type { DeploymentEnvironment } from '@/types/api';
 
 interface EnvironmentFormValues {
   name: string;
+  tags: string[];
   sort_order: number;
   require_review: boolean;
   required_approvals?: number | null;
@@ -47,6 +61,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     if (modalFor === 'create') {
       form.setFieldsValue({
         name: '',
+        tags: [],
         sort_order: (envsQuery.data?.length ?? 0) * 10,
         require_review: true,
         required_approvals: null,
@@ -56,6 +71,7 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     } else {
       form.setFieldsValue({
         name: modalFor.name,
+        tags: modalFor.tags,
         sort_order: modalFor.sort_order,
         require_review: modalFor.require_review,
         required_approvals: modalFor.required_approvals,
@@ -65,14 +81,22 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
     }
   }, [modalFor, form, envsQuery.data]);
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: deploymentPipelineKeys.environments(pipelineId) });
+  const invalidate = () => {
+    void queryClient.invalidateQueries({
+      queryKey: deploymentPipelineKeys.environments(pipelineId),
+    });
+    // Matrix rows embed the environment's name, tags and sort order, so an edit here goes stale
+    // on the Versions tab one tab over unless both version caches are dropped too.
+    void queryClient.invalidateQueries({ queryKey: deploymentVersionKeys.matrix(pipelineId) });
+    return queryClient.invalidateQueries({ queryKey: deploymentVersionKeys.lists() });
+  };
 
   const saveMutation = useMutation({
     mutationFn: (values: EnvironmentFormValues) => {
       if (modalFor === 'create') {
         return createDeploymentEnvironment(pipelineId, {
           name: values.name,
+          tags: values.tags ?? [],
           sort_order: values.sort_order,
           require_review: values.require_review,
           required_approvals: values.required_approvals ?? null,
@@ -82,6 +106,9 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
       }
       return updateDeploymentEnvironment(pipelineId, (modalFor as DeploymentEnvironment).id, {
         name: values.name,
+        // Always an array, never null/omitted: the server reads null as "leave unchanged", so
+        // clearing every tag in the UI would otherwise silently no-op.
+        tags: values.tags ?? [],
         sort_order: values.sort_order,
         require_review: values.require_review,
         required_approvals: values.required_approvals ?? null,
@@ -121,6 +148,17 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
   const columns: TableColumnsType<DeploymentEnvironment> = [
     { title: t('deploygov.settings.envSortOrder'), dataIndex: 'sort_order', width: 80 },
     { title: t('deploygov.settings.envName'), dataIndex: 'name', width: 180 },
+    {
+      title: t('deploygov.settings.envTags'),
+      dataIndex: 'tags',
+      width: 200,
+      render: (tags: string[]) =>
+        tags.length > 0 ? (
+          tags.map((tag) => <Tag key={tag}>{tag}</Tag>)
+        ) : (
+          <span className="muted">—</span>
+        ),
+    },
     {
       title: t('deploygov.settings.envRequireReview'),
       dataIndex: 'require_review',
@@ -211,13 +249,38 @@ export function PipelineEnvironmentsTab({ pipelineId }: { pipelineId: string }) 
           onFinish={(values) => saveMutation.mutate(values)}
         >
           {/* Parity with Create/UpdateDeploymentEnvironmentRequest:
-              name @NotBlank @Size(max 255), required_approvals @Min(1). */}
+              name @NotBlank @Size(max 255), tags @Size(max 10) with each element @Size(max 32),
+              required_approvals @Min(1). */}
           <Form.Item
             name="name"
             label={t('deploygov.settings.envName')}
             rules={[{ required: true, whitespace: true, max: 255 }]}
           >
             <Input />
+          </Form.Item>
+          <Form.Item
+            name="tags"
+            label={t('deploygov.settings.envTags')}
+            extra={t('deploygov.settings.envTagsHelp')}
+            rules={[
+              {
+                validator: async (_, value: string[] | undefined) => {
+                  if (!value) return;
+                  if (value.length > 10) {
+                    throw new Error(t('deploygov.settings.envTagsMax'));
+                  }
+                  if (value.some((tag) => (tag ?? '').length > 32)) {
+                    throw new Error(t('deploygov.settings.envTagSize'));
+                  }
+                },
+              },
+            ]}
+          >
+            <Select
+              mode="tags"
+              tokenSeparators={[',']}
+              placeholder={t('deploygov.settings.envTagsPlaceholder')}
+            />
           </Form.Item>
           <Form.Item name="sort_order" label={t('deploygov.settings.envSortOrder')}>
             <InputNumber min={0} style={{ width: '100%' }} />

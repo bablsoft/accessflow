@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Input, Select, Skeleton, Table, Tag } from 'antd';
+import { Button, Input, Select, Skeleton, Table, Tag } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { DeploymentUnitOutlined, SearchOutlined } from '@ant-design/icons';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -10,11 +10,16 @@ import { StatusPill } from '@/components/common/StatusPill';
 import { RiskPill } from '@/components/common/RiskPill';
 import { deploymentKeys, listDeploymentRequests } from '@/api/deploymentRequests';
 import { deploymentPipelineKeys, listDeploymentPipelines } from '@/api/deploymentPipelines';
+import {
+  deploymentVersionKeys,
+  listPipelineEnvironmentVersions,
+} from '@/api/deploymentVersions';
+import { DriftChip } from '@/components/deployments/versionMatrixCells';
 import { deploymentOutcomeLabel, enumOptions, queryStatusLabel } from '@/utils/enumLabels';
 import { deploymentOutcomeColor } from '@/utils/statusColors';
 import { timeAgo } from '@/utils/dateFormat';
 import { usePermission } from '@/utils/permissions';
-import type { DeploymentRequest, QueryStatus } from '@/types/api';
+import type { DeploymentEnvironmentVersion, DeploymentRequest, QueryStatus } from '@/types/api';
 
 const STATUSES: QueryStatus[] = [
   'PENDING_AI',
@@ -80,6 +85,25 @@ export default function DeploymentListPage() {
     return [...seen.entries()].map(([value, label]) => ({ value, label }));
   }, [canManagePipelines, pipelinesQuery.data, rows]);
 
+  // One matrix read per distinct pipeline on the page — a handful at 20 rows, and the keys are
+  // shared with the detail page and across pagination, so revisits are cache hits. A 404 (the
+  // caller cannot see that pipeline's matrix) just leaves its rows unbadged.
+  const pipelineIds = useMemo(() => [...new Set(rows.map((r) => r.pipeline_id))], [rows]);
+  const versionsByEnvironment = useQueries({
+    queries: pipelineIds.map((pipelineId) => ({
+      queryKey: deploymentVersionKeys.matrix(pipelineId),
+      queryFn: () => listPipelineEnvironmentVersions(pipelineId),
+      retry: false,
+    })),
+    combine: (results) => {
+      const byEnvironment = new Map<string, DeploymentEnvironmentVersion>();
+      for (const result of results) {
+        for (const row of result.data ?? []) byEnvironment.set(row.environment.id, row);
+      }
+      return byEnvironment;
+    },
+  });
+
   const columns: TableColumnsType<DeploymentRequest> = [
     {
       title: t('deploygov.deployments.pipeline'),
@@ -128,6 +152,20 @@ export default function DeploymentListPage() {
             {deploymentOutcomeLabel(t, outcome)}
           </Tag>
         );
+      },
+    },
+    {
+      title: t('deploygov.versions.drift'),
+      key: 'drift',
+      width: 180,
+      // Only the request that is actually live on the environment gets a chip — drift describes
+      // the environment now, so badging a superseded historical request would be misleading.
+      render: (_v, r) => {
+        const version = versionsByEnvironment.get(r.environment_id);
+        if (version == null || version.current_request_id !== r.id) {
+          return <span className="muted">—</span>;
+        }
+        return <DriftChip row={version} note={t('deploygov.versions.driftOnCurrent')} />;
       },
     },
     {
@@ -208,6 +246,16 @@ export default function DeploymentListPage() {
           style={{ width: 150 }}
           allowClear
         />
+        {/* The only route to a pipeline's matrix for a can_trigger-only user: the settings page
+            and GET /deployment-pipelines are both admin-only, but their pipeline options are
+            derived from their own rows above, so this needs no extra query. */}
+        <Button
+          icon={<DeploymentUnitOutlined />}
+          disabled={pipeline === 'all'}
+          onClick={() => navigate(`/deployment-versions/${pipeline}`)}
+        >
+          {t('deploygov.versions.viewMatrix')}
+        </Button>
         <div style={{ flex: 1 }} />
         <span className="mono muted" style={{ fontSize: 11 }}>
           {t('deploygov.deployments.countLabel', {
