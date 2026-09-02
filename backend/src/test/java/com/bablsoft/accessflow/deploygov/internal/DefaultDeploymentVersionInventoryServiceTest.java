@@ -281,6 +281,27 @@ class DefaultDeploymentVersionInventoryServiceTest {
     }
 
     @Test
+    void nonNullCurrentWithNoQualifyingLatestIsConservativelyDrifted() {
+        // Single-environment pipeline: deploy v2 fails, the tracker reverts current to v1 with
+        // lastOutcome=FAILED — no row qualifies as latest, so the last-known-good row is flagged
+        // drifted against a null latest rather than declared clean (documented in 04-api-spec).
+        var pipeline = pipeline("payments-api");
+        var only = environment(pipeline.getId(), "prod", 0);
+        var reverted = row(pipeline.getId(), only.getId(), "v1", NOW, DeploymentOutcome.FAILED);
+        stubMatrixCollaborators(pipeline, List.of(only), List.of(reverted));
+
+        var matrix = service.pipelineMatrix(pipeline.getId(), ORG_ID, CALLER_ID,
+                Set.of(Permission.DEPLOYMENT_REVIEW));
+
+        var drift = matrix.getFirst().drift();
+        assertThat(drift.drifted()).isTrue();
+        assertThat(drift.latestVersion()).isNull();
+        assertThat(drift.latestDeployedAt()).isNull();
+        assertThat(drift.daysBehind()).isNull();
+        assertThat(drift.deploymentsBehind()).isZero();
+    }
+
+    @Test
     void negativeDayGapsClampToZero() {
         var pipeline = pipeline("payments-api");
         var a = environment(pipeline.getId(), "a", 0);

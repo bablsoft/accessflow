@@ -73,7 +73,8 @@ class DeploymentVersionInventoryController {
     }
 
     @GetMapping("/deployment-pipelines/{id}/environments/{envId}/history")
-    @Operation(summary = "The environment's deployment timeline, newest first")
+    @Operation(summary = "The environment's deployment timeline, newest first (fixed ordering — "
+            + "sort params are ignored)")
     @ApiResponse(responseCode = "200", description = "Page of deployment history entries")
     @ApiResponse(responseCode = "404", description = "Pipeline or environment not found, or the "
             + "pipeline is not visible to the caller")

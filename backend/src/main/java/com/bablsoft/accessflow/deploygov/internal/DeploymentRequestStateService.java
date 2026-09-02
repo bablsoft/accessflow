@@ -90,14 +90,13 @@ public class DeploymentRequestStateService {
         if (next == QueryStatus.EXECUTED) {
             // #742: the drift math's time axis — same transaction and clock as the tracker's
             // deployed_at. The same-status early return above keeps a redelivered confirmation
-            // from restamping.
+            // from restamping or double-shifting.
             entity.setExecutedAt(clock.instant());
         }
         repository.save(entity);
         if (next == QueryStatus.EXECUTED) {
             // #741: maintain the per-environment deployed-version projection in this transaction.
-            // EXECUTED is only reachable from APPROVED, and the same-status early return above
-            // keeps a redelivered confirmation from double-shifting current → previous.
+            // EXECUTED is only reachable from APPROVED.
             versionTracker.recordExecution(entity);
         }
         eventPublisher.publishEvent(new DeploymentStatusChangedEvent(

@@ -6023,20 +6023,28 @@ everything these matrices are derived from.)
 - `drifted` is plain string inequality between `current_version` and `latest_version`. A row
   whose `current_version` is null (post-rollback unknown, or a never-deployed environment in the
   per-pipeline matrix) is `drifted: true` whenever a latest version exists, with the null
-  surfaced as-is; when the pipeline has no successful deployment at all, nothing is drifted.
+  surfaced as-is; when the pipeline has no successful deployment at all, a null-current row is
+  not drifted. The converse also holds and is deliberate: a row with a **non-null**
+  `current_version` on a pipeline with **no** qualifying latest (every tracker row's
+  `last_outcome` is `FAILED`/`ROLLED_BACK`) reports `drifted: true` against a null
+  `latest_version` — the latest is unknown, so the row is conservatively flagged rather than
+  declared clean.
 - A non-drifted row short-circuits to `days_behind: 0` / `deployments_behind: 0` — an environment
   running the latest version is never "behind", however early it got it.
 - `days_behind` = whole days between the row's `deployed_at` and `latest_deployed_at` (clamped at
-  0); null when the row has no `deployed_at`.
+  0); null when the row has no `deployed_at` or the pipeline has no qualifying latest.
 - `deployments_behind` = distinct versions successfully deployed on the pipeline (any
   environment) **after** the row's `deployed_at`, excluding the row's own `current_version`;
   null when the row has no `deployed_at`. "Successfully deployed" means an `EXECUTED` request
   whose outcome is null or `SUCCEEDED`, timed by `deployment_requests.executed_at` — stamped on
-  the `APPROVED → EXECUTED` transition since #742 (pre-existing rows are backfilled with
+  the `APPROVED → EXECUTED` transition since #742 (pre-existing executed rows — including those
+  a `FAILED` outcome later flipped to `FAILED` — are backfilled with
   `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time).
 
-**History entry** (the full request detail stays one click away on
-`GET /deployment-requests/{id}`; unlike the `/deployment-requests` list, this endpoint is
+**History entry** (the full request detail — AI analysis, decisions — lives on
+`GET /deployment-requests/{id}`, whose visibility is narrower: submitter, `DEPLOYMENT_REVIEW`,
+or `QUERY_ADMIN` — a `can_trigger`-only or `DEPLOYMENT_PIPELINE_MANAGE`-only caller sees the
+history row but 404s on the drill-down. Unlike the `/deployment-requests` list, this endpoint is
 addressable by environment id and open to `can_trigger` holders under the 404-never-403 rule):
 
 ```json

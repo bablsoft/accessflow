@@ -31,21 +31,24 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 ```
 com.bablsoft.accessflow.deploygov/
 ├── api/         # PipelineProvider, FreezeBehavior, DeploymentOutcome, DeploymentRoutingAction,
-│                # DeploymentRollbackReviewStatus, ten service interfaces, view + command records,
+│                # DeploymentRollbackReviewStatus, eleven service interfaces, view + command records,
 │                # the exception hierarchy (JDK + project types only)
 ├── events/      # DeploymentSubmitted/AnalysisCompleted/AnalysisSkipped/AnalysisFailed/
 │                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent
 └── internal/
     ├── Default*Service (one per api/ interface), DeploymentRequestStateService,
     │   DeploymentReviewStateMachine, EffectiveDeploymentPermissionResolver,
-    │   FreezeWindowEvaluator, DeploymentAnalysisListener, DeploygovAuditWriter
+    │   FreezeWindowEvaluator, DeploymentAnalysisListener, DeploygovAuditWriter,
+    │   DeploymentVersionTrackerService (module-private, #741)
     ├── persistence/{entity,repo}/   # DeploymentPipelineEntity, DeploymentEnvironmentEntity,
     │                                # DeploymentFreezeWindowEntity, DeploymentRequestEntity,
     │                                # DeploymentReviewDecisionEntity, DeploymentRollbackReviewEntity,
-    │                                # DeploymentRoutingPolicyEntity, the two grant entities + repos
+    │                                # DeploymentRoutingPolicyEntity,
+    │                                # DeploymentEnvironmentVersionEntity (#741),
+    │                                # the two grant entities + repos
     ├── routing/     # DeploymentRoutingPolicyEngine
     ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
-    └── web/         # seven controllers, request/response records,
+    └── web/         # eight controllers, request/response records,
                      # DeploygovExceptionHandler, SpringPageableAdapter
 ```
 
@@ -393,7 +396,8 @@ per-customer view, where "customer" is one use of the free-form environment tags
   (`?tag=acme` — exactly the per-customer view), environment name, and `drifted=true`.
 - **`GET /deployment-pipelines/{id}/environments/{envId}/history`** — the environment's
   deployment timeline, derived straight from the request table; the full request detail (AI
-  analysis, decisions) stays one click away.
+  analysis, decisions) lives on the request endpoint, whose visibility is narrower — submitter,
+  reviewer, or admin, so a trigger-only caller sees the timeline but not the drill-down.
 
 **Drift** is deliberately modest: computed at read time only (no scheduled job, no
 notifications), with no semver parsing — version strings are free-form, so "drifted" is plain

@@ -2460,7 +2460,7 @@ collision.
 | `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. `ai_analysis_id` is populated by the #691 analysis listener; the reverse link is `ai_analyses.deployment_request_id` (V152). |
 | `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. A `FAILED` outcome also flips `status` `EXECUTED → FAILED` (#693). |
 | `outcome_reported_at` / `outcome_detail` | — | |
-| `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows were backfilled with `COALESCE(outcome_reported_at, updated_at)` — a deterministic upper bound of execution time. |
+| `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows — including those a `FAILED` outcome later flipped to `FAILED` — were backfilled with `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time. |
 | `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
