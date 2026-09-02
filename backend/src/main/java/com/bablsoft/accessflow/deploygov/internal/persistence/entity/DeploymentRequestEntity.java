@@ -102,6 +102,10 @@ public class DeploymentRequestEntity {
     @Column(name = "outcome_reported_at")
     private Instant outcomeReportedAt;
 
+    // #742: stamped once on the APPROVED → EXECUTED transition; the drift math's time axis.
+    @Column(name = "executed_at")
+    private Instant executedAt;
+
     @Column(name = "outcome_detail", columnDefinition = "text")
     private String outcomeDetail;
 

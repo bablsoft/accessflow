@@ -14,6 +14,9 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +29,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DeploymentRequestStateServiceTest {
+
+    private static final Instant NOW = Instant.parse("2026-08-30T12:00:00Z");
 
     private DeploymentRequestRepository repository;
     private DeploygovAuditWriter auditWriter;
@@ -40,7 +45,7 @@ class DeploymentRequestStateServiceTest {
         eventPublisher = mock(ApplicationEventPublisher.class);
         versionTracker = mock(DeploymentVersionTrackerService.class);
         service = new DeploymentRequestStateService(repository, auditWriter, eventPublisher,
-                versionTracker);
+                versionTracker, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -140,6 +145,43 @@ class DeploymentRequestStateServiceTest {
         service.apply(entity, QueryStatus.EXECUTED);
 
         verify(versionTracker).recordExecution(entity);
+    }
+
+    // #742: the drift math's time axis.
+    @Test
+    void applyingExecutedStampsExecutedAtFromTheClock() {
+        var entity = request(QueryStatus.APPROVED);
+
+        service.apply(entity, QueryStatus.EXECUTED);
+
+        assertThat(entity.getExecutedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void reapplyingExecutedDoesNotRestampExecutedAt() {
+        var entity = request(QueryStatus.EXECUTED);
+        var original = NOW.minusSeconds(3600);
+        entity.setExecutedAt(original);
+
+        service.apply(entity, QueryStatus.EXECUTED);
+
+        assertThat(entity.getExecutedAt()).isEqualTo(original);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "PENDING_AI,APPROVED",
+            "PENDING_REVIEW,REJECTED",
+            "APPROVED,FAILED",
+            "APPROVED,TIMED_OUT",
+            "EXECUTED,FAILED",
+    })
+    void nonExecutedTransitionsDoNotStampExecutedAt(QueryStatus from, QueryStatus to) {
+        var entity = request(from);
+
+        service.apply(entity, to);
+
+        assertThat(entity.getExecutedAt()).isNull();
     }
 
     @ParameterizedTest

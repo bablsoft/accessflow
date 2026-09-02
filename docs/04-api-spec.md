@@ -5755,14 +5755,15 @@ State machine: `DRAFT → PENDING_AI → PENDING_REVIEW → APPROVED → EXECUTI
 (submitter, pre-execution). Illegal transitions return `409`. See
 [docs/05-backend.md → "Request chaining & grouping"](05-backend.md).
 
-## Deployment Governance (#688–#693, epic #682)
+## Deployment Governance (#688–#742, epic #682)
 
 Governs CI/CD deployments with the same review/approval/audit machinery as queries and API calls.
 This section covers the **pipeline + environment + permission + freeze-window administration**
 surface (#688), the **deployment request pipeline** — trigger → AI risk → routing → review (#691)
 — the **admin routing-policy CRUD** (#691), the **reviewer decision endpoints, break-glass
-deploys and scheduled-deploy semantics** (#692), and the **deployment gate, execution
-confirmation, outcome reporting and rollback follow-up reviews** (#693).
+deploys and scheduled-deploy semantics** (#692), the **deployment gate, execution
+confirmation, outcome reporting and rollback follow-up reviews** (#693), and the read-only
+**version inventory & drift** surface over the #741 tracking foundation (#742).
 
 Everything under `/deployment-pipelines`, `/deployment-freeze-windows` and
 `/admin/deployment-routing-policies` requires the **`DEPLOYMENT_PIPELINE_MANAGE`** permission.
@@ -5970,6 +5971,98 @@ the deployment-side mirror of the break-glass retro-review. Base path
 | `GET` | `/deployment-rollback-reviews/{id}` | Get one review. `404 DEPLOYMENT_ROLLBACK_REVIEW_NOT_FOUND` for a missing or cross-org id. |
 | `POST` | `/deployment-rollback-reviews/{id}/acknowledge` | Acknowledge the rollback (`200`, optional `{ "comment": "…" }` ≤2000; audit action `DEPLOYMENT_ROLLBACK_REVIEWED`). The deployment's **submitter can never acknowledge their own rollback** (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`). Acknowledging an already-`REVIEWED` record is an idempotent no-op returning the current state. |
 
+### Version inventory & drift (#742)
+
+The read-only answer to "which version runs where right now?", computed over the #741
+`deployment_environment_versions` projection. **Drift is a read-time computation only** — there
+is no scheduled drift job, no drift notifications, and no semver parsing (version strings are
+free-form; comparison is plain string inequality). JWT-side.
+
+Visibility on the two per-pipeline endpoints is service-enforced: **`DEPLOYMENT_PIPELINE_MANAGE`**,
+**`DEPLOYMENT_REVIEW`**, **`QUERY_ADMIN`**, or an effective `can_trigger` grant on the pipeline
+(trigger holders may see their pipelines' versions). Anything else — including a pipeline in
+another org — reads as `404 DEPLOYMENT_PIPELINE_NOT_FOUND`, never `403`, so the endpoints are not
+an existence oracle. (`QUERY_ADMIN` is a deliberate addition over the #742 issue text, matching
+every other deploygov view-all predicate — the gate and the request list already let admins see
+everything these matrices are derived from.)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/deployment-pipelines/{id}/environment-versions` | The version matrix for one pipeline: **every** environment (never-deployed ones included, with null version fields), ordered by `sort_order` then name. Not paginated — the environment list is admin-curated and small. Visibility rule above. |
+| `GET` | `/deployment-environment-versions` | The org-wide matrix over environments deployed at least once. **`DEPLOYMENT_PIPELINE_MANAGE`**, **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** only (a trigger-only user gets `403`). Paginated (`page`, `size`); filters (snake_case): `pipeline_id`, `tag` (exact match against any element of the environment's `tags` array — the same `?tag=` shape as the query-template list), `environment` (name, case-insensitive), `drifted` (boolean). Ordered by pipeline name, then `sort_order`, then environment name. |
+| `GET` | `/deployment-pipelines/{id}/environments/{envId}/history` | The environment's deployment timeline, derived straight from `deployment_requests` (no new storage): newest first (`created_at` DESC), paginated (`page`, `size`), optional `status` filter. Same visibility rule as the per-pipeline matrix; an `envId` missing or on a different pipeline is `404 DEPLOYMENT_ENVIRONMENT_NOT_FOUND`. |
+
+**Matrix row:**
+
+```json
+{
+  "pipeline_id": "…",
+  "pipeline_name": "payments-api",
+  "environment": { "id": "…", "name": "prod-acme", "tags": ["prod", "acme"], "sort_order": 3 },
+  "current_version": "2.4.0",
+  "current_request_id": "…",
+  "deployed_at": "…",
+  "previous_version": "2.3.9",
+  "last_outcome": "SUCCEEDED",
+  "drift": {
+    "latest_version": "2.4.1",
+    "latest_deployed_at": "…",
+    "drifted": true,
+    "days_behind": 4,
+    "deployments_behind": 1
+  }
+}
+```
+
+**Drift rules** (all computed per pipeline, at read time):
+
+- `latest_version` / `latest_deployed_at` come from the pipeline's tracker row with the newest
+  `deployed_at` whose `last_outcome` is null or `SUCCEEDED` — always over the pipeline's **full**
+  row set: the `tag` / `environment` / `drifted` filters narrow which rows you see, never what
+  they are compared against.
+- `drifted` is plain string inequality between `current_version` and `latest_version`. A row
+  whose `current_version` is null (post-rollback unknown, or a never-deployed environment in the
+  per-pipeline matrix) is `drifted: true` whenever a latest version exists, with the null
+  surfaced as-is; when the pipeline has no successful deployment at all, a null-current row is
+  not drifted. The converse also holds and is deliberate: a row with a **non-null**
+  `current_version` on a pipeline with **no** qualifying latest (every tracker row's
+  `last_outcome` is `FAILED`/`ROLLED_BACK`) reports `drifted: true` against a null
+  `latest_version` — the latest is unknown, so the row is conservatively flagged rather than
+  declared clean.
+- A non-drifted row short-circuits to `days_behind: 0` / `deployments_behind: 0` — an environment
+  running the latest version is never "behind", however early it got it.
+- `days_behind` = whole days between the row's `deployed_at` and `latest_deployed_at` (clamped at
+  0); null when the row has no `deployed_at` or the pipeline has no qualifying latest.
+- `deployments_behind` = distinct versions successfully deployed on the pipeline (any
+  environment) **after** the row's `deployed_at`, excluding the row's own `current_version`;
+  null when the row has no `deployed_at`. "Successfully deployed" means an `EXECUTED` request
+  whose outcome is null or `SUCCEEDED`, timed by `deployment_requests.executed_at` — stamped on
+  the `APPROVED → EXECUTED` transition since #742 (pre-existing executed rows — including those
+  a `FAILED` outcome later flipped to `FAILED` — are backfilled with
+  `COALESCE(outcome_reported_at, updated_at)`, a deterministic upper bound of execution time).
+
+**History entry** (the full request detail — AI analysis, decisions — lives on
+`GET /deployment-requests/{id}`, whose visibility is narrower: submitter, `DEPLOYMENT_REVIEW`,
+or `QUERY_ADMIN` — a `can_trigger`-only or `DEPLOYMENT_PIPELINE_MANAGE`-only caller sees the
+history row but 404s on the drill-down. Unlike the `/deployment-requests` list, this endpoint is
+addressable by environment id and open to `can_trigger` holders under the 404-never-403 rule):
+
+```json
+{
+  "request_id": "…",
+  "version": "2.4.1",
+  "status": "EXECUTED",
+  "outcome": "SUCCEEDED",
+  "outcome_reported_at": "…",
+  "submitted_by": "…",
+  "submission_reason": "USER_SUBMITTED",
+  "commit_sha": "…",
+  "run_url": "…",
+  "created_at": "…",
+  "executed_at": "…"
+}
+```
+
 ### Deployment reviews (#692)
 
 Base path `/api/v1/deployment-reviews`, **`DEPLOYMENT_REVIEW`** permission, org-scoped, JWT-only
@@ -6136,9 +6229,9 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `API_EXECUTION_FAILED` | 502 | The upstream API call could not be executed (`reason`). |
 | `SCIM_TOKEN_NOT_FOUND` | 404 | Unknown SCIM token id for the caller's organization (#621). |
 | `SCIM_TOKEN_NAME_CONFLICT` | 409 | A SCIM token with that name already exists in the org (#621). |
-| `DEPLOYMENT_PIPELINE_NOT_FOUND` | 404 | Unknown deployment-pipeline id, or the pipeline is in another organization (#688). |
+| `DEPLOYMENT_PIPELINE_NOT_FOUND` | 404 | Unknown deployment-pipeline id, or the pipeline is in another organization (#688) — or, on the version-inventory endpoints, a pipeline the caller may not see (#742). |
 | `DEPLOYMENT_PIPELINE_DUPLICATE_NAME` | 409 | A deployment pipeline with that name already exists in the org (#688). |
-| `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | 404 | Unknown environment id, or the environment belongs to a different pipeline (#688). |
+| `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | 404 | Unknown environment id, or the environment belongs to a different pipeline (#688, also the history endpoint's rule — #742). |
 | `DEPLOYMENT_ENVIRONMENT_DUPLICATE_NAME` | 409 | The pipeline already has an environment with that name (#688). |
 | `DEPLOYMENT_PERMISSION_NOT_FOUND` | 404 | Unknown pipeline-permission id, or the grant belongs to a different pipeline (#688). |
 | `DEPLOYMENT_FREEZE_WINDOW_NOT_FOUND` | 404 | Unknown freeze-window id, or the window is in another organization (#688). |
