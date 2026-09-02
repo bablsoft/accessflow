@@ -797,11 +797,15 @@ section + section { border-top: 1px solid var(--line); }
 }
 
 .flow-steps {
-  position: sticky;
-  top: 96px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* sticky rail only in the two-column flow, where it pins beside .flow-stage */
+.flow-grid .flow-steps {
+  position: sticky;
+  top: 96px;
 }
 
 .flow-step {
@@ -838,6 +842,21 @@ section + section { border-top: 1px solid var(--line); }
   font-size: 13px;
   color: var(--fg-mute);
 }
+
+/* reused inside a docs page: keep the card scale, not the docs prose scale, and
+   drop the stepper affordance — there is no .flow-stage to switch there */
+.docs-section .flow-step h3 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+.docs-section .flow-step p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 0;
+  color: var(--fg-mute);
+}
+.docs-section .flow-step { cursor: default; }
+.docs-section .flow-step:hover { background: transparent; }
 
 .flow-stage {
   background: var(--bg-1);
@@ -1540,7 +1559,7 @@ footer {
   .hero-inner { grid-template-columns: 1fr; gap: 40px; }
   .feat-grid { grid-template-columns: repeat(2, 1fr); }
   .flow-grid { grid-template-columns: 1fr; }
-  .flow-steps { position: static; }
+  .flow-grid .flow-steps { position: static; }
   .uc-row { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .uc-row:nth-child(even) .uc-visual { order: 0; }
   .uc-list { gap: 72px; }
