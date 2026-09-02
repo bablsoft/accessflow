@@ -31,6 +31,7 @@ import com.bablsoft.accessflow.deploygov.events.DeploymentReleasableEvent;
 import com.bablsoft.accessflow.deploygov.internal.DefaultDeploymentGateService;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
+import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentVersionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentPipelineUserPermissionRepository;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentRequestRepository;
@@ -97,6 +98,7 @@ class DeploymentGateFlowIntegrationTest {
     @Autowired DeploymentRollbackReviewRepository rollbackReviewRepository;
     @Autowired DeploymentPipelineUserPermissionRepository userPermissionRepository;
     @Autowired DeploymentEnvironmentRepository environmentRepository;
+    @Autowired DeploymentEnvironmentVersionRepository environmentVersionRepository;
     @Autowired DeploymentPipelineRepository pipelineRepository;
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
@@ -160,6 +162,15 @@ class DeploymentGateFlowIntegrationTest {
         assertThat(gateService.gateByRequestId(requestId, fixture.orgId(), fixture.userId(),
                 Set.of()).releasable()).isFalse();
 
+        // #741: the confirm maintained the per-environment version projection in the same tx.
+        var versionRow = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(versionRow.getCurrentVersion()).isEqualTo("2.4.1");
+        assertThat(versionRow.getCurrentRequestId()).isEqualTo(requestId);
+        assertThat(versionRow.getDeployedAt()).isNotNull();
+        assertThat(versionRow.getPreviousVersion()).isNull();
+        assertThat(versionRow.getLastOutcome()).isNull();
+
         // First outcome report lands and publishes; an identical repeat is a 200-style no-op.
         var reported = outcomeService.reportOutcome(requestId, DeploymentOutcome.SUCCEEDED,
                 "green", fixture.orgId(), fixture.userId(), Set.of(), "10.0.0.1");
@@ -172,6 +183,12 @@ class DeploymentGateFlowIntegrationTest {
                 fixture.orgId(), fixture.userId(), Set.of(), null);
         assertThat(repeat.outcomeDetail()).isEqualTo("green");
         assertThat(probe.outcomeEvents).hasSize(1);
+
+        // #741: the SUCCEEDED report stamped the projection without touching current/previous.
+        var afterSuccess = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(afterSuccess.getLastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(afterSuccess.getCurrentVersion()).isEqualTo("2.4.1");
 
         // A conflicting outcome is refused.
         assertThatThrownBy(() -> outcomeService.reportOutcome(requestId, DeploymentOutcome.FAILED,
@@ -246,6 +263,41 @@ class DeploymentGateFlowIntegrationTest {
                 .isEqualTo(QueryStatus.FAILED);
     }
 
+    @Test
+    void promotingAndRollingBackMaintainsTheEnvironmentVersionProjection() {
+        var fixture = fixture();
+
+        // v1 deploys, then v2 promotes on top of it.
+        var v1 = saveRequest(fixture, QueryStatus.APPROVED, "1.0.0");
+        gateService.confirmExecution(v1.getId(), fixture.orgId(), fixture.userId(), Set.of(), null);
+        var v2 = saveRequest(fixture, QueryStatus.APPROVED, "2.0.0");
+        gateService.confirmExecution(v2.getId(), fixture.orgId(), fixture.userId(), Set.of(), null);
+
+        var promoted = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(promoted.getCurrentVersion()).isEqualTo("2.0.0");
+        assertThat(promoted.getCurrentRequestId()).isEqualTo(v2.getId());
+        assertThat(promoted.getPreviousVersion()).isEqualTo("1.0.0");
+        assertThat(promoted.getPreviousRequestId()).isEqualTo(v1.getId());
+
+        // Rolling v2 back reverts the projection to v1 with the single-level undo spent.
+        outcomeService.reportOutcome(v2.getId(), DeploymentOutcome.ROLLED_BACK, "regression",
+                fixture.orgId(), fixture.userId(), Set.of(), null);
+        var reverted = environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow();
+        assertThat(reverted.getCurrentVersion()).isEqualTo("1.0.0");
+        assertThat(reverted.getCurrentRequestId()).isEqualTo(v1.getId());
+        assertThat(reverted.getPreviousVersion()).isNull();
+        assertThat(reverted.getPreviousRequestId()).isNull();
+        assertThat(reverted.getLastOutcome()).isEqualTo(DeploymentOutcome.ROLLED_BACK);
+
+        // v1 is current again, so its SUCCEEDED report stamps the projection.
+        outcomeService.reportOutcome(v1.getId(), DeploymentOutcome.SUCCEEDED, null,
+                fixture.orgId(), fixture.userId(), Set.of(), null);
+        assertThat(environmentVersionRepository.findByEnvironmentId(fixture.environmentId())
+                .orElseThrow().getLastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+    }
+
     /** Submits through the service and waits for the async routing to land in PENDING_REVIEW. */
     private UUID submitToPendingReview(Fixture fixture) {
         var result = requestService.submit(new SubmitDeploymentRequestCommand(fixture.pipelineId(),
@@ -260,13 +312,18 @@ class DeploymentGateFlowIntegrationTest {
     }
 
     private DeploymentRequestEntity saveRequest(Fixture fixture, QueryStatus status) {
+        return saveRequest(fixture, status, "2.4.1");
+    }
+
+    private DeploymentRequestEntity saveRequest(Fixture fixture, QueryStatus status,
+                                                String version) {
         var entity = new DeploymentRequestEntity();
         entity.setId(UUID.randomUUID());
         entity.setPipelineId(fixture.pipelineId());
         entity.setEnvironmentId(fixture.environmentId());
         entity.setOrganizationId(fixture.orgId());
         entity.setSubmittedBy(fixture.userId());
-        entity.setVersion("2.4.1");
+        entity.setVersion(version);
         entity.setStatus(status);
         entity.setRequiredApprovals(1);
         return requestRepository.save(entity);
@@ -285,7 +342,7 @@ class DeploymentGateFlowIntegrationTest {
         var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
                 pipelineName, PipelineProvider.GITHUB_ACTIONS, null, null, null, false, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false));
+                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false, null));
         permissionService.grantPermission(pipeline.id(), org.getId(), user.getId(),
                 new GrantDeploymentPermissionCommand(user.getId(), true, false, null));
         return new Fixture(org.getId(), user.getId(), pipeline.id(), environment.id(),

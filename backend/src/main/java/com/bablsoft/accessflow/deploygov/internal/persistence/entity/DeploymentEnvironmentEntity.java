@@ -9,6 +9,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -46,6 +48,15 @@ public class DeploymentEnvironmentEntity {
 
     @Column(name = "allow_break_glass", nullable = false)
     private boolean allowBreakGlass = false;
+
+    /**
+     * Free-form labels (customer, region, tier, …) — no fixed semantics. The ≤10 / ≤32-char caps
+     * live on the web request records only (the AF-364 precedent); the service normalizes but
+     * does not cap, and the column carries no constraint.
+     */
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "tags", nullable = false, columnDefinition = "text[]")
+    private String[] tags = new String[0];
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

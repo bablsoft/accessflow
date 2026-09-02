@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
+import com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentFreezeWindowView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentGateView;
 import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
@@ -98,19 +99,41 @@ class DeploygovWebModelsTest {
     void environmentRequestsMapOntoCommands() {
         var planId = UUID.randomUUID();
         var create = new CreateDeploymentEnvironmentRequest("production", 2, false, 3, planId,
-                true).toCommand();
+                true, List.of("acme", "eu")).toCommand();
         assertThat(create.name()).isEqualTo("production");
         assertThat(create.sortOrder()).isEqualTo(2);
         assertThat(create.requireReview()).isFalse();
         assertThat(create.requiredApprovals()).isEqualTo(3);
         assertThat(create.reviewPlanId()).isEqualTo(planId);
         assertThat(create.allowBreakGlass()).isTrue();
+        assertThat(create.tags()).containsExactly("acme", "eu");
 
         var update = new UpdateDeploymentEnvironmentRequest(null, null, null, null, true, null,
-                true, null).toCommand();
+                true, null, null).toCommand();
         assertThat(update.clearRequiredApprovals()).isTrue();
         assertThat(update.clearReviewPlan()).isTrue();
         assertThat(update.name()).isNull();
+        // Null tags must survive the mapping untouched — it is the "leave unchanged" signal.
+        assertThat(update.tags()).isNull();
+    }
+
+    @Test
+    void environmentResponseCopiesTheViewIncludingTags() {
+        var view = new DeploymentEnvironmentView(
+                UUID.randomUUID(), UUID.randomUUID(), "production", 1, true, 2, null, false,
+                Instant.now(), List.of("acme"));
+        var response = DeploymentEnvironmentResponse.from(view);
+
+        assertThat(response.id()).isEqualTo(view.id());
+        assertThat(response.pipelineId()).isEqualTo(view.pipelineId());
+        assertThat(response.name()).isEqualTo("production");
+        assertThat(response.sortOrder()).isEqualTo(1);
+        assertThat(response.requireReview()).isTrue();
+        assertThat(response.requiredApprovals()).isEqualTo(2);
+        assertThat(response.reviewPlanId()).isNull();
+        assertThat(response.allowBreakGlass()).isFalse();
+        assertThat(response.createdAt()).isEqualTo(view.createdAt());
+        assertThat(response.tags()).containsExactly("acme");
     }
 
     @Test

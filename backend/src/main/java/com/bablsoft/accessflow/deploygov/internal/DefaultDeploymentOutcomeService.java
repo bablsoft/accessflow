@@ -48,6 +48,7 @@ public class DefaultDeploymentOutcomeService implements DeploymentOutcomeService
     private final DefaultDeploymentRequestService requestService;
     private final DeploygovAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
+    private final DeploymentVersionTrackerService versionTracker;
     private final Clock clock;
 
     @Override
@@ -85,6 +86,8 @@ public class DefaultDeploymentOutcomeService implements DeploymentOutcomeService
         } else {
             requestRepository.save(request);
         }
+        // #741: reached only on a first report — the idempotent/conflict branches exit earlier.
+        versionTracker.recordOutcome(request, outcome);
         boolean rollbackReviewOpened = outcome == DeploymentOutcome.ROLLED_BACK
                 && maybeOpenRollbackReview(request, detail);
         auditWriter.record(AuditAction.DEPLOYMENT_OUTCOME_REPORTED,

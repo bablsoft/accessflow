@@ -24,6 +24,7 @@ import com.bablsoft.accessflow.deploygov.api.FreezeBehavior;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentGroupPermissionCommand;
 import com.bablsoft.accessflow.deploygov.api.GrantDeploymentPermissionCommand;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
+import com.bablsoft.accessflow.deploygov.api.UpdateDeploymentEnvironmentCommand;
 import com.bablsoft.accessflow.deploygov.api.UpdateDeploymentPermissionCommand;
 import com.bablsoft.accessflow.deploygov.api.UpdateDeploymentPipelineCommand;
 import com.bablsoft.accessflow.deploygov.internal.persistence.repo.DeploymentEnvironmentRepository;
@@ -125,9 +126,9 @@ class DeploygovAdminIntegrationTest {
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
 
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false));
+                new CreateDeploymentEnvironmentCommand("production", 2, true, 2, null, false, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true));
+                new CreateDeploymentEnvironmentCommand("staging", 1, false, null, null, true, null));
 
         var environments = pipelineService.listEnvironments(pipeline.id(), org.getId());
         assertThat(environments).extracting(v -> v.name())
@@ -136,6 +137,37 @@ class DeploygovAdminIntegrationTest {
         pipelineService.delete(pipeline.id(), org.getId());
         assertThat(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipeline.id()))
                 .isEmpty();
+    }
+
+    @Test
+    void environmentTagsRoundTripThroughTheAdminService() {
+        var org = saveOrg();
+        var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
+                "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
+
+        // Create normalizes: trimmed, blanks dropped, de-duplicated.
+        var created = pipelineService.createEnvironment(pipeline.id(), org.getId(),
+                new CreateDeploymentEnvironmentCommand("prod-acme", 1, true, null, null, false,
+                        List.of(" acme ", "", "acme", "eu")));
+        assertThat(created.tags()).containsExactly("acme", "eu");
+
+        // Update replaces the whole list.
+        var replaced = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, List.of("globex")));
+        assertThat(replaced.tags()).containsExactly("globex");
+
+        // Null leaves tags untouched.
+        var unchanged = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
+                new UpdateDeploymentEnvironmentCommand(null, 3, null, null, null, null, null,
+                        null, null));
+        assertThat(unchanged.tags()).containsExactly("globex");
+
+        // An explicit empty list clears.
+        var cleared = pipelineService.updateEnvironment(pipeline.id(), org.getId(), created.id(),
+                new UpdateDeploymentEnvironmentCommand(null, null, null, null, null, null, null,
+                        null, List.of()));
+        assertThat(cleared.tags()).isEmpty();
     }
 
     @Test
@@ -214,7 +246,7 @@ class DeploygovAdminIntegrationTest {
         var pipeline = pipelineService.create(new CreateDeploymentPipelineCommand(org.getId(),
                 "p-" + UUID.randomUUID(), PipelineProvider.GENERIC, null, null, null, null, null));
         var environment = pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false));
+                new CreateDeploymentEnvironmentCommand("production", 0, true, null, null, false, null));
 
         // Recurring Friday-evening window in Berlin, scoped to the environment.
         var recurring = freezeWindowService.create(new DeploymentFreezeWindowCommand(org.getId(),

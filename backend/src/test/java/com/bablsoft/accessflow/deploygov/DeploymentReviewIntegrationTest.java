@@ -136,13 +136,13 @@ class DeploymentReviewIntegrationTest {
                 org.getId(), "planned-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null,
                 null, plan.getId(), false, null));
         var plannedEnvironment = pipelineService.createEnvironment(plannedPipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false));
+                new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null, false, null));
         var planlessPipeline = pipelineService.create(new CreateDeploymentPipelineCommand(
                 org.getId(), "planless-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null,
                 null, null, false, null));
         var planlessEnvironment = pipelineService.createEnvironment(planlessPipeline.id(),
                 org.getId(), new CreateDeploymentEnvironmentCommand("production", 1, true, 1, null,
-                        false));
+                        false, null));
 
         var stale = savePendingReview(plannedPipeline.id(), plannedEnvironment.id(), org, user);
         var fresh = savePendingReview(plannedPipeline.id(), plannedEnvironment.id(), org, user);
@@ -219,7 +219,7 @@ class DeploymentReviewIntegrationTest {
                 "payments-" + UUID.randomUUID(), PipelineProvider.GITHUB_ACTIONS, null, null, null,
                 false, null));
         pipelineService.createEnvironment(pipeline.id(), org.getId(),
-                new CreateDeploymentEnvironmentCommand("production", 1, true, 2, null, false));
+                new CreateDeploymentEnvironmentCommand("production", 1, true, 2, null, false, null));
         permissionService.grantPermission(pipeline.id(), org.getId(), user.getId(),
                 new GrantDeploymentPermissionCommand(user.getId(), true, false, null));
         return new Fixture(org.getId(), user.getId(), pipeline.id());

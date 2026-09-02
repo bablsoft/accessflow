@@ -52,6 +52,7 @@ class DefaultDeploymentOutcomeServiceTest {
     private DefaultDeploymentRequestService requestService;
     private DeploygovAuditWriter auditWriter;
     private ApplicationEventPublisher eventPublisher;
+    private DeploymentVersionTrackerService versionTracker;
     private DefaultDeploymentOutcomeService service;
 
     @BeforeEach
@@ -64,9 +65,10 @@ class DefaultDeploymentOutcomeServiceTest {
         requestService = mock(DefaultDeploymentRequestService.class);
         auditWriter = mock(DeploygovAuditWriter.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        versionTracker = mock(DeploymentVersionTrackerService.class);
         service = new DefaultDeploymentOutcomeService(requestRepository, environmentRepository,
                 rollbackReviewRepository, permissionResolver, stateService, requestService,
-                auditWriter, eventPublisher, Clock.fixed(NOW, ZoneOffset.UTC));
+                auditWriter, eventPublisher, versionTracker, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -91,6 +93,7 @@ class DefaultDeploymentOutcomeServiceTest {
                 eq(request.getSubmittedBy()), metadata.capture(), eq("1.2.3.4"));
         assertThat(metadata.getValue()).containsEntry("outcome", "SUCCEEDED")
                 .containsEntry("trigger", "pipeline");
+        verify(versionTracker).recordOutcome(request, DeploymentOutcome.SUCCEEDED);
     }
 
     @Test
@@ -106,6 +109,7 @@ class DefaultDeploymentOutcomeServiceTest {
         verify(requestRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
         verify(auditWriter, never()).record(any(), any(), any(), any(), any(), any(), any());
+        verify(versionTracker, never()).recordOutcome(any(), any());
         assertThat(request.getOutcomeReportedAt()).isEqualTo(NOW.minusSeconds(60));
         verify(requestService).detailView(request);
     }
@@ -121,6 +125,7 @@ class DefaultDeploymentOutcomeServiceTest {
                 .isInstanceOf(DeploymentOutcomeConflictException.class);
         verify(requestRepository, never()).save(any());
         verify(eventPublisher, never()).publishEvent(any());
+        verify(versionTracker, never()).recordOutcome(any(), any());
     }
 
     @Test
@@ -133,6 +138,7 @@ class DefaultDeploymentOutcomeServiceTest {
 
         assertThat(request.getOutcome()).isEqualTo(DeploymentOutcome.FAILED);
         verify(stateService).apply(request, QueryStatus.FAILED);
+        verify(versionTracker).recordOutcome(request, DeploymentOutcome.FAILED);
     }
 
     @Test
@@ -147,6 +153,7 @@ class DefaultDeploymentOutcomeServiceTest {
 
         verify(stateService, never()).apply(any(), any());
         verify(eventPublisher, never()).publishEvent(any());
+        verify(versionTracker, never()).recordOutcome(any(), any());
         verify(requestService).detailView(request);
     }
 
@@ -159,6 +166,7 @@ class DefaultDeploymentOutcomeServiceTest {
         assertThatThrownBy(() -> service.reportOutcome(request.getId(),
                 DeploymentOutcome.SUCCEEDED, null, ORG, request.getSubmittedBy(), Set.of(), null))
                 .isInstanceOf(IllegalDeploymentRequestStateException.class);
+        verify(versionTracker, never()).recordOutcome(any(), any());
     }
 
     @Test
@@ -181,6 +189,7 @@ class DefaultDeploymentOutcomeServiceTest {
         var metadata = ArgumentCaptor.forClass(Map.class);
         verify(auditWriter).record(any(), any(), any(), any(), any(), metadata.capture(), any());
         assertThat(metadata.getValue()).containsEntry("rollback_review_opened", true);
+        verify(versionTracker).recordOutcome(request, DeploymentOutcome.ROLLED_BACK);
     }
 
     @Test
@@ -219,6 +228,7 @@ class DefaultDeploymentOutcomeServiceTest {
         assertThatThrownBy(() -> service.reportOutcome(request.getId(),
                 DeploymentOutcome.SUCCEEDED, null, ORG, UUID.randomUUID(), Set.of(), null))
                 .isInstanceOf(DeploymentRequestPermissionException.class);
+        verify(versionTracker, never()).recordOutcome(any(), any());
     }
 
     @Test

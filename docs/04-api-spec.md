@@ -5809,7 +5809,11 @@ request. `clearAiConfig: true` unassigns `aiConfigId` the same way.
 order, default `0`), `requireReview` (default `true`), `requiredApprovals` (≥1, nullable —
 overrides the pipeline plan's approval count for this environment), `reviewPlanId` (nullable
 per-environment plan override, validated like the pipeline's), `allowBreakGlass` (default
-`false`).
+`false`), and — #741 — `tags` (string array, ≤10 tags of ≤32 chars each; free-form labels with
+no fixed semantics — customer, region, tier. The service trims, drops blanks and de-duplicates).
+Environment responses include `tags`. On the **update** body `tags = null` (or omitted) leaves
+the tag list unchanged; an explicit `[]` clears it — tags are replaced as a whole list, so there
+is no `clearTags` flag.
 
 ### Trigger permissions
 

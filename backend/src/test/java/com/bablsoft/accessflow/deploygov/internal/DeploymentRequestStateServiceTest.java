@@ -30,6 +30,7 @@ class DeploymentRequestStateServiceTest {
     private DeploymentRequestRepository repository;
     private DeploygovAuditWriter auditWriter;
     private ApplicationEventPublisher eventPublisher;
+    private DeploymentVersionTrackerService versionTracker;
     private DeploymentRequestStateService service;
 
     @BeforeEach
@@ -37,7 +38,9 @@ class DeploymentRequestStateServiceTest {
         repository = mock(DeploymentRequestRepository.class);
         auditWriter = mock(DeploygovAuditWriter.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
-        service = new DeploymentRequestStateService(repository, auditWriter, eventPublisher);
+        versionTracker = mock(DeploymentVersionTrackerService.class);
+        service = new DeploymentRequestStateService(repository, auditWriter, eventPublisher,
+                versionTracker);
     }
 
     @Test
@@ -127,6 +130,39 @@ class DeploymentRequestStateServiceTest {
 
         verify(repository, never()).save(entity);
         verify(eventPublisher, never()).publishEvent(any());
+        verify(versionTracker, never()).recordExecution(any());
+    }
+
+    @Test
+    void applyingExecutedRecordsTheDeployedVersion() {
+        var entity = request(QueryStatus.APPROVED);
+
+        service.apply(entity, QueryStatus.EXECUTED);
+
+        verify(versionTracker).recordExecution(entity);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "PENDING_AI,APPROVED",
+            "PENDING_REVIEW,REJECTED",
+            "APPROVED,FAILED",
+            "APPROVED,TIMED_OUT",
+            "EXECUTED,FAILED",
+    })
+    void nonExecutedTransitionsDoNotTouchTheVersionTracker(QueryStatus from, QueryStatus to) {
+        service.apply(request(from), to);
+
+        verify(versionTracker, never()).recordExecution(any());
+    }
+
+    @Test
+    void reapplyingExecutedDoesNotDoubleRecord() {
+        var entity = request(QueryStatus.EXECUTED);
+
+        service.apply(entity, QueryStatus.EXECUTED);
+
+        verify(versionTracker, never()).recordExecution(any());
     }
 
     @Test
