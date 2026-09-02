@@ -33,7 +33,7 @@
              codebase — even the 4-space AOSP profile rewrites 2,351 of 2,654 sources
              (import ordering + line wrapping). So Spotless runs style-neutral hygiene
              steps only, and Checkstyle enforces the CLAUDE.md rules that actually matter. -->
-        <spotless.version>3.9.0</spotless.version>
+        <spotless.version>3.10.1</spotless.version>
         <checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
         <checkstyle.version>14.0.0</checkstyle.version>
         <!-- External secret stores (AF-448). -->
