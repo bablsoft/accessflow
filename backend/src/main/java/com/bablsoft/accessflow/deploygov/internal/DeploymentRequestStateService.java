@@ -14,6 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class DeploymentRequestStateService {
     private final DeploygovAuditWriter auditWriter;
     private final ApplicationEventPublisher eventPublisher;
     private final DeploymentVersionTrackerService versionTracker;
+    private final Clock clock;
 
     private static Map<QueryStatus, Set<QueryStatus>> allowedTransitions() {
         var allowed = new EnumMap<QueryStatus, Set<QueryStatus>>(QueryStatus.class);
@@ -85,6 +87,12 @@ public class DeploymentRequestStateService {
             throw new IllegalDeploymentRequestStateException(previous, next);
         }
         entity.setStatus(next);
+        if (next == QueryStatus.EXECUTED) {
+            // #742: the drift math's time axis — same transaction and clock as the tracker's
+            // deployed_at. The same-status early return above keeps a redelivered confirmation
+            // from restamping.
+            entity.setExecutedAt(clock.instant());
+        }
         repository.save(entity);
         if (next == QueryStatus.EXECUTED) {
             // #741: maintain the per-environment deployed-version projection in this transaction.

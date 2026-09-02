@@ -461,4 +461,119 @@ class DeploygovWebModelsTest {
         assertThat(page.totalElements()).isEqualTo(21);
         assertThat(page.totalPages()).isEqualTo(2);
     }
+
+    // ---------------------------------------------------------------- version inventory (#742)
+
+    @Test
+    void environmentVersionResponseNestsTheEnvironmentAndDrift() {
+        var pipelineId = UUID.randomUUID();
+        var environmentId = UUID.randomUUID();
+        var requestId = UUID.randomUUID();
+        var deployedAt = Instant.parse("2026-08-26T12:00:00Z");
+        var latestAt = Instant.parse("2026-08-30T12:00:00Z");
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentVersionView(
+                pipelineId, "payments-api", environmentId, "prod-acme", List.of("prod", "acme"), 3,
+                "2.4.0", requestId, deployedAt, "2.3.9", DeploymentOutcome.SUCCEEDED,
+                new com.bablsoft.accessflow.deploygov.api.DeploymentVersionDriftView(
+                        "2.4.1", latestAt, true, 4L, 1L));
+
+        var response = DeploymentEnvironmentVersionResponse.from(view);
+
+        assertThat(response.pipelineId()).isEqualTo(pipelineId);
+        assertThat(response.pipelineName()).isEqualTo("payments-api");
+        assertThat(response.environment().id()).isEqualTo(environmentId);
+        assertThat(response.environment().name()).isEqualTo("prod-acme");
+        assertThat(response.environment().tags()).containsExactly("prod", "acme");
+        assertThat(response.environment().sortOrder()).isEqualTo(3);
+        assertThat(response.currentVersion()).isEqualTo("2.4.0");
+        assertThat(response.currentRequestId()).isEqualTo(requestId);
+        assertThat(response.deployedAt()).isEqualTo(deployedAt);
+        assertThat(response.previousVersion()).isEqualTo("2.3.9");
+        assertThat(response.lastOutcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(response.drift().latestVersion()).isEqualTo("2.4.1");
+        assertThat(response.drift().latestDeployedAt()).isEqualTo(latestAt);
+        assertThat(response.drift().drifted()).isTrue();
+        assertThat(response.drift().daysBehind()).isEqualTo(4L);
+        assertThat(response.drift().deploymentsBehind()).isEqualTo(1L);
+    }
+
+    @Test
+    void environmentVersionResponseCarriesNullVersionFieldsForANeverDeployedEnvironment() {
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentVersionView(
+                UUID.randomUUID(), "payments-api", UUID.randomUUID(), "staging", null, 0,
+                null, null, null, null, null,
+                new com.bablsoft.accessflow.deploygov.api.DeploymentVersionDriftView(
+                        "2.4.1", Instant.parse("2026-08-30T12:00:00Z"), true, null, null));
+
+        var response = DeploymentEnvironmentVersionResponse.from(view);
+
+        assertThat(response.environment().tags()).isEmpty();
+        assertThat(response.currentVersion()).isNull();
+        assertThat(response.currentRequestId()).isNull();
+        assertThat(response.deployedAt()).isNull();
+        assertThat(response.previousVersion()).isNull();
+        assertThat(response.lastOutcome()).isNull();
+        assertThat(response.drift().daysBehind()).isNull();
+        assertThat(response.drift().deploymentsBehind()).isNull();
+    }
+
+    @Test
+    void environmentVersionPageResponseCopiesPaginationMetadata() {
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentEnvironmentVersionView(
+                UUID.randomUUID(), "payments-api", UUID.randomUUID(), "prod", List.of(), 0,
+                "2.4.1", UUID.randomUUID(), Instant.parse("2026-08-30T12:00:00Z"), null, null,
+                new com.bablsoft.accessflow.deploygov.api.DeploymentVersionDriftView(
+                        "2.4.1", Instant.parse("2026-08-30T12:00:00Z"), false, 0L, 0L));
+
+        var page = DeploymentEnvironmentVersionPageResponse.from(
+                new PageResponse<>(List.of(view), 1, 10, 11, 2));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.page()).isEqualTo(1);
+        assertThat(page.size()).isEqualTo(10);
+        assertThat(page.totalElements()).isEqualTo(11);
+        assertThat(page.totalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void historyEntryResponseMapsAllFields() {
+        var requestId = UUID.randomUUID();
+        var submittedBy = UUID.randomUUID();
+        var createdAt = Instant.parse("2026-08-30T11:00:00Z");
+        var executedAt = Instant.parse("2026-08-30T12:00:00Z");
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentVersionHistoryEntryView(
+                requestId, "2.4.1", QueryStatus.EXECUTED, DeploymentOutcome.SUCCEEDED, executedAt,
+                submittedBy, SubmissionReason.USER_SUBMITTED, "abc123",
+                "https://ci.example.com/run/1", createdAt, executedAt);
+
+        var response = DeploymentVersionHistoryEntryResponse.from(view);
+
+        assertThat(response.requestId()).isEqualTo(requestId);
+        assertThat(response.version()).isEqualTo("2.4.1");
+        assertThat(response.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(response.outcome()).isEqualTo(DeploymentOutcome.SUCCEEDED);
+        assertThat(response.outcomeReportedAt()).isEqualTo(executedAt);
+        assertThat(response.submittedBy()).isEqualTo(submittedBy);
+        assertThat(response.submissionReason()).isEqualTo(SubmissionReason.USER_SUBMITTED);
+        assertThat(response.commitSha()).isEqualTo("abc123");
+        assertThat(response.runUrl()).isEqualTo("https://ci.example.com/run/1");
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+        assertThat(response.executedAt()).isEqualTo(executedAt);
+    }
+
+    @Test
+    void historyPageResponseCopiesPaginationMetadata() {
+        var view = new com.bablsoft.accessflow.deploygov.api.DeploymentVersionHistoryEntryView(
+                UUID.randomUUID(), "2.4.1", QueryStatus.REJECTED, null, null, UUID.randomUUID(),
+                SubmissionReason.USER_SUBMITTED, null, null,
+                Instant.parse("2026-08-30T11:00:00Z"), null);
+
+        var page = DeploymentVersionHistoryPageResponse.from(
+                new PageResponse<>(List.of(view), 0, 20, 1, 1));
+
+        assertThat(page.content()).hasSize(1);
+        assertThat(page.content().getFirst().outcome()).isNull();
+        assertThat(page.content().getFirst().executedAt()).isNull();
+        assertThat(page.totalElements()).isEqualTo(1);
+    }
 }

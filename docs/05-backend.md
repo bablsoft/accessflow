@@ -2956,7 +2956,8 @@ reviewer queue and decision endpoints, break-glass deploys with the mandatory re
 scheduled-deploy semantics, and the review-timeout job; **#693 adds the machine contract** — the
 fail-closed gate endpoint, execution confirmation, outcome reporting with rollback follow-up
 reviews, and the release-announcement job; **#741 adds multi-environment version tracking** —
-free-form environment tags and the per-environment deployed-version projection.
+free-form environment tags and the per-environment deployed-version projection; **#742 adds the
+read-only version inventory & drift API** over that projection.
 
 The user- and operator-facing narrative for all of it is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -3325,11 +3326,38 @@ Two hooks:
   rollback leaves current honestly NULL, "unknown, see history"). An outcome for a non-current
   request, or for an environment with no row, is a no-op.
 
-Listing for #742 goes through `DeploymentEnvironmentVersionSpecifications.forList(org, pipeline?,
+Listing goes through `DeploymentEnvironmentVersionSpecifications.forList(org, pipeline?,
 tag?)`; the tag filter is a correlated `EXISTS` over `deployment_environments.tags` using
 `array_position(...) > 0` — not `IS NOT NULL`, because Hibernate renders `array_position`
 null-safely as `coalesce(…, 0)`, which would make the null check match every row. Concurrent
 writers on one environment resolve on the `version_lock` optimistic lock.
+
+### Version inventory & drift API (#742)
+
+**`deploygov/api/DeploymentVersionInventoryService`** (+ `Default*` in `internal/`) is the
+read-only surface over the projection: the per-pipeline matrix, the org-wide filterable matrix,
+and per-environment history (derived straight from `deployment_requests` — no new storage). The
+endpoint contract, row shape, and the full drift rules are in
+[04-api-spec.md](04-api-spec.md) → "Version inventory & drift (#742)"; the module-level points:
+
+- **Drift is a read-time computation only** — no scheduled drift job, no drift notifications, no
+  semver parsing. "Latest" per pipeline is the tracker row with the newest `deployed_at` whose
+  `last_outcome` is null or `SUCCEEDED`, always computed over the pipeline's **unfiltered** row
+  set; a row drifts on plain string inequality against it.
+- **Visibility mirrors the gate**: `DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` /
+  `QUERY_ADMIN` / effective `can_trigger` on the per-pipeline endpoints, failing as 404 — never
+  403; the org-wide matrix is functional-permission-only (`@PreAuthorize`, trigger-only callers
+  get 403).
+- **The org-wide list filters and slices in memory** inside the service: the `drifted` predicate
+  is relative to a per-pipeline latest, so it cannot be pushed to SQL, and cardinality is bounded
+  at one row per admin-configured environment. `deployments_behind` — the one per-row cost — is
+  resolved for the returned page only, one grouped
+  `DeploymentRequestRepository.findSuccessfulVersionExecutions` query per distinct pipeline on
+  the page (backed by the V157 partial index).
+- **`deployment_requests.executed_at` (V157)** is the drift math's time axis, stamped by
+  `DeploymentRequestStateService.apply` on the `APPROVED → EXECUTED` transition — same
+  transaction and `Clock` as the tracker's `deployed_at`; pre-existing executed rows were
+  backfilled with `COALESCE(outcome_reported_at, updated_at)`.
 
 ## MCP server (mcp module)
 

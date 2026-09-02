@@ -20,8 +20,9 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 > confirmation, outcome reporting and rollback follow-up reviews (#693), the GitHub / GitLab /
 > Azure / generic-curl CI wrappers (#694), the notification and audit fan-out (#695), and the web
 > UI (#696). The multi-environment version-tracking foundation — environment tags and the
-> per-environment deployed-version projection (#741) — landed after v2.4; the drift API and the
-> version matrix (#742 / #743) are **not yet shipped**.
+> per-environment deployed-version projection (#741) — landed after v2.4, followed by the
+> read-only version inventory & drift API (#742, section 9 below); the version-matrix UI (#743)
+> is **not yet shipped**.
 
 ---
 
@@ -90,7 +91,8 @@ Execution shifts current → previous; a `FAILED`/`ROLLED_BACK` outcome for the 
 reverts to previous (single-level undo — a second consecutive rollback leaves the current
 version honestly unknown); an outcome for a non-current request changes nothing. The projection
 is a **read model only** — it never feeds gate, approval, or routing decisions, and history
-stays derived from `deployment_requests`. The listing API and UI arrive with #742/#743.
+stays derived from `deployment_requests`. The read API over it — the version matrices, history,
+and the drift indicator — is section 9 below (#742); the UI arrives with #743.
 
 **Who may trigger** is a per-pipeline grant, not a functional permission. Both a per-user table
 and a per-group table carry `can_trigger`, `can_break_glass` and an optional `expires_at`, and
@@ -373,6 +375,40 @@ panel for each pipeline. The wrappers are exercised offline by a fake-curl harne
 `can_break_glass` only if emergency deploys should be possible from CI — and store the raw key as a
 CI secret. Because the key's owning user is the submitter, that account can never approve its own
 deployments.
+
+---
+
+## 9. Version inventory & drift (#742)
+
+Once deployments flow through the gate, the tracking projection (section 1) can answer the
+operational question the epic promised: **which version runs where right now** — including the
+per-customer view, where "customer" is one use of the free-form environment tags
+(`prod-acme` tagged `acme`). Three read-only endpoints serve it
+([04-api-spec.md](04-api-spec.md) → "Version inventory & drift" for the full contract):
+
+- **`GET /deployment-pipelines/{id}/environment-versions`** — the matrix for one pipeline: every
+  environment in promotion order, each row carrying the current and previous version, the
+  deploying request, the last reported outcome, and a **drift block**.
+- **`GET /deployment-environment-versions`** — the org-wide matrix, filterable by pipeline, tag
+  (`?tag=acme` — exactly the per-customer view), environment name, and `drifted=true`.
+- **`GET /deployment-pipelines/{id}/environments/{envId}/history`** — the environment's
+  deployment timeline, derived straight from the request table; the full request detail (AI
+  analysis, decisions) stays one click away.
+
+**Drift** is deliberately modest: computed at read time only (no scheduled job, no
+notifications), with no semver parsing — version strings are free-form, so "drifted" is plain
+string inequality against the pipeline's newest successfully deployed version. The drift block
+quantifies the lag two ways: `days_behind` (whole days since the newer deploy) and
+`deployments_behind` (distinct newer versions successfully deployed on the pipeline), timed by
+`deployment_requests.executed_at` — stamped on the `APPROVED → EXECUTED` transition. An
+environment whose current version is unknown after consecutive rollbacks reports `drifted: true`
+with the null surfaced honestly.
+
+**Visibility** mirrors the gate: pipeline admins, deployment reviewers, and admins see
+everything; a `can_trigger` grant holder sees their pipelines' matrices and history (they watch
+these environments from CI, after all). Anything else — including a pipeline in another org —
+reads as a 404, never a 403. The org-wide matrix is the one functional-permission-only surface:
+trigger-only callers get 403 there.
 
 ---
 

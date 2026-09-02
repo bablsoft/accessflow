@@ -1,6 +1,10 @@
 package com.bablsoft.accessflow.deploygov.internal.persistence.repo;
 
+import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
 import com.bablsoft.accessflow.deploygov.internal.persistence.entity.DeploymentRequestEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -27,6 +31,35 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
      */
     Optional<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
             UUID pipelineId, UUID environmentId, String version, String externalRunId);
+
+    /** History timeline (#742): every request for the environment, newest first. */
+    Page<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdOrderByCreatedAtDesc(
+            UUID pipelineId, UUID environmentId, Pageable pageable);
+
+    /** History timeline (#742), narrowed to one status. */
+    Page<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdAndStatusOrderByCreatedAtDesc(
+            UUID pipelineId, UUID environmentId, QueryStatus status, Pageable pageable);
+
+    /**
+     * Grouped drift projection (#742): each version successfully deployed on the pipeline (an
+     * {@code EXECUTED} request whose outcome is null or {@code SUCCEEDED}) with the last instant
+     * it executed anywhere. Enum values are bound as parameters — a JPQL enum literal fails at
+     * runtime against the PostgreSQL enum columns (see {@code findStalePendingReviewIds}).
+     * Backed by the partial index {@code idx_deployment_requests_executed_versions} (V157).
+     */
+    @Query("""
+            select new com.bablsoft.accessflow.deploygov.internal.persistence.repo\
+            .DeploymentVersionExecution(r.version, max(r.executedAt))
+            from DeploymentRequestEntity r
+            where r.pipelineId = :pipelineId
+              and r.status = :executed
+              and (r.outcome is null or r.outcome = :succeeded)
+              and r.executedAt is not null
+            group by r.version
+            """)
+    List<DeploymentVersionExecution> findSuccessfulVersionExecutions(
+            @Param("pipelineId") UUID pipelineId, @Param("executed") QueryStatus executed,
+            @Param("succeeded") DeploymentOutcome succeeded);
 
     /**
      * Timeout scan (#692): {@code PENDING_REVIEW} requests older than their resolved review plan's

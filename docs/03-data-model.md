@@ -2378,7 +2378,7 @@ break-glass retro-review can target an API request.
 
 ---
 
-## Deployment governance (`deploygov`, #684–#741 / epic #682)
+## Deployment governance (`deploygov`, #684–#742 / epic #682)
 
 Migrations **V149** (definitions) and **V150** (request pipeline) lay the persistence foundation of
 the `deploygov` module: gate CI/CD deployments behind AccessFlow approval workflows. New pg enums
@@ -2392,7 +2392,8 @@ verbatim, exactly as the apigov tables do. Cross-module references (`organizatio
 the group-permission table keeps the real FKs of its V111 template. **V151** seeds the
 `DEPLOYMENT_PIPELINE_MANAGE` (ADMIN) and `DEPLOYMENT_REVIEW` (ADMIN + REVIEWER) permissions.
 **V156** (#741) adds free-form environment `tags` and the `deployment_environment_versions`
-current-version projection.
+current-version projection. **V157** (#742) adds `deployment_requests.executed_at` — the drift
+math's time axis.
 
 The feature narrative — lifecycle, gate contract, freeze-window semantics, CI wrappers — is
 [18-deployment-governance.md](18-deployment-governance.md).
@@ -2459,6 +2460,7 @@ collision.
 | `justification` / `ai_analysis_id` / `required_approvals` / `scheduled_for` | — | As on `api_requests`. `ai_analysis_id` is populated by the #691 analysis listener; the reverse link is `ai_analyses.deployment_request_id` (V152). |
 | `outcome` | `deployment_outcome` | Nullable — what the pipeline reported after the gate opened. A `FAILED` outcome also flips `status` `EXECUTED → FAILED` (#693). |
 | `outcome_reported_at` / `outcome_detail` | — | |
+| `executed_at` | TIMESTAMPTZ | Nullable (V157, #742) — stamped by the state service on the `APPROVED → EXECUTED` transition, same transaction and `Clock` as the version tracker's `deployed_at`; the drift math's time axis. Pre-existing executed rows were backfilled with `COALESCE(outcome_reported_at, updated_at)` — a deterministic upper bound of execution time. |
 | `release_notified_at` | TIMESTAMPTZ | Nullable (V154, #693) — stamped when `ScheduledDeploymentReleaseJob` announced the request releasable; makes the announcement one-shot. |
 | `submitted_ip` | VARCHAR(45) | |
 | `version_lock` | BIGINT | `@Version` optimistic lock. |
@@ -2468,7 +2470,9 @@ Indexes: `(pipeline_id, version, environment_id)` (the gate lookup), `(status)`,
 `(organization_id, status, created_at DESC)`, a partial `(scheduled_for) WHERE status = 'APPROVED'
 AND scheduled_for IS NOT NULL` backing the deferred-run scan, a partial
 `idx_deployment_requests_release_scan` on `(scheduled_for) WHERE status = 'APPROVED' AND
-release_notified_at IS NULL` (V154) backing the release-announcement scan, and the **partial
+release_notified_at IS NULL` (V154) backing the release-announcement scan, a partial
+`idx_deployment_requests_executed_versions` on `(pipeline_id, version) WHERE executed_at IS NOT
+NULL` (V157) backing the #742 grouped drift projection, and the **partial
 unique** `uq_deployment_requests_trigger_idem` on `(pipeline_id, environment_id, version,
 external_run_id) WHERE external_run_id IS NOT NULL` — a CI job retrying the same run never creates
 a second request.
@@ -2534,7 +2538,9 @@ Index: `(organization_id, pipeline_id)`. Listing goes through a Specification wi
 pipeline and tag filters — the tag filter is a correlated `EXISTS` over
 `deployment_environments.tags` via `array_position(...) > 0` (Hibernate renders
 `array_position` null-safely as `coalesce(…, 0)`, so the `IS NOT NULL` shape would match
-everything; `> 0` is correct under both renderings). #742 consumes it; #741 ships no API or UI.
+everything; `> 0` is correct under both renderings). #742 ships the read API over this table —
+the version-inventory endpoints and the read-time drift computation
+([04-api-spec.md](04-api-spec.md) → "Version inventory & drift"); the UI follows in #743.
 
 ### deployment_routing_policies
 
