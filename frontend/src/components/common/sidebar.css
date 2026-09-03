@@ -73,6 +73,46 @@
   background: var(--border);
   margin: 8px 6px;
 }
+.af-sidebar-subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.af-sidebar-subgroup-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 10px 4px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+  text-align: left;
+  border-radius: 5px;
+}
+.af-sidebar-subgroup-header:hover {
+  color: var(--fg-muted);
+}
+.af-sidebar-subgroup-chevron {
+  font-size: 8px;
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+  transform: rotate(-90deg);
+}
+.af-sidebar-subgroup-header.open .af-sidebar-subgroup-chevron {
+  transform: rotate(0deg);
+}
+.af-sidebar-subgroup-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 8px;
+}
 .af-sidebar-item {
   display: flex;
   align-items: center;

@@ -112,9 +112,8 @@ accessflow-ui/
 │   │   └── useCurrentUser.ts       # Auth state, role checks
 │   │
 │   ├── layouts/
-│   │   ├── AppLayout.tsx           # Main app shell with sidebar nav
-│   │   ├── AdminLayout.tsx         # Admin section layout with sub-nav
-│   │   └── AuthLayout.tsx          # Centered card layout for login
+│   │   └── AppLayout.tsx           # Main app shell with sidebar nav (the only layout — admin
+│   │                               # pages and the auth pages style themselves)
 │   │
 │   ├── pages/
 │   │   ├── auth/
@@ -157,7 +156,7 @@ accessflow-ui/
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   └── preferencesStore.ts      # Theme, sidebar collapse, language, dashboard widget layout + trends range (AF-498; persist v1, hidden[]/order[]/collapsed{}/size{})
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, collapsed nav sub-sections (AF-837), language, dashboard widget layout + trends range (AF-498; persist v1, hidden[]/order[]/collapsed{}/size{})
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -354,7 +353,8 @@ Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePa
 
 ### DashboardPage *(any authenticated user)* — AF-498
 
-The personalized home at `/dashboard` (lazy-loaded; nav entry at the top of the **Workflow** group; the
+The personalized home at `/dashboard` (lazy-loaded; nav entry in the unlabelled group at the very top
+of the sidebar, above **Workflow**; the
 default post-login landing for non-auditor roles). The header shows **clickable** headline stat tiles
 (`StatTile` — whole surface navigates to the matching list page: pending approvals → `/reviews`, open
 queries → `/queries`, anomalies → `/admin/anomalies`, API requests → `/api-requests`, API approvals →
@@ -417,7 +417,7 @@ The behavioural-anomaly-detection (UBA) dashboard at `/admin/anomalies` (lazy-lo
 
 ### BreakGlassLogPage *(AUDITOR or ADMIN)* — AF-385
 
-The break-glass / emergency-access log at `/admin/break-glass` (lazy-loaded; nav entry in the **Security** group, AUDITOR/ADMIN). A filterable `Table` of `break_glass_events` (default filter `PENDING_REVIEW` — unreconciled), fetched with TanStack Query (`api/breakGlass.ts`, key `breakGlassKeys.list(params)`); filters mirror the backend params (status, datasource, user, date range). Each row shows the executing user, datasource, justification, and a `BreakGlassStatusPill`; a row click opens a `Drawer` with the executed query link, full justification, SQL, and review fields. The per-row **Acknowledge** action (ADMIN only) opens a modal with an optional reconciliation comment and calls `POST /admin/break-glass/{id}/acknowledge`, invalidating `breakGlassKeys`. The **Emergency access** flow itself lives on the editor: `QueryEditorPage` queries `GET /me/break-glass` (`meKeys.breakGlass`) and renders a danger **"Emergency access"** button — only when the selected datasource is eligible — that opens a justification-forcing confirmation modal (`breakGlassSubmit`, `POST /queries/break-glass`) and navigates to the executed query on success. A new `BreakGlassStatusPill` (`components/common/`) and `breakGlassStatusColor` / `breakGlassStatusLabel` helpers back the status rendering.
+The break-glass / emergency-access log at `/admin/break-glass` (lazy-loaded; nav entry in Security → **Access control**, AUDITOR/ADMIN). A filterable `Table` of `break_glass_events` (default filter `PENDING_REVIEW` — unreconciled), fetched with TanStack Query (`api/breakGlass.ts`, key `breakGlassKeys.list(params)`); filters mirror the backend params (status, datasource, user, date range). Each row shows the executing user, datasource, justification, and a `BreakGlassStatusPill`; a row click opens a `Drawer` with the executed query link, full justification, SQL, and review fields. The per-row **Acknowledge** action (ADMIN only) opens a modal with an optional reconciliation comment and calls `POST /admin/break-glass/{id}/acknowledge`, invalidating `breakGlassKeys`. The **Emergency access** flow itself lives on the editor: `QueryEditorPage` queries `GET /me/break-glass` (`meKeys.breakGlass`) and renders a danger **"Emergency access"** button — only when the selected datasource is eligible — that opens a justification-forcing confirmation modal (`breakGlassSubmit`, `POST /queries/break-glass`) and navigates to the executed query on success. A new `BreakGlassStatusPill` (`components/common/`) and `breakGlassStatusColor` / `breakGlassStatusLabel` helpers back the status rendering.
 
 ### DetailCard (`components/common/DetailCard.tsx`) — AF-531
 
@@ -481,7 +481,7 @@ list. Ingestion embeds immediately, so the section is gated on the *persisted* `
 
 ### Langfuse configuration (`pages/admin/LangfuseConfigPage.tsx`)
 
-`LangfuseConfigPage` (`/admin/langfuse`, lazy, admin-only — nav entry in the **System** group) is the
+`LangfuseConfigPage` (`/admin/langfuse`, lazy, admin-only — nav entry in System → **AI**) is the
 single-org form for the [Langfuse](https://langfuse.com) integration. It mirrors `SamlConfigPage`:
 TanStack Query loads the config (`getLangfuseConfig`, key `langfuseConfigKeys.current()`), a
 `useMutation` saves it (`updateLangfuseConfig`), and the secret key round-trips masked as `********`
@@ -545,8 +545,8 @@ under `apiGov.*` in every registered locale.
 | `/api-requests/:id` | `ApiRequestDetailPage` | Responsive card layout: status (`StatusPill`) + AI risk (`RiskPill`), connection/response metadata in a reflowing `Descriptions` (incl. submitter, trace id, span id; #517), justification / **variable-overrides** (AF-613; the signing inputs the submitter supplied, never the resolved outputs) / AI summary / error cards, the size-capped field-masked response snapshot with a **Download full response** button (`GET /api-requests/{id}/response`, #517), and the review-decisions table. A reviewer/admin viewing a `PENDING_REVIEW` request they didn't submit gets inline **Approve / Reject** actions via a shared comment modal (#567, self-approval blocked server-side), mirroring `ApiReviewQueuePage` so the request is actionable from where the reviewer lands. |
 | `/api-reviews` | `ApiReviewQueuePage` | Reviewer/admin queue of API requests awaiting review with the same filter bar (search, connector, verb, risk) + pagination, plus an **Overrides** badge column (AF-613) flagging requests that override connector variables; approve/reject via a comment modal (self-approval blocked server-side). |
 
-Navigation entries are added to `components/common/Sidebar.tsx` (Data group: connectors; Workflow
-group: API editor / requests / reviews), role-gated like the rest of the nav.
+Navigation entries are added to `components/common/Sidebar.tsx` (Connections → **API**: connectors;
+Workflow → **API**: API editor / requests / reviews), role-gated like the rest of the nav.
 
 ## Request chaining & grouping pages (AF-501)
 
@@ -568,7 +568,7 @@ The **review queue** shows a group as **one expandable element** — the members
 risk inside; the reviewer acts once per stage on the bundle (optimistic approve/reject like the existing
 queue). `useWebSocket` maps `request_group.status_changed` / `request_group.item_executed` to
 `queryClient.invalidateQueries`. Navigation entries are added to `components/common/Sidebar.tsx`
-(Workflow group: grouped requests), role-gated like the rest of the nav.
+(Workflow → **Request groups**), role-gated like the rest of the nav.
 
 ## Deployment governance pages (#696, epic AF-682)
 
@@ -607,10 +607,10 @@ notifications into the new pages (submission → queue, outcome-failed → rollb
 the deployment detail). The version caches are **not** WebSocket-invalidated — there is no
 `deployment.version_changed` event — so they refresh on mount and whenever an environment mutation
 drops `deploymentVersionKeys.matrix(pipelineId)` and `.lists()` (name, tags and sort order all
-appear in matrix rows). Navigation: Workflow group `Deployments` (on `QUERY_SUBMIT_SELECT`, like
+appear in matrix rows). Navigation: Workflow → **Deployments** `Deployments` (on `QUERY_SUBMIT_SELECT`, like
 API requests), `Deployment Reviews` (`DEPLOYMENT_REVIEW`) and `Version Matrix` (any of
-`DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`); Data group
-`Deployment Pipelines` (`DEPLOYMENT_PIPELINE_MANAGE`). A `can_trigger`-only user gets no nav entry
+`DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`); Connections →
+**Deployments** `Deployment Pipelines` (`DEPLOYMENT_PIPELINE_MANAGE`). A `can_trigger`-only user gets no nav entry
 and reaches `/deployment-versions/:pipelineId` from `/deployments` instead.
 
 The drift and rollback badge text is composed by the pure
@@ -941,6 +941,74 @@ for deployment recipes (Docker Compose, Helm).
 
 All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/reset-password/:token`, `/auth/saml/callback`, and `/auth/oauth/callback` are protected by an `AuthGuard` component that redirects unauthenticated users to `/login`. Route and nav gating is **permission-based** (AF-522): `AuthGuard` takes `requirePermission` (any-of over the `permissions` array carried in the auth payload) and `Sidebar` items declare `permissions: Permission[]` — the helpers live in `utils/permissions.ts` (`hasPermission`, `hasAnyPermission`, `usePermission`). Custom roles therefore gate correctly with no role-name special-casing; `/profile` is available to every authenticated user.
 
+### Sidebar navigation (AF-837)
+
+`components/common/Sidebar.tsx` renders a **three-level** nav model:
+
+```ts
+interface NavSubGroup { id: string; label: string; items: NavItem[] }
+interface NavGroup {
+  id: string;
+  label?: string;          // absent ⇒ no divider heading (the top generic group)
+  items?: NavItem[];       // rendered flat, directly under the group heading
+  subgroups?: NavSubGroup[];
+}
+```
+
+A group's own `items` always render **above** its `subgroups`, so a group can mix ungrouped
+entries with sub-sections (only `system` does today). `NavItem` is unchanged — `permissions`
+still gates each entry.
+
+| Group | Sub-section | Routes |
+|---|---|---|
+| *(no heading)* | *(none)* | `/dashboard`, `/reviews` (keeps the pending badge) |
+| `WORKFLOW` | **Database** | `/editor`, `/queries` |
+| | **API** | `/api-editor`, `/api-requests`, `/api-reviews` |
+| | **Deployments** | `/deployments`, `/deployment-reviews`, `/deployment-versions` |
+| | **Request groups** | `/request-groups`, `/request-groups/reviews` |
+| | **Access & lifecycle** | `/access-requests`, `/lifecycle/erasure`, `/lifecycle/erasure-reviews`, `/reviews/attestations` |
+| `CONNECTIONS` | **Database** | `/datasources`, `/admin/connectors`, `/admin/drivers` |
+| | **API** | `/api-connectors` |
+| | **Deployments** | `/admin/deployment-pipelines` |
+| `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
+| | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/over-provisioned-access`, `/admin/break-glass` |
+| | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
+| | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
+| `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages` |
+| | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse` |
+| `PLATFORM` | *(none)* | `/admin/organizations` |
+
+`/admin/slack` is the one entry that **moved groups**: it left `SECURITY` for `SYSTEM`, next to
+`/admin/notifications` — it is a notification channel, not a security control.
+
+Behaviour:
+
+- **Default open.** Every sub-section starts expanded; collapsing is opt-in. The win is the
+  visual grouping, not hiding things.
+- **Persisted.** Collapsed sub-section ids live in `preferencesStore.navCollapsedSubgroups`
+  (`toggleNavSubgroup`), persisted under `af-preferences`. It is a **deny-list** of ids, so a
+  sub-section added later starts expanded, and an older payload that predates the key falls back
+  to `[]` through zustand's shallow merge — which is why the persist `version` stays at **1**.
+- **Active route always visible.** A sub-section containing the active route renders open
+  regardless of the stored state, so navigating never leaves the current page hidden. Its header
+  is `disabled` while that holds: toggling could not change anything on screen, so a live control
+  there would be a dead button announcing the wrong action. Its `aria-label` says so
+  (`nav.section_locked_open`); sibling headers in the same group stay interactive.
+- **Icon rail.** When the sidebar is collapsed there is no room for headers: sub-section headers
+  are dropped, every item renders flat, and each block (a group's own items, then each
+  sub-section) is separated by `.af-sidebar-divider-line`. No collapsing inside the rail.
+- **Permission filtering** cascades: invisible items are dropped, then sub-sections left empty,
+  then groups left with neither items nor sub-sections. A sub-section that survives with a single
+  item still renders its header, so positions stay predictable across roles.
+- **Accessibility (a11y).** Each header is a real `<button aria-expanded aria-controls>` whose accessible name is
+  `nav.expand_section` / `nav.collapse_section`; the controlled item list carries
+  `id="af-nav-sub-<subgroup id>"`. Labelled groups are `role="group" aria-label="<group label>"`,
+  which is what tells apart the sub-sections that reuse a label (**Database**, **API** and
+  **Deployments** each appear under two groups).
+
+Labels are `t()`-keyed under `nav.sub_*` (plus `nav.group_connections`, which replaced
+`nav.group_data`) in all seven locales.
+
 ### Setup wizard
 
 `SetupPage` is a two-step state machine. Step 1 collects org name + admin email/password and submits `POST /auth/setup`; the response now returns a `LoginResponse` and sets the refresh cookie so the SPA can call admin endpoints as the freshly-created admin. Step 2 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
@@ -971,8 +1039,8 @@ sees the review queues it owns; the client for that endpoint is
 ### Routing policies (AF-379)
 
 `RoutingPoliciesPage` (`/admin/routing-policies`, lazy, admin-only) is the admin surface for the
-policy-as-code routing engine. The nav entry **Routing policies** sits in the **Security** group
-next to **Review plans**. The page renders a `<Table>` of the org's policies in priority order with
+policy-as-code routing engine. The nav entry **Routing policies** sits in Security →
+**Access control**, next to **Review plans**. The page renders a `<Table>` of the org's policies in priority order with
 priority up/down reorder controls (`PUT /admin/routing-policies/reorder`), an action pill
 (`AUTO_APPROVE` / `AUTO_REJECT` / `REQUIRE_APPROVALS` / `ESCALATE`), an `enabled` `Switch` toggle, a
 human-readable condition summary, and per-row edit / delete. Create / edit open a `Modal` with a

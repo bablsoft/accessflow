@@ -422,7 +422,8 @@ trigger-only callers get 403 there.
   and a drift tri-state (any / behind only / up to date only). Each row carries the environment's
   tag chips, its current and previous version, a drift badge quantified as "N versions / D days
   behind", and — after a failure or rollback — what it reverted to, or an honest "unknown — see
-  history" once consecutive rollbacks exhausted the previous slot. Nav entry `Version Matrix`,
+  history" once consecutive rollbacks exhausted the previous slot. Nav entry `Version Matrix`
+  (Workflow → **Deployments**),
   gated on the same three functional permissions as the endpoint.
 - **The pipeline settings *Versions* tab**, and the same matrix as a standalone
   `/deployment-versions/:pipelineId` route. The route is deliberately unguarded on the client: the
