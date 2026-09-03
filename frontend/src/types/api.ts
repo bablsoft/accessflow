@@ -3943,6 +3943,14 @@ export interface DeploymentRequest {
   created_at: string;
   /** Always [] on the list endpoint; populated on the detail endpoint. */
   decisions: DeploymentDecision[];
+  /**
+   * Whether *this* viewer may record a decision right now — the same predicate the approve/reject
+   * endpoints enforce (not the submitter, still `PENDING_REVIEW`, holds `DEPLOYMENT_REVIEW`, and
+   * matches the resolved review plan's stage-1 approver rules unless `REVIEW_OVERRIDE`). Resolved
+   * server-side because the plan's approver rules are not derivable from this payload. Detail
+   * endpoint only — always false on the list endpoint.
+   */
+  can_review: boolean;
 }
 
 export type DeploymentRequestPage = PageEnvelope<DeploymentRequest>;

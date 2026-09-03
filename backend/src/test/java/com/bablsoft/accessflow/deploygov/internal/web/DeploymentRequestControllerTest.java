@@ -15,6 +15,7 @@ import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestSubmissionResult;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.deploygov.api.SubmitDeploymentRequestCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
@@ -48,14 +49,16 @@ class DeploymentRequestControllerTest {
     private final UUID requestId = UUID.randomUUID();
 
     private DeploymentRequestService requestService;
+    private DeploymentReviewService reviewService;
     private DeploygovAuditWriter auditWriter;
     private DeploymentRequestController controller;
 
     @BeforeEach
     void setUp() {
         requestService = mock(DeploymentRequestService.class);
+        reviewService = mock(DeploymentReviewService.class);
         auditWriter = mock(DeploygovAuditWriter.class);
-        controller = new DeploymentRequestController(requestService, auditWriter);
+        controller = new DeploymentRequestController(requestService, reviewService, auditWriter);
         // The controller delegates the visibility question to the service; mirror the real rule.
         lenient().when(requestService.canViewAll(any())).thenAnswer(invocation -> {
             Set<Permission> permissions = invocation.getArgument(0);
@@ -183,6 +186,42 @@ class DeploymentRequestControllerTest {
         assertThat(response.pipelineName()).isEqualTo("payments-api");
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.HIGH);
         assertThat(response.decisions()).isEmpty();
+        assertThat(response.canReview()).isFalse();
+    }
+
+    @Test
+    void getPublishesTheCallersOwnReviewEligibilityResolvedFromTheCallerContext() {
+        when(requestService.get(eq(requestId), any(), any(), any())).thenReturn(view());
+        when(reviewService.canReview(eq(requestId), any())).thenReturn(true);
+
+        var response = controller.get(requestId, auth(Set.of(Permission.DEPLOYMENT_REVIEW)));
+
+        assertThat(response.canReview()).isTrue();
+        var captor = ArgumentCaptor.forClass(DeploymentReviewService.ReviewerContext.class);
+        verify(reviewService).canReview(eq(requestId), captor.capture());
+        assertThat(captor.getValue().userId()).isEqualTo(userId);
+        assertThat(captor.getValue().organizationId()).isEqualTo(orgId);
+        assertThat(captor.getValue().roleName()).isEqualTo("ANALYST");
+        assertThat(captor.getValue().permissions()).containsExactly(Permission.DEPLOYMENT_REVIEW);
+    }
+
+    @Test
+    void theListAndTriggerPathsNeverAskAboutReviewEligibility() {
+        when(requestService.list(any(), any()))
+                .thenReturn(new PageResponse<>(List.of(view()), 0, 20, 1, 1));
+        when(requestService.submit(any()))
+                .thenReturn(new DeploymentRequestSubmissionResult(view(), false));
+
+        var listed = controller.list(null, null, null, null, null, null, null, auth(false),
+                Pageable.ofSize(20));
+        var submitted = controller.submit(submitBody(), auth(false),
+                new RequestAuditContext(null, null));
+
+        assertThat(listed.content()).singleElement()
+                .extracting(DeploymentRequestResponse::canReview).isEqualTo(false);
+        assertThat(submitted.getBody()).isNotNull();
+        assertThat(submitted.getBody().canReview()).isFalse();
+        verify(reviewService, never()).canReview(any(), any());
     }
 
     @Test

@@ -90,6 +90,7 @@ const baseRequest: DeploymentRequest = {
   outcome_detail: null,
   created_at: '2026-05-01T10:00:00Z',
   decisions: [],
+  can_review: false,
 };
 
 function pageOf(content: DeploymentRequest[]): DeploymentRequestPage {

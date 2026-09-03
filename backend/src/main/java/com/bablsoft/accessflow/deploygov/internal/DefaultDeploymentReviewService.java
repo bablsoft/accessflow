@@ -119,6 +119,29 @@ public class DefaultDeploymentReviewService implements DeploymentReviewService {
                 false);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public boolean canReview(UUID deploymentRequestId, ReviewerContext context) {
+        // Cheapest gate first: a caller without the permission — the submitter opening their own
+        // deployment, typically — is answered without touching the database at all.
+        if (!hasPermission(context, Permission.DEPLOYMENT_REVIEW)) {
+            return false;
+        }
+        return requestRepository.findByIdAndOrganizationId(deploymentRequestId,
+                        context.organizationId())
+                .filter(request -> !request.getSubmittedBy().equals(context.userId()))
+                .filter(request -> request.getStatus() == QueryStatus.PENDING_REVIEW)
+                .filter(request -> eligibleApprover(request, context))
+                // A reviewer who already voted at this stage cannot record a second decision: the
+                // decision path would answer their *existing* verdict with duplicate=true, so a
+                // reject button offered here would silently replay an approval. Quorum keeps the
+                // request PENDING_REVIEW meanwhile, which is why the status filter above misses it.
+                .filter(request -> decisionRepository
+                        .findByDeploymentRequestIdAndReviewerIdAndStage(deploymentRequestId,
+                                context.userId(), STAGE).isEmpty())
+                .isPresent();
+    }
+
     /**
      * Guard order mirrors the apigov sibling: self-approval, then state, then permission, then
      * {@code REVIEW_OVERRIDE}, then plan-approver eligibility. Enforced in the service, not only
@@ -132,19 +155,24 @@ public class DefaultDeploymentReviewService implements DeploymentReviewService {
             throw new IllegalDeploymentRequestStateException(request.getStatus(),
                     "Deployment request is not awaiting review");
         }
-        if (!hasPermission(context, Permission.DEPLOYMENT_REVIEW)) {
+        if (!eligibleApprover(request, context)) {
             throw new DeploymentReviewerNotEligibleException(context.userId(), request.getId());
+        }
+    }
+
+    /**
+     * Permission, {@code REVIEW_OVERRIDE}, then plan-approver eligibility — the tail of the guard,
+     * factored out so {@link #canReview} answers the same question without an exception.
+     */
+    private boolean eligibleApprover(DeploymentRequestEntity request, ReviewerContext context) {
+        if (!hasPermission(context, Permission.DEPLOYMENT_REVIEW)) {
+            return false;
         }
         if (hasPermission(context, Permission.REVIEW_OVERRIDE)) {
-            return;
+            return true;
         }
         var plan = resolvePlan(request.getPipelineId(), request.getEnvironmentId());
-        if (plan == null || plan.approvers().isEmpty()) {
-            return;
-        }
-        if (!isApproverAtStage(plan, STAGE, context)) {
-            throw new DeploymentReviewerNotEligibleException(context.userId(), request.getId());
-        }
+        return plan == null || plan.approvers().isEmpty() || isApproverAtStage(plan, STAGE, context);
     }
 
     /**

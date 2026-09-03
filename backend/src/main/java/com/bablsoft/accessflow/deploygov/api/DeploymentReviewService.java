@@ -28,6 +28,16 @@ public interface DeploymentReviewService {
 
     DecisionOutcome reject(UUID deploymentRequestId, ReviewerContext context, String comment);
 
+    /**
+     * Whether the caller may record a <em>new</em> decision on this request right now — the
+     * predicate {@code approve}/{@code reject} enforce, answered without throwing so a read path
+     * can publish it, and additionally {@code false} once the caller has already voted at this
+     * stage (their decision is idempotent, so a second one would silently replay the first). An
+     * unknown or cross-organization id answers {@code false} rather than raising, so the flag can
+     * never turn a detail read into an existence oracle.
+     */
+    boolean canReview(UUID deploymentRequestId, ReviewerContext context);
+
     record ReviewerContext(UUID userId, UUID organizationId, String roleName,
                            Set<Permission> permissions) {
     }

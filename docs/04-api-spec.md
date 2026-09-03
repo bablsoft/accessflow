@@ -5870,8 +5870,23 @@ submitter for every downstream rule, including "a submitter can never approve th
 |--------|------|-------------|
 | `POST` | `/deployment-requests` | Trigger a governed deployment (`202`). Requires an active **`can_trigger`** grant on the pipeline — the most-permissive union of the caller's direct grant and every unexpired group grant; `QUERY_ADMIN` holders bypass the grant. **Idempotent**: when `externalRunId` is supplied, a repeat of the same `(pipelineId, environment, version, externalRunId)` returns the **existing** request with **`200 OK`** and creates nothing (a replayed CI job must not queue a second approval). The grant is checked *before* the replay lookup, so a repeat cannot be used to probe for existing runs. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED`, `404 DEPLOYMENT_PIPELINE_NOT_FOUND` / `DEPLOYMENT_ENVIRONMENT_NOT_FOUND`. |
 | `GET` | `/deployment-requests` | List requests. Paginated (`page`, `size`). Optional filters: `status`, `pipeline_id`, `environment` (environment **name**, case-insensitive), `version` (exact), `submitted_by` (honoured only for callers who may see the whole org — a **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** holder; everyone else is hard-scoped to their own submissions, matching the detail endpoint's visibility rule), `from`, `to` (ISO-8601 instants; `from` inclusive, `to` exclusive). |
-| `GET` | `/deployment-requests/{id}` | Get one request with its AI analysis summary and review decisions. Visible to the **submitter**, and to any holder of **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** in the organization; everyone else gets `404` (never `403` — the endpoint is not an existence oracle). |
+| `GET` | `/deployment-requests/{id}` | Get one request with its AI analysis summary and review decisions. Visible to the **submitter**, and to any holder of **`DEPLOYMENT_REVIEW`** or **`QUERY_ADMIN`** in the organization; everyone else gets `404` (never `403` — the endpoint is not an existence oracle). The response also carries **`canReview`** — see below. |
 | `POST` | `/deployment-requests/{id}/cancel` | Submitter cancels the request (`204`). Allowed from `PENDING_REVIEW`, or from `APPROVED` while a `scheduledFor` deferral is still in the future. `403 DEPLOYMENT_REQUEST_PERMISSION_DENIED` for a non-submitter, `409 DEPLOYMENT_REQUEST_INVALID_STATE` otherwise. |
+
+**`canReview` on the detail response (#770).** A boolean saying whether **the calling viewer** may
+record a decision on this request right now. It is the same predicate
+`/deployment-reviews/{id}/approve` and `/reject` enforce, evaluated without throwing: the caller is
+not the submitter, the request is still `PENDING_REVIEW`, the caller holds `DEPLOYMENT_REVIEW`, and
+— unless they hold `REVIEW_OVERRIDE` — they match one of the resolved review plan's stage-1
+approver rules (a plan that is absent or names no approvers stays open to any `DEPLOYMENT_REVIEW`
+holder). It exists because those approver rules are not derivable from the payload, so a client
+cannot decide for itself whether to offer a decision without risking a
+`403 DEPLOYMENT_REVIEWER_NOT_ELIGIBLE` on click. It also answers `false` once the caller has already
+voted at this stage — their decision is idempotent, so a second one would replay the first rather
+than record anything. It is **detail-only**: every other endpoint returning this body — the list,
+the trigger, `confirm-execution` and `outcome` — always reports `false`, exactly as `decisions` is
+always `[]` on the list. An id the caller
+cannot see never reaches the flag — the visibility `404` fires first.
 
 `SubmitDeploymentRequestRequest` fields: `pipelineId` (required), `environment` (required, ≤255 —
 the environment **name** within the pipeline, because a CI job knows names, not UUIDs),

@@ -40,9 +40,15 @@ public record DeploymentRequestResponse(
         Instant outcomeReportedAt,
         String outcomeDetail,
         Instant createdAt,
-        List<DeploymentReviewDecisionResponse> decisions) {
+        List<DeploymentReviewDecisionResponse> decisions,
+        boolean canReview) {
 
+    /** Every path but the detail read: reviewer eligibility is a detail-read concern, never computed here. */
     static DeploymentRequestResponse from(DeploymentRequestView view) {
+        return from(view, false);
+    }
+
+    static DeploymentRequestResponse from(DeploymentRequestView view, boolean canReview) {
         return new DeploymentRequestResponse(view.id(), view.pipelineId(), view.pipelineName(),
                 view.provider(), view.environmentId(), view.environmentName(), view.submittedBy(),
                 view.submittedByEmail(), view.version(), view.commitSha(), view.artifactRef(),
@@ -51,6 +57,7 @@ public record DeploymentRequestResponse(
                 view.aiRiskLevel(), view.aiRiskScore(), view.aiSummary(), view.requiredApprovals(),
                 view.scheduledFor(), view.outcome(), view.outcomeReportedAt(), view.outcomeDetail(),
                 view.createdAt(),
-                view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList());
+                view.decisions().stream().map(DeploymentReviewDecisionResponse::from).toList(),
+                canReview);
     }
 }

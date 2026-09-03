@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App as AntdApp } from 'antd';
@@ -17,11 +17,24 @@ const {
   getDeploymentGateMock,
   cancelDeploymentRequestMock,
   listPipelineEnvironmentVersionsMock,
+  approveDeploymentMock,
+  rejectDeploymentMock,
 } = vi.hoisted(() => ({
   getDeploymentRequestMock: vi.fn(),
   getDeploymentGateMock: vi.fn(),
   cancelDeploymentRequestMock: vi.fn(),
   listPipelineEnvironmentVersionsMock: vi.fn(),
+  approveDeploymentMock: vi.fn(),
+  rejectDeploymentMock: vi.fn(),
+}));
+
+vi.mock('@/api/deploymentReviews', () => ({
+  approveDeployment: approveDeploymentMock,
+  rejectDeployment: rejectDeploymentMock,
+  deploymentReviewKeys: {
+    all: ['deployment-reviews'] as const,
+    lists: () => ['deployment-reviews', 'list'] as const,
+  },
 }));
 
 vi.mock('@/api/deploymentVersions', () => ({
@@ -75,6 +88,7 @@ const baseRequest: DeploymentRequest = {
   outcome_reported_at: null,
   outcome_detail: null,
   created_at: '2026-05-01T10:00:00Z',
+  can_review: false,
   decisions: [
     {
       id: 'dec-1',
@@ -157,6 +171,8 @@ describe('DeploymentDetailPage', () => {
     cancelDeploymentRequestMock.mockReset();
     listPipelineEnvironmentVersionsMock.mockReset();
     listPipelineEnvironmentVersionsMock.mockResolvedValue([]);
+    approveDeploymentMock.mockReset();
+    rejectDeploymentMock.mockReset();
     seedUser('u-me');
   });
 
@@ -277,6 +293,159 @@ describe('DeploymentDetailPage', () => {
     await waitFor(() => {
       expect(cancelDeploymentRequestMock).toHaveBeenCalledWith('req-1');
     });
+  });
+
+  it('offers approve and reject when the server says the viewer may decide', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-someone-else',
+      can_review: true,
+    });
+    seedUser('u-reviewer');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(await screen.findByRole('button', { name: 'Approve' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument();
+    // The gate is an APPROVED-only concern; a pending request must not ask for it.
+    expect(getDeploymentGateMock).not.toHaveBeenCalled();
+  });
+
+  it('offers no decision at all when the server says the viewer may not decide', async () => {
+    // A DEPLOYMENT_REVIEW holder whom the resolved review plan does not name: the permission
+    // alone would have rendered a button that the backend then refuses with a 403.
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-someone-else',
+      can_review: false,
+    });
+    seedUser('u-ineligible');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await screen.findByText('dev@example.com');
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull();
+    expect(
+      screen.queryByText('You submitted this deployment — someone else must review it'),
+    ).toBeNull();
+  });
+
+  it('explains to the submitter why their own pending deployment has no decision buttons', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-me',
+      can_review: false,
+    });
+
+    render(wrap(<DeploymentDetailPage />));
+
+    expect(
+      await screen.findByText('You submitted this deployment — someone else must review it'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    // Cancel is still theirs to use.
+    expect(screen.getByRole('button', { name: 'Cancel deployment' })).toBeInTheDocument();
+  });
+
+  it('approves with the comment typed into the modal', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-someone-else',
+      can_review: true,
+    });
+    approveDeploymentMock.mockResolvedValue({
+      decision_id: 'dec-9',
+      decision: 'APPROVED',
+      resulting_status: 'APPROVED',
+      duplicate: false,
+    });
+    seedUser('u-reviewer');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Approve' }));
+    });
+
+    const comment = await screen.findByPlaceholderText('Optional comment for the submitter');
+    fireEvent.change(comment, { target: { value: 'ship it' } });
+
+    // The trigger and the modal's ok button share a label — scope to the dialog.
+    const dialog = screen.getByRole('dialog');
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Approve' }));
+    });
+
+    await waitFor(() => {
+      expect(approveDeploymentMock).toHaveBeenCalledWith('req-1', 'ship it');
+    });
+    expect(rejectDeploymentMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects without a comment', async () => {
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-someone-else',
+      can_review: true,
+    });
+    rejectDeploymentMock.mockResolvedValue({
+      decision_id: 'dec-9',
+      decision: 'REJECTED',
+      resulting_status: 'REJECTED',
+      duplicate: false,
+    });
+    seedUser('u-reviewer');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Reject' }));
+    });
+
+    const dialog = await screen.findByRole('dialog');
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Reject' }));
+    });
+
+    await waitFor(() => {
+      expect(rejectDeploymentMock).toHaveBeenCalledWith('req-1', undefined);
+    });
+  });
+
+  it('clears the comment draft when the modal is dismissed', async () => {
+    // Without the setComment('') in onCancel, a rejection rationale typed and abandoned would be
+    // posted as the approval comment on the next open — destroyOnHidden drops the DOM, not state.
+    getDeploymentRequestMock.mockResolvedValue({
+      ...baseRequest,
+      status: 'PENDING_REVIEW',
+      submitted_by: 'u-someone-else',
+      can_review: true,
+    });
+    seedUser('u-reviewer');
+
+    render(wrap(<DeploymentDetailPage />));
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Reject' }));
+    });
+    fireEvent.change(await screen.findByPlaceholderText('Optional comment for the submitter'), {
+      target: { value: 'not this quarter' },
+    });
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Approve' }));
+    });
+
+    expect(await screen.findByPlaceholderText('Optional comment for the submitter')).toHaveValue('');
   });
 
   it('shows the environment drift when this request is the live deploy', async () => {
