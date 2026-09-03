@@ -4,6 +4,14 @@
 export const DOCS_BASE_URL = 'https://accessflow.io/docs/';
 
 /**
+ * Public changelog, one anchored section per release. Fallback only: the sidebar version chip
+ * links to the `changelog_url` the backend read from `version.json`, so a fork that repoints
+ * `ACCESSFLOW_UPDATES_URL` lands on its own changelog. Not a docs chapter — it must not go
+ * through `docsUrl()` / `DOCS_ANCHOR_PAGES`, which is a `/docs/`-only contract.
+ */
+export const CHANGELOG_URL = 'https://accessflow.io/changelog/';
+
+/**
  * Every anchor in the public docs an admin page may deep-link to, mapped to the
  * chapter page that owns it.
  *

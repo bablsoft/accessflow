@@ -267,6 +267,8 @@ Installed connectors survive restarts via the driver-cache volume (`ACCESSFLOW_D
 Helm chart's `driverCache.persistence` PVC). Engine-plugin JARs cache in the **same directory** as
 JDBC driver JARs. For air-gapped installs, pre-seed the cache and set
 `ACCESSFLOW_DRIVERS_OFFLINE=true` — connectors then report `UNAVAILABLE` unless their JAR is already
-cached. To pre-seed the MongoDB engine, drop `accessflow-engine-mongodb-<v>-all.jar` (from the
+cached. Set `ACCESSFLOW_UPDATES_ENABLED=false` alongside it: the release update check (#836) is the
+only other outbound call the backend makes on its own, and disabling it guarantees nothing leaves
+the process. To pre-seed the MongoDB engine, drop `accessflow-engine-mongodb-<v>-all.jar` (from the
 gh-pages `engines/` folder, or built locally with `mvn -f engines/mongodb/pom.xml package` after a
 backend `install` — the reproducible build matches the pinned SHA-256) into the cache directory.

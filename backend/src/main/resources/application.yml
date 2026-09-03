@@ -471,6 +471,16 @@ accessflow:
     # Outbound HTTP timeouts for the Langfuse ingestion / prompt API.
     connect-timeout: ${ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT:PT5S}
     request-timeout: ${ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT:PT10S}
+  updates:
+    # Release update check: fetches the static manifest at `url` (an unauthenticated GET of a JSON
+    # file — no install identifier, no telemetry) at most once per `ttl`, lazily and off the request
+    # path, and surfaces "a newer stable release exists" to signed-in users. Set enabled=false to
+    # guarantee nothing leaves the process.
+    enabled: ${ACCESSFLOW_UPDATES_ENABLED:true}
+    url: ${ACCESSFLOW_UPDATES_URL:https://accessflow.io/version.json}
+    ttl: ${ACCESSFLOW_UPDATES_TTL:PT24H}
+    # Connect and read timeout for that single GET.
+    timeout: ${ACCESSFLOW_UPDATES_TIMEOUT:PT5S}
   # Env-driven startup bootstrap of admin config (org, admin user, review plans, AI configs,
   # datasources, SAML, OAuth2, notification channels, system SMTP). Disabled by default so the
   # setup wizard remains the path for non-K8s installs. See docs/09-deployment.md →

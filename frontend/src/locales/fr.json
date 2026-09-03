@@ -74,6 +74,7 @@
     "custom_drivers": "Pilotes JDBC personnalisés",
     "profile": "Paramètres du profil",
     "version": "AccessFlow version {{version}}",
+    "update_available": "v{{version}} est disponible — voir le journal des modifications",
     "groups": "Groups",
     "datasource_health": "Santé des sources",
     "slack": "Slack",

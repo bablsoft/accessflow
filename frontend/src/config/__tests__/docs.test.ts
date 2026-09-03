@@ -3,10 +3,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-import { DOCS_ANCHOR_PAGES, DOCS_ANCHORS, DOCS_BASE_URL, docsUrl } from '@/config/docs';
+import {
+  CHANGELOG_URL,
+  DOCS_ANCHOR_PAGES,
+  DOCS_ANCHORS,
+  DOCS_BASE_URL,
+  docsUrl,
+} from '@/config/docs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const websiteDocs = path.resolve(here, '../../../../website/docs');
+const websiteRoot = path.resolve(here, '../../../../website');
+const websiteDocs = path.join(websiteRoot, 'docs');
 const readChapter = (page: string) =>
   readFileSync(path.join(websiteDocs, page, 'index.html'), 'utf8');
 
@@ -23,6 +30,13 @@ describe('docs config', () => {
   it('base URL ends in a slash and matches the docs hub canonical URL', () => {
     expect(DOCS_BASE_URL).toMatch(/\/$/);
     expect(readChapter('')).toContain(`<link rel="canonical" href="${DOCS_BASE_URL}" />`);
+  });
+
+  it('changelog URL ends in a slash and matches the changelog page canonical URL', () => {
+    expect(CHANGELOG_URL).toMatch(/\/$/);
+    expect(CHANGELOG_URL.startsWith(DOCS_BASE_URL)).toBe(false);
+    const changelog = readFileSync(path.join(websiteRoot, 'changelog', 'index.html'), 'utf8');
+    expect(changelog).toContain(`<link rel="canonical" href="${CHANGELOG_URL}" />`);
   });
 
   it('declares no duplicate anchors', () => {

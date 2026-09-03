@@ -1,24 +1,42 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n';
 import { Sidebar } from '../Sidebar';
 import type { AuthUser } from '@/api/auth';
 import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 import { usePreferencesStore } from '@/store/preferencesStore';
 
+// The brand's VersionBadge queries the update endpoint; keep it silent so the nav assertions
+// below never depend on the network or on a resolved snapshot.
+vi.mock('@/api/updates', () => ({
+  fetchUpdateStatus: vi.fn().mockResolvedValue({
+    current_version: '1.0.0-SNAPSHOT',
+    latest_version: null,
+    update_available: false,
+    changelog_url: null,
+    checked_at: null,
+    status: 'UNKNOWN',
+  }),
+  updateKeys: { all: ['updates'], status: () => ['updates', 'status'] },
+}));
+
 function renderSidebar(user: AuthUser, collapsed = false, route = '/dashboard') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[route]}>
-      <Sidebar
-        user={user}
-        pendingCount={0}
-        collapsed={collapsed}
-        onToggle={() => undefined}
-        mobileOpen={false}
-        onMobileClose={() => undefined}
-      />
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[route]}>
+        <Sidebar
+          user={user}
+          pendingCount={0}
+          collapsed={collapsed}
+          onToggle={() => undefined}
+          mobileOpen={false}
+          onMobileClose={() => undefined}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -439,16 +457,18 @@ describe('Sidebar — unified review queue (#772)', () => {
 
   it('shows the pending badge on the review entry', () => {
     render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <Sidebar
-          user={adminUser}
-          pendingCount={7}
-          collapsed={false}
-          onToggle={() => undefined}
-          mobileOpen={false}
-          onMobileClose={() => undefined}
-        />
-      </MemoryRouter>,
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={['/dashboard']}>
+          <Sidebar
+            user={adminUser}
+            pendingCount={7}
+            collapsed={false}
+            onToggle={() => undefined}
+            mobileOpen={false}
+            onMobileClose={() => undefined}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(link(screen, 'Review queue').querySelector('.af-sidebar-badge')).toHaveTextContent('7');
   });

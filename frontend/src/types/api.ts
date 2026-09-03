@@ -4083,3 +4083,18 @@ export interface DeploymentVersionHistoryEntry {
 }
 
 export type DeploymentVersionHistoryPage = PageEnvelope<DeploymentVersionHistoryEntry>;
+
+// ── Release update check (#836) ────────────────────────────────────────────────
+export type UpdateCheckStatus = 'UNKNOWN' | 'UP_TO_DATE' | 'UPDATE_AVAILABLE';
+
+export interface UpdateStatus {
+  /** The running backend build; absent only when build metadata is missing (a non-packaged dev run). */
+  current_version?: string | null;
+  /** From the published manifest; absent unless the last check succeeded (the API omits nulls). */
+  latest_version?: string | null;
+  update_available: boolean;
+  changelog_url?: string | null;
+  /** Time of the last check attempt, success or failure; absent before the first one. */
+  checked_at?: string | null;
+  status: UpdateCheckStatus;
+}

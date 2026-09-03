@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Changelog — every release since v1.0 — AccessFlow</title>
+  <meta name="description" content="Every AccessFlow release since v1.0, newest first, with a stable link per version — what each milestone added across database, API and deployment governance." />
+
+  <link rel="canonical" href="https://accessflow.io/changelog/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Changelog — every release since v1.0 — AccessFlow" />
+  <meta property="og:description" content="What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens." />
+  <meta property="og:url" content="https://accessflow.io/changelog/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Changelog — every release since v1.0 — AccessFlow" />
+  <meta name="twitter:description" content="What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.io/changelog/#page",
+        "breadcrumb": { "@id": "https://accessflow.io/changelog/#breadcrumb" },
+        "name": "Changelog — every release since v1.0 — AccessFlow",
+        "headline": "AccessFlow changelog — every release, newest first",
+        "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
+        "inLanguage": "en",
+        "datePublished": "2026-09-03",
+        "dateModified": "2026-09-03",
+        "url": "https://accessflow.io/changelog/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": { "@id": "https://accessflow.io/#website" },
+        "about": { "@id": "https://accessflow.io/#software" },
+        "author": { "@id": "https://accessflow.io/#org" },
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/changelog/#breadcrumb",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "AccessFlow", "item": "https://accessflow.io/" },
+          { "@type": "ListItem", "position": 2, "name": "Changelog", "item": "https://accessflow.io/changelog/" }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": { "@id": "https://accessflow.io/#org" }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": { "@id": "https://accessflow.io/#org" },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Releases</p>
+            <a href="#v2-4-0">v2.4.0</a>
+            <a href="#v2-3-0">v2.3.0</a>
+            <a href="#v2-2-0">v2.2.0</a>
+            <a href="#v2-1-0">v2.1.0</a>
+            <a href="#v2-0-0">v2.0.0</a>
+            <a href="#v1-4-0">v1.4.0</a>
+            <a href="#v1-3-0">v1.3.0</a>
+            <a href="#v1-2-0">v1.2.0</a>
+            <a href="#v1-1-0">v1.1.0</a>
+            <a href="#v1-0-0">v1.0.0</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/roadmap/">Roadmap</a>
+            <a href="/docs/install/">Install &amp; upgrade</a>
+            <a href="https://github.com/bablsoft/accessflow/releases">Releases on GitHub</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Changelog</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Changelog</span>
+          <h1>AccessFlow changelog — every release, newest first</h1>
+          <p>
+            One entry per stable release, each with a permanent link you can share or bookmark.
+            A self-hosted AccessFlow checks the small
+            <a class="prose-link" href="/version.json">version.json</a> file next to this page at most
+            once a day and, when a newer stable release exists, turns the version under the sidebar logo
+            into a link that lands on the matching entry below. Pre-release builds are listed on
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/releases">GitHub releases</a>
+            but never trigger that hint. Upgrade steps are in
+            <a class="prose-link" href="/docs/install/">Install &amp; first run</a>.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/roadmap/" class="btn btn-ghost">What's planned next</a>
+          </div>
+        </header>
+
+        <section class="docs-section scroll-pad" id="v2-4-0">
+          <h2>v2.4.0 — Deployment approval governance</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-08-27">27 August 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.4.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Deployments are now a governed request</strong>, alongside queries and API calls. A CI/CD job asks AccessFlow for permission to release, an AI analysis scores the release metadata, reviewers decide in the web UI, and the pipeline blocks on a gate that only opens for an approved request.</li>
+            <li><strong>Pipelines and environments.</strong> Admins define pipelines for GitHub Actions, GitLab CI, Azure Pipelines, Jenkins, CircleCI, Bitbucket Pipelines or any generic runner, with ordered per-environment policies: required approvals, review-plan overrides and break-glass opt-in. Trigger and break-glass rights are granted per user or per group.</li>
+            <li><strong>Fail-closed release gate.</strong> The gate answers "not releasable" by default and opens only for an approved request with no active freeze window and a scheduled time that has passed. Any error or unknown request keeps the gate shut.</li>
+            <li><strong>Freeze windows</strong> — one-off or weekly recurring, org-wide, per pipeline or per environment — either hold releases or reject them at submission, and hold when a definition cannot be evaluated.</li>
+            <li><strong>Audited break-glass deployments</strong> need both an explicit grant and an environment that allows them, with no admin bypass and a mandatory retrospective review.</li>
+            <li><strong>Outcome reporting.</strong> After the deploy, the pipeline confirms execution and reports success, failure or rollback; a rollback on a review-required environment opens a follow-up review the submitter can never close.</li>
+            <li><strong>Native CI steps</strong> for GitHub Actions, GitLab CI and Azure Pipelines, plus a plain-curl walkthrough; notifications for every transition; an audit row for each state change; and a full web UI with a deployment list, detail page, reviewer queue, rollback worklist and pipeline administration with a copy-paste CI setup panel.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v2-3-0">
+          <h2>v2.3.0 — Data-aware governance and reviewer intelligence</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-08-21">21 August 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.3.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Automated sensitive-data discovery.</strong> An opt-in per-datasource scanner samples column data through the governed sampling path, detects e-mail addresses, card numbers, national IDs, IBANs and phone numbers locally (optionally with the org's AI provider) and proposes classification tags an admin confirms or dismisses.</li>
+            <li><strong>Approval-outcome prediction.</strong> A per-organization model trained only on that org's own human review decisions shows reviewers how likely a query is to be approved. Advisory only — it never routes or decides.</li>
+            <li><strong>Recurring approved queries with result subscriptions.</strong> Approve a query, its cadence and its expiry once; each occurrence then runs through the full proxy pipeline and delivers results by e-mail or chat. Submitters and reviewers can stop a series at any time.</li>
+            <li><strong>Least-privilege intelligence.</strong> Standing grants are scored as never used, stale, over-scoped or active from real usage, surfaced in recertification worklists and a new over-provisioned-access report. Nothing is revoked automatically.</li>
+            <li><strong>Reviewer delegation and escalation.</strong> Out-of-office delegates with full attribution on every decision, plus optional escalation and nudge reminders for idle reviews.</li>
+            <li><strong>Result-export governance and DLP.</strong> Per-datasource export policies allow, watermark, cap or deny result downloads; every export is signed and audited.</li>
+            <li><strong>SIEM and WORM audit streaming</strong> to Splunk HEC, syslog/CEF, signed HTTPS batches and S3 Object Lock. Streaming is additive: the tamper-evident audit log remains the record.</li>
+            <li><strong>SCIM 2.0 provisioning.</strong> Okta, Entra ID, Keycloak and other identity providers create, update and deactivate users and groups over SCIM, so offboarding in the IdP revokes access here immediately.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v2-2-0">
+          <h2>v2.2.0 — Enterprise operations</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-07-20">20 July 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.2.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>External secrets managers.</strong> Datasource credentials resolve from HashiCorp Vault, AWS Secrets Manager or Azure Key Vault at connection time, with local encryption as the fallback and every resolve audited.</li>
+            <li><strong>High-volume proxy performance.</strong> Opt-in Redis-backed result caching for reads, batched inserts inside transaction envelopes, and multi-replica read load balancing with per-node health checks and primary failover.</li>
+            <li><strong>Backup, restore and disaster recovery.</strong> Helm backup and restore jobs, post-restore audit-chain verification, an AI provider fallback pool so analysis degrades to a local model when the primary is unreachable, and a documented runbook.</li>
+            <li><strong>ServiceNow and Jira ticketing.</strong> Tickets open automatically when a query is rejected, escalated or times out, link back to the request, and can sync a ticket resolution onto the pending decision.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v2-1-0">
+          <h2>v2.1.0 — API access governance, data lifecycle and reviewer productivity</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-07-03">3 July 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.1.0">Release on GitHub</a> ·
+            Patch release: <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.1.1">v2.1.1</a>
+          </p>
+          <ul>
+            <li><strong>API access governance.</strong> The same submit → AI risk → review → execute pipeline now governs outbound REST, SOAP, GraphQL and gRPC calls: a connector catalog with schema ingestion, a schema-guided request builder, response masking, break-glass and text-to-API drafting.</li>
+            <li><strong>Masking, data classification and dynamic variables for API connectors</strong> — field, JSON-path, XML-path and regex masking with reveal scoping, classification tags that raise AI risk, and per-call computed values (signatures, nonces, timestamps) that are never persisted.</li>
+            <li><strong>Request chaining and grouping.</strong> Bundle ordered query and API-call members into one request with a single aggregated review.</li>
+            <li><strong>AI optimization and index recommendations</strong>, applied as a draft that goes through the normal review, and a <strong>dry-run sandbox</strong> that previews the execution plan and estimated impact without changing data — including scan-cost signals on cloud warehouses.</li>
+            <li><strong>Saved-query version history and diffing</strong>, <strong>real-time collaborative editing</strong> of a query in review, and <strong>immutable query snapshots with replay</strong> into a test datasource.</li>
+            <li><strong>Mobile-friendly approvals</strong> as an installable app with one-tap push, guarded by step-up authentication.</li>
+            <li><strong>Multi-model AI orchestration</strong> with voting strategies and pre-call guardrails, per-model cost and latency tracked.</li>
+            <li><strong>Data lifecycle manager</strong> with retention policies, right-to-erasure requests and proxy-enforced pseudonymization; <strong>access recertification campaigns</strong> with CSV evidence; <strong>group-based access grants</strong>; and a <strong>personalized dashboard</strong> with an optional weekly digest.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v2-0-0">
+          <h2>v2.0.0 — Beyond relational databases</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-06-24">24 June 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.0.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>MongoDB, Couchbase and Redis governance</strong> through on-demand engine plugins: classification onto the standard approval workflow, row-level security, field masking and schema introspection for document and key-value stores.</li>
+            <li><strong>Text-to-query for NoSQL.</strong> A natural-language prompt drafts the engine's native query, still submitted through the full review pipeline.</li>
+            <li><strong>Behavioral anomaly detection.</strong> Rolling per-user baselines built from audit metadata flag out-of-pattern activity, escalate the user's next query and fan out notifications.</li>
+            <li><strong>Break-glass emergency access</strong> with instant admin fan-out, a prominent audit row and a mandatory retrospective review.</li>
+            <li><strong>Multi-tenant organizations with per-org quotas</strong>, a platform-admin console and a disable switch that blocks an org immediately.</li>
+            <li><strong>Data classification tagging</strong> for tables and columns; tagging derives masking and raises AI risk.</li>
+            <li><strong>Compliance reports and signed exports</strong> over the forensic query record, with a dedicated read-only auditor role.</li>
+            <li><strong>Terraform / OpenTofu provider and CI templates</strong> for declarative configuration, and <strong>OpenTelemetry tracing</strong> with Prometheus metrics and ready-made Grafana dashboards.</li>
+            <li><strong>Expanded MCP agent toolset</strong> — parse-only validation, governed column samples and the caller's own audit trail.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v1-4-0">
+          <h2>v1.4.0 — AI enhancements</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-06-08">8 June 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.4.0">Release on GitHub</a> ·
+            Patch release: <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.4.1">v1.4.1</a>
+          </p>
+          <ul>
+            <li><strong>OpenAI-compatible and Hugging Face providers.</strong> Point the OpenAI adapter at any compatible endpoint, or use the Hugging Face inference router out of the box.</li>
+            <li><strong>Editable analyzer prompts</strong> per AI configuration, with the default template shown in the admin UI.</li>
+            <li><strong>Langfuse integration</strong> for per-org call tracing and managed prompts.</li>
+            <li><strong>Text-to-SQL</strong> — draft SQL from a plain-language prompt, still reviewed like any other query.</li>
+            <li><strong>RAG knowledge base.</strong> Attach documents to an AI configuration so risk analysis and drafting can cite your own schema notes and policies.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v1-3-0">
+          <h2>v1.3.0 — Fine-grained access control and data protection</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-06-03">3 June 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.3.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Just-in-time access requests.</strong> Users request temporary, scoped access that is granted on approval and revoked automatically on expiry.</li>
+            <li><strong>Policy-as-code routing.</strong> Attribute-based rules auto-approve, auto-reject, require extra approvers or escalate based on query type, tables, AI risk, role, group and time of day — and on client context such as source network and CI origin, failing closed when context is missing.</li>
+            <li><strong>Row-level security policies</strong> injected at the query layer so each user sees only the rows they are authorized for.</li>
+            <li><strong>Dynamic data masking</strong> per column — full, partial, hash, e-mail and format-preserving strategies with role- and group-based reveal.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v1-2-0">
+          <h2>v1.2.0 — Integrations and reviewer experience</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-05-29">29 May 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.2.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Reviewer groups and scoping</strong> — user groups, per-datasource reviewer assignment and SSO group mapping so teams only see the queues they own.</li>
+            <li><strong>Read-replica routing</strong> sends reads to a replica and keeps writes on the primary.</li>
+            <li><strong>Query result diffing</strong> between repeated runs of the same query.</li>
+            <li><strong>Approve or reject from Slack</strong> via an interactive Slack app, and a <strong>PagerDuty channel</strong> for critical-risk and review-timeout events.</li>
+            <li><strong>Query templates library</strong> shared across the team, and a <strong>datasource health dashboard</strong> with pool statistics, query volume and latency.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v1-1-0">
+          <h2>v1.1.0 — Productivity and operations polish</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-05-27">27 May 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.1.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Database drivers download on demand</strong> the first time an engine is used, instead of every driver shipping inside the application.</li>
+            <li><strong>Datasource creation wizard</strong> with engine logos and prefilled defaults.</li>
+            <li><strong>Query scheduling</strong> and <strong>bulk approvals</strong>.</li>
+            <li><strong>AI analysis history dashboard</strong> with risk trends and most-flagged query types.</li>
+            <li><strong>Schema explorer ER view</strong> and a searchable object tree with masking-aware sample previews.</li>
+            <li><strong>Review plan templates</strong>, <strong>audit log CSV export</strong> and an <strong>e-mail invitation flow</strong> for new users.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="v1-0-0">
+          <h2>v1.0.0 — General availability</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-05-26">26 May 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.0.0">Release on GitHub</a> ·
+            Patch release: <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.0.1">v1.0.1</a>
+          </p>
+          <p>The core platform — everything a team needs to govern database access end to end.</p>
+          <h3>Proxy and execution</h3>
+          <ul>
+            <li>Full SQL proxy for PostgreSQL, MySQL, MariaDB, Oracle and Microsoft SQL Server, plus admin-uploaded JDBC drivers for any other relational engine.</li>
+            <li>Parser-based validation and classification, schema and table allow-listing, row caps, and DDL blocked by default — over reusable connections per datasource, so a governed query never waits on a fresh handshake.</li>
+          </ul>
+          <h3>SQL editor</h3>
+          <ul>
+            <li>Dialect-aware highlighting, schema autocomplete, a formatter and a live AI hint panel.</li>
+          </ul>
+          <h3>Review workflows</h3>
+          <ul>
+            <li>Per-datasource review plans, multi-stage approval chains, an AI review before human approval, auto-approve for reads, approval timeouts and submitter cancellation.</li>
+          </ul>
+          <h3>AI query analysis</h3>
+          <ul>
+            <li>OpenAI, Anthropic and Ollama adapters with risk scoring, missing-index detection, anti-pattern flags and syntax suggestions.</li>
+          </ul>
+          <h3>Access control, audit and notifications</h3>
+          <ul>
+            <li>Role-based access with per-user datasource permissions, time-limited grants and schema/table scoping.</li>
+            <li>An append-only audit log with full event coverage and a searchable UI.</li>
+            <li>E-mail, Slack and signed webhook notifications with retries.</li>
+          </ul>
+          <h3>Deployment and authentication</h3>
+          <ul>
+            <li>Docker Compose, a Helm 3 chart with autoscaling and health probes.</li>
+            <li>JWT sign-in with refresh-token rotation, SAML 2.0 single sign-on with auto-provisioning and attribute mapping, and OAuth 2.0 / OIDC sign-in with built-in provider templates.</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

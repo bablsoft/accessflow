@@ -1879,6 +1879,16 @@ img, table, pre { max-width: 100%; }
   scroll-margin-top: 88px;
 }
 
+/* Changelog: the "Released <date> · GitHub" line under each release heading. */
+.docs-section p.changelog-meta {
+  color: var(--fg-mute);
+  font-family: var(--mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  margin-top: -12px;
+  margin-bottom: 20px;
+}
+
 .docs-section h2 {
   font-size: 30px;
   font-weight: 500;

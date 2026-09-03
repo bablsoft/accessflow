@@ -18,6 +18,9 @@ website/
 ├── index.html                  # the pitch, connector grid, feature list
 ├── sitemap.xml                 # one <url> block per page, each with <lastmod>
 ├── app.js                      # LEGACY_DOCS_ANCHORS — permanent forwarders
+├── version.json                # release manifest self-hosted installs poll daily (#836) — stable versions only
+├── roadmap/                    # capability grid + milestone context
+├── changelog/                  # one anchored section per release (#836) — written by prep-gh-release, never renamed
 └── docs/
     ├── index.html              # hub
     ├── install/
@@ -106,6 +109,8 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
 
 `website/README.md` holds the content-source map: which part of the app or which `docs/` chapter
 each section of the site is derived from. Update it when you add a section.
+
+`website/changelog/index.html` and `website/version.json` are release artefacts: the `prep-gh-release` skill (gate 2g + step 4a′) appends the entry and rewrites the manifest when a milestone ships. Never rename a `#vX-Y-0` anchor — every self-hosted install's update chip deep-links to it via the `changelog_url` in `version.json` — and never write a pre-release version into the manifest, or every install nags about a beta. `frontend/src/config/docs.ts` → `CHANGELOG_URL` is pinned to the page's canonical by `docs.test.ts`; it is a fallback only, and it must **not** join `DOCS_ANCHOR_PAGES`, which is a `/docs/`-only contract.
 
 The `security.txt` expiry is guarded by `websiteSecurityTxt.test.ts`, which fails CI *before* the
 file expires — if that test starts failing, the fix is to extend the expiry, not to skip the test.

@@ -229,7 +229,7 @@ helm install accessflow accessflow/accessflow \
 | [`values-minimal.yaml`](../charts/accessflow/examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
 | [`values-production.yaml`](../charts/accessflow/examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
 | [`values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
-| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, manual TLS Secret. |
+| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, release update check off, manual TLS Secret. |
 
 **Bootstrap slices** (each declares organization + first admin and layers on
 top of a deployment shape — see [Bootstrap configuration](#bootstrap-configuration)
@@ -1051,6 +1051,17 @@ Per-organization Langfuse credentials and toggles live in the `langfuse_config` 
 | `ACCESSFLOW_LANGFUSE_CONNECT_TIMEOUT` | Optional | `PT5S` | Connect timeout for the Langfuse ingestion / prompt API client. |
 | `ACCESSFLOW_LANGFUSE_REQUEST_TIMEOUT` | Optional | `PT10S` | Read timeout for the Langfuse ingestion / prompt API client. |
 
+#### Release Update Check (#836)
+
+A self-hosted install can learn that a newer **stable** release exists. The backend fetches the static manifest `https://accessflow.io/version.json` (`{"version","released_at","changelog_url"}`) lazily and off the request path, at most once per `ACCESSFLOW_UPDATES_TTL`, and every signed-in user sees the result as a version chip under the sidebar logo that links to the changelog. **What leaves the network:** a single unauthenticated `GET` for that JSON file — no install identifier, no telemetry, no request body; nothing about the install is sent. Any network or parse failure degrades silently to "unknown". Set `ACCESSFLOW_UPDATES_ENABLED=false` on air-gapped installs to guarantee no outbound call at all.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_UPDATES_ENABLED` | Optional | `true` | `false` disables the check entirely: `GET /api/v1/system/update-status` answers `UNKNOWN` and no request leaves the process. |
+| `ACCESSFLOW_UPDATES_URL` | Optional | `https://accessflow.io/version.json` | The manifest URL. A fork or an internal mirror points this at its own `version.json`; the `changelog_url` inside it is what the UI links to. |
+| `ACCESSFLOW_UPDATES_TTL` | Optional | `PT24H` | ISO-8601 duration a fetched (or failed) result is served from memory before the next background refresh. Per replica — each backend keeps its own snapshot. |
+| `ACCESSFLOW_UPDATES_TIMEOUT` | Optional | `PT5S` | Connect and read timeout for that single `GET`. |
+
 #### RAG Knowledge Base (AF-336)
 
 Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, knowledge documents) are managed from `/admin/ai-configs`, not in env. These variables are deployment-wide.
@@ -1694,6 +1705,13 @@ Maintainers run the **Release** workflow from the Actions tab
 4. Publishes a **GitHub Release** with auto-generated changelog notes (PRs and
    commits between the previous tag and this one), flagged pre-release when the
    version carries a `-suffix`.
+
+**Order matters for GA releases.** The `prep-gh-release` skill writes the release's
+entry onto the public changelog (`website/changelog/index.html`) and bumps
+`website/version.json`, and merging that prep PR deploys the website. From that moment
+every self-hosted install announces the new version and links to its changelog entry —
+so dispatch **Release** immediately after the prep PR merges, not days later. Betas
+never touch `version.json`, so they need no such care.
 
 ### Installing a pre-release / beta build
 

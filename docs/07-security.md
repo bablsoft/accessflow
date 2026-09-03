@@ -296,6 +296,13 @@ live profile). Tokens minted before AF-522 (no permissions claim) fall back to d
 from their system-role claim. A principal on a system role also keeps the legacy `ROLE_<name>`
 authority during the transition.
 
+**Authenticated-only endpoints.** A handful of install-level reads carry
+`@PreAuthorize("isAuthenticated()")` and no permission at all, because the answer is the same for
+every user and contains no organization data. The one added by #836 is
+`GET /api/v1/system/update-status` (is a newer stable release out, and where is its changelog
+entry) — any signed-in user, any role, sees it; it is what the sidebar version chip renders. The
+JWT filter chain still rejects anonymous callers (`401`).
+
 **Role-name matching.** Users carry `role_id` → `roles`; the legacy `users.role` enum column stays
 populated for system-role users (and NULL for custom-role users) for backward compatibility.
 Everything that targets roles *by name* — masking `reveal_to_roles`, row-security
