@@ -293,7 +293,8 @@ Everything below is state inside the demo instance and in GitHub settings; none 
 2. **Mint its API key.** API keys are self-service — `/api/v1/me/api-keys` has no admin-side
    equivalent — so sign in as the service account in a private window, open the user menu →
    **Profile settings** → **API keys** → **Create API key**. The raw `af_…` value is shown once;
-   copy it then. (UI-minted keys never expire; the form has no expiry field.)
+   copy it then. The form's optional **Expires** field takes a date and time; leave it empty and the
+   key never expires.
 3. **Create the pipeline, environment and grant.** As an admin: sidebar → *Connections* →
    *Deployments* → **Deployment Pipelines** → **Add pipeline**, provider **GitHub Actions**. Creation lands on
    `/admin/deployment-pipelines/<uuid>` — **that UUID in the address bar is the pipeline id**;

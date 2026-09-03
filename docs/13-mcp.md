@@ -23,7 +23,8 @@ and [05-backend.md → MCP server (mcp module)](05-backend.md#mcp-server-mcp-mod
 
 1. Sign in to AccessFlow.
 2. Open **Profile → API keys**.
-3. Click **Create API key**, give it a short name (e.g. `claude-desktop`), and confirm.
+3. Click **Create API key**, give it a short name (e.g. `claude-desktop`), optionally set an
+   expiry (see [Expiry (optional)](#expiry-optional) below), and confirm.
 4. **Copy the raw key now** — `af_kQ7…` — and store it somewhere safe. The plaintext is shown
    exactly once; AccessFlow only persists a SHA-256 hash, so neither admins nor the system can
    recover it later. If you lose it, revoke the key and create a new one.
@@ -38,14 +39,18 @@ get 401 on the next request. Idempotent: revoking an already-revoked key is a no
 
 ### Expiry (optional)
 
-`POST /api/v1/api-keys` accepts an optional `expires_at` timestamp. Once it passes, the key stops
+`POST /api/v1/me/api-keys` accepts an optional `expires_at` timestamp. Once it passes, the key stops
 authenticating exactly as a revoked one does — 401 on the next request, on `/mcp/**` and on any REST
-endpoint. Expiry is checked at every resolve, so nothing has to run for it to take effect, and the
-key's `expires_at` is shown in the profile list.
+endpoint. Expiry is checked at every resolve, so nothing has to run for it to take effect. The
+profile list shows the key's `expires_at` and marks the row **Expired** once that instant passes.
 
-The browser form does not expose the control yet — keys minted there never expire, so set an expiry
-through the API or through a bootstrap service account (`apiKeyExpiresAt`) when you want one. The
-form field is tracked under [#824](https://github.com/bablsoft/accessflow/issues/824).
+The **Create API key** form carries an optional **Expires** field, a date-and-time picker whose
+past dates and hours are greyed out. Leave it empty and the key never expires, and revoking it is
+then the only way to cut it off.
+
+`expires_at` can also be set on the request body directly, or declaratively on a bootstrap service
+account (`apiKeyExpiresAt`). Neither of those paths range-checks the value — only the picker does —
+so an instant already in the past mints a key that is dead on arrival.
 
 ---
 

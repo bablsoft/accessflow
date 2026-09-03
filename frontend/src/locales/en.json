@@ -2425,6 +2425,9 @@
       "name_placeholder": "e.g. claude-mcp",
       "name_required": "Name is required.",
       "name_size": "Name must be between 1 and 100 characters.",
+      "expires_at_label": "Expires",
+      "expires_at_placeholder": "Never expires",
+      "expires_at_help": "Optional. Leave empty and the key never expires — you can still revoke it at any time.",
       "issued_title": "Copy your new API key",
       "raw_key_label": "Key",
       "copy_once_warning": "This is the only time the key is shown. Copy it now and store it somewhere safe — you won't be able to retrieve it again.",
@@ -2443,7 +2446,8 @@
       },
       "status": {
         "active": "Active",
-        "revoked": "Revoked"
+        "revoked": "Revoked",
+        "expired": "Expired"
       }
     },
     "slack": {
