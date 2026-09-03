@@ -46,7 +46,7 @@ vi.mock('@/api/deploymentReviews', () => ({
   },
 }));
 
-const DeploymentReviewQueuePage = (await import('./DeploymentReviewQueuePage')).default;
+const { PendingDeploymentsTab, RollbackReviewsTab } = await import('./DeploymentReviewTabs');
 
 const baseItem: DeploymentReviewItem = {
   deployment_request_id: 'req-1',
@@ -91,7 +91,7 @@ function rollbackPage(content: DeploymentRollbackReview[]): DeploymentRollbackRe
   return { content, page: 0, size: 20, total_elements: content.length, total_pages: 1 };
 }
 
-function wrap(node: ReactNode, initialEntries: string[] = ['/deployment-reviews']) {
+function wrap(node: ReactNode, initialEntries: string[] = ['/reviews?tab=deployments']) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
@@ -102,7 +102,7 @@ function wrap(node: ReactNode, initialEntries: string[] = ['/deployment-reviews'
   );
 }
 
-describe('DeploymentReviewQueuePage', () => {
+describe('DeploymentReviewTabs', () => {
   beforeEach(() => {
     listDeploymentReviewsMock.mockReset();
     approveDeploymentMock.mockReset();
@@ -127,16 +127,16 @@ describe('DeploymentReviewQueuePage', () => {
     });
   });
 
-  it('renders pending queue rows on the default tab', async () => {
+  it('renders pending queue rows', async () => {
     listDeploymentReviewsMock.mockResolvedValue(reviewPage([baseItem]));
 
-    render(wrap(<DeploymentReviewQueuePage />));
+    render(wrap(<PendingDeploymentsTab />));
 
     expect(await screen.findByText('Checkout Service')).toBeInTheDocument();
     expect(screen.getByText('2.4.1')).toBeInTheDocument();
     expect(screen.getByText('production')).toBeInTheDocument();
     expect(screen.getByText('1 of 1')).toBeInTheDocument();
-    // The rollback tab is not mounted, so its list is never fetched.
+    // The rollback tab is a sibling component, so its list is never fetched here.
     expect(listDeploymentRollbackReviewsMock).not.toHaveBeenCalled();
   });
 
@@ -149,7 +149,7 @@ describe('DeploymentReviewQueuePage', () => {
       duplicate: false,
     });
 
-    render(wrap(<DeploymentReviewQueuePage />));
+    render(wrap(<PendingDeploymentsTab />));
 
     const approveBtn = await screen.findByRole('button', { name: 'Approve' });
     await act(async () => {
@@ -177,34 +177,14 @@ describe('DeploymentReviewQueuePage', () => {
       reviewPage([{ ...baseItem, submitted_by_user_id: 'u-reviewer' }]),
     );
 
-    render(wrap(<DeploymentReviewQueuePage />));
+    render(wrap(<PendingDeploymentsTab />));
 
     const approveBtn = await screen.findByRole('button', { name: 'Approve' });
     expect(approveBtn).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled();
   });
 
-  it('switches to the rollback tab via the tab bar and renders rollback rows', async () => {
-    listDeploymentReviewsMock.mockResolvedValue(reviewPage([]));
-    listDeploymentRollbackReviewsMock.mockResolvedValue(rollbackPage([baseRollback]));
-
-    render(wrap(<DeploymentReviewQueuePage />));
-
-    await screen.findByText('No deployments waiting for review');
-    await act(async () => {
-      fireEvent.click(screen.getByRole('tab', { name: 'Rollback reviews' }));
-    });
-
-    expect(await screen.findByText('Rolled back after error-rate spike')).toBeInTheDocument();
-    expect(listDeploymentRollbackReviewsMock).toHaveBeenCalledWith({
-      status: 'PENDING_REVIEW',
-      page: 0,
-      size: 20,
-    });
-    expect(screen.getByText('View deployment')).toBeInTheDocument();
-  });
-
-  it('acknowledges a rollback with the modal comment when mounted on the rollback tab', async () => {
+  it('acknowledges a rollback with the modal comment', async () => {
     listDeploymentRollbackReviewsMock.mockResolvedValue(rollbackPage([baseRollback]));
     acknowledgeDeploymentRollbackMock.mockResolvedValue({
       ...baseRollback,
@@ -214,7 +194,7 @@ describe('DeploymentReviewQueuePage', () => {
       reviewed_at: '2026-05-02T10:00:00Z',
     });
 
-    render(wrap(<DeploymentReviewQueuePage />, ['/deployment-reviews?tab=rollbacks']));
+    render(wrap(<RollbackReviewsTab />, ['/reviews?tab=rollbacks']));
 
     const ackBtn = await screen.findByRole('button', { name: 'Acknowledge' });
     await act(async () => {
@@ -237,7 +217,7 @@ describe('DeploymentReviewQueuePage', () => {
     await waitFor(() => {
       expect(acknowledgeDeploymentRollbackMock).toHaveBeenCalledWith('rb-1', 'root cause: INC-7');
     });
-    // Pending tab was never mounted.
+    // The pending tab is a sibling component and was never mounted.
     expect(listDeploymentReviewsMock).not.toHaveBeenCalled();
   });
 });

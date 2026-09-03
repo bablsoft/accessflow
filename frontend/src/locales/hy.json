@@ -92,7 +92,6 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews",
     "lifecycle": "Տվյալների կյանքի ցիկլ",
     "request_erasure": "Հայցել ջնջում",
     "erasure_review": "Ջնջման վերանայում",
@@ -100,7 +99,6 @@
     "requestGroupReviews": "Group Reviews",
     "roles": "Դերեր",
     "deployments": "Տեղակայումներ",
-    "deploymentReviews": "Տեղակայումների վերանայում",
     "deploymentVersions": "Տարբերակների մատրիցա",
     "deploymentPipelines": "Տեղակայման փիփլայններ"
   },
@@ -785,7 +783,13 @@
   },
   "reviews": {
     "title": "Վերանայման հերթ",
-    "subtitle": "Ձեր հաստատման սպասող հարցումներ։ Նորերը՝ առաջինը։",
+    "hub": {
+      "subtitle": "Այն ամենը, ինչ սպասում է ձեր որոշմանը՝ հարցումներ, API հարցումներ և տեղակայումներ։",
+      "tab_queries": "Հարցումներ · {{count}}",
+      "tab_api": "API հարցումներ · {{count}}",
+      "tab_deployments": "Տեղակայումներ · {{count}}",
+      "tab_rollbacks": "Հետգլորումներ · {{count}}"
+    },
     "tab_mine": "Հանձնարարված ձեզ · {{count}}",
     "tab_all": "Բոլոր սպասողները · {{count}}",
     "tab_recent": "Վերջերս որոշված",
@@ -3985,7 +3989,6 @@
       "variableValue": "Արժեք"
     },
     "reviews": {
-      "title": "API Reviews",
       "empty": "No API requests awaiting review",
       "approve": "Approve",
       "reject": "Reject",
@@ -3994,7 +3997,6 @@
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
       "risk": "Risk",
-      "subtitle": "Հաստատել կամ մերժել կառավարվող API կանչերը",
       "searchPlaceholder": "Որոնել ըստ կոնեկտորի, ուղու",
       "actions": "Գործողություններ",
       "overrides": "Վերասահմանումներ",
@@ -4309,10 +4311,6 @@
       "timeline_outcome": "Արդյունք"
     },
     "reviews": {
-      "title": "Տեղակայումների վերանայում",
-      "subtitle": "Ձեր որոշմանը սպասող տեղակայումները",
-      "tabPending": "Սպասող տեղակայումներ",
-      "tabRollbacks": "Հետգլորումների վերանայումներ",
       "approve": "Հաստատել",
       "reject": "Մերժել",
       "approved": "Հաստատված",

@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react';
-import { hasPermission } from '@/utils/permissions';
 import { Outlet, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { Sidebar } from '@/components/common/Sidebar';
 import { SetupProgressWidget } from '@/components/common/SetupProgressWidget';
 import { Topbar } from '@/components/common/Topbar';
 import { RealtimeBridge } from '@/realtime/RealtimeBridge';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { listPendingReviews, reviewKeys } from '@/api/reviews';
+import { usePendingReviewCounts } from '@/hooks/usePendingReviewCounts';
 import './app-layout.css';
 
 export function AppLayout() {
@@ -18,15 +16,8 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  const isReviewer = hasPermission(user, 'QUERY_REVIEW');
-  const pendingFilters = { size: 1 };
-  const { data } = useQuery({
-    queryKey: reviewKeys.pendingFor(pendingFilters),
-    queryFn: () => listPendingReviews(pendingFilters),
-    enabled: !!user && isReviewer,
-    refetchInterval: 30_000,
-  });
-  const pendingCount = data?.total_elements ?? 0;
+  // One badge for the unified review queue (#772): the sum over every queue the user may work.
+  const { total: pendingCount } = usePendingReviewCounts();
 
   useEffect(() => {
     setMobileOpen(false);

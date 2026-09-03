@@ -7,13 +7,36 @@ import type { AuthUser } from '@/api/auth';
 import type { PendingReviewsPage } from '@/types/api';
 import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
-const { listPendingReviewsMock } = vi.hoisted(() => ({
+const {
+  listPendingReviewsMock,
+  listPendingApiReviewsMock,
+  listDeploymentReviewsMock,
+  listDeploymentRollbackReviewsMock,
+} = vi.hoisted(() => ({
   listPendingReviewsMock: vi.fn(),
+  listPendingApiReviewsMock: vi.fn(),
+  listDeploymentReviewsMock: vi.fn(),
+  listDeploymentRollbackReviewsMock: vi.fn(),
 }));
 
 vi.mock('@/api/reviews', async () => {
   const actual = await vi.importActual<typeof import('@/api/reviews')>('@/api/reviews');
   return { ...actual, listPendingReviews: listPendingReviewsMock };
+});
+
+vi.mock('@/api/apiRequests', async () => {
+  const actual = await vi.importActual<typeof import('@/api/apiRequests')>('@/api/apiRequests');
+  return { ...actual, listPendingApiReviews: listPendingApiReviewsMock };
+});
+
+vi.mock('@/api/deploymentReviews', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/api/deploymentReviews')>('@/api/deploymentReviews');
+  return {
+    ...actual,
+    listDeploymentReviews: listDeploymentReviewsMock,
+    listDeploymentRollbackReviews: listDeploymentRollbackReviewsMock,
+  };
 });
 
 vi.mock('@/realtime/RealtimeBridge', () => ({
@@ -72,12 +95,20 @@ const analystUser: AuthUser = {
   preferred_language: null,
 };
 
-function emptyPage(): PendingReviewsPage {
-  return { content: [], page: 0, size: 1, total_elements: 0, total_pages: 0 };
+function pageWithTotal(total: number): PendingReviewsPage {
+  return { content: [], page: 0, size: 1, total_elements: total, total_pages: total > 0 ? 1 : 0 };
 }
 
-function pageWithTotal(total: number): PendingReviewsPage {
-  return { content: [], page: 0, size: 1, total_elements: total, total_pages: 1 };
+function emptyPage(): PendingReviewsPage {
+  return pageWithTotal(0);
+}
+
+// Every queue's page envelope shares the `total_elements` shape the counts hook reads.
+function allQueuesEmpty() {
+  listPendingReviewsMock.mockResolvedValue(emptyPage());
+  listPendingApiReviewsMock.mockResolvedValue(emptyPage());
+  listDeploymentReviewsMock.mockResolvedValue(emptyPage());
+  listDeploymentRollbackReviewsMock.mockResolvedValue(emptyPage());
 }
 
 function wrap(node: ReactNode) {
@@ -100,7 +131,10 @@ function wrap(node: ReactNode) {
 describe('AppLayout', () => {
   beforeEach(() => {
     listPendingReviewsMock.mockReset();
-    listPendingReviewsMock.mockResolvedValue(emptyPage());
+    listPendingApiReviewsMock.mockReset();
+    listDeploymentReviewsMock.mockReset();
+    listDeploymentRollbackReviewsMock.mockReset();
+    allQueuesEmpty();
     useAuthStore.setState({ user: reviewerUser, accessToken: 'jwt-test' });
   });
 
@@ -121,16 +155,26 @@ describe('AppLayout', () => {
     expect(screen.queryByTestId('realtime-bridge-sentinel')).toBeNull();
   });
 
-  it('feeds the sidebar badge from /reviews/pending total_elements for a REVIEWER', async () => {
+  it('feeds the sidebar badge from the sum of every queue a REVIEWER may work (#772)', async () => {
     listPendingReviewsMock.mockResolvedValue(pageWithTotal(3));
+    listPendingApiReviewsMock.mockResolvedValue(pageWithTotal(2));
+    listDeploymentReviewsMock.mockResolvedValue(pageWithTotal(1));
+    listDeploymentRollbackReviewsMock.mockResolvedValue(pageWithTotal(1));
     render(wrap(<AppLayout />));
     await waitFor(() => {
-      expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('3');
+      expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('7');
     });
+    // One `size=1` probe per queue — the count is the envelope's total_elements.
     expect(listPendingReviewsMock).toHaveBeenCalledWith({ size: 1 });
+    expect(listPendingApiReviewsMock).toHaveBeenCalledWith({ size: 1 });
+    expect(listDeploymentReviewsMock).toHaveBeenCalledWith({ size: 1 });
+    expect(listDeploymentRollbackReviewsMock).toHaveBeenCalledWith({
+      status: 'PENDING_REVIEW',
+      size: 1,
+    });
   });
 
-  it('feeds the sidebar badge from /reviews/pending for an ADMIN', async () => {
+  it('feeds the sidebar badge for an ADMIN', async () => {
     useAuthStore.setState({ user: adminUser, accessToken: 'jwt-test' });
     listPendingReviewsMock.mockResolvedValue(pageWithTotal(2));
     render(wrap(<AppLayout />));
@@ -139,12 +183,30 @@ describe('AppLayout', () => {
     });
   });
 
-  it('does not call /reviews/pending for a non-reviewer role (no review nav, no 403)', async () => {
+  it('only probes the queues the user holds a review permission for', async () => {
+    useAuthStore.setState({
+      user: { ...analystUser, permissions: ['QUERY_SUBMIT_SELECT', 'DEPLOYMENT_REVIEW'] },
+      accessToken: 'jwt-test',
+    });
+    listDeploymentReviewsMock.mockResolvedValue(pageWithTotal(4));
+    render(wrap(<AppLayout />));
+    await waitFor(() => {
+      expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('4');
+    });
+    expect(listPendingReviewsMock).not.toHaveBeenCalled();
+    expect(listPendingApiReviewsMock).not.toHaveBeenCalled();
+    expect(listDeploymentRollbackReviewsMock).toHaveBeenCalled();
+  });
+
+  it('does not probe any queue for a non-reviewer role (no review nav, no 403)', async () => {
     useAuthStore.setState({ user: analystUser, accessToken: 'jwt-test' });
     render(wrap(<AppLayout />));
     expect(screen.getByTestId('sidebar-mock').dataset.pendingCount).toBe('0');
     // Give react-query a tick to confirm it didn't fire.
     await Promise.resolve();
     expect(listPendingReviewsMock).not.toHaveBeenCalled();
+    expect(listPendingApiReviewsMock).not.toHaveBeenCalled();
+    expect(listDeploymentReviewsMock).not.toHaveBeenCalled();
+    expect(listDeploymentRollbackReviewsMock).not.toHaveBeenCalled();
   });
 });

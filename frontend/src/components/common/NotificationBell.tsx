@@ -15,6 +15,7 @@ import {
 } from '@/api/notifications';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { reviewHubPath } from '@/utils/reviewHubTabs';
 import type { UserNotification, UserNotificationPayload } from '@/types/api';
 import './notification-bell.css';
 
@@ -293,14 +294,14 @@ export function routeForNotification(item: UserNotification): string | null {
   // recipient needs — `api_request_id` does. Without this check a stalled API request would send
   // the reviewer to the SQL queue, where it does not appear.
   if (item.event_type === 'REVIEW_ESCALATED' || item.event_type === 'REVIEW_NUDGE') {
-    return item.api_request_id ? '/api-reviews' : '/reviews';
+    return item.api_request_id ? reviewHubPath('api') : reviewHubPath('queries');
   }
   // Reviewer-targeted: lands on the review queue, not the submitter-only detail page.
   if (item.event_type === 'QUERY_SUBMITTED') {
-    return '/reviews';
+    return reviewHubPath('queries');
   }
   if (item.event_type === 'API_REQUEST_SUBMITTED') {
-    return '/api-reviews';
+    return reviewHubPath('api');
   }
   if (item.event_type === 'ACCESS_REQUEST_SUBMITTED') {
     return '/admin/access-requests';
@@ -327,15 +328,16 @@ export function routeForNotification(item: UserNotification): string | null {
   ) {
     return item.api_request_id ? `/api-requests/${item.api_request_id}` : null;
   }
-  // Deployment events (#695/#696): submission goes to the reviewer queue, an outcome failure to
-  // the rollback-review tab, and the submitter/admin-targeted events to the deployment detail.
+  // Deployment events (#695/#696): submission goes to the Deployments tab of the unified review
+  // queue (#772), an outcome failure to its Rollbacks tab, and the submitter/admin-targeted events
+  // to the deployment detail.
   if (item.event_type === 'DEPLOYMENT_SUBMITTED') {
-    return '/deployment-reviews';
+    return reviewHubPath('deployments');
   }
   // Only a ROLLED_BACK outcome opens a rollback review; a plain FAILED one never appears on
   // that worklist, so send those to the deployment itself.
   if (item.event_type === 'DEPLOYMENT_OUTCOME_FAILED') {
-    if (item.payload.outcome === 'ROLLED_BACK') return '/deployment-reviews?tab=rollbacks';
+    if (item.payload.outcome === 'ROLLED_BACK') return reviewHubPath('rollbacks');
     return item.deployment_request_id ? `/deployments/${item.deployment_request_id}` : '/deployments';
   }
   if (

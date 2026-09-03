@@ -360,8 +360,9 @@ still being refused is the guarantee worth asserting. The spec then covers:
 1. **CI trigger → approve → gate** — the submitter mints a personal API key
    and triggers a deployment with `X-API-Key` (the real machine path through
    `ApiKeyAuthenticationFilter`, not a bearer JWT). The gate answers
-   `releasable: false` while review is pending, an admin approves in
-   `/deployment-reviews`, and the gate flips to `releasable: true`.
+   `releasable: false` while review is pending, an admin approves on the
+   **Deployments** tab of the review queue (`/reviews?tab=deployments`, #772),
+   and the gate flips to `releasable: true`.
 2. **Detail page** — the decision, the releasability banner, and the
    `1 of 1 approvals` card render on `/deployments/{id}`.
 3. **Submitter visibility** — the submitter sees their own deployment in
@@ -372,7 +373,7 @@ still being refused is the guarantee worth asserting. The spec then covers:
    different one is `409 DEPLOYMENT_OUTCOME_CONFLICT`, the rollback opens a
    follow-up review the submitter cannot acknowledge
    (`409 DEPLOYMENT_ROLLBACK_REVIEW_SELF_ACKNOWLEDGE`), and an admin closes it
-   from the **Rollback reviews** tab of `/deployment-reviews`.
+   from the **Rollbacks** tab of the review queue (`/reviews?tab=rollbacks`).
 
 `tests/deployment-versions.spec.ts` covers the version matrix (#743) — drift
 badges, the tag and behind-only filters, the environment history drawer, the

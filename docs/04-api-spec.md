@@ -2355,7 +2355,7 @@ The `defaults` object mirrors the `POST /review-plans` request body minus `name`
 
 Out-of-office delegation. A reviewer names a **delegate** for a time window; while the window is
 open the delegate is an eligible approver **everywhere the delegator was** — query review
-(`/reviews`), governed API-request review (`/api-reviews`), and grouped requests
+(`/reviews`), governed API-request review (`/reviews?tab=api`), and grouped requests
 (`/request-groups/reviews`). Decisions taken under a delegation record **both** identities: the
 acting reviewer in `reviewer_id` and the delegator in `on_behalf_of_user_id`.
 

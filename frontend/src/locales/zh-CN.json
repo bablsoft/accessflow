@@ -92,7 +92,6 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews",
     "lifecycle": "数据生命周期",
     "request_erasure": "申请删除",
     "erasure_review": "删除审核",
@@ -100,7 +99,6 @@
     "requestGroupReviews": "Group Reviews",
     "roles": "角色",
     "deployments": "部署",
-    "deploymentReviews": "部署审核",
     "deploymentVersions": "版本矩阵",
     "deploymentPipelines": "部署流水线"
   },
@@ -785,7 +783,13 @@
   },
   "reviews": {
     "title": "审核队列",
-    "subtitle": "等待您批准的查询。最新的优先。",
+    "hub": {
+      "subtitle": "等待您决定的所有事项:查询、API 请求和部署。",
+      "tab_queries": "查询 · {{count}}",
+      "tab_api": "API 请求 · {{count}}",
+      "tab_deployments": "部署 · {{count}}",
+      "tab_rollbacks": "回滚 · {{count}}"
+    },
     "tab_mine": "分配给您 · {{count}}",
     "tab_all": "全部待处理 · {{count}}",
     "tab_recent": "最近已决定",
@@ -3985,7 +3989,6 @@
       "variableValue": "值"
     },
     "reviews": {
-      "title": "API Reviews",
       "empty": "No API requests awaiting review",
       "approve": "Approve",
       "reject": "Reject",
@@ -3994,7 +3997,6 @@
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
       "risk": "Risk",
-      "subtitle": "批准或拒绝受治理的 API 调用",
       "searchPlaceholder": "按连接器、路径搜索",
       "actions": "操作",
       "overrides": "覆盖",
@@ -4309,10 +4311,6 @@
       "timeline_outcome": "结果"
     },
     "reviews": {
-      "title": "部署审核",
-      "subtitle": "等待您决定的部署",
-      "tabPending": "待处理部署",
-      "tabRollbacks": "回滚审查",
       "approve": "批准",
       "reject": "拒绝",
       "approved": "已批准",

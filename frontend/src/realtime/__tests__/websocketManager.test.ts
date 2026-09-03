@@ -230,6 +230,25 @@ describe('websocketManager', () => {
     expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
   });
 
+  it('an API_REQUEST_SUBMITTED notification refreshes the API review queue (#772)', () => {
+    const { client, spy } = makeQueryClient();
+    websocketManager.bindQueryClient(client);
+    websocketManager.connect('t');
+
+    sock(0).triggerMessage({
+      event: 'notification.created',
+      timestamp: 'now',
+      data: {
+        notification_id: 'n4',
+        event_type: 'API_REQUEST_SUBMITTED',
+        query_id: null,
+        created_at: '2026-09-03T10:00:00Z',
+      },
+    });
+    expect(spy).toHaveBeenCalledWith({ queryKey: ['api-reviews', 'queue'] });
+    expect(spy).not.toHaveBeenCalledWith({ queryKey: ['deployment-reviews', 'list'] });
+  });
+
   it('default invalidations fire for deployment.status_changed (#696)', () => {
     const { client, spy } = makeQueryClient();
     websocketManager.bindQueryClient(client);

@@ -98,7 +98,7 @@ test.describe.serial('api request review (#567)', () => {
       await expect(reviewerPage.getByRole('button', { name: 'Reject' })).toBeVisible();
       await approveButton.click();
 
-      // Comment modal (shared with ApiReviewQueuePage); comment is optional.
+      // Comment modal (shared with the review hub's ApiReviewsTab); comment is optional.
       const dialog = reviewerPage.getByRole('dialog');
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: 'OK' }).click();
@@ -123,7 +123,7 @@ test.describe.serial('api request review (#567)', () => {
     }
   });
 
-  test('a reviewer opens the request detail by clicking a queue row on /api-reviews', async ({
+  test('a reviewer opens the request detail by clicking a queue row on the API tab of /reviews', async ({
     browser,
     request,
   }) => {
@@ -143,7 +143,7 @@ test.describe.serial('api request review (#567)', () => {
     try {
       const reviewerPage = await reviewerCtx.newPage();
       await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
-      await reviewerPage.goto('/api-reviews');
+      await reviewerPage.goto('/reviews?tab=api');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: '/anything/queue-row-view' });
       await expect(row.first()).toBeVisible({ timeout: 15_000 });

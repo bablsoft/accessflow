@@ -90,7 +90,7 @@ export default function ApiRequestDetailPage() {
       setDecisionFor(null);
       setComment('');
       refresh();
-      queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
+      queryClient.invalidateQueries({ queryKey: apiRequestKeys.reviewQueues() });
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),
   });

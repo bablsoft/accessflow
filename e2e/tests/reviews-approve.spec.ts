@@ -219,7 +219,7 @@ test.describe.serial('reviews approve (AF-268)', () => {
   // ── 2. Stale-cache 409: approver A clicks Approve on a query approver B ───
   //    already approved via API. Backend returns 409 QUERY_NOT_PENDING_REVIEW;
   //    FE maps it to errors.review_query_not_pending = "This query is no
-  //    longer pending review." The current ReviewQueuePage only invalidates
+  //    longer pending review." The current QueryReviewsTab only invalidates
   //    onSuccess, so the stale card stays until the user clicks Refresh —
   //    asserted here to lock current behaviour. A future PR may change this
   //    to onSettled; the spec will need to relax that step then.

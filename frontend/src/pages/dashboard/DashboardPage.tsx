@@ -72,6 +72,7 @@ import { showApiError } from '@/utils/showApiError';
 import { fmtDate } from '@/utils/dateFormat';
 import type { DashboardSummary, MyQueryTrends, MyQueryTrendsFilters } from '@/types/api';
 import './dashboard.css';
+import { reviewHubPath } from '@/utils/reviewHubTabs';
 
 // Each widget is shown only to users holding a permission for which it is meaningful (mirrors
 // the sidebar nav model, AF-522): a non-reviewer never sees the reviewer queue, etc.
@@ -543,7 +544,7 @@ function SummaryCounts({
       widget: 'pendingApiApprovals',
       label: t('dashboard.summary.pending_api_approvals'),
       value: summary.pending_api_approvals_count,
-      onOpen: () => navigate('/api-reviews'),
+      onOpen: () => navigate(reviewHubPath('api')),
     },
   ];
   const cards = allCards.filter((c) => available.includes(c.widget));

@@ -348,7 +348,7 @@ async function seedData() {
   //
   //     The pipeline deliberately carries NO review plan: eligibility then falls
   //     back to every REVIEWER/ADMIN holder, so the admin the capture runs as is
-  //     an eligible approver and /deployment-reviews is non-empty. The seeded
+  //     an eligible approver and the review hub's Deployments tab is non-empty. The seeded
   //     reviewer submits the requests the admin reviews — the self-approval ban
   //     covers deployments too, so an admin-submitted request would never show
   //     up in the admin's own queue.
@@ -424,7 +424,7 @@ async function seedData() {
     if (fw.ok()) console.log('[seed] deployment freeze window');
     else console.warn(`  [warn] freeze window failed: ${fw.status()} ${await fw.text()}`);
 
-    // A rolled-back deployment so /deployment-reviews?tab=rollbacks is populated:
+    // A rolled-back deployment so the review hub's Rollbacks tab (/reviews?tab=rollbacks) is populated:
     // reviewer triggers -> admin approves -> confirm execution -> report ROLLED_BACK.
     const rolled = await triggerDeploymentViaApi(api, reviewerToken, {
       pipelineId: pipeline.id,
@@ -669,8 +669,9 @@ async function ensureReviewerSession(page: Page) {
 
 async function prepReviewsQueue(page: Page) {
   await gotoAndSettle(page, '/reviews');
-  // Click "All pending" tab to ensure we see queries regardless of assignment.
-  const allPending = page.getByRole('tab', { name: /All pending/i });
+  // Pick the "All pending" view (an AntD Segmented control since #772 — its radio inputs are
+  // visually hidden, so click the option label) to see queries regardless of assignment.
+  const allPending = page.locator('.ant-segmented-item', { hasText: /All pending/i });
   if (await allPending.count()) {
     await allPending.first().click();
     await page.waitForTimeout(500);
@@ -791,14 +792,15 @@ async function prepDeploymentDetail(page: Page, requestId: string) {
 }
 
 async function prepDeploymentReviewsQueue(page: Page) {
-  await gotoAndSettle(page, '/deployment-reviews');
+  // Since #772 the deployment queue is the Deployments tab of the unified /reviews hub.
+  await gotoAndSettle(page, '/reviews?tab=deployments');
   await page.waitForTimeout(600);
 }
 
 async function prepDeploymentRollbackReviews(page: Page) {
-  // The review-queue tab IS url-driven (DeploymentReviewQueuePage.tsx), unlike
-  // the pipeline settings tabs below.
-  await gotoAndSettle(page, '/deployment-reviews?tab=rollbacks');
+  // The review-hub tab IS url-driven (ReviewHubPage.tsx), unlike the pipeline
+  // settings tabs below.
+  await gotoAndSettle(page, '/reviews?tab=rollbacks');
   await page.waitForTimeout(600);
 }
 

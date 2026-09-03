@@ -124,15 +124,15 @@ describe('NotificationBell', () => {
     fireEvent.click(row);
 
     await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('n2'));
-    expect(navigateMock).toHaveBeenCalledWith('/reviews');
+    expect(navigateMock).toHaveBeenCalledWith('/reviews?tab=queries');
     expect(navigateMock).not.toHaveBeenCalledWith('/queries/q-99');
   });
 
   it.each([
-    ['REVIEW_ESCALATED' as const, null, '/reviews'],
-    ['REVIEW_ESCALATED' as const, 'api-77', '/api-reviews'],
-    ['REVIEW_NUDGE' as const, null, '/reviews'],
-    ['REVIEW_NUDGE' as const, 'api-88', '/api-reviews'],
+    ['REVIEW_ESCALATED' as const, null, '/reviews?tab=queries'],
+    ['REVIEW_ESCALATED' as const, 'api-77', '/reviews?tab=api'],
+    ['REVIEW_NUDGE' as const, null, '/reviews?tab=queries'],
+    ['REVIEW_NUDGE' as const, 'api-88', '/reviews?tab=api'],
   ])(
     'routes a %s row by request kind, not by event name (api_request_id=%s)',
     async (eventType, apiRequestId, expected) => {
@@ -225,7 +225,7 @@ describe('NotificationBell', () => {
     await waitFor(() => expect(markAllReadMock).toHaveBeenCalled());
   });
 
-  it('renders an API_REQUEST_SUBMITTED body and navigates to /api-reviews', async () => {
+  it('renders an API_REQUEST_SUBMITTED body and navigates to the API tab of the review queue', async () => {
     fetchUnreadCountMock.mockResolvedValue({ count: 1 });
     markNotificationReadMock.mockResolvedValue(undefined);
     listNotificationsMock.mockResolvedValue(
@@ -252,7 +252,7 @@ describe('NotificationBell', () => {
     fireEvent.click(row);
 
     await waitFor(() => expect(markNotificationReadMock).toHaveBeenCalledWith('a1'));
-    expect(navigateMock).toHaveBeenCalledWith('/api-reviews');
+    expect(navigateMock).toHaveBeenCalledWith('/reviews?tab=api');
     expect(navigateMock).not.toHaveBeenCalledWith('/api-requests/api-11');
   });
 
@@ -503,7 +503,7 @@ describe('NotificationBell', () => {
       { datasource: 'payments-pipeline', submitter: 'dev@acme.com', submitter_name: 'Dev',
         environment: 'production', version: '2.4.1' },
       /Dev submitted a deployment of 2\.4\.1 to production on payments-pipeline/,
-      '/deployment-reviews',
+      '/reviews?tab=deployments',
     ],
     [
       'DEPLOYMENT_APPROVED' as const,
@@ -521,7 +521,7 @@ describe('NotificationBell', () => {
       'DEPLOYMENT_OUTCOME_FAILED' as const,
       { datasource: 'payments-pipeline', outcome: 'ROLLED_BACK' as const },
       /deployment you approved on payments-pipeline reported rolled back/,
-      '/deployment-reviews?tab=rollbacks',
+      '/reviews?tab=rollbacks',
     ],
     [
       'DEPLOYMENT_BREAK_GLASS_EXECUTED' as const,

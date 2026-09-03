@@ -60,7 +60,7 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     css: true,
     // jsdom 29 rewrote CSSOM and is slower on initial getComputedStyle() calls
-    // before the cache warms. AntD modal portals (e.g. ReviewQueuePage reject
+    // before the cache warms. AntD modal portals (e.g. QueryReviewsTab reject
     // modal) push past Vitest's 5s default on GitHub Actions runners. 15s
     // gives ~3x cushion without masking truly hung tests.
     testTimeout: 15_000,
@@ -130,6 +130,7 @@ export default defineConfig({
         'src/hooks/useTableSample.ts',
         'src/hooks/useWebSocket.ts',
         'src/hooks/usePushSubscription.ts',
+        'src/hooks/usePendingReviewCounts.ts',
         'src/utils/push.ts',
         'src/pages/admin/reviewPlanTemplateForm.ts',
         'src/pages/admin/routingPolicyForm.ts',

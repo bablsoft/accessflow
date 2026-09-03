@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-02",
+      "dateModified": "2026-09-03",
       "url": "https://accessflow.io/docs/guides/deployment-approval/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/deployment-approval/",
       "image": "https://accessflow.io/og-image.png",
@@ -275,7 +275,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Gate a deployment pipeline.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-02">2 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-03">3 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -594,9 +594,10 @@
           <h2 id="guide-deployment-run">8. Your first gated release</h2>
           <p>
             Run the workflow. The gate step opens a request and then waits, printing its poll
-            attempts. In AccessFlow the request appears for reviewers at
-            <code>/deployment-reviews</code>, carrying the version, the target environment, the
-            commit and the AI release-risk verdict if you enabled analysis. It never appears there
+            attempts. In AccessFlow the request appears for reviewers on the
+            <strong>Deployments</strong> tab of the review queue (<code>/reviews?tab=deployments</code>,
+            the same page that holds query and API-request reviews), carrying the version, the
+            target environment, the commit and the AI release-risk verdict if you enabled analysis. It never appears there
             for the account that submitted it.
           </p>
           <p>
@@ -608,10 +609,10 @@
             <picture>
               <source srcset="/images/docs/deployment-reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-reviews-queue-dark.webp"
-                   alt="The deployment review queue listing deployments awaiting a decision with pipeline, environment, version, submitter, risk and age, and approve and reject actions."
+                   alt="The Deployments tab of the review queue listing deployments awaiting a decision with pipeline, environment, version, submitter, risk and age, and approve and reject actions."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/deployment-reviews</code> — where an approver picks the release up. A deployment never appears here for its own submitter.</figcaption>
+            <figcaption>The Deployments tab of the review queue — where an approver picks the release up. A deployment never appears here for its own submitter.</figcaption>
           </figure>
           <h3>If the job fails instead</h3>
           <ul>

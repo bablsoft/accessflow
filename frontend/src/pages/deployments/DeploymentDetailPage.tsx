@@ -19,6 +19,7 @@ import {
   deploymentVersionKeys,
   listPipelineEnvironmentVersions,
 } from '@/api/deploymentVersions';
+import { deploymentReviewKeys } from '@/api/deploymentReviews';
 import { DriftChip } from '@/components/deployments/versionMatrixCells';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -118,6 +119,9 @@ export default function DeploymentDetailPage() {
       message.success(t('deploygov.detail.cancelled'));
       void queryClient.invalidateQueries({ queryKey: deploymentKeys.detail(id) });
       void queryClient.invalidateQueries({ queryKey: deploymentKeys.lists() });
+      // A cancelled request leaves the reviewer queue, so the hub's Deployments tab and the
+      // sidebar badge count (#772) must not keep it until the next poll.
+      void queryClient.invalidateQueries({ queryKey: deploymentReviewKeys.lists() });
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('deploygov.error'))),
   });
