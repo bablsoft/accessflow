@@ -390,14 +390,12 @@
             provider that matches your CI system — GitHub Actions, GitLab CI, Azure Pipelines,
             Jenkins, CircleCI, Bitbucket Pipelines, or generic.
           </p>
-          <div class="docs-callout warn">
-            <strong>Copy the pipeline id out of the address bar now.</strong> Creating a pipeline
-            lands you on <code>/admin/deployment-pipelines/&lt;uuid&gt;</code>, and
-            <strong>that UUID is the pipeline id</strong> your CI job needs. There is no id column
-            on the pipeline list and no copy-id button; the only other place it appears is
-            interpolated inside the CI snippet in step 7, whose copy control copies the whole
-            snippet rather than the bare id. A copyable id is tracked in
-            <a href="https://github.com/bablsoft/accessflow/issues/771">issue&nbsp;771</a>.
+          <div class="docs-callout info">
+            <strong>Copy the pipeline id now.</strong> Creating a pipeline lands you on its settings
+            page, where the UUID sits under the pipeline name with a copy button beside it — that
+            UUID is <strong>the pipeline id</strong> your CI job needs. The pipeline list also
+            carries a shortened, copyable <em>ID</em> column, so you never have to open a pipeline
+            or read the address bar just to grab it.
           </div>
           <p>
             The pipeline is identified by that UUID rather than by name because a trigger-only API
@@ -407,7 +405,7 @@
             <picture>
               <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipelines-list-dark.webp"
-                   alt="The admin deployment pipelines page listing configured pipelines with their CI provider, repository, whether AI analysis is enabled, and whether they are active."
+                   alt="The admin deployment pipelines page listing configured pipelines with their copyable id, CI provider, repository, whether AI analysis is enabled, and whether they are active."
                    loading="lazy" width="1440" height="900" />
             </picture>
             <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline. Open one to reach its seven settings tabs.</figcaption>

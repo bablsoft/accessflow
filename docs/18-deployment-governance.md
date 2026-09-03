@@ -354,7 +354,9 @@ break-glass deployment that later rolls back must still get its own follow-up.
 Every provider integration follows the same four beats — **submit idempotently by run id → poll the
 gate → confirm execution → report the outcome** — and every one of them **fails the job** on a
 `404`, a terminal status, or the configured wait timeout. A pipeline is identified by UUID, since a
-trigger-only key cannot resolve names.
+trigger-only key cannot resolve names. That UUID is copyable straight from the admin UI (#771) —
+truncated on each row of the pipeline list, in full beside the name on the pipeline settings
+header — rather than having to be read out of the address bar.
 
 > **Operator runbook.** The end-to-end setup — service account, API key, pipeline, environments,
 > the `can_trigger` grant, approver scoping and the first gated release — is written up as a

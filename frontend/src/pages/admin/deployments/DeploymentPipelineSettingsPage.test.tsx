@@ -110,6 +110,13 @@ describe('DeploymentPipelineSettingsPage', () => {
     }
   });
 
+  it('renders the pipeline id in the header, copyable without reading the URL', async () => {
+    render(wrap(<DeploymentPipelineSettingsPage />));
+
+    expect(await screen.findByTestId('pipeline-id')).toHaveTextContent('pipe-1');
+    expect(screen.getByRole('button', { name: 'Copy pipeline ID' })).toBeInTheDocument();
+  });
+
   it('prefills the general form with the pipeline values', async () => {
     render(wrap(<DeploymentPipelineSettingsPage />));
 

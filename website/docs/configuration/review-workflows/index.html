@@ -681,8 +681,11 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             <strong>Configure it.</strong> Create pipelines at
             <code>/admin/deployment-pipelines</code> (requires the
-            <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
-            pipeline's settings page carries seven tabs. Alongside <strong>General</strong> and the
+            <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). A CI job
+            names its pipeline by <strong>id</strong>, never by name, so that id is copyable from
+            both places you meet a pipeline: shortened in the list's <strong>ID</strong> column, and
+            in full beneath the name on the pipeline's settings page. Each pipeline's settings page
+            carries seven tabs. Alongside <strong>General</strong> and the
             <strong>CI setup</strong> snippet sit <strong>Environments</strong> (promotion
             order, tags, required approvals, review-plan override, break-glass opt-in),
             <strong>Versions</strong> (which version each environment is running — see below),
@@ -703,10 +706,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipelines-list-dark.webp"
-                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, CI provider, repository, whether AI analysis is enabled, and whether they are active."
+                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, copyable id, CI provider, repository, whether AI analysis is enabled, and whether they are active."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its CI provider and environment count.</figcaption>
+            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its copyable id and CI provider.</figcaption>
           </figure>
           <figure class="docs-figure">
             <picture>
