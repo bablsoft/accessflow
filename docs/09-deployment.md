@@ -549,10 +549,12 @@ on every PR that touches `charts/**`, so chart regressions are caught before mer
 ### Releasing the chart
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) repackages the chart on every
-tagged release. It overwrites `Chart.yaml#version` and `appVersion` with the release semver,
-runs `helm dependency update`, and uses
-[`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action) to push the
-packaged `.tgz` and the updated `index.yaml` to the `gh-pages` branch.
+tagged release, in its `publish` job. It overwrites `Chart.yaml#version` and `appVersion` with
+the release semver, runs `helm dependency update` + `helm package`, then pushes the packaged
+`.tgz` and a regenerated `index.yaml` to the `gh-pages` branch with a plain `helm repo index` +
+`git push` from a worktree. (Not [`helm/chart-releaser-action`](https://github.com/helm/chart-releaser-action):
+it couples the chart publish with a GitHub Release **asset** upload, which this repo's
+immutable-releases policy rejects.)
 
 After the first release lands, enable GitHub Pages once in **Repo Settings → Pages**
 (Source = "Deploy from a branch" → `gh-pages` / root). All subsequent releases just need a
@@ -1700,7 +1702,8 @@ Maintainers run the **Release** workflow from the Actions tab
 2. Creates a detached commit `chore(release): vX.Y.Z`, tags it as `vX.Y.Z`, and
    pushes only the tag — `main` is never modified, so `main` always reflects
    `1.0.0-SNAPSHOT` for the next development cycle.
-3. Builds and pushes the two Docker images under `:X.Y.Z` plus a moving tag
+3. Builds and pushes the two Docker images — in two parallel jobs, since they are
+   independent and each multi-arch build is slow — under `:X.Y.Z` plus a moving tag
    (`:latest` for a GA release, `:beta` for a pre-release).
 4. Publishes a **GitHub Release** with auto-generated changelog notes (PRs and
    commits between the previous tag and this one), flagged pre-release when the

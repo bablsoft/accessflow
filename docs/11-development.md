@@ -339,19 +339,22 @@ GitHub branch protection doesn't support "conditional required status checks" �
 
 ### Release pipeline (`release.yml`)
 
-Triggered manually from the Actions tab. The maintainer provides a semver `version` input (e.g. `1.2.3`, without the leading `v`). The workflow:
+Triggered manually from the Actions tab. The maintainer provides a semver `version` input (e.g. `1.2.3`, without the leading `v`).
+
+The workflow is split into four jobs — `prepare` → (`backend-image` ‖ `frontend-image`) → `publish` — so the two multi-arch image builds, which are the longest steps and independent of each other, run concurrently on separate runners instead of back to back. `prepare` pushes the `vX.Y.Z` tag, so the three downstream jobs simply check that tag out and see the bumped `pom.xml` / `package.json`; the engine plugin jars built (and pin-verified) in `prepare` travel to `publish` as an `engine-jars` upload/download artifact rather than being rebuilt. End to end the workflow:
 
 1. **Validates** the version against `^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$`.
 2. Checks out `main`.
 3. **Bumps the Maven version** in `backend/pom.xml` via `mvn versions:set -DnewVersion=${INPUT}`.
 4. **Bumps the frontend version** in `frontend/package.json` via `npm version ${INPUT} --no-git-tag-version`.
 5. **Detaches HEAD**, commits the two bumps as `chore(release): v${VERSION}`, and pushes the commit *as a tag* (`git push origin HEAD:refs/tags/v${VERSION}`) — `main` is **never modified**. Checking out the tag shows pom.xml / package.json at the bumped version; checking out `main` keeps the SNAPSHOT.
-6. Builds and pushes **multi-arch** (`linux/amd64`, `linux/arm64`) Docker images via `docker/build-push-action@v6`:
+6. Builds and pushes **multi-arch** (`linux/amd64`, `linux/arm64`) Docker images via `docker/build-push-action@v7`, in two parallel jobs:
    - `ghcr.io/<owner>/accessflow-backend:${VERSION}` + the moving tag
    - `ghcr.io/<owner>/accessflow-frontend:${VERSION}` + the moving tag
    The moving tag is computed by the `Classify release` step — `latest` for a GA `X.Y.Z`, `beta` for a `-suffix` pre-release — so a beta never moves `:latest`. The frontend image receives `APP_VERSION` as a `--build-arg`, which Vite injects as `__APP_VERSION__` into the bundle (see `frontend/vite.config.ts`).
 7. **Publishes a GitHub Release** via `softprops/action-gh-release@v3` with `generate_release_notes: true` and `prerelease:` set from the classify step (a `-suffix` version gets the "Pre-release" badge and is never marked "Latest"). The `Compute previous tag` step resolves the baseline handed to `previous_tag`, and the rule depends on what is being released: a GA `X.Y.Z` compares against the previous **stable** tag, so its changelog covers everything since the last GA rather than only what landed after the final beta, while a `-suffix` pre-release compares against the tag immediately before it, keeping per-beta notes incremental. Tags are listed with `git -c versionsort.suffix=- tag -l 'v*' --sort=-v:refname` — `versionsort.suffix=-` is what sorts `v2.4.0-beta.2` *below* `v2.4.0` instead of above it — and the baseline is the entry directly after `v${VERSION}` in that list, so a patch backport released after a newer minor also resolves correctly. When nothing qualifies (first release) the changelog covers every PR.
-8. **Publishes the Helm chart** — rewrites `charts/accessflow/Chart.yaml` so `version` and `appVersion` both equal `${VERSION}`, runs `helm dependency update`, then `helm/chart-releaser-action@v1.7.0` packages the chart and pushes the `.tgz` plus updated `index.yaml` to the `gh-pages` branch (served at `https://<owner>.github.io/accessflow`). GitHub Pages must be enabled once in **Repo Settings → Pages → Source = `gh-pages`** before the chart repo is reachable; after that, every release adds a new version automatically.
+8. **Publishes the Helm chart** — rewrites `charts/accessflow/Chart.yaml` so `version` and `appVersion` both equal `${VERSION}`, runs `helm dependency update` + `helm package`, then pushes the `.tgz` plus a regenerated `index.yaml` to the `gh-pages` branch (served at `https://<owner>.github.io/accessflow`). The push is a plain `helm repo index` + `git push` from a worktree rather than `helm/chart-releaser-action`, because chart-releaser couples the chart publish with a GitHub Release **asset** upload, which the repo's immutable-releases policy rejects. GitHub Pages must be enabled once in **Repo Settings → Pages → Source = `gh-pages`** before the chart repo is reachable; after that, every release adds a new version automatically.
+9. **Publishes the catalog artifacts on the same `gh-pages` commit** — the versioned connectors bundle (`connectors/connectors-bundle-${VERSION}.tar.gz`), the stable `connectors/connectors-index.json` (GA only — a pre-release leaves the pointer on the last GA), and every engine plugin `*-all.jar` under `engines/`, which is where each `connector.json` points fresh installs. Same reason as the chart: release-asset uploads are blocked, so these ride the branch instead.
 
 ### Pre-release (beta) builds
 

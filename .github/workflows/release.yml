@@ -12,9 +12,22 @@ permissions:
   contents: write
   packages: write
 
+# The release is split into four jobs so the two multi-arch image builds — by far the
+# longest steps, and independent of each other — run on separate runners in parallel:
+#
+#   prepare ──┬── backend-image ──┬── publish
+#             └── frontend-image ─┘
+#
+# `prepare` pushes the vX.Y.Z tag, so both image jobs and `publish` check that tag out
+# and see the bumped pom.xml / package.json without redoing the bump.
 jobs:
-  release:
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      backend_tags: ${{ steps.meta.outputs.backend_tags }}
+      frontend_tags: ${{ steps.meta.outputs.frontend_tags }}
+      previous_tag: ${{ steps.previous-tag.outputs.tag }}
     steps:
       - name: Validate version
         run: |
@@ -82,6 +95,16 @@ jobs:
           mkdir -p .engines-artifacts
           cp engines/*/target/*-all.jar .engines-artifacts/
 
+      # The jars are handed to `publish` (which uploads them to gh-pages) rather than
+      # rebuilt there — the pin check above already proved they are the pinned bytes.
+      - name: Upload engine plugin jars
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-jars
+          path: .engines-artifacts/*-all.jar
+          retention-days: 1
+          if-no-files-found: error
+
       - name: Bump Maven version
         working-directory: backend
         run: mvn -B -q versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
@@ -134,6 +157,14 @@ jobs:
           echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
           echo "Previous tag resolved to: ${PREV:-<none>}"
 
+  backend-image:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: v${{ inputs.version }}
+
       - uses: docker/setup-qemu-action@v4
 
       - uses: docker/setup-buildx-action@v4
@@ -153,7 +184,25 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.backend_tags }}
+          tags: ${{ needs.prepare.outputs.backend_tags }}
+
+  frontend-image:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: v${{ inputs.version }}
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build & push frontend image
         uses: docker/build-push-action@v7
@@ -163,7 +212,22 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             APP_VERSION=${{ inputs.version }}
-          tags: ${{ steps.meta.outputs.frontend_tags }}
+          tags: ${{ needs.prepare.outputs.frontend_tags }}
+
+  publish:
+    needs: [prepare, backend-image, frontend-image]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
+
+      - name: Download engine plugin jars
+        uses: actions/download-artifact@v4
+        with:
+          name: engine-jars
+          path: .engines-artifacts
 
       - name: Create GitHub Release with auto-generated notes
         uses: softprops/action-gh-release@v3
@@ -171,11 +235,11 @@ jobs:
           tag_name: v${{ inputs.version }}
           name: v${{ inputs.version }}
           generate_release_notes: true
-          previous_tag: ${{ steps.previous-tag.outputs.tag }}
+          previous_tag: ${{ needs.prepare.outputs.previous_tag }}
           # When true, GitHub never marks this the "Latest" release.
-          prerelease: ${{ steps.meta.outputs.prerelease }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
           body: |
-            ${{ steps.meta.outputs.prerelease == 'true' && '⚠️ **Pre-release — internal testing only.** Pull `:beta` or the exact version tag below; `:latest` still points at the last stable release.' || '' }}
+            ${{ needs.prepare.outputs.prerelease == 'true' && '⚠️ **Pre-release — internal testing only.** Pull `:beta` or the exact version tag below; `:latest` still points at the last stable release.' || '' }}
 
             ## Container images
 
@@ -255,7 +319,7 @@ jobs:
           # the last GA, so beta runs never relabel the catalog pointer.
           mkdir -p /tmp/gh-pages/connectors
           cp .connectors-artifacts/connectors-bundle-*.tar.gz /tmp/gh-pages/connectors/
-          if [ "${{ steps.meta.outputs.prerelease }}" = "false" ]; then
+          if [ "${{ needs.prepare.outputs.prerelease }}" = "false" ]; then
             cp .connectors-artifacts/connectors-index.json /tmp/gh-pages/connectors/connectors-index.json
           fi
           # Engine plugin jars (issues #414/#418): each engine's connector manifest points
