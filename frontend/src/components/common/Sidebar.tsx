@@ -46,12 +46,12 @@ import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/api/auth';
 import { hasAnyPermission, type Permission } from '@/utils/permissions';
 import { REVIEW_HUB_PERMISSIONS } from '@/utils/reviewHubTabs';
-import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
 import { roleLabel } from '@/utils/enumLabels';
 import { usePreferencesStore } from '@/store/preferencesStore';
 import { Avatar } from './Avatar';
 import { LogoMark } from './LogoMark';
+import { VersionBadge } from './VersionBadge';
 import './sidebar.css';
 
 interface NavItem {
@@ -328,13 +328,7 @@ export function Sidebar({
               <div style={{ fontSize: 13.5, fontWeight: 600, letterSpacing: '-0.01em' }}>
                 {t('common.app_name')}
               </div>
-              <div
-                className="mono muted"
-                style={{ fontSize: 9.5, textTransform: 'lowercase' }}
-                aria-label={t('nav.version', { version: APP_VERSION })}
-              >
-                v{APP_VERSION}
-              </div>
+              <VersionBadge />
             </div>
           )}
           <button className="af-sidebar-collapse-btn" onClick={onToggle} aria-label={t('common.toggle_sidebar')}>

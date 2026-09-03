@@ -2818,6 +2818,7 @@ on the CSV export with `row_count` / `truncated` / the applied filters in its me
 | `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
 | `GET` | `/admin/datasource-health` | Per-datasource pool gauges + 24h query volume / latency / errors *(ADMIN only)* |
 | `GET` | `/system/info` | Returns version and feature flags |
+| `GET` | `/system/update-status` | Latest stable release vs. the running build, with a changelog link *(any authenticated user)* |
 
 ### GET /admin/users — Query Parameters
 
@@ -4893,6 +4894,30 @@ The snapshot is cached ~30 s per `(organization_id, datasource_id)` (Spring cach
 
 **Response 401:** Not authenticated.
 **Response 403:** Caller is not an `ADMIN`.
+
+### GET /system/update-status
+
+Whether a newer **stable** AccessFlow release exists than the one this install is running. Read-only; **any authenticated user** may call it — being behind the latest release is an operational fact, not a secret, and the sidebar version chip renders for every signed-in user. Not scoped to an organization: the answer is install-level.
+
+The backend resolves it lazily. The first call after startup returns `status: "UNKNOWN"` and kicks off a background fetch (on a virtual thread, never on the request path) of the JSON manifest at `ACCESSFLOW_UPDATES_URL` (default `https://accessflow.io/version.json`). Later calls serve the cached snapshot until it is older than `ACCESSFLOW_UPDATES_TTL` (default `PT24H`), then refresh in the background again. The outbound call is a single unauthenticated `GET` for a static file — no install identifier, no telemetry, no request body. Any failure (unreachable host, non-2xx, unparseable or oversized body) yields `UNKNOWN` for one TTL; the endpoint never errors because of the network. With `ACCESSFLOW_UPDATES_ENABLED=false` it answers `UNKNOWN` without making any request at all.
+
+`update_available` is `true` only when both versions parse as semver, the running build is a stable release (a `-SNAPSHOT` or `-beta.N` build never nags), the published version is stable, and the published version is strictly newer by numeric component comparison (`2.10.0` > `2.9.0`, never a string compare).
+
+**Response 200:**
+```json
+{
+  "current_version": "2.4.0",
+  "latest_version": "2.5.0",
+  "update_available": true,
+  "changelog_url": "https://accessflow.io/changelog/#v2-5-0",
+  "checked_at": "2026-09-20T08:00:00Z",
+  "status": "UPDATE_AVAILABLE"
+}
+```
+
+`status` is one of `UNKNOWN` (no successful check yet, the check is disabled, the build metadata is missing, or the last check failed), `UP_TO_DATE`, or `UPDATE_AVAILABLE`. Null fields are **omitted** (the API serializes with `non_null` inclusion): `latest_version` and `changelog_url` are present only after a successful check; `checked_at` is the time of the last attempt (success or failure) and absent before the first one; `current_version` is absent only when `META-INF/build-info.properties` is missing (a non-packaged dev run).
+
+**Response 401:** Not authenticated.
 
 ---
 

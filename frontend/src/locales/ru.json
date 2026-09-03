@@ -74,6 +74,7 @@
     "custom_drivers": "Пользовательские JDBC-драйверы",
     "profile": "Настройки профиля",
     "version": "AccessFlow версия {{version}}",
+    "update_available": "Доступна версия v{{version}} — открыть список изменений",
     "groups": "Groups",
     "datasource_health": "Состояние источников",
     "slack": "Slack",

@@ -152,6 +152,8 @@ com.bablsoft.accessflow/
 ├── scim/           # SCIM 2.0 provisioning server (#621): /scim/v2 Users+Groups behind a per-org bearer-token filter chain (@Order(0), SCIM error envelope), attribute-mapping config, show-once tokens; deactivation fans out via core.events.UserDeactivatedEvent (security revokes sessions, access revokes JIT grants)
 │   ├── api/
 │   └── internal/   # config (own SecurityFilterChain), persistence, protocol (wire records, filter/patch parsing), web (scim + admin controllers)
+├── api/            # Cross-cutting system endpoints with no natural owner: admin setup progress, and the lazy, fail-soft release update check behind GET /system/update-status (#836 — readable by every signed-in user; polls website/version.json at most daily, no telemetry)
+│   └── internal/
 └── mcp/            # Spring AI stateless MCP server — @Tool callbacks for AI agents
     ├── api/
     └── internal/

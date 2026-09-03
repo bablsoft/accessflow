@@ -76,6 +76,9 @@ services:
       REDIS_URL: redis://redis:6379
       CORS_ALLOWED_ORIGIN: http://localhost:5174
       ACCESSFLOW_PUBLIC_BASE_URL: http://localhost:5174
+      # Keep the release update check (#836) off in CI: no egress to accessflow.io, and a
+      # deterministic `status: UNKNOWN` for update-status.spec.ts.
+      ACCESSFLOW_UPDATES_ENABLED: "false"
       # Demo-only — see warning at the top of this file.
       ENCRYPTION_KEY: 40f05f39ca7296247ac4c12efdf091d8e753e22b96764462473d6e7c9abc550e
       JWT_PRIVATE_KEY: |

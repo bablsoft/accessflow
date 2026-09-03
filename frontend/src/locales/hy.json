@@ -74,6 +74,7 @@
     "custom_drivers": "Հատուկ JDBC դրայվերներ",
     "profile": "Պրոֆիլի կարգավորումներ",
     "version": "AccessFlow տարբերակ {{version}}",
+    "update_available": "Հասանելի է v{{version}} — դիտել փոփոխությունների ցանկը",
     "groups": "Groups",
     "datasource_health": "Տվյալների աղբյուրների վիճակ",
     "slack": "Slack",

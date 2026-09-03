@@ -463,6 +463,10 @@ The shared **detail-section chrome**: a bordered `--bg-elev` card with a compact
 
 A reusable badge that surfaces the **current user's own** open-anomaly count for a datasource (e.g. in the editor's datasource selector). It reads `GET /anomalies/badge?datasourceId=` via TanStack Query and renders an AntD `Badge` with the `openCount` and a tooltip carrying `maxScore`; it renders nothing when `openCount` is `0`. Status/colour go through the shared risk-colour helpers — never an inline hex.
 
+### VersionBadge (`components/common/VersionBadge.tsx`, #836)
+
+The version under the brand mark in the sidebar. Queries `GET /api/v1/system/update-status` through `api/updates.ts` (`updateKeys.status()`, `fetchUpdateStatus`) with a one-hour `staleTime` and `retry: false` — the backend already caches the answer for a day, it must never poll, and a failed check has to stay silent. Rendered for **every** signed-in user (no permission gate). When `update_available` is true it becomes a warn-toned `Pill` (`driftColor(true)` from `utils/statusColors.ts` — being behind a release is an operational fact, not a failure) wrapped in a link that opens `changelog_url` from the response in a new tab (`rel="noopener noreferrer"`), falling back to `CHANGELOG_URL` from `config/docs.ts` when the manifest carries none. `CHANGELOG_URL` is deliberately **not** routed through `docsUrl()` / `DOCS_ANCHOR_PAGES`, which is a `/docs/`-only contract; `config/__tests__/docs.test.ts` pins it to the changelog page's canonical URL. Otherwise it renders the plain `v{APP_VERSION}` text. The login page keeps the plain version (no request before sign-in).
+
 ### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
 
 A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: returns `null` unless the current user is an `ADMIN` and every step is either configured server-side or skipped client-side. Non-admins and tenants that have finished onboarding never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`).

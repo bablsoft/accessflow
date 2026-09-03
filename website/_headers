@@ -64,3 +64,8 @@
 
 /app.js
   Cache-Control: public, max-age=3600, must-revalidate
+
+# The release manifest a self-hosted install polls (at most daily) for the update hint. Edited in
+# place by the release process, so it gets the same short window as the other unhashed files.
+/version.json
+  Cache-Control: public, max-age=3600, must-revalidate

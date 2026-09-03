@@ -41,6 +41,9 @@ If the user omits the version, ask for it once and stop. Do not guess from the r
   - `website/docs/index.html` — public operator docs (deployment, configuration entities, RBAC matrix, env vars).
   - `website/README.md` — content-source map. Authoritative for "which app/docs source feeds which website section". Read it before judging website coverage.
   - `website/images/docs/` — SPA screenshots, a light + dark pair for every page.
+  - `website/changelog/index.html` — the public changelog: one `<section class="docs-section scroll-pad" id="vX-Y-0">` per stable release, newest first, plus a TOC link per release. **This skill is the only thing that writes a new entry** (#836).
+  - `website/version.json` — `{"version","released_at","changelog_url"}`; every self-hosted install polls it daily and shows an update hint when it is newer than the running build. Stable releases only — never a `-beta.N`.
+  - `website/sitemap.xml` — every website edit above needs its `<lastmod>` bumped here too (`websitePages.test.ts` pins it to the page's JSON-LD `dateModified`).
 
 ## Workflow
 
@@ -50,7 +53,7 @@ If the user omits the version, ask for it once and stop. Do not guess from the r
 - Read [`docs/12-roadmap.md`](../../docs/12-roadmap.md). Locate the `## vX.Y` heading.
 - If the section doesn't exist → fail fast: `RELEASE PREP BLOCKED — vX.Y is not in docs/12-roadmap.md.`
 - If the section is already `✅ released` → exit immediately: `vX.Y is already released — nothing to prep.` No edits, no branch.
-- Otherwise extract every `(AF-NNN)` reference from the bullet lines of that section. This is the "release contents" set.
+- Otherwise extract every `(AF-NNN)` reference from the bullet lines of that section. This is the "release contents" set. Keep the section's `**Theme:**` line and the full bullet text too — step 4a′ turns them into the changelog entry.
 
 ### 2. Pre-flight gates — all hard-stop, all reported together
 
@@ -129,6 +132,8 @@ Use [`website/README.md`](../../website/README.md)'s content-source map as the a
 
 Record gaps as: `MISSING WEBSITE: <website section> does not reflect <source change>`.
 
+`website/changelog/index.html` is deliberately **not** part of this gate — its entry for vX.Y is written by step 4a′ in this same run, so it cannot already reflect the release. Gate 2g covers it instead.
+
 #### 2f. Roadmap section ↔ docs/12-roadmap.md parity
 
 `website/index.html`'s roadmap section (`#roadmap`) is grouped by **capability, not by release**: an **Available now** grid of `<div class="rm-cell">` cards, each headed by an `<h4 class="rm-cat">` group name, above a compact `<div class="rm-planned">` band. It carries no version framing at all — there is no per-version milestone card to look in, and none should be re-introduced. Version history lives in `docs/12-roadmap.md`, which the section links to.
@@ -137,6 +142,10 @@ Check both directions:
 
 - Every bullet under a **released** `## vX.Y` must be a faithful (possibly abbreviated) summary of an item somewhere in the Available now grid — in whichever `rm-cat` group fits the capability. Record: `MISSING WEBSITE ROADMAP: <feature> not in the available-now grid`.
 - Nothing in the `rm-planned` band may correspond to a bullet under a released `## vX.Y`, and nothing in the grid may correspond to a bullet still under `## Backlog / Unscheduled`. Record: `STALE WEBSITE ROADMAP: <feature> is <released|backlog> in the docs but sits in the <planned band|available grid>`.
+
+#### 2g. Changelog does not already carry the release
+
+`website/changelog/index.html` must **not** yet contain `id="vX-Y-0"` (the per-release section anchor), and `website/version.json` must not already say `"version": "X.Y.0"`. Either one present means a previous run wrote the entry and stopped before flipping the roadmap, or someone hand-edited the page — in both cases the idempotent early exit at step 1 did not fire and this run would duplicate the entry. Record: `CHANGELOG ALREADY HAS vX.Y: <file> — reconcile by hand before re-running`.
 
 ### 3. Screenshot refresh — the skill drives the app, never the user
 
@@ -265,6 +274,36 @@ Only reached when steps 2 and 3 are green.
 - Flip the target heading from `## vX.Y 🚧 in progress` to `## vX.Y ✅ released`.
 - If the next milestone exists and was previously planned **and** the user passed `--promote-next` as a flag in the prompt, also flip the next milestone to `🚧 in progress`. Otherwise leave subsequent milestones alone.
 
+#### 4a′. `website/changelog/index.html` and `website/version.json`
+
+Runs right after 4a and **before 4b**, so the whole website edit set lands in one commit.
+
+- Prepend a new release section to `website/changelog/index.html`, directly above the current newest `<section class="docs-section scroll-pad" id="…">`, shaped exactly like its siblings:
+  ```html
+  <section class="docs-section scroll-pad" id="vX-Y-0">
+    <h2>vX.Y.0 — <the roadmap section's Theme line, without the trailing period></h2>
+    <p class="changelog-meta">
+      Released <time datetime="YYYY-MM-DD">D Month YYYY</time> ·
+      <a href="https://github.com/bablsoft/accessflow/releases/tag/vX.Y.0">Release on GitHub</a>
+    </p>
+    <ul>
+      <li><strong>Bold lead</strong> — one `<li>` per release-contents bullet from step 1, rewritten as release-note prose for a visitor: what it does and why it matters, no `AF-NNN` tokens, no class or table names.</li>
+    </ul>
+  </section>
+  ```
+  The date is today (the prep PR merges the same day the Release workflow is dispatched — see the ordering note in `docs/11-development.md`). Add `<a href="#vX-Y-0">vX.Y.0</a>` as the first link under the `Releases` label in the page's `docs-toc`. Zero inline `style=""` — the site-wide budget is asserted by equality.
+- Bump the page's JSON-LD `dateModified` to today and the `/changelog/` `<lastmod>` in `website/sitemap.xml` to the same value (`websitePages.test.ts` fails when the two disagree; the `website-drift.sh` hook warns when they are not today).
+- Overwrite `website/version.json`:
+  ```json
+  {
+    "version": "X.Y.0",
+    "released_at": "YYYY-MM-DD",
+    "changelog_url": "https://accessflow.io/changelog/#vX-Y-0"
+  }
+  ```
+  Stable releases only. Betas bypass this skill entirely and must never be written here — a `-beta.N` in this file would make every install nag about a pre-release.
+- 4b edits `website/index.html`, so bump its JSON-LD `dateModified` and the `/` `<lastmod>` in `sitemap.xml` too. (Pre-existing gap: the sitemap was missing from the staging list before #836.)
+
 #### 4b. `website/index.html`
 
 - The roadmap section carries no version framing, so there is **no milestone card to flip**. Instead, move any feature that this release promoted out of `## Backlog / Unscheduled` into `## vX.Y` out of the `<div class="rm-planned">` band and into the matching `<div class="rm-cell">` group in the Available now grid. If nothing was promoted, the section needs no edit.
@@ -299,7 +338,7 @@ The `Release` GitHub Action owns those — touching them here races with the act
   git checkout main && git pull --ff-only && git checkout -b chore/release-prep-vX.Y
   ```
   (Not `feature/` or `fix/` — this isn't an `AF-NNN` issue.)
-- Stage only the touched files (`docs/12-roadmap.md`, `website/index.html`, optionally `website/styles.css`, `README.md`, the regenerated PNGs under `website/images/docs/`). Never `git add -A`.
+- Stage only the touched files (`docs/12-roadmap.md`, `website/changelog/index.html`, `website/version.json`, `website/sitemap.xml`, `website/index.html`, optionally `website/styles.css`, `README.md`, the regenerated PNGs under `website/images/docs/`). Never `git add -A`.
 - Commit with an imperative subject ≤ 72 chars, matching the previous release-prep style:
   ```
   chore(release-prep): mark vX.Y released and refresh website screenshots
@@ -311,6 +350,7 @@ The `Release` GitHub Action owns those — touching them here races with the act
   ```
 - Open the PR via `gh pr create`. PR body must include:
   - A "Release contents" section — one bullet per `AF-NNN`, copied verbatim from the `docs/12-roadmap.md` section.
+  - A "Changelog" line linking the new entry: `https://accessflow.io/changelog/#vX-Y-0` (live once this PR merges), and the `version.json` value it publishes.
   - A "Screenshots regenerated" section — the PNG filenames from step 3.
   - A "Next step" section linking the [Release workflow](https://github.com/bablsoft/accessflow/actions/workflows/release.yml): "Once this PR is merged, run the Release workflow from the Actions tab with version input `X.Y.Z` to cut the actual release."
 
@@ -356,5 +396,6 @@ Suppress any section that has no entries — don't print empty headers.
 - [ ] `git status website/images/docs/` shows only the expected PNGs touched; the screenshot table in step 3c matches the actual PNG set on disk.
 - [ ] `docs/12-roadmap.md` flipped to `✅ released`.
 - [ ] `website/index.html` — every feature promoted out of the docs Backlog moved from the `rm-planned` band into its available-now group; hero badge and footer status updated.
+- [ ] `website/changelog/index.html` gained exactly one new `id="vX-Y-0"` section (newest first, TOC link added, dated today, release-note prose, zero inline styles) and `website/version.json` says `X.Y.0` with the matching anchor; both pages' `dateModified` and their `sitemap.xml` `<lastmod>` agree on today, and `cd frontend && npm run test:coverage` is green.
 - [ ] `backend/pom.xml`, `frontend/package.json`, `charts/accessflow/Chart.yaml` untouched — the `Release` workflow owns those.
 - [ ] Branch `chore/release-prep-vX.Y` pushed, PR opened, PR body lists release contents + regenerated PNGs + link to the `Release` workflow.

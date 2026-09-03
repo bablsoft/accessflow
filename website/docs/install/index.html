@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Installation",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-01",
+      "dateModified": "2026-09-03",
       "url": "https://accessflow.io/docs/install/",
       "mainEntityOfPage": "https://accessflow.io/docs/install/",
       "image": "https://accessflow.io/og-image.png",
@@ -262,7 +262,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-03">3 September 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -390,6 +390,18 @@
             <code>dashboards.enabled=true</code> covering query volume, approval SLAs, AI usage/cost,
             rejection rates, and connection-pool stats — see
             <a href="https://github.com/bablsoft/accessflow/blob/main/charts/accessflow/examples/values-observability.yaml">examples/values-observability.yaml</a>.
+          </p>
+          <p>
+            <strong>Release update hint.</strong> Once a day the backend fetches the small
+            <a href="/version.json">version.json</a> file published next to the
+            <a href="/changelog/">changelog</a> and, when a newer stable release exists, every
+            signed-in user sees the version under the sidebar logo turn into a link to that
+            release's changelog entry. The only thing that leaves your network is one
+            unauthenticated request for that static file — no install identifier, no usage data.
+            Set <code>ACCESSFLOW_UPDATES_ENABLED=false</code> on an air-gapped install to switch the
+            check off entirely; <code>ACCESSFLOW_UPDATES_URL</code> points a fork or an internal
+            mirror at its own manifest, and <code>ACCESSFLOW_UPDATES_TTL</code> (default
+            <code>PT24H</code>) sets how often it looks.
           </p>
           <p>
             <strong>External secrets managers.</strong> Datasource credentials can live in
@@ -750,6 +762,7 @@
             <li><a href="/security/">Security</a></li>
             <li><a href="/#how">How it works</a></li>
             <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
             <li><a href="/ai-agents/">AI agents</a></li>
             <li><a href="/#install">Quick start</a></li>
             <li><a href="/#questions">Questions</a></li>

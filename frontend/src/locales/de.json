@@ -74,6 +74,7 @@
     "custom_drivers": "Benutzerdefinierte JDBC-Treiber",
     "profile": "Profileinstellungen",
     "version": "AccessFlow Version {{version}}",
+    "update_available": "v{{version}} ist verfügbar — Änderungsprotokoll ansehen",
     "groups": "Groups",
     "datasource_health": "Datenquellen-Zustand",
     "slack": "Slack",

@@ -136,6 +136,7 @@ const SITEMAP_PRIORITY = {
   '/docs/configuration/audit-compliance/': '0.7',
   '/docs/iac/': '0.7',
   '/roadmap/': '0.6',
+  '/changelog/': '0.6',
   '/connectors/postgresql/': '0.7',
   '/connectors/mysql/': '0.7',
   '/connectors/mariadb/': '0.7',

@@ -366,7 +366,9 @@ Everything else is identical: the version is bumped, a detached `vX.Y.Z-beta.N` 
 ### Version surfacing
 
 - **Backend**: the `spring-boot-maven-plugin` `build-info` goal generates `META-INF/build-info.properties` at build time. Spring Boot's actuator auto-publishes this as `info.build.*` on `/actuator/info` (which is `permitAll()` in `SecurityConfiguration`, alongside `/actuator/health/**`).
-- **Frontend**: `vite.config.ts` reads `process.env.VITE_APP_VERSION` (set by the release workflow as a build-arg) and falls back to `package.json#version` for local `npm run dev`. The value is exposed as `APP_VERSION` from `src/config/version.ts` and rendered under the brand mark in the Sidebar.
+- **Frontend**: `vite.config.ts` reads `process.env.VITE_APP_VERSION` (set by the release workflow as a build-arg) and falls back to `package.json#version` for local `npm run dev`. The value is exposed as `APP_VERSION` from `src/config/version.ts` and rendered under the brand mark in the Sidebar by `components/common/VersionBadge.tsx`.
+- **Update hint (#836)**: `VersionBadge` also queries `GET /api/v1/system/update-status` (readable by every signed-in user) and, when the backend reports a newer stable release, turns the version into a warn-toned chip linking to that release's entry on `https://accessflow.io/changelog/`. The backend compares its `BuildProperties` version against `website/version.json` (see [docs/05-backend.md → Release update check](05-backend.md)); a `1.0.0-SNAPSHOT` or `-beta.N` build never nags.
+- **Release ordering caveat**: `prep-gh-release` runs *before* the tag. Its PR appends the release entry to `website/changelog/index.html` and bumps `website/version.json`, and merging it deploys the website — so `version.json` announces vX.Y during the window before the Release workflow is dispatched. The worst case is a user seeing the hint a few hours early and landing on a changelog entry that already exists. Keep that window short: **dispatch Release immediately after the prep PR merges.**
 
 ---
 

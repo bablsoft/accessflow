@@ -19,6 +19,7 @@
 <p align="center">
   <a href="https://accessflow.io/">Website</a> ·
   <a href="https://accessflow.io/docs/">Live Docs</a> ·
+  <a href="https://accessflow.io/changelog/">Changelog</a> ·
   <a href="#quick-start">Quick Start</a> ·
   <a href="docs/">Design Docs</a>
 </p>
@@ -299,6 +300,7 @@ accessflow/
 | [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) | Docker Compose, Helm, environment-variable reference |
 | [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) | Local setup, testing strategy, coding standards, Git workflow |
 | [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md) | v1.0 → v2.x milestone scope |
+| [Changelog](https://accessflow.io/changelog/) | Every stable release, newest first, one permanent link per version — what a self-hosted install's update hint opens |
 | [`docs/13-mcp.md`](https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md) | MCP server, user API keys, exposed tools |
 | [`docs/14-connectors.md`](https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
 | [`docs/15-engine-sdk.md`](https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines |

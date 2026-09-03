@@ -74,6 +74,7 @@
     "custom_drivers": "自定义 JDBC 驱动",
     "profile": "个人资料设置",
     "version": "AccessFlow 版本 {{version}}",
+    "update_available": "v{{version}} 已发布 — 查看更新日志",
     "groups": "Groups",
     "datasource_health": "数据源健康",
     "slack": "Slack",
