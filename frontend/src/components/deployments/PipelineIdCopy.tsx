@@ -23,8 +23,11 @@ export function PipelineIdCopy({ id, truncate = false }: PipelineIdCopyProps) {
         text: id,
         tooltips: [t('deploygov.pipelines.copyId'), t('deploygov.pipelines.copiedId')],
       }}
-      // The pipeline list makes whole rows clickable; copying an id must not also navigate.
+      // The pipeline list makes whole rows clickable. AntD already stops the copy button's own
+      // click; this covers a click on the id text, so selecting the value never navigates away.
       onClick={(e) => e.stopPropagation()}
+      // Truncated, the rendered text is not the value — keep the whole id on hover and for AT.
+      title={truncate ? id : undefined}
     >
       {truncate ? `${id.slice(0, 8)}…` : id}
     </Typography.Text>

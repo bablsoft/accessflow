@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginViaApi } from '../helpers/datasources';
-import { activeTabPanel, clickTab } from '../helpers/ui';
+import { activeTabPanel, clickTab, findRowAcrossPages } from '../helpers/ui';
 import {
   createDeploymentPipelineViaApi,
   deleteDeploymentPipelineViaApi,
@@ -140,34 +140,6 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     await expect(ciPanel.getByTestId('ci-snippet')).toContainText(pipeline.id);
   });
 
-  test('exposes the pipeline id as a copyable header control (#771)', async ({ page, request }) => {
-    const pipeline = await createDeploymentPipelineViaApi(request, adminAccessToken, {
-      name: `e2e-pipeline-id-${Date.now()}`,
-      aiAnalysisEnabled: false,
-    });
-    createdPipelineIds.push(pipeline.id);
-
-    // Chromium only grants clipboard writes to a permitted origin.
-    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
-
-    // The list carries the truncated id; the settings header carries it in full.
-    await page.goto('/admin/deployment-pipelines');
-    const row = page.locator('.ant-table-row', { hasText: pipeline.name });
-    await expect(row).toBeVisible({ timeout: 15_000 });
-    await expect(row.getByTestId('pipeline-id')).toContainText(pipeline.id.slice(0, 8));
-
-    await page.goto(`/admin/deployment-pipelines/${pipeline.id}`);
-    await expect(page.getByRole('heading', { name: pipeline.name })).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByTestId('pipeline-id')).toHaveText(pipeline.id);
-
-    // AntD derives the copy button's accessible name from the tooltip string.
-    await page.getByRole('button', { name: 'Copy pipeline ID' }).click();
-    const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toBe(pipeline.id);
-  });
 
   test('deletes a pipeline from the list', async ({ page, request }) => {
     const pipeline = await createDeploymentPipelineViaApi(request, adminAccessToken, {
@@ -192,5 +164,39 @@ test.describe.serial('deployment pipeline administration (#696)', () => {
     await expect(page.locator('.ant-table-row', { hasText: pipeline.name })).toHaveCount(0, {
       timeout: 10_000,
     });
+  });
+
+  test('exposes the pipeline id as a copyable control on both pages (#771)', async ({
+    page,
+    request,
+  }) => {
+    const pipeline = await createDeploymentPipelineViaApi(request, adminAccessToken, {
+      name: `e2e-pipeline-id-${Date.now()}`,
+      aiAnalysisEnabled: false,
+    });
+    createdPipelineIds.push(pipeline.id);
+
+    // The readText() assertion below is what needs a grant; the write does not.
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    // The list carries the truncated id. The pipeline list is unordered and org-shared, so the
+    // row is not reliably on page 1 under the parallel project.
+    await page.goto('/admin/deployment-pipelines');
+    const row = page.locator('.ant-table-row', { hasText: pipeline.name });
+    await findRowAcrossPages(page, row);
+    await expect(row.getByTestId('pipeline-id')).toContainText(pipeline.id.slice(0, 8));
+
+    // The settings header carries it in full — the point of the issue: no URL reading.
+    await page.goto(`/admin/deployment-pipelines/${pipeline.id}`);
+    await expect(page.getByRole('heading', { name: pipeline.name })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId('pipeline-id')).toHaveText(pipeline.id);
+
+    // AntD derives the copy button's accessible name from the tooltip string.
+    await page.getByRole('button', { name: 'Copy pipeline ID' }).click();
+    const copied = await page.evaluate(() => navigator.clipboard.readText());
+    expect(copied).toBe(pipeline.id);
   });
 });

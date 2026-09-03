@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import '@/i18n';
 import { PipelineIdCopy } from './PipelineIdCopy';
@@ -6,6 +6,8 @@ import { PipelineIdCopy } from './PipelineIdCopy';
 const ID = '11111111-2222-3333-4444-555555555555';
 
 describe('PipelineIdCopy', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it('renders the whole id and a t()-labelled copy control', () => {
     render(<PipelineIdCopy id={ID} />);
 
@@ -24,10 +26,11 @@ describe('PipelineIdCopy', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Copy pipeline ID' }));
     });
     expect(writeText).toHaveBeenCalledWith(ID);
-    vi.unstubAllGlobals();
+    // The rendered text is not the value, so the whole id has to stay reachable on hover.
+    expect(screen.getByTestId('pipeline-id')).toHaveAttribute('title', ID);
   });
 
-  it('stops a copy click from reaching a clickable row wrapper', async () => {
+  it('stops a click on the id text from reaching a clickable row wrapper', async () => {
     const onRowClick = vi.fn();
     render(
       <div onClick={onRowClick}>
@@ -35,8 +38,10 @@ describe('PipelineIdCopy', () => {
       </div>,
     );
 
+    // The id text, not the copy button: AntD stops the button's click on its own, so only a
+    // click on the value itself exercises this component's handler.
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Copy pipeline ID' }));
+      fireEvent.click(screen.getByTestId('pipeline-id'));
     });
     expect(onRowClick).not.toHaveBeenCalled();
   });

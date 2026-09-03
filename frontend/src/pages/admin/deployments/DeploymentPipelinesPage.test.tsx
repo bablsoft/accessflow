@@ -102,10 +102,12 @@ describe('DeploymentPipelinesPage', () => {
     expect(rowEl).not.toBeNull();
     expect(within(rowEl!).getByTestId('pipeline-id')).toHaveTextContent('p-1…');
 
+    // A click on the id cell must not take the whole row's navigation handler with it.
     await act(async () => {
-      fireEvent.click(within(rowEl!).getByRole('button', { name: 'Copy pipeline ID' }));
+      fireEvent.click(within(rowEl!).getByTestId('pipeline-id'));
     });
     expect(screen.queryByText('settings-route')).not.toBeInTheDocument();
+    expect(within(rowEl!).getByRole('button', { name: 'Copy pipeline ID' })).toBeInTheDocument();
   });
 
   it('creates a pipeline from the modal and navigates to its settings', async () => {

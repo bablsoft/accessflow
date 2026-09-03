@@ -681,11 +681,8 @@ APPROVED → FAILED (execution error)</pre>
           <p>
             <strong>Configure it.</strong> Create pipelines at
             <code>/admin/deployment-pipelines</code> (requires the
-            <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). A CI job
-            names its pipeline by <strong>id</strong>, never by name, so that id is copyable from
-            both places you meet a pipeline: shortened in the list's <strong>ID</strong> column, and
-            in full beneath the name on the pipeline's settings page. Each pipeline's settings page
-            carries seven tabs. Alongside <strong>General</strong> and the
+            <code>DEPLOYMENT_PIPELINE_MANAGE</code> permission, held by <code>ADMIN</code>). Each
+            pipeline's settings page carries seven tabs. Alongside <strong>General</strong> and the
             <strong>CI setup</strong> snippet sit <strong>Environments</strong> (promotion
             order, tags, required approvals, review-plan override, break-glass opt-in),
             <strong>Versions</strong> (which version each environment is running — see below),
@@ -701,6 +698,14 @@ APPROVED → FAILED (execution error)</pre>
             held by <code>ADMIN</code> and <code>REVIEWER</code>) — the same page that holds
             query and API-request reviews, with one tab per kind of request you may review and a
             pending count on each; everyone sees their own at <code>/deployments</code>.
+          </p>
+          <p>
+            <strong>Where the pipeline id is.</strong> A CI job names its pipeline by
+            <strong>id</strong>, never by name, because a trigger-only API key is not allowed to
+            list pipelines and so has nothing to resolve a name against. You can copy that id from
+            either place you meet a pipeline: the list's <strong>ID</strong> column, which shows a
+            shortened form, and the pipeline's settings page, which shows it in full beneath the
+            name. Both copy the whole UUID, not the shortened form.
           </p>
           <figure class="docs-figure">
             <picture>

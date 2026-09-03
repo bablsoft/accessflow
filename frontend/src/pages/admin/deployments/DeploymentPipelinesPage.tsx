@@ -148,6 +148,9 @@ export function DeploymentPipelinesPage() {
       title: '',
       key: 'actions',
       width: 180,
+      // Pinned: with the id column added, an ordinary repository URL pushes the only two row
+      // actions past the right edge on a 1440px viewport.
+      fixed: 'right' as const,
       render: (_v, row) => (
         <span style={{ display: 'flex', gap: 8 }}>
           <Button
