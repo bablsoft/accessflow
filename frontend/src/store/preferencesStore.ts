@@ -99,14 +99,14 @@ interface PreferencesState {
   theme: ThemeMode;
   sidebarCollapsed: boolean;
   /**
-   * Ids of sidebar sub-sections the user has collapsed (AF-837). A deny-list, so a sub-section
-   * that ships after the prefs were first persisted starts expanded with no migration — and the
-   * key's absence from an older `af-preferences` payload falls back to `[]` via zustand's
-   * shallow merge over the initial state, which is why persist `version` stays at 1. Nothing
-   * prunes the list: an id dropped in a future nav refactor simply stops matching, so a retired
-   * id lingering in a user's `af-preferences` is inert and needs no migration.
+   * Ids of sidebar sub-sections the user has expanded (AF-837). An allow-list, so every
+   * sub-section — including one that ships after the prefs were first persisted — starts
+   * collapsed, and a fresh login shows the nav fully closed. The key's absence from an older
+   * `af-preferences` payload falls back to `[]` via zustand's shallow merge over the initial
+   * state. Nothing prunes the list: an id dropped in a future nav refactor simply stops
+   * matching, so a retired id lingering in a user's `af-preferences` is inert.
    */
-  navCollapsedSubgroups: string[];
+  navExpandedSubgroups: string[];
   setupProgressCollapsed: boolean;
   setupProgressSkipped: SetupStepId[];
   language: Language;
@@ -132,18 +132,16 @@ const initialTheme = (): ThemeMode => {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
+type PersistedPreferences = Record<string, unknown> & {
+  dashboardWidgets?: DashboardWidgetPreferencesV0;
+};
+
 /**
  * v0 → v1: `visible[]` (allow-list) becomes `hidden[]` (deny-list). Only widgets the user's
  * persisted `order` knew about can have been deliberately hidden — under v0, an id absent from
  * `order` was always shown regardless of `visible`, so it must not migrate to hidden.
  */
-export function migratePreferences(persisted: unknown, version: number): unknown {
-  if (version >= 1 || typeof persisted !== 'object' || persisted === null) {
-    return persisted;
-  }
-  const state = persisted as Record<string, unknown> & {
-    dashboardWidgets?: DashboardWidgetPreferencesV0;
-  };
+function migrateWidgetsToV1(state: PersistedPreferences): PersistedPreferences {
   const v0 = state.dashboardWidgets;
   if (!v0) {
     return { ...state, dashboardWidgets: defaultDashboardWidgets() };
@@ -159,12 +157,35 @@ export function migratePreferences(persisted: unknown, version: number): unknown
   return { ...state, dashboardWidgets: migrated };
 }
 
+/**
+ * v1 → v2: the sidebar sub-section preference flips from `navCollapsedSubgroups` (a deny-list,
+ * everything open until closed) to `navExpandedSubgroups` (an allow-list, everything closed
+ * until opened). Nothing carries over — the nav now starts fully collapsed for everyone — and
+ * the stale key is dropped so it cannot linger in `af-preferences` forever.
+ */
+function migrateNavSubgroupsToV2(state: PersistedPreferences): PersistedPreferences {
+  const next = { ...state };
+  delete next.navCollapsedSubgroups;
+  return next;
+}
+
+export function migratePreferences(persisted: unknown, version: number): unknown {
+  if (version >= 2 || typeof persisted !== 'object' || persisted === null) {
+    return persisted;
+  }
+  let state = persisted as PersistedPreferences;
+  if (version < 1) {
+    state = migrateWidgetsToV1(state);
+  }
+  return migrateNavSubgroupsToV2(state);
+}
+
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set, get) => ({
       theme: initialTheme(),
       sidebarCollapsed: false,
-      navCollapsedSubgroups: [],
+      navExpandedSubgroups: [],
       setupProgressCollapsed: false,
       setupProgressSkipped: [],
       language: 'en',
@@ -175,9 +196,9 @@ export const usePreferencesStore = create<PreferencesState>()(
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleNavSubgroup: (id) =>
         set((s) => ({
-          navCollapsedSubgroups: s.navCollapsedSubgroups.includes(id)
-            ? s.navCollapsedSubgroups.filter((x) => x !== id)
-            : [...s.navCollapsedSubgroups, id],
+          navExpandedSubgroups: s.navExpandedSubgroups.includes(id)
+            ? s.navExpandedSubgroups.filter((x) => x !== id)
+            : [...s.navExpandedSubgroups, id],
         })),
       toggleSetupProgress: () =>
         set((s) => ({ setupProgressCollapsed: !s.setupProgressCollapsed })),
@@ -230,7 +251,7 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: 'af-preferences',
-      version: 1,
+      version: 2,
       // The persisted payload is a plain partial snapshot; migratePreferences is typed `unknown`
       // so tests can feed raw JSON. zustand merges it over the initial state after this cast.
       migrate: (persisted, version) => migratePreferences(persisted, version) as PreferencesState,

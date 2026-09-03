@@ -183,10 +183,10 @@ test.describe.serial('/admin/languages + per-user preference', () => {
     expect(switchBody.current_language).toBe('es');
 
     // A stable Spanish string from the sidebar nav, rendered immediately on
-    // i18n.changeLanguage. "Editor SQL" is the es.json translation of
-    // nav.editor (en.json: "Query editor"). Use first() because the same
-    // string also lives in the page title.
-    await expect(page.getByText('Editor SQL').first()).toBeVisible({ timeout: 10_000 });
+    // i18n.changeLanguage. "Flujo de trabajo" is the es.json translation of
+    // nav.group_workflow (en.json: "Workflow") — a group heading rather than a
+    // link, so it stays on screen while the nav's sub-sections are collapsed.
+    await expect(page.getByText('Flujo de trabajo').first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('4) empty allowed-list — UI blocks submit and backend rejects with ILLEGAL_LOCALIZATION_CONFIG', async ({

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login } from '../helpers/login';
+import { expandNavSection } from '../helpers/nav';
 
 
 // AF-459 covers the auditor compliance dashboard (/admin/auditor):
@@ -25,6 +26,7 @@ async function waitForClassifiedReport(page: Page): Promise<void> {
 test.describe.serial('auditor compliance dashboard', () => {
   test('sidebar link opens the dashboard with both report tabs', async ({ page }) => {
     await login(page);
+    await expandNavSection(page, 'Security & Access', 'Audit & compliance');
     await page.getByRole('link', { name: 'Compliance reports' }).click();
     await page.waitForURL('**/admin/auditor', { timeout: 15_000 });
     await waitForClassifiedReport(page);

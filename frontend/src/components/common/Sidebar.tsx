@@ -96,7 +96,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const location = useLocation();
-  const collapsedSubgroups = usePreferencesStore((s) => s.navCollapsedSubgroups);
+  const expandedSubgroups = usePreferencesStore((s) => s.navExpandedSubgroups);
   const toggleSubgroup = usePreferencesStore((s) => s.toggleNavSubgroup);
 
   const GROUPS: NavGroup[] = [
@@ -265,8 +265,19 @@ export function Sidebar({
   const canSee = (it: NavItem) =>
     hasAnyPermission(user, it.permissions) || (it.platformAdmin && user.platform_admin);
 
-  const isActive = (to: string) =>
+  const matchesPath = (to: string) =>
     location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
+
+  // Only the most specific matching destination highlights. Nav paths nest — `/reviews` under
+  // `/reviews/attestations`, `/request-groups` under `/request-groups/reviews` — and a plain
+  // prefix test would light up the parent alongside the page the user is actually on.
+  const activePath = GROUPS
+    .flatMap((g) => [...(g.items ?? []), ...(g.subgroups ?? []).flatMap((s) => s.items)])
+    .map((it) => it.to)
+    .filter(matchesPath)
+    .reduce<string | null>((best, to) => (best === null || to.length > best.length ? to : best), null);
+
+  const isActive = (to: string) => to === activePath;
 
   // Drop invisible items, then sub-sections left empty, then groups left with nothing at all.
   const visibleGroups = GROUPS
@@ -283,7 +294,9 @@ export function Sidebar({
     <NavLink
       key={item.id}
       to={item.to}
-      className={`af-sidebar-item${isActive(item.to) ? ' active' : ''}`}
+      // The callback form so react-router does not append its own `active` class on top: its
+      // matching is plain-prefix, which is exactly what `isActive` exists to override.
+      className={() => `af-sidebar-item${isActive(item.to) ? ' active' : ''}`}
       title={collapsed ? item.label : undefined}
     >
       <span className="af-sidebar-icon">{item.icon}</span>
@@ -357,12 +370,14 @@ export function Sidebar({
                 )}
                 {group.items.map(renderItem)}
                 {group.subgroups.map((sub) => {
-                  // The sub-section holding the current route always renders open, so navigating
-                  // can never leave the active page hidden behind a collapsed header. Its header
-                  // is disabled while that holds — toggling would mutate the stored preference
-                  // without changing anything on screen, and would announce the wrong action.
+                  // Every sub-section starts closed; only the ids the user has opened are
+                  // persisted. The sub-section holding the current route always renders open on
+                  // top of that, so landing on a deep link — or a fresh login — can never leave
+                  // the active page hidden behind a collapsed header. Its header is disabled
+                  // while that holds: toggling would mutate the stored preference without
+                  // changing anything on screen, and would announce the wrong action.
                   const lockedOpen = sub.items.some((it) => isActive(it.to));
-                  const open = lockedOpen || !collapsedSubgroups.includes(sub.id);
+                  const open = lockedOpen || expandedSubgroups.includes(sub.id);
                   const listId = `af-nav-sub-${sub.id}`;
                   return (
                     <div key={sub.id} className="af-sidebar-subgroup">

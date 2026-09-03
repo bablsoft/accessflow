@@ -1022,17 +1022,26 @@ still gates each entry.
 
 Behaviour:
 
-- **Default open.** Every sub-section starts expanded; collapsing is opt-in. The win is the
-  visual grouping, not hiding things.
-- **Persisted.** Collapsed sub-section ids live in `preferencesStore.navCollapsedSubgroups`
-  (`toggleNavSubgroup`), persisted under `af-preferences`. It is a **deny-list** of ids, so a
-  sub-section added later starts expanded, and an older payload that predates the key falls back
-  to `[]` through zustand's shallow merge — which is why the persist `version` stays at **1**.
+- **Default closed.** Every sub-section starts collapsed; expanding is opt-in. A first login
+  shows a short nav of group headings and the two generic entries, and the user opens the
+  sections they work in.
+- **Persisted.** Expanded sub-section ids live in `preferencesStore.navExpandedSubgroups`
+  (`toggleNavSubgroup`), persisted under `af-preferences`. It is an **allow-list** of ids, so a
+  sub-section added later starts collapsed like every other, and an older payload that predates
+  the key falls back to `[]` through zustand's shallow merge. Persist `version` is **2**: the
+  v1 → v2 migration drops the retired `navCollapsedSubgroups` deny-list without inverting it —
+  everyone starts fully collapsed once.
 - **Active route always visible.** A sub-section containing the active route renders open
-  regardless of the stored state, so navigating never leaves the current page hidden. Its header
-  is `disabled` while that holds: toggling could not change anything on screen, so a live control
-  there would be a dead button announcing the wrong action. Its `aria-label` says so
-  (`nav.section_locked_open`); sibling headers in the same group stay interactive.
+  regardless of the stored state, so a deep link — or a fresh login straight onto a page — never
+  leaves the current page hidden behind a closed header. Its header is `disabled` while that
+  holds: toggling could not change anything on screen, so a live control there would be a dead
+  button announcing the wrong action. Its `aria-label` says so (`nav.section_locked_open`);
+  sibling headers in the same group stay interactive.
+- **One entry highlights at a time.** Nav destinations nest (`/request-groups` and
+  `/request-groups/reviews`, `/reviews` and `/reviews/attestations`), so the active item is the
+  **longest** declared path matching the current location, not every prefix of it. `NavLink`
+  takes the callback form of `className` so react-router's own plain-prefix `active` class is
+  not appended on top.
 - **Icon rail.** When the sidebar is collapsed there is no room for headers: sub-section headers
   are dropped, every item renders flat, and each block (a group's own items, then each
   sub-section) is separated by `.af-sidebar-divider-line`. No collapsing inside the rail.
