@@ -114,10 +114,23 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           git fetch --tags --force
-          PREV=$(git tag -l 'v*' --sort=-v:refname \
-            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' \
-            | grep -v "^v${VERSION}$" \
-            | head -n 1 || true)
+          # A stable release compares against the previous *stable* tag, so its
+          # notes cover everything since the last stable release rather than
+          # only what landed after the final beta. A pre-release compares
+          # against whatever tag precedes it, keeping per-beta notes incremental.
+          if [[ "$VERSION" == *-* ]]; then
+            PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          else
+            PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+          fi
+          # versionsort.suffix=- is what makes git sort v2.4.0-beta.2 *below*
+          # v2.4.0; without it the beta sorts above the release it precedes.
+          # Taking the line after v${VERSION} (rather than the top of the list)
+          # keeps a patch backport released after a newer minor correct too.
+          PREV=$( { git -c versionsort.suffix=- tag -l 'v*' --sort=-v:refname \
+            | grep -E "$PATTERN" \
+            | grep -A1 -x -- "v${VERSION}" || true; } | tail -n 1)
+          if [ "$PREV" = "v${VERSION}" ]; then PREV=""; fi
           echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
           echo "Previous tag resolved to: ${PREV:-<none>}"
 
