@@ -2425,6 +2425,9 @@
       "name_placeholder": "z. B. claude-mcp",
       "name_required": "Name ist erforderlich.",
       "name_size": "Name muss zwischen 1 und 100 Zeichen lang sein.",
+      "expires_at_label": "Läuft ab",
+      "expires_at_placeholder": "Läuft nie ab",
+      "expires_at_help": "Optional. Leer lassen, damit der Schlüssel nie abläuft — du kannst ihn jederzeit widerrufen.",
       "issued_title": "Neuen API-Schlüssel kopieren",
       "raw_key_label": "Schlüssel",
       "copy_once_warning": "Dies ist das einzige Mal, dass der Schlüssel angezeigt wird. Bitte jetzt kopieren und an einem sicheren Ort speichern – ein erneuter Abruf ist nicht möglich.",
@@ -2443,7 +2446,8 @@
       },
       "status": {
         "active": "Aktiv",
-        "revoked": "Widerrufen"
+        "revoked": "Widerrufen",
+        "expired": "Abgelaufen"
       }
     },
     "slack": {

@@ -374,9 +374,11 @@
               once and never again. Paste it straight into your CI secret store.</li>
           </ol>
           <div class="docs-callout info">
-            <strong>Keys minted in the browser never expire.</strong> The form takes only a name.
-            The REST API does accept an expiry, so a key you create through
-            <code>POST /api/v1/me/api-keys</code> or through bootstrap can be given one.
+            <strong>Think twice before giving a pipeline key an expiry.</strong> The form's
+            optional <em>Expires</em> field takes a date and time — the picker greys out anything in
+            the past — but the gate is fail-closed, so on the day it passes every deployment job
+            stops until someone mints a new key. Leave it empty and the key lasts until you revoke
+            it. Set a date only if you will rotate the CI secret before then.
           </div>
         </section>
 

@@ -2425,6 +2425,9 @@
       "name_placeholder": "p. ej. claude-mcp",
       "name_required": "El nombre es obligatorio.",
       "name_size": "El nombre debe tener entre 1 y 100 caracteres.",
+      "expires_at_label": "Expira",
+      "expires_at_placeholder": "No expira nunca",
+      "expires_at_help": "Opcional. Déjalo vacío y la clave no expirará nunca; podrás revocarla en cualquier momento.",
       "issued_title": "Copia tu nueva clave de API",
       "raw_key_label": "Clave",
       "copy_once_warning": "Esta es la única vez que se muestra la clave. Cópiala ahora y guárdala en un lugar seguro: no podrás recuperarla más tarde.",
@@ -2443,7 +2446,8 @@
       },
       "status": {
         "active": "Activa",
-        "revoked": "Revocada"
+        "revoked": "Revocada",
+        "expired": "Expirada"
       }
     },
     "slack": {

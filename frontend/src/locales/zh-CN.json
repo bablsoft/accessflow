@@ -2425,6 +2425,9 @@
       "name_placeholder": "例如:claude-mcp",
       "name_required": "名称为必填项。",
       "name_size": "名称长度必须在 1 到 100 个字符之间。",
+      "expires_at_label": "过期时间",
+      "expires_at_placeholder": "永不过期",
+      "expires_at_help": "可选。留空则密钥永不过期 —— 您仍可随时撤销它。",
       "issued_title": "复制新的 API 密钥",
       "raw_key_label": "密钥",
       "copy_once_warning": "密钥仅在此时显示。请立即复制并保存到安全位置 —— 之后将无法再次获取。",
@@ -2443,7 +2446,8 @@
       },
       "status": {
         "active": "可用",
-        "revoked": "已撤销"
+        "revoked": "已撤销",
+        "expired": "已过期"
       }
     },
     "slack": {

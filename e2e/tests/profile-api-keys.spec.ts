@@ -60,6 +60,7 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
   const KEY_NAME_PREFIX = 'e2e-test-key-';
   const KEY_NAME = `${KEY_NAME_PREFIX}${SUFFIX}`;
   const KEY_NAME_DUP = `${KEY_NAME_PREFIX}dup-${SUFFIX}`;
+  const KEY_NAME_EXP = `${KEY_NAME_PREFIX}exp-${SUFFIX}`;
 
   test.beforeEach(async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -273,6 +274,88 @@ test.describe.serial('AF-286 — /profile API keys CRUD', () => {
     // Close the create modal so afterAll can clean up.
     await createDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(createDialog).toBeHidden({ timeout: 5_000 });
+  });
+
+  test('creates a key with an expiry and shows it in the Expires column (#824)', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Create API key', exact: true }).click();
+    const createDialog = page.getByRole('dialog', { name: 'Create a new API key' });
+    await expect(createDialog).toBeVisible({ timeout: 5_000 });
+    await createDialog.getByLabel('Key name', { exact: true }).fill(KEY_NAME_EXP);
+
+    // Optional expiry: type into the DatePicker and commit with Enter. 30 days
+    // out at 09:00 local keeps the value clear of "today", so disabledTime
+    // never applies.
+    const target = new Date();
+    target.setDate(target.getDate() + 30);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const typed =
+      `${target.getFullYear()}-${pad(target.getMonth() + 1)}-${pad(target.getDate())} 09:00:00`;
+    const expiryInput = createDialog.getByLabel('Expires', { exact: true });
+    await expiryInput.click();
+
+    // The guard the picker exists to provide: yesterday is not selectable.
+    const panel = page.locator('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)');
+    await expect(panel).toBeVisible({ timeout: 5_000 });
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const ymd =
+      `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`;
+    await expect(panel.locator(`td[title="${ymd}"]`)).toHaveClass(/ant-picker-cell-disabled/);
+
+    await expiryInput.fill(typed);
+    await expiryInput.press('Enter');
+    await expect(expiryInput).toHaveValue(typed);
+
+    const createResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'POST' &&
+        /\/api\/v1\/me\/api-keys$/.test(r.url()) &&
+        r.status() === 201,
+      { timeout: 10_000 },
+    );
+    await createDialog.getByRole('button', { name: 'Create API key', exact: true }).click();
+    const createResponse = await createResponsePromise;
+
+    // The request body carried the picked instant, and the server persisted it.
+    const sentBody = createResponse.request().postDataJSON() as {
+      name: string;
+      expires_at?: string | null;
+    };
+    expect(sentBody.expires_at).toBe(new Date(typed.replace(' ', 'T')).toISOString());
+
+    const created = (await createResponse.json()) as {
+      api_key: { id: string; name: string; expires_at: string | null };
+      raw_key: string;
+    };
+    expect(created.api_key.expires_at).not.toBeNull();
+    expect(new Date(created.api_key.expires_at!).getTime()).toBeGreaterThan(Date.now());
+
+    const issuedDialog = page.getByRole('dialog', { name: 'Copy your new API key' });
+    await expect(issuedDialog).toBeVisible({ timeout: 5_000 });
+    await issuedDialog
+      .locator('.ant-modal-footer')
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
+    await expect(issuedDialog).toBeHidden({ timeout: 5_000 });
+
+    // Columns: Name, Prefix, Created, Last used, Expires, Status, actions. Assert
+    // the header index before using it, so a column reorder fails loudly here
+    // rather than silently moving the cell assertion onto the wrong column.
+    const table = page.getByRole('table', { name: 'API keys' });
+    await expect(table.locator('thead th').nth(4)).toHaveText('Expires');
+    const row = table.locator('tr').filter({ hasText: KEY_NAME_EXP });
+    await expect(row).toBeVisible({ timeout: 10_000 });
+    // The Expires cell renders through Intl.DateTimeFormat, whose exact wording
+    // is locale-dependent — assert the year and day-of-month it must contain
+    // rather than the placeholder it must not be.
+    const expiresCell = row.locator('td').nth(4);
+    await expect(expiresCell).toContainText(String(target.getFullYear()));
+    await expect(expiresCell).toContainText(String(target.getDate()));
+
+    // Still Active: the expiry is 30 days out, not passed.
+    await expect(row.locator('td').nth(5)).toHaveText('Active');
   });
 
   test.afterAll(async ({ request }) => {

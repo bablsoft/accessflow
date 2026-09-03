@@ -3,6 +3,7 @@ import {
   Alert,
   App,
   Button,
+  DatePicker,
   Empty,
   Form,
   Input,
@@ -15,6 +16,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { apiKeysKeys, createApiKey, listApiKeys, revokeApiKey } from '@/api/apiKeys';
 import type { ApiKey, CreateApiKeyInput, CreateApiKeyResponse } from '@/types/api';
@@ -23,7 +25,10 @@ import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 
 interface CreateFormValues {
   name: string;
+  expires_at?: Dayjs | null;
 }
+
+const upTo = (limit: number) => Array.from({ length: Math.max(limit, 0) }, (_, i) => i);
 
 export function ApiKeysSection() {
   const { t, i18n } = useTranslation();
@@ -100,10 +105,17 @@ export function ApiKeysSection() {
     {
       title: t('profile.api_keys.column.status'),
       key: 'status',
-      render: (_, key) =>
-        key.revoked_at
-          ? t('profile.api_keys.status.revoked')
-          : t('profile.api_keys.status.active'),
+      render: (_, key) => {
+        if (key.revoked_at) {
+          return t('profile.api_keys.status.revoked');
+        }
+        // Expiry is enforced at every resolve, so a key past expires_at already
+        // 401s — the list must not keep calling it Active.
+        if (key.expires_at && new Date(key.expires_at).getTime() <= Date.now()) {
+          return t('profile.api_keys.status.expired');
+        }
+        return t('profile.api_keys.status.active');
+      },
     },
     {
       title: '',
@@ -183,8 +195,15 @@ export function ApiKeysSection() {
       >
         <Form<CreateFormValues>
           form={form}
+          name="createApiKey"
           layout="vertical"
-          onFinish={(values) => createMutation.mutate({ name: values.name })}
+          onFinish={(values) =>
+            createMutation.mutate(
+              values.expires_at
+                ? { name: values.name, expires_at: values.expires_at.toISOString() }
+                : { name: values.name },
+            )
+          }
         >
           <Form.Item
             name="name"
@@ -195,6 +214,35 @@ export function ApiKeysSection() {
             ]}
           >
             <Input placeholder={t('profile.api_keys.name_placeholder')} autoFocus />
+          </Form.Item>
+          <Form.Item
+            name="expires_at"
+            label={t('profile.api_keys.expires_at_label')}
+            extra={t('profile.api_keys.expires_at_help')}
+          >
+            <DatePicker
+              showTime
+              // A datetime picker defaults to needConfirm: without this, picking
+              // from the panel and pressing the modal's OK silently drops the value
+              // and mints a never-expiring key.
+              needConfirm={false}
+              style={{ width: '100%' }}
+              placeholder={t('profile.api_keys.expires_at_placeholder')}
+              disabledDate={(d) => !!d && d.isBefore(dayjs().startOf('day'))}
+              disabledTime={(d) => {
+                const now = dayjs();
+                if (!d || !d.isSame(now, 'day')) {
+                  return {};
+                }
+                return {
+                  disabledHours: () => upTo(now.hour()),
+                  disabledMinutes: (hour: number) =>
+                    hour === now.hour() ? upTo(now.minute()) : [],
+                  disabledSeconds: (hour: number, minute: number) =>
+                    hour === now.hour() && minute === now.minute() ? upTo(now.second()) : [],
+                };
+              }}
+            />
           </Form.Item>
         </Form>
       </Modal>

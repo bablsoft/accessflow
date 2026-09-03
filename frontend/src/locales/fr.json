@@ -2425,6 +2425,9 @@
       "name_placeholder": "par ex. claude-mcp",
       "name_required": "Le nom est obligatoire.",
       "name_size": "Le nom doit comporter entre 1 et 100 caractères.",
+      "expires_at_label": "Expire le",
+      "expires_at_placeholder": "N'expire jamais",
+      "expires_at_help": "Facultatif. Laissez vide et la clé n'expirera jamais — vous pouvez toujours la révoquer à tout moment.",
       "issued_title": "Copiez votre nouvelle clé d'API",
       "raw_key_label": "Clé",
       "copy_once_warning": "C'est la seule fois que la clé est affichée. Copiez-la maintenant et conservez-la en lieu sûr — vous ne pourrez plus la récupérer.",
@@ -2443,7 +2446,8 @@
       },
       "status": {
         "active": "Active",
-        "revoked": "Révoquée"
+        "revoked": "Révoquée",
+        "expired": "Expirée"
       }
     },
     "slack": {
