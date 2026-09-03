@@ -208,8 +208,8 @@ Canonical list — these are the WebP files that exist today plus the routes the
 | `/api-requests` list (AF-500) | `api-requests-list-light.webp`, `api-requests-list-dark.webp` |
 | `/deployments` list with seeded data (AF-682) | `deployments-list-light.webp`, `deployments-list-dark.webp` |
 | `/deployments/<id>` detail (AF-682) | `deployment-detail-light.webp`, `deployment-detail-dark.webp` |
-| `/deployment-reviews` queue (AF-682) | `deployment-reviews-queue-light.webp`, `deployment-reviews-queue-dark.webp` |
-| `/deployment-reviews?tab=rollbacks` worklist (AF-682) | `deployment-rollback-reviews-light.webp`, `deployment-rollback-reviews-dark.webp` |
+| `/reviews?tab=deployments` queue (AF-682, unified hub since #772) | `deployment-reviews-queue-light.webp`, `deployment-reviews-queue-dark.webp` |
+| `/reviews?tab=rollbacks` worklist (AF-682, unified hub since #772) | `deployment-rollback-reviews-light.webp`, `deployment-rollback-reviews-dark.webp` |
 | `/admin/deployment-pipelines` list (AF-682) | `deployment-pipelines-list-light.webp`, `deployment-pipelines-list-dark.webp` |
 | `/admin/deployment-pipelines/<id>` → Environments tab | `deployment-pipeline-environments-light.webp`, `deployment-pipeline-environments-dark.webp` |
 | `/admin/deployment-pipelines/<id>` → Freeze windows tab | `deployment-pipeline-freeze-windows-light.webp`, `deployment-pipeline-freeze-windows-dark.webp` |

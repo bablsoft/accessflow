@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
-import { App, Button, Input, Modal, Select, Skeleton, Table, Tabs, Tag, Tooltip } from 'antd';
+import { App, Button, Input, Modal, Select, Skeleton, Table, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   acknowledgeDeploymentRollback,
@@ -39,7 +38,11 @@ const ROLLBACK_STATUSES: DeploymentRollbackReviewStatus[] = ['PENDING_REVIEW', '
 
 const PAGE_SIZE = 20;
 
-function PendingDeploymentsTab() {
+/**
+ * The Deployments tab of the unified review hub (#772) — the pending-deployments queue that
+ * used to be the default tab of `/deployment-reviews`.
+ */
+export function PendingDeploymentsTab() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -334,7 +337,11 @@ function PendingDeploymentsTab() {
   );
 }
 
-function RollbackReviewsTab() {
+/**
+ * The Rollbacks tab of the unified review hub (#772) — the mandatory post-rollback
+ * acknowledgements, formerly `/deployment-reviews?tab=rollbacks`.
+ */
+export function RollbackReviewsTab() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
@@ -525,29 +532,5 @@ function RollbackReviewsTab() {
         />
       </Modal>
     </>
-  );
-}
-
-export default function DeploymentReviewQueuePage() {
-  const { t } = useTranslation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') === 'rollbacks' ? 'rollbacks' : 'pending';
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('deploygov.reviews.title')} subtitle={t('deploygov.reviews.subtitle')} />
-      <Tabs
-        activeKey={tab}
-        onChange={(key) => {
-          setSearchParams(key === 'rollbacks' ? { tab: 'rollbacks' } : {}, { replace: true });
-        }}
-        style={{ padding: '0 28px' }}
-        items={[
-          { key: 'pending', label: t('deploygov.reviews.tabPending') },
-          { key: 'rollbacks', label: t('deploygov.reviews.tabRollbacks') },
-        ]}
-      />
-      {tab === 'pending' ? <PendingDeploymentsTab /> : <RollbackReviewsTab />}
-    </div>
   );
 }

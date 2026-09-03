@@ -121,7 +121,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     try {
       const reviewerPage = await reviewerCtx.newPage();
       await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
-      await reviewerPage.goto('/deployment-reviews');
+      await reviewerPage.goto('/reviews?tab=deployments');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: version });
       await expect(row.first()).toBeVisible({ timeout: 15_000 });
@@ -169,7 +169,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
       await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // Approve from the queue, then follow the row into the detail page.
-      await reviewerPage.goto('/deployment-reviews');
+      await reviewerPage.goto('/reviews?tab=deployments');
       const row = reviewerPage.locator('.ant-table-row', { hasText: version });
       await expect(row.first()).toBeVisible({ timeout: 15_000 });
       await row.first().getByRole('button', { name: 'Approve' }).click();
@@ -326,7 +326,7 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     try {
       const reviewerPage = await reviewerCtx.newPage();
       await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
-      await reviewerPage.goto('/deployment-reviews?tab=rollbacks');
+      await reviewerPage.goto('/reviews?tab=rollbacks');
 
       const row = reviewerPage.locator('.ant-table-row', { hasText: detail });
       await expect(row.first()).toBeVisible({ timeout: 15_000 });

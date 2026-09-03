@@ -92,7 +92,6 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews",
     "lifecycle": "Жизненный цикл данных",
     "request_erasure": "Запросить удаление",
     "erasure_review": "Проверка удаления",
@@ -100,7 +99,6 @@
     "requestGroupReviews": "Group Reviews",
     "roles": "Роли",
     "deployments": "Развертывания",
-    "deploymentReviews": "Проверка развертываний",
     "deploymentVersions": "Матрица версий",
     "deploymentPipelines": "Пайплайны развертываний"
   },
@@ -785,7 +783,13 @@
   },
   "reviews": {
     "title": "Очередь проверки",
-    "subtitle": "Запросы, ожидающие вашего одобрения. Сначала самые свежие.",
+    "hub": {
+      "subtitle": "Всё, что ждёт вашего решения: запросы, API-запросы и развертывания.",
+      "tab_queries": "Запросы · {{count}}",
+      "tab_api": "API-запросы · {{count}}",
+      "tab_deployments": "Развертывания · {{count}}",
+      "tab_rollbacks": "Откаты · {{count}}"
+    },
     "tab_mine": "Назначены вам · {{count}}",
     "tab_all": "Все ожидающие · {{count}}",
     "tab_recent": "Недавно решённые",
@@ -3985,7 +3989,6 @@
       "variableValue": "Значение"
     },
     "reviews": {
-      "title": "API Reviews",
       "empty": "No API requests awaiting review",
       "approve": "Approve",
       "reject": "Reject",
@@ -3994,7 +3997,6 @@
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
       "risk": "Risk",
-      "subtitle": "Одобрение или отклонение управляемых API-вызовов",
       "searchPlaceholder": "Поиск по коннектору, пути",
       "actions": "Действия",
       "overrides": "Переопределения",
@@ -4309,10 +4311,6 @@
       "timeline_outcome": "Результат"
     },
     "reviews": {
-      "title": "Проверка развертываний",
-      "subtitle": "Развертывания, ожидающие вашего решения",
-      "tabPending": "Ожидающие развертывания",
-      "tabRollbacks": "Проверки откатов",
       "approve": "Одобрить",
       "reject": "Отклонить",
       "approved": "Одобрено",

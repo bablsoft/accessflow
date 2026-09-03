@@ -128,7 +128,9 @@ accessflow-ui/
 │   │   │   └── QueryDetailPage.tsx   # Full detail view for a single query
 │   │   │
 │   │   ├── reviews/
-│   │   │   └── ReviewQueuePage.tsx   # Pending reviews for current reviewer
+│   │   │   ├── ReviewHubPage.tsx     # Unified review queue — one tab per request kind (#772)
+│   │   │   ├── QueryReviewsTab.tsx   # Queries tab: pending query reviews for current reviewer
+│   │   │   └── legacyReviewRedirects.tsx # /api-reviews and /deployment-reviews → the hub
 │   │   │
 │   │   ├── requestGroups/            # Grouped requests (chaining — AF-501)
 │   │   │   ├── GroupBuilderPage.tsx        # Build + reorder + submit a bundle (also mounts /request-groups/:id/edit — #559)
@@ -205,9 +207,43 @@ Features:
 - **Submit button** — sends `POST /queries`, transitions to status tracking view. When the datasource has AI configured, Submit is disabled until a fresh AI analysis exists for the current SQL.
 - **Status tracker** — real-time status updates via WebSocket (`PENDING_AI` → `PENDING_REVIEW` → `APPROVED` → `EXECUTED`)
 
-### ReviewQueuePage
+### ReviewHubPage — the unified review queue (#772)
 
-Available to users with `REVIEWER` or `ADMIN` role:
+`/reviews` is one page for every request kind the viewer may review. It is guarded any-of
+`QUERY_REVIEW` / `API_REQUEST_REVIEW` / `DEPLOYMENT_REVIEW` and renders one AntD tab per queue,
+**only for the permissions the viewer holds** — a reviewer with `API_REQUEST_REVIEW` and no
+`DEPLOYMENT_REVIEW` sees no Deployments tab, not an empty one:
+
+| `?tab=` | Permission | Body | Formerly |
+|---|---|---|---|
+| `queries` | `QUERY_REVIEW` | `QueryReviewsTab` (`pages/reviews/`) | the whole `/reviews` page |
+| `api` | `API_REQUEST_REVIEW` | `ApiReviewsTab` (`pages/apigov/`) | `/api-reviews` |
+| `deployments` | `DEPLOYMENT_REVIEW` | `PendingDeploymentsTab` (`pages/deployments/DeploymentReviewTabs.tsx`) | `/deployment-reviews` |
+| `rollbacks` | `DEPLOYMENT_REVIEW` | `RollbackReviewsTab` (same file) | `/deployment-reviews?tab=rollbacks` |
+
+- The tab registry (`TABS` in `ReviewHubPage.tsx`) plus `REVIEW_HUB_TAB_PERMISSION` in the pure
+  `utils/reviewHubTabs.ts` are the two places a new queue is added; `reviewHubPath(tab)` is the
+  single owner of the `/reviews?tab=` URL shape (used by `NotificationBell`, the dashboard tiles
+  and the redirects). Erasure, attestation and request-group reviews are still separate pages.
+- The tab is synced to `?tab=` (`replace`, like the old deployment page). A bare `/reviews` is
+  left alone and shows the first visible tab; a `?tab=` the viewer may not see, or that does not
+  exist, is replaced by the first visible tab so the URL never lies about what is on screen.
+- **Only the active tab is mounted** (rendered beside the `Tabs`, never as `items[].children`),
+  so inactive queues are never fetched and never leak hidden rows into the DOM.
+- Each tab label carries its pending count (`Queries · 3`) from `hooks/usePendingReviewCounts.ts`:
+  one `size=1` probe per queue the viewer may work, keyed through the existing `reviewKeys` /
+  `apiRequestKeys.reviewQueue` / `deploymentReviewKeys` / `deploymentRollbackReviewKeys` factories so
+  the WebSocket invalidations still hit them, 30 s polling as a backstop. `AppLayout` reads the same
+  hook's `total` for the sidebar badge, so the badge and the tabs share one set of cache entries.
+- The header actions — the **Enable push approvals** toggle (AF-444) and Refresh — render only
+  while the Queries tab is active; push decisions cover query reviews only.
+- `/api-reviews` and `/deployment-reviews[?tab=rollbacks]` are kept as `<Navigate replace>`
+  redirects (`pages/reviews/legacyReviewRedirects.tsx`) so notification and docs deep links keep
+  resolving.
+
+#### Queries tab (`QueryReviewsTab`)
+
+Available to users holding `QUERY_REVIEW`:
 
 - Paginated list of queries in `PENDING_REVIEW` status assigned to this reviewer, rendered as an Ant Design `<Table>` with `rowSelection` so the reviewer can drive both single-row and batch flows from the same page.
 - Columns: ID (short hash + full UUID + tooltip), query type, AI risk badge, approval likelihood, datasource, submitter (avatar + email), time elapsed, optional per-row status badge for failed bulk rows, and a row-actions column with per-row approve/reject buttons.
@@ -231,7 +267,7 @@ Available to any authenticated user (AF-378, AF-567). A form (`api/accessRequest
 
 ### AccessRequestsQueuePage (`/admin/access-requests`)
 
-Available to `REVIEWER` / `ADMIN` (AF-378, AF-567). Mirrors `ReviewQueuePage`: a TanStack Query list of pending access requests (`GET /api/v1/admin/access-requests`) — both datasource and connector kinds in one queue, each row carrying a kind tag plus the resource name and (for connector requests) an operations-count tag with the allow-list in its tooltip — per-row Approve and Reject (the reject modal requires a comment, mirroring the backend `@NotBlank`), with optimistic cache invalidation on decision. Status/colour go through `accessGrantStatusColor` / `accessGrantStatusLabel` (single source of truth in `utils/`).
+Available to `REVIEWER` / `ADMIN` (AF-378, AF-567). Mirrors the review hub's `QueryReviewsTab`: a TanStack Query list of pending access requests (`GET /api/v1/admin/access-requests`) — both datasource and connector kinds in one queue, each row carrying a kind tag plus the resource name and (for connector requests) an operations-count tag with the allow-list in its tooltip — per-row Approve and Reject (the reject modal requires a comment, mirroring the backend `@NotBlank`), with optimistic cache invalidation on decision. Status/colour go through `accessGrantStatusColor` / `accessGrantStatusLabel` (single source of truth in `utils/`).
 
 ### QueryDetailPage
 
@@ -358,7 +394,7 @@ of the sidebar, above **Workflow**; the
 default post-login landing for non-auditor roles). The header shows **clickable** headline stat tiles
 (`StatTile` — whole surface navigates to the matching list page: pending approvals → `/reviews`, open
 queries → `/queries`, anomalies → `/admin/anomalies`, API requests → `/api-requests`, API approvals →
-`/api-reviews`; the suggestions tile scrolls to and expands the suggestions widget since no dedicated
+`/reviews?tab=api`; the suggestions tile scrolls to and expands the suggestions widget since no dedicated
 page exists). The open-queries tile renders the summary's `status_counts` as a mini per-status
 breakdown, and the open-queries / open-API-requests tiles carry a **Bklit sparkline + `DeltaBadge`**
 (second-half vs first-half of the trends window, sharing the trends query cache).
@@ -542,11 +578,12 @@ under `apiGov.*` in every registered locale.
 | `/api-connectors/:id/settings` | `ApiConnectorSettingsPage` | Create/edit form (protocol, base URL, auth method + credential fields, a `default_headers` key-value editor and a `trace_header_mapping` editor (#517), governance toggles incl. AI analysis / text-to-API switches and an **AI-config `Select`** — required when either AI feature is on, mirroring the datasource wizard — plus a **Review-plan `Select`** (AF-579; options from `GET /review-plans`, `allowClear`, same UX as the datasource wizard — clearing it sends `clear_review_plan: true` on save so the assignment is unset, and the hint notes that a connector without a plan defaults to a single approval), schema ingestion with three modes — paste / file upload / `sourceUrl` (#517) — plus a collapsible **import-filter** section (AF-614: exclude/include path globs, exclude verbs, exclude operation-id globs, exclude tags, and an "exclude deprecated" checkbox, all mirroring the backend's 100-entry / 200-character caps) with a **Preview** button (`POST .../schemas/preview`) that reports "Keeps K of N operations" and lists what would be dropped before committing, an "N of M operations imported" result line after upload, and a per-row **Edit filter** modal (`PUT .../schemas/{schemaId}/filter`) that re-edits the filter without re-uploading the document — + parsed-operation explorer, a **Variables** tab (AF-613: `ApiConnectorVariablesTab` — per-connector dynamic variables for request signing / nonces / timestamps, with a kind-driven form that shows only the fields the kind uses, an MD5 warning, up/down reorder because evaluation order is observable, a write-only secret field that is never round-tripped, and an `overridable` switch disabled for secret-bearing kinds to mirror the server rule), and the per-user "Share with team" permission grants (`can_read`/`can_write`/`can_break_glass`/`can_override_variables`/`expires_at`/`allowed_operations`/`restricted_response_fields`). AntD `Form`; validation parity with the backend DTOs. The "New connector" modal on `/api-connectors` carries the same AI-analysis/text-to-API/AI-config and review-plan fields plus a `default_headers` editor. |
 | `/api-editor` | `ApiEditorPage` | Connector picker → the shared **`ApiAuthoringPanel`** (`components/apigov/ApiAuthoringPanel.tsx` + `useApiAuthoring.ts`, #559): searchable+sorted operation `Select` from the parsed catalog auto-filling verb/path (or free-form verb + path) → a Postman-style request composer (`ApiRequestComposer`: Params / Headers / Body tabs — plus a **Variables** tab (AF-613) shown only when the connector declares dynamic variables, listing the available `{{name}}` placeholders and offering per-request overrides for the ones marked overridable; body modes none/raw/x-www-form-urlencoded/form-data/binary with file uploads read to bounded base64; the connector's default headers shown read-only) → AI risk preview (`POST /api-requests/analyze`, `RiskBadge`) and the "describe the call in plain English" text-to-API box (`POST /api-requests/generate`, shown only when the connector has a schema and `text_to_api_enabled`). The page keeps the connector select, optional scheduled-run `DatePicker` (#517), justification, and submit; the group builder's `GroupMemberEditDrawer` mounts the same panel for API steps — without the Variables tab, since the group-item wire shape carries no overrides (AF-613). |
 | `/api-requests` | `ApiRequestsListPage` | API requests aligned with the Query History page: a filter bar (search, status, connector, verb, risk, submitter, trace id, span id, date range; #517), a **Submitter** column, `StatusPill`/`RiskPill`, server-side pagination + filtering (`status`/`connector_id`/`verb`/`trace_id`/`span_id`/`from`/`to`; risk + free-text incl. submitter email filtered client-side), and row click → detail. |
-| `/api-requests/:id` | `ApiRequestDetailPage` | Responsive card layout: status (`StatusPill`) + AI risk (`RiskPill`), connection/response metadata in a reflowing `Descriptions` (incl. submitter, trace id, span id; #517), justification / **variable-overrides** (AF-613; the signing inputs the submitter supplied, never the resolved outputs) / AI summary / error cards, the size-capped field-masked response snapshot with a **Download full response** button (`GET /api-requests/{id}/response`, #517), and the review-decisions table. A reviewer/admin viewing a `PENDING_REVIEW` request they didn't submit gets inline **Approve / Reject** actions via a shared comment modal (#567, self-approval blocked server-side), mirroring `ApiReviewQueuePage` so the request is actionable from where the reviewer lands. |
-| `/api-reviews` | `ApiReviewQueuePage` | Reviewer/admin queue of API requests awaiting review with the same filter bar (search, connector, verb, risk) + pagination, plus an **Overrides** badge column (AF-613) flagging requests that override connector variables; approve/reject via a comment modal (self-approval blocked server-side). |
+| `/api-requests/:id` | `ApiRequestDetailPage` | Responsive card layout: status (`StatusPill`) + AI risk (`RiskPill`), connection/response metadata in a reflowing `Descriptions` (incl. submitter, trace id, span id; #517), justification / **variable-overrides** (AF-613; the signing inputs the submitter supplied, never the resolved outputs) / AI summary / error cards, the size-capped field-masked response snapshot with a **Download full response** button (`GET /api-requests/{id}/response`, #517), and the review-decisions table. A reviewer/admin viewing a `PENDING_REVIEW` request they didn't submit gets inline **Approve / Reject** actions via a shared comment modal (#567, self-approval blocked server-side), mirroring the API tab of the review hub (`ApiReviewsTab`) so the request is actionable from where the reviewer lands. |
+| `/api-reviews` | *redirect* → `/reviews?tab=api` | Since #772 the API review queue is the **API requests** tab of the unified review hub (`ApiReviewsTab`, `pages/apigov/`): the same filter bar (search, connector, verb, risk) + pagination, the **Overrides** badge column (AF-613) flagging requests that override connector variables, and approve/reject via a comment modal (self-approval blocked server-side). The legacy URL redirects into the tab. |
 
 Navigation entries are added to `components/common/Sidebar.tsx` (Connections → **API**: connectors;
-Workflow → **API**: API editor / requests / reviews), role-gated like the rest of the nav.
+Workflow → **API**: API editor / requests), role-gated like the rest of the nav; API reviews live in
+the unified `/reviews` hub since #772.
 
 ## Request chaining & grouping pages (AF-501)
 
@@ -592,7 +629,7 @@ registered locale.
 |-------|------|-------|
 | `/deployments` | `DeploymentListPage` | Deployment requests (non-reviewers are server-scoped to their own submissions). Filter bar: status, pipeline, environment name, exact version; server pagination, forced `created_at DESC` (no sortable columns). The pipeline filter is built from the loaded rows unless the caller holds `DEPLOYMENT_PIPELINE_MANAGE` — a `DEPLOYMENT_REVIEW`-only user cannot call `GET /deployment-pipelines`. Row click → detail. A **Drift** column (#743) reads the per-pipeline matrix through one `useQueries` fan-out over the distinct `pipeline_id`s on the page (keys shared with the detail page, so revisits are cache hits; a 404 leaves those rows unbadged) and badges **only** the request that is currently live on its environment (`current_request_id === row.id`) — drift describes the environment now, so badging a superseded historical request would mislead. |
 | `/deployments/:id` | `DeploymentDetailPage` | Metadata `Descriptions` (version, commit, artifact, CI-run link, external run id, submitter, reason, schedule), AI risk card (`RiskPill` + summary), approvals progress + decisions table, request `metadata` JSON block, and an `ApprovalTimeline` fed by the pure `buildDeploymentTimelineStages.ts` (submitted → AI → review → scheduled → release → outcome, incl. the `EXECUTED → FAILED` outcome flip). While `APPROVED`, the page calls `GET /deployment-gate?request_id=` for the **releasability banner** (releasable / held-by-freeze with reason / scheduled); a gate 404 hides the banner silently. The submitter can cancel via `Popconfirm` while cancellable. A **Drift** row (#743) joins the pipeline matrix by environment: the drift chip when this request is the environment's live deploy, otherwise a muted "Superseded — {environment} now runs {version}"; a matrix 404 hides the row entirely, same treatment as the gate. |
-| `/deployment-reviews` | `DeploymentReviewQueuePage` | `DEPLOYMENT_REVIEW`-gated, two tabs synced to `?tab=`. **Pending deployments**: queue rows (pipeline/environment/version/risk/approvals/schedule) with approve/reject via a shared comment modal (≤2000 chars); own submissions render disabled buttons with a tooltip (self-approval is also blocked server-side with 409). **Rollback reviews** (`?tab=rollbacks`): the mandatory post-rollback acknowledgements — status filter, outcome detail, acknowledge with optional comment (idempotent; self-ack 409), link to the deployment. |
+| `/deployment-reviews` | *redirect* → `/reviews?tab=deployments` (or `?tab=rollbacks`) | Since #772 the two `DEPLOYMENT_REVIEW`-gated queues are tabs of the unified review hub (`pages/deployments/DeploymentReviewTabs.tsx`). **Deployments** (`PendingDeploymentsTab`): queue rows (pipeline/environment/version/risk/approvals/schedule) with approve/reject via a shared comment modal (≤2000 chars); own submissions render disabled buttons with a tooltip (self-approval is also blocked server-side with 409). **Rollbacks** (`RollbackReviewsTab`, `?tab=rollbacks`): the mandatory post-rollback acknowledgements — status filter, outcome detail, acknowledge with optional comment (idempotent; self-ack 409), link to the deployment. The legacy URL (with or without `?tab=rollbacks`) redirects into the matching tab. |
 | `/deployment-versions` | `DeploymentVersionsPage` | Org-wide version matrix (#743) — one row per environment deployed at least once: pipeline (linking to the per-pipeline matrix), environment + tag chips, current/previous version, deployed-at, last outcome + rollback badge, drift badge. Filters: pipeline, tag, environment name, and a drift tri-state (`Any` / `Behind latest only` / `Up to date only` → `drifted` `undefined`/`true`/`false` — the "up to date" case is why the api module guards on `typeof … === 'boolean'` rather than truthiness). Guarded any-of `DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`, mirroring the controller's `hasAnyAuthority`. Tag options come from the loaded rows, so the list collapses to the selected tag until cleared (the selection is pinned so it cannot vanish from its own `Select`). Empty with no filters ⇒ `EmptyState`; empty with filters ⇒ the table's `emptyFiltered` text. |
 | `/deployment-versions/:pipelineId` | `PipelineVersionsPage` | The per-pipeline matrix as a standalone route (#743), **deliberately unguarded** — the server answers 404-never-403, which is what gives a `can_trigger`-only user (who cannot reach the admin settings page, and cannot call `GET /deployment-pipelines` to pick from) a reachable surface. Entry points: the pipeline column on `/deployment-versions`, and a "Version matrix" button beside the pipeline filter on `/deployments`. Wraps the same `PipelineVersionsTab`; a rejected matrix read renders the not-found `EmptyState`. |
 | `/admin/deployment-pipelines` | `DeploymentPipelinesPage` | `DEPLOYMENT_PIPELINE_MANAGE`-gated CRUD list (name, provider label, repository, AI toggle, active tag) + create modal (name 3–255, provider, repository URL ≤2048, project ref ≤512, review plan, AI toggle + AI config — validation parity with `CreateDeploymentPipelineRequest`). Create navigates straight into settings. |
@@ -603,13 +640,14 @@ transition; `websocketManager.invokeDefault` invalidates the deployment detail (
 child key), list, and review queue. Reviewer queues refresh off `notification.created` — a
 `DEPLOYMENT_SUBMITTED` notification additionally invalidates the review queue and a
 `DEPLOYMENT_OUTCOME_FAILED` one the rollback-review list. `NotificationBell` routes deployment
-notifications into the new pages (submission → queue, outcome-failed → rollback tab, the rest →
-the deployment detail). The version caches are **not** WebSocket-invalidated — there is no
+notifications into the pages (submission → the hub's Deployments tab, outcome-failed → its
+Rollbacks tab, the rest → the deployment detail). The version caches are **not** WebSocket-invalidated — there is no
 `deployment.version_changed` event — so they refresh on mount and whenever an environment mutation
 drops `deploymentVersionKeys.matrix(pipelineId)` and `.lists()` (name, tags and sort order all
 appear in matrix rows). Navigation: Workflow → **Deployments** `Deployments` (on `QUERY_SUBMIT_SELECT`, like
-API requests), `Deployment Reviews` (`DEPLOYMENT_REVIEW`) and `Version Matrix` (any of
-`DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`); Connections →
+API requests) and `Version Matrix` (any of
+`DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`); deployment reviews are reached
+through the unified `Review queue` entry (#772); Connections →
 **Deployments** `Deployment Pipelines` (`DEPLOYMENT_PIPELINE_MANAGE`). A `can_trigger`-only user gets no nav entry
 and reaches `/deployment-versions/:pipelineId` from `/deployments` instead.
 
@@ -749,7 +787,7 @@ the caller's generic fallback when the envelope carries neither. Anti-patterns t
 
 The connection itself is owned by `<RealtimeBridge />`, mounted inside `AppLayout` so it only runs under `AuthGuard` — the WebSocket module is never imported by the `/login` or `/setup` routes, and no connection is attempted before authentication. It reads `accessToken` from `authStore`, opens `${VITE_WS_URL}?token=<JWT>` on auth, reconnects with exponential backoff, and disconnects on logout (when `AppLayout` unmounts). The bridge also wires **default `queryClient.invalidateQueries`** for the standard event/key mapping (see table below) — most callers don't need to subscribe at all; they just observe their existing TanStack queries refetching.
 
-Detail and list views (`QueryDetailPage`, `ReviewQueuePage`, etc.) **do not poll** — they rely on these WS-driven invalidations, with the manager's exponential backoff covering transient disconnects. A reload restores state if the WS is permanently unreachable.
+Detail and list views (`QueryDetailPage`, the review-hub tab bodies, etc.) **do not poll** — they rely on these WS-driven invalidations, with the manager's exponential backoff covering transient disconnects. A reload restores state if the WS is permanently unreachable. The one exception is the `usePendingReviewCounts` badge/tab-count hook (#772), which keeps a 30 s `refetchInterval` as a backstop for dropped frames.
 
 For event-specific side effects (e.g. a toast on a new review request), subscribe inside a component:
 
@@ -888,7 +926,8 @@ for deployment recipes (Docker Compose, Helm).
 /editor                             → QueryEditorPage
 /queries                            → QueryListPage  (header **Export CSV** button hits `GET /queries/export.csv` with the active server-side filters — `status`, `datasource_id`, `submitted_by`, `from`, `to`, `query_type`. Client-only filters on the page, namely the free-text search and risk-level select, are not sent because the backend has no equivalent filter; this matches the behaviour of the list endpoint itself. The mutation downloads via a temporary `<a>` element and shows a warning toast when the response carries `X-AccessFlow-Export-Truncated: true`.)
 /queries/:id                        → QueryDetailPage
-/reviews                            → ReviewQueuePage (header carries the **Enable push approvals** toggle — AF-444)
+/reviews                            → ReviewHubPage (unified review queue — one permission-gated tab per request kind synced to `?tab=queries|api|deployments|rollbacks`; the Queries tab's header carries the **Enable push approvals** toggle — AF-444; #772)
+/api-reviews                        → redirect → /reviews?tab=api (#772)
 /reviews/:id/decide                 → PushDecidePage (lazy; REVIEWER/ADMIN — one-tap push decide landing with step-up auth, AF-444)
 /reviews/attestations               → AttestationWorklistPage (lazy; REVIEWER/ADMIN — certify/revoke recertification items, bulk supported, AF-384; usage-evidence column + staleness-first server ordering + paging, #625)
 /request-groups                     → RequestGroupListPage (lazy; grouped-request history — AF-501)
@@ -897,7 +936,7 @@ for deployment recipes (Docker Compose, Helm).
 /request-groups/:id                 → RequestGroupDetailPage (lazy; ordered step-by-step progress, live via WebSocket — AF-501)
 /deployments                        → DeploymentListPage (lazy; deployment requests, own-scoped for non-reviewers — #696)
 /deployments/:id                    → DeploymentDetailPage (lazy; metadata + AI risk + approvals + releasability banner + outcome timeline — #696)
-/deployment-reviews                 → DeploymentReviewQueuePage (lazy; DEPLOYMENT_REVIEW — pending deployments + rollback-review tabs — #696)
+/deployment-reviews                 → redirect → /reviews?tab=deployments, or ?tab=rollbacks when the legacy URL carried it (#772)
 /deployment-versions                → DeploymentVersionsPage (lazy; any of DEPLOYMENT_PIPELINE_MANAGE / DEPLOYMENT_REVIEW / QUERY_ADMIN — org-wide version matrix with drift badges — #743)
 /deployment-versions/:pipelineId    → PipelineVersionsPage (lazy; unguarded — the server's 404-never-403 rule is the gate, so can_trigger holders reach their own pipelines — #743)
 /profile                            → ProfilePage
@@ -961,10 +1000,10 @@ still gates each entry.
 
 | Group | Sub-section | Routes |
 |---|---|---|
-| *(no heading)* | *(none)* | `/dashboard`, `/reviews` (keeps the pending badge) |
+| *(no heading)* | *(none)* | `/dashboard`, `/reviews` (the unified review queue — any of `QUERY_REVIEW` / `API_REQUEST_REVIEW` / `DEPLOYMENT_REVIEW`; the pending badge sums every queue the viewer may work, #772) |
 | `WORKFLOW` | **Database** | `/editor`, `/queries` |
-| | **API** | `/api-editor`, `/api-requests`, `/api-reviews` |
-| | **Deployments** | `/deployments`, `/deployment-reviews`, `/deployment-versions` |
+| | **API** | `/api-editor`, `/api-requests` |
+| | **Deployments** | `/deployments`, `/deployment-versions` |
 | | **Request groups** | `/request-groups`, `/request-groups/reviews` |
 | | **Access & lifecycle** | `/access-requests`, `/lifecycle/erasure`, `/lifecycle/erasure-reviews`, `/reviews/attestations` |
 | `CONNECTIONS` | **Database** | `/datasources`, `/admin/connectors`, `/admin/drivers` |

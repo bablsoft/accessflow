@@ -152,7 +152,7 @@ test('admin imports a Postman collection as a connector schema (#612)', async ({
   expect(body).not.toContain('pm.environment.set');
 });
 
-test('API Requests and API Reviews pages render their filter bars (#512)', async ({ page }) => {
+test('API Requests page and the API tab of the review queue render their filter bars (#512)', async ({ page }) => {
   await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
   // API Requests list: aligned with Query History — search + status/connector/verb/risk filters,
@@ -166,7 +166,8 @@ test('API Requests and API Reviews pages render their filter bars (#512)', async
   await expect(page.getByLabel('Span ID')).toBeVisible();
 
   // API Reviews queue: same filter pattern (connector/verb/risk + search).
-  await page.goto('/api-reviews');
+  // Since #772 the API review queue is a tab of the unified /reviews hub.
+  await page.goto('/reviews?tab=api');
   await expect(page.getByPlaceholder('Search by connector, path')).toBeVisible();
   await expect(page.getByText('All connectors')).toBeVisible();
 });

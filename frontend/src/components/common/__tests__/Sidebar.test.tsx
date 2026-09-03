@@ -149,8 +149,9 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     const { container } = renderSidebar(adminUser);
     const deployments = within(subgroupItems(container, 'workflow-deployments')!);
     expect(link(deployments, 'Deployments')).toBeInTheDocument();
-    expect(link(deployments, 'Deployment Reviews')).toBeInTheDocument();
     expect(link(deployments, 'Version Matrix')).toBeInTheDocument();
+    // Since #772 deployment reviews live in the unified Review queue, not under Deployments.
+    expect(deployments.queryByRole('link', { name: /Review/ })).not.toBeInTheDocument();
 
     const database = within(subgroupItems(container, 'workflow-database')!);
     expect(link(database, 'Query editor')).toBeInTheDocument();
@@ -291,32 +292,75 @@ describe('Sidebar — icon rail (AF-837)', () => {
 });
 
 describe('Sidebar — deployment governance (#696)', () => {
-  it('shows all four deployment entries for an admin', () => {
+  it('shows the three deployment entries for an admin', () => {
     renderSidebar(adminUser);
     expect(link(screen, 'Deployments')).toBeInTheDocument();
-    expect(link(screen, 'Deployment Reviews')).toBeInTheDocument();
     expect(link(screen, 'Version Matrix')).toBeInTheDocument();
     expect(link(screen, 'Deployment Pipelines')).toBeInTheDocument();
   });
 
-  it('shows the review queue to a REVIEWER but not the pipelines admin page', () => {
+  it('shows the version matrix to a REVIEWER but not the pipelines admin page', () => {
     renderSidebar({
       ...readonlyUser,
       role: 'REVIEWER',
       permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
     });
-    expect(link(screen, 'Deployment Reviews')).toBeInTheDocument();
     // The version matrix is any-of MANAGE / REVIEW / QUERY_ADMIN, so DEPLOYMENT_REVIEW is enough.
     expect(link(screen, 'Version Matrix')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Deployment Pipelines/ })).not.toBeInTheDocument();
   });
 
-  it('hides the review queue and pipelines from a READONLY user', () => {
+  it('hides the version matrix and pipelines from a READONLY user', () => {
     renderSidebar(readonlyUser);
-    expect(screen.queryByRole('link', { name: /Deployment Reviews/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Version Matrix/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Deployment Pipelines/ })).not.toBeInTheDocument();
     // Deployments list rides on QUERY_SUBMIT_SELECT, which READONLY has.
     expect(link(screen, 'Deployments')).toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — unified review queue (#772)', () => {
+  it('renders exactly one review entry, in the top group, for a user holding every review permission', () => {
+    const { container } = renderSidebar({
+      ...readonlyUser,
+      role: 'REVIEWER',
+      permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
+    });
+    expect(screen.getAllByRole('link', { name: /Review queue/ })).toHaveLength(1);
+    // The pre-#772 per-queue entries are gone.
+    expect(screen.queryByRole('link', { name: /API Reviews|Deployment Reviews/ }))
+      .not.toBeInTheDocument();
+    const first = container.querySelectorAll('.af-sidebar-group')[0] as HTMLElement;
+    expect(link(within(first), 'Review queue')).toHaveAttribute('href', '/reviews');
+  });
+
+  it.each([
+    ['QUERY_REVIEW'],
+    ['API_REQUEST_REVIEW'],
+    ['DEPLOYMENT_REVIEW'],
+  ] as const)('shows the review queue to a user holding only %s', (permission) => {
+    renderSidebar({ ...readonlyUser, permissions: ['QUERY_SUBMIT_SELECT', permission] });
+    expect(link(screen, 'Review queue')).toBeInTheDocument();
+  });
+
+  it('hides the review queue from a user holding no review permission', () => {
+    renderSidebar(readonlyUser);
+    expect(screen.queryByRole('link', { name: /Review queue/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the pending badge on the review entry', () => {
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Sidebar
+          user={adminUser}
+          pendingCount={7}
+          collapsed={false}
+          onToggle={() => undefined}
+          mobileOpen={false}
+          onMobileClose={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+    expect(link(screen, 'Review queue').querySelector('.af-sidebar-badge')).toHaveTextContent('7');
   });
 });

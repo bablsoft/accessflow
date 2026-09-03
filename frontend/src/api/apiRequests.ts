@@ -39,6 +39,7 @@ export const apiRequestKeys = {
   list: (filters: ApiRequestListFilters) => ['api-requests', 'list', filters] as const,
   details: () => ['api-requests', 'detail'] as const,
   detail: (id: string) => ['api-requests', 'detail', id] as const,
+  reviewQueues: () => ['api-reviews', 'queue'] as const,
   reviewQueue: (filters: ApiReviewListFilters) => ['api-reviews', 'queue', filters] as const,
 };
 

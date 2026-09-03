@@ -32,7 +32,7 @@ vi.mock('@/api/reviews', () => ({
   },
 }));
 
-const { ReviewQueuePage } = await import('./ReviewQueuePage');
+const { QueryReviewsTab } = await import('./QueryReviewsTab');
 
 function pendingPage(): PendingReviewsPage {
   return {
@@ -72,7 +72,7 @@ function wrap(node: ReactNode) {
   );
 }
 
-describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
+describe('QueryReviewsTab — reject modal flow (AF-269)', () => {
   beforeEach(() => {
     listPendingReviewsMock.mockReset();
     approveQueryMock.mockReset();
@@ -98,7 +98,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
   it('opens the reject modal when the card Reject button is clicked', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     // Find the card's danger Reject button. There are two: the one inside the
     // card, and one in the modal once open. Pick the first by getAllByRole.
@@ -124,7 +124,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
       idempotent_replay: false,
     });
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     const cardRejectButtons = await screen.findAllByRole('button', {
       name: /Reject/,
@@ -157,7 +157,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
   it('does not show the bulk action bar until a row is selected', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     await screen.findByText('submitter@example.com');
     expect(screen.queryByText(/selected/)).toBeNull();
@@ -180,7 +180,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
       })),
     });
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     // Wait for the table to render. Then click the row's checkbox.
     await screen.findByText('submitter@example.com');
@@ -218,7 +218,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
   it('blocks bulk reject confirm until a comment is typed', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     await screen.findByText('submitter@example.com');
     const checkboxes = screen.getAllByRole('checkbox');
@@ -259,7 +259,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
       idempotent_replay: false,
     });
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     const approveBtn = await screen.findByRole('button', { name: /Approve/ });
     await act(async () => {
@@ -280,7 +280,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     page.content[0]!.approval_probability = 0.78;
     listPendingReviewsMock.mockResolvedValue(page);
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     expect(await screen.findByTestId('approval-prediction-badge')).toHaveTextContent('78%');
     expect(
@@ -291,7 +291,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
   it('renders a dash in the approval-likelihood column for an unscored row (AF-645)', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     await screen.findByRole('columnheader', { name: 'Approval likelihood' });
     expect(await screen.findByTestId('approval-likelihood-empty')).toHaveTextContent('—');
@@ -303,7 +303,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
     page.content[0]!.delegated_for = { id: 'delegator-1' };
     listPendingReviewsMock.mockResolvedValue(page);
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     expect(await screen.findByTestId('delegated-tag')).toHaveTextContent('Delegated');
   });
@@ -311,7 +311,7 @@ describe('ReviewQueuePage — reject modal flow (AF-269)', () => {
   it('leaves the delegated column empty when the caller is eligible in their own right', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 
-    render(wrap(<ReviewQueuePage />));
+    render(wrap(<QueryReviewsTab />));
 
     await screen.findByRole('columnheader', { name: 'Delegated' });
     expect(screen.queryByTestId('delegated-tag')).toBeNull();

@@ -213,6 +213,10 @@ class WebSocketManager {
           this.queryClient.invalidateQueries({ queryKey: ['deployment-reviews', 'list'] });
         } else if (eventType === 'DEPLOYMENT_OUTCOME_FAILED') {
           this.queryClient.invalidateQueries({ queryKey: ['deployment-rollback-reviews'] });
+        } else if (eventType === 'API_REQUEST_SUBMITTED') {
+          // Same shape for API requests (#772): there is no reviewer-side WS event, so the
+          // unified queue's API tab and its badge count refresh off the notification.
+          this.queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
         }
         break;
       }

@@ -72,7 +72,7 @@ test.describe.serial('reviews self-approval blocked (AF-270)', () => {
       await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
       // UI gate #1: /reviews must filter the submitter's own query out of the
-      // queue (ReviewQueuePage.tsx:45 → reviewable.filter(submitted_by !==
+      // queue (QueryReviewsTab.tsx → reviewable.filter(submitted_by !==
       // user)). Anchor on the full UUID so leftover PENDING_REVIEW rows from
       // other specs in the same run don't false-positive.
       await page.goto('/reviews');

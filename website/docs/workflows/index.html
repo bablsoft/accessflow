@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Workflows",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-01",
+      "dateModified": "2026-09-03",
       "url": "https://accessflow.io/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -261,7 +261,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>End-user workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-01">1 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-03">3 September 2026</time></p>
         </header>
 
 <section id="end-user" class="docs-section">
@@ -451,10 +451,12 @@
 
           <h3 id="flow-review">Reviewing &amp; bulk approval</h3>
           <p>
-            Reviewers land on <code>/reviews</code> for the queue assigned to them. Each row
-            shows the query id, classification, AI risk, datasource, submitter, and elapsed
-            time. Three tabs scope the view: <em>Assigned to you</em>, <em>All pending</em>
-            (visible to anyone the plan grants approver eligibility), and <em>Recently decided</em>.
+            Reviewers land on <code>/reviews</code> — one review queue with a tab per kind of
+            request they may decide (queries, API requests, deployments, rollbacks), each tab
+            showing its pending count. On the <strong>Queries</strong> tab each row shows the
+            query id, classification, AI risk, datasource, submitter, and elapsed time. Three
+            views scope the list: <em>Assigned to you</em>, <em>All pending</em> (visible to
+            anyone the plan grants approver eligibility), and <em>Recently decided</em>.
           </p>
           <p>
             A row may also carry an <strong>approval likelihood</strong> — the probability, learned
@@ -469,7 +471,7 @@
             <picture>
               <source srcset="/images/docs/reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/reviews-queue-dark.webp"
-                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and tabs for Assigned to you, All pending, and Recently decided."
+                   alt="Review queue at /reviews showing pending queries with checkbox column, ID, type, risk, datasource, submitter, and created columns, and a switch between Assigned to you, All pending, and Recently decided."
                    loading="lazy" width="1440" height="900" />
             </picture>
             <figcaption><code>/reviews</code> — reviewer queue, no rows selected.</figcaption>

@@ -1,11 +1,10 @@
-import { App, Button, Skeleton, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { App, Button, Segmented, Skeleton, Space, Table, Tag, Tooltip } from 'antd';
 import type { TableColumnsType } from 'antd';
-import { CheckOutlined, CloseOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
@@ -13,7 +12,6 @@ import { Avatar } from '@/components/common/Avatar';
 import { ApprovalPredictionBadge } from '@/components/review/ApprovalPredictionBadge';
 import { RejectModal } from '@/components/review/RejectModal';
 import { BulkDecisionModal } from '@/components/review/BulkDecisionModal';
-import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
 import { useAuthStore } from '@/store/authStore';
 import { timeAgo } from '@/utils/dateFormat';
 import { queryKeys } from '@/api/queries';
@@ -35,7 +33,11 @@ import type {
 
 type BulkAction = ReviewDecisionType | null;
 
-export function ReviewQueuePage() {
+/**
+ * The Queries tab of the unified review hub (#772) — formerly the whole `/reviews` page. The
+ * header (title, push-approvals toggle, refresh) now lives in `ReviewHubPage`.
+ */
+export function QueryReviewsTab() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState('mine');
@@ -48,7 +50,7 @@ export function ReviewQueuePage() {
   const queryClient = useQueryClient();
 
   const filters: PendingReviewsFilters = { size: 50 };
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: reviewKeys.pendingFor(filters),
     queryFn: () => listPendingReviews(filters),
   });
@@ -267,29 +269,20 @@ export function ReviewQueuePage() {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader
-        title={t('reviews.title')}
-        subtitle={t('reviews.subtitle')}
-        actions={
-          <Space>
-            <PushApprovalsToggle />
-            <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-              {t('common.refresh')}
-            </Button>
-          </Space>
-        }
-      />
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        style={{ padding: '0 28px' }}
-        items={[
-          { key: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, reviewable.length) }) },
-          { key: 'all', label: t('reviews.tab_all', { count: reviewable.length }) },
-          { key: 'recent', label: t('reviews.tab_recent') },
-        ]}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* A segmented sub-filter rather than a second tab strip under the hub's tabs. */}
+      <div style={{ padding: '12px 28px 0' }}>
+        <Segmented
+          size="small"
+          value={tab}
+          onChange={(value) => setTab(String(value))}
+          options={[
+            { value: 'mine', label: t('reviews.tab_mine', { count: Math.min(8, reviewable.length) }) },
+            { value: 'all', label: t('reviews.tab_all', { count: reviewable.length }) },
+            { value: 'recent', label: t('reviews.tab_recent') },
+          ]}
+        />
+      </div>
       <div style={{ flex: 1, overflow: 'auto', padding: 24 }}>
         {selectedRowKeys.length > 0 && (
           <div

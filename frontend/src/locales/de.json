@@ -92,7 +92,6 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews",
     "lifecycle": "Daten-Lebenszyklus",
     "request_erasure": "Löschung anfordern",
     "erasure_review": "Löschprüfung",
@@ -100,7 +99,6 @@
     "requestGroupReviews": "Group Reviews",
     "roles": "Rollen",
     "deployments": "Deployments",
-    "deploymentReviews": "Deployment-Prüfungen",
     "deploymentVersions": "Versionsmatrix",
     "deploymentPipelines": "Deployment-Pipelines"
   },
@@ -785,7 +783,13 @@
   },
   "reviews": {
     "title": "Prüfungswarteschlange",
-    "subtitle": "Abfragen, die auf deine Genehmigung warten. Neueste zuerst.",
+    "hub": {
+      "subtitle": "Alles, was auf deine Entscheidung wartet: Abfragen, API-Anfragen und Deployments.",
+      "tab_queries": "Abfragen · {{count}}",
+      "tab_api": "API-Anfragen · {{count}}",
+      "tab_deployments": "Deployments · {{count}}",
+      "tab_rollbacks": "Rollbacks · {{count}}"
+    },
     "tab_mine": "Dir zugewiesen · {{count}}",
     "tab_all": "Alle ausstehend · {{count}}",
     "tab_recent": "Kürzlich entschieden",
@@ -3985,7 +3989,6 @@
       "variableValue": "Wert"
     },
     "reviews": {
-      "title": "API Reviews",
       "empty": "No API requests awaiting review",
       "approve": "Approve",
       "reject": "Reject",
@@ -3994,7 +3997,6 @@
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
       "risk": "Risk",
-      "subtitle": "Verwaltete API-Aufrufe genehmigen oder ablehnen",
       "searchPlaceholder": "Suche nach Connector, Pfad",
       "actions": "Aktionen",
       "overrides": "Überschreibungen",
@@ -4309,10 +4311,6 @@
       "timeline_outcome": "Ergebnis"
     },
     "reviews": {
-      "title": "Deployment-Prüfungen",
-      "subtitle": "Deployments, die auf Ihre Entscheidung warten",
-      "tabPending": "Ausstehende Deployments",
-      "tabRollbacks": "Rollback-Prüfungen",
       "approve": "Genehmigen",
       "reject": "Ablehnen",
       "approved": "Genehmigt",

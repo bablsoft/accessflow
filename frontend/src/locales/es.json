@@ -92,7 +92,6 @@
     "apiConnectors": "API Connectors",
     "apiEditor": "API Editor",
     "apiRequests": "API Requests",
-    "apiReviews": "API Reviews",
     "lifecycle": "Ciclo de vida de datos",
     "request_erasure": "Solicitar borrado",
     "erasure_review": "Revisión de borrado",
@@ -100,7 +99,6 @@
     "requestGroupReviews": "Group Reviews",
     "roles": "Roles",
     "deployments": "Despliegues",
-    "deploymentReviews": "Revisiones de despliegue",
     "deploymentVersions": "Matriz de versiones",
     "deploymentPipelines": "Pipelines de despliegue"
   },
@@ -785,7 +783,13 @@
   },
   "reviews": {
     "title": "Cola de revisión",
-    "subtitle": "Consultas pendientes de tu aprobación. Más recientes primero.",
+    "hub": {
+      "subtitle": "Todo lo que espera tu decisión: consultas, solicitudes de API y despliegues.",
+      "tab_queries": "Consultas · {{count}}",
+      "tab_api": "Solicitudes de API · {{count}}",
+      "tab_deployments": "Despliegues · {{count}}",
+      "tab_rollbacks": "Rollbacks · {{count}}"
+    },
     "tab_mine": "Asignadas a ti · {{count}}",
     "tab_all": "Todas las pendientes · {{count}}",
     "tab_recent": "Decididas recientemente",
@@ -3985,7 +3989,6 @@
       "variableValue": "Valor"
     },
     "reviews": {
-      "title": "API Reviews",
       "empty": "No API requests awaiting review",
       "approve": "Approve",
       "reject": "Reject",
@@ -3994,7 +3997,6 @@
       "rejected": "Rejected",
       "submittedBy": "Submitted by",
       "risk": "Risk",
-      "subtitle": "Aprobar o rechazar llamadas API gobernadas",
       "searchPlaceholder": "Buscar por conector, ruta",
       "actions": "Acciones",
       "overrides": "Sustituciones",
@@ -4309,10 +4311,6 @@
       "timeline_outcome": "Resultado"
     },
     "reviews": {
-      "title": "Revisiones de despliegue",
-      "subtitle": "Despliegues a la espera de su decisión",
-      "tabPending": "Despliegues pendientes",
-      "tabRollbacks": "Revisiones de rollback",
       "approve": "Aprobar",
       "reject": "Rechazar",
       "approved": "Aprobado",

@@ -32,7 +32,9 @@ const COLD_START_NOTICE = 'Not enough review history yet.';
 /** Opens the "All pending" tab, which is not capped the way the default "Assigned to you" is. */
 async function openAllPendingTab(page: Page): Promise<void> {
   await page.goto('/reviews');
-  await page.getByRole('tab', { name: /All pending/ }).click();
+  // Since #772 the Queries tab's sub-filter is an AntD Segmented control: its radio inputs are
+  // visually hidden, so click the visible option label rather than the radio role.
+  await page.locator('.ant-segmented-item', { hasText: /All pending/ }).click();
 }
 
 // Provisioning an approver via Mailcrab → invitation accept costs 1–2s, and each test drives two

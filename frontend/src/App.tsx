@@ -21,7 +21,12 @@ import { QueryEditorPage } from '@/pages/editor/QueryEditorPage';
 const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 import { QueryListPage } from '@/pages/queries/QueryListPage';
 import { QueryDetailPage } from '@/pages/queries/QueryDetailPage';
-import { ReviewQueuePage } from '@/pages/reviews/ReviewQueuePage';
+import { ReviewHubPage } from '@/pages/reviews/ReviewHubPage';
+import {
+  ApiReviewsRedirect,
+  LegacyDeploymentReviewsRedirect,
+} from '@/pages/reviews/legacyReviewRedirects';
+import { REVIEW_HUB_PERMISSIONS } from '@/utils/reviewHubTabs';
 const PushDecidePage = lazy(() => import('@/pages/reviews/PushDecidePage'));
 import { RequestAccessPage } from '@/pages/access-requests/RequestAccessPage';
 import { AccessRequestsQueuePage } from '@/pages/access-requests/AccessRequestsQueuePage';
@@ -88,7 +93,6 @@ const ApiConnectorSettingsPage = lazy(() => import('@/pages/apigov/ApiConnectorS
 const ApiEditorPage = lazy(() => import('@/pages/apigov/ApiEditorPage'));
 const ApiRequestsListPage = lazy(() => import('@/pages/apigov/ApiRequestsListPage'));
 const ApiRequestDetailPage = lazy(() => import('@/pages/apigov/ApiRequestDetailPage'));
-const ApiReviewQueuePage = lazy(() => import('@/pages/apigov/ApiReviewQueuePage'));
 const RequestGroupListPage = lazy(() => import('@/pages/requestGroups/RequestGroupListPage'));
 const GroupBuilderPage = lazy(() => import('@/pages/requestGroups/GroupBuilderPage'));
 const RequestGroupDetailPage = lazy(() => import('@/pages/requestGroups/RequestGroupDetailPage'));
@@ -97,9 +101,6 @@ const RequestGroupReviewQueuePage = lazy(
 );
 const DeploymentListPage = lazy(() => import('@/pages/deployments/DeploymentListPage'));
 const DeploymentDetailPage = lazy(() => import('@/pages/deployments/DeploymentDetailPage'));
-const DeploymentReviewQueuePage = lazy(
-  () => import('@/pages/deployments/DeploymentReviewQueuePage'),
-);
 const DeploymentVersionsPage = lazy(() => import('@/pages/deployments/DeploymentVersionsPage'));
 const PipelineVersionsPage = lazy(() => import('@/pages/deployments/PipelineVersionsPage'));
 const DeploymentPipelinesPage = lazy(() =>
@@ -219,16 +220,8 @@ export function App() {
               </Suspense>
             }
           />
-          <Route
-            path="/api-reviews"
-            element={
-              <AuthGuard requirePermission={'API_REQUEST_REVIEW'}>
-                <Suspense fallback={null}>
-                  <ApiReviewQueuePage />
-                </Suspense>
-              </AuthGuard>
-            }
-          />
+          {/* Pre-#772 queue URL — kept for notifications, bookmarks and docs deep links. */}
+          <Route path="/api-reviews" element={<ApiReviewsRedirect />} />
           <Route
             path="/deployments"
             element={
@@ -245,16 +238,8 @@ export function App() {
               </Suspense>
             }
           />
-          <Route
-            path="/deployment-reviews"
-            element={
-              <AuthGuard requirePermission={'DEPLOYMENT_REVIEW'}>
-                <Suspense fallback={null}>
-                  <DeploymentReviewQueuePage />
-                </Suspense>
-              </AuthGuard>
-            }
-          />
+          {/* Pre-#772 queue URL — `?tab=rollbacks` maps onto the hub's Rollbacks tab. */}
+          <Route path="/deployment-reviews" element={<LegacyDeploymentReviewsRedirect />} />
           <Route
             path="/deployment-versions"
             element={
@@ -369,8 +354,8 @@ export function App() {
           <Route
             path="/reviews"
             element={
-              <AuthGuard requirePermission={'QUERY_REVIEW'}>
-                <ReviewQueuePage />
+              <AuthGuard requirePermission={REVIEW_HUB_PERMISSIONS}>
+                <ReviewHubPage />
               </AuthGuard>
             }
           />

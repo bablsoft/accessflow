@@ -148,7 +148,7 @@ test.describe.serial('reviews bulk decide (AF-346)', () => {
       }
 
       // Defense-in-depth filter: the approver's own query is NOT in the queue
-      // (ReviewQueuePage filters submitted_by === user.id), so it cannot be
+      // (QueryReviewsTab filters submitted_by === user.id), so it cannot be
       // selected from the UI. We verify the per-row FORBIDDEN behaviour
       // separately by calling the bulk endpoint directly.
       await expect(

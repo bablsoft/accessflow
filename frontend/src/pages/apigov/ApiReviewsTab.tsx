@@ -5,7 +5,6 @@ import { SearchOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { PageHeader } from '@/components/common/PageHeader';
 import { RiskPill } from '@/components/common/RiskPill';
 import {
   apiRequestKeys,
@@ -25,7 +24,10 @@ const VERBS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 
 const PAGE_SIZE = 20;
 
-export default function ApiReviewQueuePage() {
+/**
+ * The API requests tab of the unified review hub (#772) — formerly the `/api-reviews` page.
+ */
+export function ApiReviewsTab() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const navigate = useNavigate();
@@ -62,7 +64,7 @@ export default function ApiReviewQueuePage() {
   });
 
   const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ['api-reviews', 'queue'] });
+    queryClient.invalidateQueries({ queryKey: apiRequestKeys.reviewQueues() });
 
   const decideMutation = useMutation({
     mutationFn: ({ id, kind }: { id: string; kind: 'approve' | 'reject' }) =>
@@ -167,8 +169,7 @@ export default function ApiReviewQueuePage() {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <PageHeader title={t('apiGov.reviews.title')} subtitle={t('apiGov.reviews.subtitle')} />
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <div
         style={{
           padding: '12px 28px',

@@ -45,6 +45,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/api/auth';
 import { hasAnyPermission, type Permission } from '@/utils/permissions';
+import { REVIEW_HUB_PERMISSIONS } from '@/utils/reviewHubTabs';
 import { APP_VERSION } from '@/config/version';
 import { userDisplay } from '@/utils/userDisplay';
 import { roleLabel } from '@/utils/enumLabels';
@@ -103,7 +104,7 @@ export function Sidebar({
       id: 'general',
       items: [
         { id: 'dashboard', to: '/dashboard', label: t('nav.dashboard'), icon: <HomeOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
-        { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, permissions: ['QUERY_REVIEW'], badge: 'pending' },
+        { id: 'reviews', to: '/reviews', label: t('nav.reviews'), icon: <InboxOutlined />, permissions: REVIEW_HUB_PERMISSIONS, badge: 'pending' },
       ],
     },
     {
@@ -124,7 +125,6 @@ export function Sidebar({
           items: [
             { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
             { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
-            { id: 'api-reviews', to: '/api-reviews', label: t('nav.apiReviews'), icon: <InboxOutlined />, permissions: ['API_REQUEST_REVIEW'] },
           ],
         },
         {
@@ -132,7 +132,6 @@ export function Sidebar({
           label: t('nav.sub_deployments'),
           items: [
             { id: 'deployments', to: '/deployments', label: t('nav.deployments'), icon: <RocketOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
-            { id: 'deployment-reviews', to: '/deployment-reviews', label: t('nav.deploymentReviews'), icon: <InboxOutlined />, permissions: ['DEPLOYMENT_REVIEW'] },
             { id: 'deployment-versions', to: '/deployment-versions', label: t('nav.deploymentVersions'), icon: <DeploymentUnitOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'] },
           ],
         },

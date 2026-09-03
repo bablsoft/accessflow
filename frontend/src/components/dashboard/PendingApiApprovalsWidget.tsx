@@ -5,6 +5,7 @@ import { ActivityList } from '@/components/dashboard/ActivityList';
 import { RiskPill } from '@/components/common/RiskPill';
 import { timeAgo } from '@/utils/dateFormat';
 import type { DashboardPendingApiApproval } from '@/types/api';
+import { reviewHubPath } from '@/utils/reviewHubTabs';
 
 interface Props {
   items: DashboardPendingApiApproval[];
@@ -25,7 +26,7 @@ export function PendingApiApprovalsWidget({ items, loading, error, onRetry }: Pr
       emptyIcon={<InboxOutlined style={{ fontSize: 16 }} />}
       emptyTitle={t('dashboard.pending_api_approvals.empty')}
       rowKey={(it) => it.api_request_id}
-      viewAllTo="/api-reviews"
+      viewAllTo={reviewHubPath('api')}
       renderRow={(it) => ({
         pills: (
           <>
@@ -44,7 +45,7 @@ export function PendingApiApprovalsWidget({ items, loading, error, onRetry }: Pr
           </>
         ),
         meta: timeAgo(it.created_at),
-        action: <Link to="/api-reviews">{t('dashboard.pending_api_approvals.review')}</Link>,
+        action: <Link to={reviewHubPath('api')}>{t('dashboard.pending_api_approvals.review')}</Link>,
       })}
     />
   );

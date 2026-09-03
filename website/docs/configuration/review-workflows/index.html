@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-02",
+      "dateModified": "2026-09-03",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -264,7 +264,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-02">2 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-03">3 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -673,10 +673,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-reviews-queue-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-reviews-queue-dark.webp"
-                   alt="The /deployment-reviews queue listing deployments awaiting a decision — pipeline, environment, version, submitter, risk and age — with approve and reject actions per row."
+                   alt="The Deployments tab of the review queue listing deployments awaiting a decision — pipeline, environment, version, submitter, risk and age — with approve and reject actions per row."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/deployment-reviews</code> — the reviewer queue. A deployment never appears here for its own submitter.</figcaption>
+            <figcaption>The <strong>Deployments</strong> tab of the review queue (<code>/reviews?tab=deployments</code>). A deployment never appears here for its own submitter.</figcaption>
           </figure>
           <p>
             <strong>Configure it.</strong> Create pipelines at
@@ -693,9 +693,11 @@ APPROVED → FAILED (execution error)</pre>
             tab carries copy-paste snippets for GitHub Actions, GitLab CI, Azure Pipelines and
             curl, chosen from a toggle rather than preselected from the pipeline's provider; a
             pipeline set to Jenkins, CircleCI, Bitbucket Pipelines or generic uses the curl one. Reviewers work
-            deployments at <code>/deployment-reviews</code> (requires <code>DEPLOYMENT_REVIEW</code>,
-            held by <code>ADMIN</code> and <code>REVIEWER</code>); everyone sees their own at
-            <code>/deployments</code>.
+            deployments on the <strong>Deployments</strong> tab of the review queue
+            (<code>/reviews?tab=deployments</code>, requires <code>DEPLOYMENT_REVIEW</code>,
+            held by <code>ADMIN</code> and <code>REVIEWER</code>) — the same page that holds
+            query and API-request reviews, with one tab per kind of request you may review and a
+            pending count on each; everyone sees their own at <code>/deployments</code>.
           </p>
           <figure class="docs-figure">
             <picture>
@@ -783,10 +785,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-rollback-reviews-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-rollback-reviews-dark.webp"
-                   alt="The rollback worklist tab of the deployment review queue, listing executed deployments reported as rolled back and awaiting a follow-up acknowledgement."
+                   alt="The Rollbacks tab of the review queue, listing executed deployments reported as rolled back and awaiting a follow-up acknowledgement."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/deployment-reviews?tab=rollbacks</code> — the follow-up worklist a rolled-back deployment opens.</figcaption>
+            <figcaption>The <strong>Rollbacks</strong> tab of the review queue (<code>/reviews?tab=rollbacks</code>) — the follow-up worklist a rolled-back deployment opens.</figcaption>
           </figure>
           <p>
             <strong>Wire up CI.</strong> See
