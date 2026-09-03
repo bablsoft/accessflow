@@ -182,6 +182,21 @@ class DefaultUpdateCheckServiceTest {
     }
 
     @Test
+    void jsonNullManifestResolvesToUnknownAndBacksOff() {
+        expectManifest("null");
+        var service = service("2.4.0", true, Duration.ofHours(24), immediate);
+        service.status();
+
+        var view = service.status();
+        service.status();
+
+        assertThat(view.status()).isEqualTo(UpdateCheckStatus.UNKNOWN);
+        assertThat(view.checkedAt()).isEqualTo(T0);
+        assertThat(submissions).hasValue(1);
+        server.verify();
+    }
+
+    @Test
     void emptyBodyResolvesToUnknown() {
         expectManifest("");
         var service = service("2.4.0", true, Duration.ofHours(24), immediate);

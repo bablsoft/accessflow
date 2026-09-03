@@ -53,6 +53,9 @@ backend:
   env:
     # Disable on-demand JDBC driver downloads — serve only from the cache.
     ACCESSFLOW_DRIVERS_OFFLINE: "true"
+    # Disable the daily release update check — the only other outbound call the backend makes
+    # on its own (an unauthenticated GET of https://accessflow.io/version.json).
+    ACCESSFLOW_UPDATES_ENABLED: "false"
 
 # Pre-seeded driver cache (mount your pre-populated PV here). Match the
 # storage class your operators use for ReadWriteOnce volumes.

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Changelog — every AccessFlow release — AccessFlow</title>
+  <title>Changelog — every release since v1.0 — AccessFlow</title>
   <meta name="description" content="Every AccessFlow release since v1.0, newest first, with a stable link per version — what each milestone added across database, API and deployment governance." />
 
   <link rel="canonical" href="https://accessflow.io/changelog/" />
@@ -28,7 +28,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="Changelog — every AccessFlow release — AccessFlow" />
+  <meta property="og:title" content="Changelog — every release since v1.0 — AccessFlow" />
   <meta property="og:description" content="What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens." />
   <meta property="og:url" content="https://accessflow.io/changelog/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
@@ -38,7 +38,7 @@
   <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Changelog — every AccessFlow release — AccessFlow" />
+  <meta name="twitter:title" content="Changelog — every release since v1.0 — AccessFlow" />
   <meta name="twitter:description" content="What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
@@ -56,7 +56,7 @@
         "@type": "WebPage",
         "@id": "https://accessflow.io/changelog/#page",
         "breadcrumb": { "@id": "https://accessflow.io/changelog/#breadcrumb" },
-        "name": "Changelog — every AccessFlow release — AccessFlow",
+        "name": "Changelog — every release since v1.0 — AccessFlow",
         "headline": "AccessFlow changelog — every release, newest first",
         "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
         "inLanguage": "en",
@@ -224,8 +224,8 @@
           <p>
             One entry per stable release, each with a permanent link you can share or bookmark.
             A self-hosted AccessFlow checks the small
-            <a class="prose-link" href="/version.json">version.json</a> file next to this page once
-            a day and, when a newer stable release exists, turns the version under the sidebar logo
+            <a class="prose-link" href="/version.json">version.json</a> file next to this page at most
+            once a day and, when a newer stable release exists, turns the version under the sidebar logo
             into a link that lands on the matching entry below. Pre-release builds are listed on
             <a class="prose-link" href="https://github.com/bablsoft/accessflow/releases">GitHub releases</a>
             but never trigger that hint. Upgrade steps are in
@@ -271,6 +271,7 @@
             <li><strong>Reviewer delegation and escalation.</strong> Out-of-office delegates with full attribution on every decision, plus optional escalation and nudge reminders for idle reviews.</li>
             <li><strong>Result-export governance and DLP.</strong> Per-datasource export policies allow, watermark, cap or deny result downloads; every export is signed and audited.</li>
             <li><strong>SIEM and WORM audit streaming</strong> to Splunk HEC, syslog/CEF, signed HTTPS batches and S3 Object Lock. Streaming is additive: the tamper-evident audit log remains the record.</li>
+            <li><strong>SCIM 2.0 provisioning.</strong> Okta, Entra ID, Keycloak and other identity providers create, update and deactivate users and groups over SCIM, so offboarding in the IdP revokes access here immediately.</li>
           </ul>
         </section>
 
@@ -378,7 +379,7 @@
             <a href="https://github.com/bablsoft/accessflow/releases/tag/v1.1.0">Release on GitHub</a>
           </p>
           <ul>
-            <li><strong>Dynamic JDBC driver loading</strong> from Maven Central instead of bundling every driver.</li>
+            <li><strong>Database drivers download on demand</strong> the first time an engine is used, instead of every driver shipping inside the application.</li>
             <li><strong>Datasource creation wizard</strong> with engine logos and prefilled defaults.</li>
             <li><strong>Query scheduling</strong> and <strong>bulk approvals</strong>.</li>
             <li><strong>AI analysis history dashboard</strong> with risk trends and most-flagged query types.</li>
@@ -398,8 +399,7 @@
           <h3>Proxy and execution</h3>
           <ul>
             <li>Full SQL proxy for PostgreSQL, MySQL, MariaDB, Oracle and Microsoft SQL Server, plus admin-uploaded JDBC drivers for any other relational engine.</li>
-            <li>Parser-based validation and classification, schema and table allow-listing, row caps, and DDL blocked by default.</li>
-            <li>Per-datasource connection pooling.</li>
+            <li>Parser-based validation and classification, schema and table allow-listing, row caps, and DDL blocked by default — over reusable connections per datasource, so a governed query never waits on a fresh handshake.</li>
           </ul>
           <h3>SQL editor</h3>
           <ul>
@@ -422,7 +422,7 @@
           <h3>Deployment and authentication</h3>
           <ul>
             <li>Docker Compose, a Helm 3 chart with autoscaling and health probes.</li>
-            <li>JWT sign-in with refresh-token rotation, SAML 2.0 single sign-on with auto-provisioning and attribute mapping, OAuth 2.0 / OIDC sign-in with built-in provider templates, and SCIM 2.0 provisioning.</li>
+            <li>JWT sign-in with refresh-token rotation, SAML 2.0 single sign-on with auto-provisioning and attribute mapping, and OAuth 2.0 / OIDC sign-in with built-in provider templates.</li>
           </ul>
         </section>
 

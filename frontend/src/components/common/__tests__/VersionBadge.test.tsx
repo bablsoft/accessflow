@@ -85,6 +85,15 @@ describe('VersionBadge', () => {
     expect(link).toHaveTextContent(`v${APP_VERSION}`);
   });
 
+  it('stays plain when update_available is set without a version to announce', async () => {
+    fetchUpdateStatusMock.mockResolvedValue({ ...behind, latest_version: null });
+    render(wrap(<VersionBadge />));
+
+    await waitFor(() => expect(fetchUpdateStatusMock).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText(`v${APP_VERSION}`)).toBeInTheDocument();
+  });
+
   it('falls back to the public changelog when the manifest carries no link', async () => {
     fetchUpdateStatusMock.mockResolvedValue({ ...behind, changelog_url: null });
     render(wrap(<VersionBadge />));

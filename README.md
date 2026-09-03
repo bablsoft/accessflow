@@ -300,13 +300,13 @@ accessflow/
 | [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md) | Docker Compose, Helm, environment-variable reference |
 | [`docs/11-development.md`](https://github.com/bablsoft/accessflow/blob/main/docs/11-development.md) | Local setup, testing strategy, coding standards, Git workflow |
 | [`docs/12-roadmap.md`](https://github.com/bablsoft/accessflow/blob/main/docs/12-roadmap.md) | v1.0 → v2.x milestone scope |
-| [Changelog](https://accessflow.io/changelog/) | Every stable release, newest first, one permanent link per version — what a self-hosted install's update hint opens |
 | [`docs/13-mcp.md`](https://github.com/bablsoft/accessflow/blob/main/docs/13-mcp.md) | MCP server, user API keys, exposed tools |
 | [`docs/14-connectors.md`](https://github.com/bablsoft/accessflow/blob/main/docs/14-connectors.md) | Declarative connector catalog — manifests, install lifecycle, release artifacts |
 | [`docs/15-engine-sdk.md`](https://github.com/bablsoft/accessflow/blob/main/docs/15-engine-sdk.md) | Engine-plugin SDK — authoring guide for native (non-JDBC) engines |
 | [`docs/16-iac.md`](https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md) | Infrastructure as Code — Terraform/OpenTofu provider, CI Actions, service-account API keys, registry publishing |
 | [`docs/17-api-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md) | API Access Governance — govern outbound REST/SOAP/GraphQL/gRPC calls (connectors, schema ingestion, permissions; review/AI pipeline planned) |
 | [`docs/18-deployment-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md) | Deployment Approval Governance — gate CI/CD deployments: pipelines, environments, trigger grants, the fail-closed gate, freeze windows, break-glass, outcome reporting |
+| [Changelog](https://accessflow.io/changelog/) | Every stable release, newest first, one permanent link per version — what a self-hosted install's update hint opens |
 
 ---
 

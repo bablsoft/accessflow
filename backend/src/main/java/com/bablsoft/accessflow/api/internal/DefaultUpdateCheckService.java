@@ -33,8 +33,9 @@ import java.util.concurrent.atomic.AtomicReference;
  * install-level row. A persisted snapshot is the upgrade path if cross-replica consistency is
  * ever wanted.
  *
- * <p>Fail-soft: an unreachable host, a non-2xx response, an oversized body or unparseable JSON
- * all resolve to {@link UpdateCheckStatus#UNKNOWN} for one TTL and are logged, never thrown.
+ * <p>Fail-soft: an unreachable host, a non-2xx response, a body over {@link #MAX_BODY_BYTES}
+ * (the download itself is cut at that size, not merely the parse) or unparseable JSON all
+ * resolve to {@link UpdateCheckStatus#UNKNOWN} for one TTL and are logged, never thrown.
  * The only thing that leaves the process is an unauthenticated {@code GET} of a static JSON file.
  */
 @Service
@@ -105,22 +106,34 @@ class DefaultUpdateCheckService implements UpdateCheckService {
     }
 
     private UpdateStatusView fetch() {
+        // exchange() rather than retrieve().body(byte[].class): the converter would buffer the
+        // whole response before any size check, so the cap must sit on the stream itself.
         byte[] body = restClient.get()
                 .uri(properties.url())
                 .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .body(byte[].class);
-        if (body == null || body.length == 0) {
+                .exchange((request, response) -> {
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        throw new IllegalArgumentException("manifest fetch answered HTTP "
+                                + response.getStatusCode().value());
+                    }
+                    try (var in = response.getBody()) {
+                        return in.readNBytes(MAX_BODY_BYTES + 1);
+                    }
+                });
+        if (body.length == 0) {
             throw new IllegalArgumentException("empty manifest body");
         }
         if (body.length > MAX_BODY_BYTES) {
             throw new IllegalArgumentException("manifest body exceeds " + MAX_BODY_BYTES + " bytes");
         }
         var manifest = objectMapper.readValue(body, VersionManifest.class);
+        if (manifest == null) {
+            throw new IllegalArgumentException("manifest body is the JSON literal null");
+        }
         return evaluate(manifest, clock.instant());
     }
 
-    /** The decision rule, kept side-effect free so the semver cases are testable in isolation. */
+    /** The decision rule, kept side-effect free. */
     UpdateStatusView evaluate(VersionManifest manifest, Instant now) {
         var latest = SemanticVersion.parse(manifest.version());
         if (latest.isEmpty()) {

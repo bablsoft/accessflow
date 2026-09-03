@@ -25,7 +25,8 @@ export function VersionBadge() {
     retry: false,
   });
 
-  if (!data?.update_available) {
+  // A newer release without a version string cannot be announced meaningfully — stay plain.
+  if (!data?.update_available || !data.latest_version) {
     return (
       <div
         className="mono muted"
@@ -37,7 +38,7 @@ export function VersionBadge() {
     );
   }
 
-  const label = t('nav.update_available', { version: data.latest_version ?? '' });
+  const label = t('nav.update_available', { version: data.latest_version });
   const color = driftColor(true);
   return (
     <Tooltip title={label}>

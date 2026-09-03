@@ -457,7 +457,7 @@ describe('Sidebar — unified review queue (#772)', () => {
 
   it('shows the pending badge on the review entry', () => {
     render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
         <MemoryRouter initialEntries={['/dashboard']}>
           <Sidebar
             user={adminUser}

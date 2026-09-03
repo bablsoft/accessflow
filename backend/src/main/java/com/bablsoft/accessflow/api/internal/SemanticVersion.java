@@ -6,7 +6,10 @@ import java.util.regex.Pattern;
 /**
  * A parsed {@code MAJOR.MINOR.PATCH[-PRERELEASE][+BUILD]} version. Comparison is numeric per
  * component — {@code 2.10.0} is newer than {@code 2.9.0} — and a pre-release sorts below the
- * release it precedes. Pure and Spring-free so the update check's decision rule is unit-testable.
+ * release it precedes. Two pre-release identifiers are compared as plain strings (so
+ * {@code beta.10} sorts below {@code beta.2}); the update check never ranks pre-releases against
+ * each other, so full SemVer §11 precedence is deliberately not implemented. Pure and Spring-free
+ * so the decision rule is unit-testable.
  */
 public record SemanticVersion(int major, int minor, int patch, String preRelease)
         implements Comparable<SemanticVersion> {

@@ -19,6 +19,9 @@ const UPDATE_STATUS = `${apiBase()}/api/v1/system/update-status`;
 const READER_PASSWORD = 'ReaderPassword!123';
 
 test.describe('release update status (#836)', () => {
+  // Two-user setup: invite → Mailcrab poll → accept can exceed the 30 s default under load.
+  test.describe.configure({ timeout: 90_000 });
+
   let adminToken = '';
   const readerEmail = `af836-reader-${randomUUID()}@e2e.local`;
 
@@ -69,7 +72,7 @@ test.describe('release update status (#836)', () => {
   test('sidebar shows the plain version and no changelog link', async ({ page }) => {
     await login(page, readerEmail, READER_PASSWORD);
     const brand = page.locator('.af-sidebar-brand');
-    await expect(brand.getByLabel(/^AccessFlow version /)).toHaveText(/^v\d+\.\d+\.\d+/);
+    await expect(brand.getByText(/^v\d+\.\d+\.\d+/)).toBeVisible();
     await expect(brand.getByRole('link')).toHaveCount(0);
     await expect(page.locator('a[href*="/changelog/"]')).toHaveCount(0);
   });

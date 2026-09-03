@@ -301,7 +301,7 @@ Runs right after 4a and **before 4b**, so the whole website edit set lands in on
     "changelog_url": "https://accessflow.io/changelog/#vX-Y-0"
   }
   ```
-  Stable releases only. Betas bypass this skill entirely and must never be written here — a `-beta.N` in this file would make every install nag about a pre-release.
+  Stable releases only. Betas bypass this skill entirely and must never be written here — a `-beta.N` in this file would make every install nag about a pre-release. Patch releases (`X.Y.Z`, Z > 0) also bypass this skill; their manual `version.json` + `Patch release:` line procedure is in `docs/11-development.md` → "Version surfacing".
 - 4b edits `website/index.html`, so bump its JSON-LD `dateModified` and the `/` `<lastmod>` in `sitemap.xml` too. (Pre-existing gap: the sitemap was missing from the staging list before #836.)
 
 #### 4b. `website/index.html`
