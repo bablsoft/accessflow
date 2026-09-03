@@ -74,8 +74,32 @@ const readonlyUser: AuthUser = {
   preferred_language: null,
 };
 
+/**
+ * Every sub-section id the nav declares. Sub-sections start collapsed, so a test whose subject is
+ * the items inside one seeds the whole set expanded rather than repeating a header click.
+ */
+const ALL_SUBGROUPS = [
+  'workflow-database',
+  'workflow-api',
+  'workflow-deployments',
+  'workflow-request-groups',
+  'workflow-access-lifecycle',
+  'connections-database',
+  'connections-api',
+  'connections-deployments',
+  'security-identity',
+  'security-access-control',
+  'security-data-governance',
+  'security-audit-compliance',
+  'system-ai',
+];
+
+function expandAll() {
+  usePreferencesStore.setState({ navExpandedSubgroups: [...ALL_SUBGROUPS] });
+}
+
 beforeEach(() => {
-  usePreferencesStore.setState({ navCollapsedSubgroups: [] });
+  usePreferencesStore.setState({ navExpandedSubgroups: [] });
 });
 
 describe('Sidebar', () => {
@@ -88,6 +112,7 @@ describe('Sidebar', () => {
   });
 
   it('renders admin-only items for an admin user', () => {
+    expandAll();
     renderSidebar(adminUser);
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Audit log')).toBeInTheDocument();
@@ -105,6 +130,7 @@ describe('Sidebar', () => {
   });
 
   it('shows the Query history item to a READONLY user (only-visible workflow item)', () => {
+    expandAll();
     renderSidebar(readonlyUser);
     expect(screen.getByText('Query history')).toBeInTheDocument();
     expect(screen.queryByText('Query editor')).not.toBeInTheDocument();
@@ -135,17 +161,24 @@ describe('Sidebar — top generic group (AF-837)', () => {
 });
 
 describe('Sidebar — sub-sections (AF-837)', () => {
-  it('renders sub-section headers as expanded disclosure buttons by default', () => {
+  it('renders sub-section headers as collapsed disclosure buttons by default', () => {
+    // A first login shows every sub-section closed — the user opens the ones they need.
     const { container } = renderSidebar(adminUser);
     const header = within(group('Security & Access'))
-      .getByRole('button', { name: 'Collapse Identity section' });
-    expect(header).toHaveAttribute('aria-expanded', 'true');
+      .getByRole('button', { name: 'Expand Identity section' });
+    expect(header).toHaveAttribute('aria-expanded', 'false');
     expect(header).toHaveAttribute('aria-controls', 'af-nav-sub-security-identity');
-    expect(link(within(subgroupItems(container, 'security-identity')!), 'Users'))
-      .toBeInTheDocument();
+    expect(subgroupItems(container, 'security-identity')!).toBeEmptyDOMElement();
+    expect(screen.queryByRole('link', { name: /Users/ })).not.toBeInTheDocument();
+  });
+
+  it('opens no sub-section on a route that belongs to none', () => {
+    const { container } = renderSidebar(adminUser, false, '/dashboard');
+    expect(container.querySelectorAll('button[aria-expanded="true"]').length).toBe(0);
   });
 
   it('groups the workflow entries by domain', () => {
+    expandAll();
     const { container } = renderSidebar(adminUser);
     const deployments = within(subgroupItems(container, 'workflow-deployments')!);
     expect(link(deployments, 'Deployments')).toBeInTheDocument();
@@ -168,37 +201,37 @@ describe('Sidebar — sub-sections (AF-837)', () => {
   });
 
   it('moves Slack out of Security into the System group', () => {
+    expandAll();
     renderSidebar(adminUser);
     expect(link(within(group('System')), 'Slack')).toBeInTheDocument();
     expect(within(group('Security & Access')).queryByRole('link', { name: /Slack/ }))
       .not.toBeInTheDocument();
   });
 
-  it('collapses a sub-section on click and persists the id in preferences', () => {
+  it('expands a sub-section on click and persists the id in preferences', () => {
     const { container } = renderSidebar(adminUser);
     const security = within(group('Security & Access'));
-    fireEvent.click(security.getByRole('button', { name: 'Collapse Identity section' }));
-
-    expect(usePreferencesStore.getState().navCollapsedSubgroups).toContain('security-identity');
-    expect(security.getByRole('button', { name: 'Expand Identity section' }))
-      .toHaveAttribute('aria-expanded', 'false');
-    expect(subgroupItems(container, 'security-identity')!).toBeEmptyDOMElement();
-    expect(security.queryByRole('link', { name: /Users/ })).not.toBeInTheDocument();
-  });
-
-  it('re-expands a collapsed sub-section on a second click', () => {
-    const { container } = renderSidebar(adminUser);
-    const security = within(group('Security & Access'));
-    fireEvent.click(security.getByRole('button', { name: 'Collapse Identity section' }));
     fireEvent.click(security.getByRole('button', { name: 'Expand Identity section' }));
 
-    expect(usePreferencesStore.getState().navCollapsedSubgroups).not.toContain('security-identity');
+    expect(usePreferencesStore.getState().navExpandedSubgroups).toContain('security-identity');
+    expect(security.getByRole('button', { name: 'Collapse Identity section' }))
+      .toHaveAttribute('aria-expanded', 'true');
     expect(link(within(subgroupItems(container, 'security-identity')!), 'Users'))
       .toBeInTheDocument();
   });
 
-  it('renders a persisted-collapsed sub-section open when it holds the active route', () => {
-    usePreferencesStore.setState({ navCollapsedSubgroups: ['security-identity'] });
+  it('re-collapses an expanded sub-section on a second click', () => {
+    const { container } = renderSidebar(adminUser);
+    const security = within(group('Security & Access'));
+    fireEvent.click(security.getByRole('button', { name: 'Expand Identity section' }));
+    fireEvent.click(security.getByRole('button', { name: 'Collapse Identity section' }));
+
+    expect(usePreferencesStore.getState().navExpandedSubgroups).not.toContain('security-identity');
+    expect(subgroupItems(container, 'security-identity')!).toBeEmptyDOMElement();
+  });
+
+  it('renders a collapsed sub-section open when it holds the active route', () => {
+    // The deep-link case: nothing is expanded, yet the section around the current page opens.
     const { container } = renderSidebar(adminUser, false, '/admin/users');
 
     expect(
@@ -220,17 +253,17 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     expect(header).toBeDisabled();
 
     fireEvent.click(header);
-    expect(usePreferencesStore.getState().navCollapsedSubgroups).toEqual([]);
+    expect(usePreferencesStore.getState().navExpandedSubgroups).toEqual([]);
     expect(header).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('leaves sibling sub-section headers interactive while one is locked open', () => {
     renderSidebar(adminUser, false, '/admin/users');
     const accessControl = within(group('Security & Access'))
-      .getByRole('button', { name: 'Collapse Access control section' });
+      .getByRole('button', { name: 'Expand Access control section' });
     expect(accessControl).toBeEnabled();
     fireEvent.click(accessControl);
-    expect(usePreferencesStore.getState().navCollapsedSubgroups)
+    expect(usePreferencesStore.getState().navExpandedSubgroups)
       .toEqual(['security-access-control']);
   });
 
@@ -241,11 +274,12 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     expect(subgroupItems(container, 'connections-database')).toBeNull();
     // Same for the whole Security group and its Identity sub-section.
     expect(screen.queryByRole('group', { name: 'Security & Access' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Collapse Identity section' }))
+    expect(screen.queryByRole('button', { name: 'Expand Identity section' }))
       .not.toBeInTheDocument();
   });
 
   it('keeps a single-item sub-section header so positions stay predictable', () => {
+    expandAll();
     const { container } = renderSidebar(adminUser);
     expect(
       within(group('Connections')).getByRole('button', { name: 'Collapse Deployments section' }),
@@ -254,6 +288,7 @@ describe('Sidebar — sub-sections (AF-837)', () => {
   });
 
   it('keeps the header of a sub-section a role has whittled down to one item', () => {
+    expandAll();
     const { container } = renderSidebar(readonlyUser);
     // READONLY holds QUERY_SUBMIT_SELECT only, so API keeps API Requests and nothing else.
     expect(
@@ -262,6 +297,56 @@ describe('Sidebar — sub-sections (AF-837)', () => {
     const api = subgroupItems(container, 'workflow-api')!;
     expect(api.children.length).toBe(1);
     expect(link(within(api), 'API Requests')).toBeInTheDocument();
+  });
+});
+
+describe('Sidebar — active highlighting', () => {
+  it('highlights only the deepest matching entry when nav paths nest', () => {
+    // `/request-groups/reviews` sits under `/request-groups`; a prefix test lit up both.
+    expandAll();
+    const { container } = renderSidebar(adminUser, false, '/request-groups/reviews');
+    const items = within(subgroupItems(container, 'workflow-request-groups')!);
+    expect(link(items, 'Group Reviews').className).toContain('active');
+    expect(link(items, 'Request Groups').className).not.toContain('active');
+  });
+
+  it('highlights the parent entry on its own route', () => {
+    expandAll();
+    const { container } = renderSidebar(adminUser, false, '/request-groups');
+    const items = within(subgroupItems(container, 'workflow-request-groups')!);
+    expect(link(items, 'Request Groups').className).toContain('active');
+    expect(link(items, 'Group Reviews').className).not.toContain('active');
+  });
+
+  it('keeps the parent highlighted on a detail route it alone owns', () => {
+    expandAll();
+    const { container } = renderSidebar(adminUser, false, '/request-groups/8f3c');
+    const items = within(subgroupItems(container, 'workflow-request-groups')!);
+    expect(link(items, 'Request Groups').className).toContain('active');
+    expect(link(items, 'Group Reviews').className).not.toContain('active');
+  });
+
+  it('does not highlight the review queue on the attestation reviews route', () => {
+    // Same nesting between two different groups: `/reviews` vs `/reviews/attestations`.
+    expandAll();
+    const { container } = renderSidebar(adminUser, false, '/reviews/attestations');
+    const first = container.querySelectorAll('.af-sidebar-group')[0] as HTMLElement;
+    expect(link(within(first), 'Review queue').className).not.toContain('active');
+    const lifecycle = within(subgroupItems(container, 'workflow-access-lifecycle')!);
+    expect(link(lifecycle, 'Attestation reviews').className).toContain('active');
+  });
+
+  it('locks open only the sub-section owning the deepest match', () => {
+    const security = 'Security & Access';
+    renderSidebar(adminUser, false, '/reviews/attestations');
+    expect(
+      within(group('Workflow')).getByRole('button', {
+        name: 'Access & lifecycle section — kept open because it contains the current page',
+      }),
+    ).toBeDisabled();
+    expect(
+      within(group(security)).getByRole('button', { name: 'Expand Identity section' }),
+    ).toBeEnabled();
   });
 });
 
@@ -284,15 +369,17 @@ describe('Sidebar — icon rail (AF-837)', () => {
     expect(container.querySelectorAll('.af-sidebar-divider-line').length).toBe(14);
   });
 
-  it('ignores a persisted collapsed sub-section — the rail never hides items', () => {
-    usePreferencesStore.setState({ navCollapsedSubgroups: ['security-identity'] });
+  it('ignores the collapsed sub-section preference — the rail never hides items', () => {
+    // Nothing is expanded, yet every link is still on the rail.
     const { container } = renderSidebar(adminUser, true);
     expect(container.querySelector('a[href="/admin/users"]')).toBeInTheDocument();
+    expect(container.querySelector('a[href="/admin/ai-configs"]')).toBeInTheDocument();
   });
 });
 
 describe('Sidebar — deployment governance (#696)', () => {
   it('shows the three deployment entries for an admin', () => {
+    expandAll();
     renderSidebar(adminUser);
     expect(link(screen, 'Deployments')).toBeInTheDocument();
     expect(link(screen, 'Version Matrix')).toBeInTheDocument();
@@ -300,6 +387,7 @@ describe('Sidebar — deployment governance (#696)', () => {
   });
 
   it('shows the version matrix to a REVIEWER but not the pipelines admin page', () => {
+    expandAll();
     renderSidebar({
       ...readonlyUser,
       role: 'REVIEWER',
@@ -311,6 +399,7 @@ describe('Sidebar — deployment governance (#696)', () => {
   });
 
   it('hides the version matrix and pipelines from a READONLY user', () => {
+    expandAll();
     renderSidebar(readonlyUser);
     expect(screen.queryByRole('link', { name: /Version Matrix/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Deployment Pipelines/ })).not.toBeInTheDocument();

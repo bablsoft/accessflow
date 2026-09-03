@@ -6,6 +6,7 @@ import {
   waitForInviteToken,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
+import { expandNavSection } from '../helpers/nav';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -72,8 +73,10 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
     // AuthGuard's `<Navigate to={homePathForRole(role)} replace />` collapses history, so the bad
     // URL never sticks — wait for the redirect to the role home (/dashboard for a non-auditor), then
     // assert the authenticated shell (AppLayout's sidebar) rendered. The sidebar nav link is
-    // unconditional and only appears for authenticated users.
+    // unconditional and only appears for authenticated users — the Database sub-section starts
+    // collapsed, so open it the way a user would before looking for the link inside.
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
+    await expandNavSection(page, 'Workflow', 'Database');
     await expect(
       page.getByRole('link', { name: 'Query editor' }),
     ).toBeVisible();
@@ -84,6 +87,7 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
 
     await page.goto('/reviews');
     await page.waitForURL('**/dashboard', { timeout: 10_000 });
+    await expandNavSection(page, 'Workflow', 'Database');
     await expect(
       page.getByRole('link', { name: 'Query editor' }),
     ).toBeVisible();
@@ -97,6 +101,7 @@ test.describe.serial('AuthGuard role-based redirects (AF-288)', () => {
     // selected; the sidebar nav link is not — it only renders for authenticated users in the shell.
     await page.goto('/editor');
     await expect(page).toHaveURL(/\/editor$/);
+    // /editor is the active route, so its Database sub-section renders open on its own.
     await expect(
       page.getByRole('link', { name: 'Query editor' }),
     ).toBeVisible();

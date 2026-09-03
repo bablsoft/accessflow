@@ -3,7 +3,7 @@
 **When to use:** Any new user-facing flow, or a change to a route/form/selector an existing spec
 touches.
 **Canonical example:** `e2e/tests/attestation-campaign.spec.ts:42` (`test.describe.serial`, API-seeded fixtures, two-user setup)
-**Helpers:** `e2e/helpers/datasources.ts` (1068 lines — the shared `*ViaApi` seeding layer), `e2e/helpers/ui.ts`, `e2e/helpers/apiConnectors.ts`
+**Helpers:** `e2e/helpers/datasources.ts` (1068 lines — the shared `*ViaApi` seeding layer), `e2e/helpers/ui.ts`, `e2e/helpers/apiConnectors.ts`, `e2e/helpers/nav.ts`
 **CI:** `.github/workflows/ci.yml` — a 3-variant matrix (main / setup / sso)
 **Related:** [frontend-page.md](frontend-page.md), `e2e/README.md`
 
@@ -65,6 +65,10 @@ test.describe.serial('attestation campaigns (AF-384)', () => {
       `userId`-scoped approver entry, not `role: 'ADMIN'` — role-scoped plans put every
       concurrent spec's queries into that approver's queue.
 - [ ] An explicit generous `test.describe.configure({ timeout })` for multi-user setups.
+- [ ] Reaching a page through its **sidebar link** → `expandNavSection(page, group, section)`
+      from `helpers/nav.ts` first. Sub-sections start collapsed; only the one holding the current
+      route renders open, so a link inside a closed section is not in the DOM at all. Items in the
+      top generic group (Dashboard, Review queue) and a group's own flat items need no expanding.
 - [ ] Changing an `id`, `aria-label`, or visible label that a spec depends on → update the spec in
       the same commit set.
 - [ ] A new route, auth path, or user-driven mutation → add a spec, or state in the PR description

@@ -8,6 +8,7 @@ import {
   waitForInviteToken,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
+import { expandNavSection } from '../helpers/nav';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -126,7 +127,9 @@ test.describe.serial('custom roles & permissions (AF-522)', () => {
 
     await login(page, STEWARD_EMAIL, STEWARD_PASSWORD);
 
-    // Granted surfaces are in the nav…
+    // Granted surfaces are in the nav… (both live in sub-sections, which start collapsed)
+    await expandNavSection(page, 'Workflow', 'Database');
+    await expandNavSection(page, 'Security & Access', 'Audit & compliance');
     await expect(page.getByRole('link', { name: 'Query editor' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Audit log' })).toBeVisible();
     // …ungranted admin surfaces are not.

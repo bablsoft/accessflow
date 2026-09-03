@@ -12,7 +12,7 @@ function reset() {
   usePreferencesStore.setState({
     theme: 'light',
     sidebarCollapsed: false,
-    navCollapsedSubgroups: [],
+    navExpandedSubgroups: [],
     setupProgressCollapsed: false,
     setupProgressSkipped: [],
     language: 'en',
@@ -36,12 +36,16 @@ describe('preferencesStore base actions', () => {
 
   it('toggleNavSubgroup adds then removes a sidebar sub-section id (AF-837)', () => {
     usePreferencesStore.getState().toggleNavSubgroup('security-identity');
-    expect(usePreferencesStore.getState().navCollapsedSubgroups).toEqual(['security-identity']);
+    expect(usePreferencesStore.getState().navExpandedSubgroups).toEqual(['security-identity']);
     usePreferencesStore.getState().toggleNavSubgroup('workflow-api');
-    expect(usePreferencesStore.getState().navCollapsedSubgroups)
+    expect(usePreferencesStore.getState().navExpandedSubgroups)
       .toEqual(['security-identity', 'workflow-api']);
     usePreferencesStore.getState().toggleNavSubgroup('security-identity');
-    expect(usePreferencesStore.getState().navCollapsedSubgroups).toEqual(['workflow-api']);
+    expect(usePreferencesStore.getState().navExpandedSubgroups).toEqual(['workflow-api']);
+  });
+
+  it('starts with every sidebar sub-section collapsed', () => {
+    expect(usePreferencesStore.getState().navExpandedSubgroups).toEqual([]);
   });
 
   it('toggleSidebar flips collapsed state', () => {
@@ -148,7 +152,7 @@ describe('preferencesStore dashboard widgets', () => {
   });
 });
 
-describe('migratePreferences (v0 → v1)', () => {
+describe('migratePreferences', () => {
   it('turns the visible allow-list into a hidden deny-list', () => {
     const migrated = migratePreferences(
       {
@@ -207,23 +211,43 @@ describe('migratePreferences (v0 → v1)', () => {
     expect(migrated.dashboardWidgets.size).toEqual({});
   });
 
-  it('leaves a v1 payload that predates navCollapsedSubgroups without the key (AF-837)', () => {
-    // The issue asked whether persist `version` needs a bump. It does not: the key is simply
-    // absent from an older payload, and zustand's default shallow merge over the initial state
-    // supplies `[]`. This pins that — if someone adds a `partialize`/custom `merge` that turns it
-    // into `undefined`, Sidebar's `.includes()` would throw on the first render.
-    const legacy = { theme: 'dark', sidebarCollapsed: true };
-    const passed = migratePreferences(legacy, 1) as Record<string, unknown>;
-    expect(passed).toBe(legacy);
-    expect(passed.navCollapsedSubgroups).toBeUndefined();
+  it('v1 → v2 drops the retired navCollapsedSubgroups deny-list', () => {
+    // The deny-list is not inverted into the allow-list: the nav now starts fully collapsed for
+    // everyone, so a user who had left three sections open gets them closed on the next load.
+    const v1 = {
+      theme: 'dark',
+      sidebarCollapsed: true,
+      navCollapsedSubgroups: ['security-identity'],
+    };
+    const migrated = migratePreferences(v1, 1) as Record<string, unknown>;
+    expect(migrated).not.toBe(v1);
+    expect(migrated.navCollapsedSubgroups).toBeUndefined();
+    expect(migrated.theme).toBe('dark');
 
-    const hydrated = { ...usePreferencesStore.getState(), ...passed };
-    expect(hydrated.navCollapsedSubgroups).toEqual([]);
+    // The new key is absent too, and zustand's shallow merge over the initial state supplies `[]`.
+    // This pins that — a `partialize`/custom `merge` turning it into `undefined` would make
+    // Sidebar's `.includes()` throw on the first render.
+    expect(migrated.navExpandedSubgroups).toBeUndefined();
+    const hydrated = { ...usePreferencesStore.getState(), ...migrated };
+    expect(hydrated.navExpandedSubgroups).toEqual([]);
   });
 
-  it('passes v1 state and non-object payloads through unchanged', () => {
-    const v1 = { dashboardWidgets: { hidden: [], order: [], collapsed: {}, size: {} } };
-    expect(migratePreferences(v1, 1)).toBe(v1);
+  it('carries a v0 payload through both steps', () => {
+    const v0 = {
+      navCollapsedSubgroups: ['workflow-api'],
+      dashboardWidgets: { visible: ['trends'], order: ['trends', 'riskMix'] },
+    };
+    const migrated = migratePreferences(v0, 0) as {
+      navCollapsedSubgroups?: unknown;
+      dashboardWidgets: DashboardWidgetPreferences;
+    };
+    expect(migrated.navCollapsedSubgroups).toBeUndefined();
+    expect(migrated.dashboardWidgets.hidden).toEqual(['riskMix']);
+  });
+
+  it('passes v2 state and non-object payloads through unchanged', () => {
+    const v2 = { dashboardWidgets: { hidden: [], order: [], collapsed: {}, size: {} } };
+    expect(migratePreferences(v2, 2)).toBe(v2);
     expect(migratePreferences(null, 0)).toBeNull();
   });
 });
