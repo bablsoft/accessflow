@@ -18,6 +18,7 @@ import { PIPELINE_PROVIDERS, enumOptions, pipelineProviderLabel } from '@/utils/
 import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
+import { PipelineIdCopy } from '@/components/deployments/PipelineIdCopy';
 import type { CreateDeploymentPipelineInput, DeploymentPipeline } from '@/types/api';
 
 const PAGE_SIZE = 20;
@@ -95,6 +96,12 @@ export function DeploymentPipelinesPage() {
   const columns: TableColumnsType<DeploymentPipeline> = [
     { title: t('deploygov.pipelines.name'), dataIndex: 'name', width: 200 },
     {
+      title: t('deploygov.pipelines.id'),
+      dataIndex: 'id',
+      width: 130,
+      render: (v: string) => <PipelineIdCopy id={v} truncate />,
+    },
+    {
       title: t('deploygov.pipelines.provider'),
       dataIndex: 'provider',
       width: 170,
@@ -141,6 +148,9 @@ export function DeploymentPipelinesPage() {
       title: '',
       key: 'actions',
       width: 180,
+      // Pinned: with the id column added, an ordinary repository URL pushes the only two row
+      // actions past the right edge on a 1440px viewport.
+      fixed: 'right' as const,
       render: (_v, row) => (
         <span style={{ display: 'flex', gap: 8 }}>
           <Button

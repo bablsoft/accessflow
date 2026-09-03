@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -93,6 +93,21 @@ describe('DeploymentPipelinesPage', () => {
     const rowEl = screen.getByText('Prod Deploy').closest('tr');
     expect(rowEl).not.toBeNull();
     expect(within(rowEl!).getByText('Active')).toBeInTheDocument();
+  });
+
+  it('shows a truncated copyable id on each row without navigating on copy', async () => {
+    render(wrap(<DeploymentPipelinesPage />));
+
+    const rowEl = (await screen.findByText('Prod Deploy')).closest('tr');
+    expect(rowEl).not.toBeNull();
+    expect(within(rowEl!).getByTestId('pipeline-id')).toHaveTextContent('p-1…');
+
+    // A click on the id cell must not take the whole row's navigation handler with it.
+    await act(async () => {
+      fireEvent.click(within(rowEl!).getByTestId('pipeline-id'));
+    });
+    expect(screen.queryByText('settings-route')).not.toBeInTheDocument();
+    expect(within(rowEl!).getByRole('button', { name: 'Copy pipeline ID' })).toBeInTheDocument();
   });
 
   it('creates a pipeline from the modal and navigates to its settings', async () => {

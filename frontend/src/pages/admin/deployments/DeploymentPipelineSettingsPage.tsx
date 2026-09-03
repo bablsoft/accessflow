@@ -20,6 +20,7 @@ import { PipelinePermissionsTab } from '@/components/deployments/PipelinePermiss
 import { PipelineFreezeWindowsTab } from '@/components/deployments/PipelineFreezeWindowsTab';
 import { PipelineRoutingPoliciesTab } from '@/components/deployments/PipelineRoutingPoliciesTab';
 import { CiSnippetPanel } from '@/components/deployments/CiSnippetPanel';
+import { PipelineIdCopy } from '@/components/deployments/PipelineIdCopy';
 import type { DeploymentPipeline, PipelineProvider } from '@/types/api';
 
 interface GeneralFormValues {
@@ -194,7 +195,16 @@ export function DeploymentPipelineSettingsPage() {
       <PageHeader
         docsAnchor="guide-deployment-approval"
         title={pipeline?.name ?? t('deploygov.pipelines.title')}
-        subtitle={pipeline ? pipelineProviderLabel(t, pipeline.provider) : undefined}
+        subtitle={
+          pipeline ? (
+            <span
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}
+            >
+              {pipelineProviderLabel(t, pipeline.provider)}
+              <PipelineIdCopy id={pipeline.id} />
+            </span>
+          ) : undefined
+        }
         actions={
           <Button onClick={() => navigate('/admin/deployment-pipelines')}>
             {t('common.back')}

@@ -699,14 +699,22 @@ APPROVED → FAILED (execution error)</pre>
             query and API-request reviews, with one tab per kind of request you may review and a
             pending count on each; everyone sees their own at <code>/deployments</code>.
           </p>
+          <p>
+            <strong>Where the pipeline id is.</strong> A CI job names its pipeline by
+            <strong>id</strong>, never by name, because a trigger-only API key is not allowed to
+            list pipelines and so has nothing to resolve a name against. You can copy that id from
+            either place you meet a pipeline: the list's <strong>ID</strong> column, which shows a
+            shortened form, and the pipeline's settings page, which shows it in full beneath the
+            name. Both copy the whole UUID, not the shortened form.
+          </p>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/deployment-pipelines-list-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-pipelines-list-dark.webp"
-                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, CI provider, repository, whether AI analysis is enabled, and whether they are active."
+                   alt="The /admin/deployment-pipelines page listing configured pipelines — name, copyable id, CI provider, repository, whether AI analysis is enabled, and whether they are active."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its CI provider and environment count.</figcaption>
+            <figcaption><code>/admin/deployment-pipelines</code> — one row per pipeline, with its copyable id and CI provider.</figcaption>
           </figure>
           <figure class="docs-figure">
             <picture>

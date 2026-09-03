@@ -297,8 +297,9 @@ Everything below is state inside the demo instance and in GitHub settings; none 
    key never expires.
 3. **Create the pipeline, environment and grant.** As an admin: sidebar → *Connections* →
    *Deployments* → **Deployment Pipelines** → **Add pipeline**, provider **GitHub Actions**. Creation lands on
-   `/admin/deployment-pipelines/<uuid>` — **that UUID in the address bar is the pipeline id**;
-   there is no ID column anywhere else, only the interpolated snippet on the **CI setup** tab. Then
+   the pipeline's settings page, where the UUID sits under the pipeline name with a copy button
+   beside it — **that UUID is the pipeline id**. The pipeline list carries the same id, shortened,
+   in its **ID** column; either copy control puts the whole UUID on the clipboard. Then
    **Environments** → **Add environment** named `demo` with **Requires review** on and **Required
    approvals** `1`; then **Permissions** → type the service account's email into the **User**
    select (it will not be on the first page), leave **Can trigger** on, click **Grant**.
