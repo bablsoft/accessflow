@@ -201,7 +201,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-bottom: 56px;
+  margin-bottom: 40px;
   max-width: 720px;
 }
 
@@ -219,7 +219,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 
 section {
-  padding: 120px 0;
+  padding: 80px 0;
   position: relative;
 }
 
@@ -413,7 +413,7 @@ section + section { border-top: 1px solid var(--line); }
 /* hero */
 
 .hero {
-  padding: 96px 0 80px;
+  padding: 80px 0 64px;
   position: relative;
   overflow: hidden;
   border-top: 0;
@@ -1039,7 +1039,7 @@ section + section { border-top: 1px solid var(--line); }
 .uc-list {
   display: flex;
   flex-direction: column;
-  gap: 96px;
+  gap: 72px;
 }
 
 .uc-row {
@@ -1425,7 +1425,7 @@ section + section { border-top: 1px solid var(--line); }
 
 .big-cta {
   text-align: center;
-  padding: 100px 24px;
+  padding: 80px 24px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background:
@@ -1562,7 +1562,7 @@ footer {
   .flow-grid .flow-steps { position: static; }
   .uc-row { grid-template-columns: minmax(0, 1fr); gap: 28px; }
   .uc-row:nth-child(even) .uc-visual { order: 0; }
-  .uc-list { gap: 72px; }
+  .uc-list { gap: 56px; }
   .install-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: repeat(2, 1fr); }
   .rm-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1572,7 +1572,7 @@ footer {
 }
 
 @media (max-width: 720px) {
-  section { padding: 80px 0; }
+  section { padding: 60px 0; }
   .hero { padding: 64px 0 56px; }
   .feat-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: 1fr; }
@@ -1620,7 +1620,7 @@ img, table, pre { max-width: 100%; }
    ---------------------------------------------------------------- */
 
 .docs-main {
-  padding: 64px 0 120px;
+  padding: 56px 0 88px;
 }
 
 .docs-layout {
@@ -1834,8 +1834,8 @@ img, table, pre { max-width: 100%; }
 }
 
 .docs-hero {
-  margin-bottom: 64px;
-  padding-bottom: 40px;
+  margin-bottom: 48px;
+  padding-bottom: 32px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1874,10 +1874,16 @@ img, table, pre { max-width: 100%; }
   border-bottom-color: var(--fg-mute);
 }
 
+/* .docs-section is a <section>, so it would otherwise inherit the marketing
+   page rhythm above. It sets its own, tighter one — the section + section rule
+   draws the divider, so pad evenly either side of it. */
 .docs-section {
-  margin-bottom: 72px;
+  padding: 0 0 48px;
+  margin-bottom: 0;
   scroll-margin-top: 88px;
 }
+
+.docs-section + .docs-section { padding-top: 48px; }
 
 /* Changelog: the "Released <date> · GitHub" line under each release heading. */
 .docs-section p.changelog-meta {
@@ -2129,7 +2135,7 @@ img, table, pre { max-width: 100%; }
   .terminal-body { padding: 14px; font-size: 10.5px; }
   .footer-grid { grid-template-columns: 1fr; gap: 24px; }
   .install-tabs { flex-wrap: wrap; }
-  section { padding: 56px 0; }
+  section { padding: 48px 0; }
   .arch-canvas { padding: 16px; }
   .code-block pre { padding: 14px; font-size: 12px; }
 }
@@ -2140,7 +2146,7 @@ img, table, pre { max-width: 100%; }
    into a false claim as the repo grows. */
 
 .provenance {
-  padding: 100px 0;
+  padding: 80px 0;
   border-top: 1px solid var(--line);
 }
 
