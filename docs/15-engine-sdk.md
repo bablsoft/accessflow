@@ -135,8 +135,10 @@ Automation discovers plugins by looping `engines/*/` — zero workflow edits per
   `engines/*/`, then runs [`.github/scripts/check-engine-pins.mjs`](../.github/scripts/check-engine-pins.mjs),
   which compares each built `engines/<id>/target/*-all.jar` against
   `connectors/<id>/connector.json` → `driver.sha256` + `driver.fileName` and **fails on drift**.
-- **Release** (`release.yml`): rebuilds every plugin, re-verifies the pins, and publishes all
-  `*-all.jar` files to the `gh-pages` branch under `engines/`, where fresh installs download them.
+- **Release** (`release.yml`): the `prepare` job rebuilds every plugin and re-verifies the pins,
+  then hands the jars to the `publish` job as an `engine-jars` artifact (so the published bytes are
+  exactly the ones the pin check approved, never a rebuild). `publish` uploads all `*-all.jar`
+  files to the `gh-pages` branch under `engines/`, where fresh installs download them.
 
 When the engine changes — or a `core.api` type it compiles against changes bytecode — the hash
 moves. The re-pin loop, in one PR:
