@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.Permission;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.deploygov.internal.DeploygovAuditWriter;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +49,7 @@ import java.util.UUID;
 class DeploymentRequestController {
 
     private final DeploymentRequestService requestService;
+    private final DeploymentReviewService reviewService;
     private final DeploygovAuditWriter auditWriter;
 
     @PostMapping
@@ -98,8 +100,12 @@ class DeploymentRequestController {
     @ApiResponse(responseCode = "404", description = "Not found, or not visible to the caller")
     DeploymentRequestResponse get(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
-        return DeploymentRequestResponse.from(requestService.get(id, caller.organizationId(),
-                caller.userId(), caller.permissions()));
+        // canReview is the reviewer's own eligibility, resolved server-side (#770): the review
+        // plan's approver rules are not derivable from this payload, so the UI cannot decide on
+        // its own whether to offer a decision. Answered after the visibility guard has passed.
+        var view = requestService.get(id, caller.organizationId(), caller.userId(),
+                caller.permissions());
+        return DeploymentRequestResponse.from(view, reviewService.canReview(id, reviewer(caller)));
     }
 
     @PostMapping("/{id}/cancel")
@@ -121,6 +127,11 @@ class DeploymentRequestController {
 
     private static JwtClaims claims(Authentication authentication) {
         return (JwtClaims) authentication.getPrincipal();
+    }
+
+    private static DeploymentReviewService.ReviewerContext reviewer(JwtClaims caller) {
+        return new DeploymentReviewService.ReviewerContext(caller.userId(), caller.organizationId(),
+                caller.roleName(), caller.permissions());
     }
 
     private static boolean isAdmin(JwtClaims caller) {

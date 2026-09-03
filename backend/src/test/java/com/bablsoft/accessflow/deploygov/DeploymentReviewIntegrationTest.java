@@ -114,6 +114,28 @@ class DeploymentReviewIntegrationTest {
     }
 
     @Test
+    void canReviewAnswersTheSameQuestionTheDecisionGuardEnforces() {
+        var fixture = fixture();
+        var requestId = submitToPendingReview(fixture);
+        var reviewer = reviewerContext(fixture);
+        var submitterContext = new ReviewerContext(fixture.userId(), fixture.orgId(), "ANALYST",
+                Set.of(Permission.DEPLOYMENT_REVIEW));
+
+        assertThat(reviewService.canReview(requestId, reviewer)).isTrue();
+        assertThat(reviewService.canReview(requestId, submitterContext)).isFalse();
+        assertThat(reviewService.canReview(UUID.randomUUID(), reviewer)).isFalse();
+
+        // The environment asks for two approvals, so it takes both to leave review.
+        reviewService.approve(requestId, reviewer, "lgtm");
+        reviewService.approve(requestId, reviewerContext(fixture), "ship it");
+
+        // Once the request leaves review nobody may decide it again, the approvers included.
+        assertThat(requestRepository.findById(requestId).orElseThrow().getStatus())
+                .isEqualTo(QueryStatus.APPROVED);
+        assertThat(reviewService.canReview(requestId, reviewer)).isFalse();
+    }
+
+    @Test
     void theSubmitterCanNeverApproveTheirOwnDeployment() {
         var fixture = fixture();
         var requestId = submitToPendingReview(fixture);

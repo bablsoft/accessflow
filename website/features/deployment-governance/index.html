@@ -60,7 +60,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-02",
+        "dateModified": "2026-09-03",
         "url": "https://accessflow.io/features/deployment-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/deployment-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -250,16 +250,16 @@
         <section class="docs-section scroll-pad" id="gate">
           <h2>The gate is fail-closed by construction</h2>
           <p>A CI job opens a request by calling AccessFlow with an ordinary API key — no deployment-specific token, and the key's owning user is the submitter, which is what makes the self-approval ban meaningful for a machine-triggered release. The trigger is idempotent on the CI run id at the database level, so a retried step never opens a second review.</p>
-          <p>From there the request behaves like any other: the AI analyzer scores the release metadata, routing policies keyed on environment, provider, version glob, risk or time window can auto-approve, auto-reject or raise the approval bar, and reviewers decide in the UI. Review is single-stage, a rejection is immediately terminal, and self-approval is refused first and always — including for the submitting API key's owner, and including for an admin. Where the resolved review plan names approvers, only those users may decide.</p>
+          <p>From there the request behaves like any other: the AI analyzer scores the release metadata, routing policies keyed on environment, provider, version glob, risk or time window can auto-approve, auto-reject or raise the approval bar, and reviewers decide in the UI — from the shared review queue, or from the deployment's own page once they have read its version, commit and justification. Review is single-stage, a rejection is immediately terminal, and self-approval is refused first and always — including for the submitting API key's owner, and including for an admin. Where the resolved review plan names approvers, only those users may decide.</p>
           <p>The job then polls one endpoint and branches on one field. A release is releasable only when all three hold: the request is exactly approved, no freeze window is active, and any scheduled time has already passed. Everything else answers <em>not releasable</em> — a pending request, a rejected one, an unknown pipeline or version, a caller who may not see the request, and any internal error at all. A failure to evaluate degrades to a refusal, never to an accidental yes.</p>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/deployment-detail-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-detail-dark.webp"
-                   alt="A deployment request in AccessFlow: pipeline, target environment, version and commit alongside a pending-review status, the submitter&#39;s justification, an approvals table reading 0 of 1, and an approval timeline running submitted, AI analysis skipped on this request, human review awaiting a reviewer, then release."
+                   alt="A deployment request in AccessFlow: pipeline, target environment, version and commit alongside a pending-review status, Approve and Reject buttons for the reviewer, the submitter&#39;s justification, an approvals table reading 0 of 1, and an approval timeline running submitted, AI analysis skipped on this request, human review awaiting a reviewer, then release."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/deployments/&lt;id&gt;</code> — this one is still pending review, so the gate answers <em>not releasable</em>; approval is what flips it.</figcaption>
+            <figcaption><code>/deployments/&lt;id&gt;</code> — this one is still pending review, so the gate answers <em>not releasable</em>; approval is what flips it. An eligible reviewer decides right here; everyone else sees no buttons at all.</figcaption>
           </figure>
         </section>
 

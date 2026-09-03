@@ -281,6 +281,10 @@ class DeploygovWebModelsTest {
         assertThat(response.decisions()).hasSize(1);
         assertThat(response.decisions().get(0).decision()).isEqualTo(DecisionType.APPROVED);
         assertThat(response.decisions().get(0).comment()).isEqualTo("lgtm");
+        // The single-argument mapper is the list/trigger path, where reviewer eligibility is not
+        // resolved — it must never claim the caller may decide (#770).
+        assertThat(response.canReview()).isFalse();
+        assertThat(DeploymentRequestResponse.from(view, true).canReview()).isTrue();
     }
 
     @Test
@@ -295,6 +299,7 @@ class DeploygovWebModelsTest {
 
         assertThat(page.content()).hasSize(1);
         assertThat(page.content().get(0).decisions()).isEmpty();
+        assertThat(page.content().get(0).canReview()).isFalse();
         assertThat(page.page()).isEqualTo(2);
         assertThat(page.totalElements()).isEqualTo(45);
         assertThat(page.totalPages()).isEqualTo(3);

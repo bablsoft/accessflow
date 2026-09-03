@@ -25,6 +25,7 @@ import {
   type CreatedDeploymentPipeline,
 } from '../helpers/deployments';
 import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -196,6 +197,70 @@ test.describe.serial('deployment governance review flow (#696)', () => {
     }
   });
 
+  // #770: the queue row navigates to the detail page, so the decision has to be reachable there
+  // too — a reviewer who opens a deployment to read its metadata must not have to go back.
+  test('a reviewer approves from the deployment detail page reached through the queue row', async ({
+    browser,
+    request,
+  }) => {
+    if (!pipeline) throw new Error('pipeline not created in beforeAll');
+
+    const version = `2.4.5-${Date.now()}`;
+    const triggered = await triggerDeploymentViaApi(request, submitterToken, {
+      pipelineId: pipeline.id,
+      environment: 'production',
+      version,
+      externalRunId: `run-${Date.now()}`,
+      justification: 'AF-770 decide from the detail page',
+    });
+    await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'PENDING_REVIEW');
+
+    const reviewerCtx = await browser.newContext();
+    try {
+      const reviewerPage = await reviewerCtx.newPage();
+      await login(reviewerPage, ADMIN_EMAIL, ADMIN_PASSWORD);
+      await reviewerPage.goto('/reviews?tab=deployments');
+
+      // The queue is org-shared, so a concurrent spec can push this row past page 1.
+      const row = reviewerPage.locator('.ant-table-row', { hasText: version });
+      await findRowAcrossPages(reviewerPage, row);
+      await row.first().click();
+      await reviewerPage.waitForURL(`**/deployments/${triggered.id}`, { timeout: 15_000 });
+      // Anchor on the detail page's own content before touching its controls: the queue's rows
+      // (each with their own small Approve button) stay mounted through the SPA transition, and
+      // a strict-mode violation is a hard failure that never retries.
+      await expect(
+        reviewerPage.getByText('AF-770 decide from the detail page'),
+      ).toBeVisible({ timeout: 15_000 });
+
+      // The eligibility flag on the detail response is what puts these here.
+      const approve = reviewerPage.getByRole('button', { name: 'Approve' });
+      await expect(approve).toBeVisible({ timeout: 15_000 });
+      await expect(reviewerPage.getByRole('button', { name: 'Reject' })).toBeVisible();
+      await approve.click();
+
+      const dialog = reviewerPage.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      await dialog.locator('textarea').fill('AF-770 approved from the detail page');
+      await dialog.getByRole('button', { name: 'Approve' }).click();
+
+      await expect(
+        reviewerPage.locator('.ant-message').getByText('Approved', { exact: true }),
+      ).toBeVisible({ timeout: 10_000 });
+      await expect(dialog).toBeHidden();
+      // The page refreshes itself off the mutation's invalidation — no reload.
+      await expect(
+        reviewerPage.locator('.af-pill').getByText('Approved', { exact: true }),
+      ).toBeVisible({ timeout: 15_000 });
+      // Decided requests offer no further decision.
+      await expect(reviewerPage.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+    } finally {
+      await reviewerCtx.close();
+    }
+
+    await waitForDeploymentStatus(request, adminAccessToken, triggered.id, 'APPROVED');
+  });
+
   test('the submitter sees their own deployment in /deployments and cannot review it', async ({
     browser,
     request,
@@ -227,6 +292,11 @@ test.describe.serial('deployment governance review flow (#696)', () => {
         submitterPage.getByRole('button', { name: 'Cancel deployment' }),
       ).toBeVisible({ timeout: 15_000 });
       await expect(submitterPage.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+      await expect(submitterPage.getByRole('button', { name: 'Reject' })).toHaveCount(0);
+      // ...and is told why, rather than left to wonder where the decision went (#770).
+      await expect(
+        submitterPage.getByText('You submitted this deployment — someone else must review it'),
+      ).toBeVisible();
     } finally {
       await submitterCtx.close();
     }

@@ -664,10 +664,10 @@ APPROVED → FAILED (execution error)</pre>
             <picture>
               <source srcset="/images/docs/deployment-detail-light.webp" media="(prefers-color-scheme: light)" />
               <img src="/images/docs/deployment-detail-dark.webp"
-                   alt="A deployment request detail page showing the pipeline, target environment, version and commit, the AI release-risk verdict, the approval timeline and the releasability banner."
+                   alt="A deployment request detail page showing the pipeline, target environment, version and commit alongside a pending-review status, Approve and Reject buttons for the reviewer, the submitter&#39;s justification, an approvals table reading 0 of 1, and an approval timeline running submitted, AI analysis skipped, human review awaiting a reviewer, then release."
                    loading="lazy" width="1440" height="900" />
             </picture>
-            <figcaption><code>/deployments/&lt;id&gt;</code> — release metadata, the AI risk verdict, the approval timeline and the fail-closed releasability banner.</figcaption>
+            <figcaption><code>/deployments/&lt;id&gt;</code> — release metadata, the approval timeline, and the approve and reject actions for whoever may decide this one. Once it is approved, the same page carries the fail-closed releasability banner.</figcaption>
           </figure>
           <figure class="docs-figure">
             <picture>
@@ -697,7 +697,9 @@ APPROVED → FAILED (execution error)</pre>
             (<code>/reviews?tab=deployments</code>, requires <code>DEPLOYMENT_REVIEW</code>,
             held by <code>ADMIN</code> and <code>REVIEWER</code>) — the same page that holds
             query and API-request reviews, with one tab per kind of request you may review and a
-            pending count on each; everyone sees their own at <code>/deployments</code>.
+            pending count on each. Opening a deployment from that queue does not cost you the
+            decision: approve and reject sit on the deployment's own page too, for anyone eligible
+            to decide it. Everyone sees their own at <code>/deployments</code>.
           </p>
           <p>
             <strong>Where the pipeline id is.</strong> A CI job names its pipeline by

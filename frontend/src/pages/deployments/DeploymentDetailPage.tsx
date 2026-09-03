@@ -1,5 +1,20 @@
-import { Alert, App, Button, Card, Descriptions, Empty, Popconfirm, Progress, Skeleton, Table, Tag } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Descriptions,
+  Empty,
+  Input,
+  Modal,
+  Popconfirm,
+  Progress,
+  Skeleton,
+  Table,
+  Tag,
+} from 'antd';
 import type { TableColumnsType } from 'antd';
+import { useState } from 'react';
 import { ThunderboltOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,7 +34,11 @@ import {
   deploymentVersionKeys,
   listPipelineEnvironmentVersions,
 } from '@/api/deploymentVersions';
-import { deploymentReviewKeys } from '@/api/deploymentReviews';
+import {
+  approveDeployment,
+  deploymentReviewKeys,
+  rejectDeployment,
+} from '@/api/deploymentReviews';
 import { DriftChip } from '@/components/deployments/versionMatrixCells';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -50,6 +69,8 @@ export default function DeploymentDetailPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const [decisionFor, setDecisionFor] = useState<'approve' | 'reject' | null>(null);
+  const [comment, setComment] = useState('');
 
   const requestQuery = useQuery({
     queryKey: deploymentKeys.detail(id),
@@ -126,7 +147,33 @@ export default function DeploymentDetailPage() {
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('deploygov.error'))),
   });
 
+  const decideMutation = useMutation({
+    mutationFn: (kind: 'approve' | 'reject') =>
+      kind === 'approve'
+        ? approveDeployment(id, comment.trim() || undefined)
+        : rejectDeployment(id, comment.trim() || undefined),
+    onSuccess: (_data, kind) => {
+      message.success(
+        kind === 'approve' ? t('deploygov.reviews.approved') : t('deploygov.reviews.rejected'),
+      );
+      setDecisionFor(null);
+      setComment('');
+      // detail(id) is a prefix of gate(id), so the releasability answer an approval flips is
+      // refetched by this one invalidation too.
+      void queryClient.invalidateQueries({ queryKey: deploymentKeys.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: deploymentKeys.lists() });
+      // The decided request leaves the reviewer queue — same reasoning as the cancel mutation.
+      void queryClient.invalidateQueries({ queryKey: deploymentReviewKeys.lists() });
+    },
+    onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('deploygov.error'))),
+  });
+
   const canCancel = request != null && request.submitted_by === user?.id && isCancellable(request);
+  // Eligibility is the server's answer (#770) — the review plan's approver rules are invisible
+  // here, so a client-side permission check would offer a decision the backend then refuses.
+  const canDecide = request?.can_review === true;
+  const isOwnPendingRequest =
+    request != null && request.submitted_by === user?.id && request.status === 'PENDING_REVIEW';
 
   const approvalsGranted =
     request?.decisions.filter((d) => d.decision === 'APPROVED').length ?? 0;
@@ -298,19 +345,38 @@ export default function DeploymentDetailPage() {
               />
             </Card>
 
-            {canCancel && (
-              <div>
-                <Popconfirm
-                  title={t('deploygov.detail.cancelConfirmTitle')}
-                  description={t('deploygov.detail.cancelConfirmBody')}
-                  onConfirm={() => cancelMutation.mutate()}
-                  okText={t('deploygov.detail.cancel')}
-                  cancelText={t('common.cancel')}
-                >
-                  <Button danger loading={cancelMutation.isPending}>
-                    {t('deploygov.detail.cancel')}
-                  </Button>
-                </Popconfirm>
+            {(canCancel || canDecide) && (
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                {canDecide && (
+                  <>
+                    <Button type="primary" onClick={() => setDecisionFor('approve')}>
+                      {t('deploygov.reviews.approve')}
+                    </Button>
+                    <Button danger onClick={() => setDecisionFor('reject')}>
+                      {t('deploygov.reviews.reject')}
+                    </Button>
+                  </>
+                )}
+                {canCancel && (
+                  <Popconfirm
+                    title={t('deploygov.detail.cancelConfirmTitle')}
+                    description={t('deploygov.detail.cancelConfirmBody')}
+                    onConfirm={() => cancelMutation.mutate()}
+                    okText={t('deploygov.detail.cancel')}
+                    cancelText={t('common.cancel')}
+                  >
+                    <Button danger loading={cancelMutation.isPending}>
+                      {t('deploygov.detail.cancel')}
+                    </Button>
+                  </Popconfirm>
+                )}
+                {/* The submitter never gets decide buttons; say why rather than leave the
+                    absence unexplained. */}
+                {isOwnPendingRequest && (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {t('deploygov.reviews.selfSubmissionHint')}
+                  </span>
+                )}
               </div>
             )}
 
@@ -405,6 +471,36 @@ export default function DeploymentDetailPage() {
           </>
         )}
       </div>
+      {/* Dismissing clears the draft — a comment typed for one decision must never be carried
+          into the opposite one. */}
+      <Modal
+        open={decisionFor !== null}
+        title={
+          decisionFor === 'approve'
+            ? t('deploygov.reviews.approve')
+            : t('deploygov.reviews.reject')
+        }
+        onCancel={() => {
+          setDecisionFor(null);
+          setComment('');
+        }}
+        okText={
+          decisionFor === 'approve'
+            ? t('deploygov.reviews.approve')
+            : t('deploygov.reviews.reject')
+        }
+        confirmLoading={decideMutation.isPending}
+        onOk={() => decisionFor && decideMutation.mutate(decisionFor)}
+        destroyOnHidden
+      >
+        <Input.TextArea
+          rows={3}
+          maxLength={2000}
+          placeholder={t('deploygov.reviews.comment')}
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }

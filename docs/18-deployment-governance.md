@@ -198,6 +198,16 @@ Approve is idempotent per `(request, reviewer, stage)` and counts toward the req
 `required_approvals`; **reject is immediately terminal** — one rejection ends the request with no
 quorum.
 
+The same predicate is **published on the detail read** as `can_review`
+(`GET /api/v1/deployment-requests/{id}`, #770), so the UI can offer a decision only where the
+decision endpoints would accept one — including the already-voted case: a reviewer whose approval
+has not yet met quorum leaves the request `PENDING_REVIEW`, and offering them a reject button there
+would silently replay their own approval. This is not a convenience: the approver rules live on the
+resolved review plan, which the request payload does not carry, so a client gating on the
+`DEPLOYMENT_REVIEW` permission alone would render an actionable-looking button for a reviewer the
+plan excludes and turn every click into a `403`. The flag never widens anything — it answers the
+guard's own question without throwing, and the decision endpoints re-run the guard regardless.
+
 **Break-glass** mirrors AF-385 and is gated twice, with **no admin bypass**: the submitter needs an
 effective `can_break_glass` grant on the pipeline **and** the target environment must have
 `allow_break_glass = true`. Either failure is `403 DEPLOYMENT_BREAK_GLASS_NOT_ALLOWED`, and the
@@ -437,6 +447,13 @@ trigger-only callers get 403 there.
   but gets muted text rather than a link that would 404.
 - **Drift badges on `/deployments` and `/deployments/:id`**, shown only where the request in front
   of you is the one currently live on its environment; a superseded request says so instead.
+
+**Deciding from the detail page (#770).** `/deployments/:id` carries **Approve** and **Reject**
+alongside the submitter's Cancel, driven purely by the response's `can_review` flag and using the
+same comment modal as the queue. This is the surface a queue row click lands on, so a reviewer who
+opens a deployment to read its metadata decides there rather than navigating back. Where the flag
+is false there is no control at all — no disabled button, no server-side surprise; the submitter,
+who can never decide their own deployment, is told so in place of the buttons.
 
 ---
 

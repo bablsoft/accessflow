@@ -93,6 +93,11 @@ class DefaultDeploymentReviewServiceTest {
                 SystemRolePermissions.of(UserRoleType.REVIEWER));
     }
 
+    private void givenNoExistingDecision() {
+        when(decisionRepository.findByDeploymentRequestIdAndReviewerIdAndStage(requestId,
+                reviewerId, 1)).thenReturn(Optional.empty());
+    }
+
     private void givenNoExistingDecisionAndSavable() {
         when(decisionRepository.findByDeploymentRequestIdAndReviewerIdAndStage(requestId,
                 reviewerId, 1)).thenReturn(Optional.empty());
@@ -300,6 +305,106 @@ class DefaultDeploymentReviewServiceTest {
 
         assertThat(service.approve(requestId, reviewer(), "ok").resultingStatus())
                 .isEqualTo(QueryStatus.APPROVED);
+    }
+
+    @Test
+    void canReviewIsTrueForAnEligibleReviewerOnAPendingRequest() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        givenResolvedPlan(new ApproverRule(reviewerId, null, 1));
+        givenNoExistingDecision();
+
+        assertThat(service.canReview(requestId, reviewer())).isTrue();
+    }
+
+    /**
+     * Quorum leaves the request PENDING_REVIEW after the first of two approvals, so status alone
+     * does not retire the buttons. Offering them anyway would let a reject silently replay the
+     * reviewer's own earlier approval (duplicate=true, no decision row, no audit row).
+     */
+    @Test
+    void canReviewIsFalseOnceTheCallerAlreadyVotedAtThisStage() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        givenResolvedPlan(new ApproverRule(reviewerId, null, 1));
+        var existing = new DeploymentReviewDecisionEntity();
+        existing.setId(UUID.randomUUID());
+        existing.setDecision(DecisionType.APPROVED);
+        when(decisionRepository.findByDeploymentRequestIdAndReviewerIdAndStage(requestId,
+                reviewerId, 1)).thenReturn(Optional.of(existing));
+
+        assertThat(service.canReview(requestId, reviewer())).isFalse();
+    }
+
+    @Test
+    void canReviewIsFalseForTheSubmitterEvenAsAnAdmin() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        var submitter = new ReviewerContext(submitterId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+
+        assertThat(service.canReview(requestId, submitter)).isFalse();
+    }
+
+    @Test
+    void canReviewIsFalseOnceTheRequestLeftReview() {
+        var approved = pending();
+        approved.setStatus(QueryStatus.APPROVED);
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(approved));
+
+        assertThat(service.canReview(requestId, reviewer())).isFalse();
+    }
+
+    @Test
+    void canReviewIsFalseWithoutTheReviewPermissionAndNeverReadsTheRequest() {
+        var analyst = new ReviewerContext(reviewerId, orgId, "ANALYST",
+                SystemRolePermissions.of(UserRoleType.ANALYST));
+
+        assertThat(service.canReview(requestId, analyst)).isFalse();
+        // The submitter opening their own deployment is the common caller — answer them for free.
+        verify(requestRepository, never()).findByIdAndOrganizationId(any(), any());
+    }
+
+    @Test
+    void canReviewIsFalseWhenThePlanNamesOtherApprovers() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        givenResolvedPlan(new ApproverRule(null, "ADMIN", 1));
+
+        assertThat(service.canReview(requestId, reviewer())).isFalse();
+    }
+
+    @Test
+    void canReviewIsTrueUnderReviewOverrideWithoutResolvingThePlan() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        var admin = new ReviewerContext(reviewerId, orgId, "ADMIN",
+                SystemRolePermissions.of(UserRoleType.ADMIN));
+
+        givenNoExistingDecision();
+
+        assertThat(service.canReview(requestId, admin)).isTrue();
+        verify(reviewPlanLookupService, never()).findById(any());
+    }
+
+    @Test
+    void canReviewIsTrueWhenThePlanNamesNoApprovers() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.of(pending()));
+        givenResolvedPlan();
+
+        givenNoExistingDecision();
+
+        assertThat(service.canReview(requestId, reviewer())).isTrue();
+    }
+
+    @Test
+    void canReviewAnswersFalseForAnUnknownOrCrossOrgIdRatherThanThrowing() {
+        when(requestRepository.findByIdAndOrganizationId(requestId, orgId))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.canReview(requestId, reviewer())).isFalse();
     }
 
     @Test

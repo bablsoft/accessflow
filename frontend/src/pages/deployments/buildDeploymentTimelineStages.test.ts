@@ -52,6 +52,7 @@ function makeRequest(overrides: Partial<DeploymentRequest>): DeploymentRequest {
     outcome_detail: null,
     created_at: '2026-08-20T10:00:00Z',
     decisions: [],
+    can_review: false,
     ...overrides,
   };
 }
