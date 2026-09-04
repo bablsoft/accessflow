@@ -321,6 +321,15 @@ The repository ships two GitHub Actions workflows:
 | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Push / PR to `main` | Single CI workflow with conditional area jobs (`backend`, `frontend`, `helm`) gated by `dorny/paths-filter@v4` and aggregated into one `CI Gate` check — see "Branch-protection-friendly CI" below |
 | [`.github/workflows/release.yml`](../.github/workflows/release.yml) | `workflow_dispatch` (manual, with `version` input) | Tags `vX.Y.Z`, builds & pushes multi-arch Docker images to GHCR, publishes the Helm chart to `gh-pages`, and creates a GitHub Release with auto-generated notes |
 
+### Keeping the actions current
+
+[`.github/dependabot.yml`](../.github/dependabot.yml) watches three ecosystems weekly: `maven` (`/backend`), `npm` (`/frontend`), and `github-actions` (`/`). Action bumps are **grouped into a single PR** — they tend to move together (the Node 20 → 24 runner deprecation majored most of them at once) and are cheaper to review as one batch than as a dozen separate PRs.
+
+Two blind spots to know about, both consequences of Dependabot scanning only `/.github/workflows` plus a root-level `action.yml` for this ecosystem:
+
+- The composite actions in [`.github/actions/`](../.github/actions/) are pure `run:` steps with no `uses:` pins, so there is nothing there to update.
+- [`terraform-provider/.github/workflows/release.yml`](../terraform-provider/.github/workflows/release.yml) is **not covered**. It is the mirror repo's GoReleaser workflow — subtree-split on a `terraform-provider-vX.Y.Z` tag and never executed from this repo — so its pins have to be bumped by hand alongside the root ones.
+
 ### Branch-protection-friendly CI (`ci.yml`)
 
 GitHub branch protection doesn't support "conditional required status checks" — a required check that doesn't run on a given PR blocks merge indefinitely. To get the effect users want ("frontend-only PRs only need the frontend job to pass"), `ci.yml` collapses what used to be three separate workflows into one with five jobs:

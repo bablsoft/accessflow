@@ -8,3 +8,22 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
+  # Dependabot's github-actions ecosystem only ever scans `/.github/workflows` plus a
+  # root-level action.yml, so `/` is the only meaningful directory value here. Two
+  # consequences worth knowing:
+  #   - The composite actions in `.github/actions/*/action.yml` are pure `run:` steps
+  #     with no `uses:` pins, so there is nothing there for Dependabot to update.
+  #   - `terraform-provider/.github/workflows/release.yml` is NOT covered — it is the
+  #     mirror repo's GoReleaser workflow, subtree-split on release and never run from
+  #     this repo. Bump its pins by hand when bumping the ones below.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # One PR for all action bumps instead of one per action — these move together
+    # (the Node 20 -> 24 runner deprecation majored most of them at once) and are
+    # cheap to review as a batch.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
