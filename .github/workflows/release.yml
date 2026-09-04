@@ -97,11 +97,15 @@ jobs:
 
       # The jars are handed to `publish` (which uploads them to gh-pages) rather than
       # rebuilt there — the pin check above already proved they are the pinned bytes.
+      # include-hidden-files is REQUIRED: since v4.4.0 upload-artifact drops every path
+      # with a dot-prefixed segment, and the staging dir is `.engines-artifacts`, so the
+      # default (false) silently matches nothing and fails with "No files were found".
       - name: Upload engine plugin jars
         uses: actions/upload-artifact@v4
         with:
           name: engine-jars
           path: .engines-artifacts/*-all.jar
+          include-hidden-files: true
           retention-days: 1
           if-no-files-found: error
 
