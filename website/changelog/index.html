@@ -61,7 +61,7 @@
         "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
         "inLanguage": "en",
         "datePublished": "2026-09-03",
-        "dateModified": "2026-09-03",
+        "dateModified": "2026-09-04",
         "url": "https://accessflow.io/changelog/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -192,6 +192,7 @@
           <summary>On this page</summary>
           <nav class="docs-toc">
             <p class="docs-toc-label">Releases</p>
+            <a href="#v2-5-0">v2.5.0</a>
             <a href="#v2-4-0">v2.4.0</a>
             <a href="#v2-3-0">v2.3.0</a>
             <a href="#v2-2-0">v2.2.0</a>
@@ -239,6 +240,23 @@
             <a href="/roadmap/" class="btn btn-ghost">What's planned next</a>
           </div>
         </header>
+
+        <section class="docs-section scroll-pad" id="v2-5-0">
+          <h2>v2.5.0 — Deployment version tracking and drift</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-09-04">4 September 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.5.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>AccessFlow now tracks which version is running where.</strong> Every environment records the release it last deployed and the one it was running before, updated as part of the deploy itself, so the record cannot drift from what actually happened.</li>
+            <li><strong>A version matrix across every pipeline.</strong> One row per environment: the version live on it now, the previous one, when it got there, and how that deploy ended. Each environment also keeps its own history, newest first.</li>
+            <li><strong>Drift, counted two ways.</strong> A row says how many newer releases have gone out since it last moved and how many days have passed, measured against the newest release that succeeded on that pipeline. It is a plain comparison, not an attempt to parse your version numbers, so it works whether you ship <code>2.4.1</code>, a date or a commit hash — and it is computed when you look, with nothing scheduled and nothing alerted on.</li>
+            <li><strong>Environment tags.</strong> Environments carry up to ten short labels of your choosing — a customer, a region, a tier — and the matrix filters on them, which turns one application deployed for many customers into a single readable view.</li>
+            <li><strong>Rollbacks restore the record.</strong> A failed or rolled-back deploy puts the environment back on the version it was actually running, rather than leaving a version on screen that is no longer live. Drift badges appear on the deployment list and detail pages for the deploy currently live on its environment.</li>
+            <li><strong>An update hint for self-hosted installs.</strong> Every signed-in user sees the running version under the sidebar logo, and when a newer stable release exists it becomes a link straight to that release's entry on this page. The check is a single unauthenticated request for a small file, made at most once a day and off the request path — nothing about your install is sent, and <code>ACCESSFLOW_UPDATES_ENABLED=false</code> switches it off entirely for air-gapped deployments.</li>
+            <li><strong>Interface refinements.</strong> Query, API-call and deployment reviews now share one review queue with the rollback worklist beside them; reviewers can approve or reject straight from a deployment's own page; the sidebar is grouped by domain with collapsible sections; a pipeline id can be copied without reading it out of the address bar; and API keys can be given an expiry when they are created.</li>
+          </ul>
+        </section>
 
         <section class="docs-section scroll-pad" id="v2-4-0">
           <h2>v2.4.0 — Deployment approval governance</h2>
@@ -497,7 +515,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
       </div>
     </div>
   </footer>
