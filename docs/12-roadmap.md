@@ -205,7 +205,7 @@
 
 ---
 
-## v2.5 🚧 in progress
+## v2.5 ✅ released
 
 **Theme:** Deployment version tracking and drift.
 

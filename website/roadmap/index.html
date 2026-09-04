@@ -61,7 +61,7 @@
         "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-03",
+        "dateModified": "2026-09-04",
         "url": "https://accessflow.io/roadmap/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -301,6 +301,8 @@
               <li>Pipelines &amp; environments · per-pipeline trigger grants · AI release-risk analysis</li>
               <li>Fail-closed deployment gate · freeze windows · break-glass · rollback tracking</li>
               <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
+              <li>Version tracking — which release runs on which environment, with environment tags</li>
+              <li>Drift reporting — how many releases and days an environment is behind, on demand</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -329,6 +331,7 @@
               <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
               <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
               <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
+              <li>Release update hint — a self-hosted install says when a newer stable release exists</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -358,26 +361,19 @@
             does, version by version since v1.0.
           </p>
           <p>
-            The two most recent themes: <strong>v2.3</strong> was data-aware governance and reviewer
-            intelligence — automated sensitive-data discovery, advisory approval-likelihood
-            prediction, recurring approved queries, least-privilege analytics over unused grants,
-            reviewer delegation and escalation, result-export DLP, and SIEM / WORM audit streaming.
-            <strong>v2.4</strong> added deployment approval governance: CI/CD pipelines ask
-            AccessFlow for permission to release and block on a fail-closed gate, with
-            per-environment policies, freeze windows, audited break-glass, and native GitHub
-            Actions, GitLab CI and Azure Pipelines steps.
+            The two most recent themes: <strong>v2.4</strong> added deployment approval governance —
+            CI/CD pipelines ask AccessFlow for permission to release and block on a fail-closed gate,
+            with per-environment policies, freeze windows, audited break-glass, and native GitHub
+            Actions, GitLab CI and Azure Pipelines steps. <strong>v2.5</strong> carried that past the
+            gate into what is actually running where: per-environment version tags and current-version
+            state, rollbacks that restore the version an environment is really on, a version matrix
+            with on-demand drift reporting, and an in-app hint telling every signed-in user when a
+            newer stable release is available.
           </p>
           <p>
-            In progress now is
-            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestone/9">milestone 2.5.0</a>,
-            which carries deployment governance past the approval gate into what is actually running
-            where: per-environment version tags and current-version state, rollback semantics that
-            restore the prior recorded version rather than merely reopening a review, a
-            version-inventory and drift API that answers which environments are behind and by how
-            much, and a version matrix, per-environment history timeline and drift badges in the web
-            UI. The same milestone adds an in-app hint that tells every signed-in user when a newer
-            stable release is available, linking straight to that release's notes. Every open and
-            closed milestone — with the issues inside it — is on
+            What shipped when, release by release, is in
+            <a class="prose-link" href="/changelog/">the changelog</a>. The milestone being built now,
+            and every open and closed one before it — with the issues inside them — is on
             <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub</a>.
           </p>
         </section>
@@ -473,7 +469,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.4 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
       </div>
     </div>
   </footer>
