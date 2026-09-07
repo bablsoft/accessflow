@@ -11,4 +11,11 @@ public interface PgVectorAvailability {
 
     /** {@code true} when the {@code vector} extension is installed and the {@code vector_store} backend is usable. */
     boolean isAvailable();
+
+    /**
+     * The resolved state, including <em>why</em> the store is unusable — the extension is missing
+     * versus the operator disabled pgvector. Callers that report a fix to an admin need the reason
+     * (AF-901); callers that only gate behaviour use {@link #isAvailable()}.
+     */
+    PgVectorStatus status();
 }

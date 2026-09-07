@@ -1587,6 +1587,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | A deployment decision lands (#695). Reviewer verdicts are written at the controller with the caller's IP + user-agent, one row per decision (before quorum, mirroring apigov). System decisions carry a **null actor** and a `trigger` naming the mechanism: `routing` (+ `policy_id`), `freeze` (+ `freeze_window_id`), or `environment_policy` (approved because the environment needs no review). Resource: `deployment_request`. |
 | `DEPLOYMENT_TIMED_OUT` | The review timeout auto-rejected a deployment past its window (#695, via `DeploymentTimeoutJob`). Resource: `deployment_request`. Null actor; metadata `trigger: "timeout"`, `pipeline_id`, `version`. |
 | `DEPLOYMENT_CANCELLED` | The submitter cancelled a pending or scheduled-approved deployment (#695). Resource: `deployment_request`. Written at the controller with IP + user-agent, only after the service accepted the cancel. |
+| `HELP_AGENT_CONFIG_UPDATED` | An admin saved the in-app help agent's settings (#901). Resource: `help_agent_config`. Metadata carries only what changed: `enabled`, `ai_config_bound` (plus `ai_config_id` when it is bound — audit metadata rejects null values, so an unbind reads as the flag going false), `retrieval_enabled`, `retention_days`, `send_user_context`. |
 | `DEPLOYMENT_BREAK_GLASS_REVIEWED` | An admin acknowledged a **deployment** break-glass retro-review on the shared AF-385 worklist (#695 — previously these landed as the generic `BREAK_GLASS_REVIEWED`). Resource: `break_glass_event`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. The same change routes API-target acknowledgments to `API_BREAK_GLASS_REVIEWED` (their audit row was previously lost to a swallowed NPE). |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
@@ -1595,7 +1596,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_request`, `deployment_rollback_review`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `notification_channel`, `ai_config`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `slack_app_config`, `access_grant_request`, `routing_policy`, `query_comment`, `break_glass_event`, `request_group`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_request`, `deployment_rollback_review`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -1949,6 +1950,52 @@ Per-organization [Langfuse](https://langfuse.com) integration settings — one r
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
 Tracing and prompt fetch are **best-effort and non-blocking** — a Langfuse outage or misconfiguration never affects the analysis result (failures are logged and swallowed; prompt fetch falls back to the locally stored template).
+
+---
+
+## help_agent_config
+
+Per-organization settings for the in-app documentation help chat agent (#901, epic #899, V159) — one row per
+organization (singleton, like `langfuse_config`). Binds the agent to an `ai_config` and carries the
+retrieval / conversation / retention tunables plus the corpus-ingestion state.
+
+The binding is deliberately **weak**: `ai_config_id` is `ON DELETE SET NULL`, so deleting the bound
+AI configuration disables help chat instead of blocking the admin — help never joins the
+`AI_CONFIG_IN_USE` guard that datasource bindings do.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE, UNIQUE (one row per org) |
+| `enabled` | BOOLEAN NOT NULL DEFAULT FALSE — master switch; validated on enable (see below) |
+| `ai_config_id` | FK → `ai_config` **ON DELETE SET NULL**, nullable — the chat model the agent talks to. `NULL` ⇒ help chat is inert |
+| `retrieval_enabled` | BOOLEAN NOT NULL DEFAULT TRUE — when FALSE the agent answers from the generated quick-reference block instead of retrieved corpus sections. A supported state: the feature is enable-able before RAG is configured, and it is the only mode available to an install whose embedding provider cannot embed |
+| `top_k` | INTEGER NOT NULL DEFAULT 6 — retrieved chunks per turn; app-validated ∈ [1, 20] |
+| `similarity_threshold` | DOUBLE PRECISION NOT NULL DEFAULT 0.4 — app-validated ∈ [0, 1] |
+| `max_history_turns` | INTEGER NOT NULL DEFAULT 8 — prior turns replayed into the prompt; app-validated ∈ [1, 50] |
+| `max_question_chars` | INTEGER NOT NULL DEFAULT 2000 — app-validated ∈ [100, 10000] |
+| `send_user_context` | BOOLEAN NOT NULL DEFAULT TRUE — include the current route *label* and permission names in the prompt (never data) |
+| `retention_days` | INTEGER NOT NULL DEFAULT 90 — how long chat transcripts are kept once the transcript tables exist (they do not yet); app-validated ∈ [1, 3650] |
+| `per_user_requests_per_minute` | INTEGER NOT NULL DEFAULT 6 — app-validated ∈ [1, 120] |
+| `indexed_corpus_version` | VARCHAR(64) nullable — content-derived corpus version (`sha256(corpus.jsonl)[0..12]`) currently ingested for this org; `NULL` = never indexed |
+| `indexed_at` | TIMESTAMPTZ nullable — when that ingestion completed |
+| `index_error` | TEXT nullable — last ingestion failure, `NULL` when the last run succeeded |
+| `version` | BIGINT — `@Version` optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+`indexed_corpus_version` / `indexed_at` / `index_error` are written by the indexer only — the admin
+API ignores them on write.
+
+Unique constraint: `(organization_id)`. Index on `(ai_config_id)` so the rows bound to an
+`ai_config` are found without a scan when one is deleted or re-pointed.
+
+**Enable-time validation.** Turning `enabled` on is refused unless the bound configuration can
+actually answer: `ai_config_id` must be set and belong to the caller's organization, and — when
+`retrieval_enabled` — the bound `ai_config` must have `rag_enabled`, a `rag_store_type`, an
+`embedding_provider` other than `ANTHROPIC` (which has no embeddings API), and, for `PGVECTOR`, a
+usable in-app store. The three pgvector failure states are reported distinctly: the extension is
+absent, pgvector was disabled via `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` (so `vector_store` was
+never created), or the embedding model's dimension does not match the `vector(N)` column.
 
 ---
 

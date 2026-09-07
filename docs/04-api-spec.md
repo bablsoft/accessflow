@@ -4097,6 +4097,114 @@ Reports deployment-level RAG capabilities so the admin UI can warn when the in-a
 { "pgvector_available": true }
 ```
 
+### Help Agent Configuration (`/admin/help-agent`) *(ADMIN only)*
+
+Per-organization settings for the in-app documentation help chat agent (AF-899) — a singleton row
+per organization binding the agent to an `ai_config`. All four endpoints require `AI_MANAGE`
+(`PERM_AI_MANAGE`); every other caller gets **403**.
+
+The agent answers from AccessFlow's own bundled documentation corpus and has no data access. **The
+row is inert today** — this is the configuration surface only; nothing reads it until the corpus
+indexer and the chat runtime land, so enabling the feature does not yet produce a chat panel. It can
+be enabled **before** RAG is configured: with `retrieval_enabled = false` the agent answers from a
+generated quick-reference orientation block instead of retrieved sections, so an install whose AI
+provider cannot embed (Anthropic ships no embeddings API) is still supported.
+
+#### GET /admin/help-agent
+
+Reads the caller organization's help-agent configuration. An organization that has never saved one
+gets the **defaults** (`enabled: false`, and no `id` — null fields are omitted from the response)
+with **200** — never a 404 — so the admin UI renders a fresh form without a pre-flight create.
+
+**Response 200:**
+```json
+{
+  "id": "cfg-uuid", "organization_id": "org-uuid", "enabled": true,
+  "ai_config_id": "ai-cfg-uuid", "retrieval_enabled": true,
+  "top_k": 6, "similarity_threshold": 0.4, "max_history_turns": 8,
+  "max_question_chars": 2000, "send_user_context": true, "retention_days": 90,
+  "per_user_requests_per_minute": 6,
+  "indexed_corpus_version": "c0ac599ef7fc", "indexed_at": "2026-09-07T09:49:29Z",
+  "created_at": "2026-09-07T09:00:00Z", "updated_at": "2026-09-07T09:49:29Z"
+}
+```
+`indexed_corpus_version` / `indexed_at` / `index_error` are read-only ingestion state written by the
+indexer; they are ignored on write.
+
+#### PUT /admin/help-agent
+
+Creates the row on first write, updates it afterwards. Every field is optional; `null` leaves the
+stored value unchanged (partial update).
+
+**Request body:**
+```json
+{
+  "enabled": true, "ai_config_id": "ai-cfg-uuid", "clear_ai_config": false,
+  "retrieval_enabled": true,
+  "top_k": 6, "similarity_threshold": 0.4, "max_history_turns": 8,
+  "max_question_chars": 2000, "send_user_context": true, "retention_days": 90,
+  "per_user_requests_per_minute": 6
+}
+```
+
+To **clear** the binding, send `clear_ai_config: true` — since `null` means "unchanged", it is the
+only way to unbind, and it wins over an `ai_config_id` sent in the same body. Omitting it (or sending
+`false`) leaves the binding alone.
+
+Validation (always): `top_k` ∈ [1, 20]; `similarity_threshold` ∈ [0, 1]; `max_history_turns` ∈
+[1, 50]; `max_question_chars` ∈ [100, 10000]; `retention_days` ∈ [1, 3650];
+`per_user_requests_per_minute` ∈ [1, 120]. A value out of range in the **body** is rejected by Bean
+Validation → **400** `VALIDATION_ERROR` with the usual per-field `fields` map; the service re-checks
+the same bounds against the merged row (so a stored value the request did not carry is caught too)
+and reports those as **400** `HELP_AGENT_CONFIG_INVALID`.
+
+Validation when `enabled = true` — the configuration must be one that can actually answer:
+
+| Condition | Failure |
+|---|---|
+| `ai_config_id` is null | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `ai_config_id` is not an AI config of the caller's organization | **404** `AI_CONFIG_NOT_FOUND` |
+| `retrieval_enabled` and the bound config has RAG off / no store type | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled` and the bound config has no embedding provider | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled` and the embedding provider is `ANTHROPIC` (no embeddings API) | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled`, store is `PGVECTOR`, and pgvector is off via `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` (the `vector_store` migration was skipped) | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled`, store is `PGVECTOR`, and the `vector` extension is not installed | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled`, store is `PGVECTOR`, and the embedding model's dimension ≠ `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled`, store is `PGVECTOR`, and the dimension probe itself fails (provider down, bad embedding key) | **400** `HELP_AGENT_CONFIG_INVALID` |
+
+The three pgvector states are reported as distinct localized `detail` messages, so an admin is told
+which one to fix rather than a generic "unavailable".
+
+**Response 200:** The saved configuration. Writes a `HELP_AGENT_CONFIG_UPDATED` audit row.
+**Response 400:** A body value out of range (`error: VALIDATION_ERROR`), or a configuration that
+cannot answer (`error: HELP_AGENT_CONFIG_INVALID`).
+**Response 404:** `ai_config_id` not found in this organization (`error: AI_CONFIG_NOT_FOUND`).
+
+> Deleting the bound `ai_config` sets `ai_config_id` to `NULL` (`ON DELETE SET NULL`) and disables
+> help chat — it never blocks the delete, so `AI_CONFIG_IN_USE` is not raised for a help binding.
+
+#### POST /admin/help-agent/test
+
+Verifies that the bound configuration can actually retrieve: embeds a probe with the bound config's
+embedding model and runs a similarity search against its vector store. For `PGVECTOR` the detected
+dimension is checked against the configured column dimension. Always returns **200**; the outcome is
+in the body.
+
+It short-circuits to `ERROR` without calling the provider when there is nothing to test: no saved
+row, no bound `ai_config` (or one that has since been deleted), a bound configuration that fails the
+same checks `PUT` applies, or `retrieval_enabled = false`. The last is the supported retrieval-off
+mode rather than a fault — the detail says so, and nothing else on the page is wrong.
+
+**Response 200:** `{ "status": "OK", "detail": "Embedding model and vector store are reachable", "embedding_dimensions": 1536 }`
+**Response 200 (failure):** `{ "status": "ERROR", "detail": "<message>", "embedding_dimensions": null }`
+
+#### POST /admin/help-agent/reindex
+
+Requests a re-ingestion of the bundled documentation corpus for this organization.
+
+**Response 202:** Accepted, no body. *(The indexer lands in a follow-up; today the endpoint accepts
+the request and does nothing.)*
+
 ### RAG Knowledge Base (`/admin/ai-configs/{id}/knowledge-documents`) *(ADMIN only)*
 
 Manages the knowledge documents attached to a RAG-enabled AI configuration (AF-336). On ingestion a document is chunked, embedded with the config's embedding model, and upserted into the configured vector store.
