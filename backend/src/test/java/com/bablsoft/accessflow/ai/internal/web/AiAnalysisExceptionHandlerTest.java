@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
+import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,23 @@ class AiAnalysisExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(pd.getProperties()).containsEntry("error", "RAG_CONFIG_INVALID");
         assertThat(pd.getDetail()).isEqualTo("A vector store type is required");
+    }
+
+    @Test
+    void mapsAnUnloadableHelpCorpusToItsOwnErrorCode() {
+        when(messageSource.getMessage(eq("error.help_agent.corpus_missing"), any(), any(Locale.class)))
+                .thenReturn("The bundled documentation corpus could not be loaded");
+
+        var pd = handler.handleHelpCorpusUnavailable(new HelpCorpusUnavailableException(
+                "error.help_agent.corpus_missing", "corpus.jsonl is missing"));
+
+        // A distinct code, not HELP_AGENT_CONFIG_INVALID: nothing the admin can change on the form
+        // fixes a corpus the build did not ship.
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "HELP_CORPUS_MISSING");
+        assertThat(pd.getDetail()).isEqualTo("The bundled documentation corpus could not be loaded");
+        // The classpath path and digest in getMessage() are diagnostic; they never reach the response.
+        assertThat(pd.getDetail()).doesNotContain("corpus.jsonl");
     }
 
     @Test

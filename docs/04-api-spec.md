@@ -4103,12 +4103,12 @@ Per-organization settings for the in-app documentation help chat agent (AF-899) 
 per organization binding the agent to an `ai_config`. All four endpoints require `AI_MANAGE`
 (`PERM_AI_MANAGE`); every other caller gets **403**.
 
-The agent answers from AccessFlow's own bundled documentation corpus and has no data access. **The
-row is inert today** — this is the configuration surface only; nothing reads it until the corpus
-indexer and the chat runtime land, so enabling the feature does not yet produce a chat panel. It can
-be enabled **before** RAG is configured: with `retrieval_enabled = false` the agent answers from a
-generated quick-reference orientation block instead of retrieved sections, so an install whose AI
-provider cannot embed (Anthropic ships no embeddings API) is still supported.
+The agent answers from AccessFlow's own bundled documentation corpus and has no data access. Enabling
+the agent now has a real effect — the corpus indexer (AF-902) embeds the bundled documentation for the
+organization — but there is still no chat panel until the chat runtime lands. It can be enabled
+**before** RAG is configured: with `retrieval_enabled = false` the agent answers from a generated
+quick-reference orientation block instead of retrieved sections, so an install whose AI provider
+cannot embed (Anthropic ships no embeddings API) is still supported, and nothing is indexed.
 
 #### GET /admin/help-agent
 
@@ -4171,9 +4171,15 @@ Validation when `enabled = true` — the configuration must be one that can actu
 | `retrieval_enabled`, store is `PGVECTOR`, and the `vector` extension is not installed | **400** `HELP_AGENT_CONFIG_INVALID` |
 | `retrieval_enabled`, store is `PGVECTOR`, and the embedding model's dimension ≠ `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | **400** `HELP_AGENT_CONFIG_INVALID` |
 | `retrieval_enabled`, store is `PGVECTOR`, and the dimension probe itself fails (provider down, bad embedding key) | **400** `HELP_AGENT_CONFIG_INVALID` |
+| The bundled documentation corpus could not be loaded from the classpath (missing, empty, checksum mismatch, or a bundle format newer than this build reads) | **400** `HELP_CORPUS_MISSING` |
 
 The three pgvector states are reported as distinct localized `detail` messages, so an admin is told
 which one to fix rather than a generic "unavailable".
+
+`HELP_CORPUS_MISSING` is deliberately its own code rather than another `HELP_AGENT_CONFIG_INVALID`:
+nothing an admin can change on the form fixes a corpus the build did not ship. Loading the corpus is
+fail-soft at startup — an install that never enables the help agent is not refused a boot over a
+resource it will never read — so the enable path is where that failure has to surface.
 
 **Response 200:** The saved configuration. Writes a `HELP_AGENT_CONFIG_UPDATED` audit row.
 **Response 400:** A body value out of range (`error: VALIDATION_ERROR`), or a configuration that
@@ -4190,10 +4196,11 @@ embedding model and runs a similarity search against its vector store. For `PGVE
 dimension is checked against the configured column dimension. Always returns **200**; the outcome is
 in the body.
 
-It short-circuits to `ERROR` without calling the provider when there is nothing to test: no saved
-row, no bound `ai_config` (or one that has since been deleted), a bound configuration that fails the
-same checks `PUT` applies, or `retrieval_enabled = false`. The last is the supported retrieval-off
-mode rather than a fault — the detail says so, and nothing else on the page is wrong.
+It short-circuits without calling the provider when there is nothing to test: no saved row, no bound
+`ai_config` (or one that has since been deleted), or a bound configuration that fails the same checks
+`PUT` applies — all `ERROR`. `retrieval_enabled = false` also short-circuits but reports **`OK`**: that
+is the supported retrieval-off mode rather than a fault, there is nothing to reach, and nothing else on
+the page is wrong.
 
 **Response 200:** `{ "status": "OK", "detail": "Embedding model and vector store are reachable", "embedding_dimensions": 1536 }`
 **Response 200 (failure):** `{ "status": "ERROR", "detail": "<message>", "embedding_dimensions": null }`
@@ -4202,8 +4209,22 @@ mode rather than a fault — the detail says so, and nothing else on the page is
 
 Requests a re-ingestion of the bundled documentation corpus for this organization.
 
-**Response 202:** Accepted, no body. *(The indexer lands in a follow-up; today the endpoint accepts
-the request and does nothing.)*
+The pass runs asynchronously on a virtual thread, under a cluster-wide lock, and is **forced** — it
+ignores the "this organization already holds this corpus version" check that the automatic passes
+apply, since an admin pressing re-index has a reason that check cannot see (a store truncated out of
+band, a suspected partial pass). It is a no-op for an organization that has never saved a
+configuration.
+
+The outcome — never the progress — lands on the configuration row's read-only
+`indexed_corpus_version` / `indexed_at` / `index_error` fields, written once when the pass ends and
+readable through `GET /admin/help-agent`. There is no progress signal to poll for.
+
+The indexing lock is per organization, so a re-index never waits on another tenant. Pressing it twice
+in quick succession is the one case that contends: the second request is accepted and then **dropped
+rather than queued**, since the pass already running is doing the same work.
+
+**Response 202:** Accepted, no body. The response says the request was accepted, never that indexing
+succeeded or even started — embedding the corpus takes minutes on a CPU-only backend.
 
 ### RAG Knowledge Base (`/admin/ai-configs/{id}/knowledge-documents`) *(ADMIN only)*
 

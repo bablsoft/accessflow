@@ -1076,6 +1076,26 @@ Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, kno
 | `ACCESSFLOW_RAG_CHUNK_SIZE` | Optional | `800` | Token chunk size used when splitting a knowledge document for embedding. |
 | `ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS` | Optional | `100000` | Maximum character length of a single knowledge document accepted for ingestion. |
 
+#### In-app Help Agent (AF-899)
+
+Whether the help agent is on, which `ai_config` answers with it, and its retrieval tunables are
+per-organization settings managed from `/admin/help-agent`, not in env. These three are
+deployment-wide, and all three are about *indexing* the bundled documentation corpus — the agent
+itself needs no configuration here.
+
+| Variable | Required | Default | Description |
+|----------|---------|---------|-------------|
+| `ACCESSFLOW_HELP_AGENT_INDEX_ON_STARTUP` | Optional | `true` | Index the bundled documentation corpus for every organization with the help agent enabled, once the application is ready — this is what makes an upgrade re-embed the documentation the new build ships. The pass runs off the startup thread, and an install with the agent switched off does nothing at all (the work list is "organizations with the agent enabled", which is empty). Set `false` to keep a slow local embedding backend from doing minutes of work on every restart; `POST /api/v1/admin/help-agent/reindex` still works. |
+| `ACCESSFLOW_HELP_AGENT_INDEX_BATCH_SIZE` | Optional | `64` | Documentation chunks sent per embedding call while indexing. The bundled corpus is ~510 chunks in total; sending them in one call exceeds the request size OpenAI accepts and exhausts memory on a local Ollama, hence the default of 64 per call. Lower it for a memory-constrained embedding backend. |
+| `ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR` | Optional | `PT30M` | ISO-8601 duration one replica may hold the indexing lock for one organization, so a multi-replica deployment indexes each organization once rather than once per replica. Set it well above the expected pass duration: the Redis key expires after it even if the JVM dies mid-pass, and a CPU-only Ollama embeds the corpus in minutes, not seconds. |
+
+The lock is keyed per organization (`helpCorpusIndex:<help_agent_config id>`), so organizations index
+independently — one tenant's slow pass never delays another's. Two passes for the **same**
+organization do contend, and the loser is dropped rather than queued: it is logged at `INFO`, and
+nothing is written to `index_error`, because the winner is doing exactly the same work. The only case
+where that is visible is pressing Re-index twice in quick succession; the first press is the one that
+runs.
+
 ##### pgvector for RAG
 
 The in-app `PGVECTOR` store needs the PostgreSQL `vector` extension. Because `vector` is not a trusted extension and the application DB role is not a superuser, the extension is provisioned by a **superuser init step**, not by Flyway (which creates only the `vector_store` table, V69):

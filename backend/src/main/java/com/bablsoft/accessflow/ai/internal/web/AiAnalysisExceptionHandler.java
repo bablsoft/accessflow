@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigInvalidException;
+import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import com.bablsoft.accessflow.ai.api.TextToSqlDisabledException;
@@ -152,6 +153,16 @@ class AiAnalysisExceptionHandler {
     ProblemDetail handleHelpAgentConfigInvalid(HelpAgentConfigInvalidException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
         pd.setProperty("error", "HELP_AGENT_CONFIG_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(HelpCorpusUnavailableException.class)
+    ProblemDetail handleHelpCorpusUnavailable(HelpCorpusUnavailableException ex) {
+        log.error("Help agent enable refused: the bundled documentation corpus is unavailable: {}",
+                ex.getMessage());
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
+        pd.setProperty("error", "HELP_CORPUS_MISSING");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
