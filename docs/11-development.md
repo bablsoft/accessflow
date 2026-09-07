@@ -17,6 +17,7 @@ accessflow/                         # Monorepo root
 │   └── {mongodb,couchbase,redis,cassandra,elasticsearch,dynamodb,neo4j,
 │        snowflake,bigquery,databricks}/
 ├── connectors/                     # Connector catalog (manifest + logo per engine)
+├── help-corpus/                    # Generated help-agent documentation bundle (never hand-edited)
 ├── frontend/                       # React / Vite / TypeScript
 ├── e2e/                            # Playwright suite + the three compose stacks
 ├── terraform-provider/             # Terraform/OpenTofu provider (Go module)
@@ -28,7 +29,8 @@ accessflow/                         # Monorepo root
 ├── docker-compose.yml              # Zero-config demo stack (root, not docker/)
 ├── .github/
 │   ├── actions/                    # Composite actions (provision-datasource, run-query)
-│   ├── scripts/                    # check-engine-pins.mjs, validate-connectors.mjs
+│   ├── scripts/                    # check-engine-pins.mjs, validate-connectors.mjs,
+│   │                               #   build-help-corpus.mjs
 │   └── workflows/
 │       ├── ci.yml                  # Build + test on every PR (one required check: CI Gate)
 │       ├── release.yml             # Manual workflow_dispatch, semver input
@@ -340,6 +342,7 @@ GitHub branch protection doesn't support "conditional required status checks" �
 | `backend` | `needs.changes.outputs.backend == 'true'` | Java 25 + Maven `verify -Pcoverage`, JaCoCo gate, JUnit reporter. |
 | `frontend` | `needs.changes.outputs.frontend == 'true'` | Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. |
 | `helm` | `needs.changes.outputs.helm == 'true'` | `helm dependency update` + `helm lint charts/accessflow` + three `helm template` renders (defaults, external Postgres/Redis, bootstrap fixture). |
+| `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails on `git diff --exit-code help-corpus/` — the committed help-agent bundle must match the documentation it is generated from. |
 | `gate` | `if: always()` after all four | Walks `needs.<area>.result` and exits non-zero unless every area job is `success` or `skipped`. |
 
 **Branch protection**: in **Repo Settings → Branches → Branch protection rules → main → Require status checks**, add **only `CI / CI Gate`** to the required-checks list. Do not add the area jobs directly — when a PR doesn't touch their path, their `result` is `skipped`, which GitHub treats as "did not pass" and would block the merge. The gate job collapses skipped + successful into a single green check.

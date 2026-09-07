@@ -276,6 +276,7 @@ accessflow/
 ├── ci-templates/     # Reusable GitLab CI + Azure Pipelines templates + usage examples, incl. the deployment-approval gate (GitHub Actions live in .github/actions/: provision-datasource, run-query, deployment-gate, deployment-outcome)
 ├── frontend/         # React 19 + Vite + TypeScript SPA (Ant Design 6, TanStack Query, Zustand)
 ├── connectors/       # Declarative connector catalog (one connector.json + logo per database)
+├── help-corpus/      # Generated documentation bundle for the in-app help agent (see its README)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (own npm project)
 ├── docs/             # Authoritative design documentation
 ├── website/          # Public marketing site (static HTML/CSS/JS, no build step)

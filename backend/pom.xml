@@ -44,6 +44,10 @@
              Local/CI builds run from backend/ so the default resolves to the sibling folder; the
              Docker build copies connectors into the image and overrides this with -Dconnectors.dir. -->
         <connectors.dir>${project.basedir}/../connectors</connectors.dir>
+        <!-- Repo-root help documentation corpus (issue #900), bundled onto the classpath as
+             help-corpus/**. Same shape as connectors above: local/CI builds resolve the sibling
+             folder, and the Docker build copies it in and overrides this with -Dhelp.corpus.dir. -->
+        <help.corpus.dir>${project.basedir}/../help-corpus</help.corpus.dir>
         <!-- Surefire runs the whole suite in one fork; the accumulated Spring test-context cache
              plus the ArchUnit class-graph import (ApiPackageDependencyTest) exceed the JVM's
              default (RAM/4) heap on CI runners. 6g started GC-thrashing/OOMing once the deploygov
@@ -495,6 +499,16 @@
                 <excludes>
                     <exclude>README.md</exclude>
                     <exclude>schema/**</exclude>
+                </excludes>
+            </resource>
+            <!-- Bundle the generated help documentation corpus (help-corpus/corpus.jsonl +
+                 manifest.json + quick-reference.txt) onto the classpath under help-corpus/**,
+                 so the in-app help agent always reads documentation for the running version. -->
+            <resource>
+                <directory>${help.corpus.dir}</directory>
+                <targetPath>help-corpus</targetPath>
+                <excludes>
+                    <exclude>README.md</exclude>
                 </excludes>
             </resource>
         </resources>

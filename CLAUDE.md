@@ -55,6 +55,7 @@ accessflow/
 ├── terraform-provider/ # Terraform/OpenTofu provider (Go module, terraform-plugin-framework) — AF-452, source of truth; released to a dedicated terraform-provider-accessflow mirror repo
 ├── frontend/         # React / Vite / TypeScript SPA
 ├── connectors/       # Connector catalog — one manifest + logo per engine
+├── help-corpus/      # Generated in-app help documentation bundle (corpus.jsonl + manifest + quick reference)
 ├── deploy/           # Postgres init scripts (audit role, pgvector)
 ├── e2e/              # Playwright end-to-end suite + docker-compose.e2e.yml (+ .setup.yml and .sso.yml variants)
 ├── ci-templates/     # Reusable GitLab CI + Azure Pipelines templates + usage examples (AF-452, AF-694)
@@ -636,8 +637,9 @@ Branch names must match the pattern above. Commit messages should be imperative 
 so branch protection requires exactly **one** check.
 
 - Area jobs: `backend`, `frontend` (includes the `website/` guards), `helm`, `e2e` (3-variant
-  matrix), `connectors`, `engines` (10-engine matrix, fails on SHA pin drift), `terraform`,
-  `actions`. Each runs only when its paths changed.
+  matrix), `connectors`, `help-corpus` (regenerates the bundle, fails on drift), `engines`
+  (10-engine matrix, fails on SHA pin drift), `terraform`, `actions`. Each runs only when its
+  paths changed.
 - **`CI / CI Gate` is the only check to mark required.** It `needs` every area job with
   `if: always()` and passes when each is `success` or `skipped`. Never require an individual
   area job — it reports `skipped` on unrelated PRs and would block them.
@@ -699,6 +701,9 @@ Each line is a hard rule. Where a pattern file expands on it, follow the arrow.
   `frontend/src/config/docs.ts` ↔ `website/app.js` anchor contract →
   `patterns/website-drift.md`.
 - `docs/09-deployment.md`, when you add a config knob.
+- `help-corpus/`, when you edit `website/**` or `docs/09-deployment.md` — regenerate with
+  `node .github/scripts/build-help-corpus.mjs` and commit the result; the `help-corpus` CI job
+  fails on drift.
 
 **Process**
 - Multi-paragraph comments or doc comments on obvious methods.

@@ -1,0 +1,89 @@
+AccessFlow — quick reference
+
+AccessFlow is an open-source database access governance platform. It sits as a full query
+proxy between people and the databases, warehouses, outbound APIs and CI/CD pipelines they
+need, and enforces configurable AI analysis and human approval before anything runs. Every
+decision and execution lands in a tamper-evident audit log.
+
+The query lifecycle
+  1. Submit — a user picks a datasource and writes a query; JSqlParser validates it and the schema allow-list is checked at AST level. Unparseable SQL is rejected outright.
+  2. Analyse — if the datasource has AI analysis enabled, a model scores the query for risk and explains what it does. Status: PENDING_AI.
+  3. Route — routing policies may auto-approve or auto-reject; otherwise the datasource review plan decides who must approve. Status: PENDING_REVIEW.
+  4. Approve — every stage of the approval chain must clear. Nobody can approve their own query, not even an admin. Status: APPROVED, REJECTED or TIMED_OUT.
+  5. Execute — the proxy runs the query under masking, row-level security and row caps, and records the result. Status: EXECUTED or FAILED.
+
+Rules that never bend
+  - A user can never approve their own request, regardless of role.
+  - Break-glass bypasses AI and review, but only for someone holding the break-glass permission on that datasource; it pages every admin and opens a mandatory retro-review.
+  - The audit log is insert-only — the application database role has no UPDATE or DELETE on it.
+  - Datasource credentials are AES-256-GCM encrypted at rest and are never returned by any endpoint.
+  - The help assistant reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.
+
+Where things are in the app
+  /dashboard                         Personalized home: summary tiles, query trends, AI suggestions, weekly digest.
+  /editor                            SQL editor. Pick a datasource, write a query, submit it for review.
+  /queries                           Every query the signed-in user submitted, with status and AI risk.
+  /queries/:id                       One query: SQL, AI analysis, approval chain, results, audit trail.
+  /reviews                           Unified review hub. Tabs for queries, API calls, deployments and rollbacks.
+  /reviews/:id/decide                Approve or reject one request, with a mandatory reason.
+  /reviews/attestations              Access recertification worklist: certify or revoke standing grants.
+  /request-groups                    Grouped requests that bundle ordered query and API-call members.
+  /request-groups/new                Build a grouped request and order its members.
+  /request-groups/reviews            Review queue for grouped requests.
+  /datasources                       Databases the user may query, and their connection health.
+  /datasources/new                   Register a database: engine, host, credentials, SSL mode.
+  /datasources/:id/settings          Per-datasource schema, masking, row security and ER diagram.
+  /api-connectors                    Governed outbound REST, SOAP, GraphQL and gRPC connectors.
+  /api-editor                        Compose a governed API call and submit it for review.
+  /api-requests                      API calls the user submitted, with status and AI risk.
+  /api-reviews                       Review queue for API calls.
+  /deployments                       Deployment requests raised by CI/CD pipelines.
+  /deployment-reviews                Review queue for deployments and rollbacks.
+  /deployment-versions               What version each environment is running, and where it has drifted.
+  /access-requests                   Ask for access to a datasource, or track a request already made.
+  /lifecycle/erasure                 Right-to-erasure requests over personal data.
+  /lifecycle/erasure-reviews         Review queue for erasure requests.
+  /profile                           Own account: display name, password, language, theme, notifications, API keys.
+  /setup                             First-run wizard. Shown until an active admin exists.
+  /login                             Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.
+  /admin/users                       Create, deactivate and re-invite users; assign roles and permissions.
+  /admin/groups                      User groups and the grants attached to them.
+  /admin/roles                       Roles and the permissions each one carries.
+  /admin/organizations               Organizations (tenants) and their settings.
+  /admin/languages                   Which of the seven interface languages are offered.
+  /admin/access-requests             Approve or reject incoming access requests.
+  /admin/break-glass                 Break-glass grants and the mandatory retro-review of each use.
+  /admin/review-plans                Review plans: approval stages, approvers, timeouts, escalation.
+  /admin/routing-policies            Typed conditions that auto-approve, auto-reject or route a request.
+  /admin/attestation                 Scheduled attestation campaigns over standing grants.
+  /admin/ai-configs                  AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible, Hugging Face.
+  /admin/ai-analyses                 History of every AI analysis, with tokens and latency.
+  /admin/anomalies                   User-behaviour anomalies the AI flagged.
+  /admin/langfuse                    Langfuse tracing for AI calls.
+  /admin/connectors                  Connector catalog: engines available and their driver pins.
+  /admin/drivers                     Uploaded JDBC driver JARs for custom engines.
+  /admin/datasource-health           Connection health across every registered datasource.
+  /admin/data-classifications        Classification tags and the masking they derive.
+  /admin/deployment-pipelines        CI/CD pipelines, environments, freeze windows and permissions.
+  /admin/notifications               Notification channels: email, Slack, Discord, Teams, Telegram, webhooks.
+  /admin/slack                       Slack workspace connection.
+  /admin/oauth2                      OAuth 2.0 / OIDC sign-in providers.
+  /admin/saml                        SAML 2.0 single sign-on.
+  /admin/scim                        SCIM 2.0 provisioning tokens and attribute mapping.
+  /admin/audit-log                   The tamper-evident audit log, filterable and exportable.
+  /admin/audit-sinks                 Where audit rows are streamed for long-term retention.
+  /admin/auditor                     Compliance reports and signed PDF / CSV exports.
+  /admin/over-provisioned-access     Grants nobody has used, suggested for revocation.
+  /admin/lifecycle/policies          Data retention and erasure policies.
+
+What the documentation covers
+  Guides: Turn on AI risk analysis; Govern an outbound API call; Add your first datasource; Gate a deployment pipeline; Run your first governed query; Guides; Set up email and chat notifications; Connect single sign-on; Invite your team and assign roles; Manage AccessFlow with Terraform
+  Reference: AI configuration; Audit & compliance; Authentication & SSO; Connectors; Datasources; Notifications; Review workflows; Users, roles & organizations; End-user workflows; Infrastructure as Code
+  Documentation: Install AccessFlow; Run and configure AccessFlow
+  Features: API access governance for REST, SOAP, GraphQL and gRPC; Database access governance; Deployment approval governance; Database access control, feature by feature
+  Connectors: BigQuery access governance; Cassandra access governance; ClickHouse access governance; Couchbase access governance; Databricks SQL access governance; DynamoDB access governance; Elasticsearch access governance; Database connectors; MariaDB access governance; MongoDB access governance; Microsoft SQL Server access governance; MySQL access governance; Neo4j access governance; OpenSearch access governance; Oracle Database access governance; PostgreSQL access governance; Redis access governance; ScyllaDB access governance; Snowflake access governance
+  Security: Where credentials live, and what the proxy can actually see
+  Use cases: Seven access problems, one governed checkpoint
+  AI agents: Your agent doesn't need your database. It needs an answer
+  Overview: Governed database, API & deployment access, built for engineers
+  Deployment: Deploying and configuring AccessFlow
