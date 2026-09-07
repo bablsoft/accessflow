@@ -70,7 +70,7 @@ exist. A hand-rolled `PostgreSQLContainer` fails on both.
 - **Asserting only the happy path on a service with documented exceptions** → the exception
   branches are exactly what the ProblemDetail contract depends on.
 
-## Test-context cache — two invariants
+## Test-context cache — three invariants
 
 The suite once built **121 Spring contexts for 124 integration tests** (631 s, 46 % of the run)
 because every class declared its own `@DynamicPropertySource`. Spring's
@@ -109,6 +109,31 @@ because every class declared its own `@DynamicPropertySource`. Spring's
    `systemPropertyVariables` (it is read via `SpringProperties`, so it cannot live in a
    properties file). If you add contexts, check the `ContextCache` stats line before assuming
    there is headroom.
+
+3. **Beans are lazily initialized, and one context must still start eagerly.**
+   `src/test/resources/application.properties` sets `spring.main.lazy-initialization=true`. A
+   `@SpringBootTest` context boots the whole application — 644 stereotype beans, 98 entities, 102
+   repositories, the 511-chunk help corpus, the 18-connector catalog, OpenSAML's algorithm registry,
+   the MCP tool registry — and a given test touches almost none of it. Measured back-to-back over
+   the full suite (877 classes, 7,560 tests): **13:10 → 7:02 min wall**, 12.6 → 6.0 min in tests,
+   integration tests 11.5 → 5.0. Flyway is only 0.6 s of a 21.5 s startup, so the cost is bean
+   construction, not schema setup; do not go looking for a faster migration path.
+
+   Listeners are unaffected: `EventListenerMethodProcessor` resolves `@EventListener` and
+   `@ApplicationModuleListener` methods from the bean *type* and defers instantiation to first
+   dispatch. What lazy initialization does cost is the startup failure — a bean that cannot be
+   constructed now fails whichever test first touches it, reported far from the actual cause.
+   `EagerContextStartupIntegrationTest` pins the property back to `false` so exactly one context per
+   run builds the full graph up front. **Do not delete it to save a context**, and do not "fix" a
+   mysterious per-test wiring error without checking whether that class fails too. It asserts on the
+   singleton count rather than on the property value: `spring.main.lazy-initialization` reads back as
+   `false` whether or not the override actually took effect, so only counting constructed singletons
+   (~1642 eager vs ~846 lazy, against 1634 definitions) proves the guard is still doing its job.
+
+   Note this trades against invariant 1: lazy initialization makes each context cheaper, not fewer.
+   The remaining per-class overhead is dominated by classes that fragment the cache — each distinct
+   `@MockitoBean` set is its own context, and a `MockMvc` controller test instantiates most of the
+   graph anyway, so it gains little from laziness.
 
 Because one Postgres now serves the whole run, `DatabaseResetTestExecutionListener` truncates
 every table and re-seeds the system roles after each test class. Do not rely on a virgin database
