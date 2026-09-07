@@ -37,7 +37,7 @@ AccessFlow's real logical units cut across the tree:
 | **An engine change** | `engines/<id>/**` **and** `connectors/<id>/connector.json` — **never split**: a version bump without the re-pinned SHA fails CI and leaves the catalog pointing at a jar whose hash does not match |
 | A frontend feature | `src/api/<domain>.ts` + the page/components + `en.json` + the six locales + `e2e/tests/<flow>.spec.ts` |
 | **A validation change** | the backend DTO constraint **and** the mirroring `Form.Item` rule — the parity rule makes these one commit by definition |
-| A website change | `website/**.html` + `sitemap.xml` (+ `frontend/src/config/docs.ts` when anchors moved) |
+| A website change | `website/**.html` + `sitemap.xml` + the regenerated `help-corpus/` (+ `frontend/src/config/docs.ts` when anchors moved) |
 | A config knob | the `*Properties` record + `application.yml` + the `docs/09-deployment.md` row |
 
 ### 4. Never split these

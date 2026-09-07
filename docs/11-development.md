@@ -29,8 +29,8 @@ accessflow/                         # Monorepo root
 ├── docker-compose.yml              # Zero-config demo stack (root, not docker/)
 ├── .github/
 │   ├── actions/                    # Composite actions (provision-datasource, run-query)
-│   ├── scripts/                    # check-engine-pins.mjs, validate-connectors.mjs,
-│   │                               #   build-help-corpus.mjs
+│   ├── scripts/                    # check-engine-pins.mjs, validate-connectors.mjs
+│   │                                 and build-help-corpus.mjs
 │   └── workflows/
 │       ├── ci.yml                  # Build + test on every PR (one required check: CI Gate)
 │       ├── release.yml             # Manual workflow_dispatch, semver input
@@ -334,16 +334,21 @@ Two blind spots to know about, both consequences of Dependabot scanning only `/.
 
 ### Branch-protection-friendly CI (`ci.yml`)
 
-GitHub branch protection doesn't support "conditional required status checks" — a required check that doesn't run on a given PR blocks merge indefinitely. To get the effect users want ("frontend-only PRs only need the frontend job to pass"), `ci.yml` collapses what used to be three separate workflows into one with five jobs:
+GitHub branch protection doesn't support "conditional required status checks" — a required check that doesn't run on a given PR blocks merge indefinitely. To get the effect users want ("frontend-only PRs only need the frontend job to pass"), `ci.yml` collapses what used to be three separate workflows into one job per area, plus a `changes` detector and a `gate` aggregator:
 
 | Job | Runs when | What it does |
 |-----|-----------|--------------|
-| `changes` | always | Runs `dorny/paths-filter@v4` once, exporting `backend` / `frontend` / `helm` outputs based on the PR diff (and on the workflow file itself, so CI-config-only changes still exercise every area). |
+| `changes` | always | Runs `dorny/paths-filter@v4` once, exporting one output per area based on the PR diff (and on the workflow file itself, so CI-config-only changes still exercise every area). |
 | `backend` | `needs.changes.outputs.backend == 'true'` | Java 25 + Maven `verify -Pcoverage`, JaCoCo gate, JUnit reporter. |
 | `frontend` | `needs.changes.outputs.frontend == 'true'` | Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. |
 | `helm` | `needs.changes.outputs.helm == 'true'` | `helm dependency update` + `helm lint charts/accessflow` + three `helm template` renders (defaults, external Postgres/Redis, bootstrap fixture). |
-| `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails on `git diff --exit-code help-corpus/` — the committed help-agent bundle must match the documentation it is generated from. |
-| `gate` | `if: always()` after all four | Walks `needs.<area>.result` and exits non-zero unless every area job is `success` or `skipped`. |
+| `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails when `help-corpus/` no longer matches the documentation it is generated from. |
+| `e2e` | `needs.changes.outputs.e2e == 'true'` | Playwright, across the three compose stacks (main, setup, SSO). |
+| `connectors` | `needs.changes.outputs.connectors == 'true'` | `node .github/scripts/validate-connectors.mjs` over the connector catalog. |
+| `engines` | `needs.changes.outputs.engines == 'true'` | Ten-engine matrix: builds each plugin and fails on connector SHA-256 pin drift. |
+| `terraform` | `needs.changes.outputs.terraform == 'true'` | Go build/vet/test plus the provider acceptance stack. |
+| `actions` | `needs.changes.outputs.actions == 'true'` | `actionlint` over every workflow, plus the composite-action and CI-template smoke tests. |
+| `gate` | `if: always()` after every area job | Walks `needs.<area>.result` and exits non-zero unless every area job is `success` or `skipped`. |
 
 **Branch protection**: in **Repo Settings → Branches → Branch protection rules → main → Require status checks**, add **only `CI / CI Gate`** to the required-checks list. Do not add the area jobs directly — when a PR doesn't touch their path, their `result` is `skipped`, which GitHub treats as "did not pass" and would block the merge. The gate job collapses skipped + successful into a single green check.
 

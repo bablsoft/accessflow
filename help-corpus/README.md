@@ -1,6 +1,6 @@
 # AccessFlow Help Corpus
 
-The **help corpus** is the versioned documentation bundle the in-app help chat agent answers from
+The **help corpus** is the versioned documentation bundle the in-app help agent answers from
 (epic [#899](https://github.com/bablsoft/accessflow/issues/899)). It is generated from the public
 documentation, committed to the repository, and bundled into the backend JAR on the classpath as
 `help-corpus/**` — the same mechanism the [connector catalog](../connectors/README.md) uses.
@@ -38,9 +38,10 @@ documentation typo fix re-embeds one chunk rather than all of them — chunk `id
 
 ## What goes in, and what does not
 
-Included: `website/docs/**`, `website/features/**`, `website/connectors/**`,
-`website/security/`, `website/use-cases/`, `website/ai-agents/`, `website/index.html`, and
-`docs/09-deployment.md` (the operator env-var reference, which nothing on the website covers).
+Included: **every** `.html` file under `website/`, plus `docs/09-deployment.md` (the operator
+env-var reference, which nothing on the website covers). The generator walks the tree rather than
+naming folders, and **fails on any page it cannot classify** — so a new documentation area has to
+be given a `SECTION_RULES` section label or an explicit exclusion, and cannot be silently dropped.
 
 Excluded on purpose:
 
@@ -49,23 +50,37 @@ Excluded on purpose:
 - **`website/changelog/`** — version-specific.
 - **Every page's shared nav, sidebar and footer** — otherwise ~10k words of near-duplicate link
   text would dominate similarity search across all 50 sources.
+- **Decorative product mock-ups** (`aria-hidden="true"`, or the site's `mock` class) — the
+  homepage's animated editor demo alone flattens to ~685 tokens of invented query ids, users and
+  row counts. Dense with `audit`, `QUERY_EXECUTED` and `HMAC-SHA256`, it would rank near the top
+  for "what does the audit log record?", and the agent would recite fabricated data back as
+  documentation.
+- **Sections under 40 tokens** — a chapter label plus a "Last updated" stamp is not an answer, and
+  ~23 of them were near-identical across pages.
 
 ## How the generator works
 
 Content is taken from each page's `<main>` element, minus its `<aside>`, `<nav>`, `<script>`,
-`<style>`, `<svg>` and `<button>` boilerplate, then split on `<h2>` / `<h3>` boundaries (`##` /
-`###` for markdown). The heading's `id` becomes the chunk `anchor` when it has one. Any section
-over 800 tokens — the same budget `RagProperties.chunkSize` uses at runtime — is split further on
-paragraph, then line, then word boundaries.
+`<style>`, `<svg>` and `<button>` boilerplate and its decorative mock-ups, then split on `<h2>` /
+`<h3>` boundaries (`##` / `###` for markdown). The heading's `id` becomes the chunk `anchor` when
+it has one. Any section over 800 tokens — the same budget `RagProperties.chunkSize` uses at
+runtime — is split further on paragraph, then line, then word boundaries.
 
-The script asserts loudly rather than silently emitting a broken bundle: it fails when the chunk
-count leaves the 350–600 range, when any chunk exceeds the token budget, when two chunks collide
-on `id`, when an excluded path appears, or when a page has no `<main>`, no `<h1>` or no canonical
-URL.
+`order` counts parts **within a section**, not across the page, so a chunk's `id` depends only on
+its own anchor and part index. Inserting a section therefore does not renumber the ones after it,
+which is what makes a documentation edit re-embed the sections it touched rather than the page.
+
+The script asserts loudly rather than silently emitting a broken bundle. It fails when a page
+under `website/` matches no section rule and no exclusion, when the chunk count leaves the 350–600
+range, when any chunk exceeds the token budget, when two chunks collide on `id`, when an excluded
+path appears, or when a page has no `<main>`, no `<h1>` or no canonical URL.
 
 The route table and lifecycle summary that `quick-reference.txt` is rendered from are declared at
-the bottom of `.github/scripts/build-help-corpus.mjs`. Adding a route to the application means
-adding a line there and regenerating.
+the bottom of `.github/scripts/build-help-corpus.mjs`. That table is **cross-checked against
+`frontend/src/App.tsx` in both directions**: a route the application serves that nobody described
+fails the build, and so does a description of a route that no longer exists. Adding a route means
+adding a line saying what the screen is for (or listing it in `ROUTES_NOT_LISTED`) — otherwise the
+orientation block the agent falls back to would quietly describe an app that no longer exists.
 
 ## Determinism
 

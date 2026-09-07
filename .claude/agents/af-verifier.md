@@ -50,11 +50,12 @@ Run **only** what the touched paths imply. Note what you skipped and why.
 | `connectors/**` | `node .github/scripts/validate-connectors.mjs` |
 | `frontend/src/**` | `cd frontend && npm run lint && npm run typecheck && npm run test:coverage && npm run build` — **run `build` too**, it enforces `noUncheckedIndexedAccess` on test files and is stricter than `typecheck` |
 | `frontend/src/locales/**` | covered by `test:coverage` (the parity test) — say so |
-| `website/**` | `cd frontend && npm run test:coverage` (the website guards live there) |
+| `website/**` | `cd frontend && npm run test:coverage` (the website guards live there), **and** `node .github/scripts/build-help-corpus.mjs && git status --porcelain -- help-corpus/` (empty output; the committed help corpus is generated from these pages) |
 | `e2e/tests/**` | `cd e2e && npm run typecheck`. A full Playwright run needs a booted stack — do **not** start one unless the caller asked; report it as `NOT_RUN (needs stack)` |
 | `charts/**` | `helm dependency update charts/accessflow && helm lint charts/accessflow && helm template charts/accessflow >/dev/null` |
 | `terraform-provider/**` | `cd terraform-provider && gofmt -l . && go vet ./... && go test ./... -count=1` |
-| `.claude/**`, `docs/**`, `*.md` only | nothing to run — report `NO_GATES_APPLY` |
+| `docs/09-deployment.md`, `frontend/src/App.tsx`, `help-corpus/**` | `node .github/scripts/build-help-corpus.mjs && git status --porcelain -- help-corpus/` (empty output) |
+| `.claude/**`, `docs/**` (other than `09-deployment.md`), `*.md` only | nothing to run — report `NO_GATES_APPLY` |
 
 ## 3. Capture real exit codes
 

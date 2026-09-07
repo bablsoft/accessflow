@@ -66,6 +66,10 @@ jobs:
               - 'docs/09-deployment.md'
               - 'help-corpus/**'
               - '.github/scripts/build-help-corpus.mjs'
+              # The generated quick-reference names every route in the app, and the generator
+              # cross-checks that list against the router — so a new route fails this job until
+              # someone says what the screen is for.
+              - 'frontend/src/App.tsx'
               - '.github/workflows/ci.yml'
             # backend/** is included because the plugins compile against the backend's core.api —
             # an SPI change can break a plugin or shift its reproducible-build sha pin.
@@ -469,11 +473,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
       - name: Rebuild the help corpus
         run: node .github/scripts/build-help-corpus.mjs
+      # `git diff` alone would miss a brand-new output file, which lands untracked; the porcelain
+      # check catches both a modified and an added one.
       - name: Fail if the committed bundle is stale
         run: |
-          if ! git diff --exit-code -- help-corpus/; then
+          git diff -- help-corpus/
+          if [[ -n "$(git status --porcelain -- help-corpus/)" ]]; then
             echo "::error::help-corpus/ is out of date with the documentation it is generated from."
             echo "Regenerate it and commit the result:"
             echo "  node .github/scripts/build-help-corpus.mjs"

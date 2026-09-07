@@ -35,6 +35,8 @@ const MAX_CHUNK_TOKENS = 800;
 // Guard rails: a broken selector must fail loudly rather than silently emit three chunks.
 const MIN_CHUNKS = 350;
 const MAX_CHUNKS = 600;
+// Below this a "section" is a label and a date stamp, not an answer.
+const MIN_SECTION_TOKENS = 40;
 const MIN_QUICK_REF_TOKENS = 1500;
 const MAX_QUICK_REF_TOKENS = 4000;
 
@@ -45,33 +47,45 @@ const GITHUB_BLOB = 'https://github.com/bablsoft/accessflow/blob/main/';
 // Sources
 // ---------------------------------------------------------------------------------------------
 
-// Included HTML trees and files, with the breadcrumb section label each contributes.
-// website/roadmap/** is deliberately excluded: it describes unbuilt work, and an agent that
-// retrieves it will confidently explain features the user does not have. website/changelog/** is
-// excluded as version-specific. 404.html and the search-console verification stub carry no prose.
-const HTML_TREES = [
-  { dir: 'website/docs/guides', section: 'Guides' },
-  { dir: 'website/docs/configuration', section: 'Reference' },
-  { dir: 'website/docs/install', section: 'Documentation' },
-  { dir: 'website/docs/workflows', section: 'Reference' },
-  { dir: 'website/docs/iac', section: 'Reference' },
-  { dir: 'website/features', section: 'Features' },
-  { dir: 'website/connectors', section: 'Connectors' },
+// Every .html file under website/ is ingested unless it is explicitly excluded below, and every
+// ingested file must match a section rule. The script FAILS on a page that is neither, so a new
+// documentation area cannot be silently dropped from the corpus — the failure mode this design is
+// most exposed to, because the agent would then answer "I have no documentation on that" about a
+// chapter that exists.
+//
+// Longest matching prefix wins; the label becomes the page's breadcrumb section.
+const SECTION_RULES = [
+  ['website/docs/guides/', 'Guides'],
+  ['website/docs/configuration/', 'Reference'],
+  ['website/docs/workflows/', 'Reference'],
+  ['website/docs/iac/', 'Reference'],
+  ['website/docs/', 'Documentation'],
+  ['website/features/', 'Features'],
+  ['website/connectors/', 'Connectors'],
+  ['website/security/', 'Security'],
+  ['website/use-cases/', 'Use cases'],
+  ['website/ai-agents/', 'AI agents'],
+  ['website/index.html', 'Overview'],
 ];
-const HTML_FILES = [
-  { file: 'website/docs/index.html', section: 'Documentation' },
-  { file: 'website/security/index.html', section: 'Security' },
-  { file: 'website/use-cases/index.html', section: 'Use cases' },
-  { file: 'website/ai-agents/index.html', section: 'AI agents' },
-  { file: 'website/index.html', section: 'Overview' },
+
+// Deliberate exclusions, each with the reason it is not documentation to answer from.
+const EXCLUDED_PREFIXES = [
+  // Describes unbuilt work; an agent that retrieves it will confidently explain features the user
+  // does not have.
+  'website/roadmap/',
+  // Version-specific; the corpus already ships with the version it documents.
+  'website/changelog/',
 ];
+const EXCLUDED_FILES = [
+  'website/404.html',                    // error page, no prose
+  'website/googlef4908e4bf779aae8.html', // search-console verification stub
+];
+
 // The ~168 operator env vars, which nothing on the website covers.
 // `title` overrides the file's own h1, which is a chapter number rather than a readable name.
 const MARKDOWN_FILES = [
   { file: 'docs/09-deployment.md', section: 'Deployment', title: 'Deploying and configuring AccessFlow' },
 ];
-
-const EXCLUDED_PREFIXES = ['website/roadmap/', 'website/changelog/'];
 
 // ---------------------------------------------------------------------------------------------
 // Small helpers
@@ -127,6 +141,50 @@ function stripTags(html) {
 /** A heading or page title, collapsed onto one line — several carry a <br /> for hero layout. */
 function titleText(html) {
   return stripTags(html.replace(/<br\s*\/?>/gi, ' ')).replace(/\s+/g, ' ').replace(/\.$/, '');
+}
+
+// The site's two markers for decorative, non-prose content: the accessibility attribute, and the
+// `mock` class it names its animated product demos with.
+const DECORATIVE_OPEN =
+  /<([a-z]+)\b[^>]*(?:\baria-hidden="true"|\bclass="(?:[^"]*\s)?mock(?:\s[^"]*)?")[^>]*>/i;
+
+/**
+ * Removes every decorative element, contents included, by matching its opening tag to its own
+ * closing tag. Regex alone cannot do this — the containers nest.
+ *
+ * This is not cosmetic. The homepage's animated editor demo flattens to ~685 tokens of invented
+ * query ids, users and row counts, and the use-cases mock-ups add two more; dense with `audit`,
+ * `QUERY_EXECUTED` and `HMAC-SHA256`, they rank near the top for "what does the audit log
+ * record?" — and the agent would then recite `alice@co` and `q_42081` back to a user as if they
+ * were documentation. Epic decision 3 makes the agent a documentation reader, not a data surface;
+ * fabricated data dressed as documentation is the same failure by another route.
+ */
+function stripDecorative(html) {
+  const openRe = DECORATIVE_OPEN;
+  let out = html;
+  for (;;) {
+    const match = openRe.exec(out);
+    if (!match) return out;
+    const tag = match[1].toLowerCase();
+    if (/\/>\s*$/.test(match[0])) {
+      out = out.slice(0, match.index) + out.slice(match.index + match[0].length);
+      continue;
+    }
+    const scanner = new RegExp(`<(/?)${tag}\\b[^>]*>`, 'gi');
+    scanner.lastIndex = match.index + match[0].length;
+    let depth = 1;
+    let end = -1;
+    let step;
+    while ((step = scanner.exec(out)) !== null) {
+      depth += step[1] === '/' ? -1 : 1;
+      if (depth === 0) {
+        end = scanner.lastIndex;
+        break;
+      }
+    }
+    // Unbalanced markup: drop to the end rather than loop forever.
+    out = out.slice(0, match.index) + (end === -1 ? '' : out.slice(end));
+  }
 }
 
 /** HTML → plain text, preserving list items, table cells and block boundaries. */
@@ -264,10 +322,13 @@ const sources = [];
 
 function addPage({ relPath, section, pageTitle, baseUrl, sections }) {
   const before = chunks.length;
-  let order = 0;
   for (const raw of sections) {
     const body = raw.body.trim();
-    if (!body) continue;
+    // A floor, not just a non-empty check: ~23 sections are a chapter label plus a "Last updated"
+    // stamp and no prose. They carry no answer, they are near-identical across pages (exactly the
+    // duplicate text similarity search must not be dominated by), and each one churns on every
+    // dateModified bump.
+    if (estimateTokens(body) < MIN_SECTION_TOKENS) continue;
     const headingTitle = raw.title ?? pageTitle;
     const crumbs = ['AccessFlow Docs', section, pageTitle];
     if (raw.title && raw.title !== pageTitle) crumbs.push(raw.title);
@@ -275,10 +336,15 @@ function addPage({ relPath, section, pageTitle, baseUrl, sections }) {
     // 12 tokens covers the widest " (part n of m)" suffix a split can add.
     const budget = MAX_CHUNK_TOKENS - estimateTokens(crumbs.join(' > ')) - 12;
     const parts = splitByTokens(body, budget);
-    parts.forEach((part, index) => {
-      const suffix = parts.length > 1 ? ` (part ${index + 1} of ${parts.length})` : '';
+    // `order` restarts per section, so `id` depends only on that section's own anchor and part
+    // index. With a page-global counter, inserting a section renumbers every later one and
+    // re-embeds the whole page; this way an edit re-embeds the sections it actually touched.
+    // The anchor falls back to a slug of the heading for the pages that ship no heading ids.
+    const anchorKey = raw.anchor || slugify(raw.title ?? '') || 'intro';
+    parts.forEach((part, order) => {
+      const suffix = parts.length > 1 ? ` (part ${order + 1} of ${parts.length})` : '';
       const text = `${crumbs.join(' > ')}${suffix}\n\n${part}`;
-      const id = sha256(`${relPath}#${raw.anchor}:${order}`).slice(0, 16);
+      const id = sha256(`${relPath}#${anchorKey}:${order}`).slice(0, 16);
       chunks.push({
         id,
         path: relPath,
@@ -290,7 +356,6 @@ function addPage({ relPath, section, pageTitle, baseUrl, sections }) {
         tokens: estimateTokens(text),
         text,
       });
-      order += 1;
     });
   }
   return chunks.length - before;
@@ -311,7 +376,7 @@ function ingestHtml(relPath, section) {
   // Drop the shared boilerplate: the sidebar table of contents, the breadcrumb trail and every
   // other in-page nav. Left in, ~10k words of near-duplicate link text would dominate similarity
   // search across all 49 pages.
-  const body = main[1]
+  const withoutChrome = main[1]
     .replace(/<aside\b[^>]*>[\s\S]*?<\/aside>/gi, '')
     .replace(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi, '')
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
@@ -319,6 +384,7 @@ function ingestHtml(relPath, section) {
     .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, '')
     .replace(/<button\b[^>]*>[\s\S]*?<\/button>/gi, '')
     .replace(/<!--[\s\S]*?-->/g, '');
+  const body = stripDecorative(withoutChrome);
   const h1 = /<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(body);
   if (!h1) {
     fail(`${relPath}: no <h1> to title the page with`);
@@ -350,10 +416,25 @@ function ingestMarkdown(relPath, section, titleOverride) {
   sources.push({ path: relPath, title: pageTitle, url: baseUrl, section, chunks: count, sha256: sha256(md) });
 }
 
-for (const tree of HTML_TREES) {
-  for (const rel of listHtmlFiles(tree.dir)) ingestHtml(rel, tree.section);
+const isExcluded = (rel) =>
+  EXCLUDED_FILES.includes(rel) || EXCLUDED_PREFIXES.some((prefix) => rel.startsWith(prefix));
+
+/** Longest matching prefix wins, so website/docs/guides/ beats website/docs/. */
+const sectionFor = (rel) =>
+  SECTION_RULES.filter(([prefix]) => rel === prefix || rel.startsWith(prefix))
+    .sort((a, b) => b[0].length - a[0].length)
+    .map(([, label]) => label)[0];
+
+for (const rel of listHtmlFiles('website')) {
+  if (isExcluded(rel)) continue;
+  const section = sectionFor(rel);
+  if (!section) {
+    fail(`${rel} matches no SECTION_RULES entry — add it to a section, or to EXCLUDED_FILES /`
+      + ' EXCLUDED_PREFIXES with the reason it is not documentation the help agent answers from');
+    continue;
+  }
+  ingestHtml(rel, section);
 }
-for (const entry of HTML_FILES) ingestHtml(entry.file, entry.section);
 for (const entry of MARKDOWN_FILES) ingestMarkdown(entry.file, entry.section, entry.title);
 
 // ---------------------------------------------------------------------------------------------
@@ -362,44 +443,64 @@ for (const entry of MARKDOWN_FILES) ingestMarkdown(entry.file, entry.section, en
 // rather than hand-maintained in Java so it ships and versions with the corpus.
 // ---------------------------------------------------------------------------------------------
 
+// Routes with no place in an orientation block: the catch-all, the two SSO callbacks the browser
+// only passes through, and the tab URLs of the unified review hub (which ROUTES names directly,
+// because the pre-#772 paths they replaced are redirect stubs).
+const ROUTES_NOT_LISTED = ['*', '/auth/oauth/callback', '/auth/saml/callback', '/api-reviews', '/deployment-reviews'];
+
 const ROUTES = [
+  ['/', 'Lands on the dashboard once signed in.'],
   ['/dashboard', 'Personalized home: summary tiles, query trends, AI suggestions, weekly digest.'],
   ['/editor', 'SQL editor. Pick a datasource, write a query, submit it for review.'],
-  ['/queries', 'Every query the signed-in user submitted, with status and AI risk.'],
+  ['/queries', 'Queries the signed-in user submitted, with status and AI risk. A query admin sees the whole organization here.'],
   ['/queries/:id', 'One query: SQL, AI analysis, approval chain, results, audit trail.'],
   ['/reviews', 'Unified review hub. Tabs for queries, API calls, deployments and rollbacks.'],
-  ['/reviews/:id/decide', 'Approve or reject one request, with a mandatory reason.'],
+  ['/reviews/:id/decide', 'Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional.'],
   ['/reviews/attestations', 'Access recertification worklist: certify or revoke standing grants.'],
   ['/request-groups', 'Grouped requests that bundle ordered query and API-call members.'],
+  ['/request-groups/:id', 'One grouped request: its members, their order, and the aggregated approval.'],
   ['/request-groups/new', 'Build a grouped request and order its members.'],
+  ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.'],
   ['/request-groups/reviews', 'Review queue for grouped requests.'],
   ['/datasources', 'Databases the user may query, and their connection health.'],
   ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.'],
   ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.'],
   ['/api-connectors', 'Governed outbound REST, SOAP, GraphQL and gRPC connectors.'],
+  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.'],
   ['/api-editor', 'Compose a governed API call and submit it for review.'],
   ['/api-requests', 'API calls the user submitted, with status and AI risk.'],
-  ['/api-reviews', 'Review queue for API calls.'],
+  ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.'],
+  ['/reviews?tab=api', 'Review queue for API calls. The older /api-reviews URL redirects here.'],
   ['/deployments', 'Deployment requests raised by CI/CD pipelines.'],
-  ['/deployment-reviews', 'Review queue for deployments and rollbacks.'],
+  ['/deployments/:id', 'One deployment request: what it releases, its analysis and its decisions.'],
+  ['/reviews?tab=deployments', 'Review queue for deployments; ?tab=rollbacks is the rollback worklist. The older /deployment-reviews URL redirects here.'],
   ['/deployment-versions', 'What version each environment is running, and where it has drifted.'],
+  ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.'],
   ['/access-requests', 'Ask for access to a datasource, or track a request already made.'],
   ['/lifecycle/erasure', 'Right-to-erasure requests over personal data.'],
   ['/lifecycle/erasure-reviews', 'Review queue for erasure requests.'],
-  ['/profile', 'Own account: display name, password, language, theme, notifications, API keys.'],
+  ['/profile', 'Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.'],
   ['/setup', 'First-run wizard. Shown until an active admin exists.'],
   ['/login', 'Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.'],
+  ['/forgot-password', 'Ask for a password-reset email.'],
+  ['/reset-password/:token', 'Set a new password from the link in that email.'],
+  ['/invite/:token', 'Accept an invitation and choose a password.'],
   ['/admin/users', 'Create, deactivate and re-invite users; assign roles and permissions.'],
   ['/admin/groups', 'User groups and the grants attached to them.'],
+  ['/admin/groups/:id', 'One group: its members and the permissions it grants them.'],
   ['/admin/roles', 'Roles and the permissions each one carries.'],
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
+  ['/admin/organizations/:id', 'One organization and its settings.'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],
   ['/admin/access-requests', 'Approve or reject incoming access requests.'],
   ['/admin/break-glass', 'Break-glass grants and the mandatory retro-review of each use.'],
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],
   ['/admin/routing-policies', 'Typed conditions that auto-approve, auto-reject or route a request.'],
   ['/admin/attestation', 'Scheduled attestation campaigns over standing grants.'],
+  ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.'],
   ['/admin/ai-configs', 'AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible, Hugging Face.'],
+  ['/admin/ai-configs/new', 'Add an AI provider configuration.'],
+  ['/admin/ai-configs/:id', 'Edit one AI provider configuration, its prompt and its knowledge base.'],
   ['/admin/ai-analyses', 'History of every AI analysis, with tokens and latency.'],
   ['/admin/anomalies', 'User-behaviour anomalies the AI flagged.'],
   ['/admin/langfuse', 'Langfuse tracing for AI calls.'],
@@ -408,7 +509,8 @@ const ROUTES = [
   ['/admin/datasource-health', 'Connection health across every registered datasource.'],
   ['/admin/data-classifications', 'Classification tags and the masking they derive.'],
   ['/admin/deployment-pipelines', 'CI/CD pipelines, environments, freeze windows and permissions.'],
-  ['/admin/notifications', 'Notification channels: email, Slack, Discord, Teams, Telegram, webhooks.'],
+  ['/admin/deployment-pipelines/:id', 'One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.'],
+  ['/admin/notifications', 'Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.'],
   ['/admin/slack', 'Slack workspace connection.'],
   ['/admin/oauth2', 'OAuth 2.0 / OIDC sign-in providers.'],
   ['/admin/saml', 'SAML 2.0 single sign-on.'],
@@ -427,9 +529,9 @@ const shortTitle = (title) => {
 };
 
 const LIFECYCLE = [
-  '1. Submit — a user picks a datasource and writes a query; JSqlParser validates it and the schema allow-list is checked at AST level. Unparseable SQL is rejected outright.',
+  '1. Submit — a user picks a datasource and writes a query. AccessFlow parses it before anything runs, and rejects what it cannot parse or what reads a table that user is not allowed to read.',
   '2. Analyse — if the datasource has AI analysis enabled, a model scores the query for risk and explains what it does. Status: PENDING_AI.',
-  '3. Route — routing policies may auto-approve or auto-reject; otherwise the datasource review plan decides who must approve. Status: PENDING_REVIEW.',
+  '3. Route — the query can be approved without a human: by a routing policy, or because the user already holds a standing time-bound grant that pre-approves it. Otherwise the datasource review plan decides who must approve. Status: PENDING_REVIEW.',
   '4. Approve — every stage of the approval chain must clear. Nobody can approve their own query, not even an admin. Status: APPROVED, REJECTED or TIMED_OUT.',
   '5. Execute — the proxy runs the query under masking, row-level security and row caps, and records the result. Status: EXECUTED or FAILED.',
 ];
@@ -439,8 +541,31 @@ const RULES = [
   'Break-glass bypasses AI and review, but only for someone holding the break-glass permission on that datasource; it pages every admin and opens a mandatory retro-review.',
   'The audit log is insert-only — the application database role has no UPDATE or DELETE on it.',
   'Datasource credentials are AES-256-GCM encrypted at rest and are never returned by any endpoint.',
-  'The help assistant reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.',
+  'The help agent reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.',
 ];
+
+// The route table above is hand-written prose, but it must not drift from the router. Cross-check
+// it against App.tsx and fail both ways: a route the application serves but nobody described, and
+// a description of a route that no longer exists. Without this the quick reference rots silently —
+// the generator's inputs would not change, so the CI drift guard would stay green.
+const APP_ROUTES_FILE = 'frontend/src/App.tsx';
+const appRoutes = new Set(
+  [...readFileSync(path.join(ROOT, APP_ROUTES_FILE), 'utf8').matchAll(/path="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((route) => !ROUTES_NOT_LISTED.includes(route)),
+);
+const describedRoutes = new Set(ROUTES.map(([route]) => route.split('?')[0]));
+for (const route of appRoutes) {
+  if (!describedRoutes.has(route)) {
+    fail(`${APP_ROUTES_FILE} serves ${route} but ROUTES in this script does not describe it —`
+      + ' add a line saying what the screen is for, or add it to ROUTES_NOT_LISTED');
+  }
+}
+for (const route of describedRoutes) {
+  if (!appRoutes.has(route)) {
+    fail(`ROUTES describes ${route}, which ${APP_ROUTES_FILE} no longer serves — remove or update it`);
+  }
+}
 
 const quickReference = [
   'AccessFlow — quick reference',
@@ -473,7 +598,9 @@ const quickReference = [
 // ---------------------------------------------------------------------------------------------
 
 if (chunks.length < MIN_CHUNKS || chunks.length > MAX_CHUNKS) {
-  fail(`chunkCount ${chunks.length} is outside the expected ${MIN_CHUNKS}-${MAX_CHUNKS} range — a selector probably broke`);
+  fail(`chunkCount ${chunks.length} is outside the expected ${MIN_CHUNKS}-${MAX_CHUNKS} range.`
+    + ' A large drop means a selector broke; steady growth past the ceiling as documentation is'
+    + ' added is legitimate — widen MAX_CHUNKS in this script.');
 }
 const seen = new Map();
 for (const chunk of chunks) {
@@ -481,7 +608,8 @@ for (const chunk of chunks) {
     fail(`chunk ${chunk.id} (${chunk.path}#${chunk.anchor} "${chunk.title}") is ${chunk.tokens} tokens, over the ${MAX_CHUNK_TOKENS} budget`);
   }
   if (seen.has(chunk.id)) {
-    fail(`chunk id ${chunk.id} collides: ${seen.get(chunk.id)} and ${chunk.path}#${chunk.anchor}:${chunk.order}`);
+    fail(`chunk id ${chunk.id} collides: ${seen.get(chunk.id)} and ${chunk.path}#${chunk.anchor}:${chunk.order}`
+      + ' — two sections on one page share a heading slug; give one of them an explicit id');
   }
   seen.set(chunk.id, `${chunk.path}#${chunk.anchor}:${chunk.order}`);
   for (const prefix of EXCLUDED_PREFIXES) {

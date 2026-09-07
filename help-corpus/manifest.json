@@ -1,211 +1,19 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "1778dc1c2d3e",
-  "generatedAt": "2026-09-07T09:32:51.920Z",
-  "sourceCommit": "98c92181f3390954f1cd95811c62714b13a5e267",
-  "chunkCount": 554,
-  "sha256": "1778dc1c2d3ee3eefcd9d9f5a4c61dcf887ad235f1c2cbb512c14545042da41b",
-  "quickReferenceSha256": "c32ddbcc0c1ccf53342edcb30bb2a7263f98340c89d6e6e5558a2b49eaadae89",
+  "corpusVersion": "c0ac599ef7fc",
+  "generatedAt": "2026-09-07T09:49:29.958Z",
+  "sourceCommit": "733d4d7e164b467c0b600a516a81c04d917161a6",
+  "chunkCount": 509,
+  "sha256": "c0ac599ef7fc84bea47441d3aa079809ea5aa4973a3b1d00148d43ac0d1b64a7",
+  "quickReferenceSha256": "93189cc70d5743a2814509575a61b88c3828f7a8ec6142f46deb1ac3ef6c16f1",
   "sources": [
     {
-      "path": "website/docs/guides/ai-analysis/index.html",
-      "title": "Turn on AI risk analysis",
-      "url": "https://accessflow.io/docs/guides/ai-analysis/",
-      "section": "Guides",
-      "chunks": 9,
-      "sha256": "9385282ce18266a04794b16eeaac60259a01feeae48b5af9f94745d6d65ba3af"
-    },
-    {
-      "path": "website/docs/guides/api-governance/index.html",
-      "title": "Govern an outbound API call",
-      "url": "https://accessflow.io/docs/guides/api-governance/",
-      "section": "Guides",
-      "chunks": 9,
-      "sha256": "af4ec797590159940c66f37da991b9aea9ec5887e579275e6783037c1453e44c"
-    },
-    {
-      "path": "website/docs/guides/datasource/index.html",
-      "title": "Add your first datasource",
-      "url": "https://accessflow.io/docs/guides/datasource/",
-      "section": "Guides",
-      "chunks": 10,
-      "sha256": "fee631f343fbeb685ac8c374dcfe28afb6048dce3ddb749386be6e74924e004c"
-    },
-    {
-      "path": "website/docs/guides/deployment-approval/index.html",
-      "title": "Gate a deployment pipeline",
-      "url": "https://accessflow.io/docs/guides/deployment-approval/",
-      "section": "Guides",
-      "chunks": 12,
-      "sha256": "4667e7656da4b21ab47d167c822f13108282749d0d0b4df96328f292aa2fc8a9"
-    },
-    {
-      "path": "website/docs/guides/first-query/index.html",
-      "title": "Run your first governed query",
-      "url": "https://accessflow.io/docs/guides/first-query/",
-      "section": "Guides",
-      "chunks": 10,
-      "sha256": "5e7da643d9b5a9b85d8bf23c2a796e5853fe115016f1a07cdcc9fdfbb4e1aa54"
-    },
-    {
-      "path": "website/docs/guides/index.html",
-      "title": "Guides",
-      "url": "https://accessflow.io/docs/guides/",
-      "section": "Guides",
-      "chunks": 13,
-      "sha256": "7a662894b0cda3c9cf9ad98027a09b69d3676de4c130f5cfde6e1da18b7ec2b7"
-    },
-    {
-      "path": "website/docs/guides/notifications/index.html",
-      "title": "Set up email and chat notifications",
-      "url": "https://accessflow.io/docs/guides/notifications/",
-      "section": "Guides",
-      "chunks": 8,
-      "sha256": "60b33d4503946faa24ad8318d97c0fa9b387b4acaca942a0df49ff2dc07022fe"
-    },
-    {
-      "path": "website/docs/guides/sso/index.html",
-      "title": "Connect single sign-on",
-      "url": "https://accessflow.io/docs/guides/sso/",
-      "section": "Guides",
-      "chunks": 7,
-      "sha256": "d4124f21d03009c6ce998f8e749a20478581ff03e0c6928095f50f094702402d"
-    },
-    {
-      "path": "website/docs/guides/team/index.html",
-      "title": "Invite your team and assign roles",
-      "url": "https://accessflow.io/docs/guides/team/",
-      "section": "Guides",
-      "chunks": 9,
-      "sha256": "96d44123fd1ff1d5c6a27319f23a38779df1b056bd958aea9a71d3b3b3b10dfa"
-    },
-    {
-      "path": "website/docs/guides/terraform/index.html",
-      "title": "Manage AccessFlow with Terraform",
-      "url": "https://accessflow.io/docs/guides/terraform/",
-      "section": "Guides",
-      "chunks": 8,
-      "sha256": "e0420a1d414e2fc6f1ce4d9040b75bb616546dca919a6266457ad3d23e2abec6"
-    },
-    {
-      "path": "website/docs/configuration/ai/index.html",
-      "title": "AI configuration",
-      "url": "https://accessflow.io/docs/configuration/ai/",
-      "section": "Reference",
-      "chunks": 11,
-      "sha256": "af43f52bb6585089aabbea73afd966ab3ca80e4e9232652ce37dad053f4289a9"
-    },
-    {
-      "path": "website/docs/configuration/audit-compliance/index.html",
-      "title": "Audit & compliance",
-      "url": "https://accessflow.io/docs/configuration/audit-compliance/",
-      "section": "Reference",
-      "chunks": 8,
-      "sha256": "218e5cd2cc6bf5f4841992a021dda7851cabe19447a98a7ed0e32bee659b8cc6"
-    },
-    {
-      "path": "website/docs/configuration/auth/index.html",
-      "title": "Authentication & SSO",
-      "url": "https://accessflow.io/docs/configuration/auth/",
-      "section": "Reference",
-      "chunks": 7,
-      "sha256": "818011c0f9ff7d2a73c000665f823401f9fb12fe2b8f3e001d2ffac52a5004c6"
-    },
-    {
-      "path": "website/docs/configuration/connectors/index.html",
-      "title": "Connectors",
-      "url": "https://accessflow.io/docs/configuration/connectors/",
-      "section": "Reference",
-      "chunks": 13,
-      "sha256": "358de408bd57d6de3fac63b478b3b79ab6a9b935b9a852a6700e92b0b728db01"
-    },
-    {
-      "path": "website/docs/configuration/datasources/index.html",
-      "title": "Datasources",
-      "url": "https://accessflow.io/docs/configuration/datasources/",
-      "section": "Reference",
-      "chunks": 12,
-      "sha256": "6d511c259beb1f7b3478e000891952e124248241e9d7cd2a5aaef1d05aeb873c"
-    },
-    {
-      "path": "website/docs/configuration/notifications/index.html",
-      "title": "Notifications",
-      "url": "https://accessflow.io/docs/configuration/notifications/",
-      "section": "Reference",
-      "chunks": 7,
-      "sha256": "6797802b5b1ce5adc4d5f6a62029265e2722a0b04b8031a4c1c49603011b1204"
-    },
-    {
-      "path": "website/docs/configuration/review-workflows/index.html",
-      "title": "Review workflows",
-      "url": "https://accessflow.io/docs/configuration/review-workflows/",
-      "section": "Reference",
-      "chunks": 12,
-      "sha256": "1dea9b7796c620302f303e62e1a59a39efe5f744749897790e235e33ebc9d3d9"
-    },
-    {
-      "path": "website/docs/configuration/users-roles/index.html",
-      "title": "Users, roles & organizations",
-      "url": "https://accessflow.io/docs/configuration/users-roles/",
-      "section": "Reference",
-      "chunks": 12,
-      "sha256": "3437135aef1d14fbe1860397895b77c33fef5fe19eed3368f1fcb8b5c7b32738"
-    },
-    {
-      "path": "website/docs/install/index.html",
-      "title": "Install AccessFlow",
-      "url": "https://accessflow.io/docs/install/",
-      "section": "Documentation",
-      "chunks": 14,
-      "sha256": "458d5cedeaf3259463c77a8a17c0753b75be8d2fa40e9513faf77063f748caea"
-    },
-    {
-      "path": "website/docs/workflows/index.html",
-      "title": "End-user workflows",
-      "url": "https://accessflow.io/docs/workflows/",
-      "section": "Reference",
-      "chunks": 13,
-      "sha256": "805a683122d985241248cd678fa8752405b1009a700d332e72465b4c637a2aca"
-    },
-    {
-      "path": "website/docs/iac/index.html",
-      "title": "Infrastructure as Code",
-      "url": "https://accessflow.io/docs/iac/",
-      "section": "Reference",
-      "chunks": 8,
-      "sha256": "140d2e06010821c1137c6960978b53410dc4ebc8fc3bdb5c4f96f95648bc22c9"
-    },
-    {
-      "path": "website/features/api-access-governance/index.html",
-      "title": "API access governance for REST, SOAP, GraphQL and gRPC",
-      "url": "https://accessflow.io/features/api-access-governance/",
-      "section": "Features",
-      "chunks": 6,
-      "sha256": "1614e4290a2ac34904c8768aa4072c40d888dce4d5d9afb22099e9c34cc0941c"
-    },
-    {
-      "path": "website/features/database-access-governance/index.html",
-      "title": "Database access governance — every query reviewed before it runs",
-      "url": "https://accessflow.io/features/database-access-governance/",
-      "section": "Features",
-      "chunks": 14,
-      "sha256": "293ff71031e58e54a6491bccfa4d330670e66ff395d7175fd3328a99998ecfce"
-    },
-    {
-      "path": "website/features/deployment-governance/index.html",
-      "title": "Deployment approval governance — gate every CI/CD release",
-      "url": "https://accessflow.io/features/deployment-governance/",
-      "section": "Features",
-      "chunks": 7,
-      "sha256": "e092d5784d131ae24c135a6bb8c210211ddc361489eb9c76e1a5e5290165a194"
-    },
-    {
-      "path": "website/features/index.html",
-      "title": "Database access control, feature by feature — the middle ground between blanket access and a DBA ticket queue",
-      "url": "https://accessflow.io/features/",
-      "section": "Features",
-      "chunks": 17,
-      "sha256": "67498f05d575e24ad4c2d25e50861cd0894768db372ca64e34d36570e6f6382e"
+      "path": "website/ai-agents/index.html",
+      "title": "Your agent doesn't need your database. It needs an answer",
+      "url": "https://accessflow.io/ai-agents/",
+      "section": "AI agents",
+      "chunks": 18,
+      "sha256": "b782e63a3f255c83b1aceb1289425cee95d0791e7f9bb6e00e081ec936182208"
     },
     {
       "path": "website/connectors/bigquery/index.html",
@@ -360,12 +168,220 @@
       "sha256": "cb1a80607a1cf77027007907b301938d9a4404f3345e275bcfe9f557fa729db6"
     },
     {
+      "path": "website/docs/configuration/ai/index.html",
+      "title": "AI configuration",
+      "url": "https://accessflow.io/docs/configuration/ai/",
+      "section": "Reference",
+      "chunks": 10,
+      "sha256": "af43f52bb6585089aabbea73afd966ab3ca80e4e9232652ce37dad053f4289a9"
+    },
+    {
+      "path": "website/docs/configuration/audit-compliance/index.html",
+      "title": "Audit & compliance",
+      "url": "https://accessflow.io/docs/configuration/audit-compliance/",
+      "section": "Reference",
+      "chunks": 7,
+      "sha256": "218e5cd2cc6bf5f4841992a021dda7851cabe19447a98a7ed0e32bee659b8cc6"
+    },
+    {
+      "path": "website/docs/configuration/auth/index.html",
+      "title": "Authentication & SSO",
+      "url": "https://accessflow.io/docs/configuration/auth/",
+      "section": "Reference",
+      "chunks": 6,
+      "sha256": "818011c0f9ff7d2a73c000665f823401f9fb12fe2b8f3e001d2ffac52a5004c6"
+    },
+    {
+      "path": "website/docs/configuration/connectors/index.html",
+      "title": "Connectors",
+      "url": "https://accessflow.io/docs/configuration/connectors/",
+      "section": "Reference",
+      "chunks": 12,
+      "sha256": "358de408bd57d6de3fac63b478b3b79ab6a9b935b9a852a6700e92b0b728db01"
+    },
+    {
+      "path": "website/docs/configuration/datasources/index.html",
+      "title": "Datasources",
+      "url": "https://accessflow.io/docs/configuration/datasources/",
+      "section": "Reference",
+      "chunks": 11,
+      "sha256": "6d511c259beb1f7b3478e000891952e124248241e9d7cd2a5aaef1d05aeb873c"
+    },
+    {
+      "path": "website/docs/configuration/notifications/index.html",
+      "title": "Notifications",
+      "url": "https://accessflow.io/docs/configuration/notifications/",
+      "section": "Reference",
+      "chunks": 6,
+      "sha256": "6797802b5b1ce5adc4d5f6a62029265e2722a0b04b8031a4c1c49603011b1204"
+    },
+    {
+      "path": "website/docs/configuration/review-workflows/index.html",
+      "title": "Review workflows",
+      "url": "https://accessflow.io/docs/configuration/review-workflows/",
+      "section": "Reference",
+      "chunks": 11,
+      "sha256": "1dea9b7796c620302f303e62e1a59a39efe5f744749897790e235e33ebc9d3d9"
+    },
+    {
+      "path": "website/docs/configuration/users-roles/index.html",
+      "title": "Users, roles & organizations",
+      "url": "https://accessflow.io/docs/configuration/users-roles/",
+      "section": "Reference",
+      "chunks": 11,
+      "sha256": "3437135aef1d14fbe1860397895b77c33fef5fe19eed3368f1fcb8b5c7b32738"
+    },
+    {
+      "path": "website/docs/guides/ai-analysis/index.html",
+      "title": "Turn on AI risk analysis",
+      "url": "https://accessflow.io/docs/guides/ai-analysis/",
+      "section": "Guides",
+      "chunks": 8,
+      "sha256": "9385282ce18266a04794b16eeaac60259a01feeae48b5af9f94745d6d65ba3af"
+    },
+    {
+      "path": "website/docs/guides/api-governance/index.html",
+      "title": "Govern an outbound API call",
+      "url": "https://accessflow.io/docs/guides/api-governance/",
+      "section": "Guides",
+      "chunks": 8,
+      "sha256": "af4ec797590159940c66f37da991b9aea9ec5887e579275e6783037c1453e44c"
+    },
+    {
+      "path": "website/docs/guides/datasource/index.html",
+      "title": "Add your first datasource",
+      "url": "https://accessflow.io/docs/guides/datasource/",
+      "section": "Guides",
+      "chunks": 9,
+      "sha256": "fee631f343fbeb685ac8c374dcfe28afb6048dce3ddb749386be6e74924e004c"
+    },
+    {
+      "path": "website/docs/guides/deployment-approval/index.html",
+      "title": "Gate a deployment pipeline",
+      "url": "https://accessflow.io/docs/guides/deployment-approval/",
+      "section": "Guides",
+      "chunks": 11,
+      "sha256": "4667e7656da4b21ab47d167c822f13108282749d0d0b4df96328f292aa2fc8a9"
+    },
+    {
+      "path": "website/docs/guides/first-query/index.html",
+      "title": "Run your first governed query",
+      "url": "https://accessflow.io/docs/guides/first-query/",
+      "section": "Guides",
+      "chunks": 9,
+      "sha256": "5e7da643d9b5a9b85d8bf23c2a796e5853fe115016f1a07cdcc9fdfbb4e1aa54"
+    },
+    {
+      "path": "website/docs/guides/index.html",
+      "title": "Guides",
+      "url": "https://accessflow.io/docs/guides/",
+      "section": "Guides",
+      "chunks": 2,
+      "sha256": "7a662894b0cda3c9cf9ad98027a09b69d3676de4c130f5cfde6e1da18b7ec2b7"
+    },
+    {
+      "path": "website/docs/guides/notifications/index.html",
+      "title": "Set up email and chat notifications",
+      "url": "https://accessflow.io/docs/guides/notifications/",
+      "section": "Guides",
+      "chunks": 7,
+      "sha256": "60b33d4503946faa24ad8318d97c0fa9b387b4acaca942a0df49ff2dc07022fe"
+    },
+    {
+      "path": "website/docs/guides/sso/index.html",
+      "title": "Connect single sign-on",
+      "url": "https://accessflow.io/docs/guides/sso/",
+      "section": "Guides",
+      "chunks": 6,
+      "sha256": "d4124f21d03009c6ce998f8e749a20478581ff03e0c6928095f50f094702402d"
+    },
+    {
+      "path": "website/docs/guides/team/index.html",
+      "title": "Invite your team and assign roles",
+      "url": "https://accessflow.io/docs/guides/team/",
+      "section": "Guides",
+      "chunks": 8,
+      "sha256": "96d44123fd1ff1d5c6a27319f23a38779df1b056bd958aea9a71d3b3b3b10dfa"
+    },
+    {
+      "path": "website/docs/guides/terraform/index.html",
+      "title": "Manage AccessFlow with Terraform",
+      "url": "https://accessflow.io/docs/guides/terraform/",
+      "section": "Guides",
+      "chunks": 7,
+      "sha256": "e0420a1d414e2fc6f1ce4d9040b75bb616546dca919a6266457ad3d23e2abec6"
+    },
+    {
+      "path": "website/docs/iac/index.html",
+      "title": "Infrastructure as Code",
+      "url": "https://accessflow.io/docs/iac/",
+      "section": "Reference",
+      "chunks": 7,
+      "sha256": "140d2e06010821c1137c6960978b53410dc4ebc8fc3bdb5c4f96f95648bc22c9"
+    },
+    {
       "path": "website/docs/index.html",
       "title": "Run and configure AccessFlow",
       "url": "https://accessflow.io/docs/",
       "section": "Documentation",
-      "chunks": 16,
+      "chunks": 14,
       "sha256": "34af8c445349dbdeabb09b932786a08ec6b2424b6e93d3c9aff041c845548003"
+    },
+    {
+      "path": "website/docs/install/index.html",
+      "title": "Install AccessFlow",
+      "url": "https://accessflow.io/docs/install/",
+      "section": "Documentation",
+      "chunks": 12,
+      "sha256": "458d5cedeaf3259463c77a8a17c0753b75be8d2fa40e9513faf77063f748caea"
+    },
+    {
+      "path": "website/docs/workflows/index.html",
+      "title": "End-user workflows",
+      "url": "https://accessflow.io/docs/workflows/",
+      "section": "Reference",
+      "chunks": 12,
+      "sha256": "805a683122d985241248cd678fa8752405b1009a700d332e72465b4c637a2aca"
+    },
+    {
+      "path": "website/features/api-access-governance/index.html",
+      "title": "API access governance for REST, SOAP, GraphQL and gRPC",
+      "url": "https://accessflow.io/features/api-access-governance/",
+      "section": "Features",
+      "chunks": 6,
+      "sha256": "1614e4290a2ac34904c8768aa4072c40d888dce4d5d9afb22099e9c34cc0941c"
+    },
+    {
+      "path": "website/features/database-access-governance/index.html",
+      "title": "Database access governance — every query reviewed before it runs",
+      "url": "https://accessflow.io/features/database-access-governance/",
+      "section": "Features",
+      "chunks": 14,
+      "sha256": "293ff71031e58e54a6491bccfa4d330670e66ff395d7175fd3328a99998ecfce"
+    },
+    {
+      "path": "website/features/deployment-governance/index.html",
+      "title": "Deployment approval governance — gate every CI/CD release",
+      "url": "https://accessflow.io/features/deployment-governance/",
+      "section": "Features",
+      "chunks": 7,
+      "sha256": "e092d5784d131ae24c135a6bb8c210211ddc361489eb9c76e1a5e5290165a194"
+    },
+    {
+      "path": "website/features/index.html",
+      "title": "Database access control, feature by feature — the middle ground between blanket access and a DBA ticket queue",
+      "url": "https://accessflow.io/features/",
+      "section": "Features",
+      "chunks": 17,
+      "sha256": "67498f05d575e24ad4c2d25e50861cd0894768db372ca64e34d36570e6f6382e"
+    },
+    {
+      "path": "website/index.html",
+      "title": "Governed database, API & deployment access, built for engineers",
+      "url": "https://accessflow.io/",
+      "section": "Overview",
+      "chunks": 18,
+      "sha256": "512f9676628a653150a8ee30400f98c4bb0a5eaea17b07821ba6e628ae52962f"
     },
     {
       "path": "website/security/index.html",
@@ -382,22 +398,6 @@
       "section": "Use cases",
       "chunks": 8,
       "sha256": "8d15aa27a2a202c12f0a8d290579064ecf79bd17bf6faf90705fdec69babce3d"
-    },
-    {
-      "path": "website/ai-agents/index.html",
-      "title": "Your agent doesn't need your database. It needs an answer",
-      "url": "https://accessflow.io/ai-agents/",
-      "section": "AI agents",
-      "chunks": 18,
-      "sha256": "b782e63a3f255c83b1aceb1289425cee95d0791e7f9bb6e00e081ec936182208"
-    },
-    {
-      "path": "website/index.html",
-      "title": "Governed database, API & deployment access, built for engineers",
-      "url": "https://accessflow.io/",
-      "section": "Overview",
-      "chunks": 29,
-      "sha256": "512f9676628a653150a8ee30400f98c4bb0a5eaea17b07821ba6e628ae52962f"
     },
     {
       "path": "docs/09-deployment.md",
