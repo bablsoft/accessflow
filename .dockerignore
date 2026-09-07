@@ -1,6 +1,7 @@
 # Repo-root .dockerignore — governs the backend image build whose context is the repo root
-# (see backend/Dockerfile). Only backend/ and connectors/ are needed; exclude everything else so
-# the build context stays small.
+# (see backend/Dockerfile). Only backend/, connectors/ and help-corpus/ are needed; exclude
+# everything else so the build context stays small. help-corpus/ is the pre-generated help
+# documentation bundle, so website/ and docs/ stay excluded even though it is derived from them.
 .git/
 .github/
 .idea/

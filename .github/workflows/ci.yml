@@ -29,6 +29,7 @@ jobs:
       helm: ${{ steps.filter.outputs.helm }}
       e2e: ${{ steps.filter.outputs.e2e }}
       connectors: ${{ steps.filter.outputs.connectors }}
+      help-corpus: ${{ steps.filter.outputs.help-corpus }}
       engines: ${{ steps.filter.outputs.engines }}
       terraform: ${{ steps.filter.outputs.terraform }}
       actions: ${{ steps.filter.outputs.actions }}
@@ -41,6 +42,7 @@ jobs:
             backend:
               - 'backend/**'
               - 'connectors/**'
+              - 'help-corpus/**'
               - '.github/workflows/ci.yml'
             # website/** is included because the guards that protect website/ live in the
             # frontend suite (src/config/__tests__/website*.test.ts + docs.test.ts): the CSP
@@ -56,6 +58,18 @@ jobs:
               - '.github/workflows/ci.yml'
             connectors:
               - 'connectors/**'
+              - '.github/workflows/ci.yml'
+            # The in-app help corpus (#900) is generated from the public documentation and
+            # committed, so any edit to a source page must be accompanied by a regeneration.
+            help-corpus:
+              - 'website/**'
+              - 'docs/09-deployment.md'
+              - 'help-corpus/**'
+              - '.github/scripts/build-help-corpus.mjs'
+              # The generated quick-reference names every route in the app, and the generator
+              # cross-checks that list against the router — so a new route fails this job until
+              # someone says what the screen is for.
+              - 'frontend/src/App.tsx'
               - '.github/workflows/ci.yml'
             # backend/** is included because the plugins compile against the backend's core.api —
             # an SPI change can break a plugin or shift its reproducible-build sha pin.
@@ -452,6 +466,30 @@ jobs:
       - name: Validate connector manifests
         run: node .github/scripts/validate-connectors.mjs
 
+  help-corpus:
+    name: Help corpus
+    needs: changes
+    if: needs.changes.outputs.help-corpus == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Rebuild the help corpus
+        run: node .github/scripts/build-help-corpus.mjs
+      # `git diff` alone would miss a brand-new output file, which lands untracked; the porcelain
+      # check catches both a modified and an added one.
+      - name: Fail if the committed bundle is stale
+        run: |
+          git diff -- help-corpus/
+          if [[ -n "$(git status --porcelain -- help-corpus/)" ]]; then
+            echo "::error::help-corpus/ is out of date with the documentation it is generated from."
+            echo "Regenerate it and commit the result:"
+            echo "  node .github/scripts/build-help-corpus.mjs"
+            exit 1
+          fi
+
   engines:
     name: Engine plugin (${{ matrix.engine }})
     needs: changes
@@ -774,7 +812,7 @@ jobs:
   # only this check ("CI / CI Gate") — never the individual area jobs.
   gate:
     name: CI Gate
-    needs: [changes, backend, frontend, helm, e2e, connectors, engines, terraform, actions]
+    needs: [changes, backend, frontend, helm, e2e, connectors, help-corpus, engines, terraform, actions]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -786,6 +824,7 @@ jobs:
           HELM_RESULT: ${{ needs.helm.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           CONNECTORS_RESULT: ${{ needs.connectors.result }}
+          HELP_CORPUS_RESULT: ${{ needs['help-corpus'].result }}
           ENGINES_RESULT: ${{ needs.engines.result }}
           TERRAFORM_RESULT: ${{ needs.terraform.result }}
           ACTIONS_RESULT: ${{ needs.actions.result }}
@@ -796,8 +835,8 @@ jobs:
             exit 1
           fi
           status=0
-          for area in backend frontend helm e2e connectors engines terraform actions; do
-            var="$(echo "$area" | tr '[:lower:]' '[:upper:]')_RESULT"
+          for area in backend frontend helm e2e connectors help-corpus engines terraform actions; do
+            var="$(echo "$area" | tr '[:lower:]-' '[:upper:]_')_RESULT"
             result="${!var}"
             case "$result" in
               success|skipped)

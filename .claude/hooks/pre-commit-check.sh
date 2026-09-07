@@ -70,6 +70,11 @@ done
 staged '^website/.*\.html$' && ! staged '^website/sitemap\.xml$' \
   && warn "website/*.html is staged without website/sitemap.xml — bump <lastmod> (and the JSON-LD dateModified) for every page you touched"
 
+# The help corpus is generated from the documentation; both halves land together.
+{ staged '^website/.*\.html$' || staged '^docs/09-deployment\.md$' || staged '^frontend/src/App\.tsx$'; } \
+  && ! staged '^help-corpus/' \
+  && warn "a help-corpus source is staged without help-corpus/ — run 'node .github/scripts/build-help-corpus.mjs' and stage the result, or the help-corpus CI job fails"
+
 # A migration that adds an enum value needs its sidecar.
 for sql in $(printf '%s\n' "$STAGED" | grep -E '^backend/src/main/resources/db/migration/V[0-9]+__.*\.sql$' || true); do
   if git show ":$sql" 2>/dev/null | grep -qiE 'ALTER[[:space:]]+TYPE.*ADD[[:space:]]+VALUE'; then

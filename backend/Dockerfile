@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Build context is the repository root (see release.yml / docker-compose) so the connector
-# catalog at ./connectors can be bundled into the jar. Build with: docker build -f backend/Dockerfile .
+# catalog at ./connectors and the help documentation corpus at ./help-corpus can be bundled into
+# the jar. Build with: docker build -f backend/Dockerfile .
 
 FROM maven:3-eclipse-temurin-25-alpine AS build
 WORKDIR /workspace
@@ -13,13 +14,15 @@ COPY backend/pom.xml ./
 RUN mvn -B -q $MAVEN_RESOLVER_TIMEOUTS -DskipTests -Dmaven.test.skip=true dependency:go-offline
 COPY backend/src src
 COPY connectors /workspace/connectors
+COPY help-corpus /workspace/help-corpus
 # Spotless and Checkstyle are bound to the `validate` phase, so they would otherwise run on every
 # image build — including the three e2e stacks, the Terraform acceptance stack and the Actions
 # smoke test. This is a packaging step for code CI has already gated in the `backend` job, and
 # checkstyle.xml is not part of this build context, so skip both here.
 RUN mvn -B $MAVEN_RESOLVER_TIMEOUTS -DskipTests -Dmaven.test.skip=true \
         -Dcheckstyle.skip=true -Dspotless.check.skip=true \
-        -Dconnectors.dir=/workspace/connectors package && \
+        -Dconnectors.dir=/workspace/connectors \
+        -Dhelp.corpus.dir=/workspace/help-corpus package && \
     mv target/*-exec.jar target/app.jar
 
 FROM eclipse-temurin:25-jre-alpine
