@@ -68,7 +68,10 @@ class AdminHelpAgentConfigControllerIntegrationTest {
 
         assertThat(result).hasStatus(200);
         // Null fields are omitted from the response, so "no row yet" reads as an absent id.
+        // Null fields are omitted from the response, so "no row yet" reads as an absent id —
+        // and no timestamps are invented for a row that does not exist.
         assertThat(result).bodyJson().doesNotHavePath("$.id");
+        assertThat(result).bodyJson().doesNotHavePath("$.created_at");
         assertThat(result).bodyJson().extractingPath("$.enabled").asBoolean().isFalse();
         assertThat(result).bodyJson().extractingPath("$.retrieval_enabled").asBoolean().isTrue();
         assertThat(result).bodyJson().extractingPath("$.top_k").asNumber().isEqualTo(6);
@@ -146,6 +149,21 @@ class AdminHelpAgentConfigControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"retention_days\":30}")
                 .exchange()).hasStatus(403);
+    }
+
+    @Test
+    void putRejectsAnUnknownAiConfigEvenWhileDisabled() {
+        // The binding is checked on every write, so a bogus id can never reach the FK as a 500 —
+        // nor can a real id belonging to another organization be persisted.
+        var result = mvc.put().uri(PATH)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"ai_config_id\":\"" + UUID.randomUUID() + "\"}")
+                .exchange();
+
+        assertThat(result).hasStatus(404);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("AI_CONFIG_NOT_FOUND");
     }
 
     @Test

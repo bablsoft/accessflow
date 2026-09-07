@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +86,8 @@ class DefaultHelpAgentConfigServiceTest {
         assertThat(view.retentionDays()).isEqualTo(90);
         assertThat(view.perUserRequestsPerMinute()).isEqualTo(6);
         assertThat(view.indexedCorpusVersion()).isNull();
+        assertThat(view.createdAt()).isNull();
+        assertThat(view.updatedAt()).isNull();
     }
 
     @Test
@@ -142,6 +145,7 @@ class DefaultHelpAgentConfigServiceTest {
     void updatePublishesUpdatedEventWithBindingChange() {
         when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
         var other = UUID.randomUUID();
+        when(aiConfigRepository.existsByIdAndOrganizationId(other, ORG_ID)).thenReturn(true);
 
         service.update(ORG_ID, command().aiConfigId(other).build());
 
@@ -163,6 +167,17 @@ class DefaultHelpAgentConfigServiceTest {
         verify(eventPublisher).publishEvent(captor.capture());
         assertThat(captor.getValue().bindingChanged()).isFalse();
         assertThat(captor.getValue().retrievalEnabled()).isTrue();
+    }
+
+    @Test
+    void updateRejectsABindingFromAnotherOrganizationEvenWhileDisabled() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+        var foreign = UUID.randomUUID();
+        when(aiConfigRepository.existsByIdAndOrganizationId(foreign, ORG_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.update(ORG_ID, command().aiConfigId(foreign).build()))
+                .isInstanceOf(AiConfigNotFoundException.class);
+        verify(repository, never()).save(any());
     }
 
     // --- range validation --------------------------------------------------------------------
@@ -269,6 +284,39 @@ class DefaultHelpAgentConfigServiceTest {
         verify(pgVectorAvailability, never()).status();
     }
 
+    @Test
+    void anUnrelatedSaveOnAnAlreadyEnabledAgentDoesNotCallTheEmbeddingProvider() {
+        var row = storedRow();
+        row.setEnabled(true);
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(aiConfig(true, RagStoreType.PGVECTOR, AiProviderType.OPENAI)));
+        when(pgVectorAvailability.status()).thenReturn(PgVectorStatus.AVAILABLE);
+
+        // Changing retention must not fail because the embedding provider is having a blip.
+        assertThat(service.update(ORG_ID, command().retentionDays(45).build()).retentionDays())
+                .isEqualTo(45);
+        verify(ragComponentsFactory, never()).embeddingModel(any());
+    }
+
+    @Test
+    void rebindingAnEnabledAgentReprobesTheDimension() {
+        var row = storedRow();
+        row.setEnabled(true);
+        var other = UUID.randomUUID();
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
+        when(aiConfigRepository.existsByIdAndOrganizationId(other, ORG_ID)).thenReturn(true);
+        when(aiConfigRepository.findByIdAndOrganizationId(other, ORG_ID))
+                .thenReturn(Optional.of(aiConfig(true, RagStoreType.PGVECTOR, AiProviderType.OPENAI)));
+        when(pgVectorAvailability.status()).thenReturn(PgVectorStatus.AVAILABLE);
+        when(ragComponentsFactory.pgvectorDimensions()).thenReturn(1536);
+        when(ragComponentsFactory.embeddingModel(any())).thenReturn(embeddingModel);
+        when(embeddingModel.embed(anyString())).thenReturn(new float[768]);
+
+        assertInvalid(command().aiConfigId(other).build(),
+                "error.help_agent.pgvector_dimension_mismatch");
+    }
+
     // --- the three pgvector states -----------------------------------------------------------
 
     @Test
@@ -302,7 +350,6 @@ class DefaultHelpAgentConfigServiceTest {
     void enableReportsAnUnreachableEmbeddingModel() {
         bindConfig(aiConfig(true, RagStoreType.PGVECTOR, AiProviderType.OPENAI));
         when(pgVectorAvailability.status()).thenReturn(PgVectorStatus.AVAILABLE);
-        when(ragComponentsFactory.pgvectorDimensions()).thenReturn(1536);
         when(ragComponentsFactory.embeddingModel(any())).thenThrow(new IllegalStateException("down"));
 
         assertInvalid(command().enabled(true).build(), "error.help_agent.embedding_unreachable");
@@ -350,13 +397,59 @@ class DefaultHelpAgentConfigServiceTest {
     }
 
     @Test
-    void testConnectionReportsRetrievalDisabled() {
+    void testConnectionTreatsRetrievalDisabledAsASupportedState() {
         var row = storedRow();
         row.setRetrievalEnabled(false);
         when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
 
-        assertThat(service.testConnection(ORG_ID).detail())
-                .isEqualTo("help_agent.test.retrieval_disabled");
+        var result = service.testConnection(ORG_ID);
+
+        // Epic decision 9: retrieval off is a steady state, so it must not be painted as a fault.
+        assertThat(result.ok()).isTrue();
+        assertThat(result.embeddingDimensions()).isNull();
+        assertThat(result.detail()).isEqualTo("help_agent.test.retrieval_disabled");
+    }
+
+    @Test
+    void testConnectionEmbedsOnlyOnceForPgVector() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(aiConfig(true, RagStoreType.PGVECTOR, AiProviderType.OPENAI)));
+        when(pgVectorAvailability.status()).thenReturn(PgVectorStatus.AVAILABLE);
+        when(ragComponentsFactory.pgvectorDimensions()).thenReturn(1536);
+        when(ragComponentsFactory.embeddingModel(any())).thenReturn(embeddingModel);
+        when(ragComponentsFactory.vectorStore(any(), any())).thenReturn(vectorStore);
+        when(embeddingModel.embed(anyString())).thenReturn(new float[1536]);
+        when(vectorStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
+
+        assertThat(service.testConnection(ORG_ID).ok()).isTrue();
+        verify(embeddingModel, times(1)).embed(anyString());
+    }
+
+    @Test
+    void testConnectionReportsAPgVectorDimensionMismatch() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(aiConfig(true, RagStoreType.PGVECTOR, AiProviderType.OPENAI)));
+        when(pgVectorAvailability.status()).thenReturn(PgVectorStatus.AVAILABLE);
+        when(ragComponentsFactory.pgvectorDimensions()).thenReturn(1536);
+        when(ragComponentsFactory.embeddingModel(any())).thenReturn(embeddingModel);
+        when(embeddingModel.embed(anyString())).thenReturn(new float[768]);
+
+        var result = service.testConnection(ORG_ID);
+
+        assertThat(result.ok()).isFalse();
+        assertThat(result.detail()).isEqualTo("error.help_agent.pgvector_dimension_mismatch");
+    }
+
+    @Test
+    void testConnectionNamesTheExceptionWhenItCarriesNoMessage() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(aiConfig(true, RagStoreType.QDRANT, AiProviderType.OPENAI)));
+        when(ragComponentsFactory.embeddingModel(any())).thenThrow(new IllegalStateException());
+
+        assertThat(service.testConnection(ORG_ID).detail()).isEqualTo("IllegalStateException");
     }
 
     @Test

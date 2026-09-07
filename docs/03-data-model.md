@@ -1587,6 +1587,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `DEPLOYMENT_APPROVED` / `DEPLOYMENT_REJECTED` | A deployment decision lands (#695). Reviewer verdicts are written at the controller with the caller's IP + user-agent, one row per decision (before quorum, mirroring apigov). System decisions carry a **null actor** and a `trigger` naming the mechanism: `routing` (+ `policy_id`), `freeze` (+ `freeze_window_id`), or `environment_policy` (approved because the environment needs no review). Resource: `deployment_request`. |
 | `DEPLOYMENT_TIMED_OUT` | The review timeout auto-rejected a deployment past its window (#695, via `DeploymentTimeoutJob`). Resource: `deployment_request`. Null actor; metadata `trigger: "timeout"`, `pipeline_id`, `version`. |
 | `DEPLOYMENT_CANCELLED` | The submitter cancelled a pending or scheduled-approved deployment (#695). Resource: `deployment_request`. Written at the controller with IP + user-agent, only after the service accepted the cancel. |
+| `HELP_AGENT_CONFIG_UPDATED` | An admin saved the in-app help agent's settings (#901). Resource: `help_agent_config`. Metadata carries only what changed: `enabled`, `ai_config_bound` (plus `ai_config_id` when it is bound — audit metadata rejects null values, so an unbind reads as the flag going false), `retrieval_enabled`, `retention_days`, `send_user_context`. |
 | `DEPLOYMENT_BREAK_GLASS_REVIEWED` | An admin acknowledged a **deployment** break-glass retro-review on the shared AF-385 worklist (#695 — previously these landed as the generic `BREAK_GLASS_REVIEWED`). Resource: `break_glass_event`. Metadata: `deployment_request_id`, `pipeline_id`, `submitted_by`. The same change routes API-target acknowledgments to `API_BREAK_GLASS_REVIEWED` (their audit row was previously lost to a swallowed NPE). |
 
 Automated routing decisions reuse the existing `QUERY_APPROVED` / `QUERY_REJECTED` actions rather than introducing new ones: a policy `AUTO_APPROVE` / `AUTO_REJECT` writes the matching action with metadata `{ auto_approved: true | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`, so external audit consumers distinguish a routing-driven decision from a human one by the `source` field.
@@ -1954,7 +1955,7 @@ Tracing and prompt fetch are **best-effort and non-blocking** — a Langfuse out
 
 ## help_agent_config
 
-Per-organization settings for the in-app documentation help chat agent (AF-899, V159) — one row per
+Per-organization settings for the in-app documentation help chat agent (#901, epic #899, V159) — one row per
 organization (singleton, like `langfuse_config`). Binds the agent to an `ai_config` and carries the
 retrieval / conversation / retention tunables plus the corpus-ingestion state.
 
@@ -1974,7 +1975,7 @@ AI configuration disables help chat instead of blocking the admin — help never
 | `max_history_turns` | INTEGER NOT NULL DEFAULT 8 — prior turns replayed into the prompt; app-validated ∈ [1, 50] |
 | `max_question_chars` | INTEGER NOT NULL DEFAULT 2000 — app-validated ∈ [100, 10000] |
 | `send_user_context` | BOOLEAN NOT NULL DEFAULT TRUE — include the current route *label* and permission names in the prompt (never data) |
-| `retention_days` | INTEGER NOT NULL DEFAULT 90 — chat-transcript retention; app-validated ∈ [1, 3650] |
+| `retention_days` | INTEGER NOT NULL DEFAULT 90 — how long chat transcripts are kept once the transcript tables exist (they do not yet); app-validated ∈ [1, 3650] |
 | `per_user_requests_per_minute` | INTEGER NOT NULL DEFAULT 6 — app-validated ∈ [1, 120] |
 | `indexed_corpus_version` | VARCHAR(64) nullable — content-derived corpus version (`sha256(corpus.jsonl)[0..12]`) currently ingested for this org; `NULL` = never indexed |
 | `indexed_at` | TIMESTAMPTZ nullable — when that ingestion completed |
@@ -1984,6 +1985,9 @@ AI configuration disables help chat instead of blocking the admin — help never
 
 `indexed_corpus_version` / `indexed_at` / `index_error` are written by the indexer only — the admin
 API ignores them on write.
+
+Unique constraint: `(organization_id)`. Index on `(ai_config_id)` so the rows bound to an
+`ai_config` are found without a scan when one is deleted or re-pointed.
 
 **Enable-time validation.** Turning `enabled` on is refused unless the bound configuration can
 actually answer: `ai_config_id` must be set and belong to the caller's organization, and — when

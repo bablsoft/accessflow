@@ -122,6 +122,10 @@ class HelpAgentConfigIntegrationTest {
         var reloaded = repository.findByOrganizationId(organizationId).orElseThrow();
         assertThat(reloaded.getAiConfigId()).isNull();
         assertThat(aiConfigRepository.findById(aiConfig.getId())).isEmpty();
+        // The flag survives the unbind: the row is left enabled-but-unbound, which is inert rather
+        // than broken (documented on HelpAgentConfigEntity) — an agent with no model cannot answer,
+        // and the next write to the row is refused until an admin rebinds or disables it.
+        assertThat(reloaded.isEnabled()).isTrue();
     }
 
     private static HelpAgentConfigEntity row(UUID organizationId) {

@@ -22,6 +22,11 @@ import java.util.UUID;
  * <p>{@code aiConfigId} is a plain column rather than a {@code @ManyToOne}: the FK is
  * {@code ON DELETE SET NULL}, so losing the bound configuration disables help chat instead of
  * blocking the delete, and nothing here ever needs the {@code ai_config} row eagerly.
+ *
+ * <p>That leaves one state the write path cannot itself produce: {@code enabled = true} with a null
+ * {@code aiConfigId}, after an admin deletes the bound configuration. It is <b>inert</b>, not
+ * broken — an agent with no model cannot answer — and the next write to the row is refused until the
+ * admin rebinds or disables it. Consumers that iterate enabled rows must skip an unbound one.
  */
 @Entity
 @Table(name = "help_agent_config")

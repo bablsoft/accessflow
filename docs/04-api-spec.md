@@ -4103,7 +4103,9 @@ Per-organization settings for the in-app documentation help chat agent (AF-899) 
 per organization binding the agent to an `ai_config`. All four endpoints require `AI_MANAGE`
 (`PERM_AI_MANAGE`); every other caller gets **403**.
 
-The agent answers from AccessFlow's own bundled documentation corpus and has no data access. It can
+The agent answers from AccessFlow's own bundled documentation corpus and has no data access. **The
+row is inert today** — this is the configuration surface only; nothing reads it until the corpus
+indexer and the chat runtime land, so enabling the feature does not yet produce a chat panel. It can
 be enabled **before** RAG is configured: with `retrieval_enabled = false` the agent answers from a
 generated quick-reference orientation block instead of retrieved sections, so an install whose AI
 provider cannot embed (Anthropic ships no embeddings API) is still supported.
@@ -4137,16 +4139,24 @@ stored value unchanged (partial update).
 **Request body:**
 ```json
 {
-  "enabled": true, "ai_config_id": "ai-cfg-uuid", "retrieval_enabled": true,
+  "enabled": true, "ai_config_id": "ai-cfg-uuid", "clear_ai_config": false,
+  "retrieval_enabled": true,
   "top_k": 6, "similarity_threshold": 0.4, "max_history_turns": 8,
   "max_question_chars": 2000, "send_user_context": true, "retention_days": 90,
   "per_user_requests_per_minute": 6
 }
 ```
 
+To **clear** the binding, send `clear_ai_config: true` — since `null` means "unchanged", it is the
+only way to unbind, and it wins over an `ai_config_id` sent in the same body. Omitting it (or sending
+`false`) leaves the binding alone.
+
 Validation (always): `top_k` ∈ [1, 20]; `similarity_threshold` ∈ [0, 1]; `max_history_turns` ∈
 [1, 50]; `max_question_chars` ∈ [100, 10000]; `retention_days` ∈ [1, 3650];
-`per_user_requests_per_minute` ∈ [1, 120].
+`per_user_requests_per_minute` ∈ [1, 120]. A value out of range in the **body** is rejected by Bean
+Validation → **400** `VALIDATION_ERROR` with the usual per-field `fields` map; the service re-checks
+the same bounds against the merged row (so a stored value the request did not carry is caught too)
+and reports those as **400** `HELP_AGENT_CONFIG_INVALID`.
 
 Validation when `enabled = true` — the configuration must be one that can actually answer:
 
@@ -4160,12 +4170,14 @@ Validation when `enabled = true` — the configuration must be one that can actu
 | `retrieval_enabled`, store is `PGVECTOR`, and pgvector is off via `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` (the `vector_store` migration was skipped) | **400** `HELP_AGENT_CONFIG_INVALID` |
 | `retrieval_enabled`, store is `PGVECTOR`, and the `vector` extension is not installed | **400** `HELP_AGENT_CONFIG_INVALID` |
 | `retrieval_enabled`, store is `PGVECTOR`, and the embedding model's dimension ≠ `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` | **400** `HELP_AGENT_CONFIG_INVALID` |
+| `retrieval_enabled`, store is `PGVECTOR`, and the dimension probe itself fails (provider down, bad embedding key) | **400** `HELP_AGENT_CONFIG_INVALID` |
 
 The three pgvector states are reported as distinct localized `detail` messages, so an admin is told
 which one to fix rather than a generic "unavailable".
 
 **Response 200:** The saved configuration. Writes a `HELP_AGENT_CONFIG_UPDATED` audit row.
-**Response 400:** Validation error (`error: HELP_AGENT_CONFIG_INVALID`).
+**Response 400:** A body value out of range (`error: VALIDATION_ERROR`), or a configuration that
+cannot answer (`error: HELP_AGENT_CONFIG_INVALID`).
 **Response 404:** `ai_config_id` not found in this organization (`error: AI_CONFIG_NOT_FOUND`).
 
 > Deleting the bound `ai_config` sets `ai_config_id` to `NULL` (`ON DELETE SET NULL`) and disables
@@ -4177,6 +4189,11 @@ Verifies that the bound configuration can actually retrieve: embeds a probe with
 embedding model and runs a similarity search against its vector store. For `PGVECTOR` the detected
 dimension is checked against the configured column dimension. Always returns **200**; the outcome is
 in the body.
+
+It short-circuits to `ERROR` without calling the provider when there is nothing to test: no saved
+row, no bound `ai_config` (or one that has since been deleted), a bound configuration that fails the
+same checks `PUT` applies, or `retrieval_enabled = false`. The last is the supported retrieval-off
+mode rather than a fault — the detail says so, and nothing else on the page is wrong.
 
 **Response 200:** `{ "status": "OK", "detail": "Embedding model and vector store are reachable", "embedding_dimensions": 1536 }`
 **Response 200 (failure):** `{ "status": "ERROR", "detail": "<message>", "embedding_dimensions": null }`

@@ -14,7 +14,6 @@ import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.PgVectorAvailability;
-import com.bablsoft.accessflow.core.api.PgVectorStatus;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -76,17 +75,19 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
     public HelpAgentConfigView update(UUID organizationId, UpdateHelpAgentConfigCommand command) {
         var entity = repository.findByOrganizationId(organizationId)
                 .orElseGet(() -> seed(organizationId));
+        var previousEnabled = entity.isEnabled();
         var previousAiConfigId = entity.getAiConfigId();
         var previousRetrieval = entity.isRetrievalEnabled();
 
-        applyBinding(entity, command);
+        applyBinding(entity, command, organizationId);
         applyTunables(entity, command);
         if (command.enabled() != null) {
             entity.setEnabled(command.enabled());
         }
         validateRanges(entity);
         if (entity.isEnabled()) {
-            validateEnableable(entity, organizationId);
+            validateEnableable(entity, organizationId,
+                    turnsRetrievalOn(entity, previousEnabled, previousAiConfigId, previousRetrieval));
         }
 
         entity.setUpdatedAt(Instant.now());
@@ -110,7 +111,9 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
             return HelpAgentConnectionTestResult.error(message("help_agent.test.not_configured"));
         }
         if (!entity.isRetrievalEnabled()) {
-            return HelpAgentConnectionTestResult.error(message("help_agent.test.retrieval_disabled"));
+            // A supported steady state, not a failure — there is simply nothing to reach.
+            return HelpAgentConnectionTestResult.notApplicable(
+                    message("help_agent.test.retrieval_disabled"));
         }
         var config = aiConfigRepository.findByIdAndOrganizationId(entity.getAiConfigId(), organizationId)
                 .orElse(null);
@@ -123,14 +126,22 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
             return HelpAgentConnectionTestResult.error(message(e.messageKey()));
         }
         try {
+            // One embed for both answers the test needs — the dimension and "the model is up".
             var embeddingModel = ragComponentsFactory.embeddingModel(config);
             var dimensions = embeddingModel.embed(PROBE_TEXT).length;
+            if (config.getRagStoreType() == RagStoreType.PGVECTOR
+                    && dimensions != ragComponentsFactory.pgvectorDimensions()) {
+                return HelpAgentConnectionTestResult.error(
+                        message("error.help_agent.pgvector_dimension_mismatch"));
+            }
             var vectorStore = ragComponentsFactory.vectorStore(config, embeddingModel);
             vectorStore.similaritySearch(SearchRequest.builder().query(PROBE_TEXT).topK(1).build());
             return HelpAgentConnectionTestResult.ok(message("help_agent.test.success"), dimensions);
         } catch (RuntimeException e) {
             log.warn("Help agent retrieval test failed for org {}: {}", organizationId, e.getMessage());
-            return HelpAgentConnectionTestResult.error(e.getMessage());
+            // The provider's own words are the useful diagnostic here, but they can be absent.
+            return HelpAgentConnectionTestResult.error(
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         }
     }
 
@@ -142,10 +153,17 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
                 organizationId);
     }
 
-    private void applyBinding(HelpAgentConfigEntity entity, UpdateHelpAgentConfigCommand command) {
+    private void applyBinding(HelpAgentConfigEntity entity, UpdateHelpAgentConfigCommand command,
+                             UUID organizationId) {
         if (command.clearAiConfig()) {
             entity.setAiConfigId(null);
         } else if (command.aiConfigId() != null) {
+            // Checked even when the agent stays disabled: an unchecked id would otherwise reach the
+            // FK as a 500, or — for a real row in another organization — persist a cross-tenant
+            // pointer that GET echoes back.
+            if (!aiConfigRepository.existsByIdAndOrganizationId(command.aiConfigId(), organizationId)) {
+                throw new AiConfigNotFoundException(command.aiConfigId());
+            }
             entity.setAiConfigId(command.aiConfigId());
         }
         if (command.retrievalEnabled() != null) {
@@ -198,18 +216,47 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         }
     }
 
-    /** Enabling is refused unless the bound configuration can actually answer a question. */
-    private void validateEnableable(HelpAgentConfigEntity entity, UUID organizationId) {
+    /**
+     * Does this save actually turn retrieval on? Only a transition is worth an outbound embedding
+     * call: re-probing on every save would mean an admin cannot change {@code retention_days} on an
+     * already-enabled agent while the embedding provider is having a blip.
+     */
+    private static boolean turnsRetrievalOn(HelpAgentConfigEntity entity, boolean previousEnabled,
+                                            UUID previousAiConfigId, boolean previousRetrieval) {
+        if (!entity.isRetrievalEnabled()) {
+            return false;
+        }
+        return !previousEnabled
+                || !previousRetrieval
+                || !Objects.equals(previousAiConfigId, entity.getAiConfigId());
+    }
+
+    /**
+     * Enabling is refused unless the bound configuration can actually answer a question. The
+     * structural checks are free and always run; the live dimension probe is an outbound call, so it
+     * runs only when this save is the one turning retrieval on.
+     */
+    private void validateEnableable(HelpAgentConfigEntity entity, UUID organizationId,
+                                    boolean probeDimensions) {
         if (entity.getAiConfigId() == null) {
             throw new HelpAgentConfigInvalidException("error.help_agent.ai_config_required");
         }
         var config = aiConfigRepository.findByIdAndOrganizationId(entity.getAiConfigId(), organizationId)
                 .orElseThrow(() -> new AiConfigNotFoundException(entity.getAiConfigId()));
-        if (entity.isRetrievalEnabled()) {
-            requireRetrievableConfig(config);
+        if (!entity.isRetrievalEnabled()) {
+            return;
+        }
+        requireRetrievableConfig(config);
+        if (probeDimensions && config.getRagStoreType() == RagStoreType.PGVECTOR) {
+            requireMatchingDimension(config);
         }
     }
 
+    /**
+     * The structural half of "can this configuration retrieve" — no outbound calls. The three
+     * pgvector states have three different fixes, and none of them is discoverable from the error an
+     * admin would otherwise meet at their first question, so each gets its own message key.
+     */
     private void requireRetrievableConfig(AiConfigEntity config) {
         if (!config.isRagEnabled() || config.getRagStoreType() == null) {
             throw new HelpAgentConfigInvalidException("error.help_agent.rag_not_enabled");
@@ -220,25 +267,20 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         if (config.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
             throw new HelpAgentConfigInvalidException("error.help_agent.embedding_provider_invalid");
         }
-        if (config.getRagStoreType() == RagStoreType.PGVECTOR) {
-            requirePgVectorUsable(config);
+        if (config.getRagStoreType() != RagStoreType.PGVECTOR) {
+            return;
+        }
+        switch (pgVectorAvailability.status()) {
+            case AVAILABLE -> { /* usable */ }
+            case DISABLED -> throw new HelpAgentConfigInvalidException(
+                    "error.help_agent.pgvector_disabled");
+            case EXTENSION_MISSING -> throw new HelpAgentConfigInvalidException(
+                    "error.help_agent.pgvector_extension_missing");
         }
     }
 
-    /**
-     * The three pgvector failure states have three different fixes, and none of them is discoverable
-     * from the error the admin would otherwise meet at their first question — so each is probed here
-     * and reported under its own message key.
-     */
-    private void requirePgVectorUsable(AiConfigEntity config) {
-        var status = pgVectorAvailability.status();
-        if (status == PgVectorStatus.DISABLED) {
-            throw new HelpAgentConfigInvalidException("error.help_agent.pgvector_disabled");
-        }
-        if (status != PgVectorStatus.AVAILABLE) {
-            throw new HelpAgentConfigInvalidException("error.help_agent.pgvector_extension_missing");
-        }
-        int expected = ragComponentsFactory.pgvectorDimensions();
+    /** The one outbound call on the write path: the embedding model must match the {@code vector(N)} column. */
+    private void requireMatchingDimension(AiConfigEntity config) {
         int actual;
         try {
             actual = ragComponentsFactory.embeddingModel(config).embed(PROBE_TEXT).length;
@@ -247,7 +289,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
                     e.getMessage());
             throw new HelpAgentConfigInvalidException("error.help_agent.embedding_unreachable");
         }
-        if (actual != expected) {
+        if (actual != ragComponentsFactory.pgvectorDimensions()) {
             throw new HelpAgentConfigInvalidException("error.help_agent.pgvector_dimension_mismatch");
         }
     }
@@ -263,9 +305,12 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         return entity;
     }
 
+    /** The view a never-configured org gets: real defaults, but no id and no invented timestamps. */
     private static HelpAgentConfigView defaultView(UUID organizationId) {
         var defaults = new HelpAgentConfigEntity();
         defaults.setOrganizationId(organizationId);
+        defaults.setCreatedAt(null);
+        defaults.setUpdatedAt(null);
         return toView(defaults);
     }
 

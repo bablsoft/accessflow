@@ -15,6 +15,14 @@ public record HelpAgentConnectionTestResult(
         return new HelpAgentConnectionTestResult(true, detail, embeddingDimensions);
     }
 
+    /**
+     * Nothing to reach, and nothing wrong — the agent is configured with retrieval off, which is a
+     * supported steady state rather than a fault.
+     */
+    public static HelpAgentConnectionTestResult notApplicable(String detail) {
+        return new HelpAgentConnectionTestResult(true, detail, null);
+    }
+
     public static HelpAgentConnectionTestResult error(String detail) {
         return new HelpAgentConnectionTestResult(false, detail, null);
     }

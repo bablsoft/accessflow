@@ -1990,13 +1990,19 @@ yet; the corpus indexer and the chat runtime follow.
   still module-private to the rest of the application and `ApplicationModulesTest` is unaffected.
 - **Reads never fail.** `HelpAgentConfigService.getOrDefault` serves an organization with no row a
   defaulted view (`id = null`), so the admin UI renders a form without a pre-flight create.
-- **Enabling is validated; everything else is not.** Ranges are always checked
-  (`top_k` 1–20, `similarity_threshold` 0–1, `max_history_turns` 1–50, `max_question_chars`
-  100–10000, `retention_days` 1–3650, `per_user_requests_per_minute` 1–120). Turning the agent
-  **on** additionally requires a bound `ai_config` in the caller's organization and — when
-  `retrieval_enabled` — that the bound row can actually retrieve: RAG on with a store type, an
-  embedding provider that is not `ANTHROPIC`, and, for `PGVECTOR`, a usable in-app store plus a live
-  embedding-dimension probe against `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`.
+- **Ranges are always checked; enabling is checked harder.** Every write validates `top_k` 1–20,
+  `similarity_threshold` 0–1, `max_history_turns` 1–50, `max_question_chars` 100–10000,
+  `retention_days` 1–3650 and `per_user_requests_per_minute` 1–120, and a submitted `ai_config_id`
+  must exist **in the caller's organization** whether or not the agent is on — otherwise a bogus id
+  reaches the FK as a 500, and a real one from another org persists as a cross-tenant pointer.
+  Turning the agent **on** additionally requires a binding and — when `retrieval_enabled` — that the
+  bound row can actually retrieve: RAG on with a store type, an embedding provider that is not
+  `ANTHROPIC`, and, for `PGVECTOR`, a usable in-app store.
+- **The live embedding probe runs only on a transition.** Matching the embedding model's dimension
+  against `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` costs an outbound call inside the write transaction,
+  so it runs only when the save is the one turning retrieval on (`enabled` false→true,
+  `retrieval_enabled` false→true, or a changed binding). Re-probing on every save would mean an
+  admin could not change `retention_days` on a running agent while the provider had a blip.
 - **The three pgvector failure states are reported apart.** `core.api.PgVectorAvailability` now
   exposes a `PgVectorStatus` alongside the boolean, so "the operator disabled pgvector
   (`ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`, so `vector_store` was never created)", "the `vector`
@@ -2010,9 +2016,14 @@ yet; the corpus indexer and the chat runtime follow.
   deleting the bound configuration disables help chat rather than blocking the admin — help never
   joins the `AiConfigInUseException` guard that datasource bindings do.
 - **Endpoints** (`/api/v1/admin/help-agent`, all `AI_MANAGE`): `GET`, `PUT` (audited
-  `HELP_AGENT_CONFIG_UPDATED`), `POST /test` (embedding + store reachability, always 200), and
+  `HELP_AGENT_CONFIG_UPDATED`), `POST /test` (embedding + store reachability, always 200 — and `OK`
+  rather than `ERROR` when retrieval is off, since there is nothing to reach and nothing wrong), and
   `POST /reindex` (202; a stub until the indexer lands). Updates publish an internal
   `HelpAgentConfigUpdatedEvent` for the indexer to consume.
+- **One state the write path cannot produce.** Deleting the bound `ai_config` leaves
+  `enabled = true` with a null `ai_config_id`. That row is inert — an agent with no model cannot
+  answer — and the next write to it is refused until an admin rebinds or disables it, so consumers
+  iterating `findAllByEnabledTrue()` must skip an unbound row.
 
 ### Multi-model orchestration, voting & guardrails (AF-450)
 
