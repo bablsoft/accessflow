@@ -24,6 +24,8 @@ public interface HelpAgentConfigService {
      *
      * @throws HelpAgentConfigInvalidException a value is out of range, or enabling would produce a
      *                                         configuration that cannot answer
+     * @throws HelpCorpusUnavailableException  enabling the agent when the bundled documentation
+     *                                         corpus could not be loaded from the classpath
      * @throws AiConfigNotFoundException       {@code aiConfigId} is not an AI configuration of this
      *                                         organization
      */
@@ -37,7 +39,9 @@ public interface HelpAgentConfigService {
 
     /**
      * Requests a re-ingestion of the bundled documentation corpus for this organization. Accepted
-     * asynchronously; no-op until the indexer lands.
+     * asynchronously and forced — it ignores the "already at this corpus version" check, since an
+     * admin pressing re-index has a reason that check cannot see. A no-op for an organization that
+     * has never saved a configuration.
      */
     void requestReindex(UUID organizationId);
 }

@@ -1978,8 +1978,8 @@ Admins attach a per-`ai_config` knowledge base; at analysis / text-to-SQL time t
 
 The in-app documentation help chat agent is configured per organization by a singleton
 `help_agent_config` row that binds it to an `ai_config` and carries its retrieval / conversation /
-retention tunables. This part is the persistence and admin surface only — nothing consumes the row
-yet; the corpus indexer and the chat runtime follow.
+retention tunables. This part is the persistence and admin surface; the corpus indexer that consumes
+the row is the next section, and the chat runtime follows.
 
 - **It lives in the `ai` module, in an `ai/internal/help/` sub-package** — deliberately not a new
   Modulith module. Everything the runtime needs (`RagComponentsFactory`, the rate limiter, the chat
@@ -2024,6 +2024,87 @@ yet; the corpus indexer and the chat runtime follow.
   `enabled = true` with a null `ai_config_id`. That row is inert — an agent with no model cannot
   answer — and the next write to it is refused until an admin rebinds or disables it, so consumers
   iterating `findAllByEnabledTrue()` must skip an unbound row.
+
+### Help corpus loading, indexing and re-ingestion (AF-902, epic AF-899)
+
+The help agent answers from AccessFlow's own documentation, bundled into the jar at `help-corpus/**`
+by the Maven resources plugin (the `connectors/` mechanism, AF-900) and embedded per organization into
+the **same `vector_store` table** the AF-336 knowledge base uses. Everything lives in
+`ai/internal/help/`.
+
+- **The corpus and the AF-336 knowledge base share one table and never see each other.** Help chunks
+  carry `corpus="help"` and `help_config_id` and — the load-bearing detail — **no `ai_config_id` key
+  at all**. `DefaultRagRetriever` filters on `ai_config_id == '<uuid>'`; a missing key is SQL `NULL`,
+  and `NULL = 'x'` never matches, so help chunks are invisible to it **with zero changes to that
+  class**. The reverse holds by the same argument: knowledge chunks carry no `corpus` key, so the help
+  filter `corpus == 'help' && help_config_id == '<uuid>'` never sees them. The alternative — teaching
+  the existing retriever to filter `corpus == 'org'` — would have silently orphaned every knowledge
+  chunk written before the upgrade, and `retrieve()` returns `null` on no results rather than erroring,
+  so the regression would have been invisible in logs. `HelpCorpusIsolationIntegrationTest` seeds one
+  chunk of each kind with identical text and asserts each retriever returns exactly its own.
+- **`HelpCorpusBundle` verifies before it trusts, and never fails the context.** It checks the
+  manifest's `schemaVersion` against what the code understands (a newer bundle is refused rather than
+  read with fields silently dropped), that `corpus.jsonl` hashes to the manifest's `sha256`, that
+  `corpusVersion` really is that digest's first 12 characters, that the line count matches
+  `chunkCount`, and that `quick-reference.txt` matches its own digest. Any failure is an `ERROR` log
+  and an unavailable bundle — **not** a refused startup, because an install that never enables the help
+  agent should not be denied a boot over a resource it will never read. The cost is paid on the enable
+  path instead: `PUT /admin/help-agent` with `enabled=true` returns **400 `HELP_CORPUS_MISSING`**.
+- **Re-ingestion is an idempotent string compare.** `corpusVersion` is `sha256(corpus.jsonl)[0..12]` —
+  content-derived, not the application version. A row whose `indexed_corpus_version` already equals the
+  bundle's is skipped, so restarts and replicas converge without coordination, an upgrade that ships new
+  documentation re-embeds automatically, and a patch release that ships the same documentation does not.
+- **Delete-then-add, never upsert.** There is no stable key to upsert against — the store assigns row
+  ids and a documentation edit changes a chunk's content hash — so each pass deletes this help
+  configuration's whole scope and re-adds it, `accessflow.help-agent.index-batch-size` chunks per
+  embedding call (64 by default; the corpus is ~510 chunks in total, and sending them in one call
+  exceeds the request size OpenAI accepts and exhausts memory on a local Ollama). Deleting the scope
+  first is the
+  only way a re-index cannot strand chunks from the previous corpus version, quietly answering from
+  documentation the install no longer ships. The delete is scoped by `help_config_id`, so one tenant's
+  re-index is not a global truncate.
+- **Never on the caller's thread, once per cluster.** `HelpCorpusIndexDispatcher` is the single async
+  seam: it hands the pass to a dedicated virtual-thread executor and wraps it in
+  `distributedLockService.runLocked("helpCorpusIndex", …)`. `@SchedulerLock` is the wrong tool — it is
+  annotation-only and tied to `@Scheduled`, and this work is event-driven. Without the lock, N replicas
+  booting together would each delete and re-add the same scope, racing each other's deletes (a window in
+  which a question retrieves nothing) and paying the embedding bill N times.
+- **The lock is keyed per `help_agent_config`, not global.** A pass takes minutes and there is no retry
+  queue, so a single deployment-wide lock would mean the second admin to enable the agent — in an
+  unrelated organization — simply lost, silently, until the next restart. Keying it on the row makes
+  contention mean what dropping it implies: the only pass that can lose is one for the *same*
+  organization, whose winner is doing exactly the same work. A loser logs at `INFO` and writes no
+  `index_error`.
+- **Four triggers; only startup is never forced.** `HelpCorpusStartupIndexer` runs an unforced pass on
+  `ApplicationReadyEvent` (gated by `accessflow.help-agent.index-on-startup`) — the version compare is
+  exactly the decision it wants. `HelpCorpusReindexListener` runs one after a
+  `HelpAgentConfigUpdatedEvent` commits, forced only when the binding or the retrieval flag changed, and
+  an always-forced one for every bound organization when an `AiConfigUpdatedEvent` reports
+  `ragChanged()`. `POST /admin/help-agent/reindex` is always forced too. The asymmetry is deliberate:
+  merely enabling the agent has nothing stored, so the compare already says "index me", and forcing
+  would re-embed the whole corpus every time an admin toggled the feature off and on. Changing the
+  embedding model or the store is the opposite case — the stored vectors are stale in a way no version
+  string records, and vectors from two models in one scope do not error, they quietly return nonsense
+  neighbours.
+- **The skip matrix is the feature's cost model.** Disabled, unbound (the inert state a deleted
+  `ai_config` leaves), retrieval off, already at this corpus version, and PGVECTOR-unavailable all skip
+  **before any embedding call**. So an install with the agent off pays nothing at startup — asserted
+  with a counting `EmbeddingModel`, not assumed.
+- **Failures are recorded, never propagated, and never disable the agent.** A missing corpus, a
+  configuration that can no longer embed, an unreachable provider, a dimension mismatch or a store error
+  writes `index_error` on the row and moves on to the next organization. `enabled` is deliberately left
+  alone: an operator turned the agent on, and a transient outage is not consent to turn it off. On
+  failure `indexed_corpus_version` is left untouched too, so the next pass re-embeds the whole corpus
+  rather than trusting a partial one. The PGVECTOR dimension is probed with a single embed **before**
+  the delete, since a mismatch would otherwise surface as ~510 insert errors against an emptied scope.
+- **Retrieval returns chunks, not a string.** `HelpCorpusRetriever` is a deliberate sibling of
+  `DefaultRagRetriever` rather than a reuse of it: citations need per-chunk `title` / `url` / `anchor`,
+  which that class discards when it joins texts into a prompt block. It keeps the same never-throw
+  contract — a store failure logs at `WARN` and returns an empty list, because an answer without
+  citations still helps and an exception would turn a documentation question into a 500. Its `top_k` and
+  `similarity_threshold` come from the `help_agent_config` row (defaulting to 6 / 0.4), not the bound
+  `ai_config` (4 / 0.5) — help retrieval is tuned for recall over a fixed corpus, knowledge-base
+  retrieval for precision over customer text.
 
 ### Multi-model orchestration, voting & guardrails (AF-450)
 

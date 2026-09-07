@@ -1983,8 +1983,14 @@ AI configuration disables help chat instead of blocking the admin — help never
 | `version` | BIGINT — `@Version` optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
-`indexed_corpus_version` / `indexed_at` / `index_error` are written by the indexer only — the admin
-API ignores them on write.
+`indexed_corpus_version` / `indexed_at` / `index_error` are written by `HelpCorpusIndexer` only (AF-902)
+— the admin API ignores them on write. The version is content-derived
+(`sha256(help-corpus/corpus.jsonl)[0..12]`), so an automatic pass whose value already matches the
+bundled corpus is skipped: that string compare is what makes re-ingestion idempotent across replicas and
+restarts. A *forced* pass — the admin re-index button, or a changed embedding model or store — ignores
+it and re-embeds regardless. A
+failed pass writes `index_error` and leaves `indexed_corpus_version` alone, so the next pass re-embeds
+the whole corpus rather than trusting a partial one, and `enabled` is never cleared by a failure.
 
 Unique constraint: `(organization_id)`. Index on `(ai_config_id)` so the rows bound to an
 `ai_config` are found without a scan when one is deleted or re-pointed.

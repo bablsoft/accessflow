@@ -1,0 +1,3 @@
+AccessFlow - quick reference
+
+The query lifecycle: submit, analyse, route, approve, execute.

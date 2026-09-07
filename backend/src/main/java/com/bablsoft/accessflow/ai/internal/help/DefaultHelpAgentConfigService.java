@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.ai.api.HelpAgentConfigInvalidException;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigService;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigView;
 import com.bablsoft.accessflow.ai.api.HelpAgentConnectionTestResult;
+import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.UpdateHelpAgentConfigCommand;
 import com.bablsoft.accessflow.ai.internal.HelpAgentConfigUpdatedEvent;
 import com.bablsoft.accessflow.ai.internal.RagComponentsFactory;
@@ -56,6 +57,8 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
     private static final int MAX_REQUESTS_PER_MINUTE = 120;
 
     private final HelpAgentConfigRepository repository;
+    private final HelpCorpusBundle helpCorpusBundle;
+    private final HelpCorpusIndexDispatcher indexDispatcher;
     private final AiConfigRepository aiConfigRepository;
     private final RagComponentsFactory ragComponentsFactory;
     private final PgVectorAvailability pgVectorAvailability;
@@ -66,7 +69,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
     @Transactional(readOnly = true)
     public HelpAgentConfigView getOrDefault(UUID organizationId) {
         return repository.findByOrganizationId(organizationId)
-                .map(DefaultHelpAgentConfigService::toView)
+                .map(this::toView)
                 .orElseGet(() -> defaultView(organizationId));
     }
 
@@ -146,11 +149,19 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public void requestReindex(UUID organizationId) {
-        // The corpus indexer lands in a follow-up; the endpoint already accepts the request so the
-        // admin surface and its contract are stable before there is anything to schedule.
-        log.info("Help agent re-index requested for org {} — no indexer is wired yet, ignoring",
-                organizationId);
+        var entity = repository.findByOrganizationId(organizationId).orElse(null);
+        if (entity == null) {
+            log.info("Help agent re-index requested for org {} but no configuration exists",
+                    organizationId);
+            return;
+        }
+        // Forced: an admin pressing re-index has a reason the version compare cannot see — a store
+        // truncated out of band, a suspected partial pass. Answering "already up to date" would make
+        // the button useless in exactly the situation it exists for.
+        log.info("Help agent re-index requested for org {}", organizationId);
+        indexDispatcher.dispatchOne(entity.getId(), true);
     }
 
     private void applyBinding(HelpAgentConfigEntity entity, UpdateHelpAgentConfigCommand command,
@@ -238,6 +249,12 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
      */
     private void validateEnableable(HelpAgentConfigEntity entity, UUID organizationId,
                                     boolean probeDimensions) {
+        if (!helpCorpusBundle.available()) {
+            // Checked before the binding, because no binding can fix it: with no corpus the agent has
+            // nothing to answer from, whether or not retrieval is on.
+            throw new HelpCorpusUnavailableException("error.help_agent.corpus_missing",
+                    helpCorpusBundle.loadError());
+        }
         if (entity.getAiConfigId() == null) {
             throw new HelpAgentConfigInvalidException("error.help_agent.ai_config_required");
         }
@@ -298,6 +315,22 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
     }
 
+    /**
+     * Resolves the indexer's stored failure into the reader's language. The indexer runs on a
+     * background thread with no request locale and the row outlives its pass, so it stores a message
+     * key and its arguments rather than a sentence; this is where that becomes readable. A value that
+     * is not an encoded key — written by an older build, or edited by hand — is passed through as-is,
+     * because a stale reason still beats a blank field.
+     */
+    private String localizedIndexError(String stored) {
+        var decoded = HelpIndexError.decode(stored);
+        if (decoded == null) {
+            return stored;
+        }
+        return messageSource.getMessage(decoded.messageKey(), decoded.args().toArray(),
+                LocaleContextHolder.getLocale());
+    }
+
     private HelpAgentConfigEntity seed(UUID organizationId) {
         var entity = new HelpAgentConfigEntity();
         entity.setId(UUID.randomUUID());
@@ -306,7 +339,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
     }
 
     /** The view a never-configured org gets: real defaults, but no id and no invented timestamps. */
-    private static HelpAgentConfigView defaultView(UUID organizationId) {
+    private HelpAgentConfigView defaultView(UUID organizationId) {
         var defaults = new HelpAgentConfigEntity();
         defaults.setOrganizationId(organizationId);
         defaults.setCreatedAt(null);
@@ -314,7 +347,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         return toView(defaults);
     }
 
-    private static HelpAgentConfigView toView(HelpAgentConfigEntity e) {
+    private HelpAgentConfigView toView(HelpAgentConfigEntity e) {
         return new HelpAgentConfigView(
                 e.getId(),
                 e.getOrganizationId(),
@@ -330,7 +363,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
                 e.getPerUserRequestsPerMinute(),
                 e.getIndexedCorpusVersion(),
                 e.getIndexedAt(),
-                e.getIndexError(),
+                localizedIndexError(e.getIndexError()),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
     }

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.ai.internal.help;
 
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigInvalidException;
+import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.UpdateHelpAgentConfigCommand;
 import com.bablsoft.accessflow.ai.internal.HelpAgentConfigUpdatedEvent;
 import com.bablsoft.accessflow.ai.internal.RagComponentsFactory;
@@ -32,8 +33,11 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalMatchers.aryEq;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -47,6 +51,8 @@ class DefaultHelpAgentConfigServiceTest {
     private static final UUID AI_CONFIG_ID = UUID.randomUUID();
 
     @Mock HelpAgentConfigRepository repository;
+    @Mock HelpCorpusBundle helpCorpusBundle;
+    @Mock HelpCorpusIndexDispatcher indexDispatcher;
     @Mock AiConfigRepository aiConfigRepository;
     @Mock RagComponentsFactory ragComponentsFactory;
     @Mock PgVectorAvailability pgVectorAvailability;
@@ -59,8 +65,10 @@ class DefaultHelpAgentConfigServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultHelpAgentConfigService(repository, aiConfigRepository,
-                ragComponentsFactory, pgVectorAvailability, eventPublisher, messageSource);
+        service = new DefaultHelpAgentConfigService(repository, helpCorpusBundle, indexDispatcher,
+                aiConfigRepository, ragComponentsFactory, pgVectorAvailability, eventPublisher,
+                messageSource);
+        lenient().when(helpCorpusBundle.available()).thenReturn(true);
         lenient().when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         lenient().when(messageSource.getMessage(anyString(), any(), any(Locale.class)))
                 .thenAnswer(i -> i.getArgument(0));
@@ -495,12 +503,87 @@ class DefaultHelpAgentConfigServiceTest {
         assertThat(result.embeddingDimensions()).isNull();
     }
 
+    // --- re-index ----------------------------------------------------------------------------
+
     @Test
-    void requestReindexIsAcceptedAndDoesNothingYet() {
+    void requestReindexForcesAnIndexPassForTheOrganizationsRow() {
+        var row = storedRow();
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
+
         service.requestReindex(ORG_ID);
 
+        // Forced: an admin pressing re-index has a reason the version compare cannot see.
+        verify(indexDispatcher).dispatchOne(row.getId(), true);
         verify(repository, never()).save(any());
-        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
+
+    @Test
+    void requestReindexIsANoOpForAnOrganizationThatNeverSavedAConfiguration() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.empty());
+
+        service.requestReindex(ORG_ID);
+
+        verify(indexDispatcher, never()).dispatchOne(any(), anyBoolean());
+    }
+
+    // --- ingestion state ------------------------------------------------------------------------
+
+    @Test
+    void resolvesTheIndexersStoredFailureIntoTheReadersLanguage() {
+        var row = storedRow();
+        row.setIndexError("error.help_agent.index.failed" + '\u001F' + "store down");
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
+        when(messageSource.getMessage(eq("error.help_agent.index.failed"),
+                aryEq(new Object[] {"store down"}), any(Locale.class)))
+                .thenReturn("Indizierung fehlgeschlagen: store down");
+
+        // The indexer runs on a background thread with no request locale, so the row stores a key and
+        // its arguments; this read is where it becomes a sentence, in the caller's language.
+        assertThat(service.getOrDefault(ORG_ID).indexError())
+                .isEqualTo("Indizierung fehlgeschlagen: store down");
+    }
+
+    @Test
+    void passesThroughAnIndexErrorThatIsNotAnEncodedKey() {
+        var row = storedRow();
+        row.setIndexError("Indexing failed: store down");
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(row));
+
+        // A row written by an older build. A stale reason still beats a blank field.
+        assertThat(service.getOrDefault(ORG_ID).indexError()).isEqualTo("Indexing failed: store down");
+    }
+
+    @Test
+    void leavesAnUnindexedRowsErrorNull() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+
+        assertThat(service.getOrDefault(ORG_ID).indexError()).isNull();
+    }
+
+    // --- corpus availability -------------------------------------------------------------------
+
+    @Test
+    void enableIsRefusedWhenTheBundledCorpusCouldNotBeLoaded() {
+        when(helpCorpusBundle.available()).thenReturn(false);
+        when(helpCorpusBundle.loadError()).thenReturn("corpus.jsonl is missing from classpath:help-corpus/");
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+
+        assertThatThrownBy(() -> service.update(ORG_ID, new CommandBuilder().enabled(true).build()))
+                .isInstanceOf(HelpCorpusUnavailableException.class)
+                .extracting(e -> ((HelpCorpusUnavailableException) e).messageKey())
+                .isEqualTo("error.help_agent.corpus_missing");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void aMissingCorpusDoesNotBlockSavingSettingsWhileTheAgentStaysOff() {
+        when(repository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(storedRow()));
+
+        var view = service.update(ORG_ID, new CommandBuilder().retentionDays(30).build());
+
+        assertThat(view.retentionDays()).isEqualTo(30);
+        // The corpus is only the enable path's business - a disabled agent needs nothing to read.
+        verify(helpCorpusBundle, never()).available();
     }
 
     // --- helpers ------------------------------------------------------------------------------

@@ -17,4 +17,11 @@ public interface HelpAgentConfigRepository extends JpaRepository<HelpAgentConfig
      * those, since an unbound agent has no model to embed or answer with.
      */
     List<HelpAgentConfigEntity> findAllByEnabledTrue();
+
+    /**
+     * Every organization whose agent is bound to this {@code ai_config}. Used when the configuration's
+     * RAG settings change, since the stored help vectors were produced by its embedding model and
+     * live in its store. Backed by {@code help_agent_config_ai_config_id_idx}.
+     */
+    List<HelpAgentConfigEntity> findAllByAiConfigId(UUID aiConfigId);
 }
