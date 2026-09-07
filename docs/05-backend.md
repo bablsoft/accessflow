@@ -1974,6 +1974,46 @@ Admins attach a per-`ai_config` knowledge base; at analysis / text-to-SQL time t
 - **pgvector is provisioned outside Flyway.** The `vector` extension is not trusted and the app DB role is not a superuser, so a superuser init script creates it (`deploy/postgres-init/02-pgvector.sql` for Compose, the Helm initContainer, `withInitScript` for Testcontainers); Flyway V69 creates only the `vector_store` table. The embedding dimension is a Flyway placeholder (`ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`, default 1536). The pgvector / Qdrant Spring AI auto-configs are excluded in `application.yml` — stores are built per row, never as context beans.
 - **Graceful degradation when pgvector is absent.** `core.internal.config.PgVectorFlywayConfiguration` registers a `FlywayMigrationStrategy` that, before migrating, best-effort runs `CREATE EXTENSION IF NOT EXISTS vector` (toggle: `accessflow.rag.pgvector.auto-provision`) and detects whether the type is usable. If it is, migrations run normally and `vector_store` is created if missing (self-heals a pgvector-installed-later deployment). If it is not — or `accessflow.rag.pgvector.enabled=false` — V69 is recorded as applied without executing it (its resolved checksum is stored so later boots validate), the pgvector-free `knowledge_document` table is created by the idempotent `V73__ensure_knowledge_document.sql` (Hibernate `ddl-auto=validate` needs it), and `vector_store` is omitted. The decision is published via `core.api.PgVectorAvailability`: `RagComponentsFactory` returns `RagRetriever.DISABLED` for PGVECTOR configs, `DefaultKnowledgeBaseService` throws `AiConfigRagInvalidException` (`error.ai_config.rag.pgvector_unavailable`, HTTP 400) on PGVECTOR ingest / test, and `GET /admin/ai-configs/rag/capabilities` reports `pgvector_available`. The external QDRANT path is unaffected. So the application always starts even on a Postgres without the extension.
 
+### Help agent configuration (AF-901, epic AF-899)
+
+The in-app documentation help chat agent is configured per organization by a singleton
+`help_agent_config` row that binds it to an `ai_config` and carries its retrieval / conversation /
+retention tunables. This part is the persistence and admin surface only — nothing consumes the row
+yet; the corpus indexer and the chat runtime follow.
+
+- **It lives in the `ai` module, in an `ai/internal/help/` sub-package** — deliberately not a new
+  Modulith module. Everything the runtime needs (`RagComponentsFactory`, the rate limiter, the chat
+  invoker) is inside `ai.internal`, and the objects that would cross a module boundary
+  (`EmbeddingModel`, `VectorStore`, `ChatModel`) are all `org.springframework.ai.*`, which no `api/`
+  package may reference. `apigov` sets the precedent for a sub-packaged `internal/`. The mechanical
+  cost is that `RagComponentsFactory` widens to `public`; it stays inside `ai.internal`, so it is
+  still module-private to the rest of the application and `ApplicationModulesTest` is unaffected.
+- **Reads never fail.** `HelpAgentConfigService.getOrDefault` serves an organization with no row a
+  defaulted view (`id = null`), so the admin UI renders a form without a pre-flight create.
+- **Enabling is validated; everything else is not.** Ranges are always checked
+  (`top_k` 1–20, `similarity_threshold` 0–1, `max_history_turns` 1–50, `max_question_chars`
+  100–10000, `retention_days` 1–3650, `per_user_requests_per_minute` 1–120). Turning the agent
+  **on** additionally requires a bound `ai_config` in the caller's organization and — when
+  `retrieval_enabled` — that the bound row can actually retrieve: RAG on with a store type, an
+  embedding provider that is not `ANTHROPIC`, and, for `PGVECTOR`, a usable in-app store plus a live
+  embedding-dimension probe against `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`.
+- **The three pgvector failure states are reported apart.** `core.api.PgVectorAvailability` now
+  exposes a `PgVectorStatus` alongside the boolean, so "the operator disabled pgvector
+  (`ACCESSFLOW_RAG_PGVECTOR_ENABLED=false`, so `vector_store` was never created)", "the `vector`
+  extension is not installed" and "the embedding dimension does not match the column" each get their
+  own message key. None of the three is discoverable from the error an admin would otherwise meet at
+  their first question.
+- **`retrieval_enabled = false` is a supported steady state**, not a degraded one: the agent answers
+  from the generated quick-reference block instead of retrieved sections, which is the only mode
+  available to an install whose embedding provider cannot embed.
+- **The binding is deliberately weak.** `help_agent_config.ai_config_id` is `ON DELETE SET NULL`, so
+  deleting the bound configuration disables help chat rather than blocking the admin — help never
+  joins the `AiConfigInUseException` guard that datasource bindings do.
+- **Endpoints** (`/api/v1/admin/help-agent`, all `AI_MANAGE`): `GET`, `PUT` (audited
+  `HELP_AGENT_CONFIG_UPDATED`), `POST /test` (embedding + store reachability, always 200), and
+  `POST /reindex` (202; a stub until the indexer lands). Updates publish an internal
+  `HelpAgentConfigUpdatedEvent` for the indexer to consume.
+
 ### Multi-model orchestration, voting & guardrails (AF-450)
 
 A single `ai_config` can run **several models in parallel** and combine their verdicts, and can

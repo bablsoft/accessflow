@@ -18,10 +18,13 @@ import org.springframework.stereotype.Component;
  * (AF-336). Shared by {@link AiAnalyzerStrategyHolder} (which injects the retriever into delegates)
  * and {@code DefaultKnowledgeBaseService} (ingestion / deletion / connectivity test) so the decrypt
  * + factory wiring lives in one place.
+ *
+ * <p>{@code public} so {@code ai.internal.help} can reuse it; it stays inside {@code ai.internal},
+ * so it remains module-private to the rest of the application.
  */
 @Component
 @RequiredArgsConstructor
-class RagComponentsFactory {
+public class RagComponentsFactory {
 
     private static final Logger log = LoggerFactory.getLogger(RagComponentsFactory.class);
     // Embedding clients (OpenAI Java SDK) require a non-blank key to construct even for keyless
@@ -34,17 +37,17 @@ class RagComponentsFactory {
     private final RagProperties ragProperties;
     private final PgVectorAvailability pgVectorAvailability;
 
-    int pgvectorDimensions() {
+    public int pgvectorDimensions() {
         return ragProperties.pgvectorDimensions();
     }
 
-    EmbeddingModel embeddingModel(AiConfigEntity entity) {
+    public EmbeddingModel embeddingModel(AiConfigEntity entity) {
         var apiKey = decryptOrPlaceholder(entity.getEmbeddingApiKeyEncrypted());
         return embeddingModelFactory.create(entity.getEmbeddingProvider(), apiKey,
                 entity.getEmbeddingModel(), entity.getEmbeddingEndpoint());
     }
 
-    VectorStore vectorStore(AiConfigEntity entity, EmbeddingModel embeddingModel) {
+    public VectorStore vectorStore(AiConfigEntity entity, EmbeddingModel embeddingModel) {
         var ragApiKey = decryptOrNull(entity.getRagApiKeyEncrypted());
         return vectorStoreFactory.create(entity.getRagStoreType(), embeddingModel,
                 ragProperties.pgvectorDimensions(), entity.getRagEndpoint(),

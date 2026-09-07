@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal.config;
 
+import com.bablsoft.accessflow.core.api.PgVectorStatus;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationVersion;
@@ -77,8 +78,20 @@ class PgVectorFlywayConfiguration {
                 }
                 migrateSkippingVectorStore(flyway, jdbc);
             }
-            availability.set(available);
+            availability.set(status(properties, available));
         };
+    }
+
+    /**
+     * The unavailable state carries its reason (AF-901): an opted-out deployment and one whose
+     * extension is simply not installed need different fixes, and features that ask an admin to
+     * make pgvector work report them distinctly.
+     */
+    private PgVectorStatus status(PgVectorProperties properties, boolean available) {
+        if (available) {
+            return PgVectorStatus.AVAILABLE;
+        }
+        return properties.enabled() ? PgVectorStatus.EXTENSION_MISSING : PgVectorStatus.DISABLED;
     }
 
     private void tryCreateExtension(JdbcTemplate jdbc) {

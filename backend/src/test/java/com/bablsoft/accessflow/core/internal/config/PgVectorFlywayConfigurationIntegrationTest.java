@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal.config;
 
+import com.bablsoft.accessflow.core.api.PgVectorStatus;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -74,6 +75,7 @@ class PgVectorFlywayConfigurationIntegrationTest {
         strategy(true, true, availability).migrate(flyway());
 
         assertThat(availability.isAvailable()).isFalse();
+        assertThat(availability.status()).isEqualTo(PgVectorStatus.EXTENSION_MISSING);
         assertThat(extensionCount()).isZero();
         assertThat(tableExists("knowledge_document")).isTrue();
         assertThat(tableExists("vector_store")).isFalse();
@@ -103,6 +105,8 @@ class PgVectorFlywayConfigurationIntegrationTest {
         strategy(false, true, availability).migrate(flyway());
 
         assertThat(availability.isAvailable()).isFalse();
+        // Opting out and a missing extension need different fixes, so they are reported apart.
+        assertThat(availability.status()).isEqualTo(PgVectorStatus.DISABLED);
         assertThat(tableExists("knowledge_document")).isTrue();
         assertThat(tableExists("vector_store")).isFalse();
     }
