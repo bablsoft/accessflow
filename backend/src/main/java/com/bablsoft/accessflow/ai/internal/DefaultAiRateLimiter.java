@@ -72,7 +72,10 @@ class DefaultAiRateLimiter implements AiRateLimiter {
                 .withDayOfMonth(1)
                 .atStartOfDay(ZoneOffset.UTC)
                 .toInstant();
-        long used = aiAnalysisStatsLookupService.sumTokensSince(organizationId, monthStart);
+        // Query analysis and help chat spend the same provider key, and help turns are deliberately
+        // not ai_analyses rows (epic AF-899 decision 10), so the budget has to add both.
+        long used = aiAnalysisStatsLookupService.sumTokensSince(organizationId, monthStart)
+                + aiAnalysisStatsLookupService.sumHelpChatTokensSince(organizationId, monthStart);
         if (used >= budget) {
             log.warn("AI monthly token budget exhausted for org {}: used {} of {} tokens",
                     organizationId, used, budget);

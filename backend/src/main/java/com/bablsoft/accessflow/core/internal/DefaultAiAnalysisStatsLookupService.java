@@ -61,4 +61,17 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
     public long sumTokensSince(UUID organizationId, Instant since) {
         return repository.sumTokensSince(organizationId, since);
     }
+
+    /**
+     * Zero until help conversations are persisted (AF-904 adds the table this will sum).
+     *
+     * <p>The interface method lands with the runtime that spends the tokens (AF-903) rather than with
+     * the table, so the rate limiter already adds a help sum to its budget check and the later change
+     * is one query body rather than a second pass over the limiter. Zero is the honest answer in the
+     * meantime: nothing records help tokens yet, so nothing has been spent that this could report.
+     */
+    @Override
+    public long sumHelpChatTokensSince(UUID organizationId, Instant since) {
+        return 0L;
+    }
 }

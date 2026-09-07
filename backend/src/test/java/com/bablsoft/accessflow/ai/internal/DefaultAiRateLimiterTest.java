@@ -93,6 +93,7 @@ class DefaultAiRateLimiterTest {
     @Test
     void budgetUnderLimitPasses() {
         when(statsLookupService.sumTokensSince(orgId, monthStart)).thenReturn(500L);
+        when(statsLookupService.sumHelpChatTokensSince(orgId, monthStart)).thenReturn(0L);
 
         limiter(0, 1000).enforce(orgId);
 
@@ -103,11 +104,27 @@ class DefaultAiRateLimiterTest {
     @Test
     void budgetReachedThrows() {
         when(statsLookupService.sumTokensSince(orgId, monthStart)).thenReturn(1000L);
+        when(statsLookupService.sumHelpChatTokensSince(orgId, monthStart)).thenReturn(0L);
 
         assertThatThrownBy(() -> limiter(0, 1000).enforce(orgId))
                 .isInstanceOfSatisfying(AiBudgetExceededException.class, ex -> {
                     assertThat(ex.budget()).isEqualTo(1000L);
                     assertThat(ex.used()).isEqualTo(1000L);
                 });
+    }
+
+    /**
+     * Help chat spends the same provider key but writes no {@code ai_analyses} row (epic AF-899
+     * decision 10), so a budget that ignored its tokens would let a chatty help agent drain the
+     * month invisibly and never trip. Neither sum alone reaches the budget here; together they do.
+     */
+    @Test
+    void helpChatTokensCountAgainstTheSameMonthlyBudget() {
+        when(statsLookupService.sumTokensSince(orgId, monthStart)).thenReturn(600L);
+        when(statsLookupService.sumHelpChatTokensSince(orgId, monthStart)).thenReturn(450L);
+
+        assertThatThrownBy(() -> limiter(0, 1000).enforce(orgId))
+                .isInstanceOfSatisfying(AiBudgetExceededException.class,
+                        ex -> assertThat(ex.used()).isEqualTo(1050L));
     }
 }
