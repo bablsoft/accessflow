@@ -4,7 +4,12 @@ import i18n, { isSupportedLanguage, type Language } from '@/i18n';
 
 export type ThemeMode = 'light' | 'dark';
 
-export type SetupStepId = 'review_plans' | 'datasources' | 'ai_provider';
+export type SetupStepId =
+  | 'review_plans'
+  | 'datasources'
+  | 'ai_provider'
+  | 'api_connectors'
+  | 'deployment_pipelines';
 
 /** The customizable widgets on the personalized dashboard (AF-498), in their natural order. */
 export type DashboardWidgetId =

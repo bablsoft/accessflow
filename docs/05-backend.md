@@ -2481,13 +2481,16 @@ Lives in `core/` (services) and `security/internal/web/` (REST surface). Endpoin
 
 ## Setup Progress
 
-Lives in `api/` (the cross-cutting REST aggregator module). Powers the frontend setup-completion widget that nags fresh-install admins until they have at least one datasource, one review plan, and an AI provider configured.
+Lives in `api/` (the cross-cutting REST aggregator module). Powers the frontend setup-completion widget that nags fresh-install admins until they have at least one datasource, one review plan, and an AI provider configured — plus, for each governance domain the org opted into, its first API connector / deployment pipeline (AF-898).
 
-- `core/api/OrganizationSetupLookupService` — public interface in `core` exposing `hasAnyDatasource(orgId)` and `hasAnyReviewPlan(orgId)`. Backed by derived `existsByOrganization_Id` repository methods so no rows are loaded just to count.
-- `api/internal/DefaultSetupProgressService` — combines the two lookups with `ai.api.AiConfigService#getOrDefault` to compute `SetupProgressView`. AI is considered configured when the merged config reports `apiKeyMasked == true` (an API key is stored, whether via DB row or env defaults) **or** when the provider is `OLLAMA` (local, needs no key).
-- `api/internal/web/AdminSetupProgressController` — `GET /api/v1/admin/setup-progress`, `@PreAuthorize("hasAuthority('PERM_SETUP_PROGRESS_VIEW')")`. Returns a snake_case JSON snapshot; see [`docs/04-api-spec.md`](04-api-spec.md#get-adminsetup-progress).
+- `core/api/OrganizationSetupLookupService` — public interface in `core` exposing `hasAnyDatasource(orgId)`, `hasAnyReviewPlan(orgId)`, and the two domain hints `governsApis(orgId)` / `governsDeployments(orgId)`. Backed by derived `existsBy…` repository methods so no rows are loaded just to count.
+- `apigov/api/ApiConnectorLookupService#hasAnyConnector(orgId)` and `deploygov/api/DeploymentPipelineLookupService#hasAnyPipeline(orgId)` — module-owned existence checks, deliberately **not** filtered on `active`: a connector or pipeline the admin later deactivated still means the onboarding step was done.
+- `api/internal/DefaultSetupProgressService` — combines the lookups with `ai.api.AiConfigLookupService#hasAnyUsableAiConfig` to compute `SetupProgressView`. An org counts as having an AI provider when at least one of its `ai_config` rows is *usable*: a stored API key, **or** a provider that may run keyless — `OLLAMA`, `OPENAI_COMPATIBLE`, `HUGGING_FACE` (self-hosted endpoints; see [§ Setup progress](#setup-progress) in the AI chapter). `total_steps` is dynamic — the three database-governance steps plus one per governed domain (3–5) — and an ungoverned domain short-circuits before its module lookup runs, so it costs no query.
+- `api/internal/web/AdminSetupProgressController` — `GET /api/v1/admin/setup-progress`, `@PreAuthorize("hasAuthority('PERM_SETUP_PROGRESS_VIEW')")`. Returns a snake_case JSON snapshot, echoing the two `governs_*` flags so the frontend builds the same step list rather than inferring it; see [`docs/04-api-spec.md`](04-api-spec.md#get-adminsetup-progress). No new `Permission` value — `SETUP_PROGRESS_VIEW` already covers the endpoint.
 
-Placing the controller in `api/` (which imports `core.api` and `ai.api` cleanly) avoids a cycle between `core` and `ai`. The service runs read-only in a single transaction.
+Placing the controller in `api/` (which imports `core.api`, `ai.api`, `apigov.api` and `deploygov.api` cleanly, and which nothing imports back) avoids a cycle. The service runs read-only in a single transaction.
+
+The domain answer itself is collected by the first-run wizard and travels on `POST /auth/setup` (`security/internal/web/model/SetupRequest` → `core.api.SetupCommand` → `BootstrapServiceImpl#performSetup`). The two request fields are boxed `Boolean` with defaulted accessors: an **absent** primitive boolean fails Jackson 3's `FAIL_ON_NULL_FOR_PRIMITIVES`, and both flags are optional. Changing the answer later goes through the existing `PUT /platform/organizations/{id}` update surface rather than a new endpoint. A bootstrapped install (`ACCESSFLOW_BOOTSTRAP_ENABLED=true`) never runs the wizard, so both flags stay `false` and the two optional steps simply never appear — the same `PUT` turns them on.
 
 ---
 

@@ -15,6 +15,8 @@ public record OrganizationView(
         Integer maxDatasources,
         Integer maxUsers,
         Integer maxQueriesPerDay,
+        boolean governsApis,
+        boolean governsDeployments,
         Instant createdAt,
         Instant updatedAt
 ) {}

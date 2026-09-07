@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,7 @@ class DefaultOrganizationSetupLookupServiceTest {
 
     @Mock DatasourceRepository datasourceRepository;
     @Mock ReviewPlanRepository reviewPlanRepository;
+    @Mock OrganizationRepository organizationRepository;
     @InjectMocks DefaultOrganizationSetupLookupService service;
 
     @Test
@@ -50,5 +52,37 @@ class DefaultOrganizationSetupLookupServiceTest {
         when(reviewPlanRepository.existsByOrganization_Id(orgId)).thenReturn(false);
 
         assertThat(service.hasAnyReviewPlan(orgId)).isFalse();
+    }
+
+    @Test
+    void governsApisDelegatesToRepository() {
+        var orgId = UUID.randomUUID();
+        when(organizationRepository.existsByIdAndGovernsApisTrue(orgId)).thenReturn(true);
+
+        assertThat(service.governsApis(orgId)).isTrue();
+    }
+
+    @Test
+    void governsApisReturnsFalseWhenFlagUnset() {
+        var orgId = UUID.randomUUID();
+        when(organizationRepository.existsByIdAndGovernsApisTrue(orgId)).thenReturn(false);
+
+        assertThat(service.governsApis(orgId)).isFalse();
+    }
+
+    @Test
+    void governsDeploymentsDelegatesToRepository() {
+        var orgId = UUID.randomUUID();
+        when(organizationRepository.existsByIdAndGovernsDeploymentsTrue(orgId)).thenReturn(true);
+
+        assertThat(service.governsDeployments(orgId)).isTrue();
+    }
+
+    @Test
+    void governsDeploymentsReturnsFalseWhenFlagUnset() {
+        var orgId = UUID.randomUUID();
+        when(organizationRepository.existsByIdAndGovernsDeploymentsTrue(orgId)).thenReturn(false);
+
+        assertThat(service.governsDeployments(orgId)).isFalse();
     }
 }

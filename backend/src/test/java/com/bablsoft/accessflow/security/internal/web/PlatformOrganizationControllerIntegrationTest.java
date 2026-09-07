@@ -151,6 +151,31 @@ class PlatformOrganizationControllerIntegrationTest {
         assertThat(result).hasStatus(200);
         assertThat(result).bodyJson().extractingPath("$.name").asString().isEqualTo("Renamed");
         assertThat(result).bodyJson().extractingPath("$.max_users").asNumber().isEqualTo(99);
+        // Omitted governance flags are left alone (null-means-skip).
+        assertThat(result).bodyJson().extractingPath("$.governs_apis").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.governs_deployments").asBoolean().isFalse();
+    }
+
+    @Test
+    void updateChangesGovernanceDomains() {
+        // The only post-first-run way to change the onboarding domain answer (AF-898).
+        var result = mvc.put().uri("/api/v1/platform/organizations/" + otherOrg.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + platformToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"governs_apis":true,"governs_deployments":false}
+                        """)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.governs_apis").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.governs_deployments").asBoolean().isFalse();
+
+        var reread = mvc.get().uri("/api/v1/platform/organizations/" + otherOrg.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + platformToken)
+                .exchange();
+        assertThat(reread).bodyJson().extractingPath("$.governs_apis").asBoolean().isTrue();
+        assertThat(reread).bodyJson().extractingPath("$.governs_deployments").asBoolean().isFalse();
     }
 
     @Test

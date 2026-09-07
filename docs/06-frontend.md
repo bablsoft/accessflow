@@ -469,22 +469,33 @@ The version under the brand mark in the sidebar. Queries `GET /api/v1/system/upd
 
 ### SetupProgressWidget (`components/common/SetupProgressWidget.tsx`)
 
-A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: returns `null` unless the current user is an `ADMIN` and every step is either configured server-side or skipped client-side. Non-admins and tenants that have finished onboarding never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`).
+A collapsible banner mounted in `AppLayout` directly above the route `<Outlet />`. It self-gates: it renders only for a user holding `SETUP_PROGRESS_VIEW` who still has at least one step neither configured server-side nor skipped client-side. Users without the permission, and tenants that have finished onboarding, never see it. Data comes from `GET /api/v1/admin/setup-progress` via TanStack Query (key `['setupProgress','current']`, `staleTime: 30s`).
 
-The widget shows three numbered rows in this order:
+The step list is **built from the response**, not fixed. Three rows are always present, in this order:
 
 1. **Create a review plan** → `/admin/review-plans`
-2. **Add your first datasource** → `/datasources/new`
-3. **Configure the AI provider** → `/admin/ai-configs/new`
+2. **Configure the AI provider** → `/admin/ai-configs`
+3. **Add your first datasource** → `/datasources/new`
 
-Review plan is first because every datasource references a plan; AI is last because it is the most likely step to be skipped on a fresh install. Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once all three are accounted for, the widget hides entirely.
+Review plan is first because every datasource references a plan; the AI provider comes before datasources so admins land on the datasource wizard with an AI config available to pick (AI is still skippable per datasource).
+
+One further row is appended, last, per governance domain the organization opted into — so zero, one or two extra rows (AF-898):
+
+- **Create your first API connector** → `/api-connectors` — only when `governs_apis` **and** the caller holds `API_CONNECTOR_MANAGE`.
+- **Create your first deployment pipeline** → `/admin/deployment-pipelines` — only when `governs_deployments` **and** the caller holds `DEPLOYMENT_PIPELINE_MANAGE`.
+
+Rows are numbered by rendered position, so with only `governs_deployments` on, the pipeline step is row 4.
+
+The permission half of each condition is the widget's own: the payload is identical for every `SETUP_PROGRESS_VIEW` holder, and a step that links to a 403 is worse than no step. The domain flags are an onboarding hint only — they never gate the `/api-connectors` or `/admin/deployment-pipelines` routes themselves.
+
+Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once every rendered step is accounted for, the widget hides entirely.
 
 State lives in `preferencesStore`:
 
 - `setupProgressCollapsed` — collapse/expand state of the checklist body.
-- `setupProgressSkipped: SetupStepId[]` — the IDs the admin marked skipped. Persisted to `localStorage` via Zustand `persist`, so the choice survives reloads but is intentionally per-browser (not per-org) since skipping is a UX nudge, not a policy.
+- `setupProgressSkipped: SetupStepId[]` — the IDs the admin marked skipped (`review_plans`, `datasources`, `ai_provider`, `api_connectors`, `deployment_pipelines`). Persisted to `localStorage` via Zustand `persist`, so the choice survives reloads but is intentionally per-browser (not per-org) since skipping is a UX nudge, not a policy.
 
-The relevant mutations (create datasource, create review plan, save AI config) invalidate `setupProgressKeys.current()` on success so the widget reacts immediately when an admin completes a step the real way.
+The relevant mutations (create datasource, create review plan, save AI config, create API connector, create deployment pipeline) invalidate `setupProgressKeys.current()` on success so the widget reacts immediately when an admin completes a step the real way.
 
 ### AI configuration system prompt
 
@@ -919,7 +930,7 @@ for deployment recipes (Docker Compose, Helm).
 ## Routing Structure
 
 ```
-/setup                              → SetupPage (2-step wizard: org+admin, then optional system SMTP)
+/setup                              → SetupPage (3-step wizard: org+admin, governance domains, then optional system SMTP)
 /login                              → LoginPage (also renders the TOTP verification stage)
 /invite/:token                      → AcceptInvitePage (public; previews + accepts a user invitation)
 /forgot-password                    → ForgotPasswordPage (public; request a password-reset email)
@@ -1063,7 +1074,17 @@ Labels are `t()`-keyed under `nav.sub_*` (plus `nav.group_connections`, which re
 
 ### Setup wizard
 
-`SetupPage` is a two-step state machine. Step 1 collects org name + admin email/password and submits `POST /auth/setup`; the response now returns a `LoginResponse` and sets the refresh cookie so the SPA can call admin endpoints as the freshly-created admin. Step 2 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
+`SetupPage` is a three-step state machine (`Step = 'account' | 'domains' | 'smtp'`).
+
+Step 1 collects org name + admin email/password and **only advances** — it fires no request. `POST /auth/setup` is one-shot, so it must carry the governance-domain answer, which does not exist yet at that point; the button therefore reads **Continue**, not "Create admin".
+
+Step 2 (AF-898) asks which domains the organization plans to govern: two switches, **Govern outbound API calls** and **Gate CI/CD deployments**, each off by default with one explanatory line and a `docsUrl()` deep link to the matching docs chapter. Database access governance is always on and has no switch. This is the step that submits `POST /auth/setup` — **Create admin** sends the switch values, **Skip — databases only** sends both as `false`; both paths create the admin. The response returns a `LoginResponse` and sets the refresh cookie so the SPA can call admin endpoints as the freshly-created admin. A failure keeps the user on this step with the shared error `Alert`, both buttons still live. **Back** returns to step 1 with the typed values intact — the request can be rejected on an account field (409 `EMAIL_ALREADY_EXISTS`), which lives on the previous step. Copy is `t()`-keyed under `auth.setup.domains.*`.
+
+Each step's `<Form>` carries its own `key`, so React remounts rather than reusing the fiber: rc-field-form latches both the `form` prop and `initialValues` on first mount, so without the keys only `accountForm` would ever be bound and every step's `initialValues` after the first would be silently dropped.
+
+The answer is changeable later on `/admin/organizations/:id` (`OrganizationDetailPage`), which carries the same two switches and sends them on `PUT /platform/organizations/{id}` — a platform-admin surface, and the first-run admin is provisioned as a platform admin.
+
+Step 3 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
 
 ### User invitations on `/admin/users`
 

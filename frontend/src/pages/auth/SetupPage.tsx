@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { apiErrorTraceId, setupErrorMessage } from '@/utils/apiErrors';
 import { TraceIdFooter } from '@/components/common/TraceIdFooter';
 import { LogoMark } from '@/components/common/LogoMark';
+import { docsUrl } from '@/config/docs';
 import type { UpdateSystemSmtpInput } from '@/types/api';
 
 interface SetupFormValues {
@@ -30,7 +31,25 @@ interface SmtpFormValues {
   from_name?: string;
 }
 
-type Step = 'account' | 'smtp';
+type Step = 'account' | 'domains' | 'smtp';
+
+const STEP_TITLE_KEY = {
+  account: 'auth.setup.title',
+  domains: 'auth.setup.domains.title',
+  smtp: 'auth.setup.smtp.title',
+} as const;
+
+const STEP_SUBTITLE_KEY = {
+  account: 'auth.setup.subtitle',
+  domains: 'auth.setup.domains.subtitle',
+  smtp: 'auth.setup.smtp.subtitle',
+} as const;
+
+/** Governance domains the org opts into (AF-898). Database governance is always on. */
+interface DomainsFormValues {
+  governs_apis: boolean;
+  governs_deployments: boolean;
+}
 
 export function SetupPage() {
   const { t } = useTranslation();
@@ -40,29 +59,54 @@ export function SetupPage() {
   const [step, setStep] = useState<Step>('account');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<{ message: string; traceId?: string } | null>(null);
+  const [account, setAccount] = useState<SetupFormValues | null>(null);
   const [accountForm] = Form.useForm<SetupFormValues>();
+  const [domainsForm] = Form.useForm<DomainsFormValues>();
   const [smtpForm] = Form.useForm<SmtpFormValues>();
 
-  const onAccountFinish = async (values: SetupFormValues): Promise<void> => {
+  // The account step only collects and advances — /auth/setup is one-shot, so it fires once,
+  // from the domains step, carrying the governance-domain answer with it (AF-898).
+  const onAccountFinish = (values: SetupFormValues): void => {
+    setError(null);
+    setAccount(values);
+    setStep('domains');
+  };
+
+  const createAdmin = async (domains: DomainsFormValues): Promise<void> => {
+    if (!account) return;
     setError(null);
     setSubmitting(true);
     try {
       const req: SetupRequest = {
-        organization_name: values.organization_name.trim(),
-        email: values.email.trim(),
-        password: values.password,
+        organization_name: account.organization_name.trim(),
+        email: account.email.trim(),
+        password: account.password,
+        governs_apis: domains.governs_apis,
+        governs_deployments: domains.governs_deployments,
       };
-      const displayName = values.display_name?.trim();
+      const displayName = account.display_name?.trim();
       if (displayName) req.display_name = displayName;
       const session = await submitSetup(req);
       setSetupRequired(false);
       setSession(session);
+      setAccount(null); // drop the plaintext password from React state
       setStep('smtp');
     } catch (err) {
       setError({ message: setupErrorMessage(err), traceId: apiErrorTraceId(err) });
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const onDomainsSkip = (): Promise<void> =>
+    createAdmin({ governs_apis: false, governs_deployments: false });
+
+  // POST /auth/setup can reject on an account field (409 EMAIL_ALREADY_EXISTS), which lives on
+  // the previous step — so the domains step must be able to go back. `account` re-seeds the
+  // remounted form, so nothing typed is lost.
+  const onDomainsBack = (): void => {
+    setError(null);
+    setStep('account');
   };
 
   const onSmtpFinish = async (values: SmtpFormValues): Promise<void> => {
@@ -139,14 +183,10 @@ export function SetupPage() {
         >
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              {step === 'account'
-                ? t('auth.setup.title')
-                : t('auth.setup.smtp.title')}
+              {t(STEP_TITLE_KEY[step])}
             </div>
             <div className="muted" style={{ fontSize: 13 }}>
-              {step === 'account'
-                ? t('auth.setup.subtitle')
-                : t('auth.setup.smtp.subtitle')}
+              {t(STEP_SUBTITLE_KEY[step])}
             </div>
           </div>
 
@@ -163,11 +203,12 @@ export function SetupPage() {
 
           {step === 'account' ? (
             <Form<SetupFormValues>
+              key="account"
               form={accountForm}
               layout="vertical"
               onFinish={onAccountFinish}
               requiredMark={false}
-              disabled={submitting}
+              initialValues={account ?? undefined}
             >
               <Form.Item
                 label={t('auth.setup.org_name_label')}
@@ -245,14 +286,78 @@ export function SetupPage() {
                 size="large"
                 block
                 htmlType="submit"
-                disabled={submitting}
-                icon={submitting ? <LoadingOutlined /> : <ArrowRightOutlined />}
+                icon={<ArrowRightOutlined />}
               >
-                {submitting ? t('auth.setup.submitting') : t('auth.setup.submit')}
+                {t('auth.setup.next')}
               </Button>
+            </Form>
+          ) : step === 'domains' ? (
+            <Form<DomainsFormValues>
+              key="domains"
+              form={domainsForm}
+              layout="vertical"
+              onFinish={createAdmin}
+              requiredMark={false}
+              disabled={submitting}
+              initialValues={{ governs_apis: false, governs_deployments: false }}
+            >
+              <div className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
+                {t('auth.setup.domains.always_on')}
+              </div>
+
+              <Form.Item
+                label={t('auth.setup.domains.apis_label')}
+                name="governs_apis"
+                valuePropName="checked"
+                extra={(
+                  <>
+                    {t('auth.setup.domains.apis_help')}{' '}
+                    <a href={docsUrl('cfg-api-connectors')} target="_blank" rel="noreferrer">
+                      {t('auth.setup.domains.learn_more_apis')}
+                    </a>
+                  </>
+                )}
+              >
+                <Switch />
+              </Form.Item>
+
+              <Form.Item
+                label={t('auth.setup.domains.deployments_label')}
+                name="governs_deployments"
+                valuePropName="checked"
+                extra={(
+                  <>
+                    {t('auth.setup.domains.deployments_help')}{' '}
+                    <a href={docsUrl('cfg-deployment-pipelines')} target="_blank" rel="noreferrer">
+                      {t('auth.setup.domains.learn_more_deployments')}
+                    </a>
+                  </>
+                )}
+              >
+                <Switch />
+              </Form.Item>
+
+              <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+                <Button onClick={onDomainsBack} disabled={submitting}>
+                  {t('auth.setup.domains.back')}
+                </Button>
+                <Button block onClick={() => void onDomainsSkip()} disabled={submitting}>
+                  {t('auth.setup.domains.skip')}
+                </Button>
+                <Button
+                  type="primary"
+                  block
+                  htmlType="submit"
+                  disabled={submitting}
+                  icon={submitting ? <LoadingOutlined /> : undefined}
+                >
+                  {submitting ? t('auth.setup.submitting') : t('auth.setup.submit')}
+                </Button>
+              </div>
             </Form>
           ) : (
             <Form<SmtpFormValues>
+              key="smtp"
               form={smtpForm}
               layout="vertical"
               onFinish={onSmtpFinish}

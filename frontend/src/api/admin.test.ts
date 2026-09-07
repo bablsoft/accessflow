@@ -492,8 +492,12 @@ describe('api/admin', () => {
       datasources_configured: false,
       review_plans_configured: true,
       ai_provider_configured: false,
+      governs_apis: true,
+      api_connectors_configured: false,
+      governs_deployments: false,
+      deployment_pipelines_configured: false,
       completed_steps: 1,
-      total_steps: 3,
+      total_steps: 4,
       complete: false,
     };
     get.mockResolvedValueOnce({ data: fixture });

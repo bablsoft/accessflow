@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.BootstrapService;
 import com.bablsoft.accessflow.core.api.LocalizationConfigService;
 import com.bablsoft.accessflow.core.api.PublicLocalizationConfigView;
+import com.bablsoft.accessflow.core.api.SetupCommand;
 import com.bablsoft.accessflow.core.api.SetupResult;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
@@ -33,6 +34,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -146,11 +148,31 @@ class AuthControllerTest {
                 .thenReturn(new AuthResult("access", "refresh", "Bearer", 900L, user));
 
         var response = controller.setup(
-                new SetupRequest("Acme", "admin@example.com", "Admin", "Password123!"),
+                new SetupRequest("Acme", "admin@example.com", "Admin", "Password123!", null, null),
                 auditContext, new MockHttpServletResponse());
 
         assertThat(response.getStatusCode().value()).isEqualTo(201);
         assertThat(response.getBody().accessToken()).isEqualTo("access");
+    }
+
+    @Test
+    void setupPassesTheGovernanceDomainHintsThroughAndDefaultsAbsentFlagsToFalse() {
+        when(passwordEncoder.encode("Password123!")).thenReturn("hashed");
+        when(bootstrapService.performSetup(any()))
+                .thenReturn(new SetupResult(UUID.randomUUID(), UUID.randomUUID()));
+        var user = userView(UserRoleType.ADMIN);
+        when(authenticationService.login(any()))
+                .thenReturn(new AuthResult("access", "refresh", "Bearer", 900L, user));
+
+        controller.setup(
+                new SetupRequest("Acme", "admin@example.com", "Admin", "Password123!", null, true),
+                auditContext, new MockHttpServletResponse());
+
+        var command = ArgumentCaptor.forClass(SetupCommand.class);
+        verify(bootstrapService).performSetup(command.capture());
+        // Asymmetric: an absent flag defaults to false, a present true survives.
+        assertThat(command.getValue().governsApis()).isFalse();
+        assertThat(command.getValue().governsDeployments()).isTrue();
     }
 
     @Test

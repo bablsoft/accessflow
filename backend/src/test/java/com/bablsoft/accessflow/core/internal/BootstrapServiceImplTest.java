@@ -64,7 +64,7 @@ class BootstrapServiceImplTest {
                 });
 
         var result = service.performSetup(new SetupCommand(
-                "Acme", "admin@acme.com", "Acme Admin", "hashed-pass"));
+                "Acme", "admin@acme.com", "Acme Admin", "hashed-pass", true, false));
 
         assertThat(result.userId()).isEqualTo(createdUserId);
         assertThat(result.organizationId()).isNotNull();
@@ -73,6 +73,8 @@ class BootstrapServiceImplTest {
         verify(organizationRepository).save(orgCaptor.capture());
         assertThat(orgCaptor.getValue().getName()).isEqualTo("Acme");
         assertThat(orgCaptor.getValue().getSlug()).isEqualTo("acme");
+        assertThat(orgCaptor.getValue().isGovernsApis()).isTrue();
+        assertThat(orgCaptor.getValue().isGovernsDeployments()).isFalse();
 
         var cmdCaptor = ArgumentCaptor.forClass(CreateUserCommand.class);
         verify(userAdminService).createUser(cmdCaptor.capture());
@@ -98,7 +100,7 @@ class BootstrapServiceImplTest {
                             AuthProviderType.LOCAL, cmd.passwordHash(), null, null, false, null);
                 });
 
-        service.performSetup(new SetupCommand("Acme", "x@y.z", "X", "h"));
+        service.performSetup(new SetupCommand("Acme", "x@y.z", "X", "h", false, false));
 
         var orgCaptor = ArgumentCaptor.forClass(OrganizationEntity.class);
         verify(organizationRepository).save(orgCaptor.capture());
@@ -119,7 +121,7 @@ class BootstrapServiceImplTest {
                             AuthProviderType.LOCAL, cmd.passwordHash(), null, null, false, null);
                 });
 
-        service.performSetup(new SetupCommand("Widgets & Co!", "x@y.z", "X", "h"));
+        service.performSetup(new SetupCommand("Widgets & Co!", "x@y.z", "X", "h", false, false));
 
         var orgCaptor = ArgumentCaptor.forClass(OrganizationEntity.class);
         verify(organizationRepository).save(orgCaptor.capture());
@@ -131,7 +133,7 @@ class BootstrapServiceImplTest {
         when(userRepository.existsByRoleAndActive(UserRoleType.ADMIN, true)).thenReturn(true);
 
         assertThatThrownBy(() -> service.performSetup(new SetupCommand(
-                "Acme", "admin@acme.com", "Acme Admin", "hashed")))
+                "Acme", "admin@acme.com", "Acme Admin", "hashed", false, false)))
                 .isInstanceOf(SetupAlreadyCompletedException.class);
 
         verify(organizationRepository, never()).save(any());

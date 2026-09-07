@@ -48,6 +48,8 @@ class BootstrapServiceImpl implements BootstrapService {
         organization.setId(UUID.randomUUID());
         organization.setName(command.organizationName());
         organization.setSlug(uniqueSlugFor(command.organizationName()));
+        organization.setGovernsApis(command.governsApis());
+        organization.setGovernsDeployments(command.governsDeployments());
         organization.setCreatedAt(Instant.now());
         organization.setUpdatedAt(Instant.now());
         var savedOrg = organizationRepository.save(organization);

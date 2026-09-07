@@ -84,12 +84,31 @@ class DefaultOrganizationAdminServiceTest {
         var entity = org();
         when(organizationRepository.findById(orgId)).thenReturn(Optional.of(entity));
 
-        var result = service().update(orgId, new UpdateOrganizationCommand("Renamed", null, 99, null));
+        var result = service().update(orgId, new UpdateOrganizationCommand("Renamed", null, 99, null, null, null));
 
         assertThat(result.name()).isEqualTo("Renamed");
         assertThat(result.maxDatasources()).isEqualTo(10); // unchanged (null skip)
         assertThat(result.maxUsers()).isEqualTo(99);
+        assertThat(result.governsApis()).isFalse();        // unchanged (null skip)
+        assertThat(result.governsDeployments()).isFalse(); // unchanged (null skip)
         assertThat(entity.getUpdatedAt()).isEqualTo(clock.instant());
+    }
+
+    @Test
+    void updateAppliesGovernanceDomainsIndependently() {
+        var entity = org();
+        entity.setGovernsApis(true);
+        when(organizationRepository.findById(orgId)).thenReturn(Optional.of(entity));
+
+        // Asymmetric on purpose: false-vs-true and set-vs-skip both have to survive, so a
+        // transposed pair in toView() or a dropped setter cannot pass.
+        var result = service().update(orgId,
+                new UpdateOrganizationCommand(null, null, null, null, false, true));
+
+        assertThat(result.governsApis()).isFalse();
+        assertThat(result.governsDeployments()).isTrue();
+        assertThat(entity.isGovernsApis()).isFalse();
+        assertThat(entity.isGovernsDeployments()).isTrue();
     }
 
     @Test

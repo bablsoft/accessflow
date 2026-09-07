@@ -11,4 +11,13 @@ public interface OrganizationSetupLookupService {
     boolean hasAnyDatasource(UUID organizationId);
 
     boolean hasAnyReviewPlan(UUID organizationId);
+
+    /**
+     * Whether the organization opted into API access governance during first-run setup (AF-898).
+     * A hint that decides which onboarding steps appear — never an entitlement.
+     */
+    boolean governsApis(UUID organizationId);
+
+    /** Whether the organization opted into deployment approval governance (AF-898). */
+    boolean governsDeployments(UUID organizationId);
 }

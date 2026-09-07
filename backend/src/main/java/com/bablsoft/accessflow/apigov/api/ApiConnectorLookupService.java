@@ -18,4 +18,12 @@ public interface ApiConnectorLookupService {
      * @return references to every <em>active</em> connector in the organization, ordered by name.
      */
     List<ApiConnectorRef> findActiveRefsByOrganization(UUID organizationId);
+
+    /**
+     * Whether the organization owns at least one connector, active or not — the onboarding
+     * checklist's "create your first API connector" step (AF-898). Cheaper than
+     * {@link #findActiveRefsByOrganization(UUID)}, and deliberately not filtered on {@code active}:
+     * a connector the admin later deactivated still means the step was done.
+     */
+    boolean hasAnyConnector(UUID organizationId);
 }

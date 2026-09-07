@@ -40,6 +40,15 @@ public class OrganizationEntity {
     @Column(name = "disabled", nullable = false)
     private boolean disabled = false;
 
+    // Governance domains the org intends to use (AF-898). Database governance is always on and has
+    // no flag; these two are an onboarding hint that only decides which first-run checklist steps
+    // appear — never an entitlement over apigov / deploygov.
+    @Column(name = "governs_apis", nullable = false)
+    private boolean governsApis = false;
+
+    @Column(name = "governs_deployments", nullable = false)
+    private boolean governsDeployments = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 

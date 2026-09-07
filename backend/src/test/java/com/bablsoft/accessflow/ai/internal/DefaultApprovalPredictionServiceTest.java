@@ -547,7 +547,7 @@ class DefaultApprovalPredictionServiceTest {
     // ------------------------------------------------------------------------ training
 
     private static OrganizationView organization(UUID id, boolean disabled) {
-        return new OrganizationView(id, "org", "org-" + id, disabled, null, null, null,
+        return new OrganizationView(id, "org", "org-" + id, disabled, null, null, null, false, false,
                 Instant.now(), Instant.now());
     }
 

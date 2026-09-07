@@ -24,4 +24,7 @@ public interface ApiConnectorRepository extends JpaRepository<ApiConnectorEntity
     Page<ApiConnectorEntity> findByOrganizationId(UUID organizationId, Pageable pageable);
 
     boolean existsByOrganizationIdAndName(UUID organizationId, String name);
+
+    /** Onboarding checklist (AF-898) — active or not, a connector means the step was done. */
+    boolean existsByOrganizationId(UUID organizationId);
 }

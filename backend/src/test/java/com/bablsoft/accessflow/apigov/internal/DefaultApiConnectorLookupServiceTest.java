@@ -81,4 +81,18 @@ class DefaultApiConnectorLookupServiceTest {
         assertThat(refs.get(1).id()).isEqualTo(otherId);
         assertThat(refs.get(1).reviewPlanId()).isEqualTo(reviewPlanId);
     }
+
+    @Test
+    void hasAnyConnectorDelegatesToTheActiveAgnosticExistenceQuery() {
+        when(connectorRepository.existsByOrganizationId(organizationId)).thenReturn(true);
+
+        assertThat(service.hasAnyConnector(organizationId)).isTrue();
+    }
+
+    @Test
+    void hasAnyConnectorReturnsFalseWhenTheOrganizationOwnsNone() {
+        when(connectorRepository.existsByOrganizationId(organizationId)).thenReturn(false);
+
+        assertThat(service.hasAnyConnector(organizationId)).isFalse();
+    }
 }

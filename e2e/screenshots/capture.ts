@@ -462,7 +462,13 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
       // Collapse and skip the SetupProgress banner so it does not clutter
       // every screenshot.
       setupProgressCollapsed: true,
-      setupProgressSkipped: ['review_plans', 'datasources', 'ai_provider'],
+      setupProgressSkipped: [
+        'review_plans',
+        'datasources',
+        'ai_provider',
+        'api_connectors',
+        'deployment_pipelines',
+      ],
     };
     localStorage.setItem(k, JSON.stringify(stored));
   }, theme);

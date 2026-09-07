@@ -69,6 +69,12 @@ class DefaultOrganizationAdminService implements OrganizationAdminService {
         if (command.maxQueriesPerDay() != null) {
             organization.setMaxQueriesPerDay(command.maxQueriesPerDay());
         }
+        if (command.governsApis() != null) {
+            organization.setGovernsApis(command.governsApis());
+        }
+        if (command.governsDeployments() != null) {
+            organization.setGovernsDeployments(command.governsDeployments());
+        }
         organization.setUpdatedAt(clock.instant());
         return toView(organization);
     }
@@ -107,6 +113,8 @@ class DefaultOrganizationAdminService implements OrganizationAdminService {
                 entity.getMaxDatasources(),
                 entity.getMaxUsers(),
                 entity.getMaxQueriesPerDay(),
+                entity.isGovernsApis(),
+                entity.isGovernsDeployments(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt());
     }

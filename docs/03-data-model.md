@@ -25,10 +25,15 @@ through the `/api/v1/platform/organizations` endpoints (see [04-api-spec.md → 
 | `max_datasources` | INTEGER nullable (AF-456) — per-org cap on datasources. NULL or 0 = unlimited. Enforced at datasource creation; breach → HTTP 409 `QUOTA_EXCEEDED`. |
 | `max_users` | INTEGER nullable (AF-456) — per-org cap on active users. NULL or 0 = unlimited. Enforced at user creation and invitation issuance (counts active users); breach → HTTP 409 `QUOTA_EXCEEDED`. |
 | `max_queries_per_day` | INTEGER nullable (AF-456) — per-org cap on query submissions. NULL or 0 = unlimited. Enforced as a rolling trailing-24h count over `query_requests` (no counter table, no reset job); breach → HTTP 409 `QUOTA_EXCEEDED`. |
+| `governs_apis` | BOOLEAN NOT NULL DEFAULT false (AF-898) — the org opted into API access governance in the first-run wizard. An **onboarding hint, not an entitlement**: it only adds the "create your first API connector" step to `GET /admin/setup-progress`, and never gates routes, permissions or navigation — `apigov` stays fully usable either way. Settable at `POST /auth/setup` and changeable later via `PUT /platform/organizations/{id}`. |
+| `governs_deployments` | BOOLEAN NOT NULL DEFAULT false (AF-898) — the same for deployment approval governance and the "create your first deployment pipeline" step. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ |
 
-The `disabled` / `max_*` columns are added by `V87__org_isolation_quotas_platform_admin.sql`.
+The `disabled` / `max_*` columns are added by `V87__org_isolation_quotas_platform_admin.sql`. The two
+`governs_*` columns are added by `V158__organization_governance_domains.sql`, whose backfill sets each
+flag to `true` for any organization that already owns an `api_connectors` / `deployment_pipelines`
+row — an upgraded tenant never gets its checklist re-opened with a step it has already satisfied.
 
 ---
 

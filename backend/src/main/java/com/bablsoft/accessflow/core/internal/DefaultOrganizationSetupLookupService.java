@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.OrganizationSetupLookupService;
 import com.bablsoft.accessflow.core.internal.persistence.repo.DatasourceRepository;
+import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ class DefaultOrganizationSetupLookupService implements OrganizationSetupLookupSe
 
     private final DatasourceRepository datasourceRepository;
     private final ReviewPlanRepository reviewPlanRepository;
+    private final OrganizationRepository organizationRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -26,5 +28,17 @@ class DefaultOrganizationSetupLookupService implements OrganizationSetupLookupSe
     @Transactional(readOnly = true)
     public boolean hasAnyReviewPlan(UUID organizationId) {
         return reviewPlanRepository.existsByOrganization_Id(organizationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean governsApis(UUID organizationId) {
+        return organizationRepository.existsByIdAndGovernsApisTrue(organizationId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean governsDeployments(UUID organizationId) {
+        return organizationRepository.existsByIdAndGovernsDeploymentsTrue(organizationId);
     }
 }

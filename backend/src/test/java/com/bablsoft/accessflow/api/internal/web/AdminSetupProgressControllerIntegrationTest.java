@@ -45,6 +45,7 @@ class AdminSetupProgressControllerIntegrationTest {
     @Autowired AiConfigRepository aiConfigRepository;
     @Autowired com.bablsoft.accessflow.ai.api.AiConfigService aiConfigService;
     @Autowired JwtService jwtService;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
@@ -56,6 +57,8 @@ class AdminSetupProgressControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
+        jdbcTemplate.update("DELETE FROM api_connectors");
+        jdbcTemplate.update("DELETE FROM deployment_pipelines");
         aiConfigRepository.deleteAll();
         datasourceRepository.deleteAll();
         reviewPlanRepository.deleteAll();
@@ -76,6 +79,8 @@ class AdminSetupProgressControllerIntegrationTest {
 
     @AfterEach
     void cleanup() {
+        jdbcTemplate.update("DELETE FROM api_connectors");
+        jdbcTemplate.update("DELETE FROM deployment_pipelines");
         aiConfigRepository.deleteAll();
         datasourceRepository.deleteAll();
         reviewPlanRepository.deleteAll();
@@ -91,6 +96,10 @@ class AdminSetupProgressControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.datasources_configured").asBoolean().isFalse();
         assertThat(result).bodyJson().extractingPath("$.review_plans_configured").asBoolean().isFalse();
         assertThat(result).bodyJson().extractingPath("$.ai_provider_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.governs_apis").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.api_connectors_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.governs_deployments").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.deployment_pipelines_configured").asBoolean().isFalse();
         assertThat(result).bodyJson().extractingPath("$.completed_steps").asNumber().isEqualTo(0);
         assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(3);
         assertThat(result).bodyJson().extractingPath("$.complete").asBoolean().isFalse();
@@ -113,7 +122,74 @@ class AdminSetupProgressControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.review_plans_configured").asBoolean().isTrue();
         assertThat(result).bodyJson().extractingPath("$.ai_provider_configured").asBoolean().isTrue();
         assertThat(result).bodyJson().extractingPath("$.completed_steps").asNumber().isEqualTo(3);
+        assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(3);
         assertThat(result).bodyJson().extractingPath("$.complete").asBoolean().isTrue();
+    }
+
+    @Test
+    void addsTheGovernedDomainStepsAndKeepsThemIncompleteUntilSatisfied() {
+        org.setGovernsApis(true);
+        org.setGovernsDeployments(true);
+        organizationRepository.save(org);
+
+        var result = mvc.get().uri("/api/v1/admin/setup-progress")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.governs_apis").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.governs_deployments").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.api_connectors_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.deployment_pipelines_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(5);
+        assertThat(result).bodyJson().extractingPath("$.complete").asBoolean().isFalse();
+    }
+
+    @Test
+    void marksTheApiStepDoneOnceTheGovernedOrganizationOwnsAConnector() {
+        org.setGovernsApis(true);
+        organizationRepository.save(org);
+        seedApiConnector();
+
+        var result = mvc.get().uri("/api/v1/admin/setup-progress")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.api_connectors_configured").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(4);
+        assertThat(result).bodyJson().extractingPath("$.completed_steps").asNumber().isEqualTo(1);
+    }
+
+    @Test
+    void marksTheDeploymentStepDoneOnceTheGovernedOrganizationOwnsAPipeline() {
+        org.setGovernsDeployments(true);
+        organizationRepository.save(org);
+        seedDeploymentPipeline();
+
+        var result = mvc.get().uri("/api/v1/admin/setup-progress")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.deployment_pipelines_configured").asBoolean().isTrue();
+        assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(4);
+        assertThat(result).bodyJson().extractingPath("$.completed_steps").asNumber().isEqualTo(1);
+    }
+
+    @Test
+    void ignoresAConnectorAndPipelineWhenNeitherDomainIsGoverned() {
+        seedApiConnector();
+        seedDeploymentPipeline();
+
+        var result = mvc.get().uri("/api/v1/admin/setup-progress")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.api_connectors_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.deployment_pipelines_configured").asBoolean().isFalse();
+        assertThat(result).bodyJson().extractingPath("$.total_steps").asNumber().isEqualTo(3);
     }
 
     @Test
@@ -130,6 +206,20 @@ class AdminSetupProgressControllerIntegrationTest {
         var result = mvc.get().uri("/api/v1/admin/setup-progress").exchange();
 
         assertThat(result).hasStatus(401);
+    }
+
+    private void seedApiConnector() {
+        jdbcTemplate.update("""
+                INSERT INTO api_connectors (id, organization_id, name, protocol, base_url)
+                VALUES (?, ?, ?, 'REST'::api_protocol, 'https://api.test')
+                """, UUID.randomUUID(), org.getId(), "connector-" + UUID.randomUUID());
+    }
+
+    private void seedDeploymentPipeline() {
+        jdbcTemplate.update("""
+                INSERT INTO deployment_pipelines (id, organization_id, name, provider)
+                VALUES (?, ?, ?, 'GITHUB_ACTIONS'::pipeline_provider)
+                """, UUID.randomUUID(), org.getId(), "pipeline-" + UUID.randomUUID());
     }
 
     private void seedDatasource() {

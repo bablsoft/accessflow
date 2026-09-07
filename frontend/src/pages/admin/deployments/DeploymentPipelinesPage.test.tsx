@@ -32,6 +32,10 @@ vi.mock('@/api/reviewPlans', () => ({
 vi.mock('@/api/admin', () => ({
   listAiConfigs: () => Promise.resolve([]),
   aiConfigKeys: { all: ['aiConfig'] as const, lists: () => ['aiConfig', 'list'] as const },
+  setupProgressKeys: {
+    all: ['setupProgress'] as const,
+    current: () => ['setupProgress', 'current'] as const,
+  },
 }));
 
 const { DeploymentPipelinesPage } = await import('./DeploymentPipelinesPage');

@@ -6,9 +6,10 @@ import { test, expect, type Page, type Request } from '@playwright/test';
 // (docker-compose.e2e.setup.yml on ports 5174/8081), which boots WITHOUT a
 // pre-seeded admin (`ACCESSFLOW_BOOTSTRAP_ENABLED=false`). The frontend's
 // GET /api/v1/auth/setup-status returns `setup_required: true`, so visiting
-// the root sends the user through the two-step wizard:
-//   step 1 → account (org + admin email + password)
-//   step 2 → system SMTP (optional, skippable)
+// the root sends the user through the three-step wizard:
+//   step 1 → account (org + admin email + password; collect only, no request)
+//   step 2 → governance domains (AF-898; the step that actually POSTs /auth/setup)
+//   step 3 → system SMTP (optional, skippable)
 //
 // The wizard is the worst-possible regression target — nothing else works if
 // setup is broken. Drive it linearly via one long test (same shape as
@@ -43,7 +44,7 @@ async function countMatchingRequests(
   return count;
 }
 
-test('first-run setup wizard: redirect, validation, account submit, SMTP retry then save', async ({
+test('first-run setup wizard: redirect, validation, domain selection, SMTP retry then save', async ({
   page,
 }) => {
   // ── A. Bare `/` redirects to /setup, step 1 (account) renders ──────────────
@@ -63,7 +64,7 @@ test('first-run setup wizard: redirect, validation, account submit, SMTP retry t
     (req) =>
       req.method() === 'POST' && /\/api\/v1\/auth\/setup$/.test(req.url()),
     async () => {
-      await page.getByRole('button', { name: 'Create admin' }).click();
+      await page.getByRole('button', { name: /Continue/ }).click();
       await expect(
         page.getByText('Password must be 8–128 characters.'),
       ).toBeVisible();
@@ -72,10 +73,46 @@ test('first-run setup wizard: redirect, validation, account submit, SMTP retry t
   expect(shortPasswordPosts).toBe(0);
   expect(new URL(page.url()).pathname).toBe('/setup');
 
-  // ── C. Fix the password → submit → step 2 (SMTP) renders ───────────────────
+  // ── C. Fix the password → advance to step 2 (governance domains) ───────────
+  // The account step only collects: /auth/setup is one-shot and must carry the
+  // domain answer, so no request leaves the browser here either (AF-898).
   await page.getByLabel('Password', { exact: true }).fill(ADMIN_PASSWORD);
   await page.getByLabel('Confirm password', { exact: true }).fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: 'Create admin' }).click();
+
+  const accountStepPosts = await countMatchingRequests(
+    page,
+    (req) =>
+      req.method() === 'POST' && /\/api\/v1\/auth\/setup$/.test(req.url()),
+    async () => {
+      await page.getByRole('button', { name: /Continue/ }).click();
+      await expect(page.getByText('What will you govern?')).toBeVisible({
+        timeout: 15_000,
+      });
+    },
+  );
+  expect(accountStepPosts).toBe(0);
+
+  // Both domains default to off; database governance is always on and has no switch.
+  const governApis = page.getByLabel('Govern outbound API calls');
+  const governDeployments = page.getByLabel('Gate CI/CD deployments');
+  await expect(governApis).not.toBeChecked();
+  await expect(governDeployments).not.toBeChecked();
+  expect(new URL(page.url()).pathname).toBe('/setup');
+
+  // ── C1. Back returns to step 1 with what was typed still there ────────────
+  // A server-side rejection (409 EMAIL_ALREADY_EXISTS) surfaces on this step but is fixed on
+  // the previous one, so the way back has to work and has to preserve the form.
+  await page.getByRole('button', { name: /^Back$/ }).click();
+  await expect(page.getByText('Create the first admin')).toBeVisible();
+  await expect(page.getByLabel('Organization name')).toHaveValue(ORG_NAME);
+  await expect(page.getByLabel('Email')).toHaveValue(ADMIN_EMAIL);
+  await page.getByRole('button', { name: /Continue/ }).click();
+  await expect(page.getByText('What will you govern?')).toBeVisible();
+
+  // ── C2. Opt into both domains → this is the click that creates the admin ───
+  await governApis.click();
+  await governDeployments.click();
+  await page.getByRole('button', { name: /^Create admin$/ }).click();
 
   // The page stays on /setup but swaps the form to the SMTP step. The header
   // copy is the load-bearing assertion — both buttons exist on this step.
@@ -177,4 +214,22 @@ test('first-run setup wizard: redirect, validation, account submit, SMTP retry t
   expect(me.status).toBe(200);
   expect(me.data.email).toBe(ADMIN_EMAIL);
   expect(me.data.role).toBe('ADMIN');
+
+  // ── G. The onboarding checklist reflects the domains just opted into ───────
+  // Both domains were switched on in section C2, and the fresh admin holds every
+  // permission, so the widget renders five steps — the three database-governance
+  // ones plus the two per-domain "create your first X" steps, last and in order.
+  const checklist = page.getByRole('region', { name: 'Setup progress' });
+  await expect(checklist).toBeVisible({ timeout: 15_000 });
+  await expect(checklist.getByText('0/5')).toBeVisible();
+  const steps = checklist.getByRole('listitem');
+  await expect(steps).toHaveCount(5);
+  await expect(steps.nth(3)).toContainText('Create your first API connector');
+  await expect(steps.nth(4)).toContainText('Create your first deployment pipeline');
+  await expect(
+    steps.nth(3).getByRole('link'),
+  ).toHaveAttribute('href', '/api-connectors');
+  await expect(
+    steps.nth(4).getByRole('link'),
+  ).toHaveAttribute('href', '/admin/deployment-pipelines');
 });
