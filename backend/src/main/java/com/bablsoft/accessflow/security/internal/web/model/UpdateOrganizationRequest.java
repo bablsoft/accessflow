@@ -11,5 +11,7 @@ public record UpdateOrganizationRequest(
         @Size(min = 1, max = 255, message = "{validation.organization.name.size}") String name,
         @Min(value = 0, message = "{validation.organization.quota.min}") Integer maxDatasources,
         @Min(value = 0, message = "{validation.organization.quota.min}") Integer maxUsers,
-        @Min(value = 0, message = "{validation.organization.quota.min}") Integer maxQueriesPerDay
+        @Min(value = 0, message = "{validation.organization.quota.min}") Integer maxQueriesPerDay,
+        Boolean governsApis,
+        Boolean governsDeployments
 ) {}

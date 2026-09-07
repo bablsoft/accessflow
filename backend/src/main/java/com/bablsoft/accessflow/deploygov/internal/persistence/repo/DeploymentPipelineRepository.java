@@ -13,6 +13,9 @@ public interface DeploymentPipelineRepository extends JpaRepository<DeploymentPi
 
     boolean existsByOrganizationIdAndName(UUID organizationId, String name);
 
+    /** Onboarding checklist (AF-898) — active or not, a pipeline means the step was done. */
+    boolean existsByOrganizationId(UUID organizationId);
+
     Optional<DeploymentPipelineEntity> findByIdAndOrganizationId(UUID id, UUID organizationId);
 
     /**

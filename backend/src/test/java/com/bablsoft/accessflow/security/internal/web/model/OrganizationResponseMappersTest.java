@@ -17,7 +17,7 @@ class OrganizationResponseMappersTest {
     void organizationResponseFromView() {
         var id = UUID.randomUUID();
         var now = Instant.now();
-        var view = new OrganizationView(id, "Acme", "acme", true, 10, 50, 1000, now, now);
+        var view = new OrganizationView(id, "Acme", "acme", true, 10, 50, 1000, true, false, now, now);
 
         var response = OrganizationResponse.from(view);
 
@@ -28,6 +28,9 @@ class OrganizationResponseMappersTest {
         assertThat(response.maxDatasources()).isEqualTo(10);
         assertThat(response.maxUsers()).isEqualTo(50);
         assertThat(response.maxQueriesPerDay()).isEqualTo(1000);
+        // Asymmetric on purpose — a transposed pair in from() would pass if both were equal.
+        assertThat(response.governsApis()).isTrue();
+        assertThat(response.governsDeployments()).isFalse();
         assertThat(response.createdAt()).isEqualTo(now);
         assertThat(response.updatedAt()).isEqualTo(now);
     }
@@ -53,7 +56,7 @@ class OrganizationResponseMappersTest {
         var id = UUID.randomUUID();
         var now = Instant.now();
         var content = List.of(OrganizationResponse.from(
-                new OrganizationView(id, "Acme", "acme", false, null, null, null, now, now)));
+                new OrganizationView(id, "Acme", "acme", false, null, null, null, false, false, now, now)));
         var page = new PageResponse<>(content, 0, 20, 1L, 1);
 
         var response = OrganizationPageResponse.from(page);

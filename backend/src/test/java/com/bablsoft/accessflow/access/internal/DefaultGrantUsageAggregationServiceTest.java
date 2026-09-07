@@ -155,8 +155,8 @@ class DefaultGrantUsageAggregationServiceTest {
         var enabled = UUID.randomUUID();
         var disabled = UUID.randomUUID();
         when(organizationAdminService.list(any())).thenReturn(new PageResponse<>(List.of(
-                new OrganizationView(enabled, "A", "a", false, null, null, null, NOW, NOW),
-                new OrganizationView(disabled, "B", "b", true, null, null, null, NOW, NOW)),
+                new OrganizationView(enabled, "A", "a", false, null, null, null, false, false, NOW, NOW),
+                new OrganizationView(disabled, "B", "b", true, null, null, null, false, false, NOW, NOW)),
                 0, 100, 2, 1));
 
         assertThat(service.findOrganizationIds()).containsExactly(enabled);

@@ -146,6 +146,9 @@ export interface Organization {
   max_datasources: number | null;
   max_users: number | null;
   max_queries_per_day: number | null;
+  /** Onboarding governance-domain hints (AF-898) — they only add checklist steps, never access. */
+  governs_apis: boolean;
+  governs_deployments: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -181,6 +184,8 @@ export interface UpdateOrganizationInput {
   max_datasources?: number | null;
   max_users?: number | null;
   max_queries_per_day?: number | null;
+  governs_apis?: boolean | null;
+  governs_deployments?: boolean | null;
 }
 
 export interface UpdateProfileInput {
@@ -266,6 +271,12 @@ export interface SetupProgress {
   datasources_configured: boolean;
   review_plans_configured: boolean;
   ai_provider_configured: boolean;
+  /** Governance-domain hints chosen in the first-run wizard (AF-898) — they decide which of the
+   *  two optional steps the checklist renders, never what the org is allowed to use. */
+  governs_apis: boolean;
+  api_connectors_configured: boolean;
+  governs_deployments: boolean;
+  deployment_pipelines_configured: boolean;
   completed_steps: number;
   total_steps: number;
   complete: boolean;

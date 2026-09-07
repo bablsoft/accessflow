@@ -426,20 +426,28 @@ end-to-end:
 2. **Inline validation** — submitting step 1 with a 7-character password
    surfaces the AntD "Password must be 8–128 characters." error and fires
    no `POST /api/v1/auth/setup`.
-3. **Account submit** — fixing the password and clicking **Create admin**
-   creates the org + admin (the variant stack's first), authenticates the
-   browser, and reveals step 2 (SMTP).
-4. **SMTP host required** — clicking **Save & finish** with the host field
+3. **Account step advances only** — fixing the password and clicking
+   **Continue** reveals step 2 (governance domains) and still fires no
+   `POST /api/v1/auth/setup`. Since AF-898 that request is one-shot and has
+   to carry the domain answer, so nothing is created here.
+4. **Domain selection creates the admin** — both switches default to off;
+   turning both on and clicking **Create admin** creates the org + admin
+   (the variant stack's first), authenticates the browser, and reveals
+   step 3 (SMTP). **Skip — databases only** is the same submit with both
+   flags false, and **Back** returns to step 1 with the typed values intact.
+5. **SMTP host required** — clicking **Save & finish** with the host field
    blank surfaces the inline "SMTP host is required." error and fires no
    `PUT /api/v1/admin/system-smtp`.
-5. **Server-side failure → banner + retry** — `page.route()` mocks the PUT
+6. **Server-side failure → banner + retry** — `page.route()` mocks the PUT
    to return a 422 ProblemDetail; the spec asserts the AntD alert renders
    with the mocked title and that the **Skip for now** button remains
    enabled (the "user can retry or skip" branch from the issue spec).
-6. **Real Save → /queries** — un-routing the mock and clicking
+7. **Real Save → /queries** — un-routing the mock and clicking
    **Save & finish** with a legitimate host persists the SMTP row, navigates
    to `/queries`, and a follow-up `window.__apiClient.get('/api/v1/me')`
    call returns 200 with the brand-new admin email and `role: 'ADMIN'`.
+8. **Onboarding checklist** — the widget on `/queries` shows `0/5`: the three
+   database-governance steps plus one per domain opted into in step 2.
 
 This is the only spec that runs against a stack *without* the seeded admin —
 keep it separate from the rest of the suite.

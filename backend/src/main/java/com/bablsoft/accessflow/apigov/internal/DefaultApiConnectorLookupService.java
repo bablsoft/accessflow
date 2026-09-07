@@ -31,6 +31,11 @@ class DefaultApiConnectorLookupService implements ApiConnectorLookupService {
                 .toList();
     }
 
+    @Override
+    public boolean hasAnyConnector(UUID organizationId) {
+        return connectorRepository.existsByOrganizationId(organizationId);
+    }
+
     private static ApiConnectorRef toRef(ApiConnectorEntity entity) {
         return new ApiConnectorRef(entity.getId(), entity.getName(), entity.getProtocol(),
                 entity.getReviewPlanId());

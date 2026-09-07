@@ -13,7 +13,7 @@ import {
   listDeploymentPipelines,
 } from '@/api/deploymentPipelines';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
-import { aiConfigKeys, listAiConfigs } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { PIPELINE_PROVIDERS, enumOptions, pipelineProviderLabel } from '@/utils/enumLabels';
 import { fmtDate } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
@@ -79,6 +79,7 @@ export function DeploymentPipelinesPage() {
       setCreateOpen(false);
       form.resetFields();
       void invalidate();
+      queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       navigate(`/admin/deployment-pipelines/${created.id}`);
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('deploygov.error'))),

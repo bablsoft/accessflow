@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-04",
+      "dateModified": "2026-09-07",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -265,7 +265,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-04">4 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-07">7 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -316,6 +316,13 @@
             <li><strong>Edit name &amp; quotas.</strong> Open <code>/admin/organizations/&lt;id&gt;</code>
               to change the name or raise / lower a quota, and to see live usage bars (current count vs.
               limit) for each cap.</li>
+            <li><strong>Change what the org governs.</strong> The same screen carries the two switches
+              from the <a href="/docs/install/#first-run">setup wizard</a> — <em>Govern outbound API
+              calls</em> and <em>Gate CI/CD deployments</em>. These are onboarding hints, not
+              entitlements: they only add or remove first-run checklist steps, and
+              <a href="/docs/configuration/connectors/#cfg-api-connectors">API</a> and
+              <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment</a>
+              governance stay fully usable whichever way they are set.</li>
             <li><strong>Disable a tenant.</strong> Use <em>Disable</em> as a kill-switch — its users are
               blocked at login (local <em>and</em> SSO) and every in-flight session stops on its next
               request. The block is immediate (no cache, no waiting for token expiry). <em>Enable</em>

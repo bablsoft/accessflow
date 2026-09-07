@@ -37,6 +37,8 @@ function org(overrides: Partial<Organization> = {}): Organization {
     max_datasources: 5,
     max_users: null,
     max_queries_per_day: 1000,
+    governs_apis: false,
+    governs_deployments: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     ...overrides,

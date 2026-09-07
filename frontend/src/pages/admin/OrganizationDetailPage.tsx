@@ -9,6 +9,7 @@ import {
   Progress,
   Skeleton,
   Space,
+  Switch,
 } from 'antd';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -32,6 +33,8 @@ interface EditFormValues {
   max_datasources?: number | null;
   max_users?: number | null;
   max_queries_per_day?: number | null;
+  governs_apis: boolean;
+  governs_deployments: boolean;
 }
 
 export function OrganizationDetailPage() {
@@ -61,6 +64,8 @@ export function OrganizationDetailPage() {
         max_datasources: orgQuery.data.max_datasources,
         max_users: orgQuery.data.max_users,
         max_queries_per_day: orgQuery.data.max_queries_per_day,
+        governs_apis: orgQuery.data.governs_apis,
+        governs_deployments: orgQuery.data.governs_deployments,
       });
     }
   }, [orgQuery.data, form]);
@@ -80,6 +85,8 @@ export function OrganizationDetailPage() {
       max_datasources: values.max_datasources ?? 0,
       max_users: values.max_users ?? 0,
       max_queries_per_day: values.max_queries_per_day ?? 0,
+      governs_apis: values.governs_apis,
+      governs_deployments: values.governs_deployments,
     });
   };
 
@@ -175,6 +182,21 @@ export function OrganizationDetailPage() {
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>
             </div>
+            <Form.Item
+              name="governs_apis"
+              label={t('admin.organizations.label_governs_apis')}
+              valuePropName="checked"
+              extra={t('admin.organizations.governs_help')}
+            >
+              <Switch />
+            </Form.Item>
+            <Form.Item
+              name="governs_deployments"
+              label={t('admin.organizations.label_governs_deployments')}
+              valuePropName="checked"
+            >
+              <Switch />
+            </Form.Item>
             <Button type="primary" htmlType="submit" loading={updateMutation.isPending}>
               {t('admin.organizations.save_update')}
             </Button>

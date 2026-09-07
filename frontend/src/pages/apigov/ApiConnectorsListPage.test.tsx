@@ -26,6 +26,10 @@ vi.mock('@/api/apiConnectors', () => ({
 vi.mock('@/api/admin', () => ({
   listAiConfigs: () => Promise.resolve([]),
   aiConfigKeys: { all: ['aiConfig'] as const, lists: () => ['aiConfig', 'list'] as const },
+  setupProgressKeys: {
+    all: ['setupProgress'] as const,
+    current: () => ['setupProgress', 'current'] as const,
+  },
 }));
 
 vi.mock('@/api/reviewPlans', () => ({

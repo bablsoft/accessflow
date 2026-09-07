@@ -11,4 +11,9 @@ public interface OrganizationRepository extends JpaRepository<OrganizationEntity
     Optional<OrganizationEntity> findBySlug(String slug);
 
     boolean existsBySlug(String slug);
+
+    /** Onboarding-domain hints (AF-898); false for a missing organization. */
+    boolean existsByIdAndGovernsApisTrue(UUID id);
+
+    boolean existsByIdAndGovernsDeploymentsTrue(UUID id);
 }

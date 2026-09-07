@@ -98,7 +98,7 @@ class PlatformOrganizationController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an organization's name and quotas")
+    @Operation(summary = "Update an organization's name, quotas and governance domains")
     @ApiResponse(responseCode = "200", description = "Organization updated")
     @ApiResponse(responseCode = "404", description = "Organization not found")
     OrganizationResponse update(@PathVariable UUID id,
@@ -110,7 +110,9 @@ class PlatformOrganizationController {
                 request.name(),
                 request.maxDatasources(),
                 request.maxUsers(),
-                request.maxQueriesPerDay()));
+                request.maxQueriesPerDay(),
+                request.governsApis(),
+                request.governsDeployments()));
         recordAudit(AuditAction.ORGANIZATION_UPDATED, id, caller, auditContext, Map.of());
         return OrganizationResponse.from(updated);
     }

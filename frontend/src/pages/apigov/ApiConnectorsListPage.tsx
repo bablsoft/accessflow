@@ -12,7 +12,7 @@ import {
   listApiConnectors,
   testApiConnector,
 } from '@/api/apiConnectors';
-import { aiConfigKeys, listAiConfigs } from '@/api/admin';
+import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import {
   API_AUTH_METHODS,
@@ -72,6 +72,7 @@ export default function ApiConnectorsListPage() {
       form.resetFields();
       setHeaders([]);
       queryClient.invalidateQueries({ queryKey: apiConnectorKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: setupProgressKeys.current() });
       navigate(`/api-connectors/${created.id}/settings`);
     },
     onError: (err) => showApiError(message, err, (e) => apiErrorMessage(e, () => t('apiGov.error'))),

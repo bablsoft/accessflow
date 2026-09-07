@@ -182,7 +182,7 @@ docker compose up -d        # pulls Postgres + Redis + the released backend & fr
 open http://localhost:5173  # the SPA detects the empty DB and walks you through /setup
 ```
 
-The setup wizard creates the first organization and admin user — no `.env`, no key generation, no Maven, no npm.
+The setup wizard creates the first organization and admin user, asks which governance domains you plan to use (database access governance is always on; outbound API calls and CI/CD deployments are optional and changeable later), and optionally configures SMTP — no `.env`, no key generation, no Maven, no npm.
 
 > ⚠️ The root [`docker-compose.yml`](docker-compose.yml) embeds **demo-only** JWT and encryption keys so it works out of the box. Do not point it at real customer data; for anything beyond evaluation, follow the production-style configuration in [`docs/09-deployment.md`](https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md#production-style-configuration).
 

@@ -10,6 +10,9 @@ export interface SetupRequest {
   email: string;
   display_name?: string;
   password: string;
+  /** Optional governance-domain hints (AF-898); omitted means false on the backend. */
+  governs_apis?: boolean;
+  governs_deployments?: boolean;
 }
 
 interface RawSetupResponse {

@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Installation",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-04",
+      "dateModified": "2026-09-07",
       "url": "https://accessflow.io/docs/install/",
       "mainEntityOfPage": "https://accessflow.io/docs/install/",
       "image": "https://accessflow.io/og-image.png",
@@ -262,7 +262,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-04">4 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-07">7 September 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -679,18 +679,31 @@
           <h3>Option A — Browser setup wizard</h3>
           <p>
             The default. Open the frontend (<code>http://localhost:5173</code> for the demo
-            stack, or whatever URL serves the SPA in your environment). When no organization
-            exists yet, the app routes to <code>/setup</code> and walks you through:
+            stack, or whatever URL serves the SPA in your environment). While no active admin user
+            exists, the app routes to <code>/setup</code> and walks you through:
           </p>
           <ol>
-            <li>Create the organization.</li>
-            <li>Create the first admin user (email + password).</li>
+            <li>Create the organization and the first admin user (email + password).</li>
+            <li>
+              Choose what you plan to govern. Database access governance is always on; two
+              switches add
+              <a href="/docs/configuration/connectors/#cfg-api-connectors">outbound API calls</a>
+              and
+              <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">CI/CD deployments</a>.
+              Both are off by default and you can change the answer later.
+            </li>
             <li>Optional: configure system SMTP so invitation emails work.</li>
-            <li>Optional: add a first datasource and a default review plan.</li>
           </ol>
           <p>
-            After the wizard finishes, log in as the admin and finish configuring the system from
-            the admin pages — see <a href="/docs/configuration/users-roles/">Configuration</a> below.
+            The domain choice is a hint, not an entitlement: it only decides which steps the onboarding
+            checklist shows you after you log in. API and deployment governance stay fully
+            available either way.
+          </p>
+          <p>
+            After the wizard finishes you land on the app as the admin, with a checklist covering
+            the remaining setup — a review plan, an AI provider, your first datasource, plus a
+            first connector or pipeline for each domain you picked. Every step links to the page
+            that owns it; see <a href="/docs/configuration/users-roles/">Configuration</a> below.
           </p>
 
           <h3>Option B — Bootstrap via env vars (GitOps)</h3>

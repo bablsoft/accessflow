@@ -13,6 +13,8 @@ public record OrganizationResponse(
         Integer maxDatasources,
         Integer maxUsers,
         Integer maxQueriesPerDay,
+        boolean governsApis,
+        boolean governsDeployments,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -25,6 +27,8 @@ public record OrganizationResponse(
                 view.maxDatasources(),
                 view.maxUsers(),
                 view.maxQueriesPerDay(),
+                view.governsApis(),
+                view.governsDeployments(),
                 view.createdAt(),
                 view.updatedAt());
     }

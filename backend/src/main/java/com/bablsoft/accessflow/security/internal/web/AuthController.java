@@ -110,7 +110,9 @@ class AuthController {
                 request.organizationName(),
                 request.email(),
                 request.displayName(),
-                passwordHash));
+                passwordHash,
+                request.governsApisOrDefault(),
+                request.governsDeploymentsOrDefault()));
         recordSetupAudit(result.userId(), result.organizationId(), request.email(), auditContext);
         var login = authenticationService.login(
                 new LoginCommand(request.email(), request.password(), null));

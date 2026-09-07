@@ -13,6 +13,7 @@ import {
 import { getSetupProgress, setupProgressKeys } from '@/api/admin';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore, type SetupStepId } from '@/store/preferencesStore';
+import type { AuthUser } from '@/api/auth';
 import type { SetupProgress } from '@/types/api';
 import './setup-progress-widget.css';
 
@@ -23,7 +24,9 @@ type StepStatusKey =
 type StepLabelKey =
   | 'admin.setup_progress.step_datasources_label'
   | 'admin.setup_progress.step_review_plans_label'
-  | 'admin.setup_progress.step_ai_provider_label';
+  | 'admin.setup_progress.step_ai_provider_label'
+  | 'admin.setup_progress.step_api_connectors_label'
+  | 'admin.setup_progress.step_deployment_pipelines_label';
 
 interface SetupStep {
   id: SetupStepId;
@@ -34,9 +37,12 @@ interface SetupStep {
 
 // Order is deliberate — review plans first because every datasource references one. AI
 // provider comes before datasources so admins land on the datasource wizard with an AI
-// config available to pick (AI is still skippable on a per-datasource basis).
-function buildSteps(data: SetupProgress): SetupStep[] {
-  return [
+// config available to pick (AI is still skippable on a per-datasource basis). The two
+// per-domain "create your first X" steps come last, and only for a domain the org opted
+// into (AF-898) whose admin surface the caller can actually reach — a step that links to a
+// 403 is worse than no step.
+function buildSteps(data: SetupProgress, user: AuthUser | null): SetupStep[] {
+  const steps: SetupStep[] = [
     {
       id: 'review_plans',
       configured: data.review_plans_configured,
@@ -56,6 +62,23 @@ function buildSteps(data: SetupProgress): SetupStep[] {
       to: '/datasources/new',
     },
   ];
+  if (data.governs_apis && hasPermission(user, 'API_CONNECTOR_MANAGE')) {
+    steps.push({
+      id: 'api_connectors',
+      configured: data.api_connectors_configured,
+      labelKey: 'admin.setup_progress.step_api_connectors_label',
+      to: '/api-connectors',
+    });
+  }
+  if (data.governs_deployments && hasPermission(user, 'DEPLOYMENT_PIPELINE_MANAGE')) {
+    steps.push({
+      id: 'deployment_pipelines',
+      configured: data.deployment_pipelines_configured,
+      labelKey: 'admin.setup_progress.step_deployment_pipelines_label',
+      to: '/admin/deployment-pipelines',
+    });
+  }
+  return steps;
 }
 
 export function SetupProgressWidget() {
@@ -75,7 +98,7 @@ export function SetupProgressWidget() {
     staleTime: 30_000,
   });
 
-  const steps = useMemo(() => (data ? buildSteps(data) : []), [data]);
+  const steps = useMemo(() => (data ? buildSteps(data, user) : []), [data, user]);
   const effectivelyDoneCount = useMemo(() => steps.filter(
     (s) => s.configured || skipped.includes(s.id),
   ).length, [steps, skipped]);

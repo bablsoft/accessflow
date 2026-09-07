@@ -3415,7 +3415,7 @@ Rotates the token (the previous emailed link stops working) and resends the emai
 
 ### Setup wizard (`/auth/setup`)
 
-Public endpoint exposed only while no active ADMIN user exists. The setup form on the SPA submits org + admin, then chains into the optional system-SMTP step using the access token returned here.
+Public endpoint exposed only while no active ADMIN user exists. It is called **once**, from the wizard's governance-domain step — the SPA's first screen only collects the account fields and advances, because this request must carry the domain answer. The access token returned here then lets the SPA chain into the optional system-SMTP step.
 
 #### POST /auth/setup
 
@@ -3425,9 +3425,13 @@ Public endpoint exposed only while no active ADMIN user exists. The setup form o
   "organization_name": "Acme",
   "email": "admin@acme.com",
   "display_name": "Acme Admin",
-  "password": "supersecret"
+  "password": "supersecret",
+  "governs_apis": true,
+  "governs_deployments": false
 }
 ```
+
+`governs_apis` / `governs_deployments` are optional booleans (default `false`) carrying the wizard's governance-domain answer (AF-898). Database access governance is always on and has no flag. They are an **onboarding hint only** — they decide which steps `GET /admin/setup-progress` reports and never gate routes, permissions or navigation, so `apigov` and `deploygov` stay fully usable whatever was picked. An admin changes the answer later through `PUT /platform/organizations/{id}`.
 
 **Response 201:** A standard `LoginResponse` (same shape as `POST /auth/login`) and a `refresh_token` cookie. The newly created admin is signed in automatically, so the SPA can call `PUT /admin/system-smtp` next without an extra round-trip.
 **Response 409:** `SETUP_ALREADY_COMPLETED` or `EMAIL_ALREADY_EXISTS`.
@@ -4832,9 +4836,13 @@ Reports which onboarding steps the caller's organization has completed. The fron
 
 - `datasources_configured`: at least one row exists in `datasources` for the caller's organization.
 - `review_plans_configured`: at least one row exists in `review_plans` for the caller's organization.
-- `ai_provider_configured`: the merged AI config (DB row or environment defaults) reports a stored API key, **or** the provider is `OLLAMA` (which runs locally and needs no key).
+- `ai_provider_configured`: at least one `ai_config` row for the organization is usable — it has a stored API key, **or** its provider may run keyless (`OLLAMA`, `OPENAI_COMPATIBLE`, `HUGGING_FACE`, all self-hosted endpoints).
+- `api_connectors_configured`: at least one row exists in `api_connectors` for the caller's organization, active or not. Always `false` when `governs_apis` is `false` — the step is not tracked at all.
+- `deployment_pipelines_configured`: the same against `deployment_pipelines`, gated on `governs_deployments`.
 
-`total_steps` is the constant `3`. `complete` is `completed_steps == total_steps`.
+`governs_apis` and `governs_deployments` echo `organizations.governs_apis` / `.governs_deployments` (AF-898) so the frontend builds the same step list rather than inferring it. The three database-governance steps are always tracked; each governed domain adds one more, so `total_steps` is `3 + (governs_apis ? 1 : 0) + (governs_deployments ? 1 : 0)` — between `3` and `5`. `complete` is `completed_steps == total_steps`.
+
+The frontend additionally hides a governed domain's step from an admin who lacks the permission for its surface (`API_CONNECTOR_MANAGE`, `DEPLOYMENT_PIPELINE_MANAGE`) — a step that links to a 403 is worse than no step. That gate is client-side only; the payload is identical for every `SETUP_PROGRESS_VIEW` holder.
 
 **Response 200:**
 ```json
@@ -4842,8 +4850,12 @@ Reports which onboarding steps the caller's organization has completed. The fron
   "datasources_configured": false,
   "review_plans_configured": true,
   "ai_provider_configured": false,
+  "governs_apis": true,
+  "api_connectors_configured": false,
+  "governs_deployments": false,
+  "deployment_pipelines_configured": false,
   "completed_steps": 1,
-  "total_steps": 3,
+  "total_steps": 4,
   "complete": false
 }
 ```
@@ -4953,12 +4965,16 @@ caller without the authority gets `403`. Every mutation is audited against the t
   "max_datasources": 25,
   "max_users": 100,
   "max_queries_per_day": 5000,
+  "governs_apis": true,
+  "governs_deployments": false,
   "created_at": "2026-06-18T10:30:00Z",
   "updated_at": "2026-06-18T10:30:00Z"
 }
 ```
 
-A `max_*` value of `null` or `0` means unlimited.
+A `max_*` value of `null` or `0` means unlimited. `governs_apis` / `governs_deployments` are the
+onboarding governance-domain hints (AF-898) first set by the setup wizard — see
+[`POST /auth/setup`](#post-authsetup).
 
 ### GET /platform/organizations — Query Parameters
 
@@ -4979,6 +4995,8 @@ A `max_*` value of `null` or `0` means unlimited.
       "max_datasources": 25,
       "max_users": 100,
       "max_queries_per_day": 5000,
+      "governs_apis": true,
+      "governs_deployments": false,
       "created_at": "2026-06-18T10:30:00Z",
       "updated_at": "2026-06-18T10:30:00Z"
     }
@@ -5022,12 +5040,15 @@ The organization response object.
   "name": "Acme Corp",
   "max_datasources": 50,
   "max_users": 200,
-  "max_queries_per_day": 10000
+  "max_queries_per_day": 10000,
+  "governs_apis": true,
+  "governs_deployments": true
 }
 ```
 
-Updates the name and quotas. A `null` field is left unchanged; a quota of `0` sets the limit to
-unlimited.
+Updates the name, quotas and governance-domain hints. A `null` field is left unchanged; a quota of
+`0` sets the limit to unlimited. This is where an admin changes the answer given in the first-run
+wizard — the flags only add or remove onboarding checklist steps, never access.
 
 **Response 200:** The updated organization response object.
 **Response 404:** `ORGANIZATION_NOT_FOUND`.
