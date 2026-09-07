@@ -70,13 +70,23 @@ async function selectRoleInDialog(page: Page, roleLabel: string): Promise<void> 
   // The combobox is inside the currently-open dialog. There are no other
   // open comboboxes at this point, so .first() inside the dialog is safe.
   const dialog = page.getByRole('dialog');
-  await dialog.locator('.ant-select').first().click();
-  // The listbox renders detached in a portal, not inside the dialog.
+  const select = dialog.locator('.ant-select').first();
+  await select.click();
+  // The listbox renders detached in a portal, not inside the dialog — and AntD
+  // keeps a closed portal in the DOM as `.ant-select-dropdown-hidden`, so an
+  // unscoped `.ant-select-item-option` can match a leftover from an earlier
+  // dialog and the click silently lands on nothing. Scope to the open dropdown
+  // (the same guard lifecycle-manager.spec.ts and request-groups.spec.ts use).
   await page
+    .locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
     .locator('.ant-select-item-option')
     .filter({ hasText: new RegExp(`^${escapeRegex(roleLabel)}$`) })
     .first()
     .click();
+  // Confirm the control actually took the value. Without this a missed click
+  // submits the *previous* role and the failure surfaces much later as a 200
+  // response carrying the old value, which reads like a backend bug.
+  await expect(select.locator('.ant-select-selection-item')).toHaveText(roleLabel);
 }
 
 async function deleteUserViaApi(
