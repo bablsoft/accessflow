@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -344,6 +345,107 @@ class HelpCorpusRemoteRefresherTest {
         refresher(bundle).refresh();
 
         assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void activatesAnArchiveEvenWhenTheIndexMisnamesItsVersion() throws IOException {
+        var bundle = bundledCorpus();
+        var archive = TarGzFixtures.archiveOf("good");
+        serveIndex("aaaaaaaaaaaa", sha256(archive));
+        serve(ARCHIVE_PATH, 200, archive);
+
+        refresher(bundle).refresh();
+
+        // The archive hashed to the pinned value, so it is the artifact the publisher signed for and
+        // its own manifest is authoritative; only the pointer's label was wrong. Discarding a
+        // verified corpus over a mislabelled pointer would be the worse trade.
+        assertThat(bundle.corpusVersion()).isEqualTo("0d746008cf42");
+    }
+
+    @Test
+    void keepsTheBundledCorpusWhenTheIndexBodyIsEmpty() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+        serve(INDEX_PATH, 200, new byte[0]);
+
+        refresher(bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void keepsTheBundledCorpusWhenTheIndexIsTheJsonLiteralNull() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+        serve(INDEX_PATH, 200, "null".getBytes(StandardCharsets.UTF_8));
+
+        refresher(bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void keepsTheBundledCorpusWhenTheIndexUrlIsNotAUrlAtAll() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+
+        new HelpCorpusRemoteRefresher(
+                new HelpCorpusProperties(true, "ht tp://not a url", cacheDir, false), bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void keepsTheBundledCorpusWhenAnHttpsUrlHasAnImpossiblePort() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+
+        // Passes every check in get() — absolute, https, a host — and then HttpRequest.newBuilder
+        // still refuses it. That is the throw this class must convert rather than propagate.
+        new HelpCorpusRemoteRefresher(
+                new HelpCorpusProperties(true, "https://mirror.internal:99999/index.json", cacheDir,
+                        false), bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void reachesOutOverHttpsWithoutTheLoopbackException() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+
+        // Nothing answers on that port, so this only proves https is permitted for a non-loopback
+        // host — the case every real install uses and no other test here exercises.
+        new HelpCorpusRemoteRefresher(
+                new HelpCorpusProperties(true, "https://127.0.0.1:1/index.json", cacheDir, false),
+                bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+        assertThat(cacheDirEntries()).isEmpty();
+    }
+
+    @Test
+    void refusesAnIndexMissingAnyRequiredField() {
+        var good = new HelpCorpusRemoteRefresher.CorpusIndex("1.2.3", "0d746008cf42",
+                "https://example.test/a.tar.gz", "a".repeat(64));
+
+        assertThatCode(good::validated).doesNotThrowAnyException();
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(null, good.corpusVersion(),
+                good.url(), good.sha256()).validated()).hasMessageContaining("'version'");
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(" ", good.corpusVersion(),
+                good.url(), good.sha256()).validated()).hasMessageContaining("'version'");
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(good.version(), null,
+                good.url(), good.sha256()).validated()).hasMessageContaining("'corpusVersion'");
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(good.version(),
+                good.corpusVersion(), null, good.sha256()).validated()).hasMessageContaining("'url'");
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(good.version(),
+                good.corpusVersion(), " ", good.sha256()).validated()).hasMessageContaining("'url'");
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(good.version(),
+                good.corpusVersion(), good.url(), null).validated()).hasMessageContaining("'sha256'");
+        // Not hex, and the wrong length: the digest names a cache file and pins a download.
+        assertThatThrownBy(() -> new HelpCorpusRemoteRefresher.CorpusIndex(good.version(),
+                good.corpusVersion(), good.url(), "zz").validated())
+                .hasMessageContaining("'sha256'");
     }
 
     /** Remote refresh switched on and online — the configuration every failure case starts from. */
