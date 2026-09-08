@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -80,6 +81,10 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
         var session = load(command.organizationId(), command.userId(), command.sessionId());
         var answer = command.answer();
         var now = clock.instant();
+        // Derived from the counter rather than from a sequence, so two concurrent appends to one
+        // session collide on help_chat_messages_session_sequence_idx (a unique violation) before the
+        // @Version check on the session can report an optimistic-lock failure. A chat UI sends one
+        // turn at a time; AF-905 owns whatever an impatient double-send should return.
         var nextSequence = session.getMessageCount() + 1;
 
         var userMessage = message(session, HelpChatRole.USER, question, nextSequence, now);
@@ -152,9 +157,16 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
      */
     private static String deriveTitle(String question) {
         var collapsed = question.replaceAll("\\s+", " ").strip();
-        return collapsed.length() <= HelpChatSessionEntity.MAX_TITLE_LENGTH
-                ? collapsed
-                : collapsed.substring(0, HelpChatSessionEntity.MAX_TITLE_LENGTH);
+        if (collapsed.length() <= HelpChatSessionEntity.MAX_TITLE_LENGTH) {
+            return collapsed;
+        }
+        // Back off one char when the cut would land inside a surrogate pair, or the title ends in
+        // half an emoji.
+        var cut = HelpChatSessionEntity.MAX_TITLE_LENGTH;
+        if (Character.isHighSurrogate(collapsed.charAt(cut - 1))) {
+            cut--;
+        }
+        return collapsed.substring(0, cut);
     }
 
     private String serializeCitations(List<HelpChatCitation> citations) {
@@ -173,7 +185,7 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
         }
         try {
             return objectMapper.readValue(json, CITATIONS_TYPE);
-        } catch (RuntimeException ex) {
+        } catch (JacksonException ex) {
             log.warn("Unreadable help chat citations; rendering the message without them: {}",
                     ex.getMessage());
             return List.of();

@@ -176,7 +176,8 @@ accessflow:
     max-document-chars: ${ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS:100000}
   help-agent:
     # In-app documentation help agent (AF-899). Everything an admin chooses lives on the
-    # help_agent_config row; these are operator concerns about the ingestion process itself.
+    # help_agent_config row; these are operator concerns about the process rather than the tenant -
+    # three about ingesting the corpus, one about how often stored conversations are swept.
     #
     # Index every enabled organization once the application is ready, so an upgrade re-embeds the
     # corpus the new build ships. Turn off to keep a slow local embedding backend from doing minutes

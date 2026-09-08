@@ -127,19 +127,6 @@ public interface AiAnalysisStatsRepository extends JpaRepository<AiAnalysisEntit
             """, nativeQuery = true)
     long sumTokensSince(@Param("organizationId") UUID organizationId, @Param("since") Instant since);
 
-    // The same budget, from the other table that spends it (AF-904, epic AF-899 decision 10). Help
-    // turns deliberately write no ai_analyses row — that table backs the admin AI-analyses history
-    // page — so the monthly budget adds this sum to the one above. help_chat_messages carries its
-    // own organization_id precisely so this needs no join, and only assistant messages report tokens.
-    @Query(value = """
-            SELECT COALESCE(SUM(COALESCE(m.prompt_tokens, 0) + COALESCE(m.completion_tokens, 0)), 0)
-            FROM help_chat_messages m
-            WHERE m.organization_id = :organizationId
-              AND m.created_at >= :since
-            """, nativeQuery = true)
-    long sumHelpChatTokensSince(@Param("organizationId") UUID organizationId,
-                                @Param("since") Instant since);
-
     interface RiskScoreBucketRow {
         LocalDate getBucketDate();
         BigDecimal getSuccessAvgRiskScore();

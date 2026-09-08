@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.AiAnalysisModelStatView;
 import com.bablsoft.accessflow.core.api.AiAnalysisRiskScoreBucketView;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsRaw;
+import com.bablsoft.accessflow.core.api.HelpChatTokenLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSubmitterView;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisStatsRepository;
@@ -21,6 +22,7 @@ import java.util.UUID;
 class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupService {
 
     private final AiAnalysisStatsRepository repository;
+    private final HelpChatTokenLookupService helpChatTokenLookupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,16 +65,16 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
     }
 
     /**
-     * Sums the organization's help-chat tokens straight from {@code help_chat_messages} (AF-904).
+     * Delegates to the {@code ai} module, which owns {@code help_chat_messages} (AF-904).
      *
-     * <p>A native query over a table the {@code ai} module owns, from the {@code core} module that
-     * owns the budget. The alternative — an {@code ai.api} lookup this service delegated to — is a
-     * {@code core -> ai} dependency against the {@code ai -> core} one that already exists, which
-     * Spring Modulith rejects as a cycle. The table is read, never written, from here.
+     * <p>{@code core} does not query that table itself. A native cross-module query would work and be
+     * shorter, but nothing type-level would record the coupling, so a schema change in {@code ai}
+     * would break {@code core} at runtime with {@code ApplicationModulesTest} none the wiser.
+     * {@link HelpChatTokenLookupService} is the same inversion {@code core.api.SessionRevocationService}
+     * uses for {@code security}.
      */
     @Override
-    @Transactional(readOnly = true)
     public long sumHelpChatTokensSince(UUID organizationId, Instant since) {
-        return repository.sumHelpChatTokensSince(organizationId, since);
+        return helpChatTokenLookupService.sumTokensSince(organizationId, since);
     }
 }

@@ -1198,7 +1198,7 @@ Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec
 
 ### Scheduled jobs and clustering
 
-`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 40 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
+`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 26 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
 
 Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). ShedLock types stay confined to `scheduling.internal/`.
 
@@ -2199,9 +2199,9 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
   row — that table backs the admin AI-analyses history page — so
   `AiAnalysisStatsLookupService.sumHelpChatTokensSince` is a second sum that
   `DefaultAiRateLimiter.enforceMonthlyTokenBudget` adds before comparing against
-  `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`. It returns 0 until AF-904 persists the conversations it
-  will sum; landing the interface with the runtime that spends the tokens keeps the later change to
-  one query body.
+  `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`. The interface landed here, with the runtime that
+  spends the tokens; AF-904 filled in its query once there were conversations to sum (see
+  [§ Help chat persistence and retention](#help-chat-persistence-and-retention-af-904-epic-af-899)).
 - **Mechanical consequence of the sub-package layout.** `ChatModelInvoker`, `AiRateLimiter` and
   `AiAnalyzerStrategyHolder` widen to `public` so `ai.internal.help` can reach them. All three stay
   inside `ai.internal`, so they remain module-private to the rest of the application and
@@ -2215,6 +2215,10 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
 `HelpChatSessionService` stores conversations so a user can come back to one: create a session, ask
 through `HelpChatService`, append the turn. Two tables, `help_chat_sessions` and
 `help_chat_messages` — full column reference in [docs/03-data-model.md](03-data-model.md).
+
+Still service-level: AF-904 ships **no endpoints** either. The HTTP surface that exposes both this
+and `HelpChatService` — and with it the session list this schema is indexed for — is AF-905, and
+[docs/04-api-spec.md](04-api-spec.md) documents it there.
 
 - **Answering and storing are two services on purpose.** The provider call takes seconds; the write
   takes milliseconds. Splitting them keeps a pooled connection out of the model call, and lets a
@@ -2232,7 +2236,8 @@ through `HelpChatService`, append the turn. Two tables, `help_chat_sessions` and
 - **`corpus_version` is stored per assistant message**, so a support conversation can be traced to
   the documentation revision that produced it.
 - **A transcript is private to the person who had it.** Every read and write is scoped to
-  `(organization_id, user_id)`; anything else is `HelpChatSessionNotFoundException` → 404, the same
+  `(organization_id, user_id)`; anything else is `HelpChatSessionNotFoundException`, which
+  `AiAnalysisExceptionHandler` already maps to 404 for whenever an endpoint does reach it — the same
   answer given for a session that never existed, was deleted, or aged out. A 403 would confirm the id
   exists. There is no admin read path.
 - **The title is derived, not asked for.** The first question, whitespace-collapsed and truncated to
@@ -2242,15 +2247,27 @@ through `HelpChatService`, append the turn. Two tables, `help_chat_sessions` and
   `COALESCE(last_message_at, created_at)` predates the organization's
   `help_agent_config.retention_days`; the `created_at` fallback ages out an abandoned empty
   conversation. Nothing is loaded, so the messages can only go through the FK cascade — which also
-  keeps the session's `@Version` column out of the delete path. A non-positive `retention_days`
+  keeps the session's `@Version` column out of the delete path. The sweep covers **every** configured
+  organization, not only those with the agent enabled: retention is a promise about data already
+  written, nothing else prunes these rows, and disabling the agent is the likeliest reaction to a
+  privacy concern — it must not be the one action that makes stored transcripts immortal. A
+  non-positive `retention_days`
   (reachable only by direct database edit; the admin API validates [1, 3650]) is skipped rather than
   honoured, since its cutoff would be "now" and would delete everything.
 - **Help tokens reach the monthly budget.** `enforceMonthlyTokenBudget` adds
-  `AiAnalysisStatsLookupService.sumHelpChatTokensSince` — a native sum over `help_chat_messages` —
-  to the `ai_analyses` sum. That query lives in `core` rather than delegating to an `ai.api` lookup:
-  `ai` already depends on `core`, so the reverse would be a module cycle. Help turns write no
-  `ai_analyses` row (decision 10), so without this sum a chatty agent would drain the provider budget
-  without ever tripping `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`.
+  `AiAnalysisStatsLookupService.sumHelpChatTokensSince` to the `ai_analyses` sum. Help turns write no
+  `ai_analyses` row (decision 10), so without it a chatty agent would drain the provider budget
+  without ever tripping `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`. `core` owns the budget but not
+  the table, so the sum is `core.api.HelpChatTokenLookupService`, implemented by
+  `ai.internal.help.DefaultHelpChatTokenLookupService` — the same inversion
+  `core.api.SessionRevocationService` uses for `security`. A native cross-module query in `core`
+  would be shorter and would work, but nothing type-level would record the coupling, so a schema
+  change in `ai` would break `core` at runtime with `ApplicationModulesTest` none the wiser.
+- **Retention bounds the budget.** The month-to-date sum reads rows this job deletes, so a
+  `retention_days` below ~31 means the budget only ever sees the retained window — at 7 days an
+  organization can spend roughly four times its declared ceiling. The 90-day default is clear of it;
+  the caveat is documented next to the budget knob in
+  [docs/09-deployment.md](09-deployment.md).
 
 ### Multi-model orchestration, voting & guardrails (AF-450)
 

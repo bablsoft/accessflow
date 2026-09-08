@@ -39,10 +39,14 @@ class HelpChatRetentionJobTest {
     }
 
     private static HelpAgentConfigEntity config(int retentionDays) {
+        return config(retentionDays, true);
+    }
+
+    private static HelpAgentConfigEntity config(int retentionDays, boolean enabled) {
         var config = new HelpAgentConfigEntity();
         config.setId(UUID.randomUUID());
         config.setOrganizationId(UUID.randomUUID());
-        config.setEnabled(true);
+        config.setEnabled(enabled);
         config.setRetentionDays(retentionDays);
         return config;
     }
@@ -55,7 +59,7 @@ class HelpChatRetentionJobTest {
     void deletesConversationsPastEachOrganizationsRetentionWindow() {
         var ninetyDays = config(90);
         var sevenDays = config(7);
-        when(configRepository.findAllByEnabledTrue()).thenReturn(List.of(ninetyDays, sevenDays));
+        when(configRepository.findAll()).thenReturn(List.of(ninetyDays, sevenDays));
 
         job().run();
 
@@ -66,12 +70,28 @@ class HelpChatRetentionJobTest {
     }
 
     @Test
-    void doesNothingWhenNoOrganizationHasTheAgentEnabled() {
-        when(configRepository.findAllByEnabledTrue()).thenReturn(List.of());
+    void doesNothingWhenNoOrganizationHasConfiguredTheAgent() {
+        when(configRepository.findAll()).thenReturn(List.of());
 
         job().run();
 
         verifyNoInteractions(sessionRepository);
+    }
+
+    /**
+     * Retention is a promise about data already written. Disabling the agent is the likeliest
+     * reaction to a privacy concern, and it must not be the one action that makes stored transcripts
+     * immortal — nothing else prunes them.
+     */
+    @Test
+    void expiresADisabledOrganizationsTranscriptsToo() {
+        var disabled = config(30, false);
+        when(configRepository.findAll()).thenReturn(List.of(disabled));
+
+        job().run();
+
+        verify(sessionRepository).deleteByOrganizationIdAndLastActivityBefore(
+                eq(disabled.getOrganizationId()), any());
     }
 
     /**
@@ -82,7 +102,7 @@ class HelpChatRetentionJobTest {
     void skipsAnOrganizationWithANonPositiveRetentionWindow() {
         var broken = config(0);
         var healthy = config(30);
-        when(configRepository.findAllByEnabledTrue()).thenReturn(List.of(broken, healthy));
+        when(configRepository.findAll()).thenReturn(List.of(broken, healthy));
 
         job().run();
 
@@ -96,7 +116,7 @@ class HelpChatRetentionJobTest {
     void oneFailingOrganizationDoesNotAbortTheBatch() {
         var failing = config(30);
         var healthy = config(30);
-        when(configRepository.findAllByEnabledTrue()).thenReturn(List.of(failing, healthy));
+        when(configRepository.findAll()).thenReturn(List.of(failing, healthy));
         when(sessionRepository.deleteByOrganizationIdAndLastActivityBefore(
                 eq(failing.getOrganizationId()), any()))
                 .thenThrow(new IllegalStateException("connection reset"));

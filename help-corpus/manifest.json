@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "8170b52e0dd5",
-  "generatedAt": "2026-09-08T06:27:59.087Z",
-  "sourceCommit": "efac362988e6299adfbe9649a29ac428254f4caf",
-  "chunkCount": 511,
-  "sha256": "8170b52e0dd55a63de9aa1e143af6c02e4f96e71834013a300024cfa5fe16af3",
+  "corpusVersion": "a8be3676accc",
+  "generatedAt": "2026-09-08T06:40:45.922Z",
+  "sourceCommit": "356ad39ddc5a3de9554c9fdbd2b4cfddddcedd2a",
+  "chunkCount": 512,
+  "sha256": "a8be3676accccd7937547e2c3bd2d58ed8315432543a75bdee1872bd75b3c13d",
   "quickReferenceSha256": "93189cc70d5743a2814509575a61b88c3828f7a8ec6142f46deb1ac3ef6c16f1",
   "sources": [
     {
@@ -404,8 +404,8 @@
       "title": "Deploying and configuring AccessFlow",
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
-      "chunks": 80,
-      "sha256": "33b7b59dbfab6761fc2d8893f11f17416cb7832d2fe99fb4567f7074f6620d37"
+      "chunks": 81,
+      "sha256": "e9a63fac7677ce6684c499dadcdf335685e935cc1e45b55b4e5d1b47833c9373"
     }
   ]
 }

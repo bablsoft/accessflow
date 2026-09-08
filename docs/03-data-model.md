@@ -2022,18 +2022,20 @@ surface.
 | `message_count` | INTEGER NOT NULL DEFAULT 0 — two per completed turn; also the next message's `sequence_number` base |
 | `last_message_at` | TIMESTAMPTZ nullable — `NULL` for a session that was never used |
 | `version` | BIGINT NOT NULL DEFAULT 0 — `@Version` optimistic lock |
-| `created_at` / `updated_at` | TIMESTAMPTZ |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` |
 
-Indexes: `(user_id, last_message_at DESC)` for the user's own session list, `(organization_id,
-created_at)` for the retention sweep.
+Indexes: `(organization_id, created_at)` backs the retention sweep; `(user_id, last_message_at
+DESC)` is there for the user's own session list, which the endpoints in #905 will read — nothing in
+#904 lists sessions.
 
 **Retention.** `HelpChatRetentionJob` deletes every session of an organization whose
 `COALESCE(last_message_at, created_at)` is older than that organization's
 `help_agent_config.retention_days` — the `created_at` fallback is what ages out an empty conversation
 someone opened and abandoned. It is one bulk statement per organization: nothing is loaded, and the
-messages go with the session through the FK cascade below. The work list is organizations with the
-agent **enabled**, so switching the agent off also pauses expiry of anything already stored; turning
-it back on resumes the sweep.
+messages go with the session through the FK cascade below. The work list is **every** configured
+organization, enabled or not: retention is a promise about data already written, and disabling the
+agent — the likeliest reaction to a privacy concern — must not be the one action that makes stored
+transcripts immortal.
 
 ---
 
@@ -2055,7 +2057,7 @@ and no `updated_at`, because a transcript that could be edited afterwards would 
 | `model` | VARCHAR(100) nullable — provider model that produced the answer |
 | `prompt_tokens` / `completion_tokens` | INTEGER nullable — what the provider reported; `NULL` on a user message, which costs nothing |
 | `latency_ms` | INTEGER nullable — how long the turn took end to end |
-| `created_at` | TIMESTAMPTZ |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` |
 
 Index: UNIQUE `(session_id, sequence_number)` — the replay order. Deliberately **not**
 `(session_id, created_at)`: both messages of a turn are inserted in one statement and share a
@@ -2075,7 +2077,15 @@ admin AI-analyses history page, and filling it with chat turns would wreck it (e
 adds `AiAnalysisStatsLookupService.sumHelpChatTokensSince` — a sum over this table's
 `prompt_tokens + completion_tokens` for the organization, month to date — to the `ai_analyses` sum
 before comparing against `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`. Without it a chatty help agent
-would drain the budget invisibly and never trip it.
+would drain the budget invisibly and never trip it. `core` does not read this table directly: the sum
+is `core.api.HelpChatTokenLookupService`, implemented in `ai.internal.help`, so the coupling is
+type-level and `ApplicationModulesTest` can see it.
+
+**The budget counts surviving rows, so retention bounds it.** The month-to-date sum reads
+`help_chat_messages`, and `HelpChatRetentionJob` deletes from it. A `retention_days` below ~31 means
+the budget only ever sees the retained window — at 7 days an organization can spend roughly four
+times its declared monthly ceiling on help chat. The default of 90 days is comfortably clear of it;
+keep `retention_days` at 31 or more if the monthly budget has to be binding.
 
 ---
 

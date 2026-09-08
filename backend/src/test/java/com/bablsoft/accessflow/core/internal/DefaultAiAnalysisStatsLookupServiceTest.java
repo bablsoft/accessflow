@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.HelpChatTokenLookupService;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisStatsRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,12 +15,14 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DefaultAiAnalysisStatsLookupServiceTest {
 
     @Mock AiAnalysisStatsRepository repository;
+    @Mock HelpChatTokenLookupService helpChatTokenLookupService;
     @InjectMocks DefaultAiAnalysisStatsLookupService service;
 
     @Test
@@ -112,14 +115,18 @@ class DefaultAiAnalysisStatsLookupServiceTest {
         assertThat(service.sumTokensSince(orgId, since)).isEqualTo(4242L);
     }
 
-    /** Help tokens come from help_chat_messages, not from ai_analyses (AF-904). */
+    /**
+     * Help tokens come from the ai module, which owns help_chat_messages — never from a query core
+     * runs over that table itself (AF-904).
+     */
     @Test
-    void helpChatTokenSumDelegatesToTheHelpChatQuery() {
+    void helpChatTokenSumDelegatesToTheModuleThatOwnsTheTable() {
         var orgId = UUID.randomUUID();
         var since = Instant.parse("2026-06-01T00:00:00Z");
-        when(repository.sumHelpChatTokensSince(orgId, since)).thenReturn(4_242L);
+        when(helpChatTokenLookupService.sumTokensSince(orgId, since)).thenReturn(4_242L);
 
         assertThat(service.sumHelpChatTokensSince(orgId, since)).isEqualTo(4_242L);
+        verifyNoInteractions(repository);
     }
 
     private static org.assertj.core.groups.Tuple tuple(Object... values) {

@@ -16,7 +16,7 @@ import java.util.UUID;
 
 /**
  * One in-app help conversation (AF-904). Owns nothing but its own counters: the messages are a
- * separate table read in {@code created_at} order, deliberately not a mapped collection, so
+ * separate table read in {@code sequence_number} order, deliberately not a mapped collection, so
  * appending a turn never loads the transcript so far and the retention job can delete a whole
  * conversation with one statement.
  *

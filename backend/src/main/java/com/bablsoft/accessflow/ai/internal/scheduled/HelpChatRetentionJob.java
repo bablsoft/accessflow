@@ -20,9 +20,11 @@ import java.time.Duration;
  * conversation with a thousand messages costs the same as an empty one and the {@code @Version}
  * column on the session never comes into it.
  *
- * <p>The work list is organizations with the agent <em>enabled</em>: a row exists only once an admin
- * has configured the agent, and an organization that switched it off is not producing transcripts to
- * expire. Turning it back on resumes the sweep, including over anything stored before.
+ * <p>The work list is <em>every</em> configured organization, enabled or not. Retention is a promise
+ * about data already written, not about data still being produced — and disabling the agent is the
+ * most likely reaction to a privacy concern, so it is the last moment at which stored transcripts
+ * should become immortal. Nothing else prunes these rows. The sweep needs no model, no embedding and
+ * no bound {@code ai_config}, so a disabled organization costs one statement.
  *
  * <p>A non-positive {@code retention_days} is skipped rather than honoured. The admin API validates
  * the range [1, 3650], so it can only arrive by direct database edit — and a cutoff of "now" would
@@ -40,9 +42,9 @@ public class HelpChatRetentionJob {
     @Scheduled(fixedDelayString = "${accessflow.help-agent.retention-poll-interval:PT6H}")
     @SchedulerLock(name = "helpChatRetentionJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
     public void run() {
-        var configs = configRepository.findAllByEnabledTrue();
+        var configs = configRepository.findAll();
         if (configs.isEmpty()) {
-            log.debug("No organizations have the help agent enabled; nothing to expire");
+            log.debug("No organizations have configured the help agent; nothing to expire");
             return;
         }
         var deleted = 0;
