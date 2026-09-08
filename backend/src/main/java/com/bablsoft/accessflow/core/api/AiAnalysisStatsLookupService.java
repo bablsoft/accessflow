@@ -28,4 +28,20 @@ public interface AiAnalysisStatsLookupService {
      * @param since          inclusive lower bound on {@code ai_analyses.created_at}.
      */
     long sumTokensSince(UUID organizationId, Instant since);
+
+    /**
+     * Sums the prompt + completion tokens the organization's in-app help chat spent on or after
+     * {@code since} (AF-903, epic AF-899 decision 10).
+     *
+     * <p>Separate from {@link #sumTokensSince} because help turns deliberately do <b>not</b> write
+     * {@code ai_analyses} rows — that table backs the admin AI-analyses history page, and filling it
+     * with chat turns would wreck it. But the tokens are spent against the same provider key, so the
+     * rate limiter adds both sums before comparing against
+     * {@code ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH}; without this a chatty help agent would drain
+     * the budget invisibly and never trip it.
+     *
+     * @param organizationId required. Scopes the sum to this organization's help conversations.
+     * @param since          inclusive lower bound on when the turn was recorded.
+     */
+    long sumHelpChatTokensSince(UUID organizationId, Instant since);
 }

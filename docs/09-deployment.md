@@ -1113,11 +1113,11 @@ The extension exists regardless of whether any org actually enables RAG (the emp
 
 #### AI Rate Limit & Cost Budget (AF-55)
 
-Per-organization guardrails enforced before **every** `AiAnalyzerStrategy` call (editor preview analysis, text-to-SQL, and the async submitted-query analysis) so a runaway editor or compromised account cannot drain the provider API key / monthly budget. The per-minute limit uses a Redis fixed-window counter (reusing the JWT/ShedLock Redis); the monthly budget sums `prompt_tokens + completion_tokens` from the org's `ai_analyses` rows in the current calendar month. When a limit is exceeded the synchronous preview / text-to-SQL paths return **HTTP 429**, while the async path records a sentinel `CRITICAL` analysis row (`summary = "AI budget exhausted"` / `"AI rate limit exceeded"`). Both bind under `accessflow.ai.rate-limit.*`.
+Per-organization guardrails enforced before **every** AI provider call — every `AiAnalyzerStrategy` call (editor preview analysis, text-to-SQL, and the async submitted-query analysis) and every in-app help-chat turn — so a runaway editor or compromised account cannot drain the provider API key / monthly budget. The per-minute limit uses a Redis fixed-window counter (reusing the JWT/ShedLock Redis); the monthly budget sums `prompt_tokens + completion_tokens` from the org's `ai_analyses` rows in the current calendar month. When a limit is exceeded the synchronous preview / text-to-SQL paths return **HTTP 429**, while the async path records a sentinel `CRITICAL` analysis row (`summary = "AI budget exhausted"` / `"AI rate limit exceeded"`). Both bind under `accessflow.ai.rate-limit.*`.
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
-| `ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE` | Optional | `30` | Per-organization request cap per minute across all AI analysis paths. A value `<= 0` disables the per-minute limit. |
+| `ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE` | Optional | `30` | Per-organization request cap per minute across all AI paths, in-app help chat included. A value `<= 0` disables the per-minute limit. Help chat additionally applies its own per-user cap on top, so one user cannot spend this whole allowance — see `help_agent_config.per_user_requests_per_minute`. |
 | `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` | Optional | `0` | Per-organization monthly token budget (summed `prompt_tokens + completion_tokens` over the current calendar month). `0` (the default) = unlimited / opt-in; a value `<= 0` disables the budget. |
 
 #### Behavioural Anomaly Detection (UBA, AF-383)

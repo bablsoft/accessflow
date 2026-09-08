@@ -13,6 +13,8 @@ import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigInvalidException;
+import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
+import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
@@ -163,6 +165,24 @@ class AiAnalysisExceptionHandler {
                 ex.getMessage());
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
         pd.setProperty("error", "HELP_CORPUS_MISSING");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(HelpChatUnavailableException.class)
+    ProblemDetail handleHelpChatUnavailable(HelpChatUnavailableException ex) {
+        // 409, not 400: the request was well-formed, the organization's agent just cannot answer it.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg(ex.messageKey()));
+        pd.setProperty("error", "HELP_CHAT_UNAVAILABLE");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(HelpChatQuestionRequiredException.class)
+    ProblemDetail handleHelpChatQuestionRequired(HelpChatQuestionRequiredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg("error.help_chat.question_required"));
+        pd.setProperty("error", "HELP_CHAT_QUESTION_REQUIRED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

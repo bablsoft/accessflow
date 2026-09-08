@@ -3,9 +3,13 @@ package com.bablsoft.accessflow.ai.internal;
 import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
 import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -71,6 +75,49 @@ class ChatModelInvokerTest {
         assertThatThrownBy(() -> ChatModelInvoker.invoke(chatModel, "s", "u", "Anthropic"))
                 .isInstanceOf(AiAnalysisException.class)
                 .hasMessageContaining("empty response");
+    }
+
+    /**
+     * The multi-turn overload help chat calls (AF-903): every message is passed through in order,
+     * and the response is read exactly as the single-turn path reads it.
+     */
+    @Test
+    void listOverloadPassesEveryMessageThroughInOrder() {
+        var captor = ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(captor.capture()))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("answer"))),
+                        ChatResponseMetadata.builder().model("claude").usage(new DefaultUsage(7, 3)).build()));
+
+        var call = ChatModelInvoker.invoke(chatModel, List.of(
+                new SystemMessage("rules"),
+                new UserMessage("first"),
+                new AssistantMessage("reply"),
+                new UserMessage("second")), "Anthropic");
+
+        assertThat(call.text()).isEqualTo("answer");
+        assertThat(call.promptTokens()).isEqualTo(7);
+        assertThat(captor.getValue().getInstructions())
+                .extracting(Message::getText)
+                .containsExactly("rules", "first", "reply", "second");
+    }
+
+    /**
+     * The 3-arg callers every provider adapter uses must be unchanged by the overload: still exactly
+     * one system message followed by one user message, in that order.
+     */
+    @Test
+    void singleTurnCallStillSendsSystemThenUser() {
+        var captor = ArgumentCaptor.forClass(Prompt.class);
+        when(chatModel.call(captor.capture()))
+                .thenReturn(new ChatResponse(List.of(new Generation(new AssistantMessage("ok")))));
+
+        ChatModelInvoker.invoke(chatModel, "preamble", "prompt", "OpenAI");
+
+        assertThat(captor.getValue().getInstructions())
+                .extracting(Message::getClass, Message::getText)
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(SystemMessage.class, "preamble"),
+                        org.assertj.core.groups.Tuple.tuple(UserMessage.class, "prompt"));
     }
 
     @Test

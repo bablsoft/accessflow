@@ -18,6 +18,8 @@ import com.bablsoft.accessflow.core.api.DbType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -43,10 +45,17 @@ import java.util.regex.PatternSyntaxException;
  * referenced, and caches it. {@link AiConfigUpdatedEvent} / {@link AiConfigDeletedEvent} evict
  * cached delegates after the originating transaction commits, so the next call rebuilds against
  * the new state — no application restart needed.
+ *
+ * <p>{@code public} rather than package-private because {@code ai.internal.help} is a sub-package
+ * and gets no package-private access (epic AF-899 decision 5). It stays inside {@code ai.internal},
+ * so it remains module-private to the rest of the application. Inject it as
+ * {@code ObjectProvider<AiAnalyzerStrategyHolder>} and resolve lazily: integration tests that
+ * {@code @MockitoBean AiAnalyzerStrategy} replace this bean with a bare interface mock that is not
+ * assignable to the concrete type, and an eager concrete injection fails their context startup.
  */
 @Service
 @RequiredArgsConstructor
-class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
+public class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(AiAnalyzerStrategyHolder.class);
     private static final String DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
@@ -230,6 +239,46 @@ class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             log.warn("AI {} failed for org {}: {}", logContext, organizationId, ex.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Makes one multi-turn chat call against a <em>named</em> {@code ai_config}, reusing the cached
+     * bare {@link ChatModel} the freeform path already keeps — so the existing eviction on
+     * {@link AiConfigUpdatedEvent} / {@link AiConfigDeletedEvent} covers help chat for free.
+     * Used by the in-app help chat runtime (AF-903).
+     *
+     * <p>Deliberately <em>not</em> routed through {@link #completeFreeform}, on two counts. That
+     * method resolves the organization's <em>first usable</em> configuration rather than the one an
+     * admin bound, which for help chat would silently answer with a model nobody chose; and it
+     * swallows every failure into {@link Optional#empty()}, which is right for a background summary
+     * and wrong for a synchronous user request that has to surface a {@code ProblemDetail}. This one
+     * throws {@link AiAnalysisException} on any provider failure.
+     *
+     * <p>The lookup is organization-scoped. The stored binding is validated against the caller's
+     * organization when an admin saves it, so an unscoped {@code findById} would be correct in
+     * practice — but this is the one place that decrypts a provider API key from a UUID that arrived
+     * on a request, and a tenancy guarantee that rests on another class's validation is one refactor
+     * away from not being a guarantee.
+     *
+     * @param organizationId the asking organization; scopes the configuration lookup
+     * @param aiConfigId    the configuration to answer with; must exist in that organization
+     * @param systemPreamble the rendered system prompt, including the documentation context block
+     * @param conversation  the user/assistant turns, oldest first, ending with the current question
+     * @throws AiConfigNotFoundException the configuration does not exist in this organization
+     * @throws AiAnalysisException       the provider call failed or returned nothing usable
+     */
+    public ChatModelInvoker.Invocation chatFor(UUID organizationId, UUID aiConfigId,
+                                               String systemPreamble, List<Message> conversation) {
+        if (aiConfigId == null || organizationId == null) {
+            throw notConfigured();
+        }
+        var entity = aiConfigRepository.findByIdAndOrganizationId(aiConfigId, organizationId)
+                .orElseThrow(() -> new AiConfigNotFoundException(aiConfigId));
+        var chatModel = chatModelCache.computeIfAbsent(entity.getId(), key -> buildChatModel(entity));
+        var messages = new ArrayList<Message>(conversation.size() + 1);
+        messages.add(new SystemMessage(systemPreamble));
+        messages.addAll(conversation);
+        return ChatModelInvoker.invoke(chatModel, messages, entity.getProvider().name());
     }
 
     private Optional<AiConfigEntity> resolveUsableConfig(UUID organizationId) {
