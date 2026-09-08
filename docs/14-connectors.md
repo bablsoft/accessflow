@@ -267,8 +267,12 @@ Installed connectors survive restarts via the driver-cache volume (`ACCESSFLOW_D
 Helm chart's `driverCache.persistence` PVC). Engine-plugin JARs cache in the **same directory** as
 JDBC driver JARs. For air-gapped installs, pre-seed the cache and set
 `ACCESSFLOW_DRIVERS_OFFLINE=true` — connectors then report `UNAVAILABLE` unless their JAR is already
-cached. Set `ACCESSFLOW_UPDATES_ENABLED=false` alongside it: the release update check (#836) is the
-only other outbound call the backend makes on its own, and disabling it guarantees nothing leaves
-the process. To pre-seed the MongoDB engine, drop `accessflow-engine-mongodb-<v>-all.jar` (from the
+cached. Two other switches complete the air-gap, because the backend makes exactly three kinds of
+outbound call on its own behalf: set `ACCESSFLOW_UPDATES_ENABLED=false` for the release update check
+(#836), and `ACCESSFLOW_HELP_CORPUS_OFFLINE=true` for the optional help-documentation corpus refresh
+(#907 — already off by default, so this only pins it shut). With all three set, nothing leaves the
+process. The help agent keeps working from the corpus bundled in the jar, exactly as bundled
+connectors keep working from theirs; see
+[09-deployment.md → Remote corpus refresh, and why it is off](./09-deployment.md#remote-corpus-refresh-and-why-it-is-off). To pre-seed the MongoDB engine, drop `accessflow-engine-mongodb-<v>-all.jar` (from the
 gh-pages `engines/` folder, or built locally with `mvn -f engines/mongodb/pom.xml package` after a
 backend `install` — the reproducible build matches the pinned SHA-256) into the cache directory.

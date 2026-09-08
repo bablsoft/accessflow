@@ -1079,9 +1079,9 @@ Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, kno
 #### In-app Help Agent (AF-899)
 
 Whether the help agent is on, which `ai_config` answers with it, and its retrieval tunables are
-per-organization settings managed from `/admin/help-agent`, not in env. These four are
-deployment-wide: three about *indexing* the bundled documentation corpus, and one about how often
-stored conversations are swept for expiry.
+per-organization settings managed from `/admin/help-agent`, not in env. These eight are
+deployment-wide: three about *indexing* the bundled documentation corpus, one about how often stored
+conversations are swept for expiry, and four about the optional remote corpus refresh.
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
@@ -1089,6 +1089,10 @@ stored conversations are swept for expiry.
 | `ACCESSFLOW_HELP_AGENT_INDEX_BATCH_SIZE` | Optional | `64` | Documentation chunks sent per embedding call while indexing. The bundled corpus is ~510 chunks in total; sending them in one call exceeds the request size OpenAI accepts and exhausts memory on a local Ollama, hence the default of 64 per call. Lower it for a memory-constrained embedding backend. |
 | `ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR` | Optional | `PT30M` | ISO-8601 duration one replica may hold the indexing lock for one organization, so a multi-replica deployment indexes each organization once rather than once per replica. Set it well above the expected pass duration: the Redis key expires after it even if the JVM dies mid-pass, and a CPU-only Ollama embeds the corpus in minutes, not seconds. |
 | `ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL` | Optional | `PT6H` | ISO-8601 duration between passes of `HelpChatRetentionJob`, which deletes help conversations past their organization's `help_agent_config.retention_days` (default 90 days). This is only how *often* expiry is checked — how long transcripts are kept is the per-organization admin setting. The sweep covers every organization that has configured the agent, enabled or not, so switching the agent off does not freeze already-stored transcripts. |
+| `ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED` | Optional | `false` | Fetch a newer documentation corpus published between application releases, instead of only using the one bundled in the jar. **Off by default, and leaving it off is a defensible choice** — see the rationale below. |
+| `ACCESSFLOW_HELP_CORPUS_INDEX_URL` | Optional | `https://bablsoft.github.io/accessflow/help-corpus/help-corpus-index.json` | The pointer file naming the newest published corpus: `{version, corpusVersion, url, sha256}`. Only GA releases move it — a pre-release publishes its versioned bundle and leaves the pointer on the last stable one. Point it at an internal mirror to serve the bundle yourself; the pinned `sha256` is verified either way. Read only when the refresh is switched on. |
+| `ACCESSFLOW_HELP_CORPUS_CACHE_DIR` | Optional | `${user.home}/.accessflow/help-corpus` | Where verified corpus archives are kept, so a restart does not re-download one. The Helm chart sets this to a `help-corpus/` sub-directory of the driver-cache volume rather than mounting a second one, for the same reason `ACCESSFLOW_DRIVER_CACHE` exists at all: `~/.accessflow` is not writable under `runAsUser 1000`. A cached archive is re-hashed against the pinned value on every pass, not only when it was first written. |
+| `ACCESSFLOW_HELP_CORPUS_OFFLINE` | Optional | `false` | When `true`, nothing leaves the process for a corpus whatever `ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED` says — the air-gap switch, matching `ACCESSFLOW_DRIVERS_OFFLINE`. |
 
 The lock is keyed per organization (`helpCorpusIndex:<help_agent_config id>`), so organizations index
 independently — one tenant's slow pass never delays another's. Two passes for the **same**
@@ -1096,6 +1100,46 @@ organization do contend, and the loser is dropped rather than queued: it is logg
 nothing is written to `index_error`, because the winner is doing exactly the same work. The only case
 where that is visible is pressing Re-index twice in quick succession; the first press is the one that
 runs.
+
+#### Remote corpus refresh, and why it is off
+
+The corpus is bundled in the backend jar, so an install always answers from the documentation for the
+version it is actually running, air-gapped, with no outbound call. The refresh exists for exactly one
+case: a **documentation correction** published between application releases, reaching an install that
+is not being upgraded.
+
+It is off by default because the failure mode of the alternative is worse than the problem it solves.
+A corpus published after your version describes a UI you do not have — and the agent will describe it
+confidently, with citations. Staleness is visible ("that section is from the last release"); a
+confident wrong answer is not. Turn it on when documentation accuracy between upgrades matters more
+than that risk, and leave it off otherwise.
+
+What it does when switched on, once per replica at startup, before the indexing pass:
+
+1. Fetches the index at `ACCESSFLOW_HELP_CORPUS_INDEX_URL` and compares its `corpusVersion` with the
+   one already active. Equal means no download at all.
+2. Downloads the archive it names into `ACCESSFLOW_HELP_CORPUS_CACHE_DIR` — streamed to a `.part`
+   sibling under a hard size cap, hashed as a complete file, deleted on any mismatch, and moved
+   atomically into place only once it matches the pinned `sha256`.
+3. Verifies the corpus *inside* the archive exactly as the bundled one is verified: manifest digests,
+   the content-derived `corpusVersion`, the chunk count, and a refusal of any bundle whose
+   `schemaVersion` this build does not understand.
+4. Activates it, at which point the ordinary re-ingestion path sees a changed `corpusVersion` and
+   re-embeds — the same mechanism an upgrade uses, not a second one.
+
+**No failure here can cost an install its help agent.** An unreachable host, a non-2xx answer, an
+oversized or truncated body, a checksum mismatch, an unwritable cache directory or a corpus from a
+newer AccessFlow all log at `WARN` and leave the bundled corpus in use.
+
+Refresh is per replica, not per cluster: each JVM holds its own corpus, so there is nothing to share.
+A replica whose refresh fails keeps the bundled corpus and may re-index a scope a refreshed replica
+already indexed — the same transient churn a rolling upgrade produces, converging once every replica
+holds the same corpus. It is one more reason the default is off.
+
+**Air-gapped installs** should set `ACCESSFLOW_HELP_CORPUS_OFFLINE=true` alongside the existing
+`ACCESSFLOW_DRIVERS_OFFLINE=true` and `ACCESSFLOW_UPDATES_ENABLED=false`. The help agent keeps working
+from the bundled corpus; those three together are what guarantee nothing leaves the process. See
+[14-connectors.md → Persistence and air-gap](./14-connectors.md#persistence-and-air-gap).
 
 **Budget the tokens before you enable it.** A turn's prompt is the system preamble (~470 tokens),
 the retrieved excerpts — `top_k` × ~340 tokens, so ~2,000 at the default 6, or the ~2,600-token

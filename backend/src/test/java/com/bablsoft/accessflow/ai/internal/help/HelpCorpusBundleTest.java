@@ -3,7 +3,12 @@ package com.bablsoft.accessflow.ai.internal.help;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Every one of these failure modes is silent without a check: a truncated download, a hand-edited
@@ -127,5 +132,68 @@ class HelpCorpusBundleTest {
         assertThat(bundle.available()).isFalse();
         assertThat(bundle.loadError()).contains("manifest.json is missing");
         assertThat(bundle.chunkCount()).isZero();
+    }
+
+    @Test
+    void activatesARefreshedCorpusThatPassesEveryCheck() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+        var bundled = bundle.bundledCorpusVersion();
+
+        var activated = bundle.activateRefreshed(TarGzFixtures.bundleFiles("good"));
+
+        assertThat(activated).isEqualTo("0d746008cf42");
+        assertThat(bundle.corpusVersion()).isEqualTo("0d746008cf42");
+        assertThat(bundle.chunkCount()).isEqualTo(2);
+        assertThat(bundle.quickReference()).contains("The query lifecycle");
+        // What the jar shipped stays reportable, so a log line can say what was replaced.
+        assertThat(bundle.bundledCorpusVersion()).isEqualTo(bundled).isNotEqualTo(activated);
+    }
+
+    @Test
+    void keepsTheActiveCorpusWhenARefreshedOneFailsVerification() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+        var bundled = bundle.corpusVersion();
+
+        assertThatThrownBy(() -> bundle.activateRefreshed(TarGzFixtures.bundleFiles("bad-checksum")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("corpus.jsonl digest");
+
+        // The whole guarantee of the optional refresh: a bad remote corpus costs nothing.
+        assertThat(bundle.available()).isTrue();
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+    }
+
+    @Test
+    void refusesARefreshedCorpusFromANewerAccessFlow() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+
+        assertThatThrownBy(
+                () -> bundle.activateRefreshed(TarGzFixtures.bundleFiles("future-schema")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("schemaVersion 2 is newer than the supported 1");
+    }
+
+    @Test
+    void refusesARefreshedCorpusMissingOneOfItsThreeFiles() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+        Map<String, byte[]> incomplete = new HashMap<>(TarGzFixtures.bundleFiles("good"));
+        incomplete.remove(HelpCorpusBundle.QUICK_REFERENCE_FILE);
+
+        assertThatThrownBy(() -> bundle.activateRefreshed(incomplete))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("quick-reference.txt is missing from the published archive");
+        assertThat(bundle.available()).isTrue();
+    }
+
+    @Test
+    void canRescueAnInstallWhoseBundledCorpusIsUnusable() throws IOException {
+        var bundle = bundleFrom("bad-checksum");
+        assertThat(bundle.available()).isFalse();
+
+        bundle.activateRefreshed(TarGzFixtures.bundleFiles("good"));
+
+        assertThat(bundle.available()).isTrue();
+        assertThat(bundle.loadError()).isNull();
+        assertThat(bundle.corpusVersion()).isEqualTo("0d746008cf42");
     }
 }

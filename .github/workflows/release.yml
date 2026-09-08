@@ -306,6 +306,31 @@ jobs:
           process.stdout.write(JSON.stringify({ version, connectors }, null, 2) + '\n');
           NODE
 
+      # Help documentation corpus (issue #907). Same shape and same GA-only pointer rule as
+      # the connectors artifacts above: every release publishes its versioned bundle, and only
+      # a GA release moves help-corpus-index.json, so a beta never points running installs at a
+      # corpus describing an unreleased UI. Off by default in the backend — an install opts in
+      # with ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED=true.
+      - name: Build help corpus artifacts
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          mkdir -p .help-corpus-artifacts
+          tar czf ".help-corpus-artifacts/help-corpus-${VERSION}.tar.gz" help-corpus
+          # corpusVersion is content-derived (sha256(corpus.jsonl)[0..12]) and already computed by
+          # the generator, so it is read from the manifest rather than recomputed here.
+          CORPUS_VERSION="$(jq -r '.corpusVersion' help-corpus/manifest.json)"
+          # The archive digest is what pins the download; gzip embeds an mtime, so it has to be
+          # taken from the file that is actually published, after it is written.
+          ARCHIVE_SHA="$(sha256sum ".help-corpus-artifacts/help-corpus-${VERSION}.tar.gz" | cut -d' ' -f1)"
+          jq -n \
+            --arg version "$VERSION" \
+            --arg corpusVersion "$CORPUS_VERSION" \
+            --arg url "https://${{ github.repository_owner }}.github.io/accessflow/help-corpus/help-corpus-${VERSION}.tar.gz" \
+            --arg sha256 "$ARCHIVE_SHA" \
+            '{version: $version, corpusVersion: $corpusVersion, url: $url, sha256: $sha256}' \
+            > .help-corpus-artifacts/help-corpus-index.json
+
       # We publish the chart to gh-pages directly (chart-releaser-action couples
       # this with a GitHub release asset upload, which fails under the repo's
       # immutable-releases policy). Plain `helm repo index` + `git push` is
@@ -326,6 +351,15 @@ jobs:
           cp .connectors-artifacts/connectors-bundle-*.tar.gz /tmp/gh-pages/connectors/
           if [ "${{ needs.prepare.outputs.prerelease }}" = "false" ]; then
             cp .connectors-artifacts/connectors-index.json /tmp/gh-pages/connectors/connectors-index.json
+          fi
+          # Help documentation corpus (issue #907): the same versioned-bundle + GA-only
+          # pointer split as the connectors catalog above. An install with the optional
+          # remote refresh switched on reads help-corpus-index.json and verifies the
+          # archive against the sha256 it pins.
+          mkdir -p /tmp/gh-pages/help-corpus
+          cp .help-corpus-artifacts/help-corpus-*.tar.gz /tmp/gh-pages/help-corpus/
+          if [ "${{ needs.prepare.outputs.prerelease }}" = "false" ]; then
+            cp .help-corpus-artifacts/help-corpus-index.json /tmp/gh-pages/help-corpus/help-corpus-index.json
           fi
           # Engine plugin jars (issues #414/#418): each engine's connector manifest points
           # fresh installs at this URL. Idempotent — the reproducible builds re-upload

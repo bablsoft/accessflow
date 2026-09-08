@@ -18,6 +18,11 @@ data:
   # home (~/.accessflow/drivers) is not writable under runAsUser 1000, which would leave
   # every on-demand connector UNAVAILABLE.
   ACCESSFLOW_DRIVER_CACHE: {{ .Values.driverCache.persistence.mountPath | quote }}
+  # The optional help-corpus refresh (AF-907) needs a writable directory for the same
+  # reason, so it takes a sub-directory of that same volume rather than a second mount.
+  # It is only ever written to when ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED is on,
+  # which it is not by default.
+  ACCESSFLOW_HELP_CORPUS_CACHE_DIR: {{ printf "%s/help-corpus" (trimSuffix "/" .Values.driverCache.persistence.mountPath) | quote }}
   {{- if and .Values.observability.tracing.otlp.enabled .Values.observability.tracing.otlp.endpoint }}
   # OTLP trace export (AF-454) — the backend bridges this onto the Spring exporter.
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.observability.tracing.otlp.endpoint | quote }}

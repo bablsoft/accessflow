@@ -191,6 +191,21 @@ accessflow:
     # How often HelpChatRetentionJob deletes conversations past their organization's retention_days.
     # How long they are kept is the admin's per-org setting; this is only how often we look.
     retention-poll-interval: ${ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL:PT6H}
+    corpus:
+      # Optional remote corpus refresh (AF-907). OFF by default and deliberately so: the corpus in
+      # the jar is always exactly the documentation for the version this install runs, and an agent
+      # confidently describing a UI you do not have is worse than one that is a release behind. Turn
+      # it on only to pick up a documentation *correction* between releases.
+      remote-refresh-enabled: ${ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED:false}
+      # Pointer file naming the newest published corpus: {version, corpusVersion, url, sha256}.
+      # Only GA releases move it; a pre-release publishes its bundle without relabelling the pointer.
+      index-url: ${ACCESSFLOW_HELP_CORPUS_INDEX_URL:https://bablsoft.github.io/accessflow/help-corpus/help-corpus-index.json}
+      # Where verified corpus archives are kept so a restart does not re-download one. Under Helm this
+      # is a sub-directory of the driver-cache volume - ~/.accessflow is not writable as uid 1000.
+      cache-dir: ${ACCESSFLOW_HELP_CORPUS_CACHE_DIR:${user.home}/.accessflow/help-corpus}
+      # Air-gap switch, matching ACCESSFLOW_DRIVERS_OFFLINE: when true nothing leaves the process for
+      # a corpus whatever remote-refresh-enabled says.
+      offline: ${ACCESSFLOW_HELP_CORPUS_OFFLINE:false}
   ai:
     rate-limit:
       # Per-organization AI guardrails (AF-55), enforced before every AiAnalyzerStrategy call so a

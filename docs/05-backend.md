@@ -2076,8 +2076,29 @@ the **same `vector_store` table** the AF-336 knowledge base uses. Everything liv
   contention mean what dropping it implies: the only pass that can lose is one for the *same*
   organization, whose winner is doing exactly the same work. A loser logs at `INFO` and writes no
   `index_error`.
+- **The corpus may be refreshed remotely, and is not by default (AF-907).** With
+  `ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED=true`, `HelpCorpusRemoteRefresher` runs once per
+  replica at startup, immediately before the indexing pass and on the same off-startup thread: it
+  fetches `help-corpus-index.json` from `gh-pages`, compares its `corpusVersion` with the one already
+  active, and — only when they differ — streams the archive it names to a `.part` file under a size
+  cap, hashes the completed file against the pinned `sha256`, deletes it on any mismatch and
+  `ATOMIC_MOVE`s it into place, then hands the three members back through
+  `HelpCorpusBundle.activateRefreshed`, which is the *same* verification the bundled corpus goes
+  through, `schemaVersion` refusal included. The swap happens only after every check passes, so a
+  corrupt or newer-schema remote corpus can never take a working bundled one out of service: every
+  other outcome logs at `WARN` and changes nothing. Because a newer corpus simply changes
+  `corpusVersion`, re-ingestion needs no new code path — it is the upgrade path. Off by default
+  because a corpus published after your release describes a UI this install does not have, and the
+  agent states it confidently; and because refresh is per replica, a replica that fails to refresh
+  can re-index a scope a refreshed one already did, the same transient churn a rolling upgrade
+  produces. The tar reader (`HelpCorpusArchive`) compares entry base names against a fixed allow-list
+  and never resolves one as a path, so nothing in an archive is ever written to disk under a name the
+  archive chose. Rationale and the four knobs:
+  [09-deployment.md → Remote corpus refresh, and why it is off](./09-deployment.md#remote-corpus-refresh-and-why-it-is-off).
 - **Four triggers; only startup is never forced.** `HelpCorpusStartupIndexer` runs an unforced pass on
-  `ApplicationReadyEvent` (gated by `accessflow.help-agent.index-on-startup`) — the version compare is
+  `ApplicationReadyEvent` (gated by `accessflow.help-agent.index-on-startup`, and dispatched onto the
+  indexing executor rather than the readiness thread, since the optional refresh that precedes it
+  carries two HTTP timeouts) — the version compare is
   exactly the decision it wants. `HelpCorpusReindexListener` runs one after a
   `HelpAgentConfigUpdatedEvent` commits, forced only when the binding or the retrieval flag changed, and
   an always-forced one for every bound organization when an `AiConfigUpdatedEvent` reports

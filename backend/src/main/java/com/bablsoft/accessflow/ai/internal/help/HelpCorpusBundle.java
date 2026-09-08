@@ -18,6 +18,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The bundled documentation corpus the in-app help agent answers from (AF-902, epic AF-899), loaded
@@ -38,6 +40,12 @@ import java.util.List;
  * {@code corpus.jsonl} bytes hash to the manifest's {@code sha256}; the manifest's
  * {@code corpusVersion} really is that digest's first 12 characters; the line count matches
  * {@code chunkCount}; and {@code quick-reference.txt} hashes to {@code quickReferenceSha256}.
+ *
+ * <p>The active corpus is not necessarily the bundled one. {@link HelpCorpusRemoteRefresher} may
+ * {@link #activateRefreshed(Map) swap in} a newer corpus published between releases (AF-907, off by
+ * default). It goes through <em>this</em> verification, unchanged and in full, and the swap happens
+ * only once every check has passed — so a corrupt, truncated or newer-schema remote bundle can never
+ * take a working bundled corpus out of service.
  */
 @Component
 public class HelpCorpusBundle {
@@ -59,10 +67,9 @@ public class HelpCorpusBundle {
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .build();
 
-    private final String corpusVersion;
-    private final List<HelpCorpusChunk> chunks;
-    private final String quickReference;
-    private final String loadError;
+    private final AtomicReference<LoadedBundle> active = new AtomicReference<>();
+    private final String bundledCorpusVersion;
+    private final String bundledLoadError;
 
     @Autowired
     public HelpCorpusBundle(ResourceLoader resourceLoader) {
@@ -72,34 +79,38 @@ public class HelpCorpusBundle {
     /** Test seam: the same verification against a fixture bundle somewhere else on the classpath. */
     HelpCorpusBundle(ResourceLoader resourceLoader, String basePath) {
         String version = null;
-        List<HelpCorpusChunk> loaded = List.of();
-        String reference = null;
         String error = null;
         try {
-            var loadedBundle = load(resourceLoader, basePath);
+            var loadedBundle = verify(name -> read(resourceLoader, basePath, name));
             version = loadedBundle.corpusVersion();
-            loaded = loadedBundle.chunks();
-            reference = loadedBundle.quickReference();
-            log.info("Loaded help documentation corpus version {} ({} chunks)", version, loaded.size());
+            active.set(loadedBundle);
+            log.info("Loaded help documentation corpus version {} ({} chunks)", version,
+                    loadedBundle.chunks().size());
         } catch (IOException | JacksonException | IllegalStateException | NoSuchAlgorithmException e) {
             error = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             log.error("Help documentation corpus at {} could not be loaded; the help agent cannot be "
                     + "enabled until this is fixed: {}", basePath, error, e);
         }
-        this.corpusVersion = version;
-        this.chunks = loaded;
-        this.quickReference = reference;
-        this.loadError = error;
+        this.bundledCorpusVersion = version;
+        this.bundledLoadError = error;
     }
 
-    /** Whether the bundle loaded and verified. Everything else is only meaningful when this is true. */
+    /** Whether a corpus loaded and verified. Everything else is only meaningful when this is true. */
     public boolean available() {
-        return loadError == null;
+        return active.get() != null;
     }
 
     /** Why the bundle is unavailable, for logs and {@code index_error} — {@code null} when it loaded. */
     public String loadError() {
-        return loadError;
+        return available() ? null : bundledLoadError;
+    }
+
+    /**
+     * The corpus version compiled into this build, whatever a remote refresh has since activated.
+     * Diagnostics only — indexing keys off {@link #corpusVersion()}.
+     */
+    public String bundledCorpusVersion() {
+        return bundledCorpusVersion;
     }
 
     /**
@@ -108,15 +119,17 @@ public class HelpCorpusBundle {
      * typo fix does not re-embed an unchanged corpus.
      */
     public String corpusVersion() {
-        return corpusVersion;
+        var current = active.get();
+        return current == null ? null : current.corpusVersion();
     }
 
     public int chunkCount() {
-        return chunks.size();
+        return chunks().size();
     }
 
     public List<HelpCorpusChunk> chunks() {
-        return chunks;
+        var current = active.get();
+        return current == null ? List.of() : current.chunks();
     }
 
     /**
@@ -124,13 +137,43 @@ public class HelpCorpusBundle {
      * pgvector, no embedding provider, or an Anthropic-only install. Consumed by the chat runtime.
      */
     public String quickReference() {
-        return quickReference;
+        var current = active.get();
+        return current == null ? null : current.quickReference();
     }
 
-    private static LoadedBundle load(ResourceLoader resourceLoader, String basePath)
+    /**
+     * Verifies a corpus fetched from the release index and, only if every check passes, makes it the
+     * one this process answers from (AF-907).
+     *
+     * @param files the three bundle members by file name, as extracted from the published archive
+     * @return the {@code corpusVersion} now active
+     * @throws IllegalStateException the bundle is incomplete, fails a digest, or declares a
+     *         {@code schemaVersion} this build cannot read — the previously active corpus is kept
+     */
+    public String activateRefreshed(Map<String, byte[]> files) {
+        LoadedBundle refreshed;
+        try {
+            refreshed = verify(name -> {
+                var bytes = files.get(name);
+                if (bytes == null) {
+                    throw new IllegalStateException(name + " is missing from the published archive");
+                }
+                return bytes;
+            });
+        } catch (IOException | JacksonException | NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e.getMessage() == null
+                    ? e.getClass().getSimpleName() : e.getMessage(), e);
+        }
+        active.set(refreshed);
+        log.info("Activated refreshed help documentation corpus version {} ({} chunks); the corpus "
+                + "bundled in this build is version {}", refreshed.corpusVersion(),
+                refreshed.chunks().size(), bundledCorpusVersion);
+        return refreshed.corpusVersion();
+    }
+
+    private static LoadedBundle verify(ByteSource source)
             throws IOException, NoSuchAlgorithmException {
-        var manifest = MAPPER.readValue(read(resourceLoader, basePath, MANIFEST_FILE),
-                HelpCorpusManifest.class);
+        var manifest = MAPPER.readValue(source.read(MANIFEST_FILE), HelpCorpusManifest.class);
         if (manifest == null) {
             throw new IllegalStateException(MANIFEST_FILE + " is the JSON literal null");
         }
@@ -139,7 +182,7 @@ public class HelpCorpusBundle {
                     + " is newer than the supported " + SUPPORTED_SCHEMA_VERSION
                     + "; upgrade AccessFlow to read this corpus");
         }
-        var corpusBytes = read(resourceLoader, basePath, CORPUS_FILE);
+        var corpusBytes = source.read(CORPUS_FILE);
         var digest = sha256(corpusBytes);
         requireDigest(CORPUS_FILE, manifest.sha256(), digest);
         var expectedVersion = digest.substring(0, CORPUS_VERSION_LENGTH);
@@ -153,7 +196,7 @@ public class HelpCorpusBundle {
             throw new IllegalStateException(CORPUS_FILE + " holds " + chunks.size()
                     + " chunks but the manifest declares " + manifest.chunkCount());
         }
-        var quickReferenceBytes = read(resourceLoader, basePath, QUICK_REFERENCE_FILE);
+        var quickReferenceBytes = source.read(QUICK_REFERENCE_FILE);
         requireDigest(QUICK_REFERENCE_FILE, manifest.quickReferenceSha256(),
                 sha256(quickReferenceBytes));
         return new LoadedBundle(manifest.corpusVersion(), List.copyOf(chunks),
@@ -201,6 +244,12 @@ public class HelpCorpusBundle {
 
     private static String sha256(byte[] bytes) throws NoSuchAlgorithmException {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+    }
+
+    /** Where the three bundle members come from — the classpath, or a downloaded archive. */
+    @FunctionalInterface
+    private interface ByteSource {
+        byte[] read(String fileName) throws IOException;
     }
 
     private record LoadedBundle(String corpusVersion, List<HelpCorpusChunk> chunks,
