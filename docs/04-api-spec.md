@@ -2787,7 +2787,7 @@ problem through a failed `POST`.
 |---|---|
 | `enabled` | The agent is switched on **and** bound to an AI configuration, so a question will be attempted. Rate limits and provider failures are still possible |
 | `retrieval_active` | Answers will cite documentation sections. `false` is the supported degraded mode — the agent answers from the bundled quick-reference block and cites nothing |
-| `corpus_version` | The documentation revision this build ships, or `""` when the bundle could not be loaded |
+| `corpus_version` | The documentation revision currently being answered from, or `""` when no corpus could be loaded. Normally the revision this build ships; on an install that opted into the remote corpus refresh it can be a newer one (see [09-deployment.md](./09-deployment.md#remote-corpus-refresh-and-why-it-is-off)) |
 | `chunk_count` | How many documentation chunks that bundle holds, or `0` |
 
 It deliberately says nothing about *why* an agent is off: the provider, the bound configuration and

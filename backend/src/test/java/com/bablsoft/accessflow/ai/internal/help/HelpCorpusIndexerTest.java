@@ -65,6 +65,10 @@ class HelpCorpusIndexerTest {
         lenient().when(bundle.corpusVersion()).thenReturn(CORPUS_VERSION);
         lenient().when(bundle.chunkCount()).thenReturn(3);
         lenient().when(bundle.chunks()).thenReturn(chunks(3));
+        // Ingestion reads the corpus through one snapshot, so a remote refresh landing mid-pass
+        // cannot pair one corpus's chunks with another's version.
+        lenient().when(bundle.snapshot())
+                .thenReturn(new HelpCorpusSnapshot(CORPUS_VERSION, chunks(3), "quick reference"));
     }
 
     // --- skips: the paths that must cost nothing ------------------------------------------------

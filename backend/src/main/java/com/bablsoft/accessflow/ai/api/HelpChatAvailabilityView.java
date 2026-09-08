@@ -13,9 +13,10 @@ package com.bablsoft.accessflow.ai.api;
  * @param retrievalActive answers will cite documentation sections. {@code false} is the supported
  *                        degraded mode (epic AF-899 decision 9), in which the agent answers from the
  *                        bundled quick-reference block and cites nothing
- * @param corpusVersion   the documentation revision this build ships, or empty when the bundle could
- *                        not be loaded
- * @param chunkCount      how many documentation chunks that bundle holds, or 0
+ * @param corpusVersion   the documentation revision currently being answered from, or empty when no
+ *                        corpus could be loaded. Normally the revision this build ships; on an
+ *                        install that opted into the remote corpus refresh (AF-907) it can be newer
+ * @param chunkCount      how many documentation chunks that corpus holds, or 0
  */
 public record HelpChatAvailabilityView(
         boolean enabled,

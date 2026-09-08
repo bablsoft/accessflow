@@ -8,8 +8,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Enables the {@link HelpAgentProperties} binding and supplies the executor the help corpus is
- * indexed on (AF-902).
+ * Enables the {@link HelpAgentProperties} and {@link HelpCorpusProperties} bindings and supplies the
+ * executor the help corpus is indexed on (AF-902, AF-907).
  *
  * <p>The executor is virtual-thread-per-task and dedicated: embedding ~510 chunks against a CPU-only
  * Ollama takes minutes, and that must never sit on the thread that publishes
@@ -17,7 +17,7 @@ import java.util.concurrent.Executors;
  * bean rather than the common task executor so a long ingestion cannot starve anything else.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(HelpAgentProperties.class)
+@EnableConfigurationProperties({HelpAgentProperties.class, HelpCorpusProperties.class})
 class HelpAgentConfiguration {
 
     @Bean(destroyMethod = "close")
