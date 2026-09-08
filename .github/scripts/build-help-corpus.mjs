@@ -504,6 +504,7 @@ const ROUTES = [
   ['/admin/ai-analyses', 'History of every AI analysis, with tokens and latency.'],
   ['/admin/anomalies', 'User-behaviour anomalies the AI flagged.'],
   ['/admin/langfuse', 'Langfuse tracing for AI calls.'],
+  ['/admin/help-agent', 'In-app help assistant: bind it to an AI provider, tune retrieval and retention, and re-index the bundled documentation.'],
   ['/admin/connectors', 'Connector catalog: engines available and their driver pins.'],
   ['/admin/drivers', 'Uploaded JDBC driver JARs for custom engines.'],
   ['/admin/datasource-health', 'Connection health across every registered datasource.'],

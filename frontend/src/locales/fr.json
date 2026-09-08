@@ -101,7 +101,8 @@
     "roles": "Rôles",
     "deployments": "Déploiements",
     "deploymentVersions": "Matrice des versions",
-    "deploymentPipelines": "Pipelines de déploiement"
+    "deploymentPipelines": "Pipelines de déploiement",
+    "help_agent": "Assistant d’aide"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2336,6 +2337,58 @@
       "delete_success": "Rôle supprimé",
       "load_error": "Échec du chargement des rôles",
       "empty": "Aucun rôle pour le moment."
+    },
+    "help_agent": {
+      "title": "Assistant d’aide",
+      "subtitle": "Un assistant intégré qui répond aux questions sur AccessFlow à partir de la documentation livrée avec cette version.",
+      "section_agent": "Assistant",
+      "section_retrieval": "Recherche documentaire",
+      "section_conversation": "Conversations",
+      "section_corpus": "Corpus documentaire",
+      "label_enabled": "Activer l’assistant d’aide",
+      "enabled_help": "Désactivé, le bouton est masqué pour toute l’organisation.",
+      "label_ai_config": "Configuration IA",
+      "ai_config_help": "Le fournisseur interrogé par l’assistant. Sa suppression délie l’assistant au lieu de bloquer la suppression.",
+      "ai_config_placeholder": "Sélectionnez une configuration IA",
+      "label_send_user_context": "Envoyer le contexte d’écran et de permissions",
+      "send_user_context_help": "Envoie le nom de l’écran courant et les permissions de l’appelant — jamais une URL, un identifiant ni vos données.",
+      "label_retrieval_enabled": "Répondre depuis la documentation indexée",
+      "retrieval_enabled_help": "Désactivé est un mode pris en charge : l’assistant répond depuis une référence rapide intégrée et ne cite aucune section.",
+      "label_top_k": "Sections par réponse",
+      "label_similarity_threshold": "Seuil de similarité",
+      "label_max_history_turns": "Tours de conversation conservés",
+      "label_max_question_chars": "Longueur maximale de la question",
+      "label_retention_days": "Conserver les conversations (jours)",
+      "retention_days_help": "Les conversations plus anciennes sont supprimées par la tâche de rétention.",
+      "label_requests_per_minute": "Questions par utilisateur et par minute",
+      "corpus_version": "Révision indexée",
+      "corpus_bundled": "Livré avec cette version",
+      "corpus_chunks": " · {{count}} fragments de documentation",
+      "corpus_unavailable": "Le corpus livré n’a pas pu être chargé",
+      "corpus_indexed_at": "Dernière indexation",
+      "corpus_status": "État",
+      "corpus_status_ok": "Prêt",
+      "corpus_status_error": "La dernière indexation a échoué",
+      "corpus_never_indexed": "Jamais indexé",
+      "corpus_never": "Jamais",
+      "index_error": "La dernière indexation a échoué",
+      "reindex_button": "Réindexer la documentation",
+      "reindex_accepted": "Réindexation lancée ; le résultat apparaîtra ici une fois terminée.",
+      "reindex_error": "La réindexation n’a pas pu être lancée",
+      "save_button": "Enregistrer les modifications",
+      "save_success": "Paramètres de l’assistant d’aide enregistrés",
+      "save_error": "Les paramètres n’ont pas pu être enregistrés",
+      "test_button": "Tester la recherche",
+      "test_error": "Le test de recherche n’a pas pu être exécuté",
+      "load_error": "Les paramètres de l’assistant d’aide n’ont pas pu être chargés",
+      "retrieval_unavailable": {
+        "quick_reference": "L’assistant fonctionne toujours : sans recherche, il répond depuis une référence rapide intégrée, il ne peut simplement pas citer de section.",
+        "no_ai_config": "Aucune configuration IA n’est sélectionnée, la recherche documentaire ne peut donc pas être activée.",
+        "rag_disabled": "La configuration IA sélectionnée n’a pas de base de connaissances RAG activée, la recherche documentaire ne peut donc pas être activée.",
+        "embedding_provider_missing": "La configuration IA sélectionnée n’a pas de fournisseur d’embeddings, la recherche documentaire ne peut donc pas être activée.",
+        "embedding_provider_anthropic": "Anthropic ne propose pas d’API d’embeddings : la configuration IA sélectionnée ne peut donc pas indexer la documentation. Pointez son fournisseur d’embeddings vers un endpoint compatible OpenAI pour activer la recherche.",
+        "pgvector_unavailable": "Le stockage pgvector intégré n’est pas disponible sur cette installation — soit l’extension vector n’est pas installée, soit ACCESSFLOW_RAG_PGVECTOR_ENABLED vaut false, ce qui a ignoré la migration vector_store. Testez la recherche pour savoir laquelle, ou utilisez un stockage Qdrant externe."
+      }
     }
   },
   "notifications": {
@@ -4598,5 +4651,21 @@
       "summary_match_all": "Correspond à tous les déploiements",
       "labelTimeRange": "Plage horaire"
     }
+  },
+  "help_chat": {
+    "title": "Assistant d’aide",
+    "launcher_tooltip": "Interroger l’assistant d’aide",
+    "new_conversation": "Nouvelle conversation",
+    "transcript_label": "Conversation d’aide",
+    "citations_label": "Sections de documentation utilisées pour cette réponse",
+    "thinking": "Lecture de la documentation…",
+    "empty_hint": "Demandez comment utiliser AccessFlow. Les réponses proviennent de la documentation livrée avec cette version et citent les sections utilisées.",
+    "question_label": "Votre question",
+    "question_placeholder": "Comment soumettre une requête à la revue ?",
+    "enter_hint": "Entrée envoie, Maj+Entrée ajoute une ligne",
+    "send": "Envoyer",
+    "ask_error": "L’assistant n’a pas pu répondre à cette question",
+    "quick_reference_mode": "Mode référence rapide",
+    "quick_reference_mode_help": "La recherche documentaire est désactivée : les réponses proviennent d’un résumé intégré et ne citent aucune section."
   }
 }

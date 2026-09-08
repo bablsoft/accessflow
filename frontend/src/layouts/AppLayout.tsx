@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '@/components/common/Sidebar';
 import { SetupProgressWidget } from '@/components/common/SetupProgressWidget';
 import { Topbar } from '@/components/common/Topbar';
+import { HelpChatLauncher } from '@/components/help/HelpChatLauncher';
 import { RealtimeBridge } from '@/realtime/RealtimeBridge';
 import { useAuthStore } from '@/store/authStore';
 import { usePreferencesStore } from '@/store/preferencesStore';
@@ -45,6 +46,8 @@ export function AppLayout() {
           </div>
         </div>
       </div>
+      {/* Authenticated-only by construction: AppLayout never renders on /login or /setup. */}
+      <HelpChatLauncher />
     </div>
   );
 }

@@ -101,7 +101,8 @@
     "roles": "Roles",
     "deployments": "Despliegues",
     "deploymentVersions": "Matriz de versiones",
-    "deploymentPipelines": "Pipelines de despliegue"
+    "deploymentPipelines": "Pipelines de despliegue",
+    "help_agent": "Asistente de ayuda"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -2336,6 +2337,58 @@
       "delete_success": "Rol eliminado",
       "load_error": "No se pudieron cargar los roles",
       "empty": "Aún no hay roles."
+    },
+    "help_agent": {
+      "title": "Asistente de ayuda",
+      "subtitle": "Un asistente integrado que responde preguntas sobre AccessFlow a partir de la documentación incluida en esta versión.",
+      "section_agent": "Asistente",
+      "section_retrieval": "Búsqueda en la documentación",
+      "section_conversation": "Conversaciones",
+      "section_corpus": "Corpus de documentación",
+      "label_enabled": "Activar el asistente de ayuda",
+      "enabled_help": "Cuando está desactivado, el botón queda oculto para toda la organización.",
+      "label_ai_config": "Configuración de IA",
+      "ai_config_help": "El proveedor al que pregunta el asistente. Eliminarlo desvincula el asistente en lugar de bloquear el borrado.",
+      "ai_config_placeholder": "Seleccione una configuración de IA",
+      "label_send_user_context": "Enviar contexto de pantalla y permisos",
+      "send_user_context_help": "Envía el nombre de la pantalla actual y los permisos del usuario, nunca una URL, un id ni sus datos.",
+      "label_retrieval_enabled": "Responder desde la documentación indexada",
+      "retrieval_enabled_help": "Desactivarlo es un modo admitido: el asistente responde desde una referencia rápida incorporada y no cita secciones.",
+      "label_top_k": "Secciones por respuesta",
+      "label_similarity_threshold": "Umbral de similitud",
+      "label_max_history_turns": "Turnos de conversación conservados",
+      "label_max_question_chars": "Longitud máxima de la pregunta",
+      "label_retention_days": "Conservar conversaciones (días)",
+      "retention_days_help": "Las conversaciones más antiguas las elimina el trabajo de retención.",
+      "label_requests_per_minute": "Preguntas por usuario y minuto",
+      "corpus_version": "Revisión indexada",
+      "corpus_bundled": "Incluido en esta compilación",
+      "corpus_chunks": " · {{count}} fragmentos de documentación",
+      "corpus_unavailable": "No se pudo cargar el corpus incluido",
+      "corpus_indexed_at": "Última indexación",
+      "corpus_status": "Estado",
+      "corpus_status_ok": "Listo",
+      "corpus_status_error": "La última indexación falló",
+      "corpus_never_indexed": "Nunca indexado",
+      "corpus_never": "Nunca",
+      "index_error": "La última indexación falló",
+      "reindex_button": "Reindexar la documentación",
+      "reindex_accepted": "Reindexación iniciada; el resultado aparecerá aquí al terminar.",
+      "reindex_error": "No se pudo iniciar la reindexación",
+      "save_button": "Guardar cambios",
+      "save_success": "Ajustes del asistente de ayuda guardados",
+      "save_error": "No se pudieron guardar los ajustes",
+      "test_button": "Probar la búsqueda",
+      "test_error": "No se pudo ejecutar la prueba de búsqueda",
+      "load_error": "No se pudieron cargar los ajustes del asistente de ayuda",
+      "retrieval_unavailable": {
+        "quick_reference": "El asistente sigue funcionando: sin búsqueda responde desde una referencia rápida incorporada, solo que no puede citar una sección de la documentación.",
+        "no_ai_config": "No hay ninguna configuración de IA seleccionada, así que no se puede activar la búsqueda en la documentación.",
+        "rag_disabled": "La configuración de IA seleccionada no tiene una base de conocimiento RAG activada, así que no se puede activar la búsqueda en la documentación.",
+        "embedding_provider_missing": "La configuración de IA seleccionada no tiene proveedor de embeddings, así que no se puede activar la búsqueda en la documentación.",
+        "embedding_provider_anthropic": "Anthropic no ofrece una API de embeddings, por lo que la configuración de IA seleccionada no puede indexar documentación. Apunte su proveedor de embeddings a un endpoint compatible con OpenAI para activar la búsqueda.",
+        "pgvector_unavailable": "El almacenamiento pgvector interno no está disponible en esta instalación: o la extensión vector no está instalada o ACCESSFLOW_RAG_PGVECTOR_ENABLED es false, lo que omitió la migración de vector_store. Pruebe la búsqueda para saber cuál, o use un almacén Qdrant externo."
+      }
     }
   },
   "notifications": {
@@ -4598,5 +4651,21 @@
       "summary_match_all": "Coincide con todos los despliegues",
       "labelTimeRange": "Rango horario"
     }
+  },
+  "help_chat": {
+    "title": "Asistente de ayuda",
+    "launcher_tooltip": "Preguntar al asistente de ayuda",
+    "new_conversation": "Nueva conversación",
+    "transcript_label": "Conversación de ayuda",
+    "citations_label": "Secciones de documentación usadas en esta respuesta",
+    "thinking": "Leyendo la documentación…",
+    "empty_hint": "Pregunte cómo usar AccessFlow. Las respuestas provienen de la documentación incluida en esta versión y citan las secciones utilizadas.",
+    "question_label": "Su pregunta",
+    "question_placeholder": "¿Cómo envío una consulta para revisión?",
+    "enter_hint": "Enter envía, Mayús+Enter añade una línea",
+    "send": "Enviar",
+    "ask_error": "El asistente no pudo responder a esa pregunta",
+    "quick_reference_mode": "Modo de referencia rápida",
+    "quick_reference_mode_help": "La recuperación de documentación está desactivada: las respuestas provienen de un resumen incorporado y no citan secciones."
   }
 }

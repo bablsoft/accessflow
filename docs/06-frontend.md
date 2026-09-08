@@ -95,9 +95,18 @@ accessflow-ui/
 │   │   │   ├── SampleDataDrawer.tsx  # Drawer hosting SampleDataPreview (AF-443)
 │   │   │   └── ReviewPlanPicker.tsx # Review plan assignment dropdown
 │   │   │
-│   │   └── audit/
-│   │       ├── AuditLogTable.tsx   # Searchable audit event table
-│   │       └── AuditDetailDrawer.tsx # Slide-in detail for single event
+│   │   ├── audit/
+│   │   │   ├── AuditLogTable.tsx   # Searchable audit event table
+│   │   │   └── AuditDetailDrawer.tsx # Slide-in detail for single event
+│   │   │
+│   │   └── help/                    # In-app documentation help chat (AF-906)
+│   │       ├── HelpChatLauncher.tsx  # Fixed launcher; renders null unless availability.enabled
+│   │       ├── HelpChatPanel.tsx     # Drawer shell (placement=right, mask={false})
+│   │       ├── HelpChatMessageList.tsx # Transcript — plain text, no auto-linking
+│   │       ├── HelpChatCitations.tsx # [n] chips; the only anchors on the panel
+│   │       ├── HelpChatComposer.tsx  # Question box, maxLength mirrors the backend @Size
+│   │       ├── routeLabel.ts         # pathname → nav.* label key (never a path or an id)
+│   │       └── help-chat.css
 │   │
 │   ├── realtime/
 │   │   ├── websocketManager.ts     # Framework-free singleton: connect/reconnect/dispatch
@@ -109,6 +118,7 @@ accessflow-ui/
 │   │   ├── useWebSocket.ts         # Typed `subscribe` wrapper for components
 │   │   ├── useSchemaIntrospect.ts  # Fetch and cache datasource schema
 │   │   ├── useAiAnalysis.ts        # Debounced AI analysis calls from editor
+│   │   ├── useHelpChat.ts          # Help chat availability + conversation + ask (AF-906)
 │   │   └── useCurrentUser.ts       # Auth state, role checks
 │   │
 │   ├── layouts/
@@ -154,11 +164,13 @@ accessflow-ui/
 │   │       ├── NotificationsPage.tsx
 │   │       ├── SamlConfigPage.tsx    # SAML 2.0 SSO configuration
 │   │       ├── ScimConfigPage.tsx    # SCIM 2.0 provisioning config + bearer tokens (#621)
-│   │       └── LangfuseConfigPage.tsx # Langfuse tracing + prompt management
+│   │       ├── LangfuseConfigPage.tsx # Langfuse tracing + prompt management
+│   │       ├── HelpAgentConfigPage.tsx # In-app help chat agent settings + corpus status (AF-906)
+│   │       └── helpAgentRetrieval.ts   # Pure: why retrieval cannot be enabled, from the bound config
 │   │
 │   ├── store/
 │   │   ├── authStore.ts             # Current user, JWT, login/logout actions
-│   │   └── preferencesStore.ts      # Theme, sidebar collapse, collapsed nav sub-sections (AF-837), language, dashboard widget layout + trends range (AF-498; persist v1, hidden[]/order[]/collapsed{}/size{})
+│   │   └── preferencesStore.ts      # Theme, sidebar collapse, collapsed nav sub-sections (AF-837), language, dashboard widget layout + trends range (AF-498; hidden[]/order[]/collapsed{}/size{}), help chat drawer open + active session id (AF-906); persist v2
 │   │
 │   ├── types/
 │   │   ├── api.ts                   # All API response/request types
@@ -540,6 +552,84 @@ TanStack Query loads the config (`getLangfuseConfig`, key `langfuseConfigKeys.cu
 URL, ≤ 500), **Public key**, **Secret key** (`Input.Password`), **Send analysis traces**, and **Use
 Langfuse-managed prompts**. A **Test connection** button calls `testLangfuseConfig` and surfaces the
 server's status message as a toast.
+
+### In-app help chat (`components/help/`, AF-906)
+
+`HelpChatLauncher` is mounted by `AppLayout`, so it exists only for a signed-in user and never
+appears on `/login` or `/setup`. It reads `GET /help-chat/availability` (TanStack Query, key
+`helpChatKeys.availability()`, `staleTime` 5 min) and **renders nothing at all** — no button and no
+drawer — unless `enabled` is true, which is how an organization that has not configured the agent
+sees no trace of it. Opening it lazy-loads `HelpChatPanel`, an Ant Design `Drawer` with
+`placement="right"` and `mask={false}` so the page underneath (including `SetupProgressWidget`)
+stays usable while a question is in flight.
+
+`useHelpChat` owns the server state: availability, the active conversation
+(`helpChatKeys.session(id)`), and an ask `useMutation` that appends the user's question optimistically
+and rolls it back if the call fails. The conversation *id* is UI state and lives in
+`preferencesStore` (`activeHelpSessionId`, alongside `helpChatOpen`) — never the messages themselves.
+A session is opened lazily on the first question, so browsing the panel leaves no empty transcript
+behind, and errors surface the server's own localized `detail` through `showApiError`.
+
+Two rules are load-bearing rather than cosmetic (epic AF-899 decisions 3 and 6):
+
+- **Message content is rendered as plain text.** `HelpChatMessageList` puts `content` in a text node
+  with `white-space: pre-wrap`; there is no markdown rendering, no `dangerouslySetInnerHTML`, and no
+  URL auto-linking. The **only** anchors on the panel come from `HelpChatCitations`, built from the
+  server-resolved `citations` array, each an `<a target="_blank" rel="noopener noreferrer">`. A URL
+  the model wrote is text; a jailbroken model cannot make the help panel a phishing surface.
+- **The panel sends a route *label*, never a pathname.** `routeLabel.ts` maps the current route to
+  the sidebar's own `nav.*` key — `/queries/<uuid>` becomes "Query history" — and returns nothing for
+  an unmapped route. The pathname is never interpolated into the result, so no request id,
+  datasource id or search term reaches the AI provider. The server sanitizes the field again on
+  arrival.
+
+`HelpChatComposer`'s `maxLength` is 10 000, mirroring `AskHelpChatRequest.question`'s
+`@Size(max = 10000)` — the ceiling on what is *stored*, not the organization's
+`max_question_chars`, which only truncates what reaches the model.
+
+### Help agent configuration (`pages/admin/HelpAgentConfigPage.tsx`, AF-906)
+
+`/admin/help-agent` (lazy, `AI_MANAGE` — nav entry in System → **AI**) is the single-org settings
+form for the help chat agent, in the shape of `LangfuseConfigPage`: `getHelpAgentConfig`
+(key `helpAgentKeys.config()`) loads it, a `useMutation` saves it, and the row never 404s — an
+organization that has never saved one is served the defaults with a `null` `id`. Unbinding sends
+`clear_ai_config: true`, because a `null` `ai_config_id` means "unchanged" on a partial update.
+
+Three switches carry no numeric constraint — **Enable the help assistant**, **AI configuration**
+(a `Select` over `listAiConfigs`) and **Send screen and permission context** — and the rest are
+bounded.
+
+**Validation parity** — every `Form.Item` rule mirrors a constraint on
+[`UpdateHelpAgentConfigRequest`](../backend/src/main/java/com/bablsoft/accessflow/ai/internal/web/UpdateHelpAgentConfigRequest.java)
+per the CLAUDE.md parity rule:
+
+| Field | Backend constraint | Frontend rule |
+|---|---|---|
+| `retrieval_enabled` | — (`Boolean`, partial update) | `Switch` |
+| `top_k` | `@Min(1) @Max(20)` | `required` + `type: 'number', min: 1, max: 20` |
+| `similarity_threshold` | `@DecimalMin("0.0") @DecimalMax("1.0")` | `required` + `type: 'number', min: 0, max: 1` |
+| `max_history_turns` | `@Min(1) @Max(50)` | `required` + `type: 'number', min: 1, max: 50` |
+| `max_question_chars` | `@Min(100) @Max(10000)` | `required` + `type: 'number', min: 100, max: 10000` |
+| `retention_days` | `@Min(1) @Max(3650)` | `required` + `type: 'number', min: 1, max: 3650` |
+| `per_user_requests_per_minute` | `@Min(1) @Max(120)` | `required` + `type: 'number', min: 1, max: 120` |
+
+The corpus panel shows the read-only ingestion state the indexer writes — indexed revision, last
+indexed, and whether the last pass failed — plus a **Re-index documentation** button
+(`POST /admin/help-agent/reindex`, accepted asynchronously, nothing to poll). **Test retrieval** sits
+in the form's action row next to **Save changes**, not in that panel, and surfaces the server's
+`detail` verbatim as a toast.
+
+When retrieval cannot be enabled the page says *why* rather than leaving the admin to discover it on
+save. `helpAgentRetrieval.ts` derives the reason from the bound `ai_config` and
+`GET /admin/ai-configs/rag/capabilities`: no configuration selected, RAG switched off, no embedding
+provider, `ANTHROPIC` (which ships no embeddings API), or pgvector unavailable. Every one of those is
+paired with the reassurance that the agent still works — with retrieval off it answers from the
+bundled quick reference, it simply cannot cite a section.
+
+Three states are reported as the backend's own localized `detail` instead — on **Test retrieval**, on
+a rejected save, or in `index_error` — because nothing in the payloads this page reads separates
+them: a missing `vector` extension, `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` having skipped the
+`vector_store` migration, and an embedding dimension that does not match the pgvector column.
 
 ### Topbar (`components/common/Topbar.tsx`)
 
@@ -990,6 +1080,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/oauth2                       → OAuth2ConfigPage (lazy)
 /admin/slack                        → SlackConfigPage (lazy; Slack app config — AF-362)
 /admin/langfuse                     → LangfuseConfigPage (lazy; Langfuse tracing + prompt management — AF-333)
+/admin/help-agent                   → HelpAgentConfigPage (lazy; in-app help chat agent settings + corpus status — AF-906)
 /auth/oauth/callback                → OAuthCallbackPage (lazy, unauthenticated)
 ```
 
@@ -1029,7 +1120,7 @@ still gates each entry.
 | | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
 | `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages` |
-| | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse` |
+| | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse`, `/admin/help-agent` |
 | `PLATFORM` | *(none)* | `/admin/organizations` |
 
 `/admin/slack` is the one entry that **moved groups**: it left `SECURITY` for `SYSTEM`, next to

@@ -34,6 +34,10 @@ const SERIAL_SPECS = [
   '**/admin-scim-config.spec.ts',
   '**/admin-slack-config.spec.ts',
   '**/admin-langfuse-config.spec.ts',
+  // Writes the org's singleton help_agent_config row. It never leaves the agent enabled,
+  // but an enable that did land would put the fixed help launcher in every other spec's
+  // viewport (AF-906).
+  '**/admin-help-agent-config.spec.ts',
   // Seeded-admin identity mutators — password resets and TOTP enrollment on
   // e2e@accessflow.test would break every concurrent login.
   '**/auth-forgot-password.spec.ts',

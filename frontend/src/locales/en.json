@@ -101,7 +101,8 @@
     "roles": "Roles",
     "deployments": "Deployments",
     "deploymentVersions": "Version Matrix",
-    "deploymentPipelines": "Deployment Pipelines"
+    "deploymentPipelines": "Deployment Pipelines",
+    "help_agent": "Help assistant"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -2336,6 +2337,58 @@
       "delete_success": "Role deleted",
       "load_error": "Failed to load roles",
       "empty": "No roles yet."
+    },
+    "help_agent": {
+      "title": "Help assistant",
+      "subtitle": "An in-app assistant that answers questions about AccessFlow from the documentation shipped with this version.",
+      "section_agent": "Assistant",
+      "section_retrieval": "Documentation retrieval",
+      "section_conversation": "Conversations",
+      "section_corpus": "Documentation corpus",
+      "label_enabled": "Enable the help assistant",
+      "enabled_help": "When off, the launcher is hidden for everyone in this organization.",
+      "label_ai_config": "AI configuration",
+      "ai_config_help": "The provider the assistant asks. Deleting it unbinds the assistant rather than blocking the delete.",
+      "ai_config_placeholder": "Select an AI configuration",
+      "label_send_user_context": "Send screen and permission context",
+      "send_user_context_help": "Sends the name of the current screen and the caller’s permission names — never a URL, an id, or any of your data.",
+      "label_retrieval_enabled": "Answer from indexed documentation",
+      "retrieval_enabled_help": "Off is a supported mode: the assistant answers from a built-in quick reference and cites no sections.",
+      "label_top_k": "Sections per answer",
+      "label_similarity_threshold": "Similarity threshold",
+      "label_max_history_turns": "Conversation turns kept",
+      "label_max_question_chars": "Maximum question length",
+      "label_retention_days": "Keep conversations for (days)",
+      "retention_days_help": "Conversations older than this are deleted by the retention job.",
+      "label_requests_per_minute": "Questions per user per minute",
+      "corpus_version": "Indexed revision",
+      "corpus_bundled": "Bundled with this build",
+      "corpus_chunks": " · {{count}} documentation chunks",
+      "corpus_unavailable": "The bundled corpus could not be loaded",
+      "corpus_indexed_at": "Last indexed",
+      "corpus_status": "Status",
+      "corpus_status_ok": "Ready",
+      "corpus_status_error": "Last indexing pass failed",
+      "corpus_never_indexed": "Never indexed",
+      "corpus_never": "Never",
+      "index_error": "The last indexing pass failed",
+      "reindex_button": "Re-index documentation",
+      "reindex_accepted": "Re-indexing started; the result appears here when it finishes.",
+      "reindex_error": "Re-indexing could not be started",
+      "save_button": "Save changes",
+      "save_success": "Help assistant settings saved",
+      "save_error": "The settings could not be saved",
+      "test_button": "Test retrieval",
+      "test_error": "The retrieval test could not be run",
+      "load_error": "The help assistant settings could not be loaded",
+      "retrieval_unavailable": {
+        "quick_reference": "The assistant still works: with retrieval off it answers from a built-in quick reference, it just cannot cite a documentation section.",
+        "no_ai_config": "No AI configuration is selected, so documentation retrieval cannot be enabled.",
+        "rag_disabled": "The selected AI configuration has no RAG knowledge base enabled, so documentation retrieval cannot be enabled.",
+        "embedding_provider_missing": "The selected AI configuration has no embedding provider, so documentation retrieval cannot be enabled.",
+        "embedding_provider_anthropic": "Anthropic offers no embeddings API, so the selected AI configuration cannot index documentation. Point its embedding provider at an OpenAI-compatible endpoint to enable retrieval.",
+        "pgvector_unavailable": "In-app pgvector storage is unavailable on this deployment — either the vector extension is not installed or ACCESSFLOW_RAG_PGVECTOR_ENABLED is false, which skipped the vector_store migration. Test retrieval to see which, or use an external Qdrant store."
+      }
     }
   },
   "notifications": {
@@ -4598,5 +4651,21 @@
       "summary_match_all": "Matches every deployment",
       "labelTimeRange": "Time range"
     }
+  },
+  "help_chat": {
+    "title": "Help assistant",
+    "launcher_tooltip": "Ask the help assistant",
+    "new_conversation": "New conversation",
+    "transcript_label": "Help conversation",
+    "citations_label": "Documentation sections used for this answer",
+    "thinking": "Reading the documentation…",
+    "empty_hint": "Ask how to use AccessFlow. Answers come from the documentation shipped with this version, and cite the sections they used.",
+    "question_label": "Your question",
+    "question_placeholder": "How do I submit a query for review?",
+    "enter_hint": "Enter sends, Shift+Enter adds a line",
+    "send": "Send",
+    "ask_error": "The assistant could not answer that question",
+    "quick_reference_mode": "Quick-reference mode",
+    "quick_reference_mode_help": "Documentation retrieval is off, so answers come from a built-in summary and cite no sections."
   }
 }

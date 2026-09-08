@@ -1,0 +1,116 @@
+/* In-app documentation help chat (AF-906). Design tokens only — no literal colours. */
+
+.af-help-launcher {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: 900;
+  box-shadow: var(--shadow-lg);
+}
+
+.af-help-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.af-help-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.af-help-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 92%;
+}
+.af-help-message-user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+.af-help-message-assistant {
+  align-self: flex-start;
+}
+
+.af-help-bubble {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+  /* The answer is plain text and rendered as plain text; preserve the model's own line breaks
+     without turning any of it into markup. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.af-help-message-user .af-help-bubble {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--fg);
+}
+.af-help-message-assistant .af-help-bubble {
+  background: var(--bg-elev);
+  color: var(--fg);
+}
+.af-help-message-pending .af-help-bubble {
+  opacity: 0.65;
+}
+
+.af-help-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.af-help-citation {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-width: 100%;
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--fg-muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+.af-help-citation:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent-strong);
+}
+.af-help-citation-index {
+  color: var(--fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.af-help-citation-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.af-help-composer {
+  border-top: 1px solid var(--border);
+  padding: var(--sp-3) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  background: var(--bg-elev);
+}
+.af-help-composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.af-help-composer-hint {
+  color: var(--fg-subtle);
+  font-size: 12px;
+}

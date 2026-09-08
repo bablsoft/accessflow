@@ -101,7 +101,8 @@
     "roles": "Rollen",
     "deployments": "Deployments",
     "deploymentVersions": "Versionsmatrix",
-    "deploymentPipelines": "Deployment-Pipelines"
+    "deploymentPipelines": "Deployment-Pipelines",
+    "help_agent": "Hilfe-Assistent"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2336,6 +2337,58 @@
       "delete_success": "Rolle gelöscht",
       "load_error": "Rollen konnten nicht geladen werden",
       "empty": "Noch keine Rollen."
+    },
+    "help_agent": {
+      "title": "Hilfe-Assistent",
+      "subtitle": "Ein Assistent in der Anwendung, der Fragen zu AccessFlow aus der mit dieser Version ausgelieferten Dokumentation beantwortet.",
+      "section_agent": "Assistent",
+      "section_retrieval": "Dokumentationssuche",
+      "section_conversation": "Unterhaltungen",
+      "section_corpus": "Dokumentationskorpus",
+      "label_enabled": "Hilfe-Assistent aktivieren",
+      "enabled_help": "Wenn deaktiviert, ist die Schaltfläche für alle in dieser Organisation ausgeblendet.",
+      "label_ai_config": "KI-Konfiguration",
+      "ai_config_help": "Der Anbieter, den der Assistent fragt. Ein Löschen hebt die Bindung auf und blockiert das Löschen nicht.",
+      "ai_config_placeholder": "KI-Konfiguration auswählen",
+      "label_send_user_context": "Bildschirm- und Berechtigungskontext senden",
+      "send_user_context_help": "Sendet den Namen des aktuellen Bildschirms und die Berechtigungsnamen des Aufrufers — niemals eine URL, eine ID oder Ihre Daten.",
+      "label_retrieval_enabled": "Aus indizierter Dokumentation antworten",
+      "retrieval_enabled_help": "Deaktiviert ist ein unterstützter Modus: Der Assistent antwortet aus einer eingebauten Kurzreferenz und nennt keine Abschnitte.",
+      "label_top_k": "Abschnitte pro Antwort",
+      "label_similarity_threshold": "Ähnlichkeitsschwelle",
+      "label_max_history_turns": "Beibehaltene Gesprächsrunden",
+      "label_max_question_chars": "Maximale Fragelänge",
+      "label_retention_days": "Unterhaltungen aufbewahren (Tage)",
+      "retention_days_help": "Ältere Unterhaltungen werden vom Aufbewahrungsjob gelöscht.",
+      "label_requests_per_minute": "Fragen pro Benutzer und Minute",
+      "corpus_version": "Indizierte Revision",
+      "corpus_bundled": "Mit diesem Build ausgeliefert",
+      "corpus_chunks": " · {{count}} Dokumentationsabschnitte",
+      "corpus_unavailable": "Der mitgelieferte Korpus konnte nicht geladen werden",
+      "corpus_indexed_at": "Zuletzt indiziert",
+      "corpus_status": "Status",
+      "corpus_status_ok": "Bereit",
+      "corpus_status_error": "Letzter Indizierungslauf fehlgeschlagen",
+      "corpus_never_indexed": "Nie indiziert",
+      "corpus_never": "Nie",
+      "index_error": "Der letzte Indizierungslauf ist fehlgeschlagen",
+      "reindex_button": "Dokumentation neu indizieren",
+      "reindex_accepted": "Neuindizierung gestartet; das Ergebnis erscheint hier, sobald sie abgeschlossen ist.",
+      "reindex_error": "Die Neuindizierung konnte nicht gestartet werden",
+      "save_button": "Änderungen speichern",
+      "save_success": "Einstellungen des Hilfe-Assistenten gespeichert",
+      "save_error": "Die Einstellungen konnten nicht gespeichert werden",
+      "test_button": "Suche testen",
+      "test_error": "Der Suchtest konnte nicht ausgeführt werden",
+      "load_error": "Die Einstellungen des Hilfe-Assistenten konnten nicht geladen werden",
+      "retrieval_unavailable": {
+        "quick_reference": "Der Assistent funktioniert weiterhin: Ohne Suche antwortet er aus einer eingebauten Kurzreferenz, er kann nur keinen Dokumentationsabschnitt nennen.",
+        "no_ai_config": "Es ist keine KI-Konfiguration ausgewählt, daher kann die Dokumentationssuche nicht aktiviert werden.",
+        "rag_disabled": "Für die ausgewählte KI-Konfiguration ist keine RAG-Wissensdatenbank aktiviert, daher kann die Dokumentationssuche nicht aktiviert werden.",
+        "embedding_provider_missing": "Die ausgewählte KI-Konfiguration hat keinen Embedding-Anbieter, daher kann die Dokumentationssuche nicht aktiviert werden.",
+        "embedding_provider_anthropic": "Anthropic bietet keine Embeddings-API, daher kann die ausgewählte KI-Konfiguration keine Dokumentation indizieren. Richten Sie ihren Embedding-Anbieter auf einen OpenAI-kompatiblen Endpunkt, um die Suche zu aktivieren.",
+        "pgvector_unavailable": "Die interne pgvector-Speicherung ist auf dieser Installation nicht verfügbar — entweder ist die vector-Erweiterung nicht installiert oder ACCESSFLOW_RAG_PGVECTOR_ENABLED ist false, wodurch die vector_store-Migration übersprungen wurde. Testen Sie die Suche, um zu sehen welches, oder verwenden Sie einen externen Qdrant-Speicher."
+      }
     }
   },
   "notifications": {
@@ -4598,5 +4651,21 @@
       "summary_match_all": "Trifft auf jedes Deployment zu",
       "labelTimeRange": "Zeitraum"
     }
+  },
+  "help_chat": {
+    "title": "Hilfe-Assistent",
+    "launcher_tooltip": "Hilfe-Assistent fragen",
+    "new_conversation": "Neue Unterhaltung",
+    "transcript_label": "Hilfe-Unterhaltung",
+    "citations_label": "Für diese Antwort verwendete Dokumentationsabschnitte",
+    "thinking": "Dokumentation wird gelesen…",
+    "empty_hint": "Fragen Sie, wie AccessFlow zu bedienen ist. Antworten stammen aus der mit dieser Version ausgelieferten Dokumentation und nennen die verwendeten Abschnitte.",
+    "question_label": "Ihre Frage",
+    "question_placeholder": "Wie reiche ich eine Abfrage zur Prüfung ein?",
+    "enter_hint": "Enter sendet, Umschalt+Enter fügt eine Zeile ein",
+    "send": "Senden",
+    "ask_error": "Der Assistent konnte diese Frage nicht beantworten",
+    "quick_reference_mode": "Kurzreferenz-Modus",
+    "quick_reference_mode_help": "Die Dokumentationssuche ist deaktiviert; Antworten stammen aus einer eingebauten Zusammenfassung und nennen keine Abschnitte."
   }
 }
