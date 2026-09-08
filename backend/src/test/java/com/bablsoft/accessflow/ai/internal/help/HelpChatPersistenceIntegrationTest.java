@@ -7,10 +7,12 @@ import com.bablsoft.accessflow.ai.api.HelpChatCitation;
 import com.bablsoft.accessflow.ai.api.HelpChatRole;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionNotFoundException;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionService;
+import com.bablsoft.accessflow.ai.api.HelpChatSessionView;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpChatSessionEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpChatMessageRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpChatSessionRepository;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -47,6 +49,7 @@ class HelpChatPersistenceIntegrationTest {
 
     private UUID organizationId;
     private UUID userId;
+    private UUID otherUserId;
 
     @BeforeEach
     void setUp() {
@@ -68,6 +71,18 @@ class HelpChatPersistenceIntegrationTest {
         user.setOrganization(org);
         userRepository.save(user);
         userId = user.getId();
+
+        var otherUser = new UserEntity();
+        otherUser.setId(UUID.randomUUID());
+        otherUser.setEmail("help-chat-other-" + UUID.randomUUID() + "@example.com");
+        otherUser.setDisplayName("Help Chat Other User");
+        otherUser.setPasswordHash("hash");
+        otherUser.setRole(UserRoleType.ANALYST);
+        otherUser.setAuthProvider(AuthProviderType.LOCAL);
+        otherUser.setActive(true);
+        otherUser.setOrganization(org);
+        userRepository.save(otherUser);
+        otherUserId = otherUser.getId();
     }
 
     private static HelpChatAnswer answer(String content, List<HelpChatCitation> citations) {
@@ -192,10 +207,48 @@ class HelpChatPersistenceIntegrationTest {
     }
 
     /** A transcript is private to the person who had it — for everyone, admins included. */
+    /**
+     * Ordering is {@code coalesce(last_message_at, created_at) DESC}, so a session someone opened and
+     * never used still sorts by when it was opened rather than falling to the bottom on a NULL.
+     */
+    @Test
+    void listsOnlyTheCallersSessionsNewestActivityFirst() {
+        var older = sessionService.createSession(organizationId, userId);
+        sessionService.appendTurn(new AppendHelpChatTurnCommand(organizationId, userId, older.id(),
+                "An older question", answer("An older answer", List.of()), null, 100));
+        var newer = sessionService.createSession(organizationId, userId);
+        sessionService.appendTurn(new AppendHelpChatTurnCommand(organizationId, userId, newer.id(),
+                "A newer question", answer("A newer answer", List.of()), null, 100));
+        var otherUsersSession = sessionService.createSession(organizationId, otherUserId);
+
+        var page = sessionService.listSessions(organizationId, userId, PageRequest.of(0, 20));
+
+        assertThat(page.totalElements()).isEqualTo(2L);
+        assertThat(page.content()).extracting(HelpChatSessionView::id)
+                .containsExactly(newer.id(), older.id())
+                .doesNotContain(otherUsersSession.id());
+        assertThat(page.content().getFirst().title()).isEqualTo("A newer question");
+    }
+
+    @Test
+    void paginatesTheCallersSessions() {
+        var first = sessionService.createSession(organizationId, userId);
+        sessionService.appendTurn(new AppendHelpChatTurnCommand(organizationId, userId, first.id(),
+                "First", answer("First answer", List.of()), null, 100));
+        var second = sessionService.createSession(organizationId, userId);
+        sessionService.appendTurn(new AppendHelpChatTurnCommand(organizationId, userId, second.id(),
+                "Second", answer("Second answer", List.of()), null, 100));
+
+        var page = sessionService.listSessions(organizationId, userId, PageRequest.of(1, 1));
+
+        assertThat(page.totalElements()).isEqualTo(2L);
+        assertThat(page.totalPages()).isEqualTo(2);
+        assertThat(page.content()).extracting(HelpChatSessionView::id).containsExactly(first.id());
+    }
+
     @Test
     void anotherUsersSessionIsNotFound() {
         var session = sessionService.createSession(organizationId, userId);
-        var otherUserId = UUID.randomUUID();
 
         assertThatThrownBy(
                 () -> sessionService.loadConversation(organizationId, otherUserId, session.id()))

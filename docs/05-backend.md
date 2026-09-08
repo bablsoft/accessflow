@@ -2190,11 +2190,15 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
   switched off are indistinguishable to the asker and share `error.help_chat.disabled`; the inert
   enabled-but-unbound row a deleted `ai_config` leaves behind (`ON DELETE SET NULL`) gets its own
   `error.help_chat.unbound`, because it is the one an admin can fix without turning anything on. All
-  three raise `HelpChatUnavailableException`, which the AI module's advice maps to **409
-  `HELP_CHAT_UNAVAILABLE`** — the request was well-formed, the organization's agent simply cannot
-  answer it. A blank question is the separate `HelpChatQuestionRequiredException` → **400
+  three raise `HelpChatUnavailableException`, which `HelpChatExceptionHandler` maps to **409** — the
+  request was well-formed, the organization's agent simply cannot answer it — under two codes that
+  follow the two keys: `HELP_AGENT_DISABLED` and `HELP_AGENT_NOT_CONFIGURED` (AF-905). A blank
+  question is the separate `HelpChatQuestionRequiredException` → **400
   `HELP_CHAT_QUESTION_REQUIRED`**, refused before either counter is touched, since a client bug
-  should not cost a user their place in the rate-limit window.
+  should not cost a user their place in the rate-limit window. The per-user limit raises
+  `HelpChatRateLimitExceededException` — a subclass of the organization-wide
+  `AiRateLimitExceededException` — so it can be reported as **429 `HELP_CHAT_RATE_LIMITED`** rather
+  than as an organization running out of AI.
 - **Help tokens count against the monthly AI budget.** Help turns deliberately write no `ai_analyses`
   row — that table backs the admin AI-analyses history page — so
   `AiAnalysisStatsLookupService.sumHelpChatTokensSince` is a second sum that
@@ -2216,9 +2220,9 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
 through `HelpChatService`, append the turn. Two tables, `help_chat_sessions` and
 `help_chat_messages` — full column reference in [docs/03-data-model.md](03-data-model.md).
 
-Still service-level: AF-904 ships **no endpoints** either. The HTTP surface that exposes both this
-and `HelpChatService` — and with it the session list this schema is indexed for — is AF-905, and
-[docs/04-api-spec.md](04-api-spec.md) documents it there.
+The HTTP surface over both this and `HelpChatService` is AF-905 (see
+[§ Help chat endpoints](#help-chat-endpoints-af-905-epic-af-899) below);
+[docs/04-api-spec.md](04-api-spec.md) is the wire reference.
 
 - **Answering and storing are two services on purpose.** The provider call takes seconds; the write
   takes milliseconds. Splitting them keeps a pooled connection out of the model call, and lets a
@@ -2237,9 +2241,8 @@ and `HelpChatService` — and with it the session list this schema is indexed fo
   the documentation revision that produced it.
 - **A transcript is private to the person who had it.** Every read and write is scoped to
   `(organization_id, user_id)`; anything else is `HelpChatSessionNotFoundException`, which
-  `AiAnalysisExceptionHandler` already maps to 404 for whenever an endpoint does reach it — the same
-  answer given for a session that never existed, was deleted, or aged out. A 403 would confirm the id
-  exists. There is no admin read path.
+  `HelpChatExceptionHandler` maps to 404 — the same answer given for a session that never existed,
+  was deleted, or aged out. A 403 would confirm the id exists. There is no admin read path.
 - **The title is derived, not asked for.** The first question, whitespace-collapsed and truncated to
   the column width; later turns never change it.
 - **Retention is a bulk delete per organization.** `HelpChatRetentionJob`
@@ -2268,6 +2271,60 @@ and `HelpChatService` — and with it the session list this schema is indexed fo
   organization can spend roughly four times its declared ceiling. The 90-day default is clear of it;
   the caveat is documented next to the budget knob in
   [docs/09-deployment.md](09-deployment.md).
+
+### Help chat endpoints (AF-905, epic AF-899)
+
+`ai/internal/web/HelpChatController.java` is the whole user-facing surface: availability, the caller's
+sessions, one conversation, ask, delete. Six endpoints, all under `/api/v1/help-chat`, wire reference
+in [docs/04-api-spec.md](04-api-spec.md#help-chat-endpoints-af-905).
+
+- **Authenticated, not permissioned.** `@PreAuthorize("isAuthenticated()")` throughout, matching
+  `api/internal/web/SystemUpdateStatusController`. The agent is a documentation reader with no data
+  access (decision 3), so there is nothing here a user could learn that the product's own public
+  documentation does not already say; *whether* it runs at all is an admin decision made on
+  `/admin/help-agent`, not a per-user permission.
+- **404, never 403.** Every session read and write is scoped to `(organization_id, user_id)` in the
+  service, so somebody else's session is simply not found — the deploygov visibility convention, and
+  here also what stops one user probing another's session ids.
+- **`HelpChatConversationService` is the orchestrator, and the controller is binding only.**
+  `DefaultHelpChatConversationService` runs load-transcript → answer → append, in that order and with
+  the provider call outside any transaction. It also owns `availability(...)`, which reports
+  `{enabled, retrievalActive, corpusVersion, chunkCount}` and never throws for a disabled agent — a
+  client asks it precisely so it can hide the launcher rather than discover the problem through a
+  failed POST. `retrievalActive` is `HelpQuickReference.usable(config)`: exactly the condition the
+  chat runtime itself uses to decide whether searching is worth it.
+- **An impatient double-send is retried, not lost.** Two sends into one session read the same message
+  counter, so the loser fails on `help_chat_messages_session_sequence_idx` or on the session's
+  `@Version`. Failing there would discard an answer the provider has already been paid for and charged
+  to the organization's monthly budget, so the append is retried **once** against a re-read counter; a
+  second failure propagates.
+- **Identity is never taken from the body.** `permissions` comes from the `JwtClaims` principal and
+  `language` from the request locale. A client that could name its own permissions could describe
+  itself to the model as an administrator.
+- **`route_name` is sanitized server-side.** `HelpRouteLabel.sanitize` drops anything that still reads
+  as a location — a scheme, a leading or embedded path, a query string or fragment — or that carries a
+  UUID, a long digit run or a hex blob. It is dropped whole rather than scrubbed in place: a
+  half-redacted path tells the model nothing useful, and a substitution rule is something an attacker
+  can probe. The renderer applies the same function, so a caller reaching `HelpChatService` directly
+  gets the same treatment. This is the field a page could fill straight from `window.location`, and it
+  lands in the *system* message.
+- **Pagination.** `GET /help-chat/sessions` takes Spring's `Pageable`, adapts through the existing
+  `SpringPageableAdapter`, and clamps `size` to 100 rather than refusing an oversized ask. The
+  caller's *sort* is dropped: the repository query orders on
+  `coalesce(last_message_at, created_at) DESC, id DESC`, which no client could name, and passing a
+  client-supplied property through to JPA would turn a query-string typo into a 500.
+- **The response surface is narrower than the stored view.** `model`, `prompt_tokens` and
+  `completion_tokens` are on the stored message and deliberately not in the response: they are AI-spend
+  accounting an admin reads on the AI pages, and a help panel has no use for them. `availability`
+  likewise says nothing about *why* an agent is off.
+- **Its own advice.** `HelpChatExceptionHandler` (`@Order(Ordered.HIGHEST_PRECEDENCE)`) owns the four
+  failures a non-admin can see — `HELP_AGENT_DISABLED` / `HELP_AGENT_NOT_CONFIGURED` (409),
+  `HELP_CHAT_RATE_LIMITED` (429), `HELP_CHAT_QUESTION_REQUIRED` (400) and
+  `HELP_CHAT_SESSION_NOT_FOUND` (404) — moved out of `AiAnalysisExceptionHandler`, which keeps every
+  admin-facing AI code. The precedence is what lets `HelpChatRateLimitExceededException` resolve here
+  rather than to the more general `AiRateLimitExceededException` handler. Every `detail` is a
+  message-bundle key resolved against the caller's locale; no stack trace and no provider text ever
+  reaches a response.
 
 ### Multi-model orchestration, voting & guardrails (AF-450)
 

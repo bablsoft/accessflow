@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.ai.api;
 
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
+
 import java.util.UUID;
 
 /**
@@ -25,6 +28,15 @@ public interface HelpChatSessionService {
      * so nothing has to be named before it is used.
      */
     HelpChatSessionView createSession(UUID organizationId, UUID userId);
+
+    /**
+     * The user's conversations, most recently active first, without their messages.
+     *
+     * <p>Ordering falls back to when a session was created for one that was never used, so an empty
+     * conversation someone opened and abandoned still sorts sensibly rather than to the bottom.
+     */
+    PageResponse<HelpChatSessionView> listSessions(UUID organizationId, UUID userId,
+                                                   PageRequest pageRequest);
 
     /**
      * Appends one completed turn — the question and the answer — and advances the session's
