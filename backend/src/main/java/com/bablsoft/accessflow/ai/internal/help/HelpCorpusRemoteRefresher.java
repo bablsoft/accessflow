@@ -4,7 +4,6 @@ import com.bablsoft.accessflow.ai.internal.config.HelpCorpusProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import tools.jackson.core.JacksonException;
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -77,6 +76,7 @@ public class HelpCorpusRemoteRefresher {
     private static final Logger log = LoggerFactory.getLogger(HelpCorpusRemoteRefresher.class);
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(60);
+    private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
     private static final Pattern CORPUS_VERSION = Pattern.compile("[0-9a-f]{12}");
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
     private static final JsonMapper MAPPER = JsonMapper.builder()
@@ -85,15 +85,32 @@ public class HelpCorpusRemoteRefresher {
 
     private final HelpCorpusProperties properties;
     private final HelpCorpusBundle bundle;
-    private final HttpClient httpClient;
+    private volatile HttpClient httpClient;
 
     HelpCorpusRemoteRefresher(HelpCorpusProperties properties, HelpCorpusBundle bundle) {
         this.properties = properties;
         this.bundle = bundle;
-        this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(CONNECT_TIMEOUT)
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
+    }
+
+    /**
+     * Built on first use, not in the constructor: an {@code HttpClient} owns a selector thread, and
+     * the default-off majority of installs would pay for one they never make a request with.
+     */
+    private HttpClient httpClient() {
+        var client = httpClient;
+        if (client == null) {
+            synchronized (this) {
+                client = httpClient;
+                if (client == null) {
+                    client = HttpClient.newBuilder()
+                            .connectTimeout(CONNECT_TIMEOUT)
+                            .followRedirects(HttpClient.Redirect.NORMAL)
+                            .build();
+                    httpClient = client;
+                }
+            }
+        }
+        return client;
     }
 
     /**
@@ -112,7 +129,11 @@ public class HelpCorpusRemoteRefresher {
         }
         try {
             attemptRefresh();
-        } catch (IOException | InterruptedException | JacksonException | IllegalStateException e) {
+        } catch (IOException | InterruptedException | RuntimeException e) {
+            // Deliberately broad, and the documented kind of place for it: this is the top-level
+            // swallow for work nobody is waiting on. HttpRequest.newBuilder alone throws
+            // IllegalArgumentException for a URL that parses but has no usable authority, and
+            // letting that escape would take the caller's indexing pass down with it.
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -145,7 +166,7 @@ public class HelpCorpusRemoteRefresher {
 
     /** The pointer file, capped on the stream rather than after parsing. */
     private CorpusIndex fetchIndex() throws IOException, InterruptedException {
-        var response = httpClient.send(get(properties.indexUrl()),
+        var response = httpClient().send(get(properties.indexUrl()),
                 HttpResponse.BodyHandlers.ofInputStream());
         byte[] body;
         try (InputStream in = response.body()) {
@@ -186,15 +207,21 @@ public class HelpCorpusRemoteRefresher {
     }
 
     private void download(CorpusIndex index, Path target) throws IOException, InterruptedException {
-        var part = target.resolveSibling(target.getFileName() + ".part");
+        // The cache directory can be shared (the Helm chart points it at the driver-cache volume) and
+        // every replica refreshes at startup at once, so the scratch name carries this process's id.
+        // A fixed name would let two replicas interleave writes and report the result as a checksum
+        // mismatch, which reads like tampering rather than the write race it is.
+        var part = target.resolveSibling(target.getFileName() + "." + ProcessHandle.current().pid()
+                + ".part");
         try {
-            var response = httpClient.send(get(index.url()), HttpResponse.BodyHandlers.ofInputStream());
+            var response = httpClient().send(get(index.url()),
+                    HttpResponse.BodyHandlers.ofInputStream());
             try (InputStream in = response.body()) {
                 if (response.statusCode() != HttpURLConnection.HTTP_OK) {
                     throw new IOException("help corpus archive answered HTTP "
                             + response.statusCode() + " from " + index.url());
                 }
-                copyCapped(in, part);
+                copyCapped(in, part, MAX_ARCHIVE_BYTES);
             }
             var actual = sha256(part);
             if (!actual.equals(index.sha256())) {
@@ -217,10 +244,30 @@ public class HelpCorpusRemoteRefresher {
             throw new IOException("'" + url + "' is not a URL", e);
         }
         var scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
-        if (!uri.isAbsolute() || !("https".equals(scheme) || "http".equals(scheme))) {
+        // getHost() is null for a URI that parses but has no usable authority — "https:///x",
+        // "https://host:notaport/x". HttpRequest.newBuilder throws IllegalArgumentException on those,
+        // so they are rejected here, where the failure is a described one.
+        if (!uri.isAbsolute() || uri.getHost() == null || !isAllowedScheme(scheme, uri.getHost())) {
             throw new IOException("refusing to fetch a help corpus over '" + url + "'");
         }
-        return HttpRequest.newBuilder(uri).timeout(READ_TIMEOUT).GET().build();
+        try {
+            return HttpRequest.newBuilder(uri).timeout(READ_TIMEOUT).GET().build();
+        } catch (IllegalArgumentException e) {
+            throw new IOException("'" + url + "' is not a fetchable URL", e);
+        }
+    }
+
+    /**
+     * HTTPS anywhere; plain HTTP only against loopback. Over plaintext the pinned digest arrives on
+     * the same channel as the artifact it pins, so an on-path attacker replaces both and the
+     * verification proves nothing — and what lands is text fed straight into the help agent's prompt.
+     * Loopback stays allowed because it cannot be intercepted, and the tests serve from it.
+     */
+    private static boolean isAllowedScheme(String scheme, String host) {
+        if ("https".equals(scheme)) {
+            return true;
+        }
+        return "http".equals(scheme) && LOOPBACK_HOSTS.contains(host.toLowerCase(Locale.ROOT));
     }
 
     /**
@@ -236,7 +283,7 @@ public class HelpCorpusRemoteRefresher {
     }
 
     /** The same cap, applied while streaming to disk so an oversized archive is never fully written. */
-    private static void copyCapped(InputStream in, Path part) throws IOException {
+    static void copyCapped(InputStream in, Path part, long max) throws IOException {
         try (OutputStream out = Files.newOutputStream(part, StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
             var buffer = new byte[8192];
@@ -244,9 +291,8 @@ public class HelpCorpusRemoteRefresher {
             int read;
             while ((read = in.read(buffer)) != -1) {
                 total += read;
-                if (total > MAX_ARCHIVE_BYTES) {
-                    throw new IOException("help corpus archive exceeds the " + MAX_ARCHIVE_BYTES
-                            + "-byte limit");
+                if (total > max) {
+                    throw new IOException("help corpus archive exceeds the " + max + "-byte limit");
                 }
                 out.write(buffer, 0, read);
             }

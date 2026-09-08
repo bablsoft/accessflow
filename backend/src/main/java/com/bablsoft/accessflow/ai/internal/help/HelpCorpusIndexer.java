@@ -175,10 +175,18 @@ public class HelpCorpusIndexer {
                 return fail(row, mismatch);
             }
         }
-        var corpusVersion = bundle.corpusVersion();
+        // One snapshot for the whole pass. corpusVersion() and chunks() are separate reads, and an
+        // optional remote refresh (AF-907) landing between them would stamp the new corpus's text
+        // with the previous version — wrong until some later pass happened to re-index it.
+        var corpus = bundle.snapshot();
+        if (corpus == null) {
+            return fail(row, HelpIndexError.of("error.help_agent.index.corpus_unavailable",
+                    bundle.loadError()));
+        }
+        var corpusVersion = corpus.corpusVersion();
         try {
             vectorStore.delete(HelpCorpusMetadata.scopeFilter(row.getId()));
-            var documents = toDocuments(row, corpusVersion);
+            var documents = toDocuments(row, corpus);
             for (int from = 0; from < documents.size(); from += properties.indexBatchSize()) {
                 int to = Math.min(from + properties.indexBatchSize(), documents.size());
                 vectorStore.add(documents.subList(from, to));
@@ -216,14 +224,14 @@ public class HelpCorpusIndexer {
         return null;
     }
 
-    private List<Document> toDocuments(HelpAgentConfigEntity row, String corpusVersion) {
-        var documents = new ArrayList<Document>(bundle.chunkCount());
-        for (var chunk : bundle.chunks()) {
+    private List<Document> toDocuments(HelpAgentConfigEntity row, HelpCorpusSnapshot corpus) {
+        var documents = new ArrayList<Document>(corpus.chunks().size());
+        for (var chunk : corpus.chunks()) {
             // The document id is left to the store: PgVectorStore's primary key is a UUID, and a
             // chunk id is a 16-character content hash. It travels as chunk_id metadata instead.
             documents.add(Document.builder()
                     .text(chunk.text())
-                    .metadata(metadata(row, corpusVersion, chunk))
+                    .metadata(metadata(row, corpus.corpusVersion(), chunk))
                     .build());
         }
         return documents;

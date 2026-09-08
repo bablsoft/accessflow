@@ -6,8 +6,15 @@ documentation, committed to the repository, and bundled into the backend JAR on 
 `help-corpus/**` — the same mechanism the [connector catalog](../connectors/README.md) uses.
 
 Bundling it is deliberate: the corpus then always matches the running application version, works
-in an air-gapped install, and needs no outbound call. An install never answers from documentation
-for a version it is not running.
+in an air-gapped install, and needs no outbound call. By default an install never answers from
+documentation for a version it is not running.
+
+The one exception is the opt-in remote refresh (AF-907), off unless an operator sets
+`ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED=true`, which lets an install pick up a documentation
+*correction* published between releases. Every release publishes this folder to `gh-pages` as
+`help-corpus/help-corpus-<version>.tar.gz`, and a GA release also moves a `help-corpus-index.json`
+pointer that pins the archive by SHA-256 — see
+[docs/09-deployment.md](../docs/09-deployment.md#remote-corpus-refresh-and-why-it-is-off).
 
 **This folder is generated output. Never hand-edit it.** Edit the documentation, then regenerate:
 

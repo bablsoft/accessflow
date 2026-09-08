@@ -43,7 +43,7 @@ final class HelpCorpusArchive {
      *
      * @param archive        the gzipped tar bytes
      * @param wantedFileNames base names to keep; the first occurrence of each wins
-     * @param maxTotalBytes  hard cap on decompressed bytes read
+     * @param maxTotalBytes  hard cap on decompressed bytes read, headers and padding included
      * @throws IOException the stream is not a readable gzipped tar, or exceeds the cap
      */
     static Map<String, byte[]> extract(byte[] archive, Set<String> wantedFileNames, long maxTotalBytes)
@@ -58,7 +58,10 @@ final class HelpCorpusArchive {
                     break; // the two zero blocks that end an archive
                 }
                 long size = octal(header, SIZE_OFFSET, SIZE_LENGTH);
-                total += size;
+                // Every byte consumed counts, not just the declared payloads: an archive of nothing
+                // but zero-length entries never grows a payload total, and would otherwise spin
+                // through the whole decompressed stream — which is what the cap exists to stop.
+                total += BLOCK + size + padding(size);
                 if (total > maxTotalBytes) {
                     throw new IOException("archive expands past the " + maxTotalBytes
                             + "-byte limit; refusing to read it");

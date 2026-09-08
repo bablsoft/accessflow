@@ -262,7 +262,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Install AccessFlow.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-07">7 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-08">8 September 2026</time></p>
         </header>
 
 <section id="running" class="docs-section">
@@ -404,15 +404,19 @@
             <code>PT24H</code>) sets how often it looks.
           </p>
           <p>
-            <strong>Nothing else calls out.</strong> Apart from that update hint, the backend makes
-            outbound requests on its own behalf in only two other places, and both are yours to
-            switch off: database drivers and engine plugins download on demand
-            (<code>ACCESSFLOW_DRIVERS_OFFLINE=true</code>, then pre-seed the driver cache), and the
-            in-app help assistant can optionally pick up corrected documentation published between
-            releases (<code>ACCESSFLOW_HELP_CORPUS_OFFLINE=true</code> — already off unless you turn
-            it on). Set all three on an air-gapped install and the backend never reaches the public
-            internet; the help assistant keeps answering from the documentation shipped inside the
-            release you are running.
+            <strong>What else calls out on its own.</strong> Apart from that update hint, AccessFlow
+            starts outbound requests of its own accord in two more places, and both are yours to
+            switch off. Database drivers and engine plugins download on demand — set
+            <code>ACCESSFLOW_DRIVERS_OFFLINE=true</code> and pre-seed the driver cache. And the
+            in-app help assistant, which answers questions about how to use AccessFlow from a copy of
+            this documentation shipped inside the release, can optionally pick up corrected
+            documentation published between releases; that refresh is off unless you switch it on,
+            and <code>ACCESSFLOW_HELP_CORPUS_OFFLINE=true</code> keeps it off for good. Set all three
+            and AccessFlow itself never reaches the internet. The integrations <em>you</em> configure
+            are separate and keep calling out as configured — the AI provider (including the one the
+            help assistant answers with, unless you run a local model), your identity provider, an
+            external secrets manager, notification channels. The help assistant's documentation is
+            always read from inside the release you are running, never fetched per question.
           </p>
           <p>
             <strong>External secrets managers.</strong> Datasource credentials can live in

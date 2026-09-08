@@ -53,9 +53,14 @@ backend:
   env:
     # Disable on-demand JDBC driver downloads — serve only from the cache.
     ACCESSFLOW_DRIVERS_OFFLINE: "true"
-    # Disable the daily release update check — the only other outbound call the backend makes
-    # on its own (an unauthenticated GET of https://accessflow.io/version.json).
+    # Disable the daily release update check (an unauthenticated GET of
+    # https://accessflow.io/version.json).
     ACCESSFLOW_UPDATES_ENABLED: "false"
+    # Pin the in-app help agent to the documentation corpus bundled in the release. The remote
+    # refresh is already off by default; this keeps it off even if the flag is ever turned on.
+    # These three are every request AccessFlow starts on its own initiative — integrations you
+    # configure (AI provider, IdP, secrets manager, notification channels) are separate.
+    ACCESSFLOW_HELP_CORPUS_OFFLINE: "true"
 
 # Pre-seeded driver cache (mount your pre-populated PV here). Match the
 # storage class your operators use for ReadWriteOnce volumes.

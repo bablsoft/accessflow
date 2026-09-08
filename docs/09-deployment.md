@@ -229,7 +229,7 @@ helm install accessflow accessflow/accessflow \
 | [`values-minimal.yaml`](../charts/accessflow/examples/values-minimal.yaml) | Single-replica demo over plain HTTP. |
 | [`values-production.yaml`](../charts/accessflow/examples/values-production.yaml) | HA backend (HPA + PDB + pod anti-affinity), cert-manager-issued TLS, persistent driver cache. |
 | [`values-external-services.yaml`](../charts/accessflow/examples/values-external-services.yaml) | Managed Postgres + Redis (RDS / ElastiCache / …), every secret managed outside the chart. |
-| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, release update check off, manual TLS Secret. |
+| [`values-airgapped.yaml`](../charts/accessflow/examples/values-airgapped.yaml) | Air-gapped: internal registry mirror, offline JDBC drivers, release update check off, help corpus pinned to the bundle, manual TLS Secret. |
 
 **Bootstrap slices** (each declares organization + first admin and layers on
 top of a deployment shape — see [Bootstrap configuration](#bootstrap-configuration)
@@ -562,7 +562,8 @@ tag — no further manual steps.
 
 The same release also publishes the **connector catalog** (issue #334) to `gh-pages` under
 `connectors/`: a versioned `connectors-bundle-<version>.tar.gz` and a stable `connectors-index.json`
-(served at `https://<owner>.github.io/accessflow/connectors/`), plus the **MongoDB engine plugin**
+(served at `https://<owner>.github.io/accessflow/connectors/`), the **help-agent documentation
+bundle** under `help-corpus/` (used only by the opt-in refresh above), plus the **MongoDB engine plugin**
 (issue #414) under `engines/` — `accessflow-engine-mongodb-<pluginVersion>-all.jar`, the artifact
 the MongoDB connector manifest points fresh installs at. GitHub Release asset uploads are
 intentionally not used — they are blocked by the repo's immutable-releases policy. The catalog is
@@ -1101,7 +1102,20 @@ nothing is written to `index_error`, because the winner is doing exactly the sam
 where that is visible is pressing Re-index twice in quick succession; the first press is the one that
 runs.
 
-#### Remote corpus refresh, and why it is off
+**Budget the tokens before you enable it.** A turn's prompt is the system preamble (~470 tokens),
+the retrieved excerpts — `top_k` × ~340 tokens, so ~2,000 at the default 6, or the ~2,600-token
+quick-reference block instead when retrieval is unavailable — and the replayed conversation, which
+dominates: `max_history_turns` 8 means up to 16 messages, each truncated at `max_question_chars`
+(2,000 characters, ~500 tokens). A **busy** conversation at the defaults therefore reaches roughly
+**8,300 prompt tokens**, plus the answer itself; a short one costs a third of that. On GPT-4o
+(pricing as of September 2026: $2.50 per million input tokens, $10 per million output) a busy turn is
+around **$0.03, or about $30 per 1,000 turns** — re-check current pricing before you budget on it.
+A local Ollama costs only the hardware. These tokens count against
+`ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` alongside query analysis (see below), so a monthly budget
+sized for SQL analysis alone will be reached sooner. Lower `top_k`, `max_history_turns` and
+`max_question_chars` on the `help_agent_config` row to reduce the per-turn cost.
+
+##### Remote corpus refresh, and why it is off
 
 The corpus is bundled in the backend jar, so an install always answers from the documentation for the
 version it is actually running, air-gapped, with no outbound call. The refresh exists for exactly one
@@ -1114,7 +1128,11 @@ confidently, with citations. Staleness is visible ("that section is from the las
 confident wrong answer is not. Turn it on when documentation accuracy between upgrades matters more
 than that risk, and leave it off otherwise.
 
-What it does when switched on, once per replica at startup, before the indexing pass:
+What it does when switched on, once per replica at startup, before the indexing pass — and
+independently of `ACCESSFLOW_HELP_AGENT_INDEX_ON_STARTUP`, since turning startup indexing off is
+about not embedding on every restart, and the admin re-index button should still find a current
+corpus. An install that opts into the refresh therefore makes this call at every startup, whether or
+not indexing follows it:
 
 1. Fetches the index at `ACCESSFLOW_HELP_CORPUS_INDEX_URL` and compares its `corpusVersion` with the
    one already active. Equal means no download at all.
@@ -1137,22 +1155,12 @@ already indexed — the same transient churn a rolling upgrade produces, converg
 holds the same corpus. It is one more reason the default is off.
 
 **Air-gapped installs** should set `ACCESSFLOW_HELP_CORPUS_OFFLINE=true` alongside the existing
-`ACCESSFLOW_DRIVERS_OFFLINE=true` and `ACCESSFLOW_UPDATES_ENABLED=false`. The help agent keeps working
-from the bundled corpus; those three together are what guarantee nothing leaves the process. See
+`ACCESSFLOW_DRIVERS_OFFLINE=true` and `ACCESSFLOW_UPDATES_ENABLED=false`. Those three cover every
+request AccessFlow starts on its own initiative; they say nothing about the integrations *you*
+configure, which keep calling out as configured — an AI provider (including the one answering help
+questions, unless it is a self-hosted model), an IdP, an external secrets manager, a notification
+channel, a ticketing system. The help agent's corpus keeps working from the bundle either way. See
 [14-connectors.md → Persistence and air-gap](./14-connectors.md#persistence-and-air-gap).
-
-**Budget the tokens before you enable it.** A turn's prompt is the system preamble (~470 tokens),
-the retrieved excerpts — `top_k` × ~340 tokens, so ~2,000 at the default 6, or the ~2,600-token
-quick-reference block instead when retrieval is unavailable — and the replayed conversation, which
-dominates: `max_history_turns` 8 means up to 16 messages, each truncated at `max_question_chars`
-(2,000 characters, ~500 tokens). A **busy** conversation at the defaults therefore reaches roughly
-**8,300 prompt tokens**, plus the answer itself; a short one costs a third of that. On GPT-4o
-(pricing as of September 2026: $2.50 per million input tokens, $10 per million output) a busy turn is
-around **$0.03, or about $30 per 1,000 turns** — re-check current pricing before you budget on it.
-A local Ollama costs only the hardware. These tokens count against
-`ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` alongside query analysis (see below), so a monthly budget
-sized for SQL analysis alone will be reached sooner. Lower `top_k`, `max_history_turns` and
-`max_question_chars` on the `help_agent_config` row to reduce the per-turn cost.
 
 ##### pgvector for RAG
 

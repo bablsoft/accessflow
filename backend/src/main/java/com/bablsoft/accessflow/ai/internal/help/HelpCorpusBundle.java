@@ -67,7 +67,7 @@ public class HelpCorpusBundle {
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .build();
 
-    private final AtomicReference<LoadedBundle> active = new AtomicReference<>();
+    private final AtomicReference<HelpCorpusSnapshot> active = new AtomicReference<>();
     private final String bundledCorpusVersion;
     private final String bundledLoadError;
 
@@ -114,6 +114,16 @@ public class HelpCorpusBundle {
     }
 
     /**
+     * One consistent view of the active corpus, or {@code null} when none loaded. Anything that needs
+     * more than a single field must read it through here: the individual accessors below are separate
+     * reads, and a remote refresh landing between two of them would pair one corpus's text with
+     * another's version.
+     */
+    public HelpCorpusSnapshot snapshot() {
+        return active.get();
+    }
+
+    /**
      * {@code sha256(corpus.jsonl)[0..12]}. Content-derived rather than the application version, so
      * re-ingestion is an idempotent string compare across replicas and restarts, and a documentation
      * typo fix does not re-embed an unchanged corpus.
@@ -151,7 +161,7 @@ public class HelpCorpusBundle {
      *         {@code schemaVersion} this build cannot read — the previously active corpus is kept
      */
     public String activateRefreshed(Map<String, byte[]> files) {
-        LoadedBundle refreshed;
+        HelpCorpusSnapshot refreshed;
         try {
             refreshed = verify(name -> {
                 var bytes = files.get(name);
@@ -171,7 +181,7 @@ public class HelpCorpusBundle {
         return refreshed.corpusVersion();
     }
 
-    private static LoadedBundle verify(ByteSource source)
+    private static HelpCorpusSnapshot verify(ByteSource source)
             throws IOException, NoSuchAlgorithmException {
         var manifest = MAPPER.readValue(source.read(MANIFEST_FILE), HelpCorpusManifest.class);
         if (manifest == null) {
@@ -199,7 +209,7 @@ public class HelpCorpusBundle {
         var quickReferenceBytes = source.read(QUICK_REFERENCE_FILE);
         requireDigest(QUICK_REFERENCE_FILE, manifest.quickReferenceSha256(),
                 sha256(quickReferenceBytes));
-        return new LoadedBundle(manifest.corpusVersion(), List.copyOf(chunks),
+        return new HelpCorpusSnapshot(manifest.corpusVersion(), List.copyOf(chunks),
                 new String(quickReferenceBytes, StandardCharsets.UTF_8));
     }
 
@@ -250,9 +260,5 @@ public class HelpCorpusBundle {
     @FunctionalInterface
     private interface ByteSource {
         byte[] read(String fileName) throws IOException;
-    }
-
-    private record LoadedBundle(String corpusVersion, List<HelpCorpusChunk> chunks,
-                                String quickReference) {
     }
 }

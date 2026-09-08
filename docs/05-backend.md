@@ -2086,14 +2086,20 @@ the **same `vector_store` table** the AF-336 knowledge base uses. Everything liv
   `HelpCorpusBundle.activateRefreshed`, which is the *same* verification the bundled corpus goes
   through, `schemaVersion` refusal included. The swap happens only after every check passes, so a
   corrupt or newer-schema remote corpus can never take a working bundled one out of service: every
-  other outcome logs at `WARN` and changes nothing. Because a newer corpus simply changes
+  other outcome logs at `WARN` and changes nothing — and `refreshThenIndex` guards the call as well,
+  so no future defect in the refresher can cost this replica its indexing pass. Because a newer corpus simply changes
   `corpusVersion`, re-ingestion needs no new code path — it is the upgrade path. Off by default
   because a corpus published after your release describes a UI this install does not have, and the
   agent states it confidently; and because refresh is per replica, a replica that fails to refresh
   can re-index a scope a refreshed one already did, the same transient churn a rolling upgrade
-  produces. The tar reader (`HelpCorpusArchive`) compares entry base names against a fixed allow-list
-  and never resolves one as a path, so nothing in an archive is ever written to disk under a name the
-  archive chose. Rationale and the four knobs:
+  produces. HTTPS is required for anything but a loopback host, because over plaintext the pinned
+  digest arrives on the same channel as the artifact it pins and proves nothing. The tar reader
+  (`HelpCorpusArchive`) compares entry base names against a fixed allow-list and never resolves one
+  as a path, so nothing in an archive is ever written to disk under a name the archive chose, and it
+  caps every byte it consumes — headers and padding included, not just declared payload sizes, since
+  an archive of zero-length entries would otherwise never trip the limit. Ingestion reads the corpus
+  through a single `HelpCorpusBundle.snapshot()`, so an activation landing mid-pass cannot pair one
+  corpus's chunks with another's version. Rationale and the four knobs:
   [09-deployment.md → Remote corpus refresh, and why it is off](./09-deployment.md#remote-corpus-refresh-and-why-it-is-off).
 - **Four triggers; only startup is never forced.** `HelpCorpusStartupIndexer` runs an unforced pass on
   `ApplicationReadyEvent` (gated by `accessflow.help-agent.index-on-startup`, and dispatched onto the

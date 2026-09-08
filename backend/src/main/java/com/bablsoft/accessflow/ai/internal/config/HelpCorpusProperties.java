@@ -57,11 +57,6 @@ public record HelpCorpusProperties(
         }
     }
 
-    /** Whether anything at all may leave the process for a corpus. */
-    public boolean networkAllowed() {
-        return remoteRefreshEnabled && !offline;
-    }
-
     private static Path defaultCacheDir() {
         var home = System.getProperty("user.home");
         if (home == null || home.isBlank()) {

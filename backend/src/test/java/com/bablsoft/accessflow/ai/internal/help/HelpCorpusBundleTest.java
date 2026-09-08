@@ -186,6 +186,28 @@ class HelpCorpusBundleTest {
     }
 
     @Test
+    void exposesOneConsistentSnapshotOfWhateverIsActive() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+
+        var before = bundle.snapshot();
+        bundle.activateRefreshed(TarGzFixtures.bundleFiles("good"));
+        var after = bundle.snapshot();
+
+        // A snapshot is a fixed view, not a live one: a reader holding `before` across an activation
+        // still sees the version and the chunks that belong together.
+        assertThat(before.corpusVersion()).isEqualTo(bundle.bundledCorpusVersion());
+        assertThat(before.chunks()).isNotEqualTo(after.chunks());
+        assertThat(after.corpusVersion()).isEqualTo("0d746008cf42");
+        assertThat(after.chunks()).hasSize(2);
+        assertThat(after.quickReference()).contains("The query lifecycle");
+    }
+
+    @Test
+    void hasNoSnapshotWhenNoCorpusLoaded() {
+        assertThat(bundleFrom("bad-checksum").snapshot()).isNull();
+    }
+
+    @Test
     void canRescueAnInstallWhoseBundledCorpusIsUnusable() throws IOException {
         var bundle = bundleFrom("bad-checksum");
         assertThat(bundle.available()).isFalse();

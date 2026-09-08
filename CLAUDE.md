@@ -618,7 +618,8 @@ fix/AF-{n}-description        → from main   (bug fix, tied to issue #n)
 chore/AF-{n}-description      → from main   (tooling, docs, release prep)
 ```
 
-`gh-pages` is release output only (Helm index, connector bundle, engine jars) — never
+`gh-pages` is release output only (Helm index, connector bundle, engine jars, help-agent
+corpus bundle) — never
 hand-edited. `dependabot/*` branches are machine-generated and exempt from the naming rule.
 
 Where no issue exists, a descriptive slug replaces the number

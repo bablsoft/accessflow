@@ -63,7 +63,15 @@ class HelpCorpusStartupIndexer {
     }
 
     void refreshThenIndex() {
-        remoteRefresher.refresh();
+        // The refresh is best-effort and the indexing pass is not; keeping them independent means no
+        // future defect in the refresher can quietly cost this replica its indexing. The refresher
+        // already swallows its own failures — this is the belt to that pair of braces.
+        try {
+            remoteRefresher.refresh();
+        } catch (RuntimeException e) {
+            log.error("Remote help corpus refresh failed unexpectedly; indexing the corpus this "
+                    + "build ships instead", e);
+        }
         if (!properties.indexOnStartup()) {
             log.info("Help corpus startup indexing is disabled "
                     + "(accessflow.help-agent.index-on-startup=false)");

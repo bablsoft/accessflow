@@ -45,12 +45,4 @@ class HelpCorpusPropertiesTest {
         assertThat(new HelpCorpusProperties(true, "   ", null, null).indexUrl())
                 .isEqualTo(HelpCorpusProperties.DEFAULT_INDEX_URL);
     }
-
-    @Test
-    void allowsTheNetworkOnlyWhenEnabledAndNotOffline() {
-        assertThat(new HelpCorpusProperties(true, null, null, false).networkAllowed()).isTrue();
-        assertThat(new HelpCorpusProperties(true, null, null, true).networkAllowed()).isFalse();
-        assertThat(new HelpCorpusProperties(false, null, null, false).networkAllowed()).isFalse();
-        assertThat(new HelpCorpusProperties(null, null, null, null).networkAllowed()).isFalse();
-    }
 }

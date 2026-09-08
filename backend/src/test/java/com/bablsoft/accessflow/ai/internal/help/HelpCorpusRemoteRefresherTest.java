@@ -240,6 +240,67 @@ class HelpCorpusRemoteRefresherTest {
     }
 
     @Test
+    void keepsTheBundledCorpusWhenTheConfiguredIndexUrlHasNoHost() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+
+        // Parses as an absolute https URI, but has no authority — HttpRequest.newBuilder throws
+        // IllegalArgumentException on it, which is a sibling of IllegalStateException and would
+        // otherwise escape refresh() and take the caller's whole indexing pass down with it.
+        new HelpCorpusRemoteRefresher(
+                new HelpCorpusProperties(true, "https:///help-corpus-index.json", cacheDir, false),
+                bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+        assertThat(cacheDirEntries()).isEmpty();
+    }
+
+    @Test
+    void keepsTheBundledCorpusWhenThePublishedArchiveUrlHasNoHost() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+        serve(INDEX_PATH, 200, ("{\"version\":\"9.9.9\",\"corpusVersion\":\"0d746008cf42\","
+                + "\"url\":\"https://host:notaport/a.tar.gz\",\"sha256\":\"" + sha256(new byte[0])
+                + "\"}").getBytes(StandardCharsets.UTF_8));
+
+        refresher(bundle).refresh();
+
+        // The same class of URL, but supplied by the published index rather than by the operator.
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+        assertThat(cacheDirEntries()).isEmpty();
+    }
+
+    @Test
+    void refusesPlainHttpToANonLoopbackHost() {
+        var bundle = bundledCorpus();
+        var bundled = bundle.corpusVersion();
+
+        // Over plaintext the pinned digest travels the same channel as the artifact it pins, so an
+        // on-path attacker swaps both and the verification proves nothing. Loopback — which every
+        // other test in this class uses — cannot be intercepted, so it stays allowed.
+        new HelpCorpusRemoteRefresher(
+                new HelpCorpusProperties(true, "http://mirror.internal/index.json", cacheDir, false),
+                bundle).refresh();
+
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
+        assertThat(cacheDirEntries()).isEmpty();
+    }
+
+    @Test
+    void cutsAnOversizedArchiveOffAtTheCapInsteadOfWritingItOut() {
+        var part = cacheDir.resolve("oversized.tar.gz.part");
+
+        assertThatThrownBy(() -> HelpCorpusRemoteRefresher.copyCapped(
+                new CountingInputStream(64 * 1024), part, 4096))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("exceeds the 4096-byte limit");
+
+        // At most one buffer past the cap reaches the disk, rather than the whole body arriving and
+        // being measured afterwards.
+        assertThat(part.toFile().length()).isLessThanOrEqualTo(4096L + 8192L);
+    }
+
+    @Test
     void stopsReadingAnEndlessIndexBodyRatherThanBufferingIt() throws IOException {
         // The cap has to sit on the stream: a converter that buffered first would already have the
         // whole body in memory by the time anything measured it.
