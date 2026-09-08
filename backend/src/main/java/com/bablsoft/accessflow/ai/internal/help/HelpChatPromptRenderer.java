@@ -107,7 +107,9 @@ public class HelpChatPromptRenderer {
             return "";
         }
         var lines = new ArrayList<String>();
-        var route = flatten(request.routeLabel());
+        // Sanitized, not just flattened: the label is caller-supplied and lands in the system
+        // message, so anything still shaped like a URL or carrying an id is dropped whole.
+        var route = HelpRouteLabel.sanitize(request.routeLabel());
         if (!route.isEmpty()) {
             lines.add("The user is currently on the \"" + route + "\" screen.");
         }

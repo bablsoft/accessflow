@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal.help;
 import com.bablsoft.accessflow.ai.api.AppendHelpChatTurnCommand;
 import com.bablsoft.accessflow.ai.api.HelpChatCitation;
 import com.bablsoft.accessflow.ai.api.HelpChatConversationView;
+import com.bablsoft.accessflow.ai.api.HelpChatMessage;
 import com.bablsoft.accessflow.ai.api.HelpChatMessageView;
 import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
 import com.bablsoft.accessflow.ai.api.HelpChatRole;
@@ -14,9 +15,12 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpChatMessageEnt
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpChatSessionEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpChatMessageRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpChatSessionRepository;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -25,6 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,6 +72,26 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
     }
 
     /**
+     * One page of the user's conversations, newest activity first.
+     *
+     * <p>The caller's sort is deliberately dropped: {@code findPageByOrganizationIdAndUserId} orders
+     * on {@code coalesce(last_message_at, created_at)}, which no client could name, and passing a
+     * client-supplied property through to JPA would turn a typo in a query string into a 500.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<HelpChatSessionView> listSessions(UUID organizationId, UUID userId,
+                                                          PageRequest pageRequest) {
+        var paging = org.springframework.data.domain.PageRequest.of(pageRequest.page(),
+                pageRequest.size());
+        var page = sessionRepository.findPageByOrganizationIdAndUserId(organizationId, userId,
+                paging);
+        return new PageResponse<>(page.getContent().stream()
+                .map(DefaultHelpChatSessionService::toView).toList(),
+                page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
+    /**
      * Both messages and the session's counters in one transaction — a half-stored turn would read as
      * an ignored question. The provider call that produced the answer already happened outside this
      * method, which is the point of splitting the two services: nothing here waits on a model.
@@ -83,8 +108,9 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
         var now = clock.instant();
         // Derived from the counter rather than from a sequence, so two concurrent appends to one
         // session collide on help_chat_messages_session_sequence_idx (a unique violation) before the
-        // @Version check on the session can report an optimistic-lock failure. A chat UI sends one
-        // turn at a time; AF-905 owns whatever an impatient double-send should return.
+        // @Version check on the session can report an optimistic-lock failure. Either way the loser
+        // is retried once by DefaultHelpChatConversationService (AF-905) against a re-read counter,
+        // rather than costing the user an answer the provider has already been paid for.
         var nextSequence = session.getMessageCount() + 1;
 
         var userMessage = message(session, HelpChatRole.USER, question, nextSequence, now);
@@ -108,6 +134,28 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
         session.setUpdatedAt(now);
         var saved = sessionRepository.save(session);
         return new HelpChatTurnView(toView(saved), toView(userMessage), toView(assistantMessage));
+    }
+
+    /**
+     * Read newest-first with a limit, then reversed — the index is the same either way, and asking the
+     * database for the tail is the whole point of not calling {@link #loadConversation} here.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HelpChatMessage> loadRecentHistory(UUID organizationId, UUID userId, UUID sessionId,
+                                                   int maxMessages) {
+        load(organizationId, userId, sessionId);
+        if (maxMessages <= 0) {
+            return List.of();
+        }
+        var newestFirst = messageRepository.findBySessionIdOrderBySequenceNumberDesc(sessionId,
+                Limit.of(maxMessages));
+        var history = new ArrayList<HelpChatMessage>(newestFirst.size());
+        for (var i = newestFirst.size() - 1; i >= 0; i--) {
+            var message = newestFirst.get(i);
+            history.add(new HelpChatMessage(message.getRole(), message.getContent()));
+        }
+        return List.copyOf(history);
     }
 
     @Override

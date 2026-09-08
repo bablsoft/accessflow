@@ -1,6 +1,6 @@
 package com.bablsoft.accessflow.ai.internal.help;
 
-import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
+import com.bablsoft.accessflow.ai.api.HelpChatRateLimitExceededException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +55,7 @@ public class HelpChatRateLimiter {
         if (count != null && count > limit) {
             log.warn("Help chat rate limit exceeded for user {} in org {}: {} > {} requests/minute",
                     userId, organizationId, count, limit);
-            throw new AiRateLimitExceededException(limit, WINDOW.toSeconds());
+            throw new HelpChatRateLimitExceededException(limit, WINDOW.toSeconds());
         }
     }
 }

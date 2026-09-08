@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.ai.api;
 
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PageResponse;
+
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,6 +31,15 @@ public interface HelpChatSessionService {
     HelpChatSessionView createSession(UUID organizationId, UUID userId);
 
     /**
+     * The user's conversations, most recently active first, without their messages.
+     *
+     * <p>Ordering falls back to when a session was created for one that was never used, so an empty
+     * conversation someone opened and abandoned still sorts sensibly rather than to the bottom.
+     */
+    PageResponse<HelpChatSessionView> listSessions(UUID organizationId, UUID userId,
+                                                   PageRequest pageRequest);
+
+    /**
      * Appends one completed turn — the question and the answer — and advances the session's
      * counters, all in one transaction.
      *
@@ -34,6 +47,19 @@ public interface HelpChatSessionService {
      * @throws HelpChatQuestionRequiredException the question is blank
      */
     HelpChatTurnView appendTurn(AppendHelpChatTurnCommand command);
+
+    /**
+     * The tail of a conversation, oldest first — at most {@code maxMessages} of them.
+     *
+     * <p>Separate from {@link #loadConversation} because the two callers want different things: a
+     * client re-opening a conversation wants all of it, and the model only ever sees the last few
+     * exchanges. Reading the whole transcript to throw most of it away would make every turn of a long
+     * conversation cost more than the one before it.
+     *
+     * @throws HelpChatSessionNotFoundException no such conversation for this user
+     */
+    List<HelpChatMessage> loadRecentHistory(UUID organizationId, UUID userId, UUID sessionId,
+                                            int maxMessages);
 
     /**
      * The conversation and every message in it, oldest first.

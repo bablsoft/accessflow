@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.ai.internal.persistence.repo;
 
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpChatSessionEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +23,23 @@ public interface HelpChatSessionRepository extends JpaRepository<HelpChatSession
     Optional<HelpChatSessionEntity> findByIdAndOrganizationIdAndUserId(UUID id,
                                                                        UUID organizationId,
                                                                        UUID userId);
+
+    /**
+     * One page of the user's conversations, most recently active first.
+     *
+     * <p>Ordering is written into the query rather than left to the caller's {@code Pageable}: the
+     * sort key is {@code coalesce(last_message_at, created_at)}, which is not a property a client
+     * could name, and a client-supplied sort property that no entity field matches would fail the
+     * query rather than be ignored. The tie-break on {@code id} keeps paging stable when several
+     * sessions share a timestamp — without it the same row can appear on two pages.
+     */
+    @Query("select s from HelpChatSessionEntity s "
+            + "where s.organizationId = :organizationId and s.userId = :userId "
+            + "order by coalesce(s.lastMessageAt, s.createdAt) desc, s.id desc")
+    Page<HelpChatSessionEntity> findPageByOrganizationIdAndUserId(
+            @Param("organizationId") UUID organizationId,
+            @Param("userId") UUID userId,
+            Pageable pageable);
 
     /**
      * Deletes the organization's conversations last touched before {@code cutoff} — the retention
