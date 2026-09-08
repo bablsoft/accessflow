@@ -187,6 +187,9 @@ accessflow:
     # How long one replica may hold the cluster-wide indexing lock. Well above the expected pass
     # duration: the Redis key expires after it even if the JVM dies mid-pass.
     index-lock-at-most-for: ${ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR:PT30M}
+    # How often HelpChatRetentionJob deletes conversations past their organization's retention_days.
+    # How long they are kept is the admin's per-org setting; this is only how often we look.
+    retention-poll-interval: ${ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL:PT6H}
   ai:
     rate-limit:
       # Per-organization AI guardrails (AF-55), enforced before every AiAnalyzerStrategy call so a

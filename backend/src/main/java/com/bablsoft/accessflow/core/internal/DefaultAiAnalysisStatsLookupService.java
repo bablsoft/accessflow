@@ -63,15 +63,16 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
     }
 
     /**
-     * Zero until help conversations are persisted (AF-904 adds the table this will sum).
+     * Sums the organization's help-chat tokens straight from {@code help_chat_messages} (AF-904).
      *
-     * <p>The interface method lands with the runtime that spends the tokens (AF-903) rather than with
-     * the table, so the rate limiter already adds a help sum to its budget check and the later change
-     * is one query body rather than a second pass over the limiter. Zero is the honest answer in the
-     * meantime: nothing records help tokens yet, so nothing has been spent that this could report.
+     * <p>A native query over a table the {@code ai} module owns, from the {@code core} module that
+     * owns the budget. The alternative — an {@code ai.api} lookup this service delegated to — is a
+     * {@code core -> ai} dependency against the {@code ai -> core} one that already exists, which
+     * Spring Modulith rejects as a cycle. The table is read, never written, from here.
      */
     @Override
+    @Transactional(readOnly = true)
     public long sumHelpChatTokensSince(UUID organizationId, Instant since) {
-        return 0L;
+        return repository.sumHelpChatTokensSince(organizationId, since);
     }
 }

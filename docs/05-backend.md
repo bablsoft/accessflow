@@ -1198,7 +1198,7 @@ Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec
 
 ### Scheduled jobs and clustering
 
-`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 36 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
+`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 40 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
 
 Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). ShedLock types stay confined to `scheduling.internal/`.
 
@@ -1231,6 +1231,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `AuditSinkDrainJob` | audit | `auditSinkDrainJob` | `accessflow.audit.sinks.drain-interval` | `PT30S` |
 | `DeploymentTimeoutJob` | deploygov | `deploymentTimeoutJob` | `accessflow.deploygov.timeout-check` | `PT5M` |
 | `ScheduledDeploymentReleaseJob` | deploygov | `scheduledDeploymentReleaseJob` | `accessflow.deploygov.release-check` | `PT1M` |
+| `HelpChatRetentionJob` | ai | `helpChatRetentionJob` | `accessflow.help-agent.retention-poll-interval` | `PT6H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -2110,7 +2111,8 @@ the **same `vector_store` table** the AF-336 knowledge base uses. Everything liv
 
 `HelpChatService.answer` turns one question plus the conversation so far into an answer with
 resolvable citations. It is service-level only — no endpoints and no persistence; the conversation
-arrives in the request and leaves in the answer, and storing it is AF-904's job.
+arrives in the request and leaves in the answer. Storing it is `HelpChatSessionService`'s job
+(AF-904, below).
 
 - **Citations are indices, resolved server-side.** The prompt tells the model to cite as `[1]` or
   `[2, 3]` and **never** to write a URL. `DefaultHelpChatService` scans the answer for those markers
@@ -2207,6 +2209,48 @@ arrives in the request and leaves in the answer, and storing it is AF-904's job.
   `ObjectProvider<AiAnalyzerStrategyHolder>` and resolved lazily, because integration tests that
   `@MockitoBean AiAnalyzerStrategy` replace that bean with an interface mock which is not assignable
   to the concrete type.
+
+### Help chat persistence and retention (AF-904, epic AF-899)
+
+`HelpChatSessionService` stores conversations so a user can come back to one: create a session, ask
+through `HelpChatService`, append the turn. Two tables, `help_chat_sessions` and
+`help_chat_messages` — full column reference in [docs/03-data-model.md](03-data-model.md).
+
+- **Answering and storing are two services on purpose.** The provider call takes seconds; the write
+  takes milliseconds. Splitting them keeps a pooled connection out of the model call, and lets a
+  caller answer without storing at all.
+- **A turn is stored as a unit.** Both messages and the session's counters go in one transaction —
+  a half-written turn would read as though the agent ignored someone.
+- **Order is a sequence number, not a timestamp.** The two messages of a turn are inserted in the
+  same statement and share a `created_at`, so ordering on it is free to return the answer before its
+  question. `sequence_number` counts from 1 across the whole conversation and is UNIQUE per session.
+- **Citations are stored as the server resolved them and never re-derived.** The resolved
+  `{index, chunkId, title, section, anchor, url}` list is persisted as JSON with the assistant
+  message; re-parsing the `[n]` markers out of the stored text later would resolve them against a
+  corpus that has since moved on and would render a link nothing verified (decision 6). Unreadable
+  stored JSON costs the links, never the transcript — the message renders with no citations.
+- **`corpus_version` is stored per assistant message**, so a support conversation can be traced to
+  the documentation revision that produced it.
+- **A transcript is private to the person who had it.** Every read and write is scoped to
+  `(organization_id, user_id)`; anything else is `HelpChatSessionNotFoundException` → 404, the same
+  answer given for a session that never existed, was deleted, or aged out. A 403 would confirm the id
+  exists. There is no admin read path.
+- **The title is derived, not asked for.** The first question, whitespace-collapsed and truncated to
+  the column width; later turns never change it.
+- **Retention is a bulk delete per organization.** `HelpChatRetentionJob`
+  (`accessflow.help-agent.retention-poll-interval`, default `PT6H`) deletes sessions whose
+  `COALESCE(last_message_at, created_at)` predates the organization's
+  `help_agent_config.retention_days`; the `created_at` fallback ages out an abandoned empty
+  conversation. Nothing is loaded, so the messages can only go through the FK cascade — which also
+  keeps the session's `@Version` column out of the delete path. A non-positive `retention_days`
+  (reachable only by direct database edit; the admin API validates [1, 3650]) is skipped rather than
+  honoured, since its cutoff would be "now" and would delete everything.
+- **Help tokens reach the monthly budget.** `enforceMonthlyTokenBudget` adds
+  `AiAnalysisStatsLookupService.sumHelpChatTokensSince` — a native sum over `help_chat_messages` —
+  to the `ai_analyses` sum. That query lives in `core` rather than delegating to an `ai.api` lookup:
+  `ai` already depends on `core`, so the reverse would be a module cycle. Help turns write no
+  `ai_analyses` row (decision 10), so without this sum a chatty agent would drain the provider budget
+  without ever tripping `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`.
 
 ### Multi-model orchestration, voting & guardrails (AF-450)
 

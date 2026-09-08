@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "64ccf83f2f95",
-  "generatedAt": "2026-09-07T14:04:02.315Z",
-  "sourceCommit": "e66fb8367243d1b41530989ddf0f3f920e4bb620",
+  "corpusVersion": "8170b52e0dd5",
+  "generatedAt": "2026-09-08T06:27:59.087Z",
+  "sourceCommit": "efac362988e6299adfbe9649a29ac428254f4caf",
   "chunkCount": 511,
-  "sha256": "64ccf83f2f953dc447001427ef13e8aca112340ae9759affd2c901d016231c90",
+  "sha256": "8170b52e0dd55a63de9aa1e143af6c02e4f96e71834013a300024cfa5fe16af3",
   "quickReferenceSha256": "93189cc70d5743a2814509575a61b88c3828f7a8ec6142f46deb1ac3ef6c16f1",
   "sources": [
     {
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 80,
-      "sha256": "72a8ec9300bc194a41d031badc6fb18803a07669f49448fcf4038cde5b65ee6c"
+      "sha256": "33b7b59dbfab6761fc2d8893f11f17416cb7832d2fe99fb4567f7074f6620d37"
     }
   ]
 }

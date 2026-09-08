@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -113,17 +112,14 @@ class DefaultAiAnalysisStatsLookupServiceTest {
         assertThat(service.sumTokensSince(orgId, since)).isEqualTo(4242L);
     }
 
-    /**
-     * Zero until AF-904 persists help conversations — and the repository must not be consulted for
-     * it, because there is no table to consult yet.
-     */
+    /** Help tokens come from help_chat_messages, not from ai_analyses (AF-904). */
     @Test
-    void helpChatTokenSumIsZeroUntilConversationsArePersisted() {
+    void helpChatTokenSumDelegatesToTheHelpChatQuery() {
         var orgId = UUID.randomUUID();
         var since = Instant.parse("2026-06-01T00:00:00Z");
+        when(repository.sumHelpChatTokensSince(orgId, since)).thenReturn(4_242L);
 
-        assertThat(service.sumHelpChatTokensSince(orgId, since)).isZero();
-        verifyNoInteractions(repository);
+        assertThat(service.sumHelpChatTokensSince(orgId, since)).isEqualTo(4_242L);
     }
 
     private static org.assertj.core.groups.Tuple tuple(Object... values) {
