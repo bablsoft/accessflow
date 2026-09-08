@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.internal.help;
 import com.bablsoft.accessflow.ai.api.AppendHelpChatTurnCommand;
 import com.bablsoft.accessflow.ai.api.HelpChatCitation;
 import com.bablsoft.accessflow.ai.api.HelpChatConversationView;
+import com.bablsoft.accessflow.ai.api.HelpChatMessage;
 import com.bablsoft.accessflow.ai.api.HelpChatMessageView;
 import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
 import com.bablsoft.accessflow.ai.api.HelpChatRole;
@@ -19,6 +20,7 @@ import com.bablsoft.accessflow.core.api.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.core.JacksonException;
@@ -27,6 +29,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -131,6 +134,28 @@ public class DefaultHelpChatSessionService implements HelpChatSessionService {
         session.setUpdatedAt(now);
         var saved = sessionRepository.save(session);
         return new HelpChatTurnView(toView(saved), toView(userMessage), toView(assistantMessage));
+    }
+
+    /**
+     * Read newest-first with a limit, then reversed — the index is the same either way, and asking the
+     * database for the tail is the whole point of not calling {@link #loadConversation} here.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<HelpChatMessage> loadRecentHistory(UUID organizationId, UUID userId, UUID sessionId,
+                                                   int maxMessages) {
+        load(organizationId, userId, sessionId);
+        if (maxMessages <= 0) {
+            return List.of();
+        }
+        var newestFirst = messageRepository.findBySessionIdOrderBySequenceNumberDesc(sessionId,
+                Limit.of(maxMessages));
+        var history = new ArrayList<HelpChatMessage>(newestFirst.size());
+        for (var i = newestFirst.size() - 1; i >= 0; i--) {
+            var message = newestFirst.get(i);
+            history.add(new HelpChatMessage(message.getRole(), message.getContent()));
+        }
+        return List.copyOf(history);
     }
 
     @Override

@@ -85,9 +85,10 @@ class HelpChatController {
     @Operation(summary = "Start an empty help conversation")
     @ApiResponse(responseCode = "201", description = "The new, empty conversation")
     @ApiResponse(responseCode = "401", description = "Caller is not authenticated")
+    @ApiResponse(responseCode = "409", description = "The help assistant is off or unbound")
     ResponseEntity<HelpChatSessionResponse> createSession(Authentication authentication) {
         var caller = caller(authentication);
-        HelpChatSessionView created = sessionService.createSession(caller.organizationId(),
+        HelpChatSessionView created = conversationService.startSession(caller.organizationId(),
                 caller.userId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(HelpChatSessionResponse.from(created));

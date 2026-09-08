@@ -206,7 +206,6 @@ class HelpChatPersistenceIntegrationTest {
         assertThat(sessionRepository.findById(abandoned.getId())).isEmpty();
     }
 
-    /** A transcript is private to the person who had it — for everyone, admins included. */
     /**
      * Ordering is {@code coalesce(last_message_at, created_at) DESC}, so a session someone opened and
      * never used still sorts by when it was opened rather than falling to the bottom on a NULL.
@@ -246,6 +245,7 @@ class HelpChatPersistenceIntegrationTest {
         assertThat(page.content()).extracting(HelpChatSessionView::id).containsExactly(first.id());
     }
 
+    /** A transcript is private to the person who had it — for everyone, admins included. */
     @Test
     void anotherUsersSessionIsNotFound() {
         var session = sessionService.createSession(organizationId, userId);

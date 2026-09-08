@@ -21,6 +21,20 @@ public interface HelpChatConversationService {
     HelpChatAvailabilityView availability(UUID organizationId);
 
     /**
+     * Starts an empty session, but only for an organization whose agent could actually answer in it.
+     *
+     * <p>The guard is not cosmetic. Nothing prunes {@code help_chat_sessions} except the retention job,
+     * and that job's work list is the organizations that have <em>saved</em> a help configuration — so
+     * a session created in an organization that never visited the admin page would never be deleted by
+     * anything. Refusing to open one there is what keeps the retention promise true, and it costs
+     * nothing real: a session nobody could ask a question in has no purpose.
+     *
+     * @throws HelpChatUnavailableException the organization's agent is off, unsaved, or bound to no
+     *                                     AI configuration
+     */
+    HelpChatSessionView startSession(UUID organizationId, UUID userId);
+
+    /**
      * Answers one question in an existing conversation and stores the turn.
      *
      * @throws HelpChatSessionNotFoundException  no such conversation for this user

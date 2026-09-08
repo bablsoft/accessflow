@@ -99,7 +99,7 @@ class HelpChatControllerTest {
 
     @Test
     void createSessionReturns201() {
-        when(sessionService.createSession(organizationId, userId)).thenReturn(session());
+        when(conversationService.startSession(organizationId, userId)).thenReturn(session());
 
         var response = controller.createSession(authentication);
 

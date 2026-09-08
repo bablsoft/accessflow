@@ -38,8 +38,9 @@ final class HelpRouteLabel {
     /**
      * The label to send, or {@code ""} when the value is missing or does not read as a label.
      *
-     * <p>Dropped: anything with a scheme, a leading or embedded path segment, a query string or a
-     * fragment, and anything carrying a UUID, a long digit run or a hex blob.
+     * <p>Dropped: anything containing a forward or back slash (which covers a scheme, a leading path
+     * and an embedded one alike), a query string or a fragment, and anything carrying a UUID, a long
+     * digit run or a hex blob.
      */
     static String sanitize(String value) {
         if (value == null) {
@@ -52,12 +53,18 @@ final class HelpRouteLabel {
         return collapsed.length() <= MAX_LENGTH ? collapsed : collapsed.substring(0, MAX_LENGTH);
     }
 
+    /**
+     * A slash is enough on its own. {@code window.location.pathname.substring(1)} carries no leading
+     * slash and no id — {@code datasources/analytics-prod/tables/customer_pii} — and every segment of
+     * it is a name the product is supposed to govern access to. Losing the occasional real label that
+     * happened to contain a slash costs a line of prompt context; keeping this rule loose costs the
+     * guarantee the label exists to preserve.
+     */
     private static boolean looksLikeLocation(String value) {
-        return value.startsWith("/")
-                || value.contains("//")
-                || value.contains("?")
-                || value.contains("#")
-                || value.contains("\\");
+        return value.indexOf('/') >= 0
+                || value.indexOf('\\') >= 0
+                || value.indexOf('?') >= 0
+                || value.indexOf('#') >= 0;
     }
 
     private static boolean carriesAnIdentifier(String value) {

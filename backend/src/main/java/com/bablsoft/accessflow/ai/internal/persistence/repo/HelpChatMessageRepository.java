@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal.persistence.repo;
 
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpChatMessageEntity;
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,6 +17,16 @@ public interface HelpChatMessageRepository extends JpaRepository<HelpChatMessage
      * {@code help_chat_messages_session_sequence_idx}.
      */
     List<HelpChatMessageEntity> findBySessionIdOrderBySequenceNumberAsc(UUID sessionId);
+
+    /**
+     * The newest {@code limit} messages of one conversation, newest first — the same index read
+     * backwards, for the ask path.
+     *
+     * <p>Only the last few exchanges are ever replayed to the model, so loading the whole transcript
+     * on every turn would make each question linearly more expensive than the one before it in a
+     * conversation nothing bounds. The caller reverses the result to get chronological order.
+     */
+    List<HelpChatMessageEntity> findBySessionIdOrderBySequenceNumberDesc(UUID sessionId, Limit limit);
 
     /**
      * Tokens the organization's help chat spent since {@code since} — the half of the monthly AI

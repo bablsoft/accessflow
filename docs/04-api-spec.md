@@ -2748,16 +2748,29 @@ on the CSV export with `row_count` / `truncated` / the applied filters in its me
 
 ## Help Chat Endpoints (AF-905)
 
-The in-app documentation help assistant (AF-905, epic AF-899). Six endpoints, all requiring nothing
-more than a valid token — the agent is a documentation reader with no data access, so there is nothing
-here a user could learn that the product's own public documentation does not already say. Whether it
-runs at all is an admin decision made on `/admin/help-agent`.
+The in-app documentation help assistant (AF-905, epic AF-899). Every endpoint requires nothing more
+than a valid token — the agent is a documentation reader with no data access, so there is nothing here
+a user could learn that the product's own public documentation does not already say. Whether it runs
+at all is an admin decision made on `/admin/help-agent`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/help-chat/availability` | Whether the assistant can answer for the caller's organization |
+| `GET` | `/help-chat/sessions` | The caller's sessions, most recently active first (paginated) |
+| `POST` | `/help-chat/sessions` | Start an empty session |
+| `GET` | `/help-chat/sessions/{id}` | One session with all its messages |
+| `POST` | `/help-chat/sessions/{id}/messages` | Ask a question and store the answer |
+| `DELETE` | `/help-chat/sessions/{id}` | Delete a session and its messages |
+
+A **session** is one help conversation: the row these endpoints address, plus the messages under it.
 
 Every session belongs to the caller. One belonging to somebody else returns **404, never 403** — the
 same answer a session that never existed, was deleted, or aged out of retention gets, so no caller can
-probe another's session ids. There is no admin read path over transcripts.
+probe another's session ids. There is no admin read path over stored sessions.
 
-Answers are synchronous — there is no streaming and no SSE in v1 (epic decision 8).
+Answers are synchronous: the response carries the finished answer. There is no token streaming and no
+server-sent-events transport in v1 (epic AF-899 decision 8), so a client shows a typing indicator and
+waits.
 
 ### GET /help-chat/availability
 
@@ -2804,10 +2817,17 @@ than refused). A `sort` parameter is accepted by the binding and ignored — ord
 
 ### POST /help-chat/sessions
 
-Starts an empty conversation. No request body — the title is filled in from the first question, so
-nothing has to be named before it is used.
+Starts an empty session. No request body — the title is filled in from the first question, so nothing
+has to be named before it is used.
 
 **Response 201:** The new session, in the shape above, with `message_count: 0` and `title: ""`.
+**Response 409:** The agent is off or unbound (`HELP_AGENT_DISABLED` / `HELP_AGENT_NOT_CONFIGURED`).
+
+The 409 is a data-lifecycle guard, not a convenience. Nothing prunes `help_chat_sessions` except the
+retention job, and that job's work list is the organizations that have **saved** a help configuration
+— so a session opened in an organization that never visited `/admin/help-agent` would never be deleted
+by anything. Refusing to open one there is what keeps the retention promise below true, and it costs
+nothing: a session in which no question can be asked has no purpose.
 
 ### GET /help-chat/sessions/{id}
 
@@ -2820,7 +2840,7 @@ One conversation and every message in it, oldest first.
                "last_message_at": "2026-09-08T10:15:00Z", "created_at": "2026-09-08T10:02:00Z" },
   "messages": [
     { "id": "msg-uuid-1", "role": "USER", "content": "How do I submit a query?",
-      "citations": [], "latency_ms": null, "created_at": "2026-09-08T10:15:00Z" },
+      "citations": [], "created_at": "2026-09-08T10:15:00Z" },
     { "id": "msg-uuid-2", "role": "ASSISTANT", "content": "Open the query editor … [1]",
       "citations": [
         { "index": 1, "chunk_id": "chunk-7", "title": "Submitting a query", "section": "Guides",
@@ -2831,6 +2851,9 @@ One conversation and every message in it, oldest first.
   ]
 }
 ```
+
+Null fields are **omitted**, not sent as `null`: a user message carries no `corpus_version` and no
+`latency_ms`, so a client must treat those keys as absent rather than null.
 
 `content` is **plain text** and must be rendered as plain text — no markup, no URL auto-linking, no
 `dangerouslySetInnerHTML`. The `[n]` markers are left in place so a client can align them with
@@ -2846,7 +2869,9 @@ accounting an admin reads on the AI pages.
 
 ### POST /help-chat/sessions/{id}/messages
 
-Asks a question in an open conversation and stores the completed turn.
+Asks a question in an open session and stores the completed turn. **200, not 201**: the two messages
+it writes are not individually addressable — there is no `/messages/{id}` — so this is an ask that
+returns an answer, not a resource creation.
 
 **Request body:**
 ```json
@@ -2855,13 +2880,16 @@ Asks a question in an open conversation and stores the completed turn.
 
 | Field | Rules |
 |---|---|
-| `question` | Required, non-blank, ≤ **10000** characters. The ceiling is the highest value `help_agent_config.max_question_chars` can be set to, not its default — a flat 2,000 would make a raised setting unusable. The organization's own limit is applied after this and **truncates** rather than rejects |
+| `question` | Required, non-blank, ≤ **10000** characters. The ceiling is the highest value `help_agent_config.max_question_chars` can be set to, not its default — a flat 2,000 would make a raised setting unusable, so this is also the only bound on what is *stored*. The organization's own limit **truncates** what reaches the model; the transcript keeps the question as typed |
 | `route_name` | Optional, ≤ **120** characters. A human **label** for the screen the user is on ("Review queue"), never a URL |
 
-`route_name` is sanitized server-side and dropped whole when it still reads as a location — a scheme,
-a leading or embedded path, a query string or a fragment — or when it carries a UUID, a long digit run
-or a hex blob. The client is expected to send a mapped label so `/queries/<uuid>` never reaches the AI
-provider; the server does not take its word for it. Nothing else about the caller comes from the body:
+`route_name` is sanitized server-side and dropped **whole** — not scrubbed in place — when it still
+reads as a location or carries an identifier. It is dropped when it contains a forward slash or a
+backslash (which covers `/reviews`, `scheme://host` and a bare `queries/detail` alike), a `?` or a
+`#`; and when it contains a UUID, a run of six or more digits, or a hex blob of sixteen or more
+characters. A label that survives is truncated to 120 characters and collapsed to one line. Losing a
+real label costs a line of prompt context; keeping the rule loose would cost the guarantee that
+`/queries/<uuid>` never reaches the AI provider. Nothing else about the caller comes from the body:
 the permissions and language sent to the model are read from the token and the request locale.
 
 **Response 200:**
@@ -2880,7 +2908,7 @@ exchange without re-reading the conversation.
 | Failure | Response |
 |---|---|
 | `question` blank, or either field over its length | **400** `VALIDATION_ERROR` with the usual per-field `fields` map |
-| The question is blank once the server has trimmed it | **400** `HELP_CHAT_QUESTION_REQUIRED` |
+| The question is blank once the server has trimmed it | **400** `HELP_CHAT_QUESTION_REQUIRED` — reachable only by a direct service caller in practice, since `@NotBlank` answers `VALIDATION_ERROR` first |
 | No such conversation for this caller | **404** `HELP_CHAT_SESSION_NOT_FOUND` |
 | The agent is switched off, or no configuration has ever been saved | **409** `HELP_AGENT_DISABLED` |
 | The agent is on but bound to no AI configuration — what deleting the bound `ai_config` leaves behind (`ON DELETE SET NULL`) | **409** `HELP_AGENT_NOT_CONFIGURED` |
@@ -4268,11 +4296,15 @@ per organization binding the agent to an `ai_config`. All four endpoints require
 (`PERM_AI_MANAGE`); every other caller gets **403**.
 
 The agent answers from AccessFlow's own bundled documentation corpus and has no data access. Enabling
-it makes the corpus indexer (AF-902) embed the bundled documentation for the organization and opens
-the user-facing [Help Chat Endpoints](#help-chat-endpoints-af-905) to everyone signed in; the chat
-panel that drives them is still to come. It can be enabled **before** RAG is configured: with `retrieval_enabled = false` the agent answers from a generated
-quick-reference orientation block instead of retrieved sections, so an install whose AI provider
-cannot embed (Anthropic ships no embeddings API) is still supported, and nothing is indexed.
+it makes the corpus indexer (AF-902) embed the bundled documentation for the organization, and is what
+lets the [Help Chat Endpoints](#help-chat-endpoints-af-905) actually *answer* — those endpoints are
+reachable by every signed-in user either way, and it is asking a question that returns **409
+`HELP_AGENT_DISABLED`** while the agent is off. The chat panel that drives them is AF-906.
+
+It can be enabled **before** RAG is configured: with `retrieval_enabled = false` the agent answers
+from a generated quick-reference orientation block instead of retrieved sections, so an install whose
+AI provider cannot embed (Anthropic ships no embeddings API) is still supported, and nothing is
+indexed.
 
 #### GET /admin/help-agent
 

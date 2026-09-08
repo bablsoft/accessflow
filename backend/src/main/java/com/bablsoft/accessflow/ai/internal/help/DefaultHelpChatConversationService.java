@@ -4,11 +4,11 @@ import com.bablsoft.accessflow.ai.api.AppendHelpChatTurnCommand;
 import com.bablsoft.accessflow.ai.api.AskHelpChatCommand;
 import com.bablsoft.accessflow.ai.api.HelpChatAvailabilityView;
 import com.bablsoft.accessflow.ai.api.HelpChatConversationService;
-import com.bablsoft.accessflow.ai.api.HelpChatMessage;
-import com.bablsoft.accessflow.ai.api.HelpChatMessageView;
 import com.bablsoft.accessflow.ai.api.HelpChatRequest;
 import com.bablsoft.accessflow.ai.api.HelpChatService;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionService;
+import com.bablsoft.accessflow.ai.api.HelpChatSessionView;
+import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.api.HelpChatTurnView;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +40,9 @@ public class DefaultHelpChatConversationService implements HelpChatConversationS
     private static final Logger log =
             LoggerFactory.getLogger(DefaultHelpChatConversationService.class);
 
+    /** A remembered exchange is a question and its answer; the flat message ceiling is this × turns. */
+    private static final int MESSAGES_PER_TURN = 2;
+
     private final HelpChatService helpChatService;
     private final HelpChatSessionService sessionService;
     private final HelpAgentConfigRepository configRepository;
@@ -63,14 +66,48 @@ public class DefaultHelpChatConversationService implements HelpChatConversationS
                 corpusBundle.available() ? corpusBundle.chunkCount() : 0);
     }
 
+    /**
+     * Refused rather than allowed for an agent that cannot answer — see the interface for why this is
+     * a data-lifecycle guard and not a convenience.
+     */
+    @Override
+    public HelpChatSessionView startSession(UUID organizationId, UUID userId) {
+        requireAnswerableAgent(organizationId);
+        return sessionService.createSession(organizationId, userId);
+    }
+
+    /**
+     * The same three unanswerable states {@code DefaultHelpChatService} refuses on, under the same two
+     * message keys, so opening a session and asking in one fail identically.
+     */
+    private void requireAnswerableAgent(UUID organizationId) {
+        var config = configRepository.findByOrganizationId(organizationId)
+                .orElseThrow(() -> new HelpChatUnavailableException("error.help_chat.disabled"));
+        if (!config.isEnabled()) {
+            throw new HelpChatUnavailableException("error.help_chat.disabled");
+        }
+        if (config.getAiConfigId() == null) {
+            throw new HelpChatUnavailableException("error.help_chat.unbound");
+        }
+    }
+
     @Override
     public HelpChatTurnView ask(AskHelpChatCommand command) {
-        var conversation = sessionService.loadConversation(command.organizationId(),
-                command.userId(), command.sessionId());
+        // Read leniently, not through requireAnswerableAgent: HelpChatService.answer is the single
+        // authority on whether the agent can answer, and checking it here first would turn a request
+        // for somebody else's session into a 409 about the organization instead of the 404 it is.
+        // A missing row means answer() is about to refuse anyway, so no history is worth loading.
+        var maxMessages = configRepository.findByOrganizationId(command.organizationId())
+                .map(config -> config.getMaxHistoryTurns() * MESSAGES_PER_TURN)
+                .orElse(0);
+        // Only the tail is ever replayed: the renderer caps history at max_history_turns exchanges and
+        // discards the rest, so reading a whole long transcript here would make every turn cost more
+        // than the one before it. The read is still the scoped one, so a session that is not the
+        // caller's is a 404 before any provider call.
+        var history = sessionService.loadRecentHistory(command.organizationId(), command.userId(),
+                command.sessionId(), maxMessages);
         var request = new HelpChatRequest(command.organizationId(), command.userId(),
-                command.question(), conversation.messages().stream()
-                        .map(DefaultHelpChatConversationService::toHistoryEntry)
-                        .toList(),
+                command.question(), history,
                 HelpRouteLabel.sanitize(command.routeLabel()), command.permissions(),
                 command.language());
 
@@ -106,9 +143,5 @@ public class DefaultHelpChatConversationService implements HelpChatConversationS
                     command.sessionId(), e.getMessage());
             return sessionService.appendTurn(command);
         }
-    }
-
-    private static HelpChatMessage toHistoryEntry(HelpChatMessageView message) {
-        return new HelpChatMessage(message.role(), message.content());
     }
 }

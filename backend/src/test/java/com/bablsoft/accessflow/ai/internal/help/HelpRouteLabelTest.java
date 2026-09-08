@@ -22,6 +22,8 @@ class HelpRouteLabelTest {
             "Reviews?filter=secret",
             "Reviews#pending",
             "C:\\Users\\tigran",
+            "datasources/analytics-prod/tables/customer_pii",
+            "Queries/detail",
             "Query 129384756",
             "Token a3f5c9d1e7b24680",
     })

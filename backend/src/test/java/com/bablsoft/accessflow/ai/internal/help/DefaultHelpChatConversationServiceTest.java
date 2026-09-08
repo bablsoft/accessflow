@@ -4,7 +4,7 @@ import com.bablsoft.accessflow.ai.api.AppendHelpChatTurnCommand;
 import com.bablsoft.accessflow.ai.api.AskHelpChatCommand;
 import com.bablsoft.accessflow.ai.api.HelpChatAnswer;
 import com.bablsoft.accessflow.ai.api.HelpChatCitation;
-import com.bablsoft.accessflow.ai.api.HelpChatConversationView;
+import com.bablsoft.accessflow.ai.api.HelpChatMessage;
 import com.bablsoft.accessflow.ai.api.HelpChatMessageView;
 import com.bablsoft.accessflow.ai.api.HelpChatRequest;
 import com.bablsoft.accessflow.ai.api.HelpChatRole;
@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.ai.api.HelpChatSessionNotFoundException;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionService;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionView;
 import com.bablsoft.accessflow.ai.api.HelpChatTurnView;
+import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,6 @@ import org.springframework.dao.OptimisticLockingFailureException;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,6 +32,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -53,6 +55,7 @@ class DefaultHelpChatConversationServiceTest {
     private HelpAgentConfigRepository configRepository;
     private HelpQuickReference quickReference;
     private HelpCorpusBundle corpusBundle;
+    private Clock clock;
     private DefaultHelpChatConversationService service;
 
     @BeforeEach
@@ -65,9 +68,12 @@ class DefaultHelpChatConversationServiceTest {
         when(corpusBundle.available()).thenReturn(true);
         when(corpusBundle.corpusVersion()).thenReturn(CORPUS_VERSION);
         when(corpusBundle.chunkCount()).thenReturn(512);
+        // A clock that steps between the two reads latency is measured from, so the assertion below
+        // is a real one rather than 0 == 0 under a fixed clock.
+        clock = mock(Clock.class);
+        when(clock.millis()).thenReturn(1_000L, 1_850L);
         service = new DefaultHelpChatConversationService(helpChatService, sessionService,
-                configRepository, quickReference, corpusBundle,
-                Clock.fixed(Instant.parse("2026-09-08T10:00:00Z"), ZoneOffset.UTC));
+                configRepository, quickReference, corpusBundle, clock);
     }
 
     // --- availability -------------------------------------------------------
@@ -129,8 +135,8 @@ class DefaultHelpChatConversationServiceTest {
 
     @Test
     void answersOutsideTheTranscriptWriteAndStoresTheTurn() {
-        givenConversation(List.of(message(HelpChatRole.USER, "First?"),
-                message(HelpChatRole.ASSISTANT, "First answer [1]")));
+        givenConversation(List.of(new HelpChatMessage(HelpChatRole.USER, "First?"),
+                new HelpChatMessage(HelpChatRole.ASSISTANT, "First answer [1]")));
         var answer = new HelpChatAnswer("Second answer [1]",
                 List.of(new HelpChatCitation(1, "chunk-1", "Break-glass", "Guides", "break-glass",
                         "https://accessflow.io/docs/#break-glass")),
@@ -143,16 +149,16 @@ class DefaultHelpChatConversationServiceTest {
 
         // Load, then answer, then append: the provider call must not sit inside the write.
         InOrder order = inOrder(sessionService, helpChatService);
-        order.verify(sessionService).loadConversation(organizationId, userId, sessionId);
+        order.verify(sessionService).loadRecentHistory(eq(organizationId), eq(userId),
+                eq(sessionId), anyInt());
         order.verify(helpChatService).answer(any());
         order.verify(sessionService).appendTurn(any());
 
         var request = captureRequest();
         assertThat(request.question()).isEqualTo("Second?");
         assertThat(request.history()).containsExactly(
-                new com.bablsoft.accessflow.ai.api.HelpChatMessage(HelpChatRole.USER, "First?"),
-                new com.bablsoft.accessflow.ai.api.HelpChatMessage(HelpChatRole.ASSISTANT,
-                        "First answer [1]"));
+                new HelpChatMessage(HelpChatRole.USER, "First?"),
+                new HelpChatMessage(HelpChatRole.ASSISTANT, "First answer [1]"));
         assertThat(request.routeLabel()).isEqualTo("Review queue");
         assertThat(request.permissions()).containsExactly("QUERY_REVIEW");
         assertThat(request.language()).isEqualTo("en-GB");
@@ -160,7 +166,7 @@ class DefaultHelpChatConversationServiceTest {
         var stored = captureAppend();
         assertThat(stored.answer()).isSameAs(answer);
         assertThat(stored.corpusVersion()).isEqualTo(CORPUS_VERSION);
-        assertThat(stored.latencyMs()).isNotNull();
+        assertThat(stored.latencyMs()).isEqualTo(850);
     }
 
     /** The exfiltration path the epic closes: a route that is really a URL never reaches the model. */
@@ -227,11 +233,99 @@ class DefaultHelpChatConversationServiceTest {
         verify(sessionService, times(2)).appendTurn(any());
     }
 
+    /**
+     * Only the tail is replayed, so a long conversation must not make every turn read more than the
+     * one before it — the bound is the organization's own {@code max_history_turns}.
+     */
+    @Test
+    void readsOnlyAsMuchHistoryAsTheModelWillSee() {
+        var config = config(true, UUID.randomUUID());
+        config.setMaxHistoryTurns(3);
+        when(configRepository.findByOrganizationId(organizationId)).thenReturn(Optional.of(config));
+        when(sessionService.loadRecentHistory(eq(organizationId), eq(userId), eq(sessionId),
+                anyInt())).thenReturn(List.of());
+        when(helpChatService.answer(any())).thenReturn(quickReferenceAnswer());
+        when(sessionService.appendTurn(any())).thenReturn(turn());
+
+        service.ask(new AskHelpChatCommand(organizationId, userId, sessionId, "How?", null,
+                List.of(), "en"));
+
+        verify(sessionService).loadRecentHistory(organizationId, userId, sessionId, 6);
+    }
+
+    /**
+     * No saved configuration means {@code answer} is about to refuse, so nothing is worth reading —
+     * and the refusal still comes from the one service that owns it.
+     */
+    @Test
+    void readsNoHistoryForAnOrganizationWithNoSavedConfiguration() {
+        when(configRepository.findByOrganizationId(organizationId)).thenReturn(Optional.empty());
+        when(sessionService.loadRecentHistory(eq(organizationId), eq(userId), eq(sessionId),
+                anyInt())).thenReturn(List.of());
+        when(helpChatService.answer(any()))
+                .thenThrow(new HelpChatUnavailableException("error.help_chat.disabled"));
+
+        assertThatThrownBy(() -> service.ask(new AskHelpChatCommand(organizationId, userId,
+                sessionId, "How?", null, List.of(), "en")))
+                .isInstanceOf(HelpChatUnavailableException.class);
+
+        verify(sessionService).loadRecentHistory(organizationId, userId, sessionId, 0);
+    }
+
+    // --- startSession -------------------------------------------------------
+
+    /**
+     * Nothing prunes sessions in an organization that never saved a help configuration, so one must
+     * not be openable there.
+     */
+    @Test
+    void refusesToStartASessionForAnAgentThatCannotAnswer() {
+        when(configRepository.findByOrganizationId(organizationId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.startSession(organizationId, userId))
+                .isInstanceOf(HelpChatUnavailableException.class)
+                .extracting(e -> ((HelpChatUnavailableException) e).messageKey())
+                .isEqualTo("error.help_chat.disabled");
+
+        verifyNoInteractions(sessionService);
+    }
+
+    @Test
+    void refusesToStartASessionForAnEnabledButUnboundAgent() {
+        when(configRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(config(true, null)));
+
+        assertThatThrownBy(() -> service.startSession(organizationId, userId))
+                .isInstanceOf(HelpChatUnavailableException.class)
+                .extracting(e -> ((HelpChatUnavailableException) e).messageKey())
+                .isEqualTo("error.help_chat.unbound");
+    }
+
+    @Test
+    void refusesToStartASessionForASwitchedOffAgent() {
+        when(configRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(config(false, UUID.randomUUID())));
+
+        assertThatThrownBy(() -> service.startSession(organizationId, userId))
+                .isInstanceOf(HelpChatUnavailableException.class);
+    }
+
+    @Test
+    void startsASessionForAnAnswerableAgent() {
+        when(configRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(config(true, UUID.randomUUID())));
+        when(sessionService.createSession(organizationId, userId)).thenReturn(session());
+
+        assertThat(service.startSession(organizationId, userId).id()).isEqualTo(sessionId);
+    }
+
     /** A session that is not yours costs no rate-limit budget and no provider call. */
     @Test
     void refusesBeforeAnyProviderCallWhenTheSessionIsNotTheCallers() {
-        when(sessionService.loadConversation(organizationId, userId, sessionId))
-                .thenThrow(new HelpChatSessionNotFoundException(sessionId));
+        when(configRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(config(true, UUID.randomUUID())));
+        when(sessionService.loadRecentHistory(eq(organizationId), eq(userId), eq(sessionId),
+                anyInt())).thenThrow(new HelpChatSessionNotFoundException(sessionId));
 
         assertThatThrownBy(() -> service.ask(new AskHelpChatCommand(organizationId, userId,
                 sessionId, "Why?", "Review queue", List.of(), "en")))
@@ -243,9 +337,11 @@ class DefaultHelpChatConversationServiceTest {
 
     // --- helpers ------------------------------------------------------------
 
-    private void givenConversation(List<HelpChatMessageView> messages) {
-        when(sessionService.loadConversation(organizationId, userId, sessionId))
-                .thenReturn(new HelpChatConversationView(session(), messages));
+    private void givenConversation(List<HelpChatMessage> history) {
+        when(configRepository.findByOrganizationId(organizationId))
+                .thenReturn(Optional.of(config(true, UUID.randomUUID())));
+        when(sessionService.loadRecentHistory(eq(organizationId), eq(userId), eq(sessionId),
+                anyInt())).thenReturn(history);
     }
 
     private HelpChatRequest captureRequest() {

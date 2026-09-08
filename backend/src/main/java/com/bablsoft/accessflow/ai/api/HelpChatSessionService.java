@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.ai.api;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -46,6 +47,19 @@ public interface HelpChatSessionService {
      * @throws HelpChatQuestionRequiredException the question is blank
      */
     HelpChatTurnView appendTurn(AppendHelpChatTurnCommand command);
+
+    /**
+     * The tail of a conversation, oldest first — at most {@code maxMessages} of them.
+     *
+     * <p>Separate from {@link #loadConversation} because the two callers want different things: a
+     * client re-opening a conversation wants all of it, and the model only ever sees the last few
+     * exchanges. Reading the whole transcript to throw most of it away would make every turn of a long
+     * conversation cost more than the one before it.
+     *
+     * @throws HelpChatSessionNotFoundException no such conversation for this user
+     */
+    List<HelpChatMessage> loadRecentHistory(UUID organizationId, UUID userId, UUID sessionId,
+                                            int maxMessages);
 
     /**
      * The conversation and every message in it, oldest first.

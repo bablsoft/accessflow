@@ -6,7 +6,15 @@ import com.bablsoft.accessflow.ai.api.HelpChatCitation;
 import com.bablsoft.accessflow.ai.api.HelpChatRequest;
 import com.bablsoft.accessflow.ai.api.HelpChatService;
 import com.bablsoft.accessflow.ai.api.HelpChatSessionService;
+import com.bablsoft.accessflow.ai.api.AiAnalysisException;
+import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
+import com.bablsoft.accessflow.ai.api.HelpChatRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
+import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -57,6 +65,8 @@ class HelpChatIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired JwtService jwtService;
     @Autowired HelpChatSessionService sessionService;
+    @Autowired HelpAgentConfigRepository configRepository;
+    @Autowired AiConfigRepository aiConfigRepository;
 
     @MockitoBean HelpChatService helpChatService;
 
@@ -82,6 +92,30 @@ class HelpChatIntegrationTest {
     }
 
     /**
+     * An enabled, bound row. Sessions can only be opened where the agent could answer — nothing prunes
+     * transcripts in an organization that never saved a configuration, so the endpoint refuses there.
+     */
+    private void enableTheAgent() {
+        if (configRepository.findByOrganizationId(organizationId).isPresent()) {
+            return;
+        }
+        var aiConfig = new AiConfigEntity();
+        aiConfig.setId(UUID.randomUUID());
+        aiConfig.setOrganizationId(organizationId);
+        aiConfig.setName("help-chat-" + UUID.randomUUID());
+        aiConfig.setProvider(AiProviderType.OPENAI);
+        aiConfig.setModel("gpt-4o");
+        aiConfigRepository.save(aiConfig);
+
+        var config = new HelpAgentConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(organizationId);
+        config.setEnabled(true);
+        config.setAiConfigId(aiConfig.getId());
+        configRepository.save(config);
+    }
+
+    /**
      * The launcher can be hidden without a failed POST: the feature being off is an answer, not an
      * error.
      */
@@ -96,6 +130,22 @@ class HelpChatIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.retrieval_active").asBoolean().isFalse();
     }
 
+    /**
+     * Nothing prunes {@code help_chat_sessions} in an organization that never saved a help
+     * configuration — the retention job's work list is the configured organizations — so an
+     * unconfigured organization must not be able to open one at all.
+     */
+    @Test
+    void startingASessionIsRefusedWhileTheAgentIsOff() {
+        var result = mvc.post().uri(PATH + "/sessions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken)
+                .exchange();
+
+        assertThat(result).hasStatus(409);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("HELP_AGENT_DISABLED");
+    }
+
     @Test
     void availabilityRequiresAuthentication() {
         assertThat(mvc.get().uri(PATH + "/availability").exchange()).hasStatus(401);
@@ -103,6 +153,8 @@ class HelpChatIntegrationTest {
 
     @Test
     void creatingASessionReturns201AndAnEmptyConversation() {
+        enableTheAgent();
+
         var created = mvc.post().uri(PATH + "/sessions")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken)
                 .exchange();
@@ -228,6 +280,52 @@ class HelpChatIntegrationTest {
         assertThat(captor.getValue().routeLabel()).isEmpty();
     }
 
+    /**
+     * Pins the advice ordering the whole {@code HelpChatRateLimitExceededException} subclass exists
+     * for: {@code HelpChatExceptionHandler} is {@code HIGHEST_PRECEDENCE}, so the per-user limit
+     * reports its own code rather than falling through to the organization-wide handler in
+     * {@code AiAnalysisExceptionHandler}.
+     */
+    @Test
+    void thePerUserRateLimitReportsItsOwnCodeRatherThanTheOrganizationWideOne() {
+        when(helpChatService.answer(any()))
+                .thenThrow(new HelpChatRateLimitExceededException(6, 60));
+
+        var result = ask(createSession(), userToken, "How?", "Query editor");
+
+        assertThat(result).hasStatus(429);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("HELP_CHAT_RATE_LIMITED");
+        assertThat(result).bodyJson().extractingPath("$.limit").asNumber().isEqualTo(6);
+    }
+
+    /** The organization-wide limit keeps the shared code — the two are told apart, not merged. */
+    @Test
+    void theOrganizationWideRateLimitKeepsTheSharedCode() {
+        when(helpChatService.answer(any())).thenThrow(new AiRateLimitExceededException(30, 60));
+
+        var result = ask(createSession(), userToken, "How?", "Query editor");
+
+        assertThat(result).hasStatus(429);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("AI_RATE_LIMIT_EXCEEDED");
+    }
+
+    /** Pins the 503 this endpoint documents, and that no provider text reaches the response. */
+    @Test
+    void aProviderFailureIsReportedWithoutLeakingItsText() {
+        when(helpChatService.answer(any()))
+                .thenThrow(new AiAnalysisException("connect timed out to https://api.internal:8443"));
+
+        var result = ask(createSession(), userToken, "How?", "Query editor");
+
+        assertThat(result).hasStatus(503);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("AI_PROVIDER_UNAVAILABLE");
+        assertThat(result).bodyJson().extractingPath("$.detail").asString()
+                .doesNotContain("api.internal");
+    }
+
     @Test
     void aDisabledAgentAnswersWithConflictAndItsOwnCode() {
         when(helpChatService.answer(any()))
@@ -245,6 +343,7 @@ class HelpChatIntegrationTest {
      * own, and every other test wants a session id without re-parsing a response body for it.
      */
     private String createSession() {
+        enableTheAgent();
         return sessionService.createSession(organizationId, userId).id().toString();
     }
 

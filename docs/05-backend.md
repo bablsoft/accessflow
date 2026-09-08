@@ -2291,8 +2291,9 @@ in [docs/04-api-spec.md](04-api-spec.md#help-chat-endpoints-af-905).
   the provider call outside any transaction. It also owns `availability(...)`, which reports
   `{enabled, retrievalActive, corpusVersion, chunkCount}` and never throws for a disabled agent — a
   client asks it precisely so it can hide the launcher rather than discover the problem through a
-  failed POST. `retrievalActive` is `HelpQuickReference.usable(config)`: exactly the condition the
-  chat runtime itself uses to decide whether searching is worth it.
+  failed POST. `retrievalActive` is `enabled && HelpQuickReference.usable(config)` — the second half is
+  exactly the condition the chat runtime itself uses to decide whether searching is worth it, so a
+  disabled agent reports `false` even with a fresh index.
 - **An impatient double-send is retried, not lost.** Two sends into one session read the same message
   counter, so the loser fails on `help_chat_messages_session_sequence_idx` or on the session's
   `@Version`. Failing there would discard an answer the provider has already been paid for and charged
@@ -2301,13 +2302,16 @@ in [docs/04-api-spec.md](04-api-spec.md#help-chat-endpoints-af-905).
 - **Identity is never taken from the body.** `permissions` comes from the `JwtClaims` principal and
   `language` from the request locale. A client that could name its own permissions could describe
   itself to the model as an administrator.
-- **`route_name` is sanitized server-side.** `HelpRouteLabel.sanitize` drops anything that still reads
-  as a location — a scheme, a leading or embedded path, a query string or fragment — or that carries a
-  UUID, a long digit run or a hex blob. It is dropped whole rather than scrubbed in place: a
-  half-redacted path tells the model nothing useful, and a substitution rule is something an attacker
-  can probe. The renderer applies the same function, so a caller reaching `HelpChatService` directly
-  gets the same treatment. This is the field a page could fill straight from `window.location`, and it
-  lands in the *system* message.
+- **`route_name` is sanitized server-side.** `HelpRouteLabel.sanitize` drops anything containing a
+  forward or back slash, a `?` or a `#`, and anything carrying a UUID, a run of six or more digits, or
+  a hex blob of sixteen or more characters. A slash is enough on its own because
+  `window.location.pathname.substring(1)` carries no leading slash and no id —
+  `datasources/analytics-prod/tables/customer_pii` — and every segment of that is a name the product
+  exists to govern access to. It is dropped whole rather than scrubbed in place: a half-redacted path
+  tells the model nothing useful, and a substitution rule is something an attacker can probe. The
+  renderer applies the same function, so a caller reaching `HelpChatService` directly gets the same
+  treatment. This is the field a page could fill straight from `window.location`, and it lands in the
+  *system* message.
 - **Pagination.** `GET /help-chat/sessions` takes Spring's `Pageable`, adapts through the existing
   `SpringPageableAdapter`, and clamps `size` to 100 rather than refusing an oversized ask. The
   caller's *sort* is dropped: the repository query orders on
@@ -2317,12 +2321,29 @@ in [docs/04-api-spec.md](04-api-spec.md#help-chat-endpoints-af-905).
   `completion_tokens` are on the stored message and deliberately not in the response: they are AI-spend
   accounting an admin reads on the AI pages, and a help panel has no use for them. `availability`
   likewise says nothing about *why* an agent is off.
+- **A session can only be opened where the agent could answer.** `POST /help-chat/sessions` is a
+  user-reachable write, and `HelpChatRetentionJob` sweeps only the organizations that have *saved* a
+  `help_agent_config` row — a row that exists only after an admin writes to `/admin/help-agent`. So a
+  session opened in an unconfigured organization would be immortal. `startSession` therefore refuses
+  with the same two keys asking refuses on. It is the retention guarantee, not a nicety.
+- **Only the tail of a transcript is read per turn.** The renderer replays at most
+  `max_history_turns` exchanges, so `ask` calls `loadRecentHistory(…, maxHistoryTurns × 2)` rather than
+  `loadConversation` — otherwise every turn of a long conversation would cost more than the one before
+  it, deserialising citations JSON for messages the model will never see. The configuration is read
+  leniently there (no answerability check), so a request for somebody else's session stays the 404 it
+  is instead of becoming a 409 about the organization.
 - **Its own advice.** `HelpChatExceptionHandler` (`@Order(Ordered.HIGHEST_PRECEDENCE)`) owns the four
-  failures a non-admin can see — `HELP_AGENT_DISABLED` / `HELP_AGENT_NOT_CONFIGURED` (409),
-  `HELP_CHAT_RATE_LIMITED` (429), `HELP_CHAT_QUESTION_REQUIRED` (400) and
-  `HELP_CHAT_SESSION_NOT_FOUND` (404) — moved out of `AiAnalysisExceptionHandler`, which keeps every
-  admin-facing AI code. The precedence is what lets `HelpChatRateLimitExceededException` resolve here
-  rather than to the more general `AiRateLimitExceededException` handler. Every `detail` is a
+  exception types whose failures are specific to the help surface —
+  `HelpChatUnavailableException` (409, reported as `HELP_AGENT_DISABLED` or
+  `HELP_AGENT_NOT_CONFIGURED` from its message key), `HelpChatRateLimitExceededException` (429
+  `HELP_CHAT_RATE_LIMITED`), `HelpChatQuestionRequiredException` (400) and
+  `HelpChatSessionNotFoundException` (404) — moved out of `AiAnalysisExceptionHandler`. That handler
+  keeps the codes it shares with the rest of the module, and this endpoint can still return three of
+  them: `AI_RATE_LIMIT_EXCEEDED`, `AI_BUDGET_EXCEEDED` and `AI_PROVIDER_UNAVAILABLE`. It is not a
+  user-facing / admin-facing split; it is four exception types. The precedence is what lets
+  `HelpChatRateLimitExceededException` resolve here rather than to the more general
+  `AiRateLimitExceededException` handler — `HelpChatIntegrationTest` pins all three 429/503 codes
+  over HTTP, because that ordering is otherwise decided by nothing declared. Every `detail` is a
   message-bundle key resolved against the caller's locale; no stack trace and no provider text ever
   reaches a response.
 
