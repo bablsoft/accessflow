@@ -1079,15 +1079,16 @@ Per-`ai_config` RAG settings (store type, top-K, threshold, embedding model, kno
 #### In-app Help Agent (AF-899)
 
 Whether the help agent is on, which `ai_config` answers with it, and its retrieval tunables are
-per-organization settings managed from `/admin/help-agent`, not in env. These three are
-deployment-wide, and all three are about *indexing* the bundled documentation corpus — the agent
-itself needs no configuration here.
+per-organization settings managed from `/admin/help-agent`, not in env. These four are
+deployment-wide: three about *indexing* the bundled documentation corpus, and one about how often
+stored conversations are swept for expiry.
 
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_HELP_AGENT_INDEX_ON_STARTUP` | Optional | `true` | Index the bundled documentation corpus for every organization with the help agent enabled, once the application is ready — this is what makes an upgrade re-embed the documentation the new build ships. The pass runs off the startup thread, and an install with the agent switched off does nothing at all (the work list is "organizations with the agent enabled", which is empty). Set `false` to keep a slow local embedding backend from doing minutes of work on every restart; `POST /api/v1/admin/help-agent/reindex` still works. |
 | `ACCESSFLOW_HELP_AGENT_INDEX_BATCH_SIZE` | Optional | `64` | Documentation chunks sent per embedding call while indexing. The bundled corpus is ~510 chunks in total; sending them in one call exceeds the request size OpenAI accepts and exhausts memory on a local Ollama, hence the default of 64 per call. Lower it for a memory-constrained embedding backend. |
 | `ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR` | Optional | `PT30M` | ISO-8601 duration one replica may hold the indexing lock for one organization, so a multi-replica deployment indexes each organization once rather than once per replica. Set it well above the expected pass duration: the Redis key expires after it even if the JVM dies mid-pass, and a CPU-only Ollama embeds the corpus in minutes, not seconds. |
+| `ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL` | Optional | `PT6H` | ISO-8601 duration between passes of `HelpChatRetentionJob`, which deletes help conversations past their organization's `help_agent_config.retention_days` (default 90 days). This is only how *often* expiry is checked — how long transcripts are kept is the per-organization admin setting. The sweep covers every organization that has configured the agent, enabled or not, so switching the agent off does not freeze already-stored transcripts. |
 
 The lock is keyed per organization (`helpCorpusIndex:<help_agent_config id>`), so organizations index
 independently — one tenant's slow pass never delays another's. Two passes for the **same**
@@ -1095,6 +1096,19 @@ organization do contend, and the loser is dropped rather than queued: it is logg
 nothing is written to `index_error`, because the winner is doing exactly the same work. The only case
 where that is visible is pressing Re-index twice in quick succession; the first press is the one that
 runs.
+
+**Budget the tokens before you enable it.** A turn's prompt is the system preamble (~470 tokens),
+the retrieved excerpts — `top_k` × ~340 tokens, so ~2,000 at the default 6, or the ~2,600-token
+quick-reference block instead when retrieval is unavailable — and the replayed conversation, which
+dominates: `max_history_turns` 8 means up to 16 messages, each truncated at `max_question_chars`
+(2,000 characters, ~500 tokens). A **busy** conversation at the defaults therefore reaches roughly
+**8,300 prompt tokens**, plus the answer itself; a short one costs a third of that. On GPT-4o
+(pricing as of September 2026: $2.50 per million input tokens, $10 per million output) a busy turn is
+around **$0.03, or about $30 per 1,000 turns** — re-check current pricing before you budget on it.
+A local Ollama costs only the hardware. These tokens count against
+`ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` alongside query analysis (see below), so a monthly budget
+sized for SQL analysis alone will be reached sooner. Lower `top_k`, `max_history_turns` and
+`max_question_chars` on the `help_agent_config` row to reduce the per-turn cost.
 
 ##### pgvector for RAG
 
@@ -1118,7 +1132,7 @@ Per-organization guardrails enforced before **every** AI provider call — every
 | Variable | Required | Default | Description |
 |----------|---------|---------|-------------|
 | `ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE` | Optional | `30` | Per-organization request cap per minute across all AI paths, in-app help chat included. A value `<= 0` disables the per-minute limit. Help chat additionally applies its own per-user cap on top, so one user cannot spend this whole allowance — see `help_agent_config.per_user_requests_per_minute`. |
-| `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` | Optional | `0` | Per-organization monthly token budget (summed `prompt_tokens + completion_tokens` over the current calendar month). `0` (the default) = unlimited / opt-in; a value `<= 0` disables the budget. |
+| `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH` | Optional | `0` | Per-organization monthly token budget (summed `prompt_tokens + completion_tokens` over the current calendar month). Counts query analysis **and** in-app help chat, which spend the same provider key — help turns are summed from `help_chat_messages` rather than `ai_analyses`, so they never appear in the admin AI-analyses history. **Caveat:** the help half sums rows that still exist, and `HelpChatRetentionJob` deletes them, so a `help_agent_config.retention_days` below ~31 leaves the budget seeing only the retained window (at 7 days an organization can spend roughly four times the ceiling on help chat). The 90-day default is clear of this; keep `retention_days` at 31 or more if the budget must be binding. `0` (the default) = unlimited / opt-in; a value `<= 0` disables the budget. |
 
 #### Behavioural Anomaly Detection (UBA, AF-383)
 

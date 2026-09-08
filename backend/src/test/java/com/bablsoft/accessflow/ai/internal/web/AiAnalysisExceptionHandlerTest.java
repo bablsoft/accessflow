@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
 import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
+import com.bablsoft.accessflow.ai.api.HelpChatSessionNotFoundException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.MessageSource;
@@ -149,6 +150,23 @@ class AiAnalysisExceptionHandlerTest {
 
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
         assertThat(pd.getProperties()).containsEntry("error", "KNOWLEDGE_DOCUMENT_NOT_FOUND");
+    }
+
+    /**
+     * 404 and never 403: a transcript is private to the person who had it, and a forbidden would
+     * confirm the session id exists.
+     */
+    @Test
+    void mapsHelpChatSessionNotFoundToNotFound() {
+        when(messageSource.getMessage(eq("error.help_chat.session_not_found"), any(),
+                any(Locale.class))).thenReturn("This help conversation no longer exists");
+
+        var pd = handler.handleHelpChatSessionNotFound(
+                new HelpChatSessionNotFoundException(UUID.randomUUID()));
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+        assertThat(pd.getProperties()).containsEntry("error", "HELP_CHAT_SESSION_NOT_FOUND");
+        assertThat(pd.getDetail()).isEqualTo("This help conversation no longer exists");
     }
 
     @Test

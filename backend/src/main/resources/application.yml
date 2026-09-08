@@ -176,7 +176,8 @@ accessflow:
     max-document-chars: ${ACCESSFLOW_RAG_MAX_DOCUMENT_CHARS:100000}
   help-agent:
     # In-app documentation help agent (AF-899). Everything an admin chooses lives on the
-    # help_agent_config row; these are operator concerns about the ingestion process itself.
+    # help_agent_config row; these are operator concerns about the process rather than the tenant -
+    # three about ingesting the corpus, one about how often stored conversations are swept.
     #
     # Index every enabled organization once the application is ready, so an upgrade re-embeds the
     # corpus the new build ships. Turn off to keep a slow local embedding backend from doing minutes
@@ -187,6 +188,9 @@ accessflow:
     # How long one replica may hold the cluster-wide indexing lock. Well above the expected pass
     # duration: the Redis key expires after it even if the JVM dies mid-pass.
     index-lock-at-most-for: ${ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR:PT30M}
+    # How often HelpChatRetentionJob deletes conversations past their organization's retention_days.
+    # How long they are kept is the admin's per-org setting; this is only how often we look.
+    retention-poll-interval: ${ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL:PT6H}
   ai:
     rate-limit:
       # Per-organization AI guardrails (AF-55), enforced before every AiAnalyzerStrategy call so a

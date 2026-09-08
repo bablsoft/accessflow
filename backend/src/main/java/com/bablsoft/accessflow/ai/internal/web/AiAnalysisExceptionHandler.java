@@ -14,6 +14,7 @@ import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
 import com.bablsoft.accessflow.ai.api.HelpAgentConfigInvalidException;
 import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
+import com.bablsoft.accessflow.ai.api.HelpChatSessionNotFoundException;
 import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.api.HelpCorpusUnavailableException;
 import com.bablsoft.accessflow.ai.api.KnowledgeDocumentIngestException;
@@ -183,6 +184,17 @@ class AiAnalysisExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
                 msg("error.help_chat.question_required"));
         pd.setProperty("error", "HELP_CHAT_QUESTION_REQUIRED");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(HelpChatSessionNotFoundException.class)
+    ProblemDetail handleHelpChatSessionNotFound(HelpChatSessionNotFoundException ex) {
+        // Also what a session belonging to another user returns: a transcript is private to the
+        // person who had it, and 403 would confirm the id exists.
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                msg("error.help_chat.session_not_found"));
+        pd.setProperty("error", "HELP_CHAT_SESSION_NOT_FOUND");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

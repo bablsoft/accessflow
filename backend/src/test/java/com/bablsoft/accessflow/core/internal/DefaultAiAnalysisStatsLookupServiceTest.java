@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.HelpChatTokenLookupService;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisStatsRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.when;
 class DefaultAiAnalysisStatsLookupServiceTest {
 
     @Mock AiAnalysisStatsRepository repository;
+    @Mock HelpChatTokenLookupService helpChatTokenLookupService;
     @InjectMocks DefaultAiAnalysisStatsLookupService service;
 
     @Test
@@ -114,15 +116,16 @@ class DefaultAiAnalysisStatsLookupServiceTest {
     }
 
     /**
-     * Zero until AF-904 persists help conversations — and the repository must not be consulted for
-     * it, because there is no table to consult yet.
+     * Help tokens come from the ai module, which owns help_chat_messages — never from a query core
+     * runs over that table itself (AF-904).
      */
     @Test
-    void helpChatTokenSumIsZeroUntilConversationsArePersisted() {
+    void helpChatTokenSumDelegatesToTheModuleThatOwnsTheTable() {
         var orgId = UUID.randomUUID();
         var since = Instant.parse("2026-06-01T00:00:00Z");
+        when(helpChatTokenLookupService.sumTokensSince(orgId, since)).thenReturn(4_242L);
 
-        assertThat(service.sumHelpChatTokensSince(orgId, since)).isZero();
+        assertThat(service.sumHelpChatTokensSince(orgId, since)).isEqualTo(4_242L);
         verifyNoInteractions(repository);
     }
 

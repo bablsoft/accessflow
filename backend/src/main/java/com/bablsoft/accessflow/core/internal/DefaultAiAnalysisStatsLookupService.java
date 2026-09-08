@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.AiAnalysisModelStatView;
 import com.bablsoft.accessflow.core.api.AiAnalysisRiskScoreBucketView;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisStatsRaw;
+import com.bablsoft.accessflow.core.api.HelpChatTokenLookupService;
 import com.bablsoft.accessflow.core.api.AiAnalysisSubmitterView;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.internal.persistence.repo.AiAnalysisStatsRepository;
@@ -21,6 +22,7 @@ import java.util.UUID;
 class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupService {
 
     private final AiAnalysisStatsRepository repository;
+    private final HelpChatTokenLookupService helpChatTokenLookupService;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,15 +65,16 @@ class DefaultAiAnalysisStatsLookupService implements AiAnalysisStatsLookupServic
     }
 
     /**
-     * Zero until help conversations are persisted (AF-904 adds the table this will sum).
+     * Delegates to the {@code ai} module, which owns {@code help_chat_messages} (AF-904).
      *
-     * <p>The interface method lands with the runtime that spends the tokens (AF-903) rather than with
-     * the table, so the rate limiter already adds a help sum to its budget check and the later change
-     * is one query body rather than a second pass over the limiter. Zero is the honest answer in the
-     * meantime: nothing records help tokens yet, so nothing has been spent that this could report.
+     * <p>{@code core} does not query that table itself. A native cross-module query would work and be
+     * shorter, but nothing type-level would record the coupling, so a schema change in {@code ai}
+     * would break {@code core} at runtime with {@code ApplicationModulesTest} none the wiser.
+     * {@link HelpChatTokenLookupService} is the same inversion {@code core.api.SessionRevocationService}
+     * uses for {@code security}.
      */
     @Override
     public long sumHelpChatTokensSince(UUID organizationId, Instant since) {
-        return 0L;
+        return helpChatTokenLookupService.sumTokensSince(organizationId, since);
     }
 }

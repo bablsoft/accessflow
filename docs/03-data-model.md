@@ -1975,7 +1975,7 @@ AI configuration disables help chat instead of blocking the admin — help never
 | `max_history_turns` | INTEGER NOT NULL DEFAULT 8 — prior turns replayed into the prompt; app-validated ∈ [1, 50] |
 | `max_question_chars` | INTEGER NOT NULL DEFAULT 2000 — app-validated ∈ [100, 10000] |
 | `send_user_context` | BOOLEAN NOT NULL DEFAULT TRUE — include the current route *label* and permission names in the prompt (never data) |
-| `retention_days` | INTEGER NOT NULL DEFAULT 90 — how long chat transcripts are kept once the transcript tables exist (they do not yet); app-validated ∈ [1, 3650] |
+| `retention_days` | INTEGER NOT NULL DEFAULT 90 — how long chat transcripts are kept before `HelpChatRetentionJob` deletes them (see `help_chat_sessions`); app-validated ∈ [1, 3650] |
 | `per_user_requests_per_minute` | INTEGER NOT NULL DEFAULT 6 — app-validated ∈ [1, 120] |
 | `indexed_corpus_version` | VARCHAR(64) nullable — content-derived corpus version (`sha256(corpus.jsonl)[0..12]`) currently ingested for this org; `NULL` = never indexed |
 | `indexed_at` | TIMESTAMPTZ nullable — when that ingestion completed |
@@ -2002,6 +2002,90 @@ actually answer: `ai_config_id` must be set and belong to the caller's organizat
 usable in-app store. The three pgvector failure states are reported distinctly: the extension is
 absent, pgvector was disabled via `ACCESSFLOW_RAG_PGVECTOR_ENABLED=false` (so `vector_store` was
 never created), or the embedding model's dimension does not match the `vector(N)` column.
+
+---
+
+## help_chat_sessions
+
+One in-app help conversation (#904, epic #899, V160). A transcript is **private to the user who had
+it**: every read and write is scoped to `(organization_id, user_id)`, and a session belonging to
+someone else is reported as not found rather than refused — there is no cross-user read, not even
+for an admin, because the help agent is a documentation reader and its transcripts are not an audit
+surface.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `user_id` | FK → `users` ON DELETE CASCADE — the only person who can read the conversation |
+| `title` | VARCHAR(255) nullable — derived from the first question asked, collapsed to one line and truncated; nothing asks a user to name a conversation |
+| `message_count` | INTEGER NOT NULL DEFAULT 0 — two per completed turn; also the next message's `sequence_number` base |
+| `last_message_at` | TIMESTAMPTZ nullable — `NULL` for a session that was never used |
+| `version` | BIGINT NOT NULL DEFAULT 0 — `@Version` optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` |
+
+Indexes: `(organization_id, created_at)` backs the retention sweep; `(user_id, last_message_at
+DESC)` is there for the user's own session list, which the endpoints in #905 will read — nothing in
+#904 lists sessions.
+
+**Retention.** `HelpChatRetentionJob` deletes every session of an organization whose
+`COALESCE(last_message_at, created_at)` is older than that organization's
+`help_agent_config.retention_days` — the `created_at` fallback is what ages out an empty conversation
+someone opened and abandoned. It is one bulk statement per organization: nothing is loaded, and the
+messages go with the session through the FK cascade below. The work list is **every** configured
+organization, enabled or not: retention is a promise about data already written, and disabling the
+agent — the likeliest reaction to a privacy concern — must not be the one action that makes stored
+transcripts immortal.
+
+---
+
+## help_chat_messages
+
+One message of a help conversation (#904, epic #899, V160), immutable once written — no `@Version`
+and no `updated_at`, because a transcript that could be edited afterwards would not be a transcript.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `session_id` | FK → `help_chat_sessions` ON DELETE CASCADE |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE — denormalised from the session so the monthly token sum needs no join |
+| `sequence_number` | INTEGER NOT NULL — position in the conversation, from 1; UNIQUE per `(session_id, sequence_number)` |
+| `role` | ENUM `help_chat_role` NOT NULL ∈ {`USER`, `ASSISTANT`} — there is no system role: the preamble is rendered server-side on every turn and is never stored or supplied by a caller |
+| `content` | TEXT NOT NULL — plain text, rendered as plain text with `[n]` markers left in place |
+| `citations` | JSONB NOT NULL DEFAULT `'[]'` — the sections the answer cited, **as the server resolved them** |
+| `corpus_version` | VARCHAR(64) nullable — content-derived corpus version that produced an assistant answer; `NULL` on a user message |
+| `model` | VARCHAR(100) nullable — provider model that produced the answer |
+| `prompt_tokens` / `completion_tokens` | INTEGER nullable — what the provider reported; `NULL` on a user message, which costs nothing |
+| `latency_ms` | INTEGER nullable — how long the turn took end to end |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` |
+
+Index: UNIQUE `(session_id, sequence_number)` — the replay order. Deliberately **not**
+`(session_id, created_at)`: both messages of a turn are inserted in one statement and share a
+timestamp, so a `created_at` sort is free to return the answer before its question. Plus
+`(organization_id, created_at)` for the monthly token sum.
+
+`citations` is written from the chunks the server actually retrieved for that turn and is **never
+re-derived from `content`** (epic #899 decision 6). Re-parsing the stored `[n]` markers later would
+resolve them against whatever the corpus contains then — a different section, or none — and would put
+a link on the page that nothing verified. Storing the resolved list is what lets a conversation
+reloaded a year later render exactly the links it rendered live; `corpus_version` records the
+documentation revision it rendered them from.
+
+**Token accounting.** Help turns deliberately write **no** `ai_analyses` row — that table backs the
+admin AI-analyses history page, and filling it with chat turns would wreck it (epic #899 decision
+10). But the tokens come off the same provider key, so `DefaultAiRateLimiter.enforceMonthlyTokenBudget`
+adds `AiAnalysisStatsLookupService.sumHelpChatTokensSince` — a sum over this table's
+`prompt_tokens + completion_tokens` for the organization, month to date — to the `ai_analyses` sum
+before comparing against `ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH`. Without it a chatty help agent
+would drain the budget invisibly and never trip it. `core` does not read this table directly: the sum
+is `core.api.HelpChatTokenLookupService`, implemented in `ai.internal.help`, so the coupling is
+type-level and `ApplicationModulesTest` can see it.
+
+**The budget counts surviving rows, so retention bounds it.** The month-to-date sum reads
+`help_chat_messages`, and `HelpChatRetentionJob` deletes from it. A `retention_days` below ~31 means
+the budget only ever sees the retained window — at 7 days an organization can spend roughly four
+times its declared monthly ceiling on help chat. The default of 90 days is comfortably clear of it;
+keep `retention_days` at 31 or more if the monthly budget has to be binding.
 
 ---
 

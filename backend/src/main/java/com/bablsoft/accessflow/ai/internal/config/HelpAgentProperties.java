@@ -10,6 +10,10 @@ import java.time.Duration;
  * on the per-organization {@code help_agent_config} row; these three are operator concerns that
  * cannot be per-organization because they are about the process, not the tenant.
  *
+ * <p>Not every {@code accessflow.help-agent.*} key is bound here:
+ * {@code retention-poll-interval} (AF-904) is read straight from {@code @Scheduled}'s
+ * {@code fixedDelayString}, as every other job's cadence is.
+ *
  * <p>Exactly one constructor: a second one would silently unbind every property, and the error names
  * pre-existing fields rather than the constructor.
  *
