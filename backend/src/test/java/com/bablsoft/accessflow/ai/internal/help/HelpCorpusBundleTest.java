@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.core.io.DefaultResourceLoader;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -205,6 +206,28 @@ class HelpCorpusBundleTest {
     @Test
     void hasNoSnapshotWhenNoCorpusLoaded() {
         assertThat(bundleFrom("bad-checksum").snapshot()).isNull();
+    }
+
+    @Test
+    void offersNoQuickReferenceWhenNoCorpusLoaded() {
+        // The chat runtime substitutes this block when retrieval is unavailable, so it has to be
+        // safely absent rather than empty-stringed when there is no corpus at all.
+        assertThat(bundleFrom("bad-checksum").quickReference()).isNull();
+    }
+
+    @Test
+    void keepsTheActiveCorpusWhenARefreshedManifestIsNotJson() throws IOException {
+        var bundle = new HelpCorpusBundle(new DefaultResourceLoader());
+        var bundled = bundle.corpusVersion();
+        Map<String, byte[]> broken = new HashMap<>(TarGzFixtures.bundleFiles("good"));
+        broken.put(HelpCorpusBundle.MANIFEST_FILE, "{not json".getBytes(StandardCharsets.UTF_8));
+
+        // A parse failure arrives as a JacksonException rather than the IllegalStateException the
+        // hand-written checks throw, and it has to be converted to the same contract.
+        assertThatThrownBy(() -> bundle.activateRefreshed(broken))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(bundle.available()).isTrue();
+        assertThat(bundle.corpusVersion()).isEqualTo(bundled);
     }
 
     @Test

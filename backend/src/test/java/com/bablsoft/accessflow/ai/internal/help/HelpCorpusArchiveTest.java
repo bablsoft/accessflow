@@ -130,6 +130,89 @@ class HelpCorpusArchiveTest {
                 .hasMessageContaining("ends mid-entry");
     }
 
+    @Test
+    void toleratesAnArchiveWithNoEndOfArchiveMarker() throws IOException {
+        // GNU tar always writes the two zero blocks, but a stream cut at an exact block boundary is
+        // indistinguishable from a well-formed archive until it simply stops. Whatever was read in
+        // full is still usable, so this ends the loop rather than failing.
+        var tar = gunzip(TarGzFixtures.archiveOf("good"));
+        var truncated = new ByteArrayOutputStream();
+        try (var out = new GZIPOutputStream(truncated)) {
+            out.write(Arrays.copyOf(tar, tar.length - 1024));
+        }
+
+        var extracted = HelpCorpusArchive.extract(truncated.toByteArray(), WANTED, CAP);
+
+        assertThat(extracted).containsOnlyKeys(HelpCorpusBundle.MANIFEST_FILE,
+                HelpCorpusBundle.CORPUS_FILE, HelpCorpusBundle.QUICK_REFERENCE_FILE);
+    }
+
+    @Test
+    void refusesAnArchiveTruncatedMidHeader() throws IOException {
+        var tar = gunzip(TarGzFixtures.targz(Map.of("help-corpus/corpus.jsonl", new byte[10])));
+
+        assertThatThrownBy(() -> HelpCorpusArchive.extract(regzip(Arrays.copyOf(tar, 512 + 512 + 200)),
+                WANTED, CAP))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("ends mid-header");
+    }
+
+    @Test
+    void refusesAnArchiveTruncatedMidPadding() throws IOException {
+        // 10 bytes of payload means 502 bytes of padding; stopping inside it leaves the next header
+        // unreadable, so it cannot be treated as a clean end.
+        var tar = gunzip(TarGzFixtures.targz(Map.of("help-corpus/corpus.jsonl", new byte[10])));
+
+        assertThatThrownBy(() -> HelpCorpusArchive.extract(regzip(Arrays.copyOf(tar, 512 + 10 + 100)),
+                WANTED, CAP))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("ends mid-padding");
+    }
+
+    @Test
+    void refusesAnEntrySizeTooLargeToRead() throws IOException {
+        // 0o77777777777 is ~8 GB — larger than an int, so it could never be read into an array, and
+        // arithmetic on it must not be attempted either.
+        assertThatThrownBy(() -> HelpCorpusArchive.extract(
+                archiveWithRawSizeField("77777777777"), WANTED, Long.MAX_VALUE))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("unreadable entry size");
+    }
+
+    @Test
+    void refusesAHeaderWhoseSizeFieldIsNotOctal() throws IOException {
+        assertThatThrownBy(() -> HelpCorpusArchive.extract(
+                archiveWithRawSizeField("notanumber "), WANTED, CAP))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("unreadable size field");
+    }
+
+    @Test
+    void readsAnEntryWhoseSizeFieldIsBlank() throws IOException {
+        // Some writers leave the field empty for a zero-length entry rather than writing zeros.
+        var extracted = HelpCorpusArchive.extract(archiveWithRawSizeField("           "), WANTED, CAP);
+
+        assertThat(extracted).containsOnlyKeys(HelpCorpusBundle.CORPUS_FILE);
+        assertThat(extracted.get(HelpCorpusBundle.CORPUS_FILE)).isEmpty();
+    }
+
+    /** A one-entry archive whose 12-byte size field is overwritten with arbitrary bytes. */
+    private static byte[] archiveWithRawSizeField(String rawSize) throws IOException {
+        var tar = gunzip(TarGzFixtures.targz(Map.of("help-corpus/corpus.jsonl", new byte[0])));
+        var bytes = rawSize.getBytes(StandardCharsets.UTF_8);
+        Arrays.fill(tar, 124, 136, (byte) 0);
+        System.arraycopy(bytes, 0, tar, 124, Math.min(bytes.length, 12));
+        return regzip(tar);
+    }
+
+    private static byte[] regzip(byte[] tar) throws IOException {
+        var out = new ByteArrayOutputStream();
+        try (var gz = new GZIPOutputStream(out)) {
+            gz.write(tar);
+        }
+        return out.toByteArray();
+    }
+
     private static byte[] gunzip(byte[] gzipped) throws IOException {
         try (var in = new GZIPInputStream(new ByteArrayInputStream(gzipped))) {
             return in.readAllBytes();
