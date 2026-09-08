@@ -102,7 +102,9 @@ accessflow-ui/
 │   │   └── help/                    # In-app documentation help chat (AF-906)
 │   │       ├── HelpChatLauncher.tsx  # Fixed launcher; renders null unless availability.enabled
 │   │       ├── HelpChatPanel.tsx     # Drawer shell (placement=right, mask={false})
-│   │       ├── HelpChatMessageList.tsx # Transcript — plain text, no auto-linking
+│   │       ├── HelpChatMessageList.tsx # Transcript — safe markdown subset, no auto-linking
+│   │       ├── HelpChatMarkdown.tsx  # Renders the subset; no anchor/img case exists (#919)
+│   │       ├── helpMarkdown.ts       # Pure, bounded parser; its node union cannot carry a URL (#919)
 │   │       ├── HelpChatCitations.tsx # [n] chips; the only anchors on the panel
 │   │       ├── HelpChatComposer.tsx  # Question box, maxLength mirrors the backend @Size
 │   │       ├── routeLabel.ts         # pathname → nav.* label key (never a path or an id)
@@ -572,11 +574,32 @@ behind, and errors surface the server's own localized `detail` through `showApiE
 
 Two rules are load-bearing rather than cosmetic (epic AF-899 decisions 3 and 6):
 
-- **Message content is rendered as plain text.** `HelpChatMessageList` puts `content` in a text node
-  with `white-space: pre-wrap`; there is no markdown rendering, no `dangerouslySetInnerHTML`, and no
-  URL auto-linking. The **only** anchors on the panel come from `HelpChatCitations`, built from the
-  server-resolved `citations` array, each an `<a target="_blank" rel="noopener noreferrer">`. A URL
-  the model wrote is text; a jailbroken model cannot make the help panel a phishing surface.
+- **An answer renders through a closed markdown subset, and links remain citations-only** (#919).
+  `helpMarkdown.ts` is a dependency-free parser whose node union covers headings, bold, italic,
+  inline code, fenced code blocks, ordered and unordered lists, blockquotes, paragraphs and line
+  breaks — and nothing else. No node can carry a URL, so `HelpChatMarkdown` has no code path that
+  emits an `<a>`, an `<img>`, an `href`, a `src` or a `dangerouslySetInnerHTML`. The guarantee is
+  structural rather than an allow-list that has to be configured correctly — which is why the
+  parser is hand-rolled rather than a library configured closed.
+  - Raw HTML, autolinks and tables are unrecognised and stay literal text.
+  - Two constructs are actively neutralised, because leaving them literal would print a
+    model-authored URL: `[label](url)` keeps only its label, and `![alt](url)` renders nothing at
+    all — so an image can never fire an on-render beacon that leaks the viewer's IP. A
+    link-reference definition whose target is a URI (`[1]: https://…`) is dropped whole; a legend
+    line like `[1]: Review plans` carries no URL and stays as text.
+  - `[n]` markers survive as literal text beside their chips — a bare `[1]` or `[2, 3]` is not link
+    syntax.
+  - Nesting past a fixed depth cap, and an over-long link scan, degrade to literal text rather than
+    recursing or rescanning. The answer's shape is model-authored and the app has no error boundary,
+    so a throw during render would blank the whole SPA on every reopen of that conversation.
+  - A question the *user* typed is still a plain text node with `white-space: pre-wrap`.
+
+  The **only** anchors on the panel come from `HelpChatCitations`, built from the server-resolved
+  `citations` array, each an `<a target="_blank" rel="noopener noreferrer">`. A URL the model wrote
+  is text; a jailbroken model cannot make the help panel a phishing surface.
+  `HelpChatPromptRenderer.TEMPLATE` states the same subset back to the model and forbids images,
+  tables and raw HTML, so the model does not emit constructs the reader would see as raw syntax —
+  or, for an image, would not see at all.
 - **The panel sends a route *label*, never a pathname.** `routeLabel.ts` maps the current route to
   the sidebar's own `nav.*` key — `/queries/<uuid>` becomes "Query history" — and returns nothing for
   an unmapped route. The pathname is never interpolated into the result, so no request id,

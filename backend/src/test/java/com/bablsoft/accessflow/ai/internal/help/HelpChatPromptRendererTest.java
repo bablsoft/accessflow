@@ -48,6 +48,26 @@ class HelpChatPromptRendererTest {
     }
 
     @Test
+    void outputFormatRuleNamesTheRenderableSubsetAndForbidsTheRest() {
+        var prompt = renderer.render(config(c -> { }), request("q"), "q",
+                List.of(chunk("c1", "Submit a query", "Guides", "body")), null);
+
+        // The panel renders a closed markdown subset (AF-919); anything outside it reaches the
+        // reader as nothing or as literal characters, so the model is told the boundary explicitly.
+        // Asserted across the text block's `\` continuations, not within its lines: the way this
+        // rule breaks is a dropped space at a seam, which every within-a-line substring survives.
+        assertThat(prompt.systemPreamble())
+                .contains("Format with Markdown, but only this subset: headings, **bold**, "
+                        + "*italic*, `inline code`, fenced code blocks, ordered and unordered "
+                        + "lists, and blockquotes.")
+                .contains("Use a fenced code block for a command or a configuration snippet, and "
+                        + "inline code for an environment variable, permission or setting name.")
+                .contains("Never emit an image, a table, or raw HTML — the application renders "
+                        + "none of them, so they reach the reader as nothing or as literal "
+                        + "characters.");
+    }
+
+    @Test
     void routeAndPermissionContextIsAbsentWhenSendUserContextIsOff() {
         var request = new HelpChatRequest(UUID.randomUUID(), UUID.randomUUID(), "q", List.of(),
                 "Review queue", List.of("QUERY_REVIEW"), "en");

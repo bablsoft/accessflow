@@ -2855,12 +2855,17 @@ One conversation and every message in it, oldest first.
 Null fields are **omitted**, not sent as `null`: a user message carries no `corpus_version` and no
 `latency_ms`, so a client must treat those keys as absent rather than null.
 
-`content` is **plain text** and must be rendered as plain text — no markup, no URL auto-linking, no
-`dangerouslySetInnerHTML`. The `[n]` markers are left in place so a client can align them with
-`citations`, and **`citations` is the only place a link may come from**: each entry was resolved
-server-side from the chunk the model was actually given, and replayed verbatim from storage on every
-reload rather than re-parsed out of the text (epic decision 6). An index the model invented produces
-no citation at all.
+`content` is **text**, and an assistant answer may carry Markdown. A client may render at most this
+subset — headings, bold, italic, inline code, fenced code blocks, ordered and unordered lists,
+blockquotes, paragraphs and line breaks — and must render **no anchor, no image, and no raw HTML**,
+whatever the text contains: no `dangerouslySetInnerHTML`, no URL auto-linking, and no element that
+fetches a URL on render. Anything outside the subset is text. The `[n]` markers are left in place so
+a client can align them with `citations`, and **`citations` is the only place a link may come from**:
+each entry was resolved server-side from the chunk the model was actually given, and replayed
+verbatim from storage on every reload rather than re-parsed out of the text (epic decision 6). An
+index the model invented produces no citation at all. The reference implementation is
+`frontend/src/components/help/helpMarkdown.ts` (#919), whose parser has no node that can carry a URL
+— see [docs/06-frontend.md](06-frontend.md) → "In-app help chat".
 
 The provider model and the turn's token counts are stored but not returned: they are AI-spend
 accounting an admin reads on the AI pages.
