@@ -101,7 +101,8 @@
     "roles": "角色",
     "deployments": "部署",
     "deploymentVersions": "版本矩阵",
-    "deploymentPipelines": "部署流水线"
+    "deploymentPipelines": "部署流水线",
+    "help_agent": "帮助助手"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2336,6 +2337,58 @@
       "delete_success": "角色已删除",
       "load_error": "加载角色失败",
       "empty": "暂无角色。"
+    },
+    "help_agent": {
+      "title": "帮助助手",
+      "subtitle": "内置助手，依据本版本随附的文档回答关于 AccessFlow 的问题。",
+      "section_agent": "助手",
+      "section_retrieval": "文档检索",
+      "section_conversation": "对话",
+      "section_corpus": "文档语料",
+      "label_enabled": "启用帮助助手",
+      "enabled_help": "关闭后，本组织所有用户都看不到入口按钮。",
+      "label_ai_config": "AI 配置",
+      "ai_config_help": "助手所调用的提供方。删除该配置只会解除绑定，不会阻止删除。",
+      "ai_config_placeholder": "选择一个 AI 配置",
+      "label_send_user_context": "发送页面与权限上下文",
+      "send_user_context_help": "发送当前页面名称和调用者的权限名称，绝不发送 URL、ID 或您的任何数据。",
+      "label_retrieval_enabled": "基于已索引文档作答",
+      "retrieval_enabled_help": "关闭是受支持的模式：助手将依据内置快速参考作答，且不引用章节。",
+      "label_top_k": "每次回答的章节数",
+      "label_similarity_threshold": "相似度阈值",
+      "label_max_history_turns": "保留的对话轮次",
+      "label_max_question_chars": "问题最大长度",
+      "label_retention_days": "对话保留天数",
+      "retention_days_help": "超过该期限的对话由保留任务删除。",
+      "label_requests_per_minute": "每位用户每分钟提问数",
+      "corpus_version": "已索引修订",
+      "corpus_bundled": "本次构建随附",
+      "corpus_chunks": " · {{count}} 个文档片段",
+      "corpus_unavailable": "无法加载随附的语料",
+      "corpus_indexed_at": "上次索引时间",
+      "corpus_status": "状态",
+      "corpus_status_ok": "就绪",
+      "corpus_status_error": "上次索引失败",
+      "corpus_never_indexed": "从未索引",
+      "corpus_never": "从未",
+      "index_error": "上次索引失败",
+      "reindex_button": "重新索引文档",
+      "reindex_accepted": "重新索引已开始；完成后结果会显示在此处。",
+      "reindex_error": "无法启动重新索引",
+      "save_button": "保存更改",
+      "save_success": "帮助助手设置已保存",
+      "save_error": "无法保存设置",
+      "test_button": "测试检索",
+      "test_error": "无法执行检索测试",
+      "load_error": "无法加载帮助助手设置",
+      "retrieval_unavailable": {
+        "quick_reference": "助手仍可使用：关闭检索后它会依据内置快速参考作答，只是无法引用文档章节。",
+        "no_ai_config": "尚未选择 AI 配置，因此无法启用文档检索。",
+        "rag_disabled": "所选 AI 配置未启用 RAG 知识库，因此无法启用文档检索。",
+        "embedding_provider_missing": "所选 AI 配置没有嵌入提供方，因此无法启用文档检索。",
+        "embedding_provider_anthropic": "Anthropic 不提供嵌入 API，所选 AI 配置无法索引文档。请将其嵌入提供方指向兼容 OpenAI 的端点以启用检索。",
+        "pgvector_unavailable": "本部署的内置 pgvector 存储不可用——可能是未安装 vector 扩展，也可能是 ACCESSFLOW_RAG_PGVECTOR_ENABLED 为 false 导致跳过了 vector_store 迁移。请测试检索以确认，或改用外部 Qdrant 存储。"
+      }
     }
   },
   "notifications": {
@@ -4598,5 +4651,21 @@
       "summary_match_all": "匹配所有部署",
       "labelTimeRange": "时间范围"
     }
+  },
+  "help_chat": {
+    "title": "帮助助手",
+    "launcher_tooltip": "询问帮助助手",
+    "new_conversation": "新建对话",
+    "transcript_label": "帮助对话",
+    "citations_label": "本次回答引用的文档章节",
+    "thinking": "正在查阅文档…",
+    "empty_hint": "询问如何使用 AccessFlow。回答来自本版本随附的文档，并会列出所引用的章节。",
+    "question_label": "您的问题",
+    "question_placeholder": "如何提交查询以供审批？",
+    "enter_hint": "Enter 发送，Shift+Enter 换行",
+    "send": "发送",
+    "ask_error": "助手无法回答该问题",
+    "quick_reference_mode": "快速参考模式",
+    "quick_reference_mode_help": "文档检索已关闭，回答来自内置摘要，不会引用章节。"
   }
 }

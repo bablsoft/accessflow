@@ -469,6 +469,10 @@ async function setTheme(page: Page, theme: 'light' | 'dark') {
         'api_connectors',
         'deployment_pipelines',
       ],
+      // Keep the help chat drawer shut; the fixed launcher itself is hidden by
+      // the /help-chat/availability stub below (AF-906).
+      helpChatOpen: false,
+      activeHelpSessionId: null,
     };
     localStorage.setItem(k, JSON.stringify(stored));
   }, theme);
@@ -1002,6 +1006,22 @@ async function main() {
     baseURL: BASE,
   });
   const page = await context.newPage();
+
+  // Keep the fixed help launcher out of every screenshot (AF-906). A stack with no help-agent row
+  // already reports the agent off, but a capture run against a configured install would otherwise
+  // grow a floating button in the corner of all 30-odd images.
+  await context.route('**/api/v1/help-chat/availability', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        enabled: false,
+        retrieval_active: false,
+        corpus_version: '',
+        chunk_count: 0,
+      }),
+    });
+  });
 
   await loginUi(page);
 

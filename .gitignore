@@ -21,6 +21,10 @@ target/
 # OS X
 .DS_Store
 
+# Node — each package has its own .gitignore, but a stray root-level node_modules/ (a tool
+# run from the repo root rather than from frontend/ or e2e/) was otherwise committable.
+node_modules/
+
 # Docker
 .docker/
 build/

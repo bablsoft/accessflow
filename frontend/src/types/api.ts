@@ -4109,3 +4109,114 @@ export interface UpdateStatus {
   checked_at?: string | null;
   status: UpdateCheckStatus;
 }
+
+// ── In-app documentation help chat (AF-906, epic #899) ────────────────────────
+
+/**
+ * One documentation section an answer cited. The **only** place a help-chat link may come from:
+ * `url` was resolved server-side from the chunk the model was actually given, never parsed out of
+ * the answer text (epic #899 decision 6).
+ */
+export interface HelpChatCitation {
+  index: number;
+  chunk_id: string;
+  title: string;
+  section: string;
+  anchor: string;
+  url: string;
+}
+
+export type HelpChatRole = 'USER' | 'ASSISTANT';
+
+/**
+ * One stored message. `content` is plain text and must be rendered as plain text — no markup, no
+ * URL auto-linking. Null fields are omitted by the API rather than sent as `null`, so a user
+ * message carries no `corpus_version` and no `latency_ms`.
+ */
+export interface HelpChatMessage {
+  id: string;
+  role: HelpChatRole;
+  content: string;
+  citations: HelpChatCitation[];
+  corpus_version?: string | null;
+  latency_ms?: number | null;
+  created_at: string;
+}
+
+export interface HelpChatSession {
+  id: string;
+  /** Derived from the first question; `""` for a session never used. */
+  title: string;
+  message_count: number;
+  last_message_at?: string | null;
+  created_at: string;
+}
+
+export interface HelpChatConversation {
+  session: HelpChatSession;
+  messages: HelpChatMessage[];
+}
+
+export interface HelpChatTurn {
+  session: HelpChatSession;
+  user_message: HelpChatMessage;
+  assistant_message: HelpChatMessage;
+}
+
+/** Whether the assistant can answer for the caller's organization. Never says *why* it cannot. */
+export interface HelpAgentAvailability {
+  enabled: boolean;
+  /** `false` is the supported degraded mode: answers come from the quick reference and cite nothing. */
+  retrieval_active: boolean;
+  corpus_version: string;
+  chunk_count: number;
+}
+
+export interface AskHelpChatInput {
+  question: string;
+  /** A human **label** for the screen the user is on ("Review queue"), never a URL. */
+  route_name?: string;
+}
+
+/** Admin-only help-agent settings. `id` is null for an organization that has never saved a row. */
+export interface HelpAgentConfig {
+  id: string | null;
+  organization_id: string;
+  enabled: boolean;
+  ai_config_id?: string | null;
+  retrieval_enabled: boolean;
+  top_k: number;
+  similarity_threshold: number;
+  max_history_turns: number;
+  max_question_chars: number;
+  send_user_context: boolean;
+  retention_days: number;
+  per_user_requests_per_minute: number;
+  indexed_corpus_version?: string | null;
+  indexed_at?: string | null;
+  /** Localized ingestion failure written by the indexer; absent when the last pass succeeded. */
+  index_error?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface UpdateHelpAgentConfigInput {
+  enabled?: boolean;
+  ai_config_id?: string | null;
+  /** The only way to unbind: a `null` `ai_config_id` means "unchanged" on a partial update. */
+  clear_ai_config?: boolean;
+  retrieval_enabled?: boolean;
+  top_k?: number;
+  similarity_threshold?: number;
+  max_history_turns?: number;
+  max_question_chars?: number;
+  send_user_context?: boolean;
+  retention_days?: number;
+  per_user_requests_per_minute?: number;
+}
+
+export interface HelpAgentTestResult {
+  status: 'OK' | 'ERROR';
+  detail: string;
+  embedding_dimensions?: number | null;
+}

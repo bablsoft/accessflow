@@ -114,6 +114,13 @@ interface PreferencesState {
   navExpandedSubgroups: string[];
   setupProgressCollapsed: boolean;
   setupProgressSkipped: SetupStepId[];
+  /** Whether the help chat drawer is open (AF-906). UI state — the transcript itself is server state. */
+  helpChatOpen: boolean;
+  /**
+   * The help conversation the drawer is showing, or `null` before the first question of a new one.
+   * Only an id: every message under it is read through TanStack Query, never mirrored here.
+   */
+  activeHelpSessionId: string | null;
   language: Language;
   dashboardWidgets: DashboardWidgetPreferences;
   dashboardTrendsRange: DashboardTrendsRange;
@@ -121,6 +128,8 @@ interface PreferencesState {
   toggleSidebar: () => void;
   toggleNavSubgroup: (id: string) => void;
   toggleSetupProgress: () => void;
+  setHelpChatOpen: (open: boolean) => void;
+  setActiveHelpSessionId: (id: string | null) => void;
   skipSetupStep: (id: SetupStepId) => void;
   unskipSetupStep: (id: SetupStepId) => void;
   setLanguage: (code: string | null | undefined) => void;
@@ -193,6 +202,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       navExpandedSubgroups: [],
       setupProgressCollapsed: false,
       setupProgressSkipped: [],
+      helpChatOpen: false,
+      activeHelpSessionId: null,
       language: 'en',
       dashboardWidgets: defaultDashboardWidgets(),
       dashboardTrendsRange: '30d',
@@ -207,6 +218,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         })),
       toggleSetupProgress: () =>
         set((s) => ({ setupProgressCollapsed: !s.setupProgressCollapsed })),
+      setHelpChatOpen: (helpChatOpen) => set({ helpChatOpen }),
+      setActiveHelpSessionId: (activeHelpSessionId) => set({ activeHelpSessionId }),
       skipSetupStep: (id) =>
         set((s) => (s.setupProgressSkipped.includes(id)
           ? s
@@ -257,6 +270,15 @@ export const usePreferencesStore = create<PreferencesState>()(
     {
       name: 'af-preferences',
       version: 2,
+      // Everything but the help chat's two keys. `activeHelpSessionId` names a conversation that
+      // belongs to one signed-in user, and `logout` does not clear `af-preferences` — persisting
+      // it would hand the next person on this browser a 404 on someone else's transcript, and
+      // reopen a drawer they never opened. Both are per-visit state, so neither is stored.
+      partialize: ({
+        helpChatOpen: _helpChatOpen,
+        activeHelpSessionId: _activeHelpSessionId,
+        ...persisted
+      }) => persisted,
       // The persisted payload is a plain partial snapshot; migratePreferences is typed `unknown`
       // so tests can feed raw JSON. zustand merges it over the initial state after this cast.
       migrate: (persisted, version) => migratePreferences(persisted, version) as PreferencesState,
