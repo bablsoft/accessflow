@@ -136,6 +136,8 @@ export default defineConfig({
         'src/hooks/usePushSubscription.ts',
         'src/hooks/usePendingReviewCounts.ts',
         'src/hooks/useHelpChat.ts',
+        'src/components/help/HelpChatMarkdown.tsx',
+        'src/components/help/helpMarkdown.ts',
         'src/components/help/routeLabel.ts',
         'src/pages/admin/helpAgentRetrieval.ts',
         'src/utils/push.ts',

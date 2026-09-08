@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Skeleton, Spin } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { HelpChatCitations } from './HelpChatCitations';
+import { HelpChatMarkdown } from './HelpChatMarkdown';
 import type { HelpChatMessage } from '@/types/api';
 
 interface Props {
@@ -15,10 +16,11 @@ interface Props {
 /**
  * The transcript.
  *
- * `content` is rendered as **plain text** — a text node inside a `<div>`, with line breaks
- * preserved by CSS. No markdown, no `dangerouslySetInnerHTML`, and deliberately no URL
- * auto-linking: a URL the model wrote is text, and the only anchors on this panel come from
- * {@link HelpChatCitations} (epic #899 decision 6).
+ * An assistant answer is rendered through {@link HelpChatMarkdown}, a closed markdown subset that
+ * has no anchor, image or raw-HTML case at all (AF-919). A question the user typed stays a plain
+ * text node with its line breaks preserved by CSS. Either way there is no
+ * `dangerouslySetInnerHTML` and no URL auto-linking: a URL the model wrote is text, and the only
+ * anchors on this panel come from {@link HelpChatCitations} (epic #899 decision 6).
  */
 export function HelpChatMessageList({ messages, loading, answering, emptyHint }: Props) {
   const { t } = useTranslation();
@@ -46,10 +48,16 @@ export function HelpChatMessageList({ messages, loading, answering, emptyHint }:
           key={message.id}
           className={`af-help-message af-help-message-${message.role === 'USER' ? 'user' : 'assistant'}`}
         >
-          <div className="af-help-bubble">{message.content}</div>
           {message.role === 'ASSISTANT' ? (
-            <HelpChatCitations citations={message.citations} />
-          ) : null}
+            <>
+              <div className="af-help-bubble af-help-bubble-rich">
+                <HelpChatMarkdown content={message.content} />
+              </div>
+              <HelpChatCitations citations={message.citations} />
+            </>
+          ) : (
+            <div className="af-help-bubble">{message.content}</div>
+          )}
         </div>
       ))}
       {answering ? (

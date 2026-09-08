@@ -2051,7 +2051,7 @@ and no `updated_at`, because a transcript that could be edited afterwards would 
 | `organization_id` | FK → `organizations` ON DELETE CASCADE — denormalised from the session so the monthly token sum needs no join |
 | `sequence_number` | INTEGER NOT NULL — position in the conversation, from 1; UNIQUE per `(session_id, sequence_number)` |
 | `role` | ENUM `help_chat_role` NOT NULL ∈ {`USER`, `ASSISTANT`} — there is no system role: the preamble is rendered server-side on every turn and is never stored or supplied by a caller |
-| `content` | TEXT NOT NULL — plain text, rendered as plain text with `[n]` markers left in place |
+| `content` | TEXT NOT NULL — the message text with `[n]` markers left in place; an assistant answer may carry Markdown, which a client renders through a safe subset that can produce no link or image (#919) |
 | `citations` | JSONB NOT NULL DEFAULT `'[]'` — the sections the answer cited, **as the server resolved them** |
 | `corpus_version` | VARCHAR(64) nullable — content-derived corpus version that produced an assistant answer; `NULL` on a user message |
 | `model` | VARCHAR(100) nullable — provider model that produced the answer |

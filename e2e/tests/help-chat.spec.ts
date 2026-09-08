@@ -1,10 +1,11 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { login } from '../helpers/login';
 
-// AF-906. The e2e stack has no reachable AI provider, so the help agent can never be enabled for
-// real here — availability, the session and the turn are stubbed at the network boundary and the
-// spec asserts the panel's own contract: the launcher hides when the agent is off, message content
-// is rendered as inert text, and links come only from the server-resolved `citations` array.
+// AF-906, extended by AF-919. The e2e stack has no reachable AI provider, so the help agent can
+// never be enabled for real here — availability, the session and the turn are stubbed at the network
+// boundary and the spec asserts the panel's own contract: the launcher hides when the agent is off,
+// an answer's markdown renders as formatted text through a closed subset that has no anchor or
+// image case at all, and links come only from the server-resolved `citations` array.
 const SESSION = {
   id: '5f0b2a5e-6c0a-4a1e-9a3f-9c4a2d7f1b20',
   title: '',
@@ -17,8 +18,28 @@ const SESSION = {
 const CITATION_URL = 'https://accessflow.io/docs/configuration/review-workflows/#cfg-review-plans';
 /** A URL in the *answer text*: it must stay text, never become an anchor. */
 const PHISH_URL = 'https://not-a-real-docs-site.example.com/reset';
+/** An image beacon in the answer: it must render nothing, so no request leaves on render. */
+const BEACON_URL = 'https://not-a-real-docs-site.example.com/beacon.png';
 
-const ANSWER = `Open the query editor, pick a datasource and press Submit. [1] See also ${PHISH_URL}`;
+// Markdown the panel must render as formatting, mixed with every construct it must refuse: a
+// markdown link, an image, raw HTML, a bare URL and a link-reference definition.
+const ANSWER = [
+  '## Submitting a query',
+  '',
+  'Open the **query editor**, pick a datasource and press `Submit`. [1]',
+  '',
+  '- Pick a datasource',
+  '- Write the query',
+  '',
+  '```bash',
+  'docker compose up -d',
+  '```',
+  '',
+  `See also ${PHISH_URL} and [reset it](${PHISH_URL}) and <a href="${PHISH_URL}">this</a>.`,
+  `![beacon](${BEACON_URL})`,
+  '',
+  `[1]: ${PHISH_URL}`,
+].join('\n');
 
 interface StubMessage {
   id: string;
@@ -176,7 +197,16 @@ test.describe('help chat panel (AF-906)', () => {
       const sent = askResponse.request().postDataJSON() as { route_name?: string };
       expect(sent.route_name).toBe('Query editor');
 
-      await expect(panel.getByText('Open the query editor', { exact: false })).toBeVisible();
+      const bubble = panel.locator('.af-help-bubble-rich');
+      await expect(bubble).toBeVisible();
+
+      // The supported subset renders as formatting rather than as syntax (AF-919).
+      await expect(bubble.locator('h4')).toHaveText('Submitting a query');
+      await expect(bubble.locator('strong')).toHaveText('query editor');
+      await expect(bubble.locator('ul li')).toHaveCount(2);
+      await expect(bubble.locator('pre code')).toHaveText('docker compose up -d');
+      // The citation marker stays literal text beside its chip.
+      await expect(bubble).toContainText('[1]');
 
       // The one link on the panel is the citation chip, resolved server-side.
       const links = panel.locator('a');
@@ -184,7 +214,14 @@ test.describe('help chat panel (AF-906)', () => {
       await expect(links.first()).toHaveAttribute('href', CITATION_URL);
       await expect(links.first()).toContainText('Review plans');
 
-      // The URL inside the answer text stayed text.
+      // Nothing the model wrote became a link or an image: the bare URL stayed text, the markdown
+      // link kept only its label, the raw HTML stayed escaped, and the beacon rendered nothing.
       await expect(panel.locator(`a[href="${PHISH_URL}"]`)).toHaveCount(0);
+      await expect(bubble.locator('a')).toHaveCount(0);
+      await expect(bubble.locator('img')).toHaveCount(0);
+      await expect(bubble).toContainText(PHISH_URL);
+      await expect(bubble).toContainText('reset it');
+      await expect(bubble).toContainText('<a href=');
+      await expect(bubble).not.toContainText(BEACON_URL);
     });
 });
