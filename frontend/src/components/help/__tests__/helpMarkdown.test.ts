@@ -142,10 +142,33 @@ describe('parseHelpMarkdown', () => {
   });
 
   it('parses an adversarial run of unmatched brackets in linear time', () => {
-    const start = Date.now();
-    expect(() => parseHelpMarkdown('[a'.repeat(20_000))).not.toThrow();
-    expect(Date.now() - start).toBeLessThan(1_000);
-  });
+    // A quadratic bracket scan on a model-authored answer is a denial of service on the
+    // reader's own browser, so the property under test is the *growth*, not the duration.
+    // Asserting an absolute millisecond budget measured the CI runner rather than the parser
+    // and failed honest builds on a loaded one: this parser is ~32ms at n=20_000 on a laptop
+    // and was clocked at 1128ms for the same work on a busy shared runner.
+    const millisFor = (n: number) => {
+      const input = '[a'.repeat(n);
+      let best = Number.POSITIVE_INFINITY;
+      // Best-of-three: the minimum is the least noisy estimate of the real cost, because
+      // scheduler interference can only ever make a sample slower.
+      for (let run = 0; run < 3; run += 1) {
+        const start = performance.now();
+        expect(() => parseHelpMarkdown(input)).not.toThrow();
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+
+    millisFor(1_000); // warm up, so JIT compilation is not charged to the first measurement
+    // Floored: a sub-millisecond baseline would make the ratio pure timer noise.
+    const base = Math.max(millisFor(5_000), 0.5);
+    const quadrupled = millisFor(20_000);
+
+    // Linear is ~4x, quadratic ~16x. 8x sits clear of both, so a real regression still trips
+    // this while a machine that is merely slow — uniformly, in both measurements — does not.
+    expect(quadrupled / base).toBeLessThan(8);
+  }, 30_000);
 });
 
 describe('parseInline', () => {
