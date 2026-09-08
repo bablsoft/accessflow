@@ -20,15 +20,18 @@ import java.time.Duration;
 class SpringAiChatModelFactory implements ChatModelFactory {
 
     @Override
-    public ChatModel anthropic(String apiKey, String model, int maxCompletionTokens, int timeoutMs) {
-        var options = AnthropicChatOptions.builder()
+    public ChatModel anthropic(String apiKey, String model, int maxCompletionTokens, int timeoutMs,
+                               String baseUrl) {
+        var optionsBuilder = AnthropicChatOptions.builder()
                 .model(model)
                 .maxTokens(maxCompletionTokens)
                 .apiKey(apiKey)
-                .timeout(Duration.ofMillis(timeoutMs))
-                .build();
+                .timeout(Duration.ofMillis(timeoutMs));
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            optionsBuilder.baseUrl(baseUrl);
+        }
         return AnthropicChatModel.builder()
-                .options(options)
+                .options(optionsBuilder.build())
                 .build();
     }
 

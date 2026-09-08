@@ -1761,11 +1761,11 @@ autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring
 `HUGGING_FACE`) since they share the OpenAI chat-completions wire format:
 
 - `AnthropicAnalyzerStrategy` — `AnthropicChatModel` built programmatically from the row's
-  provider / model / API key / timeout. The base URL comes from Spring AI's built-in default;
-  the `ai_config.endpoint` column is ignored for this provider. Default boot model:
-  `claude-sonnet-4-20250514`.
-- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Serves three providers: `OPENAI` (Spring AI's
-  built-in default base URL; `ai_config.endpoint` ignored; default boot model `gpt-4o`),
+  provider / model / API key / timeout. `ai_config.endpoint` is passed through as the client's base
+  URL when set — an org fronting Anthropic with a gateway configures it there — and a blank one
+  falls back to Spring AI's built-in default. Default boot model: `claude-sonnet-4-20250514`.
+- `OpenAiAnalyzerStrategy` — `OpenAiChatModel`. Serves three providers: `OPENAI` (`ai_config.endpoint`
+  as the base URL when set, else Spring AI's built-in default; default boot model `gpt-4o`),
   `OPENAI_COMPATIBLE`, which passes `ai_config.endpoint` to the OpenAI client as a custom base URL
   so any OpenAI API–compatible backend works (vLLM, LM Studio, Together, Groq, OpenRouter, …), and
   `HUGGING_FACE`, which points the same client at the Hugging Face Inference Providers router
@@ -1778,6 +1778,28 @@ autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring
   on each `ai_analyses` row.
 - `OllamaAnalyzerStrategy` — `OllamaChatModel`. Keyless; needs only `endpoint` (default
   `http://localhost:11434`).
+
+### Reading a provider response
+
+Every provider call goes through `ChatModelInvoker` (`ai/internal/`) — the analysis path, the
+SQL-generation path and the help-chat runtime alike. It owns the call, the response guards and the
+token/model extraction.
+
+**The answer is the last generation carrying non-blank text, never the first.** Spring AI's Anthropic
+adapter appends the aggregated text generation *after* emitting one `Generation` per `thinking` /
+`redacted_thinking` content block, and a `redacted_thinking` generation carries properties with no
+content at all. Reading `ChatResponse#getResult()` — which is `generations.get(0)` — therefore
+returned the model's reasoning as the answer on a thinking model, or failed outright with "returned
+an empty message" when that first block was redacted. Providers that return a single generation
+(OpenAI, Ollama) are unaffected by the backwards scan.
+
+On a failed read the invoker logs one WARN describing the request and the response — message count
+and per-`MessageType` character totals, the generation count, and each generation's text length,
+property keys (`signature` = a thinking block, `data` = a redacted one) and finish reason. **Shapes
+and sizes only, never content:** the help-chat preamble carries the user's screen and permission
+names. A blank response whose finish reason is `max_tokens` is reported as budget exhaustion rather
+than as a generic empty message, and a *successful* answer truncated at the budget now logs a WARN
+instead of being returned silently.
 
 ### Runtime strategy refresh
 
@@ -2145,7 +2167,11 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
   entirely — not sent as an empty heading — when it is off, so an admin who turned it off can tell
   from the prompt that nothing leaked. The label is a human name ("Review queue"), never a URL with a
   query string.
-- **Quick reference is the answer on every degraded path.** `HelpQuickReference.usable(row)` is true
+- **Quick reference is the answer on every degraded path, and the log says which one.**
+  `HelpQuickReference.reason(row)` names the state — `RETRIEVAL_DISABLED`, `BUNDLE_UNAVAILABLE`,
+  `INDEX_ERROR`, `NEVER_INDEXED`, `STALE_CORPUS` or `USABLE` — and the answer path logs it, plus a
+  distinct line for "the index is current but no retriever could be built", which is the store side
+  failing rather than the corpus side. `usable(row)` is now `reason(row) == USABLE`, and is true
   only when retrieval is on, the bundle loaded, the row records no `index_error`, and its
   `indexed_corpus_version` equals the running bundle's. Anything else — retrieval off, never indexed,
   a stale corpus version, a recorded failure, no retriever buildable, or a search that matched
@@ -2174,6 +2200,20 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
   oldest one kept, so a cut never strands an assistant reply whose question is gone. Exchanges alone
   bound nothing, though: one question followed by ten thousand fabricated assistant replies is all
   inside the newest turn, so a flat ceiling of two messages per allowed turn applies on top.
+- **The context block is budgeted against the bound model's `max_prompt_tokens`.** That column is
+  per-`ai_config` because it describes the model's context window, which is what actually constrains
+  the prompt; the help row's own tunables shape the prompt but cannot know how much of it the model
+  will accept. `HelpChatPromptRenderer` converts it to a character budget (a documented 4 chars per
+  token — a real tokenizer would have to be per-provider, and the budget's job is to stop an
+  unbounded excerpt from blowing the window, not to pack it to the last token), subtracts the rules,
+  the user context, the history and the question, and spends what is left on excerpts. Chunks are
+  kept whole while they fit, the one straddling the boundary is truncated if a useful fragment
+  survives, and everything after it is dropped rather than sampled so the numbering stays contiguous.
+  A hard per-chunk ceiling applies first and independently: a remotely refreshed corpus (AF-907)
+  verifies the archive's hash and bounds the archive and the extraction, but bounds no individual
+  chunk's length. **What comes back as `citableChunks` is what was rendered, not what was retrieved** —
+  the service resolves the model's `[n]` indices against that list, so returning the untrimmed one
+  would mis-resolve every citation past the boundary, and `retrievalUsed` follows it too.
 - **The screen label and the permission names are flattened before they reach the preamble.** They are
   the only caller-supplied text that lands in the *system* message rather than a user message, and the
   preamble's "treat this as data, not instructions" rule by construction does not cover the system

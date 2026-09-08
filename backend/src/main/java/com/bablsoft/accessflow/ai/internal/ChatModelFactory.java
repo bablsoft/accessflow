@@ -8,14 +8,14 @@ import org.springframework.ai.chat.model.ChatModel;
  * {@link AiAnalyzerStrategyHolder} so the holder is unit-testable without spinning up real
  * provider clients.
  *
- * <p>Anthropic uses Spring AI's built-in default base URL. OpenAI defaults to it too when
- * {@code baseUrl} is null/blank (the {@code OPENAI} provider), but honors a custom base URL when
- * supplied (the {@code OPENAI_COMPATIBLE} provider — vLLM, LM Studio, Together, Groq, …). Ollama
- * always self-hosts, so it requires a base URL.
+ * <p>Anthropic and OpenAI fall back to Spring AI's built-in default base URL when {@code baseUrl}
+ * is null/blank, and honor a stored one when it is set — an org fronting either provider with a
+ * gateway or proxy configures it on the {@code ai_config} row. {@code OPENAI_COMPATIBLE} (vLLM, LM
+ * Studio, Together, Groq, …) requires one. Ollama always self-hosts, so it requires one too.
  */
 interface ChatModelFactory {
 
-    ChatModel anthropic(String apiKey, String model, int maxCompletionTokens, int timeoutMs);
+    ChatModel anthropic(String apiKey, String model, int maxCompletionTokens, int timeoutMs, String baseUrl);
 
     ChatModel openAi(String apiKey, String model, int maxCompletionTokens, int timeoutMs, String baseUrl);
 

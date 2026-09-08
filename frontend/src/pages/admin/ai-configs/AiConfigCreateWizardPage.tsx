@@ -38,6 +38,7 @@ const PROVIDERS: ProviderTile[] = [
     desc: 'GPT-4o, GPT-4o-mini',
     defaultModel: 'gpt-4o',
     needsApiKey: true,
+    needsEndpoint: true,
   },
   {
     id: 'ANTHROPIC',
@@ -45,6 +46,7 @@ const PROVIDERS: ProviderTile[] = [
     desc: 'Claude Sonnet, Haiku',
     defaultModel: 'claude-sonnet-4-20250514',
     needsApiKey: true,
+    needsEndpoint: true,
   },
   {
     id: 'OLLAMA',

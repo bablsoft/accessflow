@@ -44,6 +44,33 @@ class HelpQuickReferenceTest {
         available();
 
         assertThat(quickReference().usable(config(c -> { }))).isFalse();
+        assertThat(quickReference().reason(config(c -> { })))
+                .isEqualTo(HelpQuickReference.Reason.NEVER_INDEXED);
+    }
+
+    /**
+     * The five degraded states {@code usable()} collapses into one boolean, told apart. An operator
+     * reading the answer-path log needs "nobody has indexed yet" to look different from "the index
+     * recorded a failure" — one is waiting, the other is acting.
+     */
+    @Test
+    void reasonNamesWhichDegradedStateItIs() {
+        assertThat(quickReference().reason(config(c -> c.setRetrievalEnabled(false))))
+                .isEqualTo(HelpQuickReference.Reason.RETRIEVAL_DISABLED);
+
+        when(bundle.available()).thenReturn(false);
+        assertThat(quickReference().reason(config(c -> { })))
+                .isEqualTo(HelpQuickReference.Reason.BUNDLE_UNAVAILABLE);
+
+        when(bundle.available()).thenReturn(true);
+        assertThat(quickReference().reason(config(c -> c.setIndexError("error.help_agent.rag_not_enabled"))))
+                .isEqualTo(HelpQuickReference.Reason.INDEX_ERROR);
+
+        lenient().when(bundle.corpusVersion()).thenReturn(CORPUS_VERSION);
+        assertThat(quickReference().reason(config(c -> c.setIndexedCorpusVersion("older"))))
+                .isEqualTo(HelpQuickReference.Reason.STALE_CORPUS);
+        assertThat(quickReference().reason(config(c -> c.setIndexedCorpusVersion(CORPUS_VERSION))))
+                .isEqualTo(HelpQuickReference.Reason.USABLE);
     }
 
     @Test
@@ -84,7 +111,9 @@ class HelpQuickReferenceTest {
 
     private void available() {
         when(bundle.available()).thenReturn(true);
-        when(bundle.corpusVersion()).thenReturn(CORPUS_VERSION);
+        // Lenient: reason() short-circuits before the version comparison for the states that are
+        // decided earlier (never indexed, a recorded index error), so not every case reaches it.
+        lenient().when(bundle.corpusVersion()).thenReturn(CORPUS_VERSION);
     }
 
     private static HelpAgentConfigEntity config(java.util.function.Consumer<HelpAgentConfigEntity> customizer) {

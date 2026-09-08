@@ -86,14 +86,10 @@ export default function AiConfigEditPage() {
 
   useEffect(() => {
     if (cfgQuery.data) {
-      const showsEndpoint =
-        cfgQuery.data.provider === 'OLLAMA' ||
-        cfgQuery.data.provider === 'OPENAI_COMPATIBLE' ||
-        cfgQuery.data.provider === 'HUGGING_FACE';
       form.setFieldsValue({
         name: cfgQuery.data.name,
         model: cfgQuery.data.model,
-        endpoint: showsEndpoint ? (cfgQuery.data.endpoint ?? '') : '',
+        endpoint: cfgQuery.data.endpoint ?? '',
         api_key: cfgQuery.data.api_key ?? '',
         timeout_ms: cfgQuery.data.timeout_ms,
         max_prompt_tokens: cfgQuery.data.max_prompt_tokens,
@@ -188,11 +184,6 @@ export default function AiConfigEditPage() {
 
   const cfg = cfgQuery.data;
 
-  const needsEndpoint =
-    cfg.provider === 'OLLAMA' ||
-    cfg.provider === 'OPENAI_COMPATIBLE' ||
-    cfg.provider === 'HUGGING_FACE';
-
   const onSave = (values: FormValues) => {
     const apiKey = values.api_key === MASK ? undefined : values.api_key;
     const ragApiKey = values.rag_api_key === MASK ? undefined : values.rag_api_key;
@@ -201,7 +192,7 @@ export default function AiConfigEditPage() {
     saveMutation.mutate({
       name: values.name.trim(),
       model: values.model.trim(),
-      endpoint: needsEndpoint ? (values.endpoint?.trim() || null) : null,
+      endpoint: values.endpoint?.trim() || null,
       api_key: apiKey ?? null,
       timeout_ms: values.timeout_ms,
       max_prompt_tokens: values.max_prompt_tokens,
@@ -273,20 +264,18 @@ export default function AiConfigEditPage() {
           >
             <Input className="mono" maxLength={100} />
           </Form.Item>
-          {needsEndpoint && (
-            <Form.Item
-              name="endpoint"
-              label={t('admin.ai_configs.field_endpoint')}
-              rules={[
-                cfg.provider === 'OPENAI_COMPATIBLE'
-                  ? { required: true, message: t('admin.ai_configs.endpoint_required') }
-                  : {},
-                { max: 500 },
-              ]}
-            >
-              <Input className="mono" maxLength={500} />
-            </Form.Item>
-          )}
+          <Form.Item
+            name="endpoint"
+            label={t('admin.ai_configs.field_endpoint')}
+            rules={[
+              cfg.provider === 'OPENAI_COMPATIBLE'
+                ? { required: true, message: t('admin.ai_configs.endpoint_required') }
+                : {},
+              { max: 500 },
+            ]}
+          >
+            <Input className="mono" maxLength={500} />
+          </Form.Item>
           <Form.Item
             name="api_key"
             label={t('admin.ai_configs.field_api_key')}

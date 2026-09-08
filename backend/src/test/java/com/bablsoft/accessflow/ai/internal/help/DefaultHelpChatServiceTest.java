@@ -9,7 +9,9 @@ import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.internal.AiAnalyzerStrategyHolder;
 import com.bablsoft.accessflow.ai.internal.AiRateLimiter;
 import com.bablsoft.accessflow.ai.internal.ChatModelInvoker;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,7 @@ class DefaultHelpChatServiceTest {
     private static final UUID AI_CONFIG_ID = UUID.randomUUID();
 
     @Mock HelpAgentConfigRepository configRepository;
+    @Mock AiConfigRepository aiConfigRepository;
     @Mock HelpCorpusRetrieverFactory retrieverFactory;
     @Mock HelpQuickReference quickReference;
     @Mock AiRateLimiter aiRateLimiter;
@@ -66,15 +69,18 @@ class DefaultHelpChatServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new DefaultHelpChatService(configRepository, retrieverFactory, quickReference,
-                new HelpChatPromptRenderer(), aiRateLimiter, helpChatRateLimiter,
-                strategyHolderProvider);
+        service = new DefaultHelpChatService(configRepository, aiConfigRepository,
+                retrieverFactory, quickReference, new HelpChatPromptRenderer(), aiRateLimiter,
+                helpChatRateLimiter, strategyHolderProvider);
         config = config(c -> { });
         // Shared happy path: every test overrides part of it, so these are lenient individually
         // rather than the whole class being lenient — a stub that stops matching should still fail.
         lenient().when(strategyHolderProvider.getObject()).thenReturn(strategyHolder);
         lenient().when(configRepository.findByOrganizationId(ORG_ID)).thenReturn(Optional.of(config));
-        lenient().when(quickReference.usable(any())).thenReturn(true);
+        lenient().when(quickReference.reason(any()))
+                .thenReturn(HelpQuickReference.Reason.USABLE);
+        lenient().when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(aiConfig()));
         lenient().when(quickReference.text()).thenReturn("Orientation block");
         lenient().when(retrieverFactory.retriever(any())).thenReturn(Optional.of(retriever));
         lenient().when(retriever.retrieve(anyString())).thenReturn(chunks(6));
@@ -130,7 +136,8 @@ class DefaultHelpChatServiceTest {
 
     @Test
     void substitutesQuickReferenceWhenTheIndexIsNotUsable() {
-        when(quickReference.usable(config)).thenReturn(false);
+        when(quickReference.reason(config))
+                .thenReturn(HelpQuickReference.Reason.INDEX_ERROR);
 
         var answer = service.answer(request("q"));
 
@@ -337,6 +344,14 @@ class DefaultHelpChatServiceTest {
         return chunks;
     }
 
+    /** The bound model row, which is where the prompt's character budget comes from. */
+    private static AiConfigEntity aiConfig() {
+        var entity = new AiConfigEntity();
+        entity.setId(AI_CONFIG_ID);
+        entity.setOrganizationId(ORG_ID);
+        return entity;
+    }
+
     private static HelpAgentConfigEntity config(Consumer<HelpAgentConfigEntity> customizer) {
         var config = new HelpAgentConfigEntity();
         config.setId(UUID.randomUUID());
@@ -345,5 +360,43 @@ class DefaultHelpChatServiceTest {
         config.setAiConfigId(AI_CONFIG_ID);
         customizer.accept(config);
         return config;
+    }
+
+    /**
+     * The prompt budget comes from the bound model row, not from the help row. An oversized chunk —
+     * which a remotely refreshed corpus (AF-907) does not bound — is trimmed to fit rather than
+     * pushing the prompt past the model's context window.
+     */
+    @Test
+    void boundedByTheBoundModelsMaxPromptTokens() {
+        var oversized = List.of(new RetrievedChunk("chunk-1", "Title 1", "Guides", "s1",
+                "https://accessflow.io/docs/#s1", "x".repeat(50_000), 0.9));
+        when(retriever.retrieve(anyString())).thenReturn(oversized);
+        var tight = aiConfig();
+        tight.setMaxPromptTokens(800);
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.of(tight));
+        var preamble = ArgumentCaptor.forClass(String.class);
+        when(strategyHolder.chatFor(any(), any(), preamble.capture(), any())).thenReturn(
+                new ChatModelInvoker.Invocation("See [1].", "claude-sonnet-4-20250514", 1, 1));
+
+        var answer = service.answer(request("how do I approve a query?"));
+
+        assertThat(preamble.getValue().length())
+                .isLessThanOrEqualTo(800 * HelpChatPromptRenderer.CHARS_PER_TOKEN);
+        assertThat(preamble.getValue()).doesNotContain("x".repeat(2_000));
+        assertThat(answer.retrievalUsed()).isTrue();
+        assertThat(answer.citations()).extracting("chunkId").containsExactly("chunk-1");
+    }
+
+    /** The row can vanish between the two reads; the budget falls back rather than going negative. */
+    @Test
+    void fallsBackToADefaultBudgetWhenTheBoundModelRowIsGone() {
+        when(aiConfigRepository.findByIdAndOrganizationId(AI_CONFIG_ID, ORG_ID))
+                .thenReturn(Optional.empty());
+
+        var answer = service.answer(request("how do I approve a query?"));
+
+        assertThat(answer.retrievalUsed()).isTrue();
     }
 }

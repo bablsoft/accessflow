@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.ai.internal.help;
 
+import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.HelpChatAnswer;
 import com.bablsoft.accessflow.ai.api.HelpChatCitation;
 import com.bablsoft.accessflow.ai.api.HelpChatQuestionRequiredException;
@@ -8,7 +9,10 @@ import com.bablsoft.accessflow.ai.api.HelpChatService;
 import com.bablsoft.accessflow.ai.api.HelpChatUnavailableException;
 import com.bablsoft.accessflow.ai.internal.AiAnalyzerStrategyHolder;
 import com.bablsoft.accessflow.ai.internal.AiRateLimiter;
+import com.bablsoft.accessflow.ai.internal.ChatModelInvoker;
+import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
+import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -52,7 +56,15 @@ public class DefaultHelpChatService implements HelpChatService {
      */
     private static final Pattern CITATION = Pattern.compile("\\[\\s*(\\d{1,3}(?:\\s*,\\s*\\d{1,3})*)\\s*]");
 
+    /**
+     * Prompt budget for an organization whose bound {@code ai_config} row vanished between the two
+     * reads on this path. The call that follows will fail on the same missing row; this only keeps
+     * the renderer from being handed a nonsense budget in the meantime.
+     */
+    private static final int FALLBACK_MAX_PROMPT_TOKENS = 8_000;
+
     private final HelpAgentConfigRepository configRepository;
+    private final AiConfigRepository aiConfigRepository;
     private final HelpCorpusRetrieverFactory retrieverFactory;
     private final HelpQuickReference quickReference;
     private final HelpChatPromptRenderer promptRenderer;
@@ -77,13 +89,12 @@ public class DefaultHelpChatService implements HelpChatService {
                 config.getPerUserRequestsPerMinute());
 
         var chunks = retrieve(config, question);
-        var prompt = promptRenderer.render(config, request, question, chunks,
-                chunks.isEmpty() ? quickReference.text() : null);
-        var invocation = strategyHolder.getObject().chatFor(config.getOrganizationId(),
-                config.getAiConfigId(), prompt.systemPreamble(), prompt.conversation());
+        var prompt = promptRenderer.render(config, request, question, chunks, quickReference.text(),
+                promptCharBudget(config));
+        var invocation = invoke(config, prompt, chunks.size());
         var text = invocation.text().strip();
         return new HelpChatAnswer(text, resolveCitations(text, prompt.citableChunks()),
-                !chunks.isEmpty(), invocation.model(), invocation.promptTokens(),
+                !prompt.citableChunks().isEmpty(), invocation.model(), invocation.promptTokens(),
                 invocation.completionTokens());
     }
 
@@ -110,14 +121,59 @@ public class DefaultHelpChatService implements HelpChatService {
 
     /** Retrieved chunks, or empty for every degraded path — the caller substitutes quick reference. */
     private List<RetrievedChunk> retrieve(HelpAgentConfigEntity config, String question) {
-        if (!quickReference.usable(config)) {
-            log.debug("Answering from the quick-reference block for organization {}: the help index "
-                    + "is off, stale or errored", config.getOrganizationId());
+        var reason = quickReference.reason(config);
+        if (reason != HelpQuickReference.Reason.USABLE) {
+            log.debug("Answering from the quick-reference block for organization {}: {}",
+                    config.getOrganizationId(), reason);
             return List.of();
         }
-        return retrieverFactory.retriever(config)
-                .map(retriever -> retriever.retrieve(question))
-                .orElseGet(List::of);
+        var retriever = retrieverFactory.retriever(config);
+        if (retriever.isEmpty()) {
+            // The index is current, so this is the store side failing, not the corpus side — a
+            // distinct state from every Reason above and the one an operator can actually act on.
+            log.debug("Answering from the quick-reference block for organization {}: the help index "
+                    + "is current but no retriever could be built", config.getOrganizationId());
+            return List.of();
+        }
+        return retriever.get().retrieve(question);
+    }
+
+    /**
+     * The character budget for one prompt, from the bound model's {@code max_prompt_tokens}.
+     *
+     * <p>That column is per-{@code ai_config} because it describes the model's context window, which
+     * is what actually constrains the prompt — the help row's own tunables (top-k, history turns,
+     * question length) shape the prompt but cannot know how much of it the model will accept.
+     */
+    private int promptCharBudget(HelpAgentConfigEntity config) {
+        var tokens = aiConfigRepository
+                .findByIdAndOrganizationId(config.getAiConfigId(), config.getOrganizationId())
+                .map(AiConfigEntity::getMaxPromptTokens)
+                .orElse(FALLBACK_MAX_PROMPT_TOKENS);
+        return tokens * HelpChatPromptRenderer.CHARS_PER_TOKEN;
+    }
+
+    /**
+     * Calls the model, logging the help-side shape of the turn when the provider fails.
+     *
+     * <p>The provider-side diagnostic lives in {@code ChatModelInvoker}; this is the half only the
+     * help path knows — whether the answer was going to be able to cite anything, and how big the
+     * turn it built was. Together the two lines explain a failed turn without either layer having to
+     * reach into the other. Sizes only: the preamble carries the user's screen and permissions.
+     */
+    private ChatModelInvoker.Invocation invoke(HelpAgentConfigEntity config,
+                                               HelpChatPrompt prompt, int retrievedChunks) {
+        try {
+            return strategyHolder.getObject().chatFor(config.getOrganizationId(),
+                    config.getAiConfigId(), prompt.systemPreamble(), prompt.conversation());
+        } catch (AiAnalysisException e) {
+            log.warn("Help chat turn failed for organization {}: retrieval={} chunks_retrieved={} "
+                            + "chunks_rendered={} preamble_chars={} conversation_messages={}",
+                    config.getOrganizationId(), quickReference.reason(config), retrievedChunks,
+                    prompt.citableChunks().size(), prompt.systemPreamble().length(),
+                    prompt.conversation().size());
+            throw e;
+        }
     }
 
     /**

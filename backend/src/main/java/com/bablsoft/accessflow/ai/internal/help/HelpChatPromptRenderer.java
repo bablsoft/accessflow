@@ -39,6 +39,20 @@ public class HelpChatPromptRenderer {
     /** Ceiling on how many permission names are named in the preamble. */
     static final int MAX_PERMISSIONS = 60;
 
+    /**
+     * Rough chars-per-token used to turn the bound {@code ai_config.max_prompt_tokens} into a
+     * character budget. Deliberately a constant and deliberately conservative: a real tokenizer would
+     * have to be per-provider, and the budget's job is to stop an unbounded corpus chunk from blowing
+     * the context window, not to pack it to the last token.
+     */
+    static final int CHARS_PER_TOKEN = 4;
+    /** Hard per-chunk ceiling, applied before the shared budget. A remote corpus bounds neither. */
+    static final int MAX_CHUNK_CHARS = 8_000;
+    /** Below this, a chunk's surviving fragment says nothing useful, so it is dropped instead. */
+    static final int MIN_USEFUL_CHUNK_CHARS = 200;
+    /** {@code "[n] "} plus the newline after the heading — the fixed cost of numbering a chunk. */
+    private static final int CHUNK_OVERHEAD_CHARS = 8;
+
     private static final String TEMPLATE = """
             You are the AccessFlow in-app help assistant. AccessFlow is a database access governance \
             platform. You help people understand and use the product.
@@ -82,25 +96,100 @@ public class HelpChatPromptRenderer {
     private static final String NO_CONTEXT =
             "There is no documentation available at all. Say so, and answer nothing else.";
 
+    /**
+     * Builds the prompt for one turn within {@code contextCharBudget} characters.
+     *
+     * <p>The budget is spent in a fixed order: the rules, the user context, the history and the
+     * question are never trimmed by it — they are the turn — and whatever remains is what the
+     * documentation excerpts get. Chunks are kept whole while they fit, the one straddling the
+     * boundary is truncated if a useful fragment survives, and the rest are dropped. Everything after
+     * the boundary is dropped rather than sampled, so the numbering stays contiguous.
+     *
+     * <p>The returned {@code citableChunks} are the chunks that were actually rendered, not the ones
+     * that were retrieved. The service resolves the model's {@code [n]} indices against that list, so
+     * handing back the untrimmed one would mis-resolve every citation past the boundary.
+     */
     HelpChatPrompt render(HelpAgentConfigEntity config, HelpChatRequest request, String question,
-                          List<RetrievedChunk> chunks, String quickReference) {
-        var citable = chunks == null ? List.<RetrievedChunk>of() : chunks;
-        var preamble = new StringBuilder(TEMPLATE)
-                .append('\n')
-                .append(citable.isEmpty() ? QUICK_REFERENCE_RULES : CITATION_RULES);
+                          List<RetrievedChunk> chunks, String quickReference, int contextCharBudget) {
+        var conversation = conversation(config, request, question);
+        var retrieved = chunks == null ? List.<RetrievedChunk>of() : chunks;
+
+        var header = new StringBuilder();
         var language = flatten(request.language());
         if (!language.isEmpty()) {
-            preamble.append("\n- The user's interface language is \"").append(language)
+            header.append("\n- The user's interface language is \"").append(language)
                     .append("\". Answer in it unless the question is clearly written in another "
                             + "language, in which case answer in the language of the question.");
         }
         var userContext = userContext(config, request);
         if (!userContext.isEmpty()) {
-            preamble.append("\n\n").append(userContext);
+            header.append("\n\n").append(userContext);
         }
-        preamble.append("\n\n").append(context(citable, quickReference));
-        return new HelpChatPrompt(preamble.toString(), conversation(config, request, question),
-                citable);
+
+        // Everything that is not the excerpts, at its longest: the citation rules are the longer of
+        // the two rule blocks, so budgeting against them never under-counts.
+        var fixedChars = TEMPLATE.length() + 1
+                + Math.max(CITATION_RULES.length(), QUICK_REFERENCE_RULES.length())
+                + header.length() + CONTEXT_HEADING.length() + 4
+                + conversationChars(conversation);
+        var contextBudget = Math.max(0, contextCharBudget - fixedChars);
+
+        var citable = budgetChunks(retrieved, contextBudget);
+        var preamble = new StringBuilder(TEMPLATE)
+                .append('\n')
+                .append(citable.isEmpty() ? QUICK_REFERENCE_RULES : CITATION_RULES)
+                .append(header)
+                .append("\n\n")
+                .append(context(citable, quickReferenceWithin(quickReference, contextBudget)));
+        return new HelpChatPrompt(preamble.toString(), conversation, citable);
+    }
+
+    /**
+     * The orientation block trimmed to the budget, or {@code null} when there is nothing to spend.
+     * {@link #truncate(String, int)} treats a non-positive ceiling as "no cap" by design, so a zero
+     * budget has to be handled here rather than passed to it.
+     */
+    private static String quickReferenceWithin(String quickReference, int budget) {
+        if (quickReference == null || budget <= 0) {
+            return null;
+        }
+        return truncate(quickReference, budget);
+    }
+
+    private static int conversationChars(List<Message> conversation) {
+        var total = 0;
+        for (var message : conversation) {
+            var text = message.getText();
+            total += text == null ? 0 : text.length();
+        }
+        return total;
+    }
+
+    /**
+     * The prefix of {@code chunks} that fits in {@code budget} characters, with the boundary chunk
+     * truncated when at least {@link #MIN_USEFUL_CHUNK_CHARS} of it survives.
+     *
+     * <p>{@link #MAX_CHUNK_CHARS} is applied first and independently. A chunk arrives from the vector
+     * store, which is loaded from a corpus bundle that may have been refreshed from a remote index
+     * (AF-907) — and that path bounds the archive and the extraction but never a single chunk's
+     * length, so one oversized chunk could otherwise consume a whole generous budget by itself.
+     */
+    private List<RetrievedChunk> budgetChunks(List<RetrievedChunk> chunks, int budget) {
+        var kept = new ArrayList<RetrievedChunk>(chunks.size());
+        var remaining = budget;
+        for (var chunk : chunks) {
+            var overhead = heading(chunk).length() + CHUNK_SEPARATOR.length() + CHUNK_OVERHEAD_CHARS;
+            var available = remaining - overhead;
+            if (available < MIN_USEFUL_CHUNK_CHARS) {
+                break;
+            }
+            var text = truncate(nullToEmpty(chunk.text()),
+                    Math.min(MAX_CHUNK_CHARS, available));
+            kept.add(new RetrievedChunk(chunk.chunkId(), chunk.title(), chunk.section(),
+                    chunk.anchor(), chunk.url(), text, chunk.score()));
+            remaining -= overhead + text.length();
+        }
+        return List.copyOf(kept);
     }
 
     /**

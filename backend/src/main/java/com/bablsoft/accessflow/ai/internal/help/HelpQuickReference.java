@@ -32,10 +32,43 @@ public class HelpQuickReference {
      * stale corpus version, or a recorded ingestion error.
      */
     public boolean usable(HelpAgentConfigEntity config) {
-        return config.isRetrievalEnabled()
-                && bundle.available()
-                && config.getIndexError() == null
-                && bundle.corpusVersion().equals(config.getIndexedCorpusVersion());
+        return reason(config) == Reason.USABLE;
+    }
+
+    /**
+     * Which of the five degraded states this organization is in, or {@link Reason#USABLE}.
+     *
+     * <p>{@link #usable(HelpAgentConfigEntity)} collapses all five into one boolean, which is all the
+     * answer path needs but leaves an operator with no way to tell "nobody has indexed yet" from "the
+     * index recorded a failure" — the difference between waiting and acting. The caller logs this.
+     */
+    public Reason reason(HelpAgentConfigEntity config) {
+        if (!config.isRetrievalEnabled()) {
+            return Reason.RETRIEVAL_DISABLED;
+        }
+        if (!bundle.available()) {
+            return Reason.BUNDLE_UNAVAILABLE;
+        }
+        if (config.getIndexError() != null) {
+            return Reason.INDEX_ERROR;
+        }
+        if (config.getIndexedCorpusVersion() == null) {
+            return Reason.NEVER_INDEXED;
+        }
+        if (!bundle.corpusVersion().equals(config.getIndexedCorpusVersion())) {
+            return Reason.STALE_CORPUS;
+        }
+        return Reason.USABLE;
+    }
+
+    /** Why retrieval is or is not available for an organization. Operator diagnostics only. */
+    public enum Reason {
+        USABLE,
+        RETRIEVAL_DISABLED,
+        BUNDLE_UNAVAILABLE,
+        INDEX_ERROR,
+        NEVER_INDEXED,
+        STALE_CORPUS
     }
 
     /** The orientation block, or {@code null} when the bundle itself could not be loaded. */

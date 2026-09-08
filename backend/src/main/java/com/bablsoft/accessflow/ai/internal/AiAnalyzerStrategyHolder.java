@@ -417,9 +417,9 @@ public class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             String apiKeyCiphertext, int maxCompletionTokens, int timeoutMs) {
         return switch (provider) {
             case ANTHROPIC -> chatModelFactory.anthropic(requireApiKey(apiKeyCiphertext), model,
-                    maxCompletionTokens, timeoutMs);
+                    maxCompletionTokens, timeoutMs, endpoint);
             case OPENAI -> chatModelFactory.openAi(requireApiKey(apiKeyCiphertext), model,
-                    maxCompletionTokens, timeoutMs, null);
+                    maxCompletionTokens, timeoutMs, endpoint);
             case OPENAI_COMPATIBLE -> chatModelFactory.openAi(optionalApiKey(apiKeyCiphertext), model,
                     maxCompletionTokens, timeoutMs, endpoint);
             // Keyless-capable: a HF token is used for the hosted router but local TGI runs tokenless.

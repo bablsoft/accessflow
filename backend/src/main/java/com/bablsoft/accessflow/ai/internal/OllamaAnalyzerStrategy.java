@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.ai.internal;
 
-import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerStrategy;
 import com.bablsoft.accessflow.ai.api.GeneratedSqlResult;
@@ -9,13 +8,8 @@ import com.bablsoft.accessflow.core.api.DbType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
-import org.springframework.ai.chat.model.ChatResponse;
-import org.springframework.ai.chat.prompt.Prompt;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,46 +41,16 @@ class OllamaAnalyzerStrategy implements AiAnalyzerStrategy {
         var ragContext = ragRetriever.retrieve(sql);
         var userPrompt = promptRenderer.render(promptSource.template(), sql, dbType, schemaContext,
                 ragContext, costEstimateContext, language);
-        var prompt = new Prompt(List.of(
-                new SystemMessage(SYSTEM_PROMPT_PREAMBLE),
-                new UserMessage(userPrompt)));
 
         log.debug("Calling Ollama via Spring AI: prompt_chars={}", userPrompt.length());
 
-        ChatResponse response;
-        try {
-            response = chatModel.call(prompt);
-        } catch (RuntimeException e) {
-            throw new AiAnalysisException("Ollama API call failed: " + e.getMessage(), e);
-        }
-        if (response == null || response.getResult() == null) {
-            throw new AiAnalysisException("Ollama API returned an empty response");
-        }
-
-        var text = response.getResult().getOutput().getText();
-        if (text == null || text.isBlank()) {
-            throw new AiAnalysisException("Ollama API returned an empty message");
-        }
-
-        int promptTokens = 0;
-        int completionTokens = 0;
-        String model = "";
-        var metadata = response.getMetadata();
-        if (metadata != null) {
-            var usage = metadata.getUsage();
-            if (usage != null) {
-                promptTokens = usage.getPromptTokens() != null ? usage.getPromptTokens() : 0;
-                completionTokens = usage.getCompletionTokens() != null ? usage.getCompletionTokens() : 0;
-            }
-            if (metadata.getModel() != null) {
-                model = metadata.getModel();
-            }
-        }
+        var call = ChatModelInvoker.invoke(chatModel, SYSTEM_PROMPT_PREAMBLE, userPrompt, "Ollama");
 
         log.debug("Ollama response: model={}, input_tokens={}, output_tokens={}",
-                model, promptTokens, completionTokens);
+                call.model(), call.promptTokens(), call.completionTokens());
 
-        return responseParser.parse(text, AiProviderType.OLLAMA, model, promptTokens, completionTokens);
+        return responseParser.parse(call.text(), AiProviderType.OLLAMA, call.model(),
+                call.promptTokens(), call.completionTokens());
     }
 
     @Override
