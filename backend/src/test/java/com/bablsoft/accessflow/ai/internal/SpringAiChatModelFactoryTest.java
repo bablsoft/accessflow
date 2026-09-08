@@ -15,7 +15,14 @@ class SpringAiChatModelFactoryTest {
 
     @Test
     void anthropicBuildsChatModel() {
-        var model = factory.anthropic("sk-test", "claude-sonnet-4-20250514", 1000, 30_000);
+        var model = factory.anthropic("sk-test", "claude-sonnet-4-20250514", 1000, 30_000, null);
+        assertThat(model).isNotNull();
+    }
+
+    @Test
+    void anthropicBuildsChatModelWithCustomBaseUrl() {
+        var model = factory.anthropic("sk-test", "claude-sonnet-4-20250514", 1000, 30_000,
+                "https://anthropic.gateway.example.com");
         assertThat(model).isNotNull();
     }
 

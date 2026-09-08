@@ -161,7 +161,7 @@ async function openWizardFresh(page: Page): Promise<void> {
 //   1. Empty-state assertion (skipped when previous runs left rows).
 //   2. Create Ollama via wizard → list shows it.
 //   3. Create Anthropic + OpenAI via wizard (parametrized) — exercises the
-//      needs_api_key=true path and the hidden-endpoint path.
+//      needs_api_key=true path and the optional-blank-endpoint path.
 //   4. Edit primary → update name → list reflects new name.
 //   5. Edit-page Test button → success then error (mocked /test).
 //   6. Row "Test" action → success toast (mocked OK).
@@ -375,9 +375,12 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       // tile (substring), so `^` keeps this scoped to the intended tile.
       await page.getByRole('button', { name: new RegExp(`^${provider.tile}`) }).click();
 
-      // Step 2 — the API endpoint field MUST be hidden for non-Ollama
-      // providers (no defaultEndpoint → field not rendered).
-      await expect(page.getByLabel('API endpoint')).toHaveCount(0);
+      // Step 2 — the API endpoint field is rendered for these providers too, but
+      // empty: Anthropic and OpenAI honour a stored base URL (a gateway or proxy
+      // fronting the provider) and fall back to the provider default when blank,
+      // so unlike Ollama they have no defaultEndpoint to pre-fill.
+      await expect(page.getByLabel('API endpoint')).toBeVisible();
+      await expect(page.getByLabel('API endpoint')).toHaveValue('');
       // API key field must be present and required.
       await expect(page.getByLabel('API key')).toBeVisible();
       await expect(page.getByLabel('Model')).toHaveValue(provider.defaultModel);

@@ -1014,10 +1014,10 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
 | `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
 | `model` | VARCHAR(100) — provider-specific model name |
-| `endpoint` | VARCHAR(500) nullable — base URL. Honored at runtime when `provider = OLLAMA`, `OPENAI_COMPATIBLE`, or `HUGGING_FACE` (**required** for `OPENAI_COMPATIBLE`, which has no built-in default; optional for `OLLAMA` and `HUGGING_FACE`, which fall back to `http://localhost:11434` and `https://router.huggingface.co/v1` respectively); ignored for OpenAI and Anthropic (Spring AI's built-in default endpoints are used). The column remains nullable for back-compat — pre-existing values on OpenAI/Anthropic rows are preserved on the wire but have no runtime effect. |
+| `endpoint` | VARCHAR(500) nullable — base URL, honored at runtime for **every** provider. **Required** for `OPENAI_COMPATIBLE`, which has no built-in default. Optional everywhere else, falling back to `http://localhost:11434` (`OLLAMA`), `https://router.huggingface.co/v1` (`HUGGING_FACE`) or Spring AI's built-in provider default (`OPENAI`, `ANTHROPIC`) when blank — set it to front OpenAI or Anthropic with a gateway or proxy. |
 | `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
 | `timeout_ms` | INTEGER — call timeout, CHECK 1000–600000 |
-| `max_prompt_tokens` | INTEGER — CHECK 100–200000 |
+| `max_prompt_tokens` | INTEGER — CHECK 100–200000. The model's usable context, converted to a character budget for the in-app help agent's prompt (see [docs/05-backend.md](05-backend.md) → "In-app help agent"); the SQL analysis path does not consult it. |
 | `max_completion_tokens` | INTEGER — CHECK 100–200000 |
 | `system_prompt_template` | TEXT nullable — admin-editable analyzer prompt override. `NULL`/blank means "use the built-in default". A custom value must contain the `{{sql}}` placeholder (other tokens — `{{schema_context}}`, `{{db_type}}`, `{{language}}` — are optional) and is substituted at render time. Editing it evicts the cached delegate via `AiConfigUpdatedEvent`. Max 20,000 chars. |
 | `langfuse_prompt_name` | VARCHAR(255) nullable — when set **and** the org's `langfuse_config` has `prompt_management_enabled`, the analyzer fetches its system prompt from Langfuse by this name at render time (falling back to `system_prompt_template` / the built-in default on miss). `NULL` = do not use Langfuse for this config. |
