@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.snowflake;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -106,6 +107,37 @@ class SnowflakeRowSecurityApplier {
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), List.copyOf(parameters),
                 Set.copyOf(policyIds), false);
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this statement without executing anything and
+     * without opening a Snowflake session (issue AF-630). Runs the same rewrite and reads the
+     * outcome off it — including its own {@code denyAll} flag — so the classification can never
+     * drift from the enforcement it predicts.
+     *
+     * <p>The gate is {@link #matchingDirectives}, which matches against <em>every</em> table the
+     * statement references rather than only its rewrite target: a SELECT whose target carries no
+     * directive can still reach a policied table through a JOIN, a subquery or a CTE, and
+     * {@link #apply} rejects that rather than running it unfiltered.
+     */
+    RowSecurityClassification classify(String engineId, SnowflakeStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        if (matchingDirectives(statement, directives).isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        Applied applied;
+        try {
+            applied = apply(statement, directives);
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+        if (applied.appliedPolicyIds().isEmpty()) {
+            // DDL over a policied table: no rows are read through a filterable clause.
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        return applied.denyAll()
+                ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
     }
 
     // ---- predicate building -------------------------------------------------------------------

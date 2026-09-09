@@ -4,13 +4,18 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.SslMode;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -53,5 +58,64 @@ class CouchbaseQueryEngineTest {
         engine.initialize(new QueryEngineContext(
                 TestMessages.keyEcho(), ciphertext -> ciphertext, Map.of(), Clock.systemUTC()));
         assertThat(engine.parse("SELECT 1").statements()).containsExactly("SELECT 1");
+    }
+
+    // ---- offline row-security classification (AF-630) -------------------------------------------
+
+    private static CouchbaseQueryEngine initialized() {
+        var engine = new CouchbaseQueryEngine();
+        engine.initialize(new QueryEngineContext(
+                TestMessages.keyEcho(), ciphertext -> ciphertext, Map.of(), Clock.systemUTC()));
+        return engine;
+    }
+
+    private static QueryEngineRowSecurityRequest classifyRequest(String query,
+                                                                 RowSecurityDirective... directives) {
+        return new QueryEngineRowSecurityRequest(UUID.randomUUID(), query, List.of(directives));
+    }
+
+    private static RowSecurityDirective teamEquals(String keyspace) {
+        return new RowSecurityDirective(UUID.randomUUID(), keyspace, "team",
+                RowSecurityOperator.EQUALS, List.of("eng"));
+    }
+
+    @Test
+    void classifyRowSecurityShortCircuitsWhenThereAreNoDirectives() {
+        var result = initialized().classifyRowSecurity(classifyRequest("SELECT * FROM users"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("couchbase");
+    }
+
+    @Test
+    void classifyRowSecurityDelegatesToTheApplier() {
+        var directive = teamEquals("users");
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("SELECT * FROM users", directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyRowSecurityReportsFailClosedForAPoliciedInsert() {
+        var result = initialized().classifyRowSecurity(classifyRequest(
+                "INSERT INTO users (KEY, VALUE) VALUES ('k', {'a': 1})", teamEquals("users")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityReportsUnknownRatherThanSafeForAnUnparseableQuery() {
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("not a sql++ statement", teamEquals("users")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.UNKNOWN);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityFailsBeforeInitialize() {
+        assertThatThrownBy(() -> new CouchbaseQueryEngine()
+                .classifyRowSecurity(classifyRequest("SELECT * FROM users", teamEquals("users"))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("before initialize");
     }
 }

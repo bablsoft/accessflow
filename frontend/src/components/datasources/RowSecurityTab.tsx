@@ -3,10 +3,12 @@ import {
   App,
   AutoComplete,
   Button,
+  Flex,
   Form,
   Input,
   Modal,
   Select,
+  Space,
   Switch,
   Table,
   Tag,
@@ -21,6 +23,11 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
+import { draftFingerprint, isRowSecurityDraftHighImpact }
+  from '@/components/policies/policyImpact';
+import { simulateRowSecurityPolicy } from '@/api/policySimulation';
+import { rowSecuritySimulationSummary } from './policySimulationSummaries';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createRowSecurityPolicy,
@@ -260,9 +267,11 @@ interface RowSecurityPolicyModalProps {
 
 function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPolicyModalProps) {
   const { t } = useTranslation();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<RowSecurityFormValues>();
+  const [simulationOpen, setSimulationOpen] = useState(false);
+  const [simulatedKey, setSimulatedKey] = useState('');
   const valueType = Form.useWatch('value_type', form);
 
   const schemaQuery = useQuery({
@@ -356,6 +365,51 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
     },
   });
 
+  /** The draft the Simulate button replays, built from whatever is in the form right now. */
+  const buildSimulationDraft = () => {
+    const values = form.getFieldsValue();
+    if (!values.table_name || !values.column_name || !values.value_expression) {
+      return null;
+    }
+    return {
+      draft: {
+        replaces_policy_id: policy?.id ?? null,
+        table_name: values.table_name.trim(),
+        column_name: values.column_name.trim(),
+        operator: values.operator,
+        value_type: values.value_type,
+        value_expression: values.value_expression.trim(),
+        applies_to_roles: values.applies_to_roles ?? [],
+        applies_to_group_ids: values.applies_to_group_ids ?? [],
+        applies_to_user_ids: values.applies_to_user_ids ?? [],
+        enabled: values.enabled,
+      },
+    };
+  };
+
+  /** Soft nudge, never a gate: saving is always one click away. */
+  const confirmHighImpactSave = () => {
+    const unsimulated = draftFingerprint(buildSimulationDraft()) !== simulatedKey;
+    if (
+      !unsimulated ||
+      !isRowSecurityDraftHighImpact({ ...form.getFieldsValue(), replacesPolicyId: policy?.id ?? null })
+    ) {
+      form.submit();
+      return;
+    }
+    modal.confirm({
+      title: t('policySimulation.nudge_title'),
+      content: t('policySimulation.nudge_body'),
+      okText: t('policySimulation.nudge_simulate'),
+      cancelText: t('policySimulation.nudge_save'),
+      // AntD calls onCancel for Esc as well as the Cancel button, and here onCancel is the write
+      // path. Esc must not be able to commit a policy the admin has not looked at.
+      keyboard: false,
+      onOk: () => setSimulationOpen(true),
+      onCancel: () => form.submit(),
+    });
+  };
+
   const onFinish = (values: RowSecurityFormValues) => {
     saveMutation.mutate({
       table_name: values.table_name.trim(),
@@ -379,12 +433,31 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           : t('datasources.settings.row_security.create_title')
       }
       onCancel={onClose}
-      onOk={() => form.submit()}
+      onOk={confirmHighImpactSave}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       confirmLoading={saveMutation.isPending}
       destroyOnHidden
       width={560}
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <Flex justify="space-between" align="center">
+          <Button
+            onClick={() => {
+              // Field errors render inline; nothing more to report here.
+              void form.validateFields().then(
+                () => setSimulationOpen(true),
+                () => undefined,
+              );
+            }}
+          >
+            {t('policySimulation.run')}
+          </Button>
+          <Space>
+            <CancelBtn />
+            <OkBtn />
+          </Space>
+        </Flex>
+      )}
     >
       <Form<RowSecurityFormValues>
         form={form}
@@ -525,6 +598,21 @@ function RowSecurityPolicyModal({ open, dsId, policy, onClose }: RowSecurityPoli
           <Switch />
         </Form.Item>
       </Form>
+      <PolicySimulationDrawer
+        open={simulationOpen}
+        onClose={() => setSimulationOpen(false)}
+        title={t('policySimulation.title')}
+        draftKey={draftFingerprint(buildSimulationDraft())}
+        run={(window) => {
+          const payload = buildSimulationDraft();
+          if (!payload) {
+            return Promise.reject(new Error(t('policySimulation.incomplete_draft')));
+          }
+          return simulateRowSecurityPolicy(dsId, { ...payload, ...window });
+        }}
+        summarize={(result) => rowSecuritySimulationSummary(result, t)}
+        onSimulated={setSimulatedKey}
+      />
     </Modal>
   );
 }

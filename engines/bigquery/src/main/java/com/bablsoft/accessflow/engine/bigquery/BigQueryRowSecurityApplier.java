@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.bigquery;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -90,6 +91,40 @@ class BigQueryRowSecurityApplier {
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), List.copyOf(parameters),
                 Set.copyOf(policyIds), false);
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this statement without executing anything and
+     * without opening a BigQuery client (issue AF-630). Runs the same rewrite and reads the outcome
+     * off it, so the classification can never drift from the enforcement it predicts.
+     *
+     * <p>The up-front gate is {@link #matchingDirectives}, which already matches on <em>every</em>
+     * referenced table plus the target — a statement whose FROM target carries no directive can
+     * still reach a policied table through a JOIN or a subquery, and {@link #apply} fails closed on
+     * that rather than running it unfiltered.
+     */
+    RowSecurityClassification classify(String engineId, BigQueryStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        if (matchingDirectives(statement, directives).isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        Applied applied;
+        try {
+            applied = apply(statement, directives);
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+        if (applied.denyAll()) {
+            // A matching directive resolved to no values, so the submitter would see nothing.
+            // IS_NULL is unary and never lands here: it carries no values by design.
+            return RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds());
+        }
+        if (applied.appliedPolicyIds().isEmpty()) {
+            // DDL over a policied table: apply() short-circuits before matching, so no predicate
+            // takes effect and no rows are read or filtered.
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        return RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
     }
 
     // ---- rewritability ------------------------------------------------------------------------

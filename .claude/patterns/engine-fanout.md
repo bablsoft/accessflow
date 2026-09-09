@@ -24,7 +24,7 @@ One enum, twelve places. **Verified 2026-08-04** — re-derive with
 | Snowflake | `engines/snowflake/.../SnowflakeRowSecurityApplier.java` | 115 | **compile error** |
 | **Cassandra (+ScyllaDB)** | `engines/cassandra/.../CassandraRowSecurityApplier.java` | 94 | ⚠️ **silent** — has a `default` |
 | **Neo4j** | `engines/neo4j/.../Neo4jRowSecurityApplier.java` | 140 | ⚠️ **silent** — has a `default` |
-| Redis | — | — | *deliberately absent*: row predicates have no key-value meaning, so Redis fails closed on all of them (`RedisQueryExecutor.java:32`) |
+| Redis | — | — | *deliberately absent*: row predicates have no key-value meaning, so Redis fails closed on all of them (`RedisRowSecurityClassifier.java:22`) |
 | Frontend | `frontend/src/types/api.ts:1454`, `frontend/src/utils/enumLabels.ts:182`, `locales/*.json` `enums.row_security_operator` | | silent (union widens, label missing) |
 
 **Nine of the eleven Java switches are exhaustive**, so the compiler finds them for you. The two

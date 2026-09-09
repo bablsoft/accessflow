@@ -113,6 +113,17 @@ public interface QueryRequestLookupService {
                                Consumer<QueryListItemView> consumer);
 
     /**
+     * Streams the policy simulator's corpus (issue AF-630) — the same filter and the same bounded,
+     * internally paginated read as {@link #streamForOrganization}, but emitting the fuller
+     * {@link QueryCorpusRow} a simulation needs (SQL text, client context, AI verdict) so replaying
+     * a window costs one pass rather than a lookup per row.
+     *
+     * @return the number of rows emitted; compare it with {@code maxRows} to detect truncation.
+     */
+    int streamCorpusForOrganization(QueryListFilter filter, int maxRows,
+                                    Consumer<QueryCorpusRow> consumer);
+
+    /**
      * Returns the full read-side view of a single query request, including its AI analysis.
      * The query must belong to {@code organizationId} (org-scoped) — otherwise empty.
      */

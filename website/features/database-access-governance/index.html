@@ -60,7 +60,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-04",
+        "dateModified": "2026-09-09",
         "url": "https://accessflow.io/features/database-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/database-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -280,6 +280,9 @@
             </picture>
             <figcaption><code>/admin/routing-policies</code> — rules are evaluated in priority order, and the first match decides where the request goes.</figcaption>
           </figure>
+          <h3>See what a rule would do before you save it</h3>
+          <p>A policy is easy to write and hard to predict: the condition that blocks one dangerous <code>DELETE</code> can quietly block a nightly job nobody remembered. So every routing, masking and row-security form has a <em>Simulate</em> button. Choose a date range and AccessFlow replays your own past queries <strong>twice</strong> — once against the rules you have today, once with the draft added or replacing the one you are editing — and reports the difference between those two runs: how many past requests would take a different path, which ones, and which people would feel it.</p>
+          <p>It compares rules against rules rather than against history, because a past decision may have come from an emergency, a ticket or a standing grant the draft has no say over. And it is strictly a preview: nothing is saved, no query is re-run, and AccessFlow never connects to your database to produce it. Where the replay has to approximate — memberships are read as they stand today, and a couple of engines cannot work out a row rule offline — the result says so plainly, and lists those queries as unclassifiable rather than counting them as unaffected. Simulating is optional; nothing blocks you from saving. <a href="/docs/configuration/review-workflows/#cfg-routing-policies">Routing policy docs →</a></p>
           <h3>Reviews that stall</h3>
           <p>The failure mode of an approval workflow is silence, so both remedies are built in and both are notify-only — waiting never changes who is allowed to approve.</p>
           <ul>

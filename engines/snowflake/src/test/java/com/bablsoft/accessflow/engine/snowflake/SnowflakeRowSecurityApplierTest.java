@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.engine.snowflake;
 
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,6 +24,10 @@ class SnowflakeRowSecurityApplierTest {
     private static RowSecurityDirective directive(String table, String column,
                                                   RowSecurityOperator op, Object... values) {
         return new RowSecurityDirective(UUID.randomUUID(), table, column, op, List.of(values));
+    }
+
+    private RowSecurityClassification classify(String sql, RowSecurityDirective... directives) {
+        return applier.classify("snowflake", parser.parseStatement(sql), List.of(directives));
     }
 
     // ---- splice shapes -------------------------------------------------------------------------
@@ -297,5 +303,123 @@ class SnowflakeRowSecurityApplierTest {
         var applied = applier.apply(statement, null);
         assertThat(applied.statement()).isEqualTo("SELECT * FROM orders");
         assertThat(applied.denyAll()).isFalse();
+    }
+
+    // ---- offline classification (AF-630) ---------------------------------------------------------
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheStatement() {
+        var result = classify("SELECT * FROM orders",
+                directive("customers", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("snowflake");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(classify("SELECT * FROM orders").outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForDdlOnAPoliciedTable() {
+        var result = classify("TRUNCATE TABLE orders",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var first = directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme");
+        var second = directive("analytics.public.ORDERS", "region", RowSecurityOperator.IN,
+                "emea", "apac");
+        var ignored = directive("customers", "tenant", RowSecurityOperator.EQUALS, "acme");
+        var result = classify("SELECT * FROM orders WHERE status = 'OPEN'", first, second, ignored);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds())
+                .containsExactlyInAnyOrder(first.policyId(), second.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsAppliedForUpdateAndDelete() {
+        assertThat(classify("UPDATE orders SET total = 1",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme")).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(classify("DELETE FROM orders WHERE id = 1",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme")).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenAMatchingDirectiveResolvedToNoValues() {
+        var denying = directive("orders", "tenant", RowSecurityOperator.IN);
+        var other = directive("orders", "region", RowSecurityOperator.EQUALS, "emea");
+        var result = classify("SELECT * FROM orders", denying, other);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds())
+                .containsExactlyInAnyOrder(denying.policyId(), other.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyTreatsValuelessIsNullAsAppliedNotDenyAll() {
+        var result = classify("SELECT * FROM orders",
+                directive("orders", "deleted_at", RowSecurityOperator.IS_NULL));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).hasSize(1);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertIntoAPoliciedTable() {
+        var result = classify("INSERT INTO orders VALUES (1)",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason())
+                .contains("error.row_security_snowflake_insert_unsupported");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "INSERT INTO log_copy SELECT * FROM orders",
+            "MERGE INTO orders USING stage ON orders.id = stage.id "
+                    + "WHEN MATCHED THEN UPDATE SET a = 1",
+            "WITH x AS (SELECT * FROM orders) SELECT * FROM x",
+            "SELECT * FROM orders WHERE id IN (SELECT id FROM orders)",
+            "SELECT * FROM orders QUALIFY id = (SELECT MAX(id) FROM orders)",
+            "(SELECT * FROM orders)",
+            "SELECT * FROM orders JOIN orders o2 ON orders.id = o2.id",
+            "SELECT * FROM orders o1, orders o2 WHERE 1 = 1",
+            "SELECT id FROM orders UNION SELECT id FROM orders",
+            "SELECT id FROM orders INTERSECT SELECT id FROM orders",
+            "SELECT id FROM orders EXCEPT SELECT id FROM orders",
+            "SELECT id FROM orders MINUS SELECT id FROM orders",
+            "DELETE FROM orders USING refs WHERE orders.id = refs.id",
+    })
+    void classifyReportsFailClosedForEveryShapeTheApplierRejects(String sql) {
+        var result = classify(sql, directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_snowflake_unrewritable");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyFailsClosedForATablePoliciedOnlyThroughAJoin() {
+        // The rewrite target carries no directive, but the JOIN reaches a policied table — apply()
+        // rejects that, so the classifier must not report it as unaffected.
+        var result = classify("SELECT * FROM shipments JOIN orders ON shipments.id = orders.id",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+    }
+
+    @Test
+    void classifyFailsClosedForATablePoliciedOnlyThroughASubquery() {
+        var result = classify("SELECT * FROM shipments WHERE id IN (SELECT id FROM orders)",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
     }
 }

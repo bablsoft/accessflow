@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.cassandra;
 
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 
@@ -137,5 +138,100 @@ class CassandraRowSecurityApplierTest {
                 KEY_COLUMNS);
         assertThat(applied.cql()).isEqualTo(statement.sql());
         assertThat(applied.parameters()).isEmpty();
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+    //
+    // Cassandra is the one engine that cannot always answer offline: splicing succeeds only when the
+    // directive's column is a partition or clustering key, and the key set comes from a live
+    // CqlSession. classify() therefore reports only what holds for ANY key set, and returns UNKNOWN
+    // — never NOT_APPLICABLE — for the rest.
+
+    private static final String ENGINE = "cassandra";
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheTable() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        var result = applier.classify(ENGINE, statement,
+                List.of(directive("orders", "tenant_id", RowSecurityOperator.EQUALS, List.of(7))));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo(ENGINE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        assertThat(applier.classify(ENGINE, statement, List.of()).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForDdlEvenOnAPoliciedTable() {
+        var statement = parser.parseStatement("CREATE TABLE users (id int PRIMARY KEY)");
+        var result = applier.classify(ENGINE, statement,
+                List.of(directive("users", "tenant_id", RowSecurityOperator.EQUALS, List.of(7))));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertIntoAPoliciedTable() {
+        var statement = parser.parseStatement("INSERT INTO users (id) VALUES (1)");
+        var result = applier.classify(ENGINE, statement,
+                List.of(directive("users", "tenant_id", RowSecurityOperator.EQUALS, List.of(7))));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_cassandra_insert_unsupported");
+    }
+
+    @Test
+    void classifyReportsFailClosedForADenyAllDirectiveWhateverTheKeys() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        var result = applier.classify(ENGINE, statement,
+                List.of(directive("users", "tenant_id", RowSecurityOperator.IN, List.of())));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_cassandra_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedForOperatorsCqlCannotFilter() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        for (var operator : List.of(RowSecurityOperator.NOT_EQUALS, RowSecurityOperator.NOT_IN,
+                RowSecurityOperator.IS_NULL)) {
+            var result = applier.classify(ENGINE, statement,
+                    List.of(directive("users", "tenant_id", operator, List.of(7))));
+            assertThat(result.outcome())
+                    .as("operator %s", operator)
+                    .isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        }
+    }
+
+    @Test
+    void classifyReportsUnknownWhenTheAnswerDependsOnTheKeyColumns() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        var result = applier.classify(ENGINE, statement,
+                List.of(directive("users", "tenant_id", RowSecurityOperator.EQUALS, List.of(7))));
+        // Whether tenant_id is a key column is only knowable from a live session, so the honest
+        // answer is UNKNOWN — never NOT_APPLICABLE, which the simulator would read as "no impact".
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.UNKNOWN);
+        assertThat(result.reason()).contains("error.row_security_cassandra_keys_unknown");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyIsConsistentWithApplyOnTheProvableBranches() {
+        var statement = parser.parseStatement("INSERT INTO users (id) VALUES (1)");
+        var directives = List.of(
+                directive("users", "tenant_id", RowSecurityOperator.EQUALS, List.of(7)));
+        assertThat(applier.classify(ENGINE, statement, directives).outcome())
+                .isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThatThrownBy(() -> applier.apply(statement, directives, KEY_COLUMNS))
+                .isInstanceOf(UnrewritableRowSecurityException.class);
+    }
+
+    @Test
+    void classifyStampsTheCallerSuppliedEngineIdSoScyllaDbReportsItsOwn() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE id = 1");
+        var result = applier.classify("scylladb", statement,
+                List.of(directive("users", "tenant_id", RowSecurityOperator.EQUALS, List.of(7))));
+        assertThat(result.engineId()).isEqualTo("scylladb");
     }
 }

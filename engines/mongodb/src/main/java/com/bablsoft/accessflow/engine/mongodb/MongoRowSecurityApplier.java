@@ -1,6 +1,8 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -37,14 +39,7 @@ class MongoRowSecurityApplier {
     }
 
     Applied apply(MongoCommand command, List<RowSecurityDirective> directives) {
-        var matching = new ArrayList<RowSecurityDirective>();
-        if (directives != null) {
-            for (var directive : directives) {
-                if (matchesCollection(directive.tableRef(), command.collection())) {
-                    matching.add(directive);
-                }
-            }
-        }
+        var matching = matching(command, directives);
         if (matching.isEmpty()) {
             return new Applied(command, Set.of());
         }
@@ -66,6 +61,61 @@ class MongoRowSecurityApplier {
             case CREATE_COLLECTION, CREATE_INDEX, DROP_COLLECTION, DROP_INDEX -> command;
         };
         return new Applied(rewritten, policyIds);
+    }
+
+    /** The directives whose {@code tableRef} targets this command's collection. */
+    private List<RowSecurityDirective> matching(MongoCommand command,
+                                                List<RowSecurityDirective> directives) {
+        var matching = new ArrayList<RowSecurityDirective>();
+        if (directives != null) {
+            for (var directive : directives) {
+                if (matchesCollection(directive.tableRef(), command.collection())) {
+                    matching.add(directive);
+                }
+            }
+        }
+        return matching;
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this command without mutating or executing anything
+     * (issue AF-630). Runs the same rewrite and reads the outcome off it, so the classification can
+     * never drift from the enforcement it predicts.
+     */
+    RowSecurityClassification classify(String engineId, MongoCommand command,
+                                       List<RowSecurityDirective> directives) {
+        var matching = matching(command, directives);
+        if (matching.isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        try {
+            var applied = apply(command, directives);
+            if (command.operation().queryType() == QueryType.DDL) {
+                // DDL against a policied collection reads and affects no documents, so nothing is
+                // filtered. Reporting APPLIED here would land every historical DDL row in the
+                // simulator's "newly filtered" count.
+                return RowSecurityClassification.notApplicable(engineId);
+            }
+            return deniesEverything(matching)
+                    ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                    : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+    }
+
+    /**
+     * True when any matching directive resolved to no values — {@link #toFragment} turns that into
+     * a predicate no document can satisfy, so the submitter would see nothing. {@code IS_NULL} is
+     * unary and is excluded: it carries no values by design.
+     */
+    private static boolean deniesEverything(List<RowSecurityDirective> matching) {
+        for (var directive : matching) {
+            if (directive.operator() != RowSecurityOperator.IS_NULL && directive.values().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Document toFragment(RowSecurityDirective directive) {

@@ -3,11 +3,14 @@ package com.bablsoft.accessflow.engine.redis;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -30,6 +33,7 @@ public final class RedisQueryEngine implements QueryEngine {
     private volatile RedisConnectionProbe connectionProbe;
     private volatile RedisSchemaIntrospector schemaIntrospector;
     private volatile RedisClientManager clientManager;
+    private volatile RedisRowSecurityClassifier rowSecurityClassifier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public RedisQueryEngine() {
@@ -46,10 +50,13 @@ public final class RedisQueryEngine implements QueryEngine {
         var settings = RedisEngineSettings.from(context.config());
         var manager = new RedisClientManager(context.credentials(), settings);
         var queryParser = new RedisCommandParser(context.messages());
+        var classifier = new RedisRowSecurityClassifier(context.messages());
         this.clientManager = manager;
         this.parser = queryParser;
+        this.rowSecurityClassifier = classifier;
         this.executor = new RedisQueryExecutor(manager, queryParser, new RedisResultMapper(),
-                new RedisExceptionTranslator(context.messages()), context.messages(), context.clock());
+                new RedisExceptionTranslator(context.messages()), classifier, context.messages(),
+                context.clock());
         this.connectionProbe = new RedisConnectionProbe(context.credentials(), settings);
         this.schemaIntrospector = new RedisSchemaIntrospector(context.credentials(), settings);
     }
@@ -57,6 +64,22 @@ public final class RedisQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        ParsedRedisCommand parsed;
+        try {
+            parsed = initialized(parser).parseCommand(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored command that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityClassifier).classify(ENGINE_ID, parsed, request.directives());
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.dynamodb;
 
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 
@@ -119,5 +120,97 @@ class DynamoDbRowSecurityApplierTest {
         var applied = applier.apply(parser.parseStatement("SELECT * FROM \"Music\""),
                 List.of(directive("public.music", "tenant", RowSecurityOperator.EQUALS, "acme")));
         assertThat(applied.parameters()).containsExactly("acme");
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheTable() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\"");
+        var result = applier.classify("dynamodb", statement,
+                List.of(directive("Other", "tenant", RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("dynamodb");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\"");
+        assertThat(applier.classify("dynamodb", statement, List.of()).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(applier.classify("dynamodb", statement, null).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\" WHERE g = 'rock'");
+        var directive = directive("Music", "tenant", RowSecurityOperator.EQUALS, "acme");
+        var result = applier.classify("dynamodb", statement, List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsAppliedForAPoliciedUpdateAndDelete() {
+        var update = parser.parseStatement("UPDATE \"Music\" SET x = 1 WHERE \"id\" = '1'");
+        var delete = parser.parseStatement("DELETE FROM \"Music\" WHERE \"id\" = '1'");
+        var directive = directive("Music", "tenant", RowSecurityOperator.EQUALS, "acme");
+        assertThat(applier.classify("dynamodb", update, List.of(directive)).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(applier.classify("dynamodb", delete, List.of(directive)).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\"");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "Music", "tenant",
+                RowSecurityOperator.IN, List.of());
+        var result = applier.classify("dynamodb", statement, List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\"");
+        var directive = directive("Music", "deleted_at", RowSecurityOperator.IS_NULL);
+        assertThat(directive.values()).isEmpty();
+        assertThat(applier.classify("dynamodb", statement, List.of(directive)).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertIntoAPoliciedTable() {
+        var statement = parser.parseStatement("INSERT INTO \"Music\" VALUE {'id': '1'}");
+        var result = applier.classify("dynamodb", statement,
+                List.of(directive("Music", "tenant", RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_dynamodb_insert_unsupported");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertEvenWhenTheDirectiveWouldDenyAll() {
+        var statement = parser.parseStatement("INSERT INTO \"Music\" VALUE {'id': '1'}");
+        var result = applier.classify("dynamodb", statement,
+                List.of(new RowSecurityDirective(UUID.randomUUID(), "Music", "tenant",
+                        RowSecurityOperator.EQUALS, List.of())));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+    }
+
+    @Test
+    void classifyNeverMutatesTheStatementItInspects() {
+        var statement = parser.parseStatement("SELECT * FROM \"Music\" WHERE g = 'rock'");
+        var before = statement.sql();
+        var result = applier.classify("dynamodb", statement,
+                List.of(directive("Music", "tenant", RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(statement.sql()).isEqualTo(before);
     }
 }

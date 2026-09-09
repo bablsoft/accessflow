@@ -99,7 +99,7 @@ final class ColumnMaskResolver {
         return best;
     }
 
-    private static boolean matchesAny(List<RefKeys> refs, String schema, String table,
+    private static boolean matchesAny(List<ColumnRefKeys> refs, String schema, String table,
                                       String column) {
         for (var ref : refs) {
             if (ref.matchLevel(schema, table, column) > 0) {
@@ -119,60 +119,26 @@ final class ColumnMaskResolver {
                     || directive.columnRef().isBlank()) {
                 continue;
             }
-            parsed.add(new DirectiveRef(RefKeys.parse(directive.columnRef()), directive));
+            parsed.add(new DirectiveRef(ColumnRefKeys.parse(directive.columnRef()), directive));
         }
         return parsed;
     }
 
-    private static List<RefKeys> parseRestricted(List<String> restrictedColumns) {
+    private static List<ColumnRefKeys> parseRestricted(List<String> restrictedColumns) {
         if (restrictedColumns == null || restrictedColumns.isEmpty()) {
             return List.of();
         }
-        var parsed = new java.util.ArrayList<RefKeys>(restrictedColumns.size());
+        var parsed = new java.util.ArrayList<ColumnRefKeys>(restrictedColumns.size());
         for (var entry : restrictedColumns) {
             if (entry == null || entry.isBlank()) {
                 continue;
             }
-            parsed.add(RefKeys.parse(entry));
+            parsed.add(ColumnRefKeys.parse(entry));
         }
         return parsed;
     }
 
-    private record DirectiveRef(RefKeys keys, ColumnMaskDirective directive) {
-    }
-
-    /** Parsed column reference at three levels of specificity. */
-    private record RefKeys(String full, String table, String bare) {
-
-        static RefKeys parse(String entry) {
-            var lower = entry.trim().toLowerCase(Locale.ROOT);
-            var parts = lower.split("\\.");
-            return switch (parts.length) {
-                case 1 -> new RefKeys(null, null, parts[0]);
-                case 2 -> new RefKeys(null, parts[0] + "." + parts[1], parts[1]);
-                default -> new RefKeys(
-                        parts[parts.length - 3] + "." + parts[parts.length - 2] + "."
-                                + parts[parts.length - 1],
-                        parts[parts.length - 2] + "." + parts[parts.length - 1],
-                        parts[parts.length - 1]);
-            };
-        }
-
-        /** 3 = full match, 2 = table.column, 1 = bare column, 0 = no match. */
-        int matchLevel(String schema, String table, String column) {
-            if (full != null && schema != null && table != null
-                    && full.equals(schema + "." + table + "." + column)) {
-                return 3;
-            }
-            if (this.table != null && table != null
-                    && this.table.equals(table + "." + column)) {
-                return 2;
-            }
-            if (bare.equals(column)) {
-                return 1;
-            }
-            return 0;
-        }
+    private record DirectiveRef(ColumnRefKeys keys, ColumnMaskDirective directive) {
     }
 
     private static String safeLower(String value) {

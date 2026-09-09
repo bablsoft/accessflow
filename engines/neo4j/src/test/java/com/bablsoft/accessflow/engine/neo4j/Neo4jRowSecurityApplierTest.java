@@ -1,9 +1,14 @@
 package com.bablsoft.accessflow.engine.neo4j;
 
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 
 import java.util.List;
 import java.util.UUID;
@@ -87,18 +92,31 @@ class Neo4jRowSecurityApplierTest {
         assertThat(applied.cypher()).contains("u.`home region` = $af_rls_0");
     }
 
-    @Test
-    void allowsEmptyInListAsDenyAllWithoutError() {
-        var applied = apply("MATCH (u:User) RETURN u",
-                new RowSecurityDirective(POLICY, "User", "tier", RowSecurityOperator.IN, List.of()));
-        assertThat(applied.cypher()).contains("u.tier IN $af_rls_0");
-        assertThat(applied.parameters()).containsEntry("af_rls_0", List.of());
+    @ParameterizedTest
+    @EnumSource(value = RowSecurityOperator.class, names = "IS_NULL", mode = Mode.EXCLUDE)
+    void failsClosedWithAnAlwaysFalsePredicateWhenValuesAreEmpty(RowSecurityOperator operator) {
+        // An empty values list is the documented fail-closed signal (an unresolvable :user.groups
+        // for a user in no groups, a missing attribute). Every operator must deny, and the negated
+        // ones are the trap: "NOT (u.tier IN [])" matches every node in Cypher.
+        var applied = apply("MATCH (u:User) RETURN u", directive("User", "tier", operator));
+        assertThat(applied.cypher()).contains("WHERE (false)").contains("RETURN u");
+        assertThat(applied.parameters()).isEmpty();
+        assertThat(applied.appliedPolicyIds()).containsExactly(POLICY);
     }
 
     @Test
-    void failsClosedOnScalarOperatorWithNoValue() {
+    void andsTheAlwaysFalsePredicateOntoAnExistingWhere() {
+        var applied = apply("MATCH (u:User) WHERE u.active = true RETURN u",
+                directive("User", "tier", RowSecurityOperator.NOT_IN));
+        assertThat(applied.cypher()).contains("u.active = true").contains("AND (false)");
+        assertThat(applied.cypher()).doesNotContain("$af_rls_");
+    }
+
+    @Test
+    void failsClosedOnTheUnsupportedUnaryIsNullOperator() {
         assertThatThrownBy(() -> apply("MATCH (u:User) RETURN u",
-                new RowSecurityDirective(POLICY, "User", "region", RowSecurityOperator.EQUALS, List.of())))
+                new RowSecurityDirective(POLICY, "User", "deleted_at", RowSecurityOperator.IS_NULL,
+                        List.of())))
                 .isInstanceOf(UnrewritableRowSecurityException.class)
                 .hasMessageContaining("error.row_security_neo4j_unrewritable");
     }
@@ -153,5 +171,129 @@ class Neo4jRowSecurityApplierTest {
         var applied = apply("MATCH (u:User) WITH u MATCH (v:User) RETURN u, v",
                 directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
         assertThat(applied.cypher()).contains("u.region = $af_rls_0").contains("v.region = $af_rls_1");
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    private RowSecurityClassification classify(String cypher, RowSecurityDirective... directives) {
+        return applier.classify("neo4j", parser.parseStatement(cypher), List.of(directives));
+    }
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsAReferencedLabel() {
+        var result = classify("MATCH (u:User) RETURN u",
+                directive("Account", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("neo4j");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(classify("MATCH (u:User) RETURN u").outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForDdlWhichIsNeverFiltered() {
+        assertThat(classify("CREATE INDEX i FOR (u:User) ON (u.id)",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU")).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var result = classify("MATCH (u:User) WHERE u.active = true RETURN u",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(POLICY);
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var result = classify("MATCH (u:User) RETURN u",
+                new RowSecurityDirective(POLICY, "User", "tier", RowSecurityOperator.IN, List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(POLICY);
+    }
+
+    @Test
+    void classifyReportsDenyAllForAScalarOperatorWithNoValue() {
+        // Since #959 an empty values list is spliced as an always-false predicate under every
+        // operator rather than rejected, so the honest classification is deny-all: the query runs
+        // and the submitter sees nothing. It used to fail closed.
+        var result = classify("MATCH (u:User) RETURN u",
+                new RowSecurityDirective(POLICY, "User", "region", RowSecurityOperator.EQUALS,
+                        List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(POLICY);
+    }
+
+    @Test
+    void classifyReportsDenyAllForANegatedOperatorWithNoValue() {
+        // The exact shape #959 fixed: "NOT (x IN [])" used to match every node. It must read as
+        // deny-all, never as applied-and-filtered.
+        var result = classify("MATCH (u:User) RETURN u",
+                new RowSecurityDirective(POLICY, "User", "tier", RowSecurityOperator.NOT_IN,
+                        List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+    }
+
+    @Test
+    void classifyReportsFailClosedForUnaryIsNullWhichCypherCannotSplice() {
+        // Cypher has no unary splice: IS_NULL takes the value-less scalar path and is rejected, so
+        // the honest classification is fail-closed rather than deny-all or applied.
+        assertThat(classify("MATCH (u:User) RETURN u",
+                new RowSecurityDirective(POLICY, "User", "deleted_at", RowSecurityOperator.IS_NULL,
+                        List.of())).outcome())
+                .isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnOperatorTheFragmentSwitchDoesNotHandle() {
+        // The switch's default branch fails closed silently; classification must surface that.
+        var result = classify("MATCH (u:User) RETURN u",
+                directive("User", "deleted_at", RowSecurityOperator.IS_NULL, "ignored"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_neo4j_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnAnonymousPoliciedNode() {
+        var result = classify("MATCH (:User) RETURN 1",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_neo4j_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedWhenTheLabelOnlyAppearsInAWherePredicate() {
+        var result = classify("MATCH (n) WHERE (n)-->(:User) RETURN n",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_neo4j_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedForAWriteCreatingAPoliciedLabel() {
+        var created = classify("CREATE (u:User {id: 1})",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(created.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(created.reason()).contains("error.row_security_neo4j_insert_unsupported");
+        var merged = classify("MERGE (u:User {id: 1})",
+                directive("User", "region", RowSecurityOperator.EQUALS, "EU"));
+        assertThat(merged.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(merged.reason()).contains("error.row_security_neo4j_insert_unsupported");
+    }
+
+    @Test
+    void classifyNeverMutatesTheStatementItInspects() {
+        var statement = parser.parseStatement("MATCH (u:User) RETURN u");
+        var result = applier.classify("neo4j", statement,
+                List.of(directive("User", "region", RowSecurityOperator.EQUALS, "EU")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(statement.cypher()).isEqualTo("MATCH (u:User) RETURN u");
     }
 }

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.neo4j;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -30,13 +31,17 @@ import java.util.regex.Pattern;
  * {@link UnrewritableRowSecurityException} (HTTP 422) on any shape that cannot be provably
  * filtered: a policied label that appears only without a bound variable (an anonymous
  * {@code (:Label)}), only in a {@code WHERE} predicate / pattern comprehension (no clause-level
- * MATCH binding), or under a scalar operator with no value. A statement that {@code CREATE}s or
+ * MATCH binding). A directive whose resolved {@code values} are empty — the documented fail-closed
+ * signal for an unresolvable variable — becomes an always-false predicate under every operator,
+ * the negated ones included, so the submitter sees nothing. A statement that {@code CREATE}s or
  * {@code MERGE}s a policied label is rejected outright (a write cannot be filtered into existence),
  * mirroring the INSERT-into-policied rejection in every other engine. DDL is unaffected.
  */
 class Neo4jRowSecurityApplier {
 
     static final String PARAM_PREFIX = "af_rls_";
+    /** Fail-closed Cypher predicate: matches nothing, binds nothing. */
+    private static final String ALWAYS_FALSE = "false";
     private static final Pattern SIMPLE_IDENT = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
     /** Depth-0 keywords that end a MATCH pattern region / WHERE expression. */
     private static final Set<String> CLAUSE_BOUNDARIES = Set.of(
@@ -54,18 +59,16 @@ class Neo4jRowSecurityApplier {
     }
 
     Applied apply(CypherStatement statement, List<RowSecurityDirective> directives) {
-        if (directives == null || directives.isEmpty() || statement.kind() == CypherStatementKind.DDL) {
+        var matching = matching(statement, directives);
+        if (matching.isEmpty()) {
             return new Applied(statement.cypher(), Map.of(), Set.of());
         }
         var parameters = new LinkedHashMap<String, Object>();
         var policyIds = new LinkedHashSet<UUID>();
         // clause anchor token index -> AND-joined predicate fragments to splice into that clause
         var fragmentsByClause = new LinkedHashMap<Integer, List<String>>();
-        for (var directive : directives) {
+        for (var directive : matching) {
             var label = lastSegment(directive.tableRef());
-            if (label.isEmpty() || !statement.references().contains(label)) {
-                continue; // policy does not target a label this statement touches
-            }
             var matches = bindingsFor(statement, label);
             for (var pattern : matches) {
                 var fragment = toFragment(pattern.variable(), directive, parameters, label);
@@ -81,7 +84,60 @@ class Neo4jRowSecurityApplier {
                 Set.copyOf(policyIds));
     }
 
+    /**
+     * Classify what {@link #apply} would do to this statement without mutating or executing anything
+     * (issue AF-630). Runs the same rewrite and reads the outcome off it, so the classification can
+     * never drift from the enforcement it predicts.
+     */
+    RowSecurityClassification classify(String engineId, CypherStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        var matching = matching(statement, directives);
+        if (matching.isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        try {
+            var applied = apply(statement, directives);
+            return deniesEverything(matching)
+                    ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                    : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+    }
+
+    /**
+     * True when any matching directive resolved to no values — since #959 {@link #toFragment}
+     * splices an always-false predicate for those under every operator, the negated ones included,
+     * so the query runs and the submitter sees nothing. {@code IS_NULL} is excluded: it is unary,
+     * carries no values by design, and Cypher rejects it outright rather than half-applying a
+     * policy, so it surfaces as fail-closed instead.
+     */
+    private static boolean deniesEverything(List<RowSecurityDirective> matching) {
+        for (var directive : matching) {
+            if (directive.operator() != RowSecurityOperator.IS_NULL && directive.values().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---- directive matching -------------------------------------------------------------------
+
+    /** The directives targeting a label this statement references; empty for DDL, which is never filtered. */
+    private static List<RowSecurityDirective> matching(CypherStatement statement,
+                                                       List<RowSecurityDirective> directives) {
+        var matching = new ArrayList<RowSecurityDirective>();
+        if (directives == null || statement.kind() == CypherStatementKind.DDL) {
+            return matching;
+        }
+        for (var directive : directives) {
+            var label = lastSegment(directive.tableRef());
+            if (!label.isEmpty() && statement.references().contains(label)) {
+                matching.add(directive);
+            }
+        }
+        return matching;
+    }
 
     /** The clause-level MATCH node patterns bound to {@code label}; fail-closed on unfilterable shapes. */
     private List<CypherNodePattern> bindingsFor(CypherStatement statement, String label) {
@@ -123,8 +179,18 @@ class Neo4jRowSecurityApplier {
     private String toFragment(String variable, RowSecurityDirective directive,
                               Map<String, Object> parameters, String label) {
         var property = escapeIdent(variable) + "." + escapeIdent(directive.columnName());
-        var paramName = PARAM_PREFIX + parameters.size();
         var operator = directive.operator();
+        if (operator == RowSecurityOperator.IS_NULL) {
+            // Unary. Cypher would accept "x.c IS NULL", but the soft-delete read filter has never
+            // been wired up for this engine, so keep rejecting it rather than half-apply a policy.
+            throw unrewritable(label);
+        }
+        if (directive.values().isEmpty()) {
+            // Fail closed under every operator, the negated ones included: an unresolvable variable
+            // or an empty list means no rows, and "NOT (x.c IN [])" would match every one of them.
+            return ALWAYS_FALSE;
+        }
+        var paramName = PARAM_PREFIX + parameters.size();
         if (operator == RowSecurityOperator.IN) {
             parameters.put(paramName, List.copyOf(directive.values()));
             return property + " IN $" + paramName;
@@ -132,9 +198,6 @@ class Neo4jRowSecurityApplier {
         if (operator == RowSecurityOperator.NOT_IN) {
             parameters.put(paramName, List.copyOf(directive.values()));
             return "NOT (" + property + " IN $" + paramName + ")";
-        }
-        if (directive.values().isEmpty()) {
-            throw unrewritable(label); // a scalar operator needs a value
         }
         parameters.put(paramName, directive.values().get(0));
         var symbol = switch (operator) {
