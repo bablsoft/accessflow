@@ -184,10 +184,12 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `POST` | `/datasources/{id}/masking-policies` | ADMIN | Create a masking policy on a datasource column |
 | `PUT` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Update a masking policy |
 | `DELETE` | `/datasources/{id}/masking-policies/{policyId}` | ADMIN | Delete a masking policy |
+| `POST` | `/datasources/{id}/masking-policies/simulate` | ADMIN | Dry-run a draft masking policy against historical traffic (AF-630) |
 | `GET` | `/datasources/{id}/row-security-policies` | ADMIN | List row-level security policies for a datasource (AF-380) |
 | `POST` | `/datasources/{id}/row-security-policies` | ADMIN | Create a row-security policy on a datasource table |
 | `PUT` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Update a row-security policy |
 | `DELETE` | `/datasources/{id}/row-security-policies/{policyId}` | ADMIN | Delete a row-security policy |
+| `POST` | `/datasources/{id}/row-security-policies/simulate` | ADMIN | Dry-run a draft row-security policy against historical traffic (AF-630) |
 | `GET` | `/datasources/{id}/export-policies` | ADMIN | List result-export policies for a datasource (#626) |
 | `POST` | `/datasources/{id}/export-policies` | ADMIN | Create a result-export policy |
 | `PUT` | `/datasources/{id}/export-policies/{policyId}` | ADMIN | Update a result-export policy |
@@ -783,6 +785,9 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 
 **Response 204:** No content. **Response 404:** `MASKING_POLICY_NOT_FOUND`.
 
+> A draft masking policy can be dry-run against historical traffic before it is saved —
+> see [Policy simulator (AF-630)](#policy-simulator-af-630).
+
 ---
 
 ### Row security policies (AF-380)
@@ -856,6 +861,9 @@ Same body as `POST`; replaces the policy. **Response 200:** updated policy objec
 #### DELETE /datasources/{id}/row-security-policies/{policyId}
 
 **Response 204:** No content. **Response 404:** `ROW_SECURITY_POLICY_NOT_FOUND`.
+
+> A draft row-security policy can be dry-run against historical traffic before it is saved — including
+> the query shapes it would fail closed on — see [Policy simulator (AF-630)](#policy-simulator-af-630).
 
 > **Enforcement note.** When a query references a policied table in a shape the proxy cannot safely
 > rewrite (a policied table inside a `UNION`, a CTE, a sub-select, an `INSERT … SELECT`, or an
@@ -3006,6 +3014,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `PUT` | `/admin/routing-policies/{id}` | Update a routing policy (full replace) *(ADMIN only)* |
 | `DELETE` | `/admin/routing-policies/{id}` | Delete a routing policy *(ADMIN only)* |
 | `PUT` | `/admin/routing-policies/reorder` | Reorder routing policies by priority *(ADMIN only)* |
+| `POST` | `/admin/routing-policies/simulate` | Dry-run a draft routing policy against historical traffic (AF-630) *(ADMIN only)* |
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
@@ -3402,6 +3411,285 @@ Rewrites the priority order of the org's policies atomically.
 | 404 | `ROUTING_POLICY_NOT_FOUND` | Policy does not exist or is in another organization |
 | 409 | `ROUTING_POLICY_PRIORITY_CONFLICT` | Another policy in the organization already uses that priority |
 | 422 | `ROUTING_POLICY_INVALID` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies |
+
+### Policy simulator (AF-630)
+
+A **read-only dry run** of a draft policy against the organization's own historical query traffic,
+so an admin can see the blast radius *before* saving. Nothing is persisted, and nothing is ever
+executed against a customer database — row-security shapes are classified statically (see
+[docs/05-backend.md → Policy simulator](05-backend.md#policy-simulator-af-630)).
+
+There is one endpoint per policy kind, each gated by the permission that already governs that
+policy — there is no umbrella simulate endpoint and no new permission:
+
+| Method | Path | Permission |
+|--------|------|------------|
+| `POST` | `/admin/routing-policies/simulate` | `ROUTING_POLICY_MANAGE` |
+| `POST` | `/datasources/{id}/row-security-policies/simulate` | `ROW_SECURITY_MANAGE` |
+| `POST` | `/datasources/{id}/masking-policies/simulate` | `MASKING_POLICY_MANAGE` |
+
+**A/B semantics.** Every simulation evaluates the corpus **twice** — once against the org's current
+policy set (*baseline*), once against that set with the draft applied (*simulated*) — and reports
+the diff between those two runs. It deliberately does **not** diff against what actually happened
+historically: real outcomes are confounded by the grant fast-path (#582), review-plan fall-through,
+break-glass (AF-385), external-ticket decisions (AF-453) and the AI-failure path, none of which the
+draft changes. The historical status is still carried on each sample row as context, never as the
+baseline.
+
+**The draft.** `draft` carries the same fields as the matching `POST` body, plus an optional
+`replaces_policy_id`. When set, the named policy is *replaced* by the draft in the simulated set
+(the "edit an existing policy" case); when null the draft is *added* (the "new policy" case). The
+draft is validated exactly as a create would be — the same `422` codes — but never written.
+
+**Bounding.** `from`/`to` are required and `to` must be after `from`; the window may not exceed
+`accessflow.policy-simulation.max-window` (default 90 days). At most
+`accessflow.policy-simulation.max-rows` rows (default 5 000) are evaluated, newest first; when more
+match, `truncated` is `true` and every count is over the evaluated subset only. `samples` is capped
+independently at 100 rows — the counts are the answer, the samples are the drill-down.
+
+**Caveats.** Replaying past traffic cannot reconstruct every signal as it stood at submission. Each
+response carries a `caveats` array naming the approximations that applied, so a client can render
+them rather than imply a precision the data does not have:
+
+| `caveats` value | Meaning |
+|---|---|
+| `MEMBERSHIP_STATE_CURRENT` | The submitter's role and group memberships are read as they are **now**, not as of submission. |
+| `ANOMALY_STATE_CURRENT` | The UBA anomaly signal (AF-383) is read as it is **now**. Routing only. |
+| `COLUMN_MATCH_BARE_NAME` | Persisted result columns record a name only (no schema/table), so masking matches on the bare column name and may over-report where two tables share a column name. Masking only. |
+| `ENGINE_CLASSIFICATION_UNAVAILABLE` | At least one row could not be classified offline — the datasource's engine needs live schema knowledge (Cassandra / ScyllaDB). Those rows are counted in `unclassifiable_count` and are **never** reported as safe. Row security only. |
+
+#### POST /admin/routing-policies/simulate — Request Body
+
+```json
+{
+  "from": "2026-06-01T00:00:00Z",
+  "to": "2026-09-01T00:00:00Z",
+  "datasource_id": null,
+  "draft": {
+    "replaces_policy_id": null,
+    "name": "Block prod payroll deletes",
+    "datasource_id": null,
+    "priority": 10,
+    "enabled": true,
+    "condition": {
+      "type": "and",
+      "children": [
+        { "type": "query_type", "any_of": ["DELETE"] },
+        { "type": "referenced_table", "globs": ["payroll.*"] }
+      ]
+    },
+    "action": "AUTO_REJECT",
+    "required_approvals": null,
+    "reason": "Payroll deletes require an out-of-band change request"
+  }
+}
+```
+
+`from`, `to` and `draft` are required. `datasource_id` at the top level narrows the **corpus** to one
+datasource; `draft.datasource_id` is the draft policy's own scope (null = org-wide), exactly as on
+`POST /admin/routing-policies`. The corpus is every `query_requests` row created in the window,
+whatever its final status — routing runs at submission, so restricting to executed queries would
+under-report.
+
+#### POST /admin/routing-policies/simulate — Response 200
+
+```json
+{
+  "period_from": "2026-06-01T00:00:00Z",
+  "period_to": "2026-09-01T00:00:00Z",
+  "datasource_id": null,
+  "evaluated_count": 1284,
+  "changed_count": 312,
+  "truncated": false,
+  "outcome_deltas": [
+    { "baseline_action": null, "simulated_action": "AUTO_REJECT", "count": 297 },
+    { "baseline_action": "ESCALATE", "simulated_action": "AUTO_REJECT", "count": 15 }
+  ],
+  "user_impacts": [
+    {
+      "user_id": "uuid",
+      "email": "analyst@example.com",
+      "display_name": "Dana Analyst",
+      "changed_count": 47,
+      "simulated_actions": ["AUTO_REJECT"]
+    }
+  ],
+  "samples": [
+    {
+      "query_request_id": "uuid",
+      "submitted_by_email": "analyst@example.com",
+      "datasource_name": "prod-payroll",
+      "query_type": "DELETE",
+      "created_at": "2026-07-14T09:12:00Z",
+      "historical_status": "EXECUTED",
+      "baseline": null,
+      "simulated": {
+        "action": "AUTO_REJECT",
+        "policy_id": null,
+        "policy_name": "Block prod payroll deletes",
+        "is_draft": true,
+        "required_approvals": null
+      }
+    }
+  ],
+  "caveats": ["MEMBERSHIP_STATE_CURRENT", "ANOMALY_STATE_CURRENT"]
+}
+```
+
+`baseline` and `simulated` are each `null` when **no** policy matched on that side — the query falls
+through to the grant fast-path and then the datasource's review plan, exactly as in production.
+`is_draft` is `true` when the match is the draft itself (which has no id yet). `required_approvals`
+is the matched policy's raw column: an absolute minimum for `REQUIRE_APPROVALS`, a **delta** added to
+the review plan's minimum for `ESCALATE`, and `null` for the two auto actions — the same semantics as
+the CRUD endpoint. `outcome_deltas` lists only rows where the two sides differ, so
+`changed_count` is its sum. `user_impacts` is ordered by `changed_count` descending.
+
+#### POST /datasources/{id}/row-security-policies/simulate — Request Body
+
+```json
+{
+  "from": "2026-06-01T00:00:00Z",
+  "to": "2026-09-01T00:00:00Z",
+  "draft": {
+    "replaces_policy_id": null,
+    "table_name": "public.orders",
+    "column_name": "tenant_id",
+    "operator": "EQUALS",
+    "value_type": "VARIABLE",
+    "value_expression": "user.tenant",
+    "applies_to_roles": [],
+    "applies_to_group_ids": [],
+    "applies_to_user_ids": [],
+    "enabled": true
+  }
+}
+```
+
+The corpus is the datasource's `query_snapshots` in the window — row security acts on what actually
+ran, so only executed queries carry a meaningful SQL shape.
+
+#### POST /datasources/{id}/row-security-policies/simulate — Response 200
+
+```json
+{
+  "period_from": "2026-06-01T00:00:00Z",
+  "period_to": "2026-09-01T00:00:00Z",
+  "datasource_id": "uuid",
+  "evaluated_count": 812,
+  "changed_count": 41,
+  "unclassifiable_count": 0,
+  "truncated": false,
+  "transition_counts": [
+    { "transition": "NEWLY_FILTERED", "count": 20 },
+    { "transition": "NEWLY_DENY_ALL", "count": 12 },
+    { "transition": "NEWLY_FAILS_CLOSED", "count": 9 }
+  ],
+  "user_impacts": [
+    {
+      "user_id": "uuid",
+      "email": "analyst@example.com",
+      "display_name": "Dana Analyst",
+      "newly_filtered_count": 20,
+      "newly_denied_count": 12,
+      "newly_fails_closed_count": 9
+    }
+  ],
+  "samples": [
+    {
+      "query_request_id": "uuid",
+      "submitted_by_email": "analyst@example.com",
+      "query_type": "SELECT",
+      "executed_at": "2026-07-14T09:12:00Z",
+      "transition": "NEWLY_FAILS_CLOSED",
+      "baseline_outcome": "NOT_APPLICABLE",
+      "simulated_outcome": "FAIL_CLOSED",
+      "reason": "Row security cannot be applied to a query with set operations (UNION/INTERSECT/EXCEPT) over a protected table"
+    }
+  ],
+  "caveats": ["MEMBERSHIP_STATE_CURRENT"]
+}
+```
+
+`baseline_outcome` / `simulated_outcome` are `RowSecurityOutcome` values — `APPLIED`, `DENY_ALL`,
+`FAIL_CLOSED`, `NOT_APPLICABLE`, `UNKNOWN`. `transition` is the diff between them:
+`NEWLY_FILTERED`, `NEWLY_DENY_ALL`, `NEWLY_FAILS_CLOSED`, `NO_LONGER_FILTERED`, `UNCHANGED`, or
+`UNCLASSIFIABLE`. `reason` carries the engine's own localized explanation for a fail-closed shape —
+the same message the query would have been rejected with at runtime (`ROW_SECURITY_UNREWRITABLE`).
+An `UNCLASSIFIABLE` row means the engine cannot answer without live schema knowledge; it is counted
+in `unclassifiable_count`, listed in `transition_counts`, and must never be presented as safe.
+
+#### POST /datasources/{id}/masking-policies/simulate — Request Body
+
+```json
+{
+  "from": "2026-06-01T00:00:00Z",
+  "to": "2026-09-01T00:00:00Z",
+  "draft": {
+    "replaces_policy_id": null,
+    "column_ref": "customers.email",
+    "strategy": "PARTIAL",
+    "strategy_params": { "visible_suffix": "4" },
+    "reveal_to_roles": ["ADMIN"],
+    "reveal_to_group_ids": [],
+    "reveal_to_user_ids": [],
+    "enabled": true
+  }
+}
+```
+
+#### POST /datasources/{id}/masking-policies/simulate — Response 200
+
+```json
+{
+  "period_from": "2026-06-01T00:00:00Z",
+  "period_to": "2026-09-01T00:00:00Z",
+  "datasource_id": "uuid",
+  "evaluated_count": 812,
+  "changed_count": 130,
+  "newly_masked_count": 130,
+  "newly_revealed_count": 0,
+  "truncated": false,
+  "user_impacts": [
+    {
+      "user_id": "uuid",
+      "email": "analyst@example.com",
+      "display_name": "Dana Analyst",
+      "newly_masked_columns": ["email"],
+      "newly_revealed_columns": [],
+      "affected_query_count": 43
+    }
+  ],
+  "column_impacts": [
+    { "column_name": "email", "newly_masked_query_count": 130, "newly_revealed_query_count": 0 }
+  ],
+  "samples": [
+    {
+      "query_request_id": "uuid",
+      "submitted_by_email": "analyst@example.com",
+      "executed_at": "2026-07-14T09:12:00Z",
+      "newly_masked_columns": ["email"],
+      "newly_revealed_columns": []
+    }
+  ],
+  "caveats": ["MEMBERSHIP_STATE_CURRENT", "COLUMN_MATCH_BARE_NAME"]
+}
+```
+
+Only SELECT snapshots with a persisted result set (`query_request_results`) contribute — a query
+with no stored result has no columns to compare, and is skipped rather than counted as unchanged.
+`changed_count` is the number of snapshots where at least one column's masked-ness flips.
+
+#### Policy-simulator Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the request body |
+| 400 | `INVALID_SIMULATION_PERIOD` | `from`/`to` missing, inverted, or spanning more than `max-window` |
+| 403 | `FORBIDDEN` | Caller lacks the policy kind's manage permission |
+| 404 | `DATASOURCE_NOT_FOUND` | Datasource missing or in another organization |
+| 404 | `ROUTING_POLICY_NOT_FOUND` / `ROW_SECURITY_POLICY_NOT_FOUND` / `MASKING_POLICY_NOT_FOUND` | `replaces_policy_id` names a policy that does not exist here |
+| 422 | `ROUTING_POLICY_INVALID` / `ILLEGAL_ROW_SECURITY_POLICY` / `ILLEGAL_MASKING_POLICY` | The draft would be rejected as a create |
+
 
 ### Notification Channels (`/admin/notification-channels`)
 
