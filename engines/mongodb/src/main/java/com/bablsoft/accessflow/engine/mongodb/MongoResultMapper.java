@@ -199,9 +199,14 @@ class MongoResultMapper {
      * {@code collection.<path>} form beats an exact-path ref, which beats a bare last-segment
      * match; an unmatched bare restricted-columns entry defaults to {@link MaskingStrategy#FULL}.
      * {@link #hasRuleAtOrUnder(String)} lights up a top-level column's restricted flag when only a
-     * nested field under it is masked. The dot-path walk mirrors the Elasticsearch mapper, so an
-     * AF-447 tag on a nested dot-path — which the tag derivation always writes collection-qualified
-     * — addresses the same leaf here (AF-658).
+     * nested field under it is masked, so an AF-447 tag on a nested dot-path — which the tag
+     * derivation always writes collection-qualified — addresses the same leaf here (AF-658).
+     *
+     * <p>The <em>walk</em> matches the Elasticsearch mapper, but the <em>precedence</em> is
+     * deliberately inverted: Elasticsearch ranks an exact path above a qualified one, while these
+     * engines keep their pre-existing SQL-style most-qualified-wins order. Given both a
+     * {@code profile.ssn} and a {@code users.profile.ssn} policy, MongoDB/Couchbase apply the
+     * qualified one and Elasticsearch the exact one.
      */
     private static final class MaskMatcher {
 

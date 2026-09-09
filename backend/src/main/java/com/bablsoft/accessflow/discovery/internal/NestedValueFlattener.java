@@ -33,18 +33,23 @@ import java.util.Map;
  * binds, and it keeps higher-signal top-level columns ahead of nested ones in the AI candidate
  * list.
  *
- * <p>Four bounds keep an arbitrarily shaped document from turning a bounded sample into an
- * unbounded scan: {@code maxNestedDepth}, a per-row visit budget ({@code maxNestedLeavesPerRow},
- * charged for every node visited rather than every value kept), {@link #MAX_PATH_LENGTH}, and
- * {@link #MAX_PATHS_PER_TABLE}. Values per path are capped at the sample size, because a list
- * fans out one value per element per row rather than one per row.
+ * <p>Five bounds keep an arbitrarily shaped document from turning a bounded sample into an
+ * unbounded scan: {@code maxNestedDepth}; a per-row visit budget ({@code maxNestedLeavesPerRow},
+ * charged for every <em>nested</em> node visited rather than every value kept — top-level scalars
+ * are free); {@link #MAX_PATH_LENGTH}; {@link #MAX_NESTED_PATHS_PER_TABLE}; and a per-path value
+ * cap at the sample size, because a list fans out one value per element per row rather than one
+ * per row.
  */
 @Component
 @Slf4j
 class NestedValueFlattener {
 
-    /** Distinct pseudo-columns per table; beyond it known paths keep filling but no new ones open. */
-    static final int MAX_PATHS_PER_TABLE = 500;
+    /**
+     * Distinct <em>nested</em> pseudo-columns per table; beyond it known paths keep filling but no
+     * new ones open. The result's own top-level columns are seeded first and never counted here, so
+     * a wide relational table can never trip the ceiling.
+     */
+    static final int MAX_NESTED_PATHS_PER_TABLE = 500;
 
     /** Longest pseudo-column name kept — the name is part of the finding's natural key. */
     static final int MAX_PATH_LENGTH = 256;
@@ -68,36 +73,41 @@ class NestedValueFlattener {
         for (var column : columns) {
             byColumn.computeIfAbsent(column.name(), key -> new ArrayList<>());
         }
+        int seededPaths = byColumn.size();
         int valueCap = Math.max(1, sampleSize);
         boolean pathCapReported = false;
         for (var row : select.rows()) {
             var budget = new Budget(maxVisitsPerRow);
             for (var i = 0; i < columns.size() && i < row.size(); i++) {
                 var name = columns.get(i).name();
-                // A scalar top-level cell is free: the per-row budget bounds nested work only, so a
-                // wide relational table behaves exactly as it did before AF-658.
-                if (row.get(i) instanceof String s) {
-                    append(name, s, byColumn, valueCap);
-                } else {
-                    flatten(name, row.get(i), byColumn, maxDepth, budget, valueCap);
+                var cell = row.get(i);
+                // Only a container costs budget. A top-level scalar is free — string or not — so a
+                // wide relational table behaves exactly as it did before AF-658, and a row of
+                // numeric columns cannot exhaust the allowance before the walk reaches a document
+                // column later in the column order.
+                if (cell instanceof String s) {
+                    append(name, s, byColumn, seededPaths, valueCap);
+                } else if (cell instanceof Map<?, ?> || cell instanceof Collection<?>) {
+                    flatten(name, cell, byColumn, seededPaths, maxDepth, budget, valueCap);
                 }
             }
-            if (!pathCapReported && byColumn.size() >= MAX_PATHS_PER_TABLE) {
+            if (!pathCapReported && byColumn.size() - seededPaths >= MAX_NESTED_PATHS_PER_TABLE) {
                 pathCapReported = true;
-                log.info("Discovery scan reached the {}-path ceiling while flattening nested values;"
-                        + " further nested paths in this table are skipped", MAX_PATHS_PER_TABLE);
+                log.info("Discovery scan reached the {}-nested-path ceiling while flattening a"
+                        + " table's sampled values; further nested paths are skipped",
+                        MAX_NESTED_PATHS_PER_TABLE);
             }
         }
         return byColumn;
     }
 
     private void flatten(String path, Object value, Map<String, List<String>> byColumn,
-                         int depthRemaining, Budget budget, int valueCap) {
+                         int seededPaths, int depthRemaining, Budget budget, int valueCap) {
         if (value == null || !budget.spend()) {
             return;
         }
         switch (value) {
-            case String s -> append(path, s, byColumn, valueCap);
+            case String s -> append(path, s, byColumn, seededPaths, valueCap);
             case Map<?, ?> map -> {
                 if (depthRemaining <= 0) {
                     return;
@@ -111,7 +121,8 @@ class NestedValueFlattener {
                     if (child.length() > MAX_PATH_LENGTH) {
                         continue;
                     }
-                    flatten(child, entry.getValue(), byColumn, depthRemaining - 1, budget, valueCap);
+                    flatten(child, entry.getValue(), byColumn, seededPaths,
+                            depthRemaining - 1, budget, valueCap);
                 }
             }
             // A list is a fan-out point, not a path segment — every element shares the parent path.
@@ -121,7 +132,8 @@ class NestedValueFlattener {
                     return;
                 }
                 for (var element : collection) {
-                    flatten(path, element, byColumn, depthRemaining - 1, budget, valueCap);
+                    flatten(path, element, byColumn, seededPaths, depthRemaining - 1,
+                            budget, valueCap);
                 }
             }
             default -> {
@@ -131,13 +143,13 @@ class NestedValueFlattener {
     }
 
     private static void append(String path, String value, Map<String, List<String>> byColumn,
-                               int valueCap) {
+                               int seededPaths, int valueCap) {
         if (value.isBlank()) {
             return;
         }
         var values = byColumn.get(path);
         if (values == null) {
-            if (byColumn.size() >= MAX_PATHS_PER_TABLE) {
+            if (byColumn.size() - seededPaths >= MAX_NESTED_PATHS_PER_TABLE) {
                 return;
             }
             values = new ArrayList<String>();

@@ -140,15 +140,48 @@ class NestedValueFlattenerTest {
     }
 
     @Test
+    void topLevelNonStringScalarsDoNotConsumeTheBudgetBeforeADocumentColumn() {
+        // A row of numeric columns must not exhaust the allowance before the walk reaches the
+        // document column that comes later in the column order.
+        var columns = new ArrayList<String>();
+        var cells = new ArrayList<>();
+        for (var i = 0; i < 50; i++) {
+            columns.add("n" + i);
+            cells.add(i);
+        }
+        columns.add("profile");
+        cells.add(map("email", "a@example.com"));
+        var out = flattener(null, 2).collect(
+                result(columns, List.of(List.copyOf(cells))), 100);
+
+        assertThat(out.get("profile.email")).containsExactly("a@example.com");
+    }
+
+    @Test
+    void aWideRelationalTableNeverTripsTheNestedPathCeiling() {
+        var columns = new ArrayList<String>();
+        var cells = new ArrayList<>();
+        for (var i = 0; i < NestedValueFlattener.MAX_NESTED_PATHS_PER_TABLE + 100; i++) {
+            columns.add("c" + i);
+            cells.add("a@example.com");
+        }
+        var out = defaults().collect(result(columns, List.of(List.copyOf(cells))), 100);
+
+        assertThat(out).hasSize(columns.size());
+        assertThat(out.get("c" + (columns.size() - 1))).containsExactly("a@example.com");
+    }
+
+    @Test
     void stopsOpeningNewPathsAtTheCeilingButKeepsFillingKnownOnes() {
         var wide = new LinkedHashMap<String, Object>();
-        for (var i = 0; i < NestedValueFlattener.MAX_PATHS_PER_TABLE + 50; i++) {
+        for (var i = 0; i < NestedValueFlattener.MAX_NESTED_PATHS_PER_TABLE + 50; i++) {
             wide.put("f" + i, "a@example.com");
         }
         var rows = List.<List<Object>>of(List.of(wide), List.of(wide));
         var out = flattener(null, 10_000).collect(result(List.of("doc"), rows), 100);
 
-        assertThat(out).hasSize(NestedValueFlattener.MAX_PATHS_PER_TABLE);
+        // The seeded top-level column does not count against the nested ceiling.
+        assertThat(out).hasSize(NestedValueFlattener.MAX_NESTED_PATHS_PER_TABLE + 1);
         assertThat(out.get("doc.f0")).hasSize(2);
     }
 

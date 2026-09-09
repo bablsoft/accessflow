@@ -60,6 +60,13 @@ public class DiscoveryScanService {
     static final int MIN_SAMPLE_COUNT = 5;
     static final double MIN_MATCH_RATIO = 0.30;
     private static final int MAX_AI_SAMPLES_PER_COLUMN = 5;
+    /**
+     * Columns offered to the AI pass for one table. Flattening raises the candidate count from a
+     * table's column list to its nested-path count (AF-658), and the whole list goes into a single
+     * prompt — past the model's context window the provider errors, the fail-safe lane swallows it,
+     * and the scan pays for a call that yields nothing.
+     */
+    private static final int MAX_AI_COLUMNS_PER_TABLE = 50;
     private static final int MAX_ERROR_LENGTH = 500;
     private static final Map<String, String> PARTIAL_PARAMS = Map.of("visible_suffix", "4");
 
@@ -198,7 +205,7 @@ public class DiscoveryScanService {
                                 PARTIAL_PARAMS),
                         null, detectorMatches.count, values.size(), now, stats);
             }
-            if (aiEnabled && !proposed
+            if (aiEnabled && !proposed && aiCandidates.size() < MAX_AI_COLUMNS_PER_TABLE
                     && !isTaggedAnyClassification(taggedKeys, target, columnName)) {
                 aiCandidates.add(new DataDiscoveryAiService.DiscoveryColumnContext(columnName,
                         columnTypes.get(columnName.toLowerCase(Locale.ROOT)),

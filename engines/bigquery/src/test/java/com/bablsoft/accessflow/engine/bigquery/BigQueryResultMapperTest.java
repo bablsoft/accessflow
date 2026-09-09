@@ -158,6 +158,18 @@ class BigQueryResultMapperTest {
     }
 
     @Test
+    void aRefWithMoreThanASchemaTableQualifierIsIgnored() {
+        // Only schema.table may precede the column; anything longer is not a qualification we wrote.
+        var mask = new ColumnMaskDirective("a.b.c.profile.ssn", MaskingStrategy.FULL, Map.of(),
+                UUID.randomUUID());
+        var result = mapper.materialize(FIELDS, List.of(row("7", "Ada", "111-22-3333", "555-01")),
+                10, Duration.ZERO, List.of(), List.of(mask));
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(7);
+        assertThat(profile.get("ssn")).isEqualTo("111-22-3333");
+    }
+
+    @Test
     void anUnrelatedQualifiedRefStillMasksNothing() {
         var mask = new ColumnMaskDirective("orders.total", MaskingStrategy.FULL, Map.of(),
                 UUID.randomUUID());

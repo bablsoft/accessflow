@@ -151,4 +151,17 @@ class MongoResultMapperTest {
         assertThat(result.rows().get(0).get(1)).isEqualTo(List.of("a", "b"));
         assertThat(result.columns().get(0).restricted()).isFalse();
     }
+
+    @Test
+    void aBareRefAlsoMasksAMatchingNestedLeaf() {
+        // Deliberate widening (AF-658): before, a bare `ssn` masked only a top-level field. It now
+        // also redacts profile.ssn — the fail-closed direction, matching Elasticsearch and Neo4j.
+        var docs = List.of(new Document("profile",
+                new Document("ssn", "123-45-6789").append("city", "NYC")));
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of("ssn"), List.of());
+
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(0);
+        assertThat(profile).containsEntry("ssn", "***").containsEntry("city", "NYC");
+    }
 }

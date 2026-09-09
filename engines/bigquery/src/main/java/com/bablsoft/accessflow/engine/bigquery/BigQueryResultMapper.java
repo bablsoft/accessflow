@@ -246,6 +246,9 @@ class BigQueryResultMapper {
         private record Ref(List<String> segments, AppliedMask mask, boolean fromDirective) {
         }
 
+        /** Longest qualification prefix honoured on a mask ref: {@code schema.table}. */
+        private static final int MAX_QUALIFIER_SEGMENTS = 2;
+
         private final List<Ref> refs = new ArrayList<>();
 
         MaskPlanner(List<String> restrictedColumns, List<ColumnMaskDirective> columnMasks) {
@@ -277,9 +280,14 @@ class BigQueryResultMapper {
             for (var ref : refs) {
                 // A ref may be unqualified (profile.ssn) or carry a table/schema qualification the
                 // AF-447 tag derivation prepends (orders.profile.ssn). Anchor on the first segment
-                // naming this column and treat everything before it as the qualification.
+                // naming this column and treat everything before it as the qualification, bounded
+                // to MAX_QUALIFIER_SEGMENTS since that derivation prepends at most schema.table.
+                // The remaining ambiguity is inherent and deliberately resolved toward masking:
+                // orders.profile.email reads equally as (table orders -> profile -> email) and as
+                // (schema orders, table profile, column email), so it masks both. Over-masking is
+                // the fail-closed direction, and the same ambiguity exists in every other mapper.
                 int anchor = ref.segments().indexOf(col);
-                if (anchor < 0) {
+                if (anchor < 0 || anchor > MAX_QUALIFIER_SEGMENTS) {
                     continue;
                 }
                 var rest = ref.segments().subList(anchor + 1, ref.segments().size());

@@ -124,6 +124,38 @@ class DynamoDbResultMapperTest {
     }
 
     @Test
+    void anAmbiguousQualifiedRefMasksBothReadings() {
+        // orders.profile.email reads equally as (table orders -> profile -> email) and as
+        // (schema orders, table profile, column email). The mapper does not know the table name,
+        // so it resolves the ambiguity toward masking and redacts both.
+        var profile = AttributeValue.fromM(Map.of("email", AttributeValue.fromS("nested@x.io")));
+        var items = List.of(item("id", AttributeValue.fromS("1"), "profile", profile,
+                "email", AttributeValue.fromS("top@x.io")));
+        var result = mapper.materialize(items, 10, Duration.ZERO, List.of(),
+                List.of(new ColumnMaskDirective("orders.profile.email", MaskingStrategy.FULL,
+                        Map.of(), null)));
+        @SuppressWarnings("unchecked")
+        var masked = (Map<String, Object>) result.rows().get(0)
+                .get(columnIndex(result.columns(), "profile"));
+        assertThat(masked).containsEntry("email", "***");
+        assertThat(result.rows().get(0).get(columnIndex(result.columns(), "email")))
+                .isEqualTo("***");
+    }
+
+    @Test
+    void aRefWithMoreThanASchemaTableQualifierIsIgnored() {
+        var profile = AttributeValue.fromM(Map.of("ssn", AttributeValue.fromS("123456789")));
+        var items = List.of(item("id", AttributeValue.fromS("1"), "profile", profile));
+        var result = mapper.materialize(items, 10, Duration.ZERO, List.of(),
+                List.of(new ColumnMaskDirective("a.b.c.profile.ssn", MaskingStrategy.FULL,
+                        Map.of(), null)));
+        @SuppressWarnings("unchecked")
+        var masked = (Map<String, Object>) result.rows().get(0)
+                .get(columnIndex(result.columns(), "profile"));
+        assertThat(masked).containsEntry("ssn", "123456789");
+    }
+
+    @Test
     void anUnrelatedRefStillMasksNothing() {
         var items = List.of(item("id", AttributeValue.fromS("1"),
                 "email", AttributeValue.fromS("ada@example.com")));

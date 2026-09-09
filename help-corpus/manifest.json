@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "0be47b81e12b",
-  "generatedAt": "2026-09-09T12:50:30.148Z",
-  "sourceCommit": "72ea380cf49f92567641a9918fd3d8003188e618",
+  "corpusVersion": "2136e356f996",
+  "generatedAt": "2026-09-09T13:15:02.033Z",
+  "sourceCommit": "cae78b79ed24741e8f6d6f99f81b4f20b7bae178",
   "chunkCount": 525,
-  "sha256": "0be47b81e12b97918345027050edc99af3ebc8607255c2c2b3a6b4c0792314fd",
+  "sha256": "2136e356f9960ae285358b3306db387ae33bbf2ef27e5f1f7bb6e685bf466c62",
   "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 83,
-      "sha256": "e71af9a803583e82394e1982db623e5cccbe1045fb96c60236983d4fcac06ab3"
+      "sha256": "185729c53ed6792b6f98e040bb79e6d83711c78629346843d7af6477efb448fb"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
