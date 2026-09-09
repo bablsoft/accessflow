@@ -77,8 +77,12 @@ class DatabricksQueryExecutor {
         Integer rowLimit = statement.kind().isRead() ? maxRows + 1 : null;
         DatabricksStatementClient.StatementResult result;
         try {
-            result = client.execute(endpoint, accessToken, descriptor.databaseName(),
-                    applied.statement(), applied.parameters(), rowLimit, timeout);
+            var call = statement.kind().isRead()
+                    ? DatabricksStatementClient.StatementRequest.read(descriptor.databaseName(),
+                            applied.statement(), applied.parameters(), rowLimit, timeout)
+                    : DatabricksStatementClient.StatementRequest.write(descriptor.databaseName(),
+                            applied.statement(), applied.parameters(), timeout);
+            result = client.execute(endpoint, accessToken, call);
         } catch (DatabricksApiException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }
@@ -116,8 +120,10 @@ class DatabricksQueryExecutor {
         try {
             // The parser rejects user-supplied EXPLAIN, so the prefix is engine-synthesized after
             // parse + row security — EXPLAIN COST plans the statement but never executes it.
-            result = client.execute(endpoint, accessToken, descriptor.databaseName(),
-                    "EXPLAIN COST " + applied.statement(), applied.parameters(), null, timeout);
+            result = client.execute(endpoint, accessToken,
+                    DatabricksStatementClient.StatementRequest.read(descriptor.databaseName(),
+                            "EXPLAIN COST " + applied.statement(), applied.parameters(), null,
+                            timeout));
         } catch (DatabricksApiException ex) {
             throw exceptionTranslator.translate(ex, timeout);
         }

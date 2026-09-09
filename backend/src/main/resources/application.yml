@@ -324,6 +324,8 @@ accessflow:
         connect-timeout: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_CONNECT_TIMEOUT:PT10S}
         wait-timeout: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_WAIT_TIMEOUT:PT10S}
         poll-interval: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_POLL_INTERVAL:PT1S}
+        result-disposition: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_RESULT_DISPOSITION:auto}
+        max-result-bytes: ${ACCESSFLOW_PROXY_ENGINES_DATABRICKS_MAX_RESULT_BYTES:52428800}
   drivers:
     cache-dir: ${ACCESSFLOW_DRIVER_CACHE:${user.home}/.accessflow/drivers}
     repository-url: ${ACCESSFLOW_DRIVERS_REPOSITORY_URL:https://repo1.maven.org/maven2}

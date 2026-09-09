@@ -17,12 +17,18 @@ import java.time.Duration;
  *   <li>{@code maxTablesPerScan} — hard cap on tables sampled in one scan.</li>
  *   <li>{@code maxAiTablesPerScan} — hard cap on tables sent through the optional AI pass,
  *       bounding provider spend.</li>
+ *   <li>{@code maxNestedDepth} — how far the scan walks into a nested document/map cell when
+ *       flattening it to dot-path pseudo-columns (AF-658).</li>
+ *   <li>{@code maxNestedLeavesPerRow} — per-row allowance of nested nodes visited during that
+ *       walk; charged for every node touched, so a pathological document cannot turn a bounded
+ *       sample into an unbounded scan. Top-level scalar cells are free.</li>
  * </ul>
  */
 @ConfigurationProperties("accessflow.discovery")
 public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBudget,
                                   Duration sampleStatementTimeout, Integer maxTablesPerScan,
-                                  Integer maxAiTablesPerScan) {
+                                  Integer maxAiTablesPerScan, Integer maxNestedDepth,
+                                  Integer maxNestedLeavesPerRow) {
 
     public DiscoveryProperties {
         if (scanPollInterval == null) {
@@ -40,6 +46,12 @@ public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBu
         }
         if (maxAiTablesPerScan == null || maxAiTablesPerScan < 0) {
             maxAiTablesPerScan = 25;
+        }
+        if (maxNestedDepth == null || maxNestedDepth <= 0) {
+            maxNestedDepth = 5;
+        }
+        if (maxNestedLeavesPerRow == null || maxNestedLeavesPerRow <= 0) {
+            maxNestedLeavesPerRow = 100;
         }
     }
 }

@@ -82,4 +82,86 @@ class MongoResultMapperTest {
         assertThat(result.columns().get(0).restricted()).isTrue();
         assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
     }
+
+    @Test
+    void masksNestedFieldByDotPathLeavingSiblingsIntact() {
+        var policyId = UUID.randomUUID();
+        var docs = List.of(new Document("profile",
+                new Document("ssn", "123-45-6789").append("city", "NYC")));
+        var mask = new ColumnMaskDirective("profile.ssn", MaskingStrategy.FULL, Map.of(), policyId);
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(0);
+        assertThat(profile).containsEntry("ssn", "***").containsEntry("city", "NYC");
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void tableQualifiedRefMasksTheNestedLeaf() {
+        // The form AF-447 tag derivation writes: <collection>.<dot-path>.
+        var docs = List.of(new Document("profile", new Document("ssn", "123-45-6789")));
+        var mask = new ColumnMaskDirective("users.profile.ssn", MaskingStrategy.FULL, Map.of(),
+                null);
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(0);
+        assertThat(profile).containsEntry("ssn", "***");
+    }
+
+    @Test
+    void masksNestedFieldInsideEveryArrayElement() {
+        var docs = List.of(new Document("contacts", List.of(
+                new Document("email", "a@example.com"), new Document("email", "b@example.com"))));
+        var mask = new ColumnMaskDirective("contacts.email", MaskingStrategy.FULL, Map.of(), null);
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        var contacts = (List<?>) result.rows().get(0).get(0);
+        assertThat(contacts).allSatisfy(element ->
+                assertThat(((Map<?, ?>) element).get("email")).isEqualTo("***"));
+    }
+
+    @Test
+    void fullMaskOnTheWholeFieldCollapsesTheSubtree() {
+        var docs = List.of(new Document("profile", new Document("ssn", "123-45-6789")));
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of("profile"), List.of());
+
+        // Never leak the nested keys or shape.
+        assertThat(result.rows().get(0).get(0)).isEqualTo("***");
+    }
+
+    @Test
+    void topLevelColumnIsRestrictedWhenOnlyADescendantIsMasked() {
+        var docs = List.of(new Document("profile",
+                new Document("ssn", "123-45-6789").append("city", "NYC")));
+        var mask = new ColumnMaskDirective("profile.ssn", MaskingStrategy.FULL, Map.of(), null);
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        assertThat(result.columns().get(0).restricted()).isTrue();
+    }
+
+    @Test
+    void unmaskedNestedDocumentsAreUnchanged() {
+        var docs = List.of(new Document("profile", new Document("city", "NYC"))
+                .append("tags", List.of("a", "b")));
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of(), List.of());
+
+        assertThat(result.rows().get(0).get(0)).isEqualTo(Map.of("city", "NYC"));
+        assertThat(result.rows().get(0).get(1)).isEqualTo(List.of("a", "b"));
+        assertThat(result.columns().get(0).restricted()).isFalse();
+    }
+
+    @Test
+    void aBareRefAlsoMasksAMatchingNestedLeaf() {
+        // Deliberate widening (AF-658): before, a bare `ssn` masked only a top-level field. It now
+        // also redacts profile.ssn — the fail-closed direction, matching Elasticsearch and Neo4j.
+        var docs = List.of(new Document("profile",
+                new Document("ssn", "123-45-6789").append("city", "NYC")));
+        var result = mapper.materialize(docs, 10, Duration.ZERO, List.of("ssn"), List.of());
+
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(0);
+        assertThat(profile).containsEntry("ssn", "***").containsEntry("city", "NYC");
+    }
 }

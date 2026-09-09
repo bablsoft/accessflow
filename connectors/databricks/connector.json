@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-databricks-1.0.2-all.jar",
-    "fileName": "accessflow-engine-databricks-1.0.2-all.jar",
-    "sha256": "166152e275aeabcb644657228ab260a7772b022005c0301ef78fbe8b0e2fb9fb"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-databricks-1.0.3-all.jar",
+    "fileName": "accessflow-engine-databricks-1.0.3-all.jar",
+    "sha256": "c17202ba330e3ef5245672e8cc3a22005cb8d515c69add79233b342683f248fc"
   }
 }

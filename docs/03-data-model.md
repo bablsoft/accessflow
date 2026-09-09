@@ -467,7 +467,7 @@ through the AF-447 service (deriving masking); enums `discovery_detector`
 | `organization_id` | FK → `organizations` (`ON DELETE CASCADE`) |
 | `datasource_id` | FK → `datasources` (`ON DELETE CASCADE`) |
 | `schema_name` | TEXT nullable — NULL for engines without a schema concept |
-| `table_name` / `column_name` | TEXT NOT NULL |
+| `table_name` / `column_name` | TEXT NOT NULL — `column_name` may be a **dot-path pseudo-column** (`profile.contact.email`) when the scan flattened a nested document value (AF-658), not only a real column |
 | `classification` | ENUM `data_classification` — the proposed classification |
 | `detector` | ENUM `discovery_detector` — which detector produced the proposal |
 | `confidence` | INT (0–100) — match ratio for regex detectors, model confidence for `AI` |

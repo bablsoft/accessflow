@@ -79,14 +79,14 @@ class DiscoveryScanServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null));
     }
 
     private DiscoveryScanService newService(DiscoveryProperties properties) {
         return new DiscoveryScanService(configRepository, findingRepository,
                 datasourceAdminService, dataClassificationQueryService, maskingPolicyAdminService,
                 queryExecutor, dataDiscoveryAiService, auditLogService, properties,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                new NestedValueFlattener(properties), Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private void stubHappyPath(DatabaseSchemaView schema, SelectExecutionResult result) {
@@ -240,7 +240,7 @@ class DiscoveryScanServiceTest {
         }
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", tables)));
-        service = newService(new DiscoveryProperties(null, null, null, 2, null));
+        service = newService(new DiscoveryProperties(null, null, null, 2, null, null, null));
         stubHappyPath(schema, new SelectExecutionResult(List.of(), List.of(), 0, false,
                 Duration.ofMillis(1), null, null, null));
 
@@ -340,6 +340,194 @@ class DiscoveryScanServiceTest {
         service.scan(dsId, orgId, null);
 
         org.mockito.Mockito.verifyNoInteractions(dataDiscoveryAiService);
+    }
+
+
+    /** A document-engine page: one top-level {@code profile} column holding nested documents. */
+    private static SelectExecutionResult nestedProfileSample() {
+        var columns = List.of(new ResultColumn("profile", 12, "object"));
+        var rows = new java.util.ArrayList<List<Object>>();
+        for (var name : List.of("alice", "bob", "carol", "dave", "erin")) {
+            rows.add(List.of(Map.of("contact", Map.of("email", name + "@example.com"))));
+        }
+        return new SelectExecutionResult(columns, rows, rows.size(), false, Duration.ofMillis(1),
+                null, null, null);
+    }
+
+    @Test
+    void createsFindingForNestedDotPathColumn() {
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+
+        service.scan(dsId, orgId, null);
+
+        var captor = ArgumentCaptor.forClass(DiscoveryFindingEntity.class);
+        verify(findingRepository).save(captor.capture());
+        var finding = captor.getValue();
+        assertThat(finding.getColumnName()).isEqualTo("profile.contact.email");
+        assertThat(finding.getClassification()).isEqualTo(DataClassification.PII);
+        assertThat(finding.getDetector()).isEqualTo(DiscoveryDetector.EMAIL);
+        assertThat(finding.getSampleCount()).isEqualTo(5);
+        assertThat(finding.getSampleRedacted()).endsWith(".com").doesNotContain("alice");
+    }
+
+    @Test
+    void createsFindingForFieldInsideArrayOfObjects() {
+        var columns = List.of(new ResultColumn("contacts", 12, "array"));
+        var rows = List.<List<Object>>of(List.of(List.of(
+                Map.of("email", "alice@example.com"), Map.of("email", "bob@example.com"),
+                Map.of("email", "carol@example.com"), Map.of("email", "dave@example.com"),
+                Map.of("email", "erin@example.com"))));
+        stubHappyPath(schemaWithUsersTable(), new SelectExecutionResult(columns, rows, 1, false,
+                Duration.ofMillis(1), null, null, null));
+
+        service.scan(dsId, orgId, null);
+
+        var captor = ArgumentCaptor.forClass(DiscoveryFindingEntity.class);
+        verify(findingRepository).save(captor.capture());
+        // No index segment: every element of the array shares the parent path.
+        assertThat(captor.getValue().getColumnName()).isEqualTo("contacts.email");
+        assertThat(captor.getValue().getSampleCount()).isEqualTo(5);
+    }
+
+    @Test
+    void parentObjectColumnItselfProducesNoFinding() {
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+
+        service.scan(dsId, orgId, null);
+
+        var captor = ArgumentCaptor.forClass(DiscoveryFindingEntity.class);
+        verify(findingRepository).save(captor.capture());
+        assertThat(captor.getAllValues()).extracting(DiscoveryFindingEntity::getColumnName)
+                .doesNotContain("profile");
+    }
+
+    @Test
+    void skipsNestedPathAlreadyTagged() {
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+        when(dataClassificationQueryService.findByDatasource(dsId, orgId)).thenReturn(List.of(
+                new DataClassificationTagView(UUID.randomUUID(), dsId, "public.users",
+                        "profile.contact.email", DataClassification.PII, null, NOW, NOW)));
+
+        service.scan(dsId, orgId, null);
+
+        verify(findingRepository, never()).save(any());
+    }
+
+    @Test
+    void skipsNestedPathCoveredByEnabledMaskingPolicy() {
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+        when(maskingPolicyAdminService.listForDatasource(dsId, orgId)).thenReturn(List.of(
+                new MaskingPolicyView(UUID.randomUUID(), dsId, "users.profile.contact.email",
+                        MaskingStrategy.PARTIAL, Map.of(), List.of(), List.of(), List.of(), true,
+                        NOW, NOW)));
+
+        service.scan(dsId, orgId, null);
+
+        verify(findingRepository, never()).save(any());
+    }
+
+    @Test
+    void respectsConfiguredNestedDepthLimit() {
+        service = newService(new DiscoveryProperties(null, null, null, null, null, 1, null));
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+
+        service.scan(dsId, orgId, null);
+
+        verify(findingRepository, never()).save(any());
+    }
+
+    @Test
+    void respectsConfiguredPerRowLeafBudget() {
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, 1));
+        stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
+
+        service.scan(dsId, orgId, null);
+
+        verify(findingRepository, never()).save(any());
+    }
+
+    @Test
+    void nestedAiCandidateCarriesTheDotPathAndNoIntrospectedType() {
+        var config = new DiscoveryScanConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(orgId);
+        config.setDatasourceId(dsId);
+        config.setAiClassificationEnabled(true);
+        config.setSampleSize(50);
+        var columns = List.of(new ResultColumn("profile", 12, "object"));
+        var rows = new java.util.ArrayList<List<Object>>();
+        for (var i = 0; i < 5; i++) {
+            rows.add(List.of(Map.of("national_id", "11-22-3" + i)));
+        }
+        stubHappyPath(schemaWithUsersTable(), new SelectExecutionResult(columns, rows, 5, false,
+                Duration.ofMillis(1), null, null, null));
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(config));
+        when(dataDiscoveryAiService.classifyColumns(eq(orgId), any())).thenReturn(List.of());
+
+        service.scan(dsId, orgId, null);
+
+        var context = ArgumentCaptor.forClass(
+                DataDiscoveryAiService.DiscoveryTableContext.class);
+        verify(dataDiscoveryAiService).classifyColumns(eq(orgId), context.capture());
+        var candidate = context.getValue().columns().getFirst();
+        assertThat(candidate.name()).isEqualTo("profile.national_id");
+        // A dot-path has no introspected column type; the prompt omits it rather than guessing.
+        assertThat(candidate.type()).isNull();
+    }
+
+    @Test
+    void aiSuggestionResolvesTheSampledColumnCaseInsensitively() {
+        var config = new DiscoveryScanConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(orgId);
+        config.setDatasourceId(dsId);
+        config.setAiClassificationEnabled(true);
+        config.setSampleSize(50);
+        var columns = List.of(new ResultColumn("profile", 12, "object"));
+        var rows = new java.util.ArrayList<List<Object>>();
+        for (var i = 0; i < 5; i++) {
+            rows.add(List.of(Map.of("national_id", "11-22-3" + i)));
+        }
+        stubHappyPath(schemaWithUsersTable(), new SelectExecutionResult(columns, rows, 5, false,
+                Duration.ofMillis(1), null, null, null));
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(config));
+        when(dataDiscoveryAiService.classifyColumns(eq(orgId), any())).thenReturn(List.of(
+                new DiscoveryColumnSuggestion("Profile.National_Id", DataClassification.SENSITIVE,
+                        70, "identifier-like")));
+
+        service.scan(dsId, orgId, null);
+
+        var captor = ArgumentCaptor.forClass(DiscoveryFindingEntity.class);
+        verify(findingRepository).save(captor.capture());
+        // Persisted under the sampled spelling, so a re-cased echo cannot open a second row.
+        assertThat(captor.getValue().getColumnName()).isEqualTo("profile.national_id");
+        assertThat(captor.getValue().getSampleCount()).isEqualTo(5);
+    }
+
+    @Test
+    void aiSuggestionForAnUnsampledColumnIsIgnored() {
+        var config = new DiscoveryScanConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(orgId);
+        config.setDatasourceId(dsId);
+        config.setAiClassificationEnabled(true);
+        config.setSampleSize(50);
+        var columns = List.of(new ResultColumn("national_id", 12, "varchar"));
+        var rows = List.<List<Object>>of(List.of("11-22-33"), List.of("44-55-66"),
+                List.of("77-88-99"), List.of("12-34-56"), List.of("65-43-21"));
+        stubHappyPath(schemaWithUsersTable(), new SelectExecutionResult(columns, rows, 5, false,
+                Duration.ofMillis(1), null, null, null));
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(config));
+        when(dataDiscoveryAiService.classifyColumns(eq(orgId), any())).thenReturn(List.of(
+                new DiscoveryColumnSuggestion("hallucinated", DataClassification.SENSITIVE, 70,
+                        "made up")));
+
+        service.scan(dsId, orgId, null);
+
+        verify(findingRepository, never()).save(any());
     }
 
     @Test
