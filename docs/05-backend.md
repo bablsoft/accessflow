@@ -781,6 +781,165 @@ execution.
   service records them in the `QUERY_EXECUTED` audit metadata under `applied_row_security_policy_ids`. No
   row data is stored.
 
+### Policy simulator (AF-630)
+
+A **read-only dry run** of a *draft* routing / row-security / masking policy against the
+organization's own historical query traffic, so an admin sees the blast radius **before** saving.
+Nothing is persisted (no table, no migration — see [docs/03-data-model.md](03-data-model.md)), and
+nothing is ever executed against a customer database: row-security shapes are classified
+**statically**. Wire contract and error codes:
+[docs/04-api-spec.md → Policy simulator](04-api-spec.md#policy-simulator-af-630).
+
+There is **one endpoint per policy kind**, each gated by the permission that already governs that
+policy — `ROUTING_POLICY_MANAGE`, `ROW_SECURITY_MANAGE`, `MASKING_POLICY_MANAGE`. There is no
+umbrella `simulate` endpoint and **no new permission** (a deliberate deviation from the issue's
+wording: an umbrella endpoint would have to be gated by the union of three permissions, and would
+hand a masking admin a routing preview they cannot otherwise obtain).
+
+#### A/B semantics
+
+Every simulation evaluates the corpus **twice** — once against the organization's current policy
+set (*baseline*), once against that same set with the draft applied (*simulated*) — and reports the
+diff between **those two runs**. It deliberately does **not** diff against what actually happened
+historically, because real outcomes are confounded by signals the draft does not change: the
+grant-covered auto-approval fast path (#582), review-plan fall-through, break-glass (AF-385),
+external-ticket decisions (AF-453) and the AI-failure path. The historical status rides along on
+each sample row as context, never as the baseline.
+
+The A/B is also what makes the replay's approximations tolerable. Both arms are evaluated from the
+**same** `ConditionContext` per row, so every signal a replay cannot faithfully reconstruct — today's
+group membership, today's anomaly state — is identical on both sides and cancels out of the diff.
+Those approximations are still reported as caveats rather than hidden (see below).
+
+`draft` carries an optional `replaces_policy_id`: set, the named policy is *replaced* in the
+simulated set (editing an existing policy); null, the draft is *added* (a new one). Resolution goes
+through the same `resolveWithDraft` path on the real resolution services, building a detached,
+never-persisted entity and running it through the scope matching and value resolution the saved path
+uses — a second implementation would be free to drift from the one that governs real queries. A
+*disabled* draft means "remove the policy it replaces", which is exactly what saving it would do,
+and a draft whose priority an existing policy already holds **loses the tie** — the conservative
+reading of a conflict the save path would `409` on.
+
+For routing, policies are resolved **per the row's own datasource**, because that is what routing
+does: an org-wide corpus spans datasources, and a datasource-scoped policy must not judge a query
+that never touched it. Two matches with the same action still count as a change when a *different*
+policy decided it — an admin needs to see their draft take a decision over from another rule.
+
+#### The corpus: `query_requests`, not `query_snapshots`
+
+`QueryRequestLookupService.streamCorpusForOrganization(filter, cap, consumer)` reads every signal a
+simulation needs into `core.api.QueryCorpusRow` in **one bounded pass**, so replaying a window costs
+one query rather than a lookup per row. The corpus is `query_requests`, for three reasons:
+
+1. **Routing runs at submission**, so an executed-only corpus would under-report an `AUTO_REJECT`
+   draft's blast radius — the queries it would newly block are exactly the ones that were rejected,
+   cancelled or timed out and never executed. The routing corpus is therefore every row in the
+   window **whatever its status**.
+2. Only `query_requests` carries the **AF-446 client context** (`submitted_ip`,
+   `submitted_user_agent`, `ci_cd_origin`) that the context-aware routing operands read.
+3. `query_snapshots` belongs to the **`workflow`** module, which already depends on `proxy` — so the
+   `proxy`-side row-security and masking simulators reading it would close a Spring Modulith cycle.
+
+The two proxy-side simulators narrow that corpus to what they can actually reason about: row
+security to `EXECUTED` rows (row security acts on what ran), masking to executed SELECTs with a
+persisted `query_request_results` row (a query with no stored result has no columns to compare, and
+is skipped rather than counted unchanged).
+
+#### `ConditionContextFactory` — one builder, two entry points
+
+`workflow/internal/routing/ConditionContextFactory` was extracted from `QueryReviewStateMachine` so
+the live routing path and the replay path build the routing `ConditionContext` from the *same* code.
+A simulator with its own copy would drift from production the first time a signal changed, and the
+whole value of a dry run is that it predicts what the live path would actually do.
+
+- `forLiveQuery(...)` stamps **now**, which is also when routing runs.
+- `forHistoricalRow(row, zone)` stamps the query's **own submission instant**, so `time_of_day` /
+  `day_of_week` replay faithfully and `time_since_last_approval` is measured from the right moment —
+  and never leaks an approval that happened *after* the row.
+- The replay path forces `anomalyActive` **off**: the UBA signal (AF-383) is a statement about
+  today's open anomalies, not about a query from months ago.
+- The replay zone is the server's local zone, the same one the live time-of-day / day-of-week
+  operands evaluate in — a different zone would match different rows than production.
+- A row whose SQL no longer parses degrades to empty table/clause signals (logged `WARN`). The grant
+  fast path deliberately keeps its own parse: it must fail closed on a parse failure, where the
+  context builder's degraded signals would wrongly satisfy a grant's table scope.
+
+The refactor is behaviour-preserving for the live path — `QueryReviewStateMachineTest` builds a real
+factory over the same mocks rather than mocking it away, so context building stays under test.
+
+#### Row-security classification (offline)
+
+`proxy.api.RowSecurityClassificationService` answers "what would row security do to this query?"
+**without executing it**, and `DefaultRowSecurityClassificationService` dispatches exactly as
+`DefaultQueryExecutor` does:
+
+- **Engine-managed dialects** go through the plugin SPI method
+  `QueryEngine.classifyRowSecurity(QueryEngineRowSecurityRequest)` →
+  `core.api.RowSecurityClassification` (see [docs/15-engine-sdk.md](15-engine-sdk.md)). Every engine
+  implements it by parsing with its own parser and running its **existing row-security applier**, so
+  a classification can never drift from the enforcement it predicts.
+- **Relational dialects** go through `RowSecurityRewriter` — the same pure JSqlParser rewrite that
+  governs real execution. An `UnrewritableRowSecurityException` becomes `FAIL_CLOSED` carrying the
+  rewriter's already-localized message: the very text the submitter would have seen as the runtime
+  `422 ROW_SECURITY_UNREWRITABLE`. A directive that took effect but resolved to no values (excluding
+  the unary `IS_NULL`) becomes `DENY_ALL`.
+
+Outcomes are `APPLIED | DENY_ALL | FAIL_CLOSED | NOT_APPLICABLE | UNKNOWN`. The SPI method is a
+`default` returning `RowSecurityClassification.unknown(engineId())`, so an engine that cannot answer
+degrades honestly without overriding — but all ten shipped plugins do override it.
+
+**`UNKNOWN` is never "safe".** It is counted in `unclassifiable_count`, listed in
+`transition_counts` as `UNCLASSIFIABLE`, and must never be rendered as "no impact". Two paths
+produce it:
+
+- **Cassandra / ScyllaDB** — the one engine that cannot always answer offline. Predicate splicing
+  succeeds only when the directive's column is a **partition or clustering key**, and that key set
+  comes from a live `CqlSession`. So it reports only what holds for *any* key set — a policied
+  `INSERT`, a deny-all directive, and operators CQL cannot filter (`NOT_EQUALS`, `NOT_IN`,
+  `IS_NULL`) all fail closed — and returns `UNKNOWN` for the remainder rather than guessing. Never
+  `NOT_APPLICABLE`, which a caller would read as no impact.
+- **An unresolvable plugin JAR** (offline host, cache miss, checksum mismatch) degrades that
+  datasource's rows to `UNKNOWN` rather than failing the whole simulation.
+
+Redis is the highest-value case in the other direction: a row predicate has no meaning over a
+key-value store, so Redis can never filter a read — any applicable directive makes the command
+**fail closed**. `RedisRowSecurityClassifier` is shared by the executor and the classifier, so the
+simulation shows exactly the commands the policy would start rejecting.
+
+#### Bounding, and the honest fidelity limits
+
+Simulations are **synchronous and capped** — there is no async job, and the repo has no precedent
+for one. Bounds come from `core.api.PolicySimulationLimits` (one interface, so the three simulators
+cannot drift into different limits), bound by `PolicySimulationProperties` under
+`accessflow.policy-simulation` (see [docs/09-deployment.md](09-deployment.md)):
+
+| Property | Default | Meaning |
+|---|---|---|
+| `max-rows` | `5000` | Rows replayed before the result is marked `truncated`. Far below compliance's `50000`: every row is re-parsed and evaluated **twice**, once per arm. |
+| `max-samples` | `100` | Drill-down rows returned. The counts are the answer; samples are the detail. |
+| `max-user-impacts` | `100` | Entries in the per-user impact list. |
+| `max-window` | `P90D` | Longest period one simulation may span; a longer `from`/`to` is `400 INVALID_SIMULATION_PERIOD`. |
+
+Truncation follows the compliance-report idiom: read `cap + 1`, `subList` back to `cap`, set
+`truncated`. The `+1` row is counted as evidence of truncation and never evaluated, and every count
+is over the evaluated subset only.
+
+`core.api.SimulationCaveat` names the approximations that applied, so a client renders them rather
+than implying a precision the data does not have:
+
+| Caveat | Meaning |
+|---|---|
+| `MEMBERSHIP_STATE_CURRENT` | Role and group memberships read as they are **now**, not as of submission. The diff is sound (both arms see the same memberships); the absolute counts may not be. |
+| `ANOMALY_STATE_CURRENT` | The UBA anomaly signal (AF-383) is read as it is now — and forced off on the replay path. Emitted **only when a policy under simulation actually reads it**. Routing only. |
+| `COLUMN_MATCH_BARE_NAME` | Persisted result columns record a name and a JDBC type but **no schema or table**, so masking matches on the bare column name and may over-report where two tables share one. Masking only. |
+| `ENGINE_CLASSIFICATION_UNAVAILABLE` | At least one row could not be classified offline. Row security only. |
+
+Drill-down rows deliberately carry **no SQL text**: `ROUTING_POLICY_MANAGE`, `ROW_SECURITY_MANAGE`
+and `MASKING_POLICY_MANAGE` do not otherwise grant read access to other people's queries, and a
+simulation must not become a side channel for them. Samples carry the query id, so a caller who
+*does* hold `QUERY_VIEW_ALL` can follow the link. See
+[docs/07-security.md](07-security.md#policy-simulator-af-630).
+
 ### Schema introspection
 
 `DatasourceAdminService.introspectSchema(...)` opens a one-shot JDBC connection (no Hikari pool reuse) to the customer database and walks `DatabaseMetaData`:

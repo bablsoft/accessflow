@@ -677,6 +677,41 @@ on a table — a primary access boundary at the row grain, enforced in the proxy
   metadata (`applied_row_security_policy_ids`); no row data is stored. Policy create/update/delete emit
   `ROW_SECURITY_POLICY_CREATED/UPDATED/DELETED` audit actions.
 
+### Policy simulator (AF-630)
+
+A dry run of a **draft** routing / row-security / masking policy against the organization's own
+historical traffic. Its security posture is defined by three deliberate choices.
+
+- **Strictly read-only, and it never touches a customer database.** The simulator opens no
+  connection, resolves no credentials, and executes nothing. Its only inputs are AccessFlow's own
+  tables (`query_requests`, plus `query_request_results` for masking); row-security shapes are
+  classified **statically** — relational dialects through the same `RowSecurityRewriter` that governs
+  real execution, engine-managed ones through the plugin's offline
+  `QueryEngine.classifyRowSecurity(...)` SPI. Nothing is written: the draft is a detached,
+  never-persisted entity, and the result exists only in the HTTP response.
+- **No new permission, no new privilege.** Each endpoint is gated by the permission that already
+  governs the policy kind it simulates — `ROUTING_POLICY_MANAGE`, `ROW_SECURITY_MANAGE`,
+  `MASKING_POLICY_MANAGE`. There is no umbrella endpoint: it would have to be gated by the union of
+  the three, handing (say) a masking admin a routing preview they cannot otherwise obtain. Everything
+  is organization-scoped, and a `datasource_id` outside the caller's org is `DATASOURCE_NOT_FOUND`.
+- **A bounded, deliberate disclosure.** A holder of one of those permissions can already read the
+  policy set; the simulation additionally shows them **aggregate counts over other people's
+  historical queries** and a **per-user impact list**. That is inherent to the feature — "these four
+  users would lose access to these tables" is the answer an admin is asking for — and it is the
+  reason the response stops there. **Drill-down rows carry no SQL text**: those permissions do not
+  otherwise grant read access to other people's queries, and a simulation must not become a side
+  channel for them. Samples carry the query id only, so a caller who *also* holds `QUERY_VIEW_ALL`
+  can follow the link and be authorized for the statement on that endpoint.
+
+Two safety properties follow the fail-closed rule elsewhere in the proxy. An engine that cannot
+classify offline (Cassandra / ScyllaDB without a live `CqlSession`, or an unresolvable plugin JAR)
+returns `UNKNOWN`, which is counted as **unclassifiable** and is never reported as unaffected — an
+admin must not read "we could not tell" as "nothing breaks". And the replay's unavoidable
+approximations (memberships and the UBA signal read as of *now*, masking matched on bare column
+names) are returned as explicit `caveats` rather than smoothed over, so the UI cannot imply a
+precision the data does not have. Mechanism:
+[docs/05-backend.md → Policy simulator](05-backend.md#policy-simulator-af-630).
+
 ### Data classification tags (AF-447)
 
 `data_classification_tag` rows let admins tag tables/columns as `PII`, `PCI`, `PHI`, `GDPR`,

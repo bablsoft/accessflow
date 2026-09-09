@@ -1329,6 +1329,46 @@ The builder covers the `estimated_rows` (comparison operator + row count) and `s
 original leaf set. `QueryDetailPage` shows a **matched-policy** alert when `GET /queries/{id}`
 returns a non-null `matched_policy`.
 
+### Policy simulator (AF-630)
+
+The **Simulate** affordance lets an admin dry-run a *draft* policy against the organization's own
+historical traffic before saving it. It appears on all three policy forms, driven by one shared API
+module and one shared drawer:
+
+- **Where.** The create/edit `Modal` on `RoutingPoliciesPage` (`/admin/routing-policies`), and the
+  create/edit modals of the **Masking** and **Row security** tabs on `DatasourceSettingsPage`. Each
+  form gets a secondary **Simulate** button beside its submit action — enabled only once the form
+  passes the same client-side rules a save would, since the backend validates the draft exactly as a
+  create.
+- **API module.** [frontend/src/api/policySimulation.ts](../frontend/src/api/policySimulation.ts) —
+  one function per endpoint (`simulateRoutingPolicy`, `simulateRowSecurityPolicy`,
+  `simulateMaskingPolicy`) over the three `POST …/simulate` paths, plus a `policySimulationKeys`
+  factory. The call is a **TanStack Query mutation**, not a query: it is user-triggered, has a request
+  body, and must not re-run on focus. Response types (`RoutingSimulationResult`,
+  `RowSecuritySimulationResult`, `MaskingSimulationResult`, `SimulationCaveat`) live in
+  `src/types/api.ts`.
+- **The window.** The drawer's own controls pick `from`/`to` (a `RangePicker` defaulting to the last
+  30 days) and, for routing, an optional corpus datasource. The picker disables ranges longer than
+  `max-window` client-side, but the `400 INVALID_SIMULATION_PERIOD` detail is still surfaced through
+  `showApiError` rather than swallowed.
+- **The results drawer.** A right-side `Drawer` (never a nested modal — the form stays open behind
+  it, so an admin can adjust the draft and re-run) with: a headline "N of M queries would change",
+  a `truncated` warning when the row cap was hit, a per-outcome breakdown (routing: baseline →
+  simulated action pairs; row security: `NEWLY_FILTERED` / `NEWLY_DENY_ALL` / `NEWLY_FAILS_CLOSED` /
+  `NO_LONGER_FILTERED` / `UNCLASSIFIABLE`; masking: newly-masked / newly-revealed columns), a
+  **per-user impact** table ordered by changed-query count, and a sample drill-down table. Every
+  count, transition and caveat is `t()`-keyed under `policySimulation.*`, and outcome/transition
+  enums render through `src/utils/enumLabels.ts` — never an inline label map.
+- **Caveats are rendered, not hidden.** The response's `caveats` array becomes a visible `Alert` list
+  above the numbers ("memberships are read as they are now", "masking is matched on bare column
+  names", …). `UNCLASSIFIABLE` rows get a warning tone and their own count — the UI must never fold
+  them into "unaffected", because "we could not tell" is not "nothing breaks".
+- **A soft nudge, never a hard gate.** Saving is never blocked on having simulated. When a
+  simulation has been run and shows a change on the current draft, the submit button carries an
+  inline hint ("this would change N past queries"); when the draft is edited afterwards the result is
+  marked stale rather than silently reused. An admin who ignores the simulator entirely gets exactly
+  today's save flow.
+
 ### OAuth 2.0 sign-in
 
 `LoginPage` renders one "Continue with &lt;Provider&gt;" button per active row returned by

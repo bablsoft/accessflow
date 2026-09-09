@@ -7,9 +7,13 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateMaskingPolicyCommand;
 import com.bablsoft.accessflow.core.api.MaskingPolicyAdminService;
+import com.bablsoft.accessflow.core.api.SimulationWindow;
+import com.bablsoft.accessflow.proxy.api.MaskingPolicySimulationService;
 import com.bablsoft.accessflow.core.api.MaskingPolicyView;
 import com.bablsoft.accessflow.core.api.UpdateMaskingPolicyCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.internal.web.model.MaskingSimulationResponse;
+import com.bablsoft.accessflow.security.internal.web.model.SimulateMaskingPolicyRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreateMaskingPolicyRequest;
 import com.bablsoft.accessflow.security.internal.web.model.MaskingPolicyListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.MaskingPolicyResponse;
@@ -48,6 +52,7 @@ import java.util.UUID;
 class MaskingPolicyController {
 
     private final MaskingPolicyAdminService maskingPolicyAdminService;
+    private final MaskingPolicySimulationService maskingPolicySimulationService;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -62,6 +67,24 @@ class MaskingPolicyController {
                 .map(MaskingPolicyResponse::from)
                 .toList();
         return new MaskingPolicyListResponse(policies);
+    }
+
+    @PostMapping("/simulate")
+    @Operation(summary = "Dry-run a draft masking policy against historical query results",
+            description = "Replays the datasource's persisted result sets twice — once under its "
+                    + "current policies, once with the draft applied — and reports which columns "
+                    + "each submitter would newly see masked, or newly see in the clear. Only "
+                    + "column names are read; no cell values and no customer database.")
+    @ApiResponse(responseCode = "200", description = "Simulation diff")
+    @ApiResponse(responseCode = "400", description = "Validation error or invalid simulation period")
+    @ApiResponse(responseCode = "404", description = "Datasource not found")
+    MaskingSimulationResponse simulate(@PathVariable UUID datasourceId,
+                                       @Valid @RequestBody SimulateMaskingPolicyRequest body,
+                                       Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var result = maskingPolicySimulationService.simulate(caller.organizationId(), datasourceId,
+                new SimulationWindow(body.from(), body.to()), body.draft().toCommand());
+        return MaskingSimulationResponse.from(result);
     }
 
     @PostMapping

@@ -7,9 +7,13 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.CreateRowSecurityPolicyCommand;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyAdminService;
+import com.bablsoft.accessflow.core.api.SimulationWindow;
+import com.bablsoft.accessflow.proxy.api.RowSecurityPolicySimulationService;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyView;
 import com.bablsoft.accessflow.core.api.UpdateRowSecurityPolicyCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.internal.web.model.RowSecuritySimulationResponse;
+import com.bablsoft.accessflow.security.internal.web.model.SimulateRowSecurityPolicyRequest;
 import com.bablsoft.accessflow.security.internal.web.model.CreateRowSecurityPolicyRequest;
 import com.bablsoft.accessflow.security.internal.web.model.RowSecurityPolicyListResponse;
 import com.bablsoft.accessflow.security.internal.web.model.RowSecurityPolicyResponse;
@@ -48,6 +52,7 @@ import java.util.UUID;
 class RowSecurityPolicyController {
 
     private final RowSecurityPolicyAdminService rowSecurityPolicyAdminService;
+    private final RowSecurityPolicySimulationService rowSecurityPolicySimulationService;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -62,6 +67,25 @@ class RowSecurityPolicyController {
                 .map(RowSecurityPolicyResponse::from)
                 .toList();
         return new RowSecurityPolicyListResponse(policies);
+    }
+
+    @PostMapping("/simulate")
+    @Operation(summary = "Dry-run a draft row-security policy against historical query traffic",
+            description = "Replays the datasource's executed queries twice — once under its current "
+                    + "policies, once with the draft applied — and reports the diff, including the "
+                    + "query shapes the predicate would make unrewritable. Fully offline: no "
+                    + "connection is opened to the customer database.")
+    @ApiResponse(responseCode = "200", description = "Simulation diff")
+    @ApiResponse(responseCode = "400", description = "Validation error or invalid simulation period")
+    @ApiResponse(responseCode = "404", description = "Datasource not found")
+    RowSecuritySimulationResponse simulate(@PathVariable UUID datasourceId,
+                                           @Valid @RequestBody SimulateRowSecurityPolicyRequest body,
+                                           Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var result = rowSecurityPolicySimulationService.simulate(caller.organizationId(),
+                datasourceId, new SimulationWindow(body.from(), body.to()),
+                body.draft().toCommand());
+        return RowSecuritySimulationResponse.from(result);
     }
 
     @PostMapping

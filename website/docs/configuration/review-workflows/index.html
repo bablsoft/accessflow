@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-04",
+      "dateModified": "2026-09-09",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -264,7 +264,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-04">4 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -542,6 +542,29 @@ APPROVED → FAILED (execution error)</pre>
             </picture>
             <figcaption><code>/admin/routing-policies</code> — ordered, attribute-based auto-decision rules; first match by priority wins, unmatched falls through to the review plan.</figcaption>
           </figure>
+          <p>
+            <strong>Simulate it before you save it.</strong> A routing rule is easy to write and hard
+            to predict — the same condition that blocks one dangerous DELETE can quietly block a
+            nightly job nobody remembered. Every policy form has a <em>Simulate</em> button that
+            dry-runs the draft against your own past queries and shows the blast radius first.
+            Pick a date range (up to 90 days) and AccessFlow replays that traffic <strong>twice</strong>
+            — once against the policies you have today, once with the draft added or replacing the one
+            you are editing — then reports the difference between those two runs: how many past
+            queries would take a different path, which of them, and which people would feel it. The
+            same button sits on the <a href="/docs/configuration/datasources/#cfg-datasources">masking
+            and row security</a> forms, so you can preview those before saving too.
+          </p>
+          <div class="docs-callout info">
+            <strong>What a simulation is, and is not.</strong> It is strictly a preview: nothing is
+            saved, no query is re-run, and AccessFlow never connects to your database to produce it.
+            It compares <em>policies against policies</em> — today's rules versus the draft — rather
+            than against what actually happened, because a past decision may have come from an
+            emergency, a ticket, or a standing grant the draft has no say over. Some things simply
+            cannot be reconstructed from months-old traffic, so the results say so: memberships and
+            roles are read as they stand today, and where an engine cannot work out offline what a
+            row rule would do, those queries are listed as <em>unclassifiable</em> — never counted as
+            unaffected. Simulating is always optional; nothing blocks you from saving.
+          </div>
 
           <!-- AI -->
         </section>

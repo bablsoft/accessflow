@@ -704,6 +704,13 @@ Example:
 }
 ```
 
+**Policy simulator (AF-630).** The dry run of a draft `routing_policy`, `row_security_policy` or
+`masking_policy` **persists nothing**: it reads `query_requests` (plus `query_request_results` for
+masking), evaluates the draft as a detached, never-written entity, and returns the diff in the HTTP
+response. There is no simulation table, no new column, no Flyway migration and no new permission —
+each endpoint reuses the permission that already governs its policy kind. Stop looking for one; see
+[docs/05-backend.md → Policy simulator](05-backend.md#policy-simulator-af-630).
+
 ---
 
 ## routing_decision
