@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-snowflake-1.0.2-all.jar",
-    "fileName": "accessflow-engine-snowflake-1.0.2-all.jar",
-    "sha256": "62c57b56f6199a00a8d90f509af2d34407f0f886c8e0f0699a79944b9cc77a67"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-snowflake-1.0.3-all.jar",
+    "fileName": "accessflow-engine-snowflake-1.0.3-all.jar",
+    "sha256": "ac8b6f567ec04ac6ea955956e3bd082dfd7f3e9e19443e3a4e89abc43a57aa7f"
   }
 }

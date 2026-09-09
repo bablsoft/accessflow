@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.engine.databricks;
 
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -253,5 +255,103 @@ class DatabricksRowSecurityApplierTest {
                                                   RowSecurityOperator operator,
                                                   List<Object> values) {
         return new RowSecurityDirective(POLICY, table, column, operator, values);
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    private static final String ENGINE = "databricks";
+
+    private RowSecurityClassification classify(String sql, RowSecurityDirective... directives) {
+        return applier.classify(ENGINE, parse(sql), List.of(directives));
+    }
+
+    private static RowSecurityDirective tenantEquals(String table) {
+        return directive(table, "tenant", RowSecurityOperator.EQUALS, List.of("acme"));
+    }
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheStatement() {
+        var result = classify("SELECT * FROM orders", tenantEquals("other_table"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo(ENGINE);
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(classify("SELECT * FROM orders").outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var result = classify("SELECT * FROM orders", tenantEquals("orders"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(POLICY);
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var result = classify("SELECT * FROM orders",
+                directive("orders", "tenant", RowSecurityOperator.IN, List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(POLICY);
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        var result = classify("SELECT * FROM orders",
+                directive("orders", "deleted_at", RowSecurityOperator.IS_NULL, List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAPoliciedInsert() {
+        var result = classify("INSERT INTO orders VALUES (1)", tenantEquals("orders"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_databricks_insert_unsupported");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsFailClosedForAPoliciedMerge() {
+        var result = classify("MERGE INTO orders t USING updates s ON t.id = s.id"
+                + " WHEN MATCHED THEN UPDATE SET *", tenantEquals("orders"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_databricks_unrewritable");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"GROUP BY tenant", "HAVING count(*) > 1", "QUALIFY rn = 1",
+            "ORDER BY id", "SORT BY id", "CLUSTER BY id", "DISTRIBUTE BY id", "LIMIT 5",
+            "OFFSET 5"})
+    void classifyReportsAppliedForTailClausesThePredicateSplicesBefore(String tail) {
+        var result = classify("SELECT * FROM orders " + tail, tenantEquals("orders"));
+        assertThat(result.outcome()).as("tail %s", tail).isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "SELECT * FROM orders WHERE id IN (SELECT id FROM refunds)",
+            "SELECT * FROM orders JOIN refunds ON orders.id = refunds.id",
+            "SELECT * FROM orders UNION SELECT * FROM archive",
+            "SELECT * FROM orders INTERSECT SELECT * FROM archive",
+            "SELECT * FROM orders EXCEPT SELECT * FROM archive",
+            "SELECT * FROM orders, refunds"})
+    void classifyReportsFailClosedForEveryShapeTheSplicerCannotProve(String sql) {
+        var result = classify(sql, tenantEquals("orders"));
+        assertThat(result.outcome()).as("sql %s", sql).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_databricks_unrewritable");
+    }
+
+    @Test
+    void classifyAgreesWithApplyOnAFailClosedShape() {
+        var directives = List.of(tenantEquals("orders"));
+        assertThat(applier.classify(ENGINE, parse("INSERT INTO orders VALUES (1)"), directives)
+                .outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThatThrownBy(() -> applier.apply(parse("INSERT INTO orders VALUES (1)"), directives))
+                .isInstanceOf(UnrewritableRowSecurityException.class);
     }
 }

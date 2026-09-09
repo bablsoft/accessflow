@@ -3,13 +3,16 @@ package com.bablsoft.accessflow.engine.databricks;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.net.http.HttpClient;
@@ -36,6 +39,7 @@ public final class DatabricksQueryEngine implements QueryEngine {
     private volatile DatabricksQueryExecutor executor;
     private volatile DatabricksConnectionProbe connectionProbe;
     private volatile DatabricksSchemaIntrospector schemaIntrospector;
+    private volatile DatabricksRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public DatabricksQueryEngine() {
@@ -56,9 +60,11 @@ public final class DatabricksQueryEngine implements QueryEngine {
                 .build();
         var client = new DatabricksStatementClient(http, settings, context.clock());
         var queryParser = new DatabricksQueryParser(context.messages());
+        var applier = new DatabricksRowSecurityApplier(context.messages());
         this.parser = queryParser;
-        this.executor = new DatabricksQueryExecutor(client, queryParser,
-                new DatabricksRowSecurityApplier(context.messages()), new DatabricksResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new DatabricksQueryExecutor(client, queryParser, applier,
+                new DatabricksResultMapper(),
                 new DatabricksExceptionTranslator(context.messages()), context.credentials(),
                 context.messages(), context.clock());
         this.connectionProbe = new DatabricksConnectionProbe(client, context.credentials(),
@@ -70,6 +76,22 @@ public final class DatabricksQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        DatabricksStatement statement;
+        try {
+            statement = initialized(parser).parseStatement(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(ENGINE_ID, statement, request.directives());
     }
 
     @Override

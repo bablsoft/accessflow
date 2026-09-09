@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.engine.bigquery;
 
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 
@@ -214,5 +216,119 @@ class BigQueryRowSecurityApplierTest {
         assertThat(applied.appliedPolicyIds())
                 .containsExactlyInAnyOrder(one.policyId(), two.policyId());
         assertThat(applied.parameters()).containsExactly("acme", "eu", "us");
+    }
+
+    // ---- offline classification (AF-630) ---------------------------------------------------------
+
+    private RowSecurityClassification classify(String sql, RowSecurityDirective... directives) {
+        return applier.classify("bigquery", parser.parseStatement(sql), List.of(directives));
+    }
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheStatement() {
+        var result = classify("SELECT * FROM ds.users",
+                directive("ds.orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("bigquery");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(classify("SELECT * FROM ds.users").outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForDdlOverAPoliciedTable() {
+        // apply() short-circuits DDL before matching, so nothing is filtered.
+        assertThat(classify("TRUNCATE TABLE ds.users",
+                directive("users", "tenant", RowSecurityOperator.EQUALS, "acme")).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var one = directive("users", "tenant", RowSecurityOperator.EQUALS, "acme");
+        var two = directive("users", "region", RowSecurityOperator.IN, "eu", "us");
+        var result = classify("SELECT * FROM ds.users WHERE active = true", one, two);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds())
+                .containsExactlyInAnyOrder(one.policyId(), two.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsAppliedForARewritableUpdate() {
+        var directive = directive("users", "tenant", RowSecurityOperator.EQUALS, "acme");
+        var result = classify("UPDATE ds.users SET name = 'x' WHERE id = 7", directive);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var directive = directive("users", "tenant", RowSecurityOperator.IN);
+        var result = classify("SELECT * FROM ds.users", directive);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        var directive = directive("users", "deleted_at", RowSecurityOperator.IS_NULL);
+        var result = classify("SELECT * FROM ds.users", directive);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertIntoAPoliciedTable() {
+        var result = classify("INSERT INTO ds.users (id) VALUES (1)",
+                directive("users", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("insert_unsupported").contains("ds.users");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsFailClosedForEveryUnrewritableShape() {
+        var tenant = directive("users", "tenant", RowSecurityOperator.EQUALS, "acme");
+        for (var sql : new String[]{
+                "WITH x AS (SELECT 1) SELECT * FROM ds.users",
+                "SELECT * FROM ds.users WHERE id IN (SELECT id FROM ds.users)",
+                "SELECT * FROM ds.users u JOIN ds.orders o ON u.id = o.user_id",
+                "SELECT * FROM ds.users, ds.orders",
+                "SELECT * FROM ds.users UNION ALL SELECT * FROM ds.users",
+                "SELECT * FROM ds.users INTERSECT DISTINCT SELECT * FROM ds.users",
+                "SELECT * FROM ds.users EXCEPT DISTINCT SELECT * FROM ds.users",
+                "SELECT * FROM ds.users QUALIFY id IN (SELECT id FROM ds.users)",
+                "MERGE INTO ds.users t USING ds.stage s ON t.id = s.id "
+                        + "WHEN MATCHED THEN UPDATE SET t.v = s.v"}) {
+            var result = applier.classify("bigquery", parser.parseStatement(sql), List.of(tenant));
+            assertThat(result.outcome()).as(sql).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+            assertThat(result.reason()).as(sql).contains("unrewritable");
+            assertThat(result.appliedPolicyIds()).as(sql).isEmpty();
+        }
+    }
+
+    @Test
+    void classifyFailsClosedWhenOnlyAJoinedTableIsPolicied() {
+        // The policied table is reached through the JOIN, not the FROM target. The gate must see it
+        // — otherwise the classifier would fail open and call a rejected query NOT_APPLICABLE.
+        var result = classify("SELECT * FROM ds.users u JOIN ds.orders o ON u.id = o.user_id",
+                directive("orders", "tenant", RowSecurityOperator.EQUALS, "acme"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyNeverMutatesTheStatementItInspects() {
+        var statement = parser.parseStatement("SELECT * FROM ds.users WHERE active = true");
+        var directive = directive("users", "tenant", RowSecurityOperator.EQUALS, "acme");
+        assertThat(applier.classify("bigquery", statement, List.of(directive)).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(statement.sql()).isEqualTo("SELECT * FROM ds.users WHERE active = true");
     }
 }
