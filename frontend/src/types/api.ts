@@ -710,6 +710,8 @@ export interface CreateDatasourceInput {
   read_replicas?: ReadReplicaInput[] | null;
   local_datacenter?: string | null;
   api_key?: string | null;
+  // Snowflake only: passphrase for an encrypted PKCS#8 private key. Write-only, never returned.
+  private_key_passphrase?: string | null;
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;
 }
@@ -737,6 +739,8 @@ export interface UpdateDatasourceInput {
   read_replicas?: ReadReplicaInput[] | null;
   local_datacenter?: string | null;
   api_key?: string | null;
+  // Snowflake only: passphrase for an encrypted PKCS#8 private key. Blank clears it.
+  private_key_passphrase?: string | null;
   active?: boolean;
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;

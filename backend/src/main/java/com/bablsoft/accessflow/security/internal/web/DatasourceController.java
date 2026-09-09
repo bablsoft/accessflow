@@ -166,7 +166,8 @@ class DatasourceController {
                 request.localDatacenter(),
                 request.apiKey(),
                 request.resultCacheEnabled(),
-                request.resultCacheTtlSeconds());
+                request.resultCacheTtlSeconds(),
+                request.privateKeyPassphrase());
         var created = datasourceAdminService.create(command);
         recordAudit(AuditAction.DATASOURCE_CREATED, AuditResourceType.DATASOURCE, created.id(),
                 caller, auditContext, Map.of("name", created.name(), "db_type", created.dbType().name()));
@@ -224,7 +225,8 @@ class DatasourceController {
                 request.localDatacenter(),
                 request.apiKey(),
                 request.resultCacheEnabled(),
-                request.resultCacheTtlSeconds());
+                request.resultCacheTtlSeconds(),
+                request.privateKeyPassphrase());
         var updated = datasourceAdminService.update(id, caller.organizationId(), command);
         recordAudit(AuditAction.DATASOURCE_UPDATED, AuditResourceType.DATASOURCE, id, caller,
                 auditContext, Map.of("name", updated.name()));

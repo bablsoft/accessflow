@@ -336,6 +336,9 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const secretProviders = useSecretProviders();
   const secretRefHelp = secretReferenceHelp(secretProviders, t);
   const secretRefRule = secretReferenceRule(secretProviders, t);
+  // Snowflake's connection is an account host (port is always 443 and never stored) and its
+  // credential may be a multi-line PKCS#8 PEM, optionally passphrase-protected (#632).
+  const isSnowflake = ds.db_type === 'SNOWFLAKE';
 
   const initialValues: SettingsFormValues = {
     name: ds.name,
@@ -430,6 +433,10 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
+    // Blank keeps the stored passphrase, exactly like the credential above.
+    if (!body.private_key_passphrase || body.private_key_passphrase.trim().length === 0) {
+      delete body.private_key_passphrase;
+    }
     // The AI config is shared by AI analysis and text-to-SQL; only unbind it when both are off.
     if (body.ai_analysis_enabled === false && body.text_to_sql_enabled === false) {
       body.clear_ai_config = true;
@@ -471,13 +478,15 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             >
               <Input />
             </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_port')}
-              name="port"
-              rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
-            >
-              <Input className="mono" type="number" />
-            </Form.Item>
+            {!isSnowflake && (
+              <Form.Item
+                label={t('datasources.settings.label_port')}
+                name="port"
+                rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
+              >
+                <Input className="mono" type="number" />
+              </Form.Item>
+            )}
             <Form.Item
               label={t('datasources.settings.label_database_name')}
               name="database_name"
@@ -503,13 +512,38 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               <Input className="mono" />
             </Form.Item>
             <Form.Item
-              label={t('datasources.settings.label_password')}
+              label={
+                isSnowflake
+                  ? t('datasources.create.field_password_or_key')
+                  : t('datasources.settings.label_password')
+              }
               name="password"
               extra={secretRefHelp}
               rules={[secretRefRule]}
             >
-              <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
+              {/* A PKCS#8 PEM is multi-line — a password box cannot hold it. */}
+              {isSnowflake ? (
+                <Input.TextArea
+                  rows={3}
+                  className="mono"
+                  placeholder={t('datasources.settings.password_placeholder')}
+                />
+              ) : (
+                <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
+              )}
             </Form.Item>
+            {isSnowflake && (
+              <Form.Item
+                label={t('datasources.create.field_private_key_passphrase')}
+                name="private_key_passphrase"
+                extra={secretRefHelp}
+                rules={[{ max: 1024 }, secretRefRule]}
+              >
+                <Input.Password
+                  placeholder={t('datasources.settings.private_key_passphrase_placeholder')}
+                />
+              </Form.Item>
+            )}
           </Grid>
         </Section>
         <Section title={t('datasources.settings.section_read_replica')}>

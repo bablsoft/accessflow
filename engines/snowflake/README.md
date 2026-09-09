@@ -22,9 +22,21 @@ host's JSqlParser path.
 - `username` → user; `password_encrypted` → **password _or_ key-pair credential**: when the
   decrypted value starts with `-----BEGIN PRIVATE KEY-----` it is parsed as an unencrypted PKCS#8
   PEM (RSA first, EC fallback) and passed as the object-valued `privateKey` property.
-  Passphrase-protected PEMs (`-----BEGIN ENCRYPTED PRIVATE KEY-----`) are rejected
-  (`error.snowflake.encrypted_private_key_unsupported`) — AccessFlow already encrypts the stored
-  credential at rest, so store the decrypted PKCS#8 form.
+- `private_key_passphrase_encrypted` → the passphrase for a **passphrase-protected** PKCS#8 PEM
+  (`-----BEGIN ENCRYPTED PRIVATE KEY-----`), decrypted through the same `CredentialDecryptor` as
+  the credential (so it accepts `vault:` / `aws:` / `azure:` references too). Missing and wrong
+  passphrases are reported separately (`error.snowflake.private_key_passphrase_required` /
+  `…_invalid`).
+
+  The encrypted form is opened with **Bouncy Castle**, not `javax.crypto.EncryptedPrivateKeyInfo`:
+  SunJCE's PBES2 support is AES-only, so the JDK cannot read a key produced by the command
+  Snowflake's own documentation prints (`openssl pkcs8 -topk8 -v2 des3 …`, PBES2 with
+  DES-EDE3-CBC). Bouncy Castle is not a new dependency — the Snowflake JDBC driver already bundles
+  it under `net.snowflake.client.jdbc.internal.org.bouncycastle`, and this plugin shades that
+  driver whole, so it costs no jar growth. The provider is a local instance passed to each builder,
+  never registered via `Security.addProvider(...)`. The coupling is to the driver's *internal*
+  relocated package: a driver upgrade that changes the prefix breaks this at compile time, which
+  is the intended failure mode.
 - `jdbc_url_override` → optional **full `jdbc:snowflake://` URL** used verbatim, the place to pin
   `warehouse=…&role=…&schema=…` parameters. Any other scheme is rejected
   (`error.snowflake.invalid_url_override`).
@@ -153,7 +165,8 @@ Snowflake specifics:
 `error.snowflake.blank`, `error.snowflake.multiple_statements`,
 `error.snowflake.unsupported_statement` (`{0}` = verb), `error.snowflake.unbalanced`,
 `error.snowflake.table_required`, `error.snowflake.placeholders_forbidden`,
-`error.snowflake.invalid_private_key`, `error.snowflake.encrypted_private_key_unsupported`,
+`error.snowflake.invalid_private_key`, `error.snowflake.private_key_passphrase_required`,
+`error.snowflake.private_key_passphrase_invalid`,
 `error.snowflake.invalid_url_override` (`{0}` = the rejected URL),
 `error.row_security_snowflake_unrewritable` (`{0}` = table),
 `error.row_security_snowflake_insert_unsupported` (`{0}` = table) — all defined in the host's

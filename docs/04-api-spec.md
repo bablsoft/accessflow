@@ -300,8 +300,8 @@ fields.
 ```
 
 When a provider is enabled, the datasource credential fields (`password`,
-each `read_replicas[].password`, `api_key`) accept an external secret **reference** instead of a raw
-value — `vault:<mount>/<path>#<field>`, `aws:<name-or-arn>[#jsonField]`, or
+each `read_replicas[].password`, `api_key`, `private_key_passphrase`) accept an external secret
+**reference** instead of a raw value — `vault:<mount>/<path>#<field>`, `aws:<name-or-arn>[#jsonField]`, or
 `azure:<secret-name>`. References are stored verbatim (not encrypted) and resolved through the
 store at credential-use time. Error responses on the create/update endpoints:
 `400 INVALID_SECRET_REFERENCE` (malformed reference), `400 SECRET_PROVIDER_DISABLED` (reference
@@ -365,6 +365,7 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "ssl_mode": "VERIFY_FULL",
   "local_datacenter": null,
   "api_key": null,
+  "private_key_passphrase": null,
   "connection_pool_size": 10,
   "max_rows_per_query": 1000,
   "require_review_reads": false,
@@ -382,6 +383,8 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
 `local_datacenter` is the Cassandra/ScyllaDB driver's load-balancing datacenter (the `withLocalDatacenter(...)` value). It is **required when `db_type` is `CASSANDRA` or `SCYLLADB`** and is null/unused for every other dialect.
 
 `api_key` (≤ 4096, AES-256-GCM encrypted, never returned) is the search-engine alternative to basic auth: for `db_type` `ELASTICSEARCH` / `OPENSEARCH` the request must carry **either** `username` + `password` **or** `api_key` (sent to the cluster as `Authorization: ApiKey`); supplying it is rejected for every other dialect. For these search datasources `database_name` is optional (it only scopes introspection — the index is named in the query). On update, sending a blank `api_key` clears it (reverting to basic auth). Null/unused for every non-search dialect.
+
+`private_key_passphrase` (#632, ≤ 1024, AES-256-GCM encrypted, never returned) is the passphrase for a **passphrase-protected** PKCS#8 private key supplied in `password` (a PEM starting `-----BEGIN ENCRYPTED PRIVATE KEY-----`). It is accepted only when `db_type` is `SNOWFLAKE` and rejected for every other dialect; leave it null for a password credential or an unencrypted PEM. On update, sending a blank value clears it. Snowflake's own documentation generates an encrypted key (`openssl pkcs8 -topk8 -v2 des3 ...`), so this is the common case for a first-time key-pair setup.
 
 `read_replicas` (AF-457, ≤ 5 items) lists the datasource's read-replica endpoints as `{ "id": "uuid|null", "jdbc_url": "...", "username": "...", "password": "..." }` objects. SELECT queries load-balance round-robin across the healthy endpoints while INSERT/UPDATE/DELETE/DDL always hit the primary; each replica reuses the primary's JDBC driver class — it must be the same engine. `username` / `password` are optional per endpoint; when omitted, the primary's credentials are reused. Passwords are AES-256-GCM encrypted with the same `ENCRYPTION_KEY` as the primary password and never returned (responses carry only `id`, `jdbc_url`, `username` per endpoint).
 

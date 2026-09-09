@@ -65,9 +65,9 @@ class SnowflakeConnectionProbeTest {
     void configFailureBecomesConnectionTestExceptionWithResolvedMessage() throws SQLException {
         var descriptor = descriptor();
         when(connectionFactory.open(descriptor)).thenThrow(
-                new SnowflakeConfigException("error.snowflake.encrypted_private_key_unsupported"));
+                new SnowflakeConfigException("error.snowflake.private_key_passphrase_required"));
         assertThatThrownBy(() -> probe.test(descriptor))
                 .isInstanceOf(DatasourceConnectionTestException.class)
-                .hasMessage("error.snowflake.encrypted_private_key_unsupported");
+                .hasMessage("error.snowflake.private_key_passphrase_required");
     }
 }

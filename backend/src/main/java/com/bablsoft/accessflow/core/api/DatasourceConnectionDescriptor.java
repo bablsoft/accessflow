@@ -29,6 +29,10 @@ import java.util.UUID;
  * (Elasticsearch / OpenSearch): when present the engine authenticates with
  * {@code Authorization: ApiKey <decrypted>} instead of HTTP basic. {@code null} for every other
  * dialect and for basic-auth search datasources.
+ *
+ * <p>{@code privateKeyPassphraseEncrypted} is the optional encrypted passphrase protecting an
+ * encrypted PKCS#8 private key held in {@code passwordEncrypted} (Snowflake key-pair auth, #632).
+ * {@code null} for every other dialect, for password credentials, and for unencrypted PEMs.
  */
 public record DatasourceConnectionDescriptor(
         UUID id,
@@ -53,10 +57,47 @@ public record DatasourceConnectionDescriptor(
         String localDatacenter,
         String apiKeyEncrypted,
         boolean resultCacheEnabled,
-        Integer resultCacheTtlSeconds) {
+        Integer resultCacheTtlSeconds,
+        String privateKeyPassphraseEncrypted) {
 
     public DatasourceConnectionDescriptor {
         readReplicas = readReplicas == null ? List.of() : List.copyOf(readReplicas);
+    }
+
+    /**
+     * Backward-compatible constructor for the pre-#632 canonical shape (no
+     * {@code privateKeyPassphraseEncrypted}); delegates with {@code null}. Kept so engine plugins
+     * and tests compiled against the old shape keep working unchanged.
+     */
+    public DatasourceConnectionDescriptor(
+            UUID id,
+            UUID organizationId,
+            DbType dbType,
+            String host,
+            Integer port,
+            String databaseName,
+            String username,
+            String passwordEncrypted,
+            SslMode sslMode,
+            int connectionPoolSize,
+            int maxRowsPerQuery,
+            boolean aiAnalysisEnabled,
+            UUID aiConfigId,
+            boolean textToSqlEnabled,
+            UUID customDriverId,
+            String connectorId,
+            String jdbcUrlOverride,
+            List<ReadReplicaEndpoint> readReplicas,
+            boolean active,
+            String localDatacenter,
+            String apiKeyEncrypted,
+            boolean resultCacheEnabled,
+            Integer resultCacheTtlSeconds) {
+        this(id, organizationId, dbType, host, port, databaseName, username, passwordEncrypted,
+                sslMode, connectionPoolSize, maxRowsPerQuery, aiAnalysisEnabled, aiConfigId,
+                textToSqlEnabled, customDriverId, connectorId, jdbcUrlOverride, readReplicas,
+                active, localDatacenter, apiKeyEncrypted, resultCacheEnabled, resultCacheTtlSeconds,
+                null);
     }
 
     /**
@@ -94,7 +135,7 @@ public record DatasourceConnectionDescriptor(
                 textToSqlEnabled, customDriverId, connectorId, jdbcUrlOverride,
                 legacyReplicaList(readReplicaJdbcUrl, readReplicaUsername,
                         readReplicaPasswordEncrypted),
-                active, localDatacenter, apiKeyEncrypted, false, null);
+                active, localDatacenter, apiKeyEncrypted, false, null, null);
     }
 
     /**

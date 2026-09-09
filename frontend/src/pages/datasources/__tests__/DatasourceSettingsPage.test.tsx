@@ -322,6 +322,68 @@ describe('DatasourceSettingsPage — performance card', () => {
   });
 });
 
+describe('DatasourceSettingsPage — Snowflake credential rotation', () => {
+  const snowflakeDs: Datasource = {
+    ...baseDs,
+    db_type: 'SNOWFLAKE',
+    host: 'xy1.eu-central-1.snowflakecomputing.com',
+    port: null,
+    database_name: 'ANALYTICS',
+  };
+
+  beforeEach(() => {
+    getDatasource.mockReset();
+    updateDatasource.mockReset();
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+  });
+
+  it('offers the key passphrase and hides the unused port field', async () => {
+    getDatasource.mockResolvedValue(snowflakeDs);
+    updateDatasource.mockResolvedValue(snowflakeDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Private key passphrase')).toBeInTheDocument(),
+    );
+    // Snowflake stores no port (always 443); a required port field would block every save.
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.getByLabelText('Password or private key (PEM)')).toBeInTheDocument();
+  });
+
+  it('rotates the passphrase and omits it when left blank', async () => {
+    getDatasource.mockResolvedValue(snowflakeDs);
+    updateDatasource.mockResolvedValue(snowflakeDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Private key passphrase')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    // Blank keeps the stored passphrase — it must not be sent as an empty string, which the
+    // backend would read as "clear it".
+    expect(updateDatasource.mock.calls[0]![1] as Record<string, unknown>)
+      .not.toHaveProperty('private_key_passphrase');
+
+    updateDatasource.mockClear();
+    fireEvent.change(screen.getByLabelText('Private key passphrase'), {
+      target: { value: 'rotated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.private_key_passphrase).toBe('rotated');
+  });
+});
+
 const analystUser: User = {
   id: 'u-analyst',
   email: 'analyst@example.com',

@@ -48,6 +48,7 @@ public interface DatasourceRepository extends JpaRepository<DatasourceEntity, UU
             select d from DatasourceEntity d
              where d.passwordEncrypted = :reference
                 or d.apiKeyEncrypted = :reference
+                or d.privateKeyPassphraseEncrypted = :reference
                 or exists (
                     select 1 from DatasourceReadReplicaEntity r
                      where r.datasource = d and r.passwordEncrypted = :reference)

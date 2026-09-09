@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "ab5a27a7fdb3",
-  "generatedAt": "2026-09-09T06:46:54.522Z",
-  "sourceCommit": "fc982b526c2fe236e550def13591f4ce233b6034",
+  "corpusVersion": "efeae34b8b4f",
+  "generatedAt": "2026-09-09T08:08:19.367Z",
+  "sourceCommit": "42779852eb3b4bcc0f8eec1a104db29b0f0bc6d4",
   "chunkCount": 524,
-  "sha256": "ab5a27a7fdb34036756b4ddec89e1c3af449d6f36577f255c4c810f1b35ed86c",
+  "sha256": "efeae34b8b4fb1af407084f86435554f0e05a4c85c158e9e8e1621d5fc83ee7c",
   "quickReferenceSha256": "ff096e185c86272730919fe179adfb70ce43b5384050cc450696dc0c11049a51",
   "sources": [
     {
@@ -165,7 +165,7 @@
       "url": "https://accessflow.io/connectors/snowflake/",
       "section": "Connectors",
       "chunks": 7,
-      "sha256": "cb1a80607a1cf77027007907b301938d9a4404f3345e275bcfe9f557fa729db6"
+      "sha256": "a1dac9863af6b3405144751675db1e93214a8a03c945fd8172a787d8c85adbfa"
     },
     {
       "path": "website/docs/configuration/ai/index.html",
@@ -197,7 +197,7 @@
       "url": "https://accessflow.io/docs/configuration/connectors/",
       "section": "Reference",
       "chunks": 12,
-      "sha256": "358de408bd57d6de3fac63b478b3b79ab6a9b935b9a852a6700e92b0b728db01"
+      "sha256": "c3612e040f7673d2c3adfc1b96d34a1b217724f0fcf3ff27659f09d5898db9bd"
     },
     {
       "path": "website/docs/configuration/datasources/index.html",
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 11,
-      "sha256": "6d511c259beb1f7b3478e000891952e124248241e9d7cd2a5aaef1d05aeb873c"
+      "sha256": "cb1bc38c35c80d8f0cd37be05d9efc63257261e623473cae9c07c341bdb38b97"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -253,7 +253,7 @@
       "url": "https://accessflow.io/docs/guides/datasource/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "fee631f343fbeb685ac8c374dcfe28afb6048dce3ddb749386be6e74924e004c"
+      "sha256": "70e7be4efd5390d24fc98c3879b6bb95f4432ec839ea3c64b2110219ce863357"
     },
     {
       "path": "website/docs/guides/deployment-approval/index.html",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 8,
-      "sha256": "11f8599523101f41c930d120fc20846395115a2a142af829fb0e6538113679e5"
+      "sha256": "835694c06176f3561c53b99ccfd169848831d3b65b755d438e95401a93e6d87c"
     }
   ]
 }

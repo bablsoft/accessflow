@@ -30,7 +30,8 @@ The three `WAREHOUSE` engines (AF-629) round out the reference set:
 [`engines/snowflake/`](../engines/snowflake/) shows a **JDBC driver bundled inside a plugin**
 (shaded `snowflake-jdbc`, direct driver instantiation — never `DriverManager` in an isolated
 classloader — per-request connections because warehouse sessions are billed, and key-pair
-PKCS#8-PEM auth detected in the credential column);
+PKCS#8-PEM auth detected in the credential column, including passphrase-protected keys whose
+passphrase rides in its own encrypted column);
 [`engines/bigquery/`](../engines/bigquery/) shows a **vendor cloud SDK** engine
 (`google-cloud-bigquery` HTTP/JSON client, service-account JSON credential,
 `database_name`=`project[.dataset]`, fully relocated shade tree); and

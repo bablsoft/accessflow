@@ -160,7 +160,9 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         validateDriverChoice(command.dbType(), command.customDriverId(), customDriver, connectorId,
                 command.jdbcUrlOverride(), command.host(), command.port(), command.databaseName());
         var apiKey = blankToNull(command.apiKey());
-        validateCredentials(command.dbType(), command.username(), command.password(), apiKey);
+        var privateKeyPassphrase = blankToNull(command.privateKeyPassphrase());
+        validateCredentials(command.dbType(), command.username(), command.password(), apiKey,
+                privateKeyPassphrase);
         if (connectorId != null) {
             // Fail-fast: download + load the connector's driver now (mirrors the bundled path).
             driverCatalog.resolveConnector(connectorId);
@@ -185,6 +187,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setPasswordEncrypted(storeCredential(
                 command.password() != null ? command.password() : ""));
         entity.setApiKeyEncrypted(apiKey != null ? storeCredential(apiKey) : null);
+        entity.setPrivateKeyPassphraseEncrypted(
+                privateKeyPassphrase != null ? storeCredential(privateKeyPassphrase) : null);
         entity.setSslMode(command.sslMode() != null ? command.sslMode() : SslMode.DISABLE);
         entity.setCustomDriver(customDriver);
         entity.setConnectorId(connectorId);
@@ -263,6 +267,18 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
             // A blank API key clears it (revert to basic auth); a non-blank one is re-encrypted.
             entity.setApiKeyEncrypted(command.apiKey().isBlank()
                     ? null : storeCredential(command.apiKey()));
+        }
+        if (command.privateKeyPassphrase() != null) {
+            // validateCredentials() runs on create only, so the Snowflake-only rule is re-checked
+            // here rather than left to the create path.
+            if (!command.privateKeyPassphrase().isBlank() && entity.getDbType() != DbType.SNOWFLAKE) {
+                throw new IllegalDatasourcePermissionException(
+                        "private_key_passphrase is only allowed for Snowflake datasources");
+            }
+            // A blank passphrase clears it (the key is no longer encrypted, or the credential went
+            // back to a password); a non-blank one is re-encrypted.
+            entity.setPrivateKeyPassphraseEncrypted(command.privateKeyPassphrase().isBlank()
+                    ? null : storeCredential(command.privateKeyPassphrase()));
         }
         if (command.sslMode() != null) {
             entity.setSslMode(command.sslMode());
@@ -364,7 +380,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                                 replica.getPasswordEncrypted()))
                         .toList(),
                 entity.getLocalDatacenter(),
-                entity.getApiKeyEncrypted());
+                entity.getApiKeyEncrypted(),
+                entity.getPrivateKeyPassphraseEncrypted());
     }
 
     private record PoolFingerprint(String host, Integer port, String databaseName, String username,
@@ -372,7 +389,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                                    int connectionPoolSize, UUID customDriverId, String connectorId,
                                    String jdbcUrlOverride,
                                    List<ReplicaFingerprint> readReplicas, String localDatacenter,
-                                   String apiKeyEncrypted) {
+                                   String apiKeyEncrypted, String privateKeyPassphraseEncrypted) {
     }
 
     private record ReplicaFingerprint(UUID id, String jdbcUrl, String username,
@@ -808,7 +825,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         } else if (dbType == DbType.SNOWFLAKE) {
             // Snowflake's connection is the account host (<account>.snowflakecomputing.com) +
             // database + user, with the credential column holding either a password or a PKCS#8
-            // private-key PEM (key-pair JWT auth). Port is unused (always 443), and
+            // private-key PEM (key-pair JWT auth) — encrypted PEMs additionally carry their
+            // passphrase in private_key_passphrase. Port is unused (always 443), and
             // jdbc_url_override is an OPTIONAL full jdbc:snowflake:// URL carrying
             // warehouse / role / schema parameters (like Neo4j's Bolt-URI override).
             if (hasConnector) {
@@ -964,10 +982,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
      * {@link #requireLocalDatacenterForEngine}).
      */
     private void validateCredentials(DbType dbType, String username, String password,
-                                     String apiKey) {
+                                     String apiKey, String privateKeyPassphrase) {
         boolean hasBasic = username != null && !username.isBlank()
                 && password != null && !password.isBlank();
         boolean hasApiKey = apiKey != null && !apiKey.isBlank();
+        if (privateKeyPassphrase != null && !privateKeyPassphrase.isBlank()
+                && dbType != DbType.SNOWFLAKE) {
+            throw new IllegalDatasourcePermissionException(
+                    "private_key_passphrase is only allowed for Snowflake datasources");
+        }
         if (isSearchEngine(dbType)) {
             if (!hasBasic && !hasApiKey) {
                 throw new IllegalDatasourcePermissionException(

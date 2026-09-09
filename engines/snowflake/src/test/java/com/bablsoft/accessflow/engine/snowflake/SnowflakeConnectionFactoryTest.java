@@ -3,11 +3,16 @@ package com.bablsoft.accessflow.engine.snowflake;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
+import net.snowflake.client.jdbc.internal.org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
+import net.snowflake.client.jdbc.internal.org.bouncycastle.jce.provider.BouncyCastleProvider;
+import net.snowflake.client.jdbc.internal.org.bouncycastle.pkcs.jcajce.JcaPKCS8EncryptedPrivateKeyInfoBuilder;
+import net.snowflake.client.jdbc.internal.org.bouncycastle.pkcs.jcajce.JcePKCSPBEOutputEncryptorBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,6 +32,28 @@ class SnowflakeConnectionFactoryTest {
                 DbType.SNOWFLAKE, host, 443, database, username, password, SslMode.REQUIRE,
                 1, 1000, false, null, false, null, "snowflake", urlOverride,
                 null, null, null, true);
+    }
+
+    /** Descriptor carrying an encrypted key passphrase (the canonical post-#632 shape). */
+    private static DatasourceConnectionDescriptor descriptorWithPassphrase(
+            String password, String passphraseEncrypted) {
+        return new DatasourceConnectionDescriptor(UUID.randomUUID(), UUID.randomUUID(),
+                DbType.SNOWFLAKE, "h", 443, "db", "svc", password, SslMode.REQUIRE,
+                1, 1000, false, null, false, null, "snowflake", null,
+                List.of(), true, null, null, false, null, passphraseEncrypted);
+    }
+
+    private static String encryptedPem(String passphrase) throws Exception {
+        var generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        var encryptor = new JcePKCSPBEOutputEncryptorBuilder(PKCSObjectIdentifiers.des_EDE3_CBC)
+                .setProvider(new BouncyCastleProvider())
+                .build(passphrase.toCharArray());
+        var encrypted = new JcaPKCS8EncryptedPrivateKeyInfoBuilder(
+                generator.generateKeyPair().getPrivate()).build(encryptor);
+        return "-----BEGIN ENCRYPTED PRIVATE KEY-----\n"
+                + Base64.getMimeEncoder(64, "\n".getBytes()).encodeToString(encrypted.getEncoded())
+                + "\n-----END ENCRYPTED PRIVATE KEY-----\n";
     }
 
     @Test
@@ -104,13 +131,41 @@ class SnowflakeConnectionFactoryTest {
     }
 
     @Test
-    void encryptedPrivateKeyPemIsRejected() {
-        var descriptor = descriptor("h", "db", "svc",
-                "enc:-----BEGIN ENCRYPTED PRIVATE KEY-----\nabc\n-----END ENCRYPTED PRIVATE KEY-----",
-                null);
+    void encryptedPrivateKeyPemIsOpenedWithTheStoredPassphrase() throws Exception {
+        // The stored passphrase carries the fake decryptor's "enc:" prefix, so this only passes
+        // because the factory runs it through the CredentialDecryptor like the credential itself.
+        var descriptor = descriptorWithPassphrase(
+                "enc:" + encryptedPem("hunter2"), "enc:hunter2");
+        var properties = factory.connectionProperties(descriptor);
+        assertThat(properties.get("privateKey")).isInstanceOf(PrivateKey.class);
+        assertThat(properties.containsKey("password")).isFalse();
+    }
+
+    @Test
+    void wrongPassphraseIsReportedAsSuch() throws Exception {
+        var descriptor = descriptorWithPassphrase(
+                "enc:" + encryptedPem("hunter2"), "enc:wrong");
         assertThatThrownBy(() -> factory.connectionProperties(descriptor))
                 .isInstanceOf(SnowflakeConfigException.class)
-                .hasMessage("error.snowflake.encrypted_private_key_unsupported");
+                .hasMessage("error.snowflake.private_key_passphrase_invalid");
+    }
+
+    @Test
+    void encryptedPrivateKeyPemWithoutAPassphraseIsRejected() throws Exception {
+        for (String absent : new String[] {null, "", "   "}) {
+            var descriptor = descriptorWithPassphrase("enc:" + encryptedPem("hunter2"), absent);
+            assertThatThrownBy(() -> factory.connectionProperties(descriptor))
+                    .isInstanceOf(SnowflakeConfigException.class)
+                    .hasMessage("error.snowflake.private_key_passphrase_required");
+        }
+    }
+
+    @Test
+    void passwordCredentialIgnoresTheStoredPassphrase() {
+        var descriptor = descriptorWithPassphrase("enc:secret", "enc:hunter2");
+        var properties = factory.connectionProperties(descriptor);
+        assertThat(properties.get("password")).isEqualTo("secret");
+        assertThat(properties.containsKey("privateKey")).isFalse();
     }
 
     @Test
