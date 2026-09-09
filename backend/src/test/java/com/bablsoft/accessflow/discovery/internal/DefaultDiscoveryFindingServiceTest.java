@@ -187,4 +187,54 @@ class DefaultDiscoveryFindingServiceTest {
         finding.setStatus(DiscoveryFindingStatus.CONFIRMED);
         return new ConfirmOutcome(finding, conflict);
     }
+
+    // --- AF-659: STALE is an aged PENDING, so it stays decidable ------------------------------
+
+    @Test
+    void dismissesAStaleFinding() {
+        var stale = finding(DiscoveryFindingStatus.STALE);
+        when(findingRepository.findByIdAndDatasourceIdAndOrganizationId(stale.getId(), dsId,
+                orgId)).thenReturn(Optional.of(stale));
+        when(stateService.dismiss(stale, actorId)).thenAnswer(inv -> {
+            stale.setStatus(DiscoveryFindingStatus.DISMISSED);
+            return stale;
+        });
+
+        var outcome = service().decide(dsId, orgId, actorId, List.of(stale.getId()),
+                DiscoveryDecision.DISMISS);
+
+        var row = outcome.results().getFirst();
+        assertThat(row.status()).isEqualTo(DiscoveryRowStatus.SUCCESS);
+        assertThat(row.newStatus()).isEqualTo(DiscoveryFindingStatus.DISMISSED);
+    }
+
+    @Test
+    void confirmsAStaleFinding() {
+        var stale = finding(DiscoveryFindingStatus.STALE);
+        when(findingRepository.findByIdAndDatasourceIdAndOrganizationId(stale.getId(), dsId,
+                orgId)).thenReturn(Optional.of(stale));
+        when(stateService.confirm(stale, actorId)).thenAnswer(inv -> confirmed(stale, false));
+
+        var outcome = service().decide(dsId, orgId, actorId, List.of(stale.getId()),
+                DiscoveryDecision.CONFIRM);
+
+        var row = outcome.results().getFirst();
+        assertThat(row.status()).isEqualTo(DiscoveryRowStatus.SUCCESS);
+        assertThat(row.newStatus()).isEqualTo(DiscoveryFindingStatus.CONFIRMED);
+    }
+
+    @Test
+    void errorRowReportsTheFindingsActualStatusNotAssumedPending() {
+        var stale = finding(DiscoveryFindingStatus.STALE);
+        when(findingRepository.findByIdAndDatasourceIdAndOrganizationId(stale.getId(), dsId,
+                orgId)).thenReturn(Optional.of(stale));
+        when(stateService.confirm(stale, actorId)).thenThrow(new IllegalStateException("boom"));
+
+        var outcome = service().decide(dsId, orgId, actorId, List.of(stale.getId()),
+                DiscoveryDecision.CONFIRM);
+
+        var row = outcome.results().getFirst();
+        assertThat(row.status()).isEqualTo(DiscoveryRowStatus.ERROR);
+        assertThat(row.newStatus()).isEqualTo(DiscoveryFindingStatus.STALE);
+    }
 }

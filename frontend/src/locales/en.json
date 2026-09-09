@@ -1354,7 +1354,8 @@
         "last_scan": "Last scan: {{time}}",
         "last_scan_error": "Last scan issue: {{error}}",
         "findings_title": "Findings",
-        "findings_description": "Proposed sensitive-column classifications. Confirming applies the tag and derives a masking policy; dismissing suppresses the proposal permanently.",
+        "findings_description": "Proposed sensitive-column classifications. Confirming applies the tag and derives a masking policy; dismissing suppresses the proposal permanently. A proposal the scan stops finding is marked stale and leaves this list.",
+        "stale_hint": "Not re-detected in recent scans — the data may have been removed or masked, or the column may already be tagged. Dismiss it to clear the list; if a later scan finds it again, it returns to Pending on its own.",
         "filter_all": "All",
         "col_column": "Column",
         "col_classification": "Classification",
@@ -3138,7 +3139,8 @@
     "discovery_finding_status": {
       "PENDING": "Pending",
       "CONFIRMED": "Confirmed",
-      "DISMISSED": "Dismissed"
+      "DISMISSED": "Dismissed",
+      "STALE": "Stale"
     },
     "delegation_scope": {
       "DATASOURCE": "Datasource",

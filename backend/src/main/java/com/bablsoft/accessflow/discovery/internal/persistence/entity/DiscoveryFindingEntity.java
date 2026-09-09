@@ -81,6 +81,11 @@ public class DiscoveryFindingEntity {
     @Column(nullable = false, columnDefinition = "discovery_finding_status")
     private DiscoveryFindingStatus status = DiscoveryFindingStatus.PENDING;
 
+    // AF-659: consecutive scans that sampled this finding's table without re-proposing the
+    // column. Reset to 0 on re-detection; at the configured threshold the row flips to STALE.
+    @Column(name = "missed_scan_count", nullable = false)
+    private int missedScanCount;
+
     @Column(name = "decided_by")
     private UUID decidedBy;
 

@@ -3574,7 +3574,7 @@ export interface PermissionCatalog {
 // --- AF-623: sensitive-data discovery ---
 
 export type DiscoveryDetector = 'EMAIL' | 'CREDIT_CARD' | 'SSN' | 'IBAN' | 'PHONE' | 'AI';
-export type DiscoveryFindingStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED';
+export type DiscoveryFindingStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED' | 'STALE';
 export type DiscoveryDecision = 'CONFIRM' | 'DISMISS';
 export type DiscoveryRowStatus =
   | 'SUCCESS'

@@ -37,27 +37,29 @@ interface DiscoveryFindingRow {
 }
 
 // The scan runs asynchronously after "Scan now"; poll the findings API until the
-// seeded email column surfaces as a PENDING EMAIL/PII finding.
+// seeded column surfaces in the expected worklist state.
 async function waitForEmailFinding(
   request: APIRequestContext,
   token: string,
   datasourceId: string,
+  column = 'customer_email',
+  status = 'PENDING',
 ): Promise<DiscoveryFindingRow> {
   const deadline = Date.now() + 60_000;
   for (;;) {
     const res = await request.get(
-      `${apiBase()}/api/v1/datasources/${datasourceId}/discovery/findings?status=PENDING&size=100`,
+      `${apiBase()}/api/v1/datasources/${datasourceId}/discovery/findings?status=${status}&size=100`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
     if (res.ok()) {
       const body = (await res.json()) as { content: DiscoveryFindingRow[] };
       const match = body.content.find(
-        (f) => f.table_name === TABLE && f.column_name === 'customer_email',
+        (f) => f.table_name === TABLE && f.column_name === column,
       );
       if (match) return match;
     }
     if (Date.now() > deadline) {
-      throw new Error(`No EMAIL finding for ${TABLE}.customer_email within 60s`);
+      throw new Error(`No ${status} finding for ${TABLE}.${column} within 60s`);
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
@@ -109,15 +111,22 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
 
     // Seed a table whose email column the scan must flag: the detectors need at
     // least 5 non-null string samples, so insert 6 rows.
+    // secondary_email exists solely for the AF-659 stale test, which empties it — keeping
+    // customer_email untouched for the confirm test that runs before it.
     await runApproved(
       request,
-      `CREATE TABLE ${TABLE} (id integer PRIMARY KEY, customer_email text NOT NULL)`,
+      `CREATE TABLE ${TABLE} (id integer PRIMARY KEY, customer_email text NOT NULL, ` +
+        'secondary_email text)',
     );
     await runApproved(
       request,
-      `INSERT INTO ${TABLE} (id, customer_email) VALUES ` +
-        "(1, 'alice@example.com'), (2, 'bob@example.com'), (3, 'carol@example.com'), " +
-        "(4, 'dave@example.com'), (5, 'erin@example.com'), (6, 'frank@example.com')",
+      `INSERT INTO ${TABLE} (id, customer_email, secondary_email) VALUES ` +
+        "(1, 'alice@example.com', 'alice.alt@example.com'), " +
+        "(2, 'bob@example.com', 'bob.alt@example.com'), " +
+        "(3, 'carol@example.com', 'carol.alt@example.com'), " +
+        "(4, 'dave@example.com', 'dave.alt@example.com'), " +
+        "(5, 'erin@example.com', 'erin.alt@example.com'), " +
+        "(6, 'frank@example.com', 'frank.alt@example.com')",
     );
   });
 
@@ -212,5 +221,59 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
     expect(
       body.content.some((f) => f.table_name === TABLE && f.column_name === 'customer_email'),
     ).toBe(true);
+  });
+
+  test('a finding the scan stops detecting is retired as stale (AF-659)', async ({
+    page,
+    request,
+  }) => {
+    if (!datasource) throw new Error('datasource not created in beforeAll');
+
+    // The first scan (test 1) already proposed secondary_email alongside customer_email.
+    const pending = await waitForEmailFinding(
+      request,
+      adminAccessToken,
+      datasource.id,
+      'secondary_email',
+    );
+
+    // Remove the data behind the proposal, then rescan. The detectors need at least 5 non-null
+    // samples, so an emptied column yields nothing and the finding is missed.
+    await runApproved(request, `UPDATE ${TABLE} SET secondary_email = NULL`);
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    await page.goto(`/datasources/${datasource.id}/settings`);
+    await page.getByRole('tab', { name: /Discovery/ }).click();
+    await page.getByRole('button', { name: 'Scan now' }).click();
+    await expect(page.getByText('Discovery scan started')).toBeVisible({ timeout: 15_000 });
+
+    // The stack runs with stale-scans-before-expiry=1, so one missed scan retires it.
+    const stale = await waitForEmailFinding(
+      request,
+      adminAccessToken,
+      datasource.id,
+      'secondary_email',
+      'STALE',
+    );
+    expect(stale.id).toBe(pending.id);
+
+    // It has left the default PENDING worklist and is reachable under the Stale filter, where it
+    // stays selectable so an admin can clear it.
+    await page.reload();
+    await page.getByRole('tab', { name: /Discovery/ }).click();
+    // Wait for a positive signal first: a bare toHaveCount(0) is satisfied by the loading state,
+    // so it would pass even if the row were still PENDING. customer_email was confirmed by the
+    // previous test and secondary_email is now stale, so PENDING is empty.
+    await expect(page.getByText('No findings')).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) }),
+    ).toHaveCount(0);
+
+    await page.getByTitle('Stale', { exact: true }).click();
+    const row = page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Dismiss selected' }).click();
+    await expect(page.getByText('1 finding decided')).toBeVisible({ timeout: 15_000 });
   });
 });

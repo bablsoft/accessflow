@@ -339,4 +339,46 @@ class DiscoveryControllerIntegrationTest {
                 entity.getCreatedAt());
         return jwtService.generateAccessToken(view);
     }
+
+    // --- AF-659 ------------------------------------------------------------------------------
+
+    @Test
+    void persistsAndFiltersStaleFindings() {
+        // The only test that proves V164's enum value and V165's column exist on a real Postgres —
+        // the Mockito suites never touch the schema.
+        var stale = saveFinding("email", DataClassification.PII, DiscoveryFindingStatus.STALE);
+        stale.setMissedScanCount(3);
+        findingRepository.save(stale);
+        saveFinding("phone", DataClassification.PII, DiscoveryFindingStatus.PENDING);
+
+        var result = mvc.get().uri(base() + "/findings?status=STALE")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.total_elements").asNumber().isEqualTo(1);
+        assertThat(result).bodyJson().extractingPath("$.content[0].column_name").asString()
+                .isEqualTo("email");
+        assertThat(result).bodyJson().extractingPath("$.content[0].status").asString()
+                .isEqualTo("STALE");
+        assertThat(findingRepository.findById(stale.getId()).orElseThrow().getMissedScanCount())
+                .isEqualTo(3);
+    }
+
+    @Test
+    void bulkDismissClearsAStaleFinding() {
+        var stale = saveFinding("email", DataClassification.PII, DiscoveryFindingStatus.STALE);
+
+        var result = mvc.post().uri(base() + "/findings/bulk-decision")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"finding_ids\":[\"" + stale.getId() + "\"],\"decision\":\"DISMISS\"}")
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.results[0].status").asString()
+                .isEqualTo("SUCCESS");
+        assertThat(findingRepository.findById(stale.getId()).orElseThrow().getStatus())
+                .isEqualTo(DiscoveryFindingStatus.DISMISSED);
+    }
 }

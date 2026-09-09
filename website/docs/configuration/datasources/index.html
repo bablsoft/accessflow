@@ -463,7 +463,26 @@
             <code>ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET</code> (<code>PT10M</code>),
             <code>ACCESSFLOW_DISCOVERY_SAMPLE_STATEMENT_TIMEOUT</code> (<code>PT10S</code>),
             <code>ACCESSFLOW_DISCOVERY_MAX_TABLES_PER_SCAN</code> (<code>200</code>),
-            <code>ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN</code> (<code>25</code>).
+            <code>ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN</code> (<code>25</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_NESTED_DEPTH</code> (<code>5</code>),
+            <code>ACCESSFLOW_DISCOVERY_MAX_NESTED_LEAVES_PER_ROW</code> (<code>100</code>),
+            <code>ACCESSFLOW_DISCOVERY_STALE_SCANS_BEFORE_EXPIRY</code> (<code>3</code>).
+          </p>
+          <p>
+            <strong>Proposals that go quiet clean themselves up.</strong> When a column is dropped,
+            its data is cleared, or you mask it by hand, the scan simply stops proposing it — and
+            the old suggestion would otherwise sit in the worklist forever. Instead, a proposal the
+            scanner keeps sampling but no longer finds is marked <em>Stale</em> after a few
+            consecutive scans and drops out of the default <em>Pending</em> view; switch the status
+            filter to <em>Stale</em> to see those proposals and dismiss the batch in one go.
+            Nothing is thrown away: a stale proposal is still yours to confirm or dismiss, and if
+            the data comes back the next scan returns it to <em>Pending</em>. Only tables a scan
+            actually sampled can age this way, so a run cut short by its table cap or time budget
+            never retires proposals it did not look at. Retirements are audited as
+            <code>DISCOVERY_FINDING_EXPIRED</code>, up to 100 rows per scan — past that the scan's
+            own audit entry carries the full count and flags the trail as truncated. How many
+            consecutive misses it takes is
+            <code>ACCESSFLOW_DISCOVERY_STALE_SCANS_BEFORE_EXPIRY</code> above.
           </p>
           <p>
             <strong>Tune it.</strong> Per-datasource fields above set row caps and review behaviour;

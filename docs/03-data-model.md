@@ -459,7 +459,13 @@ Proposed sensitive-column classification worklist (AF-623). One row per
 holds a redacted value (raw sampled data never persists). Confirming a finding applies the tag
 through the AF-447 service (deriving masking); enums `discovery_detector`
 (`EMAIL` | `CREDIT_CARD` | `SSN` | `IBAN` | `PHONE` | `AI`) and `discovery_finding_status`
-(`PENDING` | `CONFIRMED` | `DISMISSED`). Created by `V129__create_discovery.sql`.
+(`PENDING` | `CONFIRMED` | `DISMISSED` | `STALE`). A scan that samples a finding's table without
+re-proposing the column counts a miss in `missed_scan_count`; at
+`accessflow.discovery.stale-scans-before-expiry` consecutive misses the row becomes `STALE` and
+leaves the active worklist (AF-659). `STALE` is an aged `PENDING`, not a decision — it stays
+listable and decidable, and re-detection revives it to `PENDING` with the counter reset. Created by
+`V129__create_discovery.sql`; `STALE` added by `V164__add_discovery_finding_stale_status.sql` and
+`missed_scan_count` by `V165__add_discovery_finding_missed_scan_count.sql`.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -475,6 +481,7 @@ through the AF-447 service (deriving masking); enums `discovery_detector`
 | `rationale` | TEXT nullable — `AI` findings only |
 | `match_count` / `sample_count` | INT — matched / examined values (`match_count` 0 for AI rows) |
 | `status` | ENUM `discovery_finding_status` DEFAULT `'PENDING'` |
+| `missed_scan_count` | INT NOT NULL DEFAULT 0 — consecutive scans that sampled this table without re-proposing the column (AF-659); reset to 0 on re-detection |
 | `decided_by` | FK → `users` (`ON DELETE SET NULL`) nullable |
 | `decided_at` | TIMESTAMPTZ nullable |
 | `first_detected_at` / `last_detected_at` | TIMESTAMPTZ NOT NULL |
@@ -1579,8 +1586,9 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
-| `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
+| `DISCOVERY_SCAN_COMPLETED` | A sensitive-data discovery scan finished (AF-623) — scheduled (`actor_id` NULL) or on-demand (the triggering admin). Resource: `datasource`. Metadata: tables scanned/skipped/failed, findings created/refreshed/revived/aged/expired, `expiredAuditTruncated`, AI suggestions, duration, `partial` flag, and the error summary when the scan failed. |
 | `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED` | Admin confirms (tag applied via the AF-447 service, masking derived) or dismisses (permanently suppressed) a discovery finding via `/datasources/{id}/discovery/findings/bulk-decision`. Resource: `discovery_finding`. Metadata: table, column, classification, detector, confidence, and `tagConflict` when the tag already existed. |
+| `DISCOVERY_FINDING_EXPIRED` | A scan retired a `PENDING` finding as `STALE` after the configured number of consecutive scans sampled its table without re-proposing the column (AF-659). System-attributed (`actor_id` NULL). Resource: `discovery_finding`. Metadata: `datasourceId`, table, column, classification, detector, `missedScanCount`. Capped at 100 rows per scan — the scan row's `expiredAuditTruncated` flags a longer sweep. |
 | `COMPLIANCE_REPORT_EXPORTED` | AUDITOR/ADMIN exported a signed compliance report via `GET /admin/compliance/reports/export` (AF-459). Resource: `compliance_report`, no resource id. Metadata captures `report_type`, `format`, `period_from`, `period_to`, optional `datasource_id`, `row_count`, `truncated`, and the export's `content_sha256` + `signature` + `signature_algorithm` — chaining the export's hash into the tamper-evident log. |
 | `EXPORT_POLICY_CREATED` / `EXPORT_POLICY_UPDATED` / `EXPORT_POLICY_DELETED` | Admin creates / updates / deletes a result-export policy via the `/datasources/{id}/export-policies` CRUD endpoints (#626). Resource: `export_policy`. |
 | `RESULT_EXPORTED` | A query's persisted result set left AccessFlow — via `GET /queries/{id}/results/export` (`metadata.trigger = "endpoint"`, actor = the exporter) or as the results-CSV attachment on a recurring-execution email (`metadata.trigger = "email_attachment"`, actor = the recipient). Resource: `query_request`. Metadata captures `format`, `row_count`, `truncated`, `watermarked`, `policy_ids`, `classifications_present`, and for endpoint exports the `content_sha256` + `signature_algorithm` chaining the signed bytes into the tamper-evident log. Written fail-hard on the endpoint path (no audit row ⇒ no download). |

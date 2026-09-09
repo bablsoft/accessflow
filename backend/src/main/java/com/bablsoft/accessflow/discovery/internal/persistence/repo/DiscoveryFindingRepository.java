@@ -35,6 +35,13 @@ public interface DiscoveryFindingRepository extends JpaRepository<DiscoveryFindi
                                                                         UUID organizationId);
 
     /**
+     * Findings of a datasource in one status. Backs the post-scan stale sweep (AF-659), which
+     * reads the PENDING set; served by the {@code (datasource_id, status)} index.
+     */
+    List<DiscoveryFindingEntity> findAllByDatasourceIdAndOrganizationIdAndStatus(
+            UUID datasourceId, UUID organizationId, DiscoveryFindingStatus status);
+
+    /**
      * Natural-key lookup matching the {@code uq_discovery_finding} unique index. JPQL derived
      * queries treat {@code schemaName = null} as no-match, so the NULL case is explicit.
      */

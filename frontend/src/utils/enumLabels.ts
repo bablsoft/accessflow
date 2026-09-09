@@ -633,6 +633,7 @@ export const DISCOVERY_FINDING_STATUSES: readonly DiscoveryFindingStatus[] = [
   'PENDING',
   'CONFIRMED',
   'DISMISSED',
+  'STALE',
 ] as const;
 
 export const discoveryFindingStatusLabel = (t: TFunction, v: DiscoveryFindingStatus): string =>

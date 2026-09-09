@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@/i18n';
@@ -175,5 +175,75 @@ describe('DiscoveryTab', () => {
     renderTab();
 
     expect(await screen.findByText('No findings')).toBeInTheDocument();
+  });
+
+  // --- AF-659: stale findings ---------------------------------------------------------------
+
+  it('renders the Stale tag for a stale finding', async () => {
+    fetchDiscoveryFindings.mockResolvedValue(page([{ ...finding, status: 'STALE' }]));
+    renderTab();
+
+    expect(await screen.findByText('public.users.email')).toBeInTheDocument();
+    // Scoped to the table: 'Stale' is also the segmented filter's label.
+    expect(within(screen.getByRole('table')).getByText('Stale')).toBeInTheDocument();
+  });
+
+  it('filters to stale findings from the segmented control', async () => {
+    renderTab();
+    await screen.findByText('public.users.email');
+
+    // The segmented item carries title="Stale"; its radio input is hidden, so click the label.
+    fireEvent.click(screen.getByTitle('Stale', { exact: true }));
+
+    await waitFor(() =>
+      expect(fetchDiscoveryFindings).toHaveBeenCalledWith('ds-1', {
+        status: 'STALE',
+        page: 0,
+        size: 20,
+      }),
+    );
+  });
+
+  it('keeps rows selectable under the Stale filter', async () => {
+    // Pins the decidableFilter branch: under a filter that is neither PENDING nor ALL, antd is
+    // handed rowSelection={undefined} and renders no checkboxes at all, which would make
+    // bulk-dismissing aged rows impossible.
+    fetchDiscoveryFindings.mockResolvedValue(page([{ ...finding, status: 'STALE' }]));
+    renderTab();
+    await screen.findByText('public.users.email');
+
+    fireEvent.click(screen.getByTitle('Stale', { exact: true }));
+    await waitFor(() =>
+      expect(fetchDiscoveryFindings).toHaveBeenCalledWith('ds-1', {
+        status: 'STALE',
+        page: 0,
+        size: 20,
+      }),
+    );
+
+    const row = await screen.findByRole('row', { name: /public\.users\.email/ });
+    expect(within(row).getByRole('checkbox')).not.toBeDisabled();
+  });
+
+  it('bulk-dismisses a stale finding', async () => {
+    fetchDiscoveryFindings.mockResolvedValue(page([{ ...finding, status: 'STALE' }]));
+    bulkDecideFindings.mockResolvedValue({
+      results: [{ finding_id: 'f-1', status: 'SUCCESS', new_status: 'DISMISSED' }],
+    });
+    renderTab();
+    await screen.findByText('public.users.email');
+
+    // A stale row must remain selectable, or bulk-dismiss cannot reach it at all.
+    const row = await screen.findByRole('row', { name: /public\.users\.email/ });
+    const rowCheckbox = within(row).getByRole('checkbox');
+    expect(rowCheckbox).not.toBeDisabled();
+    fireEvent.click(rowCheckbox);
+    fireEvent.click(await screen.findByRole('button', { name: /Dismiss selected/ }));
+
+    await waitFor(() => expect(bulkDecideFindings).toHaveBeenCalled());
+    expect(bulkDecideFindings.mock.calls[0]![1]).toEqual({
+      finding_ids: ['f-1'],
+      decision: 'DISMISS',
+    });
   });
 });

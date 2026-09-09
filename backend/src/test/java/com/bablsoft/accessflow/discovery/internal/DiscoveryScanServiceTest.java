@@ -79,14 +79,43 @@ class DiscoveryScanServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, null));
     }
 
     private DiscoveryScanService newService(DiscoveryProperties properties) {
+        return newService(properties, Clock.fixed(NOW, ZoneOffset.UTC));
+    }
+
+    // The sweep collaborator is real, not mocked: the partial-run guarantees these tests exist to
+    // pin live in which tables the scan hands it, so a stub would assert nothing.
+    private DiscoveryScanService newService(DiscoveryProperties properties, Clock clock) {
         return new DiscoveryScanService(configRepository, findingRepository,
                 datasourceAdminService, dataClassificationQueryService, maskingPolicyAdminService,
                 queryExecutor, dataDiscoveryAiService, auditLogService, properties,
-                new NestedValueFlattener(properties), Clock.fixed(NOW, ZoneOffset.UTC));
+                new NestedValueFlattener(properties),
+                new DiscoveryStaleSweepService(findingRepository, auditLogService, properties),
+                clock);
+    }
+
+    /** A clock that advances by {@code step} on every read — drives the scan's time budget. */
+    private static Clock steppingClock(Duration step) {
+        var cursor = new java.util.concurrent.atomic.AtomicReference<>(NOW);
+        return new Clock() {
+            @Override
+            public ZoneOffset getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(java.time.ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                return cursor.getAndUpdate(current -> current.plus(step));
+            }
+        };
     }
 
     private void stubHappyPath(DatabaseSchemaView schema, SelectExecutionResult result) {
@@ -240,7 +269,7 @@ class DiscoveryScanServiceTest {
         }
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", tables)));
-        service = newService(new DiscoveryProperties(null, null, null, 2, null, null, null));
+        service = newService(new DiscoveryProperties(null, null, null, 2, null, null, null, null));
         stubHappyPath(schema, new SelectExecutionResult(List.of(), List.of(), 0, false,
                 Duration.ofMillis(1), null, null, null));
 
@@ -428,7 +457,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void respectsConfiguredNestedDepthLimit() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, 1, null));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, 1, null, null));
         stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
 
         service.scan(dsId, orgId, null);
@@ -438,7 +467,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void respectsConfiguredPerRowLeafBudget() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, 1, null));
         stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
 
         service.scan(dsId, orgId, null);
@@ -574,5 +603,286 @@ class DiscoveryScanServiceTest {
                 .isEqualTo(Duration.ofSeconds(10));
         assertThat(request.getValue().columnMasks()).isEmpty();
         assertThat(request.getValue().rowSecurityPredicates()).isEmpty();
+    }
+
+    // --- AF-659: stale-finding ageing -------------------------------------------------------
+
+    /** A PENDING finding on `users` that this run's sample will not re-propose. */
+    private DiscoveryFindingEntity stalePendingFinding(String schema, String table, int missed) {
+        var entity = new DiscoveryFindingEntity();
+        entity.setId(UUID.randomUUID());
+        entity.setOrganizationId(orgId);
+        entity.setDatasourceId(dsId);
+        entity.setSchemaName(schema);
+        entity.setTableName(table);
+        entity.setColumnName("gone");
+        entity.setClassification(DataClassification.PII);
+        entity.setDetector(DiscoveryDetector.EMAIL);
+        entity.setStatus(DiscoveryFindingStatus.PENDING);
+        entity.setMissedScanCount(missed);
+        return entity;
+    }
+
+    private void stubPendingForSweep(DiscoveryFindingEntity... findings) {
+        lenient().when(findingRepository.findAllByDatasourceIdAndOrganizationIdAndStatus(dsId,
+                orgId, DiscoveryFindingStatus.PENDING)).thenReturn(List.of(findings));
+    }
+
+    @Test
+    void agesPendingFindingNoLongerDetectedInAScannedTable() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        var orphan = stalePendingFinding("public", "users", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getMissedScanCount()).isEqualTo(1);
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+    }
+
+    @Test
+    void retiresPendingFindingAsStaleAtTheThreshold() {
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        var orphan = stalePendingFinding("public", "users", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.STALE);
+        var audit = ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService, org.mockito.Mockito.atLeastOnce()).record(audit.capture());
+        assertThat(audit.getAllValues()).anyMatch(
+                entry -> entry.action() == AuditAction.DISCOVERY_FINDING_EXPIRED);
+        assertThat(audit.getAllValues()).anyMatch(
+                entry -> entry.action() == AuditAction.DISCOVERY_SCAN_COMPLETED
+                        && entry.metadata().get("findingsExpired").equals(1)
+                        && entry.metadata().get("findingsAged").equals(1));
+    }
+
+    @Test
+    void doesNotAgeFindingsForTablesSkippedByTheTableCap() {
+        var schema = new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
+                List.of(new DatabaseSchemaView.Table("users", List.of(), List.of()),
+                        new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
+        service = newService(new DiscoveryProperties(null, null, null, 1, null, null, null, 1));
+        stubHappyPath(schema, usersSample());
+        var orphan = stalePendingFinding("public", "orders", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getMissedScanCount()).isZero();
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+    }
+
+    @Test
+    void doesNotAgeFindingsForTablesSkippedByTheTimeBudget() {
+        var schema = new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
+                List.of(new DatabaseSchemaView.Table("users", List.of(), List.of()),
+                        new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
+        // Each clock read advances 6 minutes, so the PT10M budget expires after the first table.
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1),
+                steppingClock(Duration.ofMinutes(6)));
+        stubHappyPath(schema, usersSample());
+        var orphan = stalePendingFinding("public", "orders", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+        assertThat(orphan.getMissedScanCount()).isZero();
+    }
+
+    @Test
+    void doesNotAgeFindingsForATableWhoseSampleThrew() {
+        var schema = new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
+                List.of(new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        stubHappyPath(schema, usersSample());
+        when(queryExecutor.sampleTable(any()))
+                .thenThrow(new IllegalStateException("connection refused"));
+        var orphan = stalePendingFinding("public", "orders", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+        assertThat(orphan.getMissedScanCount()).isZero();
+    }
+
+    @Test
+    void doesNotAgeFindingsWhenTheSampleYieldedTooFewValues() {
+        var columns = List.of(new ResultColumn("email", 12, "varchar"));
+        var rows = List.<List<Object>>of(List.of("alice@example.com"), List.of("bob@example.com"));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        stubHappyPath(schemaWithUsersTable(),
+                new SelectExecutionResult(columns, rows, 2, false, Duration.ofMillis(1), null,
+                        null, null));
+        var orphan = stalePendingFinding("public", "users", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+        assertThat(orphan.getMissedScanCount()).isZero();
+    }
+
+    @Test
+    void doesNotAgeFindingsWhenSchemaIntrospectionFails() {
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.empty());
+        when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId))
+                .thenThrow(new IllegalStateException("introspection failed"));
+        var orphan = stalePendingFinding("public", "users", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getMissedScanCount()).isZero();
+        verify(findingRepository, never()).save(any());
+    }
+
+    @Test
+    void revivesStaleFindingToPendingOnRedetection() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        var stale = new DiscoveryFindingEntity();
+        stale.setId(UUID.randomUUID());
+        stale.setStatus(DiscoveryFindingStatus.STALE);
+        stale.setMissedScanCount(3);
+        stale.setFirstDetectedAt(NOW.minus(Duration.ofDays(9)));
+        when(findingRepository.findByNaturalKey(orgId, dsId, "public", "users", "email",
+                DataClassification.PII, DiscoveryDetector.EMAIL)).thenReturn(Optional.of(stale));
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(stale.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+        assertThat(stale.getMissedScanCount()).isZero();
+        assertThat(stale.getFirstDetectedAt()).isEqualTo(NOW.minus(Duration.ofDays(9)));
+        assertThat(stale.getLastDetectedAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void resetsMissedScanCountWhenAFindingIsRedetected() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        var existing = new DiscoveryFindingEntity();
+        existing.setId(UUID.randomUUID());
+        existing.setStatus(DiscoveryFindingStatus.PENDING);
+        existing.setMissedScanCount(2);
+        existing.setFirstDetectedAt(NOW.minus(Duration.ofDays(1)));
+        when(findingRepository.findByNaturalKey(orgId, dsId, "public", "users", "email",
+                DataClassification.PII, DiscoveryDetector.EMAIL))
+                .thenReturn(Optional.of(existing));
+        stubPendingForSweep(existing);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(existing.getMissedScanCount()).isZero();
+        assertThat(existing.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+    }
+
+    @Test
+    void doesNotFailTheScanWhenTheSweepThrows() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        when(findingRepository.findAllByDatasourceIdAndOrganizationIdAndStatus(dsId, orgId,
+                DiscoveryFindingStatus.PENDING)).thenThrow(new IllegalStateException("db down"));
+
+        service.scan(dsId, orgId, null);
+
+        var config = ArgumentCaptor.forClass(DiscoveryScanConfigEntity.class);
+        verify(configRepository).save(config.capture());
+        assertThat(config.getValue().getLastScanError()).isNull();
+    }
+
+
+    /** An AI-detector finding on `users` the current run will not re-propose. */
+    private DiscoveryFindingEntity staleAiFinding() {
+        var entity = stalePendingFinding("public", "users", 0);
+        entity.setDetector(DiscoveryDetector.AI);
+        return entity;
+    }
+
+    private DiscoveryScanConfigEntity aiEnabledConfig() {
+        var config = new DiscoveryScanConfigEntity();
+        config.setId(UUID.randomUUID());
+        config.setOrganizationId(orgId);
+        config.setDatasourceId(dsId);
+        config.setAiClassificationEnabled(true);
+        config.setSampleSize(50);
+        return config;
+    }
+
+    @Test
+    void doesNotAgeAiFindingsWhenTheAiPassReturnedNothing() {
+        // The AI lane is fail-safe: a rotated key, an outage or a deleted ai_config yields an
+        // empty list, not an exception. Ageing on that would retire every AI finding in the estate.
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        var columns = List.of(new ResultColumn("national_id", 12, "varchar"));
+        var rows = List.<List<Object>>of(List.of("11-22-33"), List.of("44-55-66"),
+                List.of("77-88-99"), List.of("12-34-56"), List.of("65-43-21"));
+        stubHappyPath(schemaWithUsersTable(),
+                new SelectExecutionResult(columns, rows, 5, false, Duration.ofMillis(1), null,
+                        null, null));
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(aiEnabledConfig()));
+        when(dataDiscoveryAiService.classifyColumns(eq(orgId), any())).thenReturn(List.of());
+        var orphan = staleAiFinding();
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+        assertThat(orphan.getMissedScanCount()).isZero();
+    }
+
+    @Test
+    void agesAiFindingsWhenTheAiPassAnsweredForTheTable() {
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        var columns = List.of(new ResultColumn("national_id", 12, "varchar"));
+        var rows = List.<List<Object>>of(List.of("11-22-33"), List.of("44-55-66"),
+                List.of("77-88-99"), List.of("12-34-56"), List.of("65-43-21"));
+        stubHappyPath(schemaWithUsersTable(),
+                new SelectExecutionResult(columns, rows, 5, false, Duration.ofMillis(1), null,
+                        null, null));
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(aiEnabledConfig()));
+        when(dataDiscoveryAiService.classifyColumns(eq(orgId), any())).thenReturn(List.of(
+                new DiscoveryColumnSuggestion("national_id", DataClassification.SENSITIVE, 70,
+                        "identifier-like")));
+        var orphan = staleAiFinding();
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.STALE);
+    }
+
+    @Test
+    void doesNotAgeAiFindingsWhenTheAiPassIsDisabled() {
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        var orphan = staleAiFinding();
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.PENDING);
+    }
+
+    @Test
+    void stillAgesRegexFindingsWhenTheAiPassReturnedNothing() {
+        // The AI gate is scoped to AI-detector findings; a regex proposal must still age.
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
+                .thenReturn(Optional.of(aiEnabledConfig()));
+        lenient().when(dataDiscoveryAiService.classifyColumns(eq(orgId), any()))
+                .thenReturn(List.of());
+        var orphan = stalePendingFinding("public", "users", 0);
+        stubPendingForSweep(orphan);
+
+        service.scan(dsId, orgId, null);
+
+        assertThat(orphan.getStatus()).isEqualTo(DiscoveryFindingStatus.STALE);
     }
 }

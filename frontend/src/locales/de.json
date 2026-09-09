@@ -1354,7 +1354,8 @@
         "last_scan": "Letzter Scan: {{time}}",
         "last_scan_error": "Problem beim letzten Scan: {{error}}",
         "findings_title": "Funde",
-        "findings_description": "Vorgeschlagene Klassifizierungen sensibler Spalten. Bestätigen wendet das Tag an und leitet eine Maskierungsrichtlinie ab; Verwerfen unterdrückt den Vorschlag dauerhaft.",
+        "findings_description": "Vorgeschlagene Klassifizierungen sensibler Spalten. Bestätigen wendet das Tag an und leitet eine Maskierungsrichtlinie ab; Verwerfen unterdrückt den Vorschlag dauerhaft. Ein Vorschlag, den der Scan nicht mehr findet, wird als veraltet markiert und verlässt diese Liste.",
+        "stale_hint": "In den letzten Scans nicht mehr erkannt — die Daten wurden möglicherweise entfernt oder maskiert, oder die Spalte ist bereits getaggt. Verwerfen Sie den Eintrag; wird er erneut erkannt, kehrt er auf „Ausstehend“ zurück.",
         "filter_all": "Alle",
         "col_column": "Spalte",
         "col_classification": "Klassifizierung",
@@ -3114,7 +3115,8 @@
     "discovery_finding_status": {
       "PENDING": "Ausstehend",
       "CONFIRMED": "Bestätigt",
-      "DISMISSED": "Verworfen"
+      "DISMISSED": "Verworfen",
+      "STALE": "Veraltet"
     },
     "delegation_scope": {
       "DATASOURCE": "Datenquelle",

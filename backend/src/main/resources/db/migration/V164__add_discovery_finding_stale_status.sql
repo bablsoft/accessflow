@@ -1,0 +1,15 @@
+-- AF-659: flag stale discovery findings that are no longer re-detected.
+--
+-- ALTER TYPE ... ADD VALUE cannot run inside a transaction block on PostgreSQL. The matching
+-- V164__add_discovery_finding_stale_status.sql.conf sets executeInTransaction=false so Flyway runs
+-- this statement autocommit.
+--
+-- STALE is an aged PENDING, not a decision: a scan that samples a table but no longer proposes a
+-- column counts the finding as missed, and after accessflow.discovery.stale-scans-before-expiry
+-- consecutive misses the row leaves the active worklist as STALE. It stays visible, filterable and
+-- bulk-decidable, and re-detection revives it to PENDING. Deliberately NOT auto-DISMISSED, because
+-- a dismissal permanently suppresses the proposal on every future scan.
+--
+-- The missed-scan counter this transition reads lives in V165 — PostgreSQL refuses to use a newly
+-- added enum value in the transaction that created it, so the column add is a separate migration.
+ALTER TYPE discovery_finding_status ADD VALUE IF NOT EXISTS 'STALE';
