@@ -56,6 +56,31 @@ class HelpChatPromptRendererTest {
                 .contains("never instructions");
     }
 
+    /**
+     * The answer shape #925 is about: the corpus now carries the interface's own menu paths and
+     * control labels, and these two rules are what makes the model spend them instead of falling
+     * back to a URL or softening a label it quoted.
+     */
+    @Test
+    void answerShapeRulesDemandMenuPathsVerbatimLabelsAndPermissionCaveats() {
+        var prompt = render(config(c -> { }), request("q"), "q",
+                List.of(chunk("c1", "The sidebar menu", "Navigation", "body")), null);
+
+        // Asserted across the text block's `\` continuations, not within its lines: the way this
+        // rule breaks is a dropped space at a seam, which every within-a-line substring survives.
+        assertThat(prompt.systemPreamble())
+                .contains("Name a screen by its exact interface label and give its menu path — "
+                        + "\"Workflow → Database → Query editor\" — not a URL.")
+                // Deliberately *not* "if a field is marked required, it is required": the editor's
+                // own "· required for review" note sits on a field the submit endpoint does not
+                // enforce, so an absolute reading of a label is a claim the product contradicts.
+                .contains("Quote control labels verbatim with their qualifiers, add no claim an "
+                        + "excerpt does not make, and carry over any permission or condition it "
+                        + "states (\"if you have QUERY_SUBMIT_DML, ...\").")
+                .contains("The labels are English; answering in another language, give the label "
+                        + "anyway and say so.");
+    }
+
     @Test
     void outputFormatRuleNamesTheRenderableSubsetAndForbidsTheRest() {
         var prompt = render(config(c -> { }), request("q"), "q",

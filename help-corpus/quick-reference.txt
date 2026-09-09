@@ -20,79 +20,178 @@ Rules that never bend
   - The help agent reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.
 
 Where things are in the app
-  /                                  Lands on the dashboard once signed in.
-  /dashboard                         Personalized home: summary tiles, query trends, AI suggestions, weekly digest.
-  /editor                            SQL editor. Pick a datasource, write a query, submit it for review.
-  /queries                           Queries the signed-in user submitted, with status and AI risk. A query admin sees the whole organization here.
-  /queries/:id                       One query: SQL, AI analysis, approval chain, results, audit trail.
-  /reviews                           Unified review hub. Tabs for queries, API calls, deployments and rollbacks.
-  /reviews/:id/decide                Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional.
-  /reviews/attestations              Access recertification worklist: certify or revoke standing grants.
-  /request-groups                    Grouped requests that bundle ordered query and API-call members.
-  /request-groups/:id                One grouped request: its members, their order, and the aggregated approval.
-  /request-groups/new                Build a grouped request and order its members.
-  /request-groups/:id/edit           Change a grouped request before it is submitted.
-  /request-groups/reviews            Review queue for grouped requests.
-  /datasources                       Databases the user may query, and their connection health.
-  /datasources/new                   Register a database: engine, host, credentials, SSL mode.
-  /datasources/:id/settings          Per-datasource schema, masking, row security and ER diagram.
-  /api-connectors                    Governed outbound REST, SOAP, GraphQL and gRPC connectors.
-  /api-connectors/:id/settings       Per-connector schema, permissions, response masking and classification tags.
-  /api-editor                        Compose a governed API call and submit it for review.
-  /api-requests                      API calls the user submitted, with status and AI risk.
-  /api-requests/:id                  One API call: request, AI analysis, approval chain, response.
-  /reviews?tab=api                   Review queue for API calls. The older /api-reviews URL redirects here.
-  /deployments                       Deployment requests raised by CI/CD pipelines.
-  /deployments/:id                   One deployment request: what it releases, its analysis and its decisions.
-  /reviews?tab=deployments           Review queue for deployments; ?tab=rollbacks is the rollback worklist. The older /deployment-reviews URL redirects here.
-  /deployment-versions               What version each environment is running, and where it has drifted.
-  /deployment-versions/:pipelineId   The same matrix for one pipeline, plus per-environment history.
-  /access-requests                   Ask for access to a datasource, or track a request already made.
-  /lifecycle/erasure                 Right-to-erasure requests over personal data.
-  /lifecycle/erasure-reviews         Review queue for erasure requests.
-  /profile                           Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.
-  /setup                             First-run wizard. Shown until an active admin exists.
-  /login                             Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.
-  /forgot-password                   Ask for a password-reset email.
-  /reset-password/:token             Set a new password from the link in that email.
-  /invite/:token                     Accept an invitation and choose a password.
-  /admin/users                       Create, deactivate and re-invite users; assign roles and permissions.
-  /admin/groups                      User groups and the grants attached to them.
-  /admin/groups/:id                  One group: its members and the permissions it grants them.
-  /admin/roles                       Roles and the permissions each one carries.
-  /admin/organizations               Organizations (tenants) and their settings.
-  /admin/organizations/:id           One organization and its settings.
-  /admin/languages                   Which of the seven interface languages are offered.
-  /admin/governance-domains          Whether this organization governs outbound API calls and CI/CD deployments — which navigation, review tabs and dashboard widgets are shown.
-  /admin/access-requests             Approve or reject incoming access requests.
-  /admin/break-glass                 Break-glass grants and the mandatory retro-review of each use.
-  /admin/review-plans                Review plans: approval stages, approvers, timeouts, escalation.
-  /admin/routing-policies            Typed conditions that auto-approve, auto-reject or route a request.
-  /admin/attestation                 Scheduled attestation campaigns over standing grants.
-  /admin/attestation/:id             One campaign: its scope, progress and evidence export.
-  /admin/ai-configs                  AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.
-  /admin/ai-configs/new              Add an AI provider configuration.
-  /admin/ai-configs/:id              Edit one AI provider configuration, its prompt and its knowledge base.
-  /admin/ai-analyses                 History of every AI analysis, with tokens and latency.
-  /admin/anomalies                   User-behaviour anomalies the AI flagged.
-  /admin/langfuse                    Langfuse tracing for AI calls.
-  /admin/help-agent                  In-app help assistant: bind it to an AI provider, tune retrieval and retention, and re-index the bundled documentation.
-  /admin/connectors                  Connector catalog: engines available and their driver pins.
-  /admin/drivers                     Uploaded JDBC driver JARs for custom engines.
-  /admin/datasource-health           Connection health across every registered datasource.
-  /admin/data-classifications        Classification tags and the masking they derive.
-  /admin/deployment-pipelines        CI/CD pipelines, environments, freeze windows and permissions.
-  /admin/deployment-pipelines/:id    One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.
-  /admin/notifications               Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.
-  /admin/slack                       Slack workspace connection.
-  /admin/oauth2                      OAuth 2.0 / OIDC sign-in providers.
-  /admin/saml                        SAML 2.0 single sign-on.
-  /admin/scim                        SCIM 2.0 provisioning tokens and attribute mapping.
-  /admin/audit-log                   The tamper-evident audit log, filterable and exportable.
-  /admin/audit-sinks                 Where audit rows are streamed for long-term retention.
-  /admin/auditor                     Compliance reports and signed PDF / CSV exports.
-  /admin/over-provisioned-access     Grants nobody has used, suggested for revocation.
-  /admin/lifecycle/policies          Data retention and erasure policies.
+  Screens are reached from the left sidebar, a two-level menu: a group heading, an optional
+  collapsible sub-section, then the destination. Name a screen by the label below and give its
+  menu path — "Workflow → Database → Query editor" — rather than its URL.
+
+  The menu is filtered by permission. An entry appears only for someone holding one of the
+  permissions listed with it, and a sub-section or group left with nothing visible is hidden
+  entirely. Say which permission a destination needs rather than asserting it is in every
+  reader's sidebar.
+
+  Top of the sidebar (above the first group heading)
+    Dashboard · /dashboard · needs QUERY_SUBMIT_SELECT — Personalized home: summary tiles, query trends, AI suggestions, weekly digest.
+    Review queue · /reviews · needs QUERY_REVIEW, API_REQUEST_REVIEW or DEPLOYMENT_REVIEW — Everything waiting on your decision, in tabs for queries, API calls, deployments and rollbacks.
+
+  Workflow → Database
+    Query editor · /editor · needs QUERY_SUBMIT_DML — Pick a datasource, write a query, and submit it for review.
+    Query history · /queries · needs QUERY_SUBMIT_SELECT — Queries the signed-in user submitted, with status and AI risk. A query admin sees the whole organization here.
+
+  Workflow → API
+    API Editor · /api-editor · needs QUERY_SUBMIT_DML — Compose a governed API call and submit it for review.
+    API Requests · /api-requests · needs QUERY_SUBMIT_SELECT — API calls the user submitted, with status and AI risk.
+
+  Workflow → Deployments
+    Deployments · /deployments · needs QUERY_SUBMIT_SELECT — Deployment requests raised by CI/CD pipelines.
+    Version Matrix · /deployment-versions · needs DEPLOYMENT_PIPELINE_MANAGE, DEPLOYMENT_REVIEW or QUERY_ADMIN — What version each environment is running, and where it has drifted.
+
+  Workflow → Request groups
+    Request Groups · /request-groups · needs QUERY_SUBMIT_SELECT — Grouped requests that bundle ordered query and API-call members.
+    Group Reviews · /request-groups/reviews · needs QUERY_REVIEW — Review queue for grouped requests.
+
+  Workflow → Access & lifecycle
+    Request access · /access-requests · needs QUERY_SUBMIT_SELECT — Ask for access to a datasource, or track a request already made.
+    Request erasure · /lifecycle/erasure · needs QUERY_SUBMIT_SELECT — Right-to-erasure requests over personal data.
+    Erasure review · /lifecycle/erasure-reviews · needs ERASURE_REVIEW — Review queue for erasure requests.
+    Attestation reviews · /reviews/attestations · needs ATTESTATION_REVIEW — Access recertification worklist: certify or revoke standing grants.
+
+  Connections → Database
+    Datasources · /datasources · needs DATASOURCE_MANAGE — The registered databases: engine, connection settings and health. This is the administrator's registry, not a list of what you personally may query.
+    Connectors · /admin/connectors · needs DATASOURCE_MANAGE — Connector catalog: engines available and their driver pins.
+    Custom JDBC drivers · /admin/drivers · needs DATASOURCE_MANAGE — Uploaded JDBC driver JARs for custom engines.
+
+  Connections → API
+    API Connectors · /api-connectors · needs API_CONNECTOR_MANAGE — Governed outbound REST, SOAP, GraphQL and gRPC connectors.
+
+  Connections → Deployments
+    Deployment Pipelines · /admin/deployment-pipelines · needs DEPLOYMENT_PIPELINE_MANAGE — CI/CD pipelines, environments, freeze windows and permissions.
+
+  Security & Access → Identity
+    Users · /admin/users · needs USER_MANAGE — Create, deactivate and re-invite users; assign roles and permissions.
+    Groups · /admin/groups · needs GROUP_MANAGE — User groups and the grants attached to them.
+    Roles · /admin/roles · needs ROLE_MANAGE — Roles and the permissions each one carries.
+    SAML / SSO · /admin/saml · needs SSO_CONFIGURE — SAML 2.0 single sign-on.
+    OAuth providers · /admin/oauth2 · needs SSO_CONFIGURE — OAuth 2.0 / OIDC sign-in providers.
+    SCIM Provisioning · /admin/scim · needs SSO_CONFIGURE — SCIM 2.0 provisioning tokens and attribute mapping.
+
+  Security & Access → Access control
+    Access requests · /admin/access-requests · needs ACCESS_REQUEST_REVIEW — Approve or reject incoming access requests.
+    Review plans · /admin/review-plans · needs REVIEW_PLAN_MANAGE — Review plans: approval stages, approvers, timeouts, escalation.
+    Routing policies · /admin/routing-policies · needs ROUTING_POLICY_MANAGE — Typed conditions that auto-approve, auto-reject or route a request.
+    Over-provisioned access · /admin/over-provisioned-access · needs ACCESS_USAGE_REPORT_VIEW — Grants nobody has used, suggested for revocation.
+    Break-glass log · /admin/break-glass · needs BREAK_GLASS_VIEW — Break-glass grants and the mandatory retro-review of each use.
+
+  Security & Access → Data governance
+    Data classifications · /admin/data-classifications · needs DATA_CLASSIFICATION_MANAGE — Classification tags and the masking they derive.
+    Data Lifecycle · /admin/lifecycle/policies · needs RETENTION_POLICY_MANAGE — Data retention and erasure policies.
+    Attestation · /admin/attestation · needs ATTESTATION_CAMPAIGN_MANAGE — Scheduled attestation campaigns over standing grants.
+
+  Security & Access → Audit & compliance
+    Audit log · /admin/audit-log · needs AUDIT_LOG_VIEW — The tamper-evident audit log, filterable and exportable.
+    Audit sinks · /admin/audit-sinks · needs AUDIT_SINK_MANAGE — Where audit rows are streamed for long-term retention.
+    Compliance reports · /admin/auditor · needs COMPLIANCE_REPORT_VIEW — Compliance reports and signed PDF / CSV exports.
+
+  System
+    Datasource health · /admin/datasource-health · needs DATASOURCE_MANAGE — Connection health across every registered datasource.
+    Anomalies · /admin/anomalies · needs ANOMALY_MANAGE — User-behaviour anomalies the AI flagged.
+    Notifications · /admin/notifications · needs NOTIFICATION_CHANNEL_MANAGE — Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.
+    Slack · /admin/slack · needs NOTIFICATION_CHANNEL_MANAGE — Slack workspace connection.
+    Languages · /admin/languages · needs LOCALIZATION_CONFIGURE — Which of the seven interface languages are offered.
+    Governance domains · /admin/governance-domains · needs SETUP_PROGRESS_VIEW — Whether this organization governs outbound API calls and CI/CD deployments — which navigation, review tabs and dashboard widgets are shown.
+
+  System → AI
+    AI configurations · /admin/ai-configs · needs AI_MANAGE — AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.
+    AI analyses · /admin/ai-analyses · needs AI_MANAGE — History of every AI analysis, with tokens and latency.
+    Langfuse · /admin/langfuse · needs AI_MANAGE — Langfuse tracing for AI calls.
+    Help assistant · /admin/help-agent · needs AI_MANAGE — In-app help assistant: bind it to an AI provider, tune retrieval and retention, and re-index the bundled documentation.
+
+  Platform
+    Organizations · /admin/organizations · platform administrators only — Organizations (tenants) and their settings.
+
+Buttons and fields on the main screens (quote these labels verbatim)
+  Query editor (Workflow → Database → Query editor)
+    "SQL editor" — page heading. The heading at the top of this screen. It differs from the menu entry that opens it, which is the label in the sidebar block above — this is the one screen where the two names disagree.
+    "Datasource" — field. Which database the query runs against.
+    "Describe your query" — field. Optional plain-language description the AI turns into SQL. Present only on a datasource whose engine supports text-to-SQL.
+    "Generate query" — button. Writes a draft query from that description. Shown with the field above.
+    "Format" — button. Reformats the SQL. Shown only for engines whose syntax can be formatted.
+    "Templates" — button. Opens the saved query templates.
+    "Save as template" — button. Saves the current query as a template.
+    "Justification" — field. Why the query is being run. Not enforced: a normal submission is accepted without one.
+    "· required for review" — note. The advisory qualifier beside the Justification label. It marks what a reviewer expects, not a validation rule — the same note on the Emergency access modal marks a field that is enforced.
+    "Why are you running this query?" — placeholder. The prompt inside the empty Justification field.
+    "Analyze" — button. Runs the AI risk analysis. Shown only on a datasource with AI analysis enabled, where it is a precondition rather than a side-trip: Submit for review stays disabled until a fresh analysis exists.
+    "Run AI analysis before submitting." — tooltip. Why Submit for review is greyed out before the analysis has run.
+    "Dry run" — button. Asks the database for an execution plan without running the query.
+    "Scheduled execution" — field. Optional date and time for the approved query to run automatically. Mutually exclusive with Recurring execution.
+    "Recurring execution" — field. Optional repeating schedule. Mutually exclusive with Scheduled execution.
+    "Submit for review" — button. Sends the query into the review workflow. Disabled until the SQL is non-empty and, where AI analysis is enabled, a fresh analysis exists.
+    "Emergency access" — button. Runs immediately, bypassing review — only for someone holding the break-glass permission on that datasource.
+    "Explain the emergency (required)" — placeholder. The justification field inside that modal, which unlike the ordinary one is enforced.
+    "History" — button. Opens Query history — every query you have submitted, not only the ones written here.
+
+  Query history (Workflow → Database → Query history)
+    "Search SQL, ID or submitter…" — placeholder. Filters the list by SQL, id or submitter.
+    "Status" — column. Where the query stands in the workflow.
+    "Risk" — column. The risk rating the AI analysis gave it.
+
+  Query detail (/queries/:id)
+    "Justification" — section. The justification the submitter gave.
+    "AI analysis" — section. The AI risk score and its explanation.
+    "Execution result" — section. Rows affected, duration, and any database error.
+    "Execute now" — button. Runs an approved query now.
+    "Cancel query" — button. Withdraws a query the submitter no longer wants reviewed.
+    "Replay in test environment" — button. Re-submits the same SQL against a test datasource; it re-enters review.
+    "Export CSV" — button. Exports the result rows as CSV, subject to the export policy.
+    "Export PDF" — button. Exports the result rows as PDF, subject to the export policy.
+
+  Review queue (at the top of the sidebar)
+    "All caught up" — empty state. Shown when nothing is waiting on you.
+    "Approve" — row action. Approves that one query, from its row in the queue.
+    "Reject" — row action. Opens the rejection modal for that one query.
+    "Reject" — button. Confirms the rejection inside that modal; it stays disabled until a comment is entered.
+    "Approve selected" — button. Approves every selected row with one shared comment.
+    "Reject selected" — button. Rejects every selected row with one shared comment.
+    "Request changes" — button. Sends every selected row back to its submitter.
+
+  Approve or reject (/reviews/:id/decide)
+    "Approve" — button. Records an approval and forwards the query to execution.
+    "Reject" — button. Records a rejection and notifies the submitter.
+    "Confirm your password" — field. Re-authentication before the decision is committed.
+    "Authentication code" — field. The one-time code instead, when two-factor is on.
+    "You can't review your own query." — message. Shown when the signed-in user submitted the query themselves — nobody reviews their own.
+
+  Profile (/profile)
+    "Profile settings" — menu entry. Opens the profile screen, from the avatar menu at the top right.
+    "Sign out" — menu entry. Ends the session, from that same menu.
+
+Screens with no menu entry
+  / — Lands on the dashboard once signed in. How you get there: the application root; signing in lands here.
+  /queries/:id — One query: SQL, AI analysis, approval chain, results, audit trail. How you get there: open a row in Query history, or follow the link in a notification.
+  /reviews/:id/decide — Approve or reject one request, re-authenticating with your password or TOTP code. There is no comment field on this screen — the review queue is where a decision takes a comment. How you get there: follow the decision link in a review notification or push message.
+  /request-groups/:id — One grouped request: its members, their order, and the aggregated approval. How you get there: open a row in Request Groups.
+  /request-groups/new — Build a grouped request and order its members. How you get there: the create action on Request Groups.
+  /request-groups/:id/edit — Change a grouped request before it is submitted. How you get there: the edit action on a grouped request that has not been submitted yet.
+  /datasources/new — Register a database: engine, host, credentials, SSL mode. How you get there: the add action on Datasources.
+  /datasources/:id/settings — Per-datasource schema, masking, row security and ER diagram. How you get there: open a datasource from Datasources.
+  /api-connectors/:id/settings — Per-connector schema, permissions, response masking and classification tags. How you get there: open a connector from API Connectors.
+  /api-requests/:id — One API call: request, AI analysis, approval chain, response. How you get there: open a row in API Requests.
+  /reviews?tab=api — The API requests queue. How you get there: the API requests tab of the Review queue — the older /api-reviews URL redirects here.
+  /deployments/:id — One deployment request: what it releases, its analysis and its decisions. How you get there: open a row in Deployments.
+  /reviews?tab=deployments — The deployment queue; ?tab=rollbacks is the rollback worklist. How you get there: the Deployments tab of the Review queue — the older /deployment-reviews URL redirects here.
+  /deployment-versions/:pipelineId — The same matrix for one pipeline, plus per-environment history. How you get there: open a pipeline from Version Matrix.
+  /profile — Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link. How you get there: the user menu behind your avatar, top right.
+  /setup — First-run wizard. Shown until an active admin exists. How you get there: shown automatically on a fresh install, until an active administrator exists; there is no menu entry for it.
+  /login — Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO. How you get there: where anyone who is not signed in is sent.
+  /forgot-password — Ask for a password-reset email. How you get there: the forgotten-password link on the sign-in screen.
+  /reset-password/:token — Set a new password from the link in that email. How you get there: the link in the password-reset email.
+  /invite/:token — Accept an invitation and choose a password. How you get there: the link in the invitation email.
+  /admin/groups/:id — One group: its members and the permissions it grants them. How you get there: open a row in Groups.
+  /admin/organizations/:id — One organization and its settings. How you get there: open a row in Organizations.
+  /admin/attestation/:id — One campaign: its scope, progress and evidence export. How you get there: open a campaign from Attestation.
+  /admin/ai-configs/new — Add an AI provider configuration. How you get there: the add action on AI configurations.
+  /admin/ai-configs/:id — Edit one AI provider configuration, its prompt and its knowledge base. How you get there: open a row in AI configurations.
+  /admin/deployment-pipelines/:id — One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet. How you get there: open a pipeline from Deployment Pipelines.
 
 What the documentation covers
   AI agents: Your agent doesn't need your database. It needs an answer
@@ -105,3 +204,4 @@ What the documentation covers
   Security: Where credentials live, and what the proxy can actually see
   Use cases: Seven access problems, one governed checkpoint
   Deployment: Deploying and configuring AccessFlow
+  Navigation: Finding your way around the AccessFlow interface

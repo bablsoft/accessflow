@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "27355d86b2f2",
-  "generatedAt": "2026-09-09T07:34:13.101Z",
-  "sourceCommit": "ad2b7e22717192a7addd5c826f9f1b4b95d9d107",
-  "chunkCount": 516,
-  "sha256": "27355d86b2f2e0b5b73507ba490ff3845265e8a1616b895cde4314e2082549bb",
-  "quickReferenceSha256": "cb37c52a6c0e069fb343a63b5d96d55d7f721fe256e9a6be93089b92e233ed72",
+  "corpusVersion": "22f69c575d1f",
+  "generatedAt": "2026-09-09T08:16:08.837Z",
+  "sourceCommit": "5f502b1bcfa09061ad81da318e6fdb2b2f904c7a",
+  "chunkCount": 524,
+  "sha256": "22f69c575d1f5307b3a7088f4382f11a4cc8e84db1248e945a053bb59bda7490",
+  "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -269,7 +269,7 @@
       "url": "https://accessflow.io/docs/guides/first-query/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "c4fbee81ca138d0eb4b8997a982354dcfaffb2f1c777290daaf320128ad40fd2"
+      "sha256": "88836730b0da4245a88613c92fcd2f40412f6572b8062d4c26a89c752f2ff402"
     },
     {
       "path": "website/docs/guides/index.html",
@@ -341,7 +341,7 @@
       "url": "https://accessflow.io/docs/workflows/",
       "section": "Reference",
       "chunks": 12,
-      "sha256": "805a683122d985241248cd678fa8752405b1009a700d332e72465b4c637a2aca"
+      "sha256": "b5a0118dfe773769b0e28a47fbdbce17278e9f0f78df9a10a39d376793b1321d"
     },
     {
       "path": "website/features/api-access-governance/index.html",
@@ -406,6 +406,14 @@
       "section": "Deployment",
       "chunks": 83,
       "sha256": "c667a632da9abf9a2c9fa764e0e86be7a591ad3c55480dff60472a0a6e67ff7b"
+    },
+    {
+      "path": "frontend/src/components/common/Sidebar.tsx",
+      "title": "Finding your way around the AccessFlow interface",
+      "url": "https://accessflow.io/docs/",
+      "section": "Navigation",
+      "chunks": 8,
+      "sha256": "aa0015a19b6f530d8aeea44a2bf0782bbfde31919d02e7246fc26c77ce809ef8"
     }
   ]
 }

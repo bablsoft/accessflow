@@ -342,7 +342,7 @@ GitHub branch protection doesn't support "conditional required status checks" â€
 | `backend` | `needs.changes.outputs.backend == 'true'` | Java 25 + Maven `verify -Pcoverage`, JaCoCo gate, JUnit reporter. |
 | `frontend` | `needs.changes.outputs.frontend == 'true'` | Node 24 + `npm run lint && npm run typecheck && npm run test:coverage && npm run build`. |
 | `helm` | `needs.changes.outputs.helm == 'true'` | `helm dependency update` + `helm lint charts/accessflow` + three `helm template` renders (defaults, external Postgres/Redis, bootstrap fixture). |
-| `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails when `help-corpus/` no longer matches the documentation it is generated from. |
+| `help-corpus` | `needs.changes.outputs.help-corpus == 'true'` | Re-runs `node .github/scripts/build-help-corpus.mjs` and fails when `help-corpus/` no longer matches the documentation it is generated from. Its paths filter also watches `frontend/src/App.tsx`, `frontend/src/locales/en.json`, `frontend/src/components/common/Sidebar.tsx` and `frontend/src/utils/reviewHubTabs.ts`, because the bundle's menu labels and control names are derived from them (#925) â€” renaming a menu entry fails this job until the bundle is regenerated. |
 | `e2e` | `needs.changes.outputs.e2e == 'true'` | Playwright, across the three compose stacks (main, setup, SSO). |
 | `connectors` | `needs.changes.outputs.connectors == 'true'` | `node .github/scripts/validate-connectors.mjs` over the connector catalog. |
 | `engines` | `needs.changes.outputs.engines == 'true'` | Ten-engine matrix: builds each plugin and fails on connector SHA-256 pin drift. |
