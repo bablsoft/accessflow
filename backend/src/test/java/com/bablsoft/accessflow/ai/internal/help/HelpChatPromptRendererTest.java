@@ -69,24 +69,16 @@ class HelpChatPromptRendererTest {
         // Asserted across the text block's `\` continuations, not within its lines: the way this
         // rule breaks is a dropped space at a seam, which every within-a-line substring survives.
         assertThat(prompt.systemPreamble())
-                .contains("Name a screen by its exact label in the interface and give the menu "
-                        + "path a reader follows — \"Workflow → Database → Query editor\" — never "
-                        + "a URL as the instruction.")
+                .contains("Name a screen by its exact interface label and give its menu path — "
+                        + "\"Workflow → Database → Query editor\" — not a URL.")
                 // Deliberately *not* "if a field is marked required, it is required": the editor's
                 // own "· required for review" note sits on a field the submit endpoint does not
                 // enforce, so an absolute reading of a label is a claim the product contradicts.
-                .contains("Quote button, tab and field labels exactly as the excerpts spell them, "
-                        + "qualifiers included, and claim nothing about a control that the "
-                        + "excerpts do not say about it.")
-                .contains("Those labels are the English interface strings. Answering in another "
-                        + "language, give the label verbatim anyway and say it is the English "
-                        + "wording, because the reader's interface may be showing them a "
-                        + "translation of it.")
-                .contains("The sidebar is filtered by permission, and so are some controls. When "
-                        + "an excerpt names the permission a destination needs, or says a control "
-                        + "appears only in some cases, carry that over (\"if you have "
-                        + "QUERY_SUBMIT_DML, ...\") rather than asserting it is on everyone's "
-                        + "screen.");
+                .contains("Quote control labels verbatim with their qualifiers, add no claim an "
+                        + "excerpt does not make, and carry over any permission or condition it "
+                        + "states (\"if you have QUERY_SUBMIT_DML, ...\").")
+                .contains("The labels are English; answering in another language, give the label "
+                        + "anyway and say so.");
     }
 
     @Test
