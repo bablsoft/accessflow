@@ -29,6 +29,7 @@ import type {
   UpdateAiConfigInput,
   VotingStrategy,
 } from '@/types/api';
+import { clearableDimensions } from './embeddingDimensions';
 import { RagFormSection } from './RagFormSection';
 import { OrchestrationFormSection } from './OrchestrationFormSection';
 import { GuardrailsFormSection } from './GuardrailsFormSection';
@@ -58,6 +59,7 @@ interface FormValues {
   embedding_model: string;
   embedding_endpoint: string;
   embedding_api_key: string;
+  embedding_dimensions: number | null;
   orchestration_enabled: boolean;
   voting_strategy: VotingStrategy;
   voting_weight: number;
@@ -108,6 +110,7 @@ export default function AiConfigEditPage() {
         embedding_model: cfgQuery.data.embedding_model ?? '',
         embedding_endpoint: cfgQuery.data.embedding_endpoint ?? '',
         embedding_api_key: cfgQuery.data.embedding_api_key ?? '',
+        embedding_dimensions: cfgQuery.data.embedding_dimensions,
         orchestration_enabled: cfgQuery.data.orchestration_enabled,
         voting_strategy: cfgQuery.data.voting_strategy,
         voting_weight: cfgQuery.data.voting_weight,
@@ -211,6 +214,11 @@ export default function AiConfigEditPage() {
       embedding_model: values.rag_enabled ? (values.embedding_model?.trim() || null) : null,
       embedding_endpoint: values.embedding_endpoint?.trim() || null,
       embedding_api_key: embeddingApiKey ?? null,
+      // 0 clears the stored override; null leaves it alone. The field is only mounted for providers
+      // that can honour a length, and an unmounted Form.Item is absent from `values` — so a blank
+      // value here means "the admin cleared it", never "I could not see it". For a provider with no
+      // such knob, or with RAG off, the stored value must go: it can no longer be honoured.
+      embedding_dimensions: clearableDimensions(values),
       orchestration_enabled: values.orchestration_enabled,
       voting_strategy: values.voting_strategy,
       voting_weight: values.voting_weight,

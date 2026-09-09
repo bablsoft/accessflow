@@ -46,6 +46,7 @@ public record CreateAiConfigCommand(
         String embeddingModel,
         String embeddingEndpoint,
         String embeddingApiKey,
+        Integer embeddingDimensions,
         Boolean orchestrationEnabled,
         VotingStrategy votingStrategy,
         Double votingWeight,
@@ -69,7 +70,7 @@ public record CreateAiConfigCommand(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-                null, null, fallbackPriority);
+                null, null, null, fallbackPriority);
     }
 
     /** Convenience constructor for callers that configure RAG but not orchestration (tests). */
@@ -83,6 +84,7 @@ public record CreateAiConfigCommand(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel, ragEnabled, ragStoreType,
                 ragTopK, ragSimilarityThreshold, ragEndpoint, ragCollection, ragApiKey, embeddingProvider,
-                embeddingModel, embeddingEndpoint, embeddingApiKey, null, null, null, null, null, null);
+                embeddingModel, embeddingEndpoint, embeddingApiKey, null, null, null, null, null, null,
+                null);
     }
 }

@@ -5,11 +5,13 @@ import com.bablsoft.accessflow.ai.api.AiConfigInUseException;
 import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
+import com.bablsoft.accessflow.ai.api.AiConfigProviderInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.CreateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.ai.api.AiConfigModelCommand;
 import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
+import com.bablsoft.accessflow.ai.internal.config.RagProperties;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigModelEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
@@ -57,6 +59,7 @@ class DefaultAiConfigServiceTest {
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock SystemPromptRenderer promptRenderer;
     @Spy ObjectMapper objectMapper = JsonMapper.builder().build();
+    @Spy RagProperties ragProperties = new RagProperties(1536, 800, 100_000);
     @InjectMocks DefaultAiConfigService service;
 
     private final UUID orgId = UUID.randomUUID();
@@ -783,7 +786,7 @@ class DefaultAiConfigServiceTest {
         when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of(configId, 0));
 
         var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 null, VotingStrategy.MAX_RISK, null, null, null, null);
         service.update(configId, orgId, cmd);
 
@@ -816,7 +819,7 @@ class DefaultAiConfigServiceTest {
         var keep = new AiConfigModelCommand(existing.getId(), AiProviderType.OLLAMA, "llama3", null,
                 UpdateAiConfigCommand.MASKED_API_KEY, 3.0, true);
         var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 true, null, null, null, List.of(keep), null);
         service.update(configId, orgId, cmd);
 
@@ -830,8 +833,191 @@ class DefaultAiConfigServiceTest {
             List<AiConfigModelCommand> models) {
         return new CreateAiConfigCommand(name, AiProviderType.ANTHROPIC, "claude-sonnet-4", null,
                 null, null, null, null, null, null, null,
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 enabled, strategy, weight, guardrails, models, null);
+    }
+
+    // --- AF-918: Voyage is embedding-only, and its vector length has to fit the store ---
+
+    @Test
+    void createRejectsVoyageAsTheChatProvider() {
+        var cmd = new CreateAiConfigCommand("V", AiProviderType.VOYAGE, "voyage-4", null, null,
+                null, null, null, null, null, null);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigProviderInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.provider_not_chat_capable");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void updateRejectsSwitchingTheChatProviderToVoyage() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        var cmd = new UpdateAiConfigCommand(null, AiProviderType.VOYAGE, null, null, null, null, null,
+                null, null, null, null);
+
+        assertThatThrownBy(() -> service.update(configId, orgId, cmd))
+                .isInstanceOf(AiConfigProviderInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.provider_not_chat_capable");
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsVoyageAsAnOrchestrationMember() {
+        var member = new AiConfigModelCommand(null, AiProviderType.VOYAGE, "voyage-4", null, null,
+                1.0, true);
+        var cmd = orchestrationCreateCommand("Fleet", true, VotingStrategy.MAX_RISK, 1.0, List.of(),
+                List.of(member));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigOrchestrationInvalidException.class)
+                .extracting("messageKey")
+                .isEqualTo("error.ai_config.orchestration_member_provider_not_chat_capable");
+    }
+
+    @Test
+    void createAcceptsVoyageAsTheEmbeddingProvider() {
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.VOYAGE, "voyage-4",
+                "http://q:6334", "kb", 2048);
+
+        var view = service.create(orgId, cmd);
+
+        assertThat(view.embeddingProvider()).isEqualTo(AiProviderType.VOYAGE);
+        assertThat(view.embeddingDimensions()).isEqualTo(2048);
+    }
+
+    @Test
+    void createStillRejectsAnthropicAsTheEmbeddingProvider() {
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.ANTHROPIC, "m", "http://q:6334", "kb");
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey").isEqualTo("error.ai_config.rag.embedding_provider_invalid");
+    }
+
+    @Test
+    void createRejectsVoyageOnPgvectorAtTheDefault1536() {
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.VOYAGE, "voyage-4", null, null, 1024);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .satisfies(e -> {
+                    var ex = (AiConfigRagInvalidException) e;
+                    assertThat(ex.messageKey())
+                            .isEqualTo("error.ai_config.rag.embedding_dimensions_pgvector_mismatch");
+                    assertThat(ex.args()).containsExactly(1024, 1536);
+                });
+    }
+
+    @Test
+    void createRejectsVoyageOnPgvectorEvenWithNoDimensionChosen() {
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.VOYAGE, "voyage-4", null, null);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey")
+                .isEqualTo("error.ai_config.rag.embedding_dimensions_pgvector_mismatch");
+    }
+
+    @Test
+    void createRejectsADimensionVoyageCannotProduce() {
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.VOYAGE, "voyage-4",
+                "http://q:6334", "kb", 768);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey")
+                .isEqualTo("error.ai_config.rag.embedding_dimensions_unsupported");
+    }
+
+    @Test
+    void createAcceptsAnOllamaRowThatLeavesTheDimensionBlankOnPgvector() {
+        // No pinned default for Ollama, so there is nothing to compare against the column — the
+        // guard must not invent one.
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.OLLAMA, "nomic-embed-text",
+                null, null);
+
+        assertThat(service.create(orgId, cmd).embeddingDimensions()).isNull();
+    }
+
+    @Test
+    void createRejectsADimensionForAProviderThatCannotHonourIt() {
+        // Ollama serves whatever its model emits — accepting 1536 here would let the row pass the
+        // pgvector width check and still fail at ingest, which is the bug the guard exists for.
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.OLLAMA, "nomic-embed-text",
+                null, null, 1536);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey")
+                .isEqualTo("error.ai_config.rag.embedding_dimensions_not_configurable");
+    }
+
+    @Test
+    void createTreatsAZeroDimensionAsNoOverrideRatherThanStoringIt() {
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.OLLAMA, "nomic-embed-text",
+                null, null, 0);
+
+        // 0 must mean the same thing on create as on update, or it persists as a literal width that
+        // only blows up later.
+        assertThat(service.create(orgId, cmd).embeddingDimensions()).isNull();
+    }
+
+    @Test
+    void createRejectsANonPositiveDimension() {
+        var cmd = ragCommand(RagStoreType.QDRANT, AiProviderType.OPENAI, "text-embedding-3-small",
+                "http://q:6334", "kb", -1);
+
+        assertThatThrownBy(() -> service.create(orgId, cmd))
+                .isInstanceOf(AiConfigRagInvalidException.class)
+                .extracting("messageKey")
+                .isEqualTo("error.ai_config.rag.embedding_dimensions_positive");
+    }
+
+    @Test
+    void createAcceptsAnOpenAiConfigShrunkToThePgvectorWidth() {
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        var cmd = ragCommand(RagStoreType.PGVECTOR, AiProviderType.OPENAI, "text-embedding-3-large",
+                null, null, 1536);
+
+        assertThat(service.create(orgId, cmd).embeddingDimensions()).isEqualTo(1536);
+    }
+
+    @Test
+    void updateTreatsAZeroDimensionAsClearingTheOverride() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        entity.setEmbeddingDimensions(2048);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of());
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, 0,
+                null, null, null, null, null, null);
+
+        assertThat(service.update(configId, orgId, cmd).embeddingDimensions()).isNull();
+    }
+
+    @Test
+    void changingTheDimensionEvictsTheCachedDelegate() {
+        var entity = build(configId, orgId, "Prod", AiProviderType.ANTHROPIC);
+        entity.setEmbeddingDimensions(1024);
+        when(repository.findByIdAndOrganizationId(configId, orgId)).thenReturn(Optional.of(entity));
+        when(repository.save(any(AiConfigEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(datasourceLookupService.countsByAiConfigIds(Set.of(configId))).thenReturn(Map.of());
+        var cmd = new UpdateAiConfigCommand(null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, 512,
+                null, null, null, null, null, null);
+
+        service.update(configId, orgId, cmd);
+
+        var event = ArgumentCaptor.forClass(AiConfigUpdatedEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().ragChanged()).isTrue();
     }
 
     private CreateAiConfigCommand ragCommand(RagStoreType storeType, AiProviderType embeddingProvider,
@@ -840,6 +1026,16 @@ class DefaultAiConfigServiceTest {
                 null, null, null, null, null, null,
                 true, storeType, 4, 0.5, ragEndpoint, ragCollection, null,
                 embeddingProvider, embeddingModel, null, null);
+    }
+
+    private CreateAiConfigCommand ragCommand(RagStoreType storeType, AiProviderType embeddingProvider,
+                                             String embeddingModel, String ragEndpoint,
+                                             String ragCollection, Integer embeddingDimensions) {
+        return new CreateAiConfigCommand("R", AiProviderType.ANTHROPIC, "model", null, null,
+                null, null, null, null, null, null,
+                true, storeType, 4, 0.5, ragEndpoint, ragCollection, null,
+                embeddingProvider, embeddingModel, null, null, embeddingDimensions,
+                null, null, null, null, null, null);
     }
 
     private static AiConfigEntity build(UUID id, UUID organizationId, String name,

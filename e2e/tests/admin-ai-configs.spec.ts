@@ -21,6 +21,7 @@ const PROMPT_NAME = `e2e-prompt-${UNIQUE_SUFFIX}`;
 const RAG_NAME = `e2e-rag-${UNIQUE_SUFFIX}`;
 const ORCH_NAME = `e2e-orch-${UNIQUE_SUFFIX}`;
 const FALLBACK_NAME = `e2e-fallback-${UNIQUE_SUFFIX}`;
+const VOYAGE_NAME = `e2e-voyage-${UNIQUE_SUFFIX}`;
 
 const DEFAULT_API_BASE = 'http://localhost:8080';
 
@@ -196,6 +197,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
   let ragAiConfigId: string | null = null;
   let orchAiConfigId: string | null = null;
   let fallbackAiConfigId: string | null = null;
+  let voyageAiConfigId: string | null = null;
 
   test.beforeAll(async ({ request }) => {
     adminAccessToken = await loginViaApi(request, ADMIN_EMAIL, ADMIN_PASSWORD);
@@ -222,6 +224,7 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
       ragAiConfigId,
       orchAiConfigId,
       fallbackAiConfigId,
+      voyageAiConfigId,
     ].filter((id): id is string => Boolean(id));
     for (const id of allIds) {
       await deleteAiConfigViaApi(request, adminAccessToken, id);
@@ -1183,5 +1186,75 @@ test.describe.serial('/admin/ai-configs — wizard, list, edit, test, delete', (
     await waitForAiConfigsListReady(page);
     await expect(row).toBeVisible();
     await expect(row.getByText(/Fallback #/)).toHaveCount(0);
+  });
+
+  // AF-918: Voyage AI is the first embedding-only provider. Three things are worth pinning here and
+  // nowhere else: it is absent from the chat-provider tiles, choosing it as the *embedding* provider
+  // pre-fills Voyage's endpoint / model / dimensions, and the vector length round-trips on save.
+  // Like tests 14 and 15, saving calls no provider, so this needs no live Voyage account.
+  test('17) Voyage is embedding-only: no chat tile, prefilled defaults, dimensions round-trip', async ({
+    page,
+    request,
+  }) => {
+    const cfg = await createAiConfigViaApi(request, adminAccessToken, {
+      name: VOYAGE_NAME,
+      provider: 'OLLAMA',
+      model: 'llama3.1:70b',
+      endpoint: 'http://localhost:11434/api',
+    });
+    voyageAiConfigId = cfg.id;
+
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+
+    // Step 1 of the create wizard offers only chat-capable providers — Voyage has no chat API.
+    await page.goto('/admin/ai-configs/new');
+    await expect(page.getByRole('button', { name: /^Anthropic/ })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Voyage/ })).toHaveCount(0);
+
+    await page.goto(`/admin/ai-configs/${voyageAiConfigId}`);
+    await expect(
+      page.getByRole('heading', { name: new RegExp(`Edit · ${escapeRegex(VOYAGE_NAME)}`) }),
+    ).toBeVisible({ timeout: 10_000 });
+
+    // RagFormSection is rendered first, so its "Enable RAG" toggle is the first switch (test 14).
+    await page.getByRole('switch').first().click();
+    await page.getByRole('combobox', { name: /Vector store/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: 'Qdrant' }).click();
+    await page.getByLabel('Vector store endpoint').fill('http://qdrant:6334');
+    await page.getByLabel('Collection name').fill('e2e-kb');
+
+    await page.getByRole('combobox', { name: /Embedding provider/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: /^Voyage AI$/ }).click();
+
+    // Picking Voyage pre-fills its endpoint, model and default vector length.
+    await expect(page.getByLabel('Embedding model')).toHaveValue('voyage-4');
+    await expect(page.getByLabel('Embedding endpoint')).toHaveValue('https://api.voyageai.com/v1');
+    await expect(page.getByRole('combobox', { name: /Vector dimensions/ })).toBeVisible();
+
+    // Widen to 2048 — one of the four lengths Voyage can emit.
+    await page.getByRole('combobox', { name: /Vector dimensions/ }).click();
+    await page.locator('.ant-select-item-option').filter({ hasText: /^2048$/ }).click();
+
+    const updateResponsePromise = page.waitForResponse(
+      (r) =>
+        r.request().method() === 'PUT' &&
+        new RegExp(`/api/v1/admin/ai-configs/${voyageAiConfigId}$`).test(r.url()),
+      { timeout: 15_000 },
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+    const updateResponse = await updateResponsePromise;
+    expect(updateResponse.status()).toBe(200);
+    const body = (await updateResponse.json()) as {
+      embedding_provider: string | null;
+      embedding_model: string | null;
+      embedding_dimensions: number | null;
+    };
+    expect(body.embedding_provider).toBe('VOYAGE');
+    expect(body.embedding_model).toBe('voyage-4');
+    expect(body.embedding_dimensions).toBe(2048);
+
+    await expect(
+      page.getByText('AI configuration saved', { exact: true }),
+    ).toBeVisible({ timeout: 10_000 });
   });
 });

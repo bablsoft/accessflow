@@ -1666,6 +1666,14 @@
         "field_embedding_model": "Modèle d'embeddings",
         "field_embedding_endpoint": "Point de terminaison d'embeddings",
         "field_embedding_api_key": "Clé API d'embeddings",
+        "field_embedding_dimensions": "Dimensions du vecteur",
+        "embedding_dimensions_help": "Laissez vide pour utiliser la longueur de vecteur propre au modèle. Toute valeur définie doit correspondre à la largeur avec laquelle votre magasin de vecteurs a été provisionné.",
+        "embedding_dimensions_voyage_help": "Les modèles Voyage produisent 256, 512, 1024 (par défaut) ou 2048 dimensions, et rien d'autre. La valeur doit correspondre à la largeur avec laquelle votre magasin de vecteurs a été provisionné.",
+        "embedding_dimensions_placeholder": "Valeur du modèle",
+        "embedding_dimensions_range": "Les dimensions du vecteur doivent être comprises entre 0 et 4096",
+        "voyage_api_key_help": "Voyage AI est un fournisseur distinct : une clé d'API Voyage est requise ici, pas une clé Anthropic. Inscrivez-vous sur voyageai.com pour en obtenir une.",
+        "voyage_pgvector_warning": "Voyage ne peut pas écrire dans ce magasin de vecteurs intégré",
+        "voyage_pgvector_help": "La largeur de la colonne pgvector intégrée est fixée lors de la première migration de la base de données — 1536 par défaut, que Voyage ne peut pas produire. À moins que cette installation n'ait été provisionnée en 256, 512, 1024 ou 2048, utilisez plutôt un magasin Qdrant externe. L'enregistrement indique les largeurs exactes.",
         "store_type_required": "Un magasin de vecteurs est requis lorsque le RAG est activé",
         "embedding_provider_required": "Un fournisseur d'embeddings est requis",
         "embedding_model_required": "Un modèle d'embeddings est requis",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Personnalisé (compatible OpenAI)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Local",

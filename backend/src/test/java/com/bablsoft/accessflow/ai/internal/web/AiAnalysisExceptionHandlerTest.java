@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.ai.api.AiAnalysisException;
 import com.bablsoft.accessflow.ai.api.AiAnalysisParseException;
 import com.bablsoft.accessflow.ai.api.AiBudgetExceededException;
 import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
+import com.bablsoft.accessflow.ai.api.AiConfigProviderInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
@@ -21,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AiAnalysisExceptionHandlerTest {
@@ -39,6 +41,35 @@ class AiAnalysisExceptionHandlerTest {
         assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
         assertThat(pd.getProperties()).containsEntry("error", "RAG_CONFIG_INVALID");
         assertThat(pd.getDetail()).isEqualTo("A vector store type is required");
+    }
+
+    @Test
+    void mapsProviderInvalidToItsOwnErrorCode() {
+        when(messageSource.getMessage(eq("error.ai_config.provider_not_chat_capable"), any(),
+                any(Locale.class))).thenReturn("Voyage AI provides embeddings only");
+
+        var pd = handler.handleAiConfigProviderInvalid(
+                new AiConfigProviderInvalidException("error.ai_config.provider_not_chat_capable"));
+
+        // Distinct from RAG_CONFIG_INVALID: the offending field is `provider`, not a RAG setting.
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getProperties()).containsEntry("error", "AI_CONFIG_PROVIDER_INVALID");
+        assertThat(pd.getDetail()).isEqualTo("Voyage AI provides embeddings only");
+    }
+
+    @Test
+    void passesRagMessageArgumentsThroughToTheResolvedDetail() {
+        when(messageSource.getMessage(
+                eq("error.ai_config.rag.embedding_dimensions_pgvector_mismatch"),
+                any(), any(Locale.class))).thenReturn("1024 vs 1536");
+
+        var pd = handler.handleAiConfigRagInvalid(new AiConfigRagInvalidException(
+                "error.ai_config.rag.embedding_dimensions_pgvector_mismatch", 1024, 1536));
+
+        assertThat(pd.getDetail()).isEqualTo("1024 vs 1536");
+        verify(messageSource).getMessage(
+                eq("error.ai_config.rag.embedding_dimensions_pgvector_mismatch"),
+                eq(new Object[] {1024, 1536}), any(Locale.class));
     }
 
     @Test

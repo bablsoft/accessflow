@@ -39,6 +39,8 @@ public record AiConfigView(
         String embeddingModel,
         String embeddingEndpoint,
         boolean embeddingApiKeyMasked,
+        // Requested vector length; null = the provider's default (AF-918).
+        Integer embeddingDimensions,
         // --- Multi-model orchestration + guardrails (AF-450) ---
         boolean orchestrationEnabled,
         VotingStrategy votingStrategy,

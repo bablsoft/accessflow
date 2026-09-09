@@ -1666,6 +1666,14 @@
         "field_embedding_model": "Embedding մոդել",
         "field_embedding_endpoint": "Embedding հասցե",
         "field_embedding_api_key": "Embedding API բանալի",
+        "field_embedding_dimensions": "Վեկտորի չափողականություն",
+        "embedding_dimensions_help": "Թողեք դատարկ՝ մոդելի սեփական վեկտորի երկարությունն օգտագործելու համար։ Ցանկացած սահմանված արժեք պետք է համապատասխանի ձեր վեկտորային պահոցի ստեղծման լայնությանը։",
+        "embedding_dimensions_voyage_help": "Voyage-ի մոդելները ստեղծում են 256, 512, 1024 (կանխադրված) կամ 2048 չափողականություն և ոչ այլ բան։ Արժեքը պետք է համապատասխանի ձեր վեկտորային պահոցի ստեղծման լայնությանը։",
+        "embedding_dimensions_placeholder": "Մոդելի կանխադրված",
+        "embedding_dimensions_range": "Վեկտորի չափողականությունը պետք է լինի 0-ից 4096 միջակայքում",
+        "voyage_api_key_help": "Voyage AI-ն առանձին մատակարար է՝ այստեղ անհրաժեշտ է Voyage-ի API բանալի, ոչ թե Anthropic-ի։ Գրանցվեք voyageai.com-ում՝ բանալի ստանալու համար։",
+        "voyage_pgvector_warning": "Voyage-ը չի կարող գրել այս ներկառուցված վեկտորային պահոցում",
+        "voyage_pgvector_help": "Ներկառուցված pgvector սյունակի լայնությունը սահմանվում է տվյալների բազայի առաջին միգրացիայի ժամանակ՝ կանխադրված 1536, որը Voyage-ը չի կարող ստեղծել։ Եթե այս տեղակայումը չի ստեղծվել 256, 512, 1024 կամ 2048 լայնությամբ, օգտագործեք արտաքին Qdrant պահոց։ Պահպանելիս կնշվեն ճշգրիտ լայնությունները։",
         "store_type_required": "RAG-ը միացված լինելու դեպքում անհրաժեշտ է վեկտորային պահեստ",
         "embedding_provider_required": "Անհրաժեշտ է embedding մատակարար",
         "embedding_model_required": "Անհրաժեշտ է embedding մոդել",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Հատուկ (OpenAI-համատեղելի)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Տեղական",

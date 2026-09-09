@@ -533,10 +533,24 @@ above (the label defaults to `production`).
 **Enable RAG** `Switch`; when on it reveals the vector-store fields (`rag_store_type` select —
 **In-app (pgvector)** / **Qdrant**, `rag_top_k` 1–20, `rag_similarity_threshold` 0–1, plus
 `rag_endpoint` / `rag_collection` / `rag_api_key` only for Qdrant) and a dedicated **Embeddings**
-block (`embedding_provider` select — Anthropic excluded, `embedding_model`, optional
-`embedding_endpoint` / `embedding_api_key`). Required rules fire only when the dependent field is
+block (`embedding_provider` select — Anthropic excluded as it has no embeddings API, Voyage AI
+included as an embedding-only provider, `embedding_model`, optional `embedding_endpoint` /
+`embedding_api_key`, and `embedding_dimensions`). Required rules fire only when the dependent field is
 mounted, and the form mirrors the backend `RAG_CONFIG_INVALID` constraints. API keys round-trip
 masked as `********`.
+
+Three details of that block exist for AF-918. Choosing **Voyage AI** pre-fills its endpoint
+(`https://api.voyageai.com/v1`), model (`voyage-4`) and default width, and the API-key help text says
+a *Voyage* key — the footgun this feature exists to signpost is assuming an Anthropic key works;
+switching away again clears any of those three values the section itself wrote, so a Voyage model name
+is never saved against another provider. `embedding_dimensions` renders for every provider in
+`DIMENSION_CAPABLE_PROVIDERS` (mirroring `AiProviderCapabilities.supportsConfigurableDimensions`) — a
+`Select` of Voyage's four widths, a free `InputNumber` otherwise, and nothing for Ollama. It is
+deliberately *not* Voyage-only: an unmounted `Form.Item` is absent from `onFinish`'s values, so a
+Voyage-only field would make a blank value ambiguous and `AiConfigEditPage` would clear a width set
+over the API on any unrelated save — see `pages/admin/ai-configs/embeddingDimensions.ts`, which owns
+the `0`-means-clear decision. Finally, pairing Voyage with the in-app store shows a warning before
+submission, since the `vector(N)` width is frozen at the deployment's first migration.
 
 `KnowledgeDocumentsSection` (edit page only — the config must already be saved with RAG enabled)
 lists the documents in an AntD `Table` (title / chars / chunks / status / created), with an **Add

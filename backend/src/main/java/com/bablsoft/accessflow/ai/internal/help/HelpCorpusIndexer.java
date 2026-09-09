@@ -6,7 +6,7 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
-import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.AiProviderCapabilities;
 import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
@@ -136,7 +136,7 @@ public class HelpCorpusIndexer {
     /**
      * Why this AI configuration cannot back retrieval, or {@code null} when it can. Mirrors the
      * structural gate the admin write path applies, because a configuration can stop being retrievable
-     * after it was validated — RAG turned off, the embedding provider swapped for Anthropic.
+     * after it was validated — RAG turned off, the embedding provider swapped for a chat-only one.
      */
     private HelpIndexError retrievalBlocker(AiConfigEntity aiConfig) {
         if (!aiConfig.isRagEnabled() || aiConfig.getRagStoreType() == null) {
@@ -145,7 +145,7 @@ public class HelpCorpusIndexer {
         if (aiConfig.getEmbeddingProvider() == null) {
             return HelpIndexError.of("error.help_agent.embedding_provider_required");
         }
-        if (aiConfig.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
+        if (!AiProviderCapabilities.supportsEmbedding(aiConfig.getEmbeddingProvider())) {
             return HelpIndexError.of("error.help_agent.embedding_provider_invalid");
         }
         return null;

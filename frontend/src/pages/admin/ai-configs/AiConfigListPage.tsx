@@ -25,6 +25,7 @@ const PROVIDER_COLOR: Record<AiProvider, string> = {
   OLLAMA: 'cyan',
   OPENAI_COMPATIBLE: 'gold',
   HUGGING_FACE: 'magenta',
+  VOYAGE: 'geekblue',
 };
 
 export function AiConfigListPage() {

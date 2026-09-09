@@ -93,6 +93,15 @@ class DefaultAiConfigLookupServiceTest {
         assertThat(service.hasAnyUsableAiConfig(orgId)).isTrue();
     }
 
+    @Test
+    void doesNotCountAnEmbeddingOnlyProviderEvenWithAnApiKey() {
+        var orgId = UUID.randomUUID();
+        when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))
+                .thenReturn(List.of(entity(AiProviderType.VOYAGE, "ENC(voyage-key)")));
+
+        assertThat(service.hasAnyUsableAiConfig(orgId)).isFalse();
+    }
+
     private static AiConfigEntity entity(AiProviderType provider, String apiKeyEncrypted) {
         var entity = new AiConfigEntity();
         entity.setId(UUID.randomUUID());

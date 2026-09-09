@@ -99,6 +99,7 @@ interface FormValues {
   embedding_model: string;
   embedding_endpoint: string;
   embedding_api_key: string;
+  embedding_dimensions: number | null;
   fallback_priority: number | null;
 }
 
@@ -148,6 +149,8 @@ export default function AiConfigCreateWizardPage() {
         embedding_model: values.rag_enabled ? values.embedding_model?.trim() || null : null,
         embedding_endpoint: values.embedding_endpoint?.trim() || null,
         embedding_api_key: values.embedding_api_key?.trim() || null,
+        // A new row has nothing to clear, so "not set" is simply null.
+        embedding_dimensions: values.rag_enabled ? (values.embedding_dimensions ?? null) : null,
         fallback_priority: values.fallback_priority ?? null,
       };
       return createAiConfig(input);

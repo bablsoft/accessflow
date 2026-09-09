@@ -1666,6 +1666,14 @@
         "field_embedding_model": "Модель эмбеддингов",
         "field_embedding_endpoint": "Адрес эмбеддингов",
         "field_embedding_api_key": "API-ключ эмбеддингов",
+        "field_embedding_dimensions": "Размерность вектора",
+        "embedding_dimensions_help": "Оставьте пустым, чтобы использовать собственную размерность модели. Заданное значение должно совпадать с шириной, с которой было развёрнуто хранилище векторов.",
+        "embedding_dimensions_voyage_help": "Модели Voyage выдают 256, 512, 1024 (по умолчанию) или 2048 измерений и никакие другие. Значение должно совпадать с шириной, с которой было развёрнуто хранилище векторов.",
+        "embedding_dimensions_placeholder": "Размерность модели",
+        "embedding_dimensions_range": "Размерность вектора должна быть от 0 до 4096",
+        "voyage_api_key_help": "Voyage AI — отдельный поставщик: здесь нужен ключ API Voyage, а не Anthropic. Зарегистрируйтесь на voyageai.com, чтобы получить его.",
+        "voyage_pgvector_warning": "Voyage не может записывать во встроенное хранилище векторов",
+        "voyage_pgvector_help": "Ширина встроенного столбца pgvector фиксируется при первой миграции базы данных — по умолчанию 1536, а такую Voyage выдать не может. Если эта установка не развёрнута с шириной 256, 512, 1024 или 2048, используйте внешнее хранилище Qdrant. При сохранении будут названы точные размерности.",
         "store_type_required": "При включённом RAG необходимо векторное хранилище",
         "embedding_provider_required": "Необходим поставщик эмбеддингов",
         "embedding_model_required": "Необходима модель эмбеддингов",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Пользовательский (совместимый с OpenAI)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Локальный",

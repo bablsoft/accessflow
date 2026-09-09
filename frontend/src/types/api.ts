@@ -97,12 +97,15 @@ export type ChannelType =
   | 'PAGERDUTY'
   | 'SERVICENOW'
   | 'JIRA';
+// Two capability axes, not one: ANTHROPIC is chat-only (no embeddings API) and VOYAGE is its
+// mirror, embedding-only. See ORCHESTRATION_PROVIDERS / EMBEDDING_PROVIDERS in utils/enumLabels.
 export type AiProvider =
   | 'OPENAI'
   | 'ANTHROPIC'
   | 'OLLAMA'
   | 'OPENAI_COMPATIBLE'
-  | 'HUGGING_FACE';
+  | 'HUGGING_FACE'
+  | 'VOYAGE';
 
 export type RagStoreType = 'PGVECTOR' | 'QDRANT';
 
@@ -307,6 +310,8 @@ export interface AiConfig {
   embedding_model: string | null;
   embedding_endpoint: string | null;
   embedding_api_key: string | null;
+  // Requested vector length; null = the provider's default (AF-918).
+  embedding_dimensions: number | null;
   orchestration_enabled: boolean;
   voting_strategy: VotingStrategy;
   voting_weight: number;
@@ -352,6 +357,7 @@ export interface CreateAiConfigInput {
   embedding_model?: string | null;
   embedding_endpoint?: string | null;
   embedding_api_key?: string | null;
+  embedding_dimensions?: number | null;
   orchestration_enabled?: boolean;
   voting_strategy?: VotingStrategy;
   voting_weight?: number;
@@ -383,6 +389,7 @@ export interface UpdateAiConfigInput {
   embedding_model?: string | null;
   embedding_endpoint?: string | null;
   embedding_api_key?: string | null;
+  embedding_dimensions?: number | null;
   orchestration_enabled?: boolean;
   voting_strategy?: VotingStrategy;
   voting_weight?: number;

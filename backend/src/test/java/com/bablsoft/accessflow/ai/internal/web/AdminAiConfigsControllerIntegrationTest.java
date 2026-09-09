@@ -33,6 +33,7 @@ import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
@@ -58,6 +59,7 @@ class AdminAiConfigsControllerIntegrationTest {
     @Autowired AiConfigRepository repository;
     @Autowired JwtService jwtService;
     @Autowired CredentialEncryptionService encryptionService;
+    @Autowired JdbcTemplate jdbcTemplate;
     @Autowired AuditLogService auditLogService;
     @MockitoBean AiAnalyzerStrategy aiAnalyzerStrategy;
 
@@ -153,6 +155,92 @@ class AdminAiConfigsControllerIntegrationTest {
 
         assertThat(result).hasStatus(400);
         assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("AI_CONFIG_ENDPOINT_REQUIRED");
+    }
+
+    @Test
+    void createWithVoyageAsTheChatProviderReturns400() {
+        var body = """
+                {
+                  "name": "Voyage",
+                  "provider": "VOYAGE",
+                  "model": "voyage-4"
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("AI_CONFIG_PROVIDER_INVALID");
+    }
+
+    @Test
+    void createWithVoyageAsTheEmbeddingProviderOnQdrantReturns201() {
+        var body = """
+                {
+                  "name": "ClaudePlusVoyage",
+                  "provider": "ANTHROPIC",
+                  "model": "claude-sonnet-4-20250514",
+                  "api_key": "sk-ant-test",
+                  "rag_enabled": true,
+                  "rag_store_type": "QDRANT",
+                  "rag_endpoint": "http://qdrant:6334",
+                  "rag_collection": "kb",
+                  "embedding_provider": "VOYAGE",
+                  "embedding_model": "voyage-4",
+                  "embedding_dimensions": 2048
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.embedding_provider").asString()
+                .isEqualTo("VOYAGE");
+        assertThat(result).bodyJson().extractingPath("$.embedding_dimensions").asNumber()
+                .isEqualTo(2048);
+    }
+
+    @Test
+    void createWithVoyageOnPgvectorReturns400() {
+        var body = """
+                {
+                  "name": "VoyageOnPgvector",
+                  "provider": "ANTHROPIC",
+                  "model": "claude-sonnet-4-20250514",
+                  "api_key": "sk-ant-test",
+                  "rag_enabled": true,
+                  "rag_store_type": "PGVECTOR",
+                  "embedding_provider": "VOYAGE",
+                  "embedding_model": "voyage-4",
+                  "embedding_dimensions": 1024
+                }""";
+
+        var result = mvc.post().uri("/api/v1/admin/ai-configs")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .exchange();
+
+        assertThat(result).hasStatus(400);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("RAG_CONFIG_INVALID");
+        // Actionable, not a bare "mismatch": both widths and the way out.
+        assertThat(result).bodyJson().extractingPath("$.detail").asString()
+                .contains("1024").contains("1536").contains("Qdrant");
+    }
+
+    @Test
+    void voyageProviderEnumValueCastsInPostgres() {
+        var casted = jdbcTemplate.queryForObject("SELECT 'VOYAGE'::ai_provider::text", String.class);
+
+        assertThat(casted).isEqualTo("VOYAGE");
     }
 
     @Test

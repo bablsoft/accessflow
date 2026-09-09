@@ -1666,6 +1666,14 @@
         "field_embedding_model": "嵌入模型",
         "field_embedding_endpoint": "嵌入端点",
         "field_embedding_api_key": "嵌入 API 密钥",
+        "field_embedding_dimensions": "向量维度",
+        "embedding_dimensions_help": "留空则使用模型自身的向量长度。若填写，必须与向量存储部署时的宽度一致。",
+        "embedding_dimensions_voyage_help": "Voyage 模型仅输出 256、512、1024（默认）或 2048 维。该值必须与向量存储部署时的宽度一致。",
+        "embedding_dimensions_placeholder": "模型默认值",
+        "embedding_dimensions_range": "向量维度必须在 0 到 4096 之间",
+        "voyage_api_key_help": "Voyage AI 是独立的供应商：此处需要 Voyage 的 API 密钥，而不是 Anthropic 的密钥。请在 voyageai.com 注册获取。",
+        "voyage_pgvector_warning": "Voyage 无法写入此内置向量存储",
+        "voyage_pgvector_help": "内置 pgvector 列宽在数据库首次迁移时即已固定——默认 1536，而 Voyage 无法生成该宽度。除非本部署按 256、512、1024 或 2048 配置，请改用外部 Qdrant 存储。保存时会给出确切的宽度。",
         "store_type_required": "启用 RAG 时需要向量存储",
         "embedding_provider_required": "需要嵌入提供商",
         "embedding_model_required": "需要嵌入模型",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "自定义(OpenAI 兼容)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "本地",
