@@ -20,6 +20,7 @@ import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { showApiError } from '@/utils/showApiError';
+import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
@@ -57,8 +58,6 @@ interface ConnectionFormValues {
   private_key_passphrase: string;
   ssl_mode: SslMode;
 }
-
-const SEARCH_ENGINES = ['ELASTICSEARCH', 'OPENSEARCH'];
 
 interface SettingsFormValues {
   connection_pool_size: number;

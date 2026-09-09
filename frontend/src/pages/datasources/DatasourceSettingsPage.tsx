@@ -43,6 +43,7 @@ import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors'
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
+import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
@@ -336,22 +337,36 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const secretProviders = useSecretProviders();
   const secretRefHelp = secretReferenceHelp(secretProviders, t);
   const secretRefRule = secretReferenceRule(secretProviders, t);
-  // Snowflake's connection is an account host (port is always 443 and never stored) and its
-  // credential may be a multi-line PKCS#8 PEM, optionally passphrase-protected (#632).
-  //
-  // NOTE: this page is otherwise NOT db_type-aware, and the required host/port/username rules
-  // below still make BIGQUERY, DATABRICKS and DYNAMODB unsaveable here — the wizard creates all
-  // three without a port (and BigQuery/DynamoDB without a host, BigQuery/Databricks without a
-  // username). Only Snowflake is unblocked here because only Snowflake is in scope for #632;
-  // the rest is tracked separately.
+  // Which connection fields exist is db_type-specific, and a required rule on a field the create
+  // wizard never collects makes every save from this page fail validation. These flags mirror
+  // DatasourceCreateWizardPage one-for-one:
+  //   SNOWFLAKE  — account host; the port is always 443 and never stored, and the credential may
+  //                be a multi-line PKCS#8 PEM, optionally passphrase-protected (#632)
+  //   DATABRICKS — workspace host, no port; a PAT replaces the username, catalog is optional
+  //   BIGQUERY   — cloud credentials: no host, no port, and a service-account JSON instead of a
+  //                username (database_name is the GCP project)
+  //   DYNAMODB   — cloud credentials: no host, no port (database_name is the AWS region and the
+  //                username is the access key id, so both stay required)
+  //   search     — API-key auth stores a blank username, and the index pattern is optional
   const isSnowflake = ds.db_type === 'SNOWFLAKE';
+  const isDatabricks = ds.db_type === 'DATABRICKS';
+  const isBigQuery = ds.db_type === 'BIGQUERY';
+  const isDynamoDb = ds.db_type === 'DYNAMODB';
+  const isSearchEngine = SEARCH_ENGINES.includes(ds.db_type);
+  const hasHost = !isBigQuery && !isDynamoDb;
+  const hasPort = !isSnowflake && !isDatabricks && !isBigQuery && !isDynamoDb;
+  const hasUsername = !isBigQuery && !isDatabricks;
+  const usernameRequired = !isSearchEngine;
+  const databaseNameRequired = !isSearchEngine && !isDatabricks;
 
   const initialValues: SettingsFormValues = {
     name: ds.name,
     host: ds.host ?? undefined,
     port: ds.port ?? undefined,
     database_name: ds.database_name ?? undefined,
-    username: ds.username,
+    // Blank for the cloud-credential dialects; undefined so it JSON-drops and the backend's
+    // `command.username() != null` keeps the stored value (an empty string trips @Size(min = 1)).
+    username: ds.username || undefined,
     ssl_mode: ds.ssl_mode,
     connection_pool_size: ds.connection_pool_size,
     max_rows_per_query: ds.max_rows_per_query,
@@ -439,6 +454,14 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
+    // The optional connection fields are NOT NULL, min-length-1 columns: blank means "unchanged"
+    // here, never "clear it", so an emptied box must drop out of the body rather than 400.
+    if (typeof body.username === 'string' && body.username.trim().length === 0) {
+      delete body.username;
+    }
+    if (typeof body.database_name === 'string' && body.database_name.trim().length === 0) {
+      delete body.database_name;
+    }
     // Blank keeps the stored passphrase, exactly like the credential above. Note this is
     // deliberately NOT the API's blank-clears semantics: omitting the field is the only way to
     // express "leave it alone" from a form that cannot distinguish untouched from emptied. The
@@ -481,14 +504,16 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             <Form.Item label={t('datasources.settings.label_db_type')}>
               <Input value={dbTypeLabel(t, ds.db_type)} disabled />
             </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_host')}
-              name="host"
-              rules={[{ required: true, max: 255 }]}
-            >
-              <Input />
-            </Form.Item>
-            {!isSnowflake && (
+            {hasHost && (
+              <Form.Item
+                label={t('datasources.settings.label_host')}
+                name="host"
+                rules={[{ required: true, max: 255 }]}
+              >
+                <Input />
+              </Form.Item>
+            )}
+            {hasPort && (
               <Form.Item
                 label={t('datasources.settings.label_port')}
                 name="port"
@@ -500,7 +525,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             <Form.Item
               label={t('datasources.settings.label_database_name')}
               name="database_name"
-              rules={[{ required: true, max: 255 }]}
+              rules={[{ required: databaseNameRequired, max: 255 }]}
             >
               <Input />
             </Form.Item>
@@ -514,13 +539,15 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 ]}
               />
             </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_username')}
-              name="username"
-              rules={[{ required: true, max: 255 }]}
-            >
-              <Input className="mono" />
-            </Form.Item>
+            {hasUsername && (
+              <Form.Item
+                label={t('datasources.settings.label_username')}
+                name="username"
+                rules={[{ required: usernameRequired, max: 255 }]}
+              >
+                <Input className="mono" />
+              </Form.Item>
+            )}
             <Form.Item
               label={
                 isSnowflake
