@@ -41,9 +41,11 @@ import java.util.SequencedMap;
  * when {@link DatabricksInlineLimitDetector} sees that ceiling hit, re-submits the statement
  * <em>once</em> with {@code disposition=EXTERNAL_LINKS} under the <em>same</em> deadline — only for
  * a {@link StatementRequest#sideEffectFree()} statement, so a DML/DDL statement is never executed
- * twice. If the fallback itself fails, the <em>original</em> inline failure is what surfaces, which
- * is what lets the detector be generous: a false positive costs one wasted re-submission and can
- * never make the reported error worse than it is today.</p>
+ * twice. If the fallback itself fails, the inline attempt's own outcome stands — its
+ * truncated-but-usable result when the trigger was a truncation, or the original inline failure
+ * when the trigger was a rejection. That is what lets the detector be generous: a false positive
+ * costs one wasted re-submission and can never downgrade what the caller would otherwise have
+ * received.</p>
  */
 class DatabricksStatementClient {
 
@@ -121,14 +123,15 @@ class DatabricksStatementClient {
         if (settings.resultDisposition() == ResultDisposition.EXTERNAL_LINKS) {
             return run(endpoint, accessToken, request, ResultDisposition.EXTERNAL_LINKS, deadline);
         }
-        DatabricksApiException inlineFailure;
+        StatementResult inlineResult = null;
+        DatabricksApiException inlineFailure = null;
         try {
             var result = run(endpoint, accessToken, request, ResultDisposition.INLINE, deadline);
             if (!fallbackAllowed(request) || !DatabricksInlineLimitDetector.sizeTruncatedInline(
                     result.truncated(), request.rowLimit(), result.rows().size())) {
                 return result;
             }
-            inlineFailure = null;
+            inlineResult = result;
         } catch (DatabricksApiException e) {
             if (!fallbackAllowed(request)
                     || !DatabricksInlineLimitDetector.inlineLimitExceeded(e)) {
@@ -136,7 +139,7 @@ class DatabricksStatementClient {
             }
             inlineFailure = e;
         }
-        return fallBack(endpoint, accessToken, request, deadline, inlineFailure);
+        return fallBack(endpoint, accessToken, request, deadline, inlineResult, inlineFailure);
     }
 
     private boolean fallbackAllowed(StatementRequest request) {
@@ -144,19 +147,24 @@ class DatabricksStatementClient {
     }
 
     /**
-     * The one-shot {@code EXTERNAL_LINKS} retry. When it fails, the inline failure that triggered
-     * it is what the caller sees — it is the actionable one, and it keeps a false-positive
-     * detection invisible.
+     * The one-shot {@code EXTERNAL_LINKS} retry. When it fails, the inline attempt's own outcome
+     * stands: its truncated-but-usable result if it had one, otherwise the inline failure that
+     * triggered the retry. Exactly one of the two is non-null, and together they are what keep a
+     * false-positive detection invisible — the retry can waste a round trip, but it can never
+     * downgrade what the caller would have got without it.
      */
     private StatementResult fallBack(DatabricksEndpoint endpoint, String accessToken,
                                      StatementRequest request, Instant deadline,
+                                     StatementResult inlineResult,
                                      DatabricksApiException inlineFailure) {
         log.info("Databricks inline result limit reached; retrying with EXTERNAL_LINKS");
         try {
             return run(endpoint, accessToken, request, ResultDisposition.EXTERNAL_LINKS, deadline);
         } catch (DatabricksApiException e) {
-            if (inlineFailure == null) {
-                throw e;
+            if (inlineResult != null) {
+                log.warn("Databricks EXTERNAL_LINKS fallback failed ({}); keeping the truncated "
+                        + "inline result", e.getMessage());
+                return inlineResult;
             }
             log.warn("Databricks EXTERNAL_LINKS fallback failed ({}); surfacing the inline error",
                     e.getMessage());

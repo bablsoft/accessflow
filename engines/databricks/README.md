@@ -48,8 +48,9 @@ never clash with the host's Jackson across the classloader boundary. The shaded 
   via `GET …/result/chunks/{n}`.
 - **Oversized results (AF-633)** — the API caps an `INLINE` result at roughly 25 MiB. Two signals
   say that ceiling was hit: the API rejected the result with a size error, or it succeeded with a
-  manifest `truncated` flag the requested `row_limit` cannot explain (the unbounded introspection
-  reads, which send no `row_limit` at all). Either one re-submits the statement **once** with
+  manifest `truncated` flag the requested `row_limit` cannot explain — either because no
+  `row_limit` was sent at all (the unbounded introspection reads) or because fewer rows came back
+  than the limit asked for. Either one re-submits the statement **once** with
   `disposition=EXTERNAL_LINKS`, under the *same* host deadline — and only when the statement is
   **side-effect-free** (SELECT, `EXPLAIN COST`, `information_schema`, `SELECT 1`), so a DML or DDL
   statement is never executed twice. The external result is a two-hop read: the authorized
@@ -67,9 +68,11 @@ never clash with the host's Jackson across the classloader boundary. The shaded 
   - Rows stream until the row cap (`maxRows + 1`, the truncation sentinel) or the engine-side
     `max-result-bytes` backstop, enforced *during* transfer rather than after it, and reported as
     `truncated_reason` `ROW_LIMIT` / `BYTE_LIMIT`.
-  - If the fallback itself fails, the **original** inline error is what surfaces. That is what lets
-    the size heuristic be generous: a false positive costs one wasted re-submission and can never
-    make the reported failure worse than it would have been.
+  - If the fallback itself fails, the inline attempt's own outcome stands: the truncated-but-usable
+    result it already produced when the trigger was a truncation, or the original inline error when
+    the trigger was a rejection. That is what lets the size heuristic be generous — a false positive
+    costs one wasted re-submission and can never downgrade what the caller would otherwise have
+    received.
   - `result-disposition` forces either mode outright (`inline` / `external-links`).
 - **Errors** — a terminal `FAILED`/`CANCELED`/`CLOSED` state and non-2xx HTTP responses (401/403,
   429, 5xx) surface the verbatim API `message` as the `QueryExecutionFailedException` detail. No

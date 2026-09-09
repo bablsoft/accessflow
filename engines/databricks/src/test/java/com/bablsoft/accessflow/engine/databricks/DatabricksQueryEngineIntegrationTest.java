@@ -295,6 +295,27 @@ class DatabricksQueryEngineIntegrationTest {
     }
 
     @Test
+    void aFailingFallbackAfterATruncatedReadKeepsTheInlineRows() {
+        // Trigger the fallback from a truncation (not a rejection): the inline attempt SUCCEEDED,
+        // so a failing retry must not turn a usable truncated result into a hard error.
+        stub.submitResponses.add("""
+                {"statement_id":"st29","status":{"state":"SUCCEEDED"},
+                 "manifest":{"schema":{"columns":[{"name":"id","type_name":"INT"}]},
+                             "truncated":true},
+                 "result":{"data_array":[["1"],["2"]]}}""");
+        stub.submitResponses.add("""
+                {"statement_id":"st29b","status":{"state":"FAILED",
+                 "error":{"error_code":"INTERNAL","message":"object store unreachable"}}}""");
+
+        var result = (SelectExecutionResult) execute("SELECT id FROM big", QueryType.SELECT, 100,
+                List.of(), List.of(), TIMEOUT);
+
+        assertThat(result.rows()).containsExactly(List.of(1L), List.of(2L));
+        assertThat(result.truncated()).isTrue();
+        assertThat(submitBodies()).hasSize(2);
+    }
+
+    @Test
     void theRowCapStopsTheExternalStreamBeforeTheSecondChunk() {
         stub.submitResponses.add(oversizeFailure("st25"));
         stub.submitResponses.add(succeededExternal("st25b", columns(col("id", "INT")), 0, 1));

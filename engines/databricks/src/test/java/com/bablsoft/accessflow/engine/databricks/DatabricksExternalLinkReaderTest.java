@@ -122,6 +122,11 @@ class DatabricksExternalLinkReaderTest {
                     assertThat(e.getCause()).isNull();
                     assertThat(((DatabricksApiException) e).statusCode()).isEqualTo(403);
                 });
+        // The unconsumed body must have been released, so the shared client can serve the next
+        // chunk rather than pinning a connection on every expired presigned link.
+        stub.bodies.put("/chunk/8", "[[\"1\"]]");
+        assertThat(reader(stub.origin()).read(link(8, stub.url("/chunk/8")), 1_048_576L).rows())
+                .hasSize(1);
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -86,6 +87,8 @@ class DatabricksExternalLinkReader implements DatabricksResultReader.ExternalLin
             throw failure(link.chunkIndex(), 0);
         }
         if (response.statusCode() / 100 != 2) {
+            // ofInputStream() hands back an unconsumed body; closing it releases the connection.
+            closeQuietly(response);
             throw failure(link.chunkIndex(), response.statusCode());
         }
         return parse(link.chunkIndex(), readBounded(link.chunkIndex(), response, byteBudget),
@@ -99,7 +102,7 @@ class DatabricksExternalLinkReader implements DatabricksResultReader.ExternalLin
     private static Body readBounded(int chunkIndex, HttpResponse<InputStream> response,
                                     long byteBudget) {
         long cap = byteBudget + 1;
-        var out = new java.io.ByteArrayOutputStream();
+        var out = new ByteArrayOutputStream();
         var buffer = new byte[COPY_BUFFER];
         try (var body = response.body()) {
             int read;
@@ -107,7 +110,7 @@ class DatabricksExternalLinkReader implements DatabricksResultReader.ExternalLin
                 out.write(buffer, 0, (int) Math.min(read, cap - out.size()));
             }
         } catch (IOException e) {
-            throw failure(chunkIndex, response.statusCode());
+            throw failure(chunkIndex, 0);
         }
         return new Body(out.toByteArray(), out.size() > byteBudget);
     }
@@ -179,6 +182,15 @@ class DatabricksExternalLinkReader implements DatabricksResultReader.ExternalLin
     private static DatabricksApiException failure(int chunkIndex, int statusCode) {
         return new DatabricksApiException("Failed to fetch Databricks result chunk " + chunkIndex
                 + (statusCode > 0 ? " (HTTP " + statusCode + ")" : ""), null, statusCode, false);
+    }
+
+    private static void closeQuietly(HttpResponse<InputStream> response) {
+        try {
+            response.body().close();
+        } catch (IOException e) {
+            log.debug("Discarding Databricks result chunk body failed: {}",
+                    e.getClass().getSimpleName());
+        }
     }
 
     private Duration requestTimeout() {

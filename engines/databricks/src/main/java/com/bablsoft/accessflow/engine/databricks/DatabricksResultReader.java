@@ -83,7 +83,8 @@ class DatabricksResultReader {
                 && manifest.path("truncated").asBoolean(false)) {
             truncation = DatabricksStatementClient.Truncation.ROW_LIMIT;
         }
-        return new DatabricksStatementClient.StatementResult(List.copyOf(columns), rows, truncation);
+        return new DatabricksStatementClient.StatementResult(List.copyOf(columns),
+                List.copyOf(rows), truncation);
     }
 
     // ---- chunk handling --------------------------------------------------------------------------
