@@ -46,6 +46,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { AuthUser } from '@/api/auth';
 import { hasAnyPermission, type Permission } from '@/utils/permissions';
+import { governanceDomainsOf, type GovernanceDomain } from '@/hooks/useGovernanceDomains';
 import { REVIEW_HUB_PERMISSIONS } from '@/utils/reviewHubTabs';
 import { userDisplay } from '@/utils/userDisplay';
 import { roleLabel } from '@/utils/enumLabels';
@@ -72,6 +73,13 @@ interface NavSubGroup {
   id: string;
   label: string;
   items: NavItem[];
+  /**
+   * The governance domain this sub-section belongs to (#926). Absent means the always-on
+   * database domain. A sub-section whose domain the organization switched off is not offered —
+   * but its routes stay registered and its permissions untouched, so every deep link into it
+   * (a notification, a bookmark, a dashboard tile) still works.
+   */
+  domain?: GovernanceDomain;
 }
 
 interface NavGroup {
@@ -97,6 +105,9 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useTranslation();
   const location = useLocation();
+  // Derived from the same signed-in user the permission checks use, through the shared helper
+  // `useGovernanceDomains` wraps — one source of truth, no second read of the store.
+  const domains = governanceDomainsOf(user);
   const expandedSubgroups = usePreferencesStore((s) => s.navExpandedSubgroups);
   const toggleSubgroup = usePreferencesStore((s) => s.toggleNavSubgroup);
 
@@ -123,6 +134,7 @@ export function Sidebar({
         {
           id: 'workflow-api',
           label: t('nav.sub_api'),
+          domain: 'apis',
           items: [
             { id: 'api-editor', to: '/api-editor', label: t('nav.apiEditor'), icon: <ApiOutlined />, permissions: ['QUERY_SUBMIT_DML'] },
             { id: 'api-requests', to: '/api-requests', label: t('nav.apiRequests'), icon: <UnorderedListOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
@@ -131,6 +143,7 @@ export function Sidebar({
         {
           id: 'workflow-deployments',
           label: t('nav.sub_deployments'),
+          domain: 'deployments',
           items: [
             { id: 'deployments', to: '/deployments', label: t('nav.deployments'), icon: <RocketOutlined />, permissions: ['QUERY_SUBMIT_SELECT'] },
             { id: 'deployment-versions', to: '/deployment-versions', label: t('nav.deploymentVersions'), icon: <DeploymentUnitOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'] },
@@ -172,6 +185,7 @@ export function Sidebar({
         {
           id: 'connections-api',
           label: t('nav.sub_api'),
+          domain: 'apis',
           items: [
             { id: 'api-connectors', to: '/api-connectors', label: t('nav.apiConnectors'), icon: <ApiOutlined />, permissions: ['API_CONNECTOR_MANAGE'] },
           ],
@@ -179,6 +193,7 @@ export function Sidebar({
         {
           id: 'connections-deployments',
           label: t('nav.sub_deployments'),
+          domain: 'deployments',
           items: [
             { id: 'deployment-pipelines', to: '/admin/deployment-pipelines', label: t('nav.deploymentPipelines'), icon: <RocketOutlined />, permissions: ['DEPLOYMENT_PIPELINE_MANAGE'] },
           ],
@@ -241,6 +256,7 @@ export function Sidebar({
         { id: 'channels', to: '/admin/notifications', label: t('nav.notifications'), icon: <BellOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
         { id: 'slack', to: '/admin/slack', label: t('nav.slack'), icon: <SlackOutlined />, permissions: ['NOTIFICATION_CHANNEL_MANAGE'] },
         { id: 'languages', to: '/admin/languages', label: t('nav.languages'), icon: <GlobalOutlined />, permissions: ['LOCALIZATION_CONFIGURE'] },
+        { id: 'governance-domains', to: '/admin/governance-domains', label: t('nav.governance_domains'), icon: <BlockOutlined />, permissions: ['SETUP_PROGRESS_VIEW'] },
       ],
       subgroups: [
         {
@@ -267,6 +283,11 @@ export function Sidebar({
   const canSee = (it: NavItem) =>
     hasAnyPermission(user, it.permissions) || (it.platformAdmin && user.platform_admin);
 
+  // Visibility only — an enabled domain grants nothing, and a disabled one hides only entries the
+  // user could already see. `useGovernanceDomains` defaults both to true, so a session issued
+  // before #926 renders the full nav.
+  const domainEnabled = (sub: NavSubGroup) => sub.domain === undefined || domains[sub.domain];
+
   const matchesPath = (to: string) =>
     location.pathname === to || (to !== '/' && location.pathname.startsWith(to + '/'));
 
@@ -287,6 +308,7 @@ export function Sidebar({
       ...g,
       items: (g.items ?? []).filter(canSee),
       subgroups: (g.subgroups ?? [])
+        .filter(domainEnabled)
         .map((s) => ({ ...s, items: s.items.filter(canSee) }))
         .filter((s) => s.items.length > 0),
     }))

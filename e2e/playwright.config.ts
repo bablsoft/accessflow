@@ -53,6 +53,10 @@ const SERIAL_SPECS = [
   // Playwright runs a project's files in path order, and "platform-…" sorts
   // after "admin-…", which this list relies on.
   '**/platform-organizations.spec.ts',
+  // Flips the org's two governance-domain flags (#926): while a domain is off, every other
+  // spec loses that domain's navigation, review tab and dashboard widgets. It restores both
+  // before finishing, but only serial execution makes that safe.
+  '**/governance-domains.spec.ts',
   // Org-wide aggregate readers — assert on counts/tables that every
   // concurrent spec writes into (audit log, dashboards, anomaly lists).
   '**/admin-audit-log.spec.ts',

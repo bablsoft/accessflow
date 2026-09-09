@@ -222,7 +222,7 @@ class BootstrapRunnerTest {
     private BootstrapProperties enabled() {
         return new BootstrapProperties(
                 true,
-                new OrganizationSpec("Acme", null),
+                new OrganizationSpec("Acme", null, null, null),
                 new AdminSpec("admin@acme.com", "Admin", "pw"),
                 List.of(),
                 List.of(),

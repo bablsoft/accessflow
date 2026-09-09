@@ -324,3 +324,19 @@ Notifications add `API_REQUEST_SUBMITTED`/`_APPROVED`/`_EXECUTED`/`_FAILED` even
 notifications module's `ApiNotificationListener` consumes `ApiRequestReadyForReviewEvent` (alert
 reviewers + admins) and `ApiRequestDecidedEvent` (alert the submitter; break-glass executions alert
 admins), delivered as in-app + chat notifications (Slack / Discord / Teams / Telegram).
+
+---
+
+## Domain visibility (#926)
+
+An organization declares whether it governs outbound API calls at all —
+`organizations.governs_apis`, first answered in the first-run wizard (AF-898) and changeable later
+by an org admin at `/admin/governance-domains`. With the flag off, the SPA stops **offering** this
+module's surfaces: the **API** sub-sections under Workflow and Connections, the **API requests**
+review-hub tab, and the *My recent API requests* / *API request trends* / *Pending API approvals*
+dashboard widgets.
+
+That is a discovery filter, not an access control. Every route stays registered, every
+`AuthGuard` permission check is untouched, no endpoint's authorization reads the flag, and a deep
+link into `/api-requests`, `/api-connectors` or `/reviews?tab=api` keeps working for anyone who
+holds the permission. Turning the domain back on restores the navigation with nothing else to do.

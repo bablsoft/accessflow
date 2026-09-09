@@ -76,7 +76,9 @@
     "auth_provider": "LOCAL",
     "totp_enabled": false,
     "platform_admin": false,
-    "preferred_language": "es"
+    "preferred_language": "es",
+    "governs_apis": true,
+    "governs_deployments": false
   }
 }
 ```
@@ -84,7 +86,19 @@
 `role` is the user's effective role **name** — a system role or a custom role's name — and
 `permissions` is the resolved functional-permission set of that role (AF-522); the SPA gates
 navigation and routes on `permissions`, never on the role string. The same fields appear on
-`GET /api/v1/me`. `preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`. `platform_admin` (AF-456) is a boolean — `true` for super-admins who additionally hold the `PLATFORM_ADMIN` authority and may reach the cross-org `/api/v1/platform/organizations` management plane; the SPA uses it to show the "Platform" navigation group. The same user object (including `platform_admin`) is returned by `GET /api/v1/me`.
+`GET /api/v1/me`. `preferred_language` is the BCP-47 code the user has chosen via `PUT /me/localization`, or `null` when they have never set one (the SPA falls back to the org's `default_language` from `GET /me/localization`). `auth_provider` and `totp_enabled` let the SPA decide whether to expose the password and 2FA sections on `/profile`. `platform_admin` (AF-456) is a boolean — `true` for super-admins who additionally hold the `PLATFORM_ADMIN` authority and may reach the cross-org `/api/v1/platform/organizations` management plane; the SPA uses it to show the "Platform" navigation group. The same user object (including `platform_admin`) is returned by `GET /api/v1/me`, except for the two `governs_*` flags below, which ride the authentication payloads only.
+
+`governs_apis` / `governs_deployments` (#926) echo the organization's governance-domain flags
+(`organizations.governs_apis` / `.governs_deployments`, AF-898). They are the SPA's single source
+of truth for which **discovery** surfaces it offers — the API and Deployments sidebar sub-sections,
+the API/Deployments/Rollbacks review-hub tabs, and the API and deployment dashboard widgets. They
+are **visibility, never entitlement**: no route stops being registered, no `AuthGuard` permission
+check changes, no endpoint's authorization reads them, and every deep link keeps working. The SPA
+fails open when a flag is absent — a session issued before #926 renders both domains — so only an
+explicit `false` hides anything. They ride the same payload from `POST /auth/login`,
+`POST /auth/refresh`, `POST /auth/saml/exchange` and `POST /auth/oauth2/exchange`, and refresh with
+the session; an admin who changes them through `PUT /admin/governance-domains` sees the navigation
+react immediately because the SPA patches its cached user.
 
 The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` with `HttpOnly; Secure; SameSite=Strict` and a 7-day max-age.
 
@@ -3013,6 +3027,8 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `DELETE` | `/admin/slack-app-config` | Delete the Slack app configuration *(ADMIN only)* |
 | `POST` | `/admin/slack-app-config/test` | Post a test message to the default channel via the bot token *(ADMIN only)* |
 | `GET` | `/admin/setup-progress` | Onboarding progress for the caller's organization *(ADMIN only)* |
+| `GET` | `/admin/governance-domains` | Which governance domains the caller's organization uses (#926) *(ADMIN only)* |
+| `PUT` | `/admin/governance-domains` | Replace both governance-domain flags for the caller's organization (#926) *(ADMIN only)* |
 | `GET` | `/admin/datasource-health` | Per-datasource pool gauges + 24h query volume / latency / errors *(ADMIN only)* |
 | `GET` | `/system/info` | Returns version and feature flags |
 | `GET` | `/system/update-status` | Latest stable release vs. the running build, with a changelog link *(any authenticated user)* |
@@ -3628,7 +3644,7 @@ Public endpoint exposed only while no active ADMIN user exists. It is called **o
 }
 ```
 
-`governs_apis` / `governs_deployments` are optional booleans (default `false`) carrying the wizard's governance-domain answer (AF-898). Database access governance is always on and has no flag. They are an **onboarding hint only** — they decide which steps `GET /admin/setup-progress` reports and never gate routes, permissions or navigation, so `apigov` and `deploygov` stay fully usable whatever was picked. An admin changes the answer later through `PUT /platform/organizations/{id}`.
+`governs_apis` / `governs_deployments` are optional booleans (default `false`) carrying the wizard's governance-domain answer (AF-898). Database access governance is always on and has no flag. Since #926 they are a **visibility** signal as well: besides deciding which steps `GET /admin/setup-progress` reports, they decide which sidebar sub-sections, review-hub tabs and dashboard widgets the SPA offers. They still gate no route, permission or endpoint authorization, so `apigov` and `deploygov` stay fully usable whatever was picked and every deep link keeps working. An org admin changes the answer later through `PUT /admin/governance-domains`; a platform admin can also do it through `PUT /platform/organizations/{id}`.
 
 **Response 201:** A standard `LoginResponse` (same shape as `POST /auth/login`) and a `refresh_token` cookie. The newly created admin is signed in automatically, so the SPA can call `PUT /admin/system-smtp` next without an extra round-trip.
 **Response 409:** `SETUP_ALREADY_COMPLETED` or `EMAIL_ALREADY_EXISTS`.
@@ -4034,7 +4050,7 @@ caller's own data (`isAuthenticated()`); no admin role is required.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/dashboard/summary` | Headline counts (pending approvals as reviewer, open queries by status, open anomalies, open suggestions, **open API requests, pending API approvals** — AF-500) + short recent lists (incl. `recent_api_requests` / `recent_pending_api_approvals`) |
+| `GET` | `/dashboard/summary` | Headline counts (pending approvals as reviewer, open queries by status, open anomalies, open suggestions, **open API requests, pending API approvals** — AF-500, **open deployments, pending deployment approvals** — #926) + short recent lists (incl. `recent_api_requests` / `recent_pending_api_approvals` and `recent_deployments` / `recent_pending_deployment_approvals`) |
 | `GET` | `/dashboard/my-query-trends?from&to` | Day-bucketed status- and risk-level trend series over the caller's own queries (defaults to `now-30d … now`) |
 | `GET` | `/dashboard/my-api-request-trends?from&to` | Day-bucketed status- and risk-level trend series over the caller's own governed API requests (AF-500; defaults to `now-30d … now`) |
 | `GET` | `/dashboard/suggestions` | The caller's OPEN AI optimization-suggestion backlog (derived from their analyses' `optimizations[]`) |
@@ -4044,6 +4060,60 @@ caller's own data (`isAuthenticated()`); no admin role is required.
 | `GET` | `/dashboard/summary/export?week&format` | Digitally-signed PDF/CSV of the week's summary; sets `X-AccessFlow-Signature` / `-Signature-Algorithm` / `-Content-SHA256`, audited `DASHBOARD_SUMMARY_EXPORTED` |
 
 `format` is `PDF` or `CSV`; `week` is any date in the target ISO week (defaults to the current week).
+Both export formats carry the two deployment metrics (#926) alongside the existing four —
+`open_deployments` and `pending_deployment_approvals` rows in the CSV `metrics` section, and two
+extra lines under "Headline metrics" in the PDF. The scheduled email digest is unchanged.
+
+#### GET /dashboard/summary — deployment governance fields (#926)
+
+Four fields join the existing envelope. They are always present and always **self-scoped**: the
+recent list is the caller's own deployment requests, never the organization-wide feed a
+`DEPLOYMENT_REVIEW` holder could otherwise list, and for an organization that runs no governed
+pipelines every count is `0` and every list empty.
+
+```json
+{
+  "open_deployments_count": 2,
+  "pending_deployment_approvals_count": 1,
+  "recent_deployments": [
+    {
+      "id": "uuid",
+      "pipeline_id": "uuid",
+      "pipeline_name": "Checkout",
+      "environment_id": "uuid",
+      "environment_name": "prod",
+      "version": "1.4.2",
+      "status": "EXECUTED",
+      "ai_risk_level": "LOW",
+      "ai_risk_score": 12,
+      "outcome": "SUCCEEDED",
+      "created_at": "2026-06-20T14:00:00Z"
+    }
+  ],
+  "recent_pending_deployment_approvals": [
+    {
+      "deployment_request_id": "uuid",
+      "pipeline_id": "uuid",
+      "pipeline_name": "Checkout",
+      "environment_id": "uuid",
+      "environment_name": "prod",
+      "submitted_by_user_id": "uuid",
+      "version": "1.4.3",
+      "ai_risk_level": "HIGH",
+      "ai_risk_score": 88,
+      "current_stage": 1,
+      "created_at": "2026-06-20T15:00:00Z"
+    }
+  ]
+}
+```
+
+`open_deployments_count` sums the caller's requests in the three non-terminal statuses
+(`PENDING_AI`, `PENDING_REVIEW`, `APPROVED`) — the same definition `open_queries_count` and
+`open_api_requests_count` use. `outcome` is `null` until CI reports back. The endpoint's
+authorization is unchanged: it is `isAuthenticated()`, and the organization's
+`governs_deployments` flag never affects the response — the SPA decides whether to *render* the
+deployment widgets, the server always computes them.
 
 The current user's **own** anomalies (self-scoped, distinct from the admin `/admin/anomalies` surface):
 
@@ -5198,6 +5268,50 @@ The frontend additionally hides a governed domain's step from an admin who lacks
 
 **Response 401:** Not authenticated.
 **Response 403:** Caller is not an `ADMIN`.
+
+### GET /admin/governance-domains
+
+Returns the governance domains the **caller's own** organization has opted into (#926). Scoped from
+the JWT — there is no id in the path, so it can never read another tenant. Gated on
+`SETUP_PROGRESS_VIEW`, the permission that already exposes both flags through
+`GET /admin/setup-progress`; no new permission was minted.
+
+**Response 200:**
+```json
+{
+  "governs_apis": true,
+  "governs_deployments": false
+}
+```
+
+**Response 401:** Not authenticated. **Response 403:** Caller lacks `SETUP_PROGRESS_VIEW`.
+
+### PUT /admin/governance-domains
+
+Replaces both flags for the caller's own organization — the in-app way back for an admin who
+declined a domain in the first-run wizard, which before #926 needed a platform admin on
+`PUT /platform/organizations/{id}`. There is no partial update: both booleans are required.
+Internally this reuses `UpdateOrganizationCommand` with every name/quota field left null, so this
+path can only ever move the two flags.
+
+Turning a domain off is a **visibility** change: it stops the SPA offering that domain's sidebar
+sub-sections, review-hub tabs and dashboard widgets. It revokes no permission, unregisters no
+route, and changes no endpoint's authorization — `apigov` and `deploygov` stay fully usable, and a
+deep link into either keeps working.
+
+**Request:**
+```json
+{
+  "governs_apis": true,
+  "governs_deployments": true
+}
+```
+
+Validation: both fields are required (`400` when either is missing).
+
+**Response 200:** the persisted flags (same shape as `GET`).
+**Response 400:** Validation error. **Response 401:** Not authenticated.
+**Response 403:** Caller lacks `SETUP_PROGRESS_VIEW`.
 
 ### GET /admin/datasource-health
 

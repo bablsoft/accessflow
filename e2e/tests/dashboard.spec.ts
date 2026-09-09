@@ -4,7 +4,9 @@ import { login } from '../helpers/login';
 // AF-498 — personalized dashboard. Covers the default post-login landing, the self-scoped widgets
 // rendering (incl. the redesign's attestation/access-request/request-group widgets), widget
 // visibility + reset-layout customization persisting across reloads, clickable stat tiles, the
-// trends range control, and the signed weekly-summary export download.
+// trends range control, and the signed weekly-summary export download. #926 adds the
+// deployment-governance widgets and stat tiles (this stack governs both optional domains — see
+// ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_* in docker-compose.e2e.yml).
 
 
 async function waitForSummary(page: Page): Promise<void> {
@@ -38,9 +40,24 @@ test.describe.serial('/dashboard personalized home', () => {
     await expect(page.getByTestId('dashboard-widget-attestationsDue')).toBeVisible();
     await expect(page.getByTestId('dashboard-widget-myAccessRequests')).toBeVisible();
     await expect(page.getByTestId('dashboard-widget-myRequestGroups')).toBeVisible();
+    // Deployment approval governance widgets + stat cards (#926).
+    await expect(page.getByTestId('dashboard-stat-openDeployments')).toBeVisible();
+    await expect(page.getByTestId('dashboard-stat-pendingDeploymentApprovals')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-pendingDeploymentApprovals')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-myDeployments')).toBeVisible();
+    await expect(page.getByTestId('dashboard-widget-deploymentVersions')).toBeVisible();
     // Bklit chart widgets: risk mix ring + 90-day activity heatmap.
     await expect(page.getByTestId('dashboard-widget-riskMix')).toBeVisible();
     await expect(page.getByTestId('dashboard-widget-activityHeatmap')).toBeVisible();
+  });
+
+  test('the deployment stat tile opens the deployment list', async ({ page }) => {
+    await login(page);
+    await waitForSummary(page);
+
+    await page.getByTestId('dashboard-stat-openDeployments').click();
+    await page.waitForURL('**/deployments', { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/deployments$/);
   });
 
   test('shows the metric and range controls on the trends widget', async ({ page }) => {

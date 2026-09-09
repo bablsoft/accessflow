@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.AuthResult;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.internal.saml.SamlExchangeCodeStore;
+import com.bablsoft.accessflow.core.api.OrganizationSetupLookupService;
 import com.bablsoft.accessflow.security.internal.web.model.SamlExchangeRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
@@ -37,14 +38,21 @@ class SamlExchangeControllerTest {
     @Mock RefreshCookieWriter refreshCookieWriter;
     @Mock MessageSource messageSource;
     @Mock HttpServletResponse response;
+    @Mock OrganizationSetupLookupService organizationSetupLookupService;
+
+    /** The real factory over a stub resolver — the payload's shape is what these tests assert. */
+    private UserSummaryFactory summaryFactory() {
+        return new UserSummaryFactory(
+                (roleId, fallback) -> fallback != null
+                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                organizationSetupLookupService);
+    }
 
     private final UUID userId = UUID.randomUUID();
 
     @Test
     void exchangeIssuesTokensAndSetsRefreshCookie() {
-        var controller = new SamlExchangeController(exchangeCodeStore,
-                (roleId, fallback) -> fallback != null
-                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+        var controller = new SamlExchangeController(exchangeCodeStore, summaryFactory(),
                 authenticationService, refreshCookieWriter, messageSource);
         when(exchangeCodeStore.consume("good")).thenReturn(Optional.of(userId));
         var result = new AuthResult("ACCESS_TOKEN", "REFRESH_TOKEN", "Bearer", 900L,
@@ -57,14 +65,15 @@ class SamlExchangeControllerTest {
         assertThat(response201.getBody().accessToken()).isEqualTo("ACCESS_TOKEN");
         assertThat(response201.getBody().user().email()).isEqualTo("alice@example.com");
         assertThat(response201.getBody().user().authProvider()).isEqualTo("SAML");
+        // Absent domain hints default to false on the wire; the frontend fails open on a payload
+        // that omits them entirely (an older session), not on an explicit false.
+        assertThat(response201.getBody().user().governsApis()).isFalse();
         verify(refreshCookieWriter).write(eq(response), eq("REFRESH_TOKEN"), anyInt());
     }
 
     @Test
     void exchangeReturns401WhenCodeUnknown() {
-        var controller = new SamlExchangeController(exchangeCodeStore,
-                (roleId, fallback) -> fallback != null
-                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+        var controller = new SamlExchangeController(exchangeCodeStore, summaryFactory(),
                 authenticationService, refreshCookieWriter, messageSource);
         when(exchangeCodeStore.consume("missing")).thenReturn(Optional.empty());
         when(messageSource.getMessage(eq("error.saml.exchange_code_invalid"), any(),

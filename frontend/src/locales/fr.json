@@ -102,7 +102,8 @@
     "deployments": "Déploiements",
     "deploymentVersions": "Matrice des versions",
     "deploymentPipelines": "Pipelines de déploiement",
-    "help_agent": "Assistant d’aide"
+    "help_agent": "Assistant d’aide",
+    "governance_domains": "Domaines de gouvernance"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -2397,6 +2398,18 @@
         "embedding_provider_anthropic": "Anthropic ne propose pas d’API d’embeddings : la configuration IA sélectionnée ne peut donc pas indexer la documentation. Pointez son fournisseur d’embeddings vers un endpoint compatible OpenAI pour activer la recherche.",
         "pgvector_unavailable": "Le stockage pgvector intégré n’est pas disponible sur cette installation — soit l’extension vector n’est pas installée, soit ACCESSFLOW_RAG_PGVECTOR_ENABLED vaut false, ce qui a ignoré la migration vector_store. Testez la recherche pour savoir laquelle, ou utilisez un stockage Qdrant externe."
       }
+    },
+    "governance_domains": {
+      "title": "Domaines de gouvernance",
+      "subtitle": "Choisissez les domaines gouvernés par cette organisation",
+      "description": "La gouvernance des accès aux bases de données est toujours active. Désactiver un domaine masque sa navigation, ses onglets de revue et ses widgets du tableau de bord : aucune permission n'est retirée et les liens existants continuent de fonctionner.",
+      "label_apis": "Gouverner les accès API",
+      "help_apis": "Afficher les connecteurs d'API, l'éditeur de requêtes d'API et la file de revue des API.",
+      "label_deployments": "Gouverner les déploiements",
+      "help_deployments": "Afficher les pipelines de déploiement, la file des déploiements, le suivi des versions et les onglets de revue des déploiements.",
+      "save_button": "Enregistrer",
+      "save_success": "Domaines de gouvernance mis à jour",
+      "load_error": "Impossible de charger les domaines de gouvernance"
     }
   },
   "notifications": {
@@ -3398,7 +3411,9 @@
       "open_anomalies": "Anomalies ouvertes",
       "open_suggestions": "Suggestions ouvertes",
       "open_api_requests": "Requêtes API ouvertes",
-      "pending_api_approvals": "Approbations API en attente"
+      "pending_api_approvals": "Approbations API en attente",
+      "open_deployments": "Déploiements en cours",
+      "pending_deployment_approvals": "Approbations de déploiement en attente"
     },
     "widgets": {
       "pendingApprovals": "Approbations en attente",
@@ -3413,7 +3428,10 @@
       "myAccessRequests": "Mes demandes d'accès",
       "myRequestGroups": "Mes groupes de demandes",
       "riskMix": "Répartition du risque",
-      "activityHeatmap": "Carte d'activité"
+      "activityHeatmap": "Carte d'activité",
+      "pendingDeploymentApprovals": "Approbations de déploiement en attente",
+      "myDeployments": "Mes déploiements récents",
+      "deploymentVersions": "Versions par environnement"
     },
     "pending": {
       "empty": "Rien n'attend votre examen",
@@ -3491,6 +3509,17 @@
     },
     "activity": {
       "empty": "Aucune activité de requêtes sur les 90 derniers jours"
+    },
+    "pending_deployment_approvals": {
+      "empty": "Aucun déploiement en attente de votre revue",
+      "review": "Examiner"
+    },
+    "my_deployments": {
+      "empty": "Vous n'avez encore déclenché aucun déploiement",
+      "view": "Voir"
+    },
+    "deployment_versions": {
+      "empty": "Tous les environnements sont à la dernière version"
     }
   },
   "attestation": {

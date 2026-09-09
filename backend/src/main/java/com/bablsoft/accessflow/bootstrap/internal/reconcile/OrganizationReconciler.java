@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
 import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
 import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
+import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.OrganizationProvisioningService;
+import com.bablsoft.accessflow.core.api.UpdateOrganizationCommand;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class OrganizationReconciler {
 
     private final OrganizationProvisioningService organizationProvisioningService;
+    private final OrganizationAdminService organizationAdminService;
     private final BootstrapStateTracker stateTracker;
     private final SpecFingerprinter fingerprinter;
 
@@ -34,10 +37,12 @@ public class OrganizationReconciler {
         if (existing.isPresent()) {
             log.info("Bootstrap: organization '{}' (slug={}) already exists, skipping creation",
                     spec.name(), slug);
+            applyGovernanceDomains(existing.get(), spec);
             return existing.get();
         }
         var orgId = organizationProvisioningService.create(spec.name(), spec.slug());
         log.info("Bootstrap: created organization '{}' (id={})", spec.name(), orgId);
+        applyGovernanceDomains(orgId, spec);
 
         var fields = specFields(spec.name(), slug);
         stateTracker.recordFingerprintAndPublish(orgId, BootstrapResourceType.ORGANIZATION, orgId,
@@ -50,6 +55,20 @@ public class OrganizationReconciler {
                         List.of(),
                         Map.of("name", spec.name(), "slug", slug)));
         return orgId;
+    }
+
+    /**
+     * The governance-domain hints are reconciled on every run, existing organization included:
+     * they are a declared operator intent, so a stack that asks for both domains gets the full
+     * navigation whether the row was created by this run or a previous one. A null leaves the
+     * stored value alone.
+     */
+    private void applyGovernanceDomains(UUID orgId, OrganizationSpec spec) {
+        if (spec.governsApis() == null && spec.governsDeployments() == null) {
+            return;
+        }
+        organizationAdminService.update(orgId, new UpdateOrganizationCommand(
+                null, null, null, null, spec.governsApis(), spec.governsDeployments()));
     }
 
     private static Map<String, Object> specFields(String name, String slug) {

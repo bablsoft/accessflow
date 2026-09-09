@@ -24,6 +24,12 @@ import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService.PendingDeploymentReview;
+import com.bablsoft.accessflow.deploygov.api.PipelineProvider;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService.PendingReview;
 import org.junit.jupiter.api.Test;
@@ -58,11 +64,16 @@ class DefaultDashboardServiceTest {
             mock(MyApiRequestInsightsLookupService.class);
     private final ApiRequestService apiRequestService = mock(ApiRequestService.class);
     private final ApiReviewService apiReviewService = mock(ApiReviewService.class);
+    private final DeploymentRequestService deploymentRequestService =
+            mock(DeploymentRequestService.class);
+    private final DeploymentReviewService deploymentReviewService =
+            mock(DeploymentReviewService.class);
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final DefaultDashboardService service = new DefaultDashboardService(
             reviewService, queryLookup, insights, anomalyLookup, suggestionService,
-            apiInsights, apiRequestService, apiReviewService, clock);
+            apiInsights, apiRequestService, apiReviewService, deploymentRequestService,
+            deploymentReviewService, clock);
 
     private QueryListItemView query() {
         return new QueryListItemView(UUID.randomUUID(), UUID.randomUUID(), "DB", USER,
@@ -90,12 +101,35 @@ class DefaultDashboardServiceTest {
                 1, 0, NOW);
     }
 
+    private DeploymentRequestView deployment() {
+        return new DeploymentRequestView(UUID.randomUUID(), UUID.randomUUID(), "Checkout",
+                PipelineProvider.GITHUB_ACTIONS, UUID.randomUUID(), "prod", USER, "u@test.io",
+                "1.4.2", "abc1234", null, null, "run-1", java.util.Map.of(),
+                QueryStatus.PENDING_REVIEW, SubmissionReason.USER_SUBMITTED, "why",
+                UUID.randomUUID(), RiskLevel.MEDIUM, 45, "summary", 1, null, null, null, null,
+                NOW, List.of());
+    }
+
+    private PendingDeploymentReview pendingDeployment() {
+        return new PendingDeploymentReview(UUID.randomUUID(), UUID.randomUUID(), "Checkout",
+                UUID.randomUUID(), "prod", UUID.randomUUID(), "1.4.2", "abc1234", null, "why",
+                UUID.randomUUID(), RiskLevel.HIGH, 80, "summary", 1, 1, null, NOW);
+    }
+
     /** Default no-op stubs for the API-governance collaborators, overridden per test as needed. */
     private void stubApigovEmpty() {
         when(apiInsights.statusCounts(ORG, USER)).thenReturn(List.of());
         when(apiRequestService.list(any(ApiRequestListFilter.class), any()))
                 .thenReturn(PageResponse.empty(0, 5));
         when(apiReviewService.listPending(any(), any(), any()))
+                .thenReturn(PageResponse.empty(0, 5));
+    }
+
+    /** Default no-op stubs for the deployment-governance collaborators (#926). */
+    private void stubDeploygovEmpty() {
+        when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
+                .thenReturn(PageResponse.empty(0, 5));
+        when(deploymentReviewService.listPending(any(), any(), any()))
                 .thenReturn(PageResponse.empty(0, 5));
     }
 
@@ -120,6 +154,12 @@ class DefaultDashboardServiceTest {
                 .thenReturn(new PageResponse<>(List.of(apiRequest()), 0, 5, 1, 1));
         when(apiReviewService.listPending(any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(pendingApi()), 0, 5, 2, 1));
+        // One list call per open status (PENDING_AI, PENDING_REVIEW, APPROVED) plus the recent
+        // feed; each answers 2, so the open count is 6 and the recent list is capped by the feed.
+        when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
+                .thenReturn(new PageResponse<>(List.of(deployment()), 0, 5, 2, 1));
+        when(deploymentReviewService.listPending(any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(pendingDeployment()), 0, 5, 4, 1));
 
         var summary = service.summary(ORG, USER, UserRoleType.REVIEWER.name(),
                 SystemRolePermissions.of(UserRoleType.REVIEWER));
@@ -134,6 +174,35 @@ class DefaultDashboardServiceTest {
         assertThat(summary.recentPendingApprovals()).hasSize(1);
         assertThat(summary.recentApiRequests()).hasSize(1);
         assertThat(summary.recentPendingApiApprovals()).hasSize(1);
+        assertThat(summary.openDeploymentsCount()).isEqualTo(6); // 2 per open status, 3 statuses
+        assertThat(summary.pendingDeploymentApprovalsCount()).isEqualTo(4);
+        assertThat(summary.recentDeployments()).hasSize(1);
+        assertThat(summary.recentPendingDeploymentApprovals()).hasSize(1);
+    }
+
+    @Test
+    void summaryScopesDeploymentFilterToCurrentUser() {
+        when(reviewService.listPendingForReviewer(any(), any())).thenReturn(PageResponse.empty(0, 5));
+        when(insights.statusCounts(ORG, USER)).thenReturn(List.of());
+        when(queryLookup.findForOrganization(any(QueryListFilter.class), any()))
+                .thenReturn(PageResponse.empty(0, 5));
+        when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
+        when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
+        stubApigovEmpty();
+        stubDeploygovEmpty();
+
+        // A DEPLOYMENT_REVIEW holder could list the whole organization; the dashboard never does.
+        service.summary(ORG, USER, UserRoleType.REVIEWER.name(),
+                SystemRolePermissions.of(UserRoleType.REVIEWER));
+
+        var captor = ArgumentCaptor.forClass(DeploymentRequestListFilter.class);
+        verify(deploymentRequestService, org.mockito.Mockito.atLeastOnce())
+                .list(captor.capture(), any());
+        assertThat(captor.getAllValues())
+                .allSatisfy(f -> {
+                    assertThat(f.submittedByUserId()).isEqualTo(USER);
+                    assertThat(f.organizationId()).isEqualTo(ORG);
+                });
     }
 
     @Test
@@ -146,6 +215,7 @@ class DefaultDashboardServiceTest {
         when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
         stubApigovEmpty();
+        stubDeploygovEmpty();
 
         service.summary(ORG, USER, UserRoleType.ANALYST.name(),
                 SystemRolePermissions.of(UserRoleType.ANALYST));
@@ -199,6 +269,7 @@ class DefaultDashboardServiceTest {
         when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
         stubApigovEmpty();
+        stubDeploygovEmpty();
 
         service.summary(ORG, USER, UserRoleType.ANALYST.name(),
                 SystemRolePermissions.of(UserRoleType.ANALYST));

@@ -4,8 +4,14 @@ import java.util.UUID;
 
 /**
  * Cross-org organization management (AF-456). Unlike every other admin service, these operations are
- * NOT scoped to a caller's organization — they act on any organization by id and are reachable only
- * by a platform admin (the {@code PLATFORM_ADMIN} authority), enforced at the web layer.
+ * NOT scoped to a caller's organization — they act on any organization by id, and the platform
+ * management endpoints that expose them are reachable only by a platform admin (the
+ * {@code PLATFORM_ADMIN} authority), enforced at the web layer.
+ *
+ * <p>The one non-platform caller is the org-scoped governance-domain toggle (#926): it passes the
+ * caller's own organization id from the JWT and a command whose every other field is null, so an
+ * organization admin can flip {@code governsApis}/{@code governsDeployments} for their own tenant
+ * without reaching another one.
  */
 public interface OrganizationAdminService {
 

@@ -38,6 +38,9 @@ import { SuggestionBacklogWidget } from '@/components/dashboard/SuggestionBacklo
 import { AnomalyAlertsWidget } from '@/components/dashboard/AnomalyAlertsWidget';
 import { RecentApiRequestsWidget } from '@/components/dashboard/RecentApiRequestsWidget';
 import { PendingApiApprovalsWidget } from '@/components/dashboard/PendingApiApprovalsWidget';
+import { PendingDeploymentApprovalsWidget } from '@/components/dashboard/PendingDeploymentApprovalsWidget';
+import { MyDeploymentsWidget } from '@/components/dashboard/MyDeploymentsWidget';
+import { DeploymentVersionsWidget } from '@/components/dashboard/DeploymentVersionsWidget';
 import { AttestationsDueWidget } from '@/components/dashboard/AttestationsDueWidget';
 import { MyAccessRequestsWidget } from '@/components/dashboard/MyAccessRequestsWidget';
 import { MyRequestGroupsWidget } from '@/components/dashboard/MyRequestGroupsWidget';
@@ -54,6 +57,7 @@ import {
 import { dailyTotals, halfWindowDelta, trendsFiltersForRange } from '@/utils/trendSeries';
 import type { StatTileTrend } from '@/components/dashboard/StatTile';
 import { anomalyKeys } from '@/api/anomalies';
+import { deploymentVersionKeys } from '@/api/deploymentVersions';
 import { attestationKeys } from '@/api/attestation';
 import { accessRequestKeys } from '@/api/accessRequests';
 import { requestGroupKeys } from '@/api/requestGroups';
@@ -65,6 +69,11 @@ import {
 } from '@/store/preferencesStore';
 import { useAuthStore } from '@/store/authStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import {
+  useGovernanceDomains,
+  type GovernanceDomain,
+  type GovernanceDomains,
+} from '@/hooks/useGovernanceDomains';
 import type { AuthUser } from '@/api/auth';
 import { hasAnyPermission, type Permission } from '@/utils/permissions';
 import { apiErrorMessage, dashboardErrorMessage } from '@/utils/apiErrors';
@@ -90,10 +99,32 @@ const WIDGET_PERMISSIONS: Record<DashboardWidgetId, Permission[]> = {
   recentApiRequests: ['QUERY_SUBMIT_SELECT'],
   apiRequestTrends: ['QUERY_SUBMIT_SELECT'],
   pendingApiApprovals: ['API_REQUEST_REVIEW'],
+  pendingDeploymentApprovals: ['DEPLOYMENT_REVIEW'],
+  myDeployments: ['QUERY_SUBMIT_SELECT'],
+  deploymentVersions: ['DEPLOYMENT_PIPELINE_MANAGE', 'DEPLOYMENT_REVIEW', 'QUERY_ADMIN'],
 };
 
-function widgetAllowed(id: DashboardWidgetId, user: AuthUser | null): boolean {
-  return hasAnyPermission(user, WIDGET_PERMISSIONS[id]);
+// The governance domain each widget belongs to (#926); absent means the always-on database
+// domain. Visibility only — an enabled domain grants nothing, and a disabled one merely stops
+// offering a widget the permission check already allowed.
+const WIDGET_DOMAIN: Partial<Record<DashboardWidgetId, GovernanceDomain>> = {
+  recentApiRequests: 'apis',
+  apiRequestTrends: 'apis',
+  pendingApiApprovals: 'apis',
+  pendingDeploymentApprovals: 'deployments',
+  myDeployments: 'deployments',
+  deploymentVersions: 'deployments',
+};
+
+function widgetAllowed(
+  id: DashboardWidgetId,
+  user: AuthUser | null,
+  domains: GovernanceDomains,
+): boolean {
+  const domain = WIDGET_DOMAIN[id];
+  return (
+    hasAnyPermission(user, WIDGET_PERMISSIONS[id]) && (domain === undefined || domains[domain])
+  );
 }
 
 /** Sparkline + delta payload for a stat tile, from a day-bucketed trends window. */
@@ -115,6 +146,7 @@ export default function DashboardPage() {
   const { subscribe } = useWebSocket();
 
   const user = useAuthStore((s) => s.user);
+  const domains = useGovernanceDomains();
   const widgets = usePreferencesStore((s) => s.dashboardWidgets);
   const toggleVisibility = usePreferencesStore((s) => s.toggleWidgetVisibility);
   const toggleCollapsed = usePreferencesStore((s) => s.toggleWidgetCollapsed);
@@ -124,10 +156,11 @@ export default function DashboardPage() {
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
-  // Only the widgets the current user's permissions can actually use are eligible for the layout.
+  // Only the widgets the current user's permissions can use *and* whose governance domain the
+  // organization enabled are eligible for the layout.
   const availableIds = useMemo<DashboardWidgetId[]>(
-    () => DASHBOARD_WIDGET_IDS.filter((id) => widgetAllowed(id, user)),
-    [user],
+    () => DASHBOARD_WIDGET_IDS.filter((id) => widgetAllowed(id, user, domains)),
+    [user, domains],
   );
 
   const summaryQuery = useQuery({
@@ -236,6 +269,7 @@ export default function DashboardPage() {
     void queryClient.invalidateQueries({ queryKey: attestationKeys.worklist() });
     void queryClient.invalidateQueries({ queryKey: accessRequestKeys.all });
     void queryClient.invalidateQueries({ queryKey: requestGroupKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: deploymentVersionKeys.lists() });
   };
 
   // The suggestions stat tile has no dedicated page: it reveals the widget instead.
@@ -389,6 +423,7 @@ function badgeFor(id: DashboardWidgetId, summary: DashboardSummary | undefined):
   if (id === 'suggestions') return summary.open_suggestions_count;
   if (id === 'anomalies') return summary.open_anomalies_count;
   if (id === 'pendingApiApprovals') return summary.pending_api_approvals_count;
+  if (id === 'pendingDeploymentApprovals') return summary.pending_deployment_approvals_count;
   return undefined;
 }
 
@@ -460,6 +495,26 @@ function renderWidget(id: DashboardWidgetId, summaryQuery: SummaryQueryLike) {
           onRetry={onRetry}
         />
       );
+    case 'pendingDeploymentApprovals':
+      return (
+        <PendingDeploymentApprovalsWidget
+          items={summary?.recent_pending_deployment_approvals ?? []}
+          loading={loading}
+          error={error}
+          onRetry={onRetry}
+        />
+      );
+    case 'myDeployments':
+      return (
+        <MyDeploymentsWidget
+          items={summary?.recent_deployments ?? []}
+          loading={loading}
+          error={error}
+          onRetry={onRetry}
+        />
+      );
+    case 'deploymentVersions':
+      return <DeploymentVersionsWidget />;
     default:
       return null;
   }
@@ -545,6 +600,20 @@ function SummaryCounts({
       label: t('dashboard.summary.pending_api_approvals'),
       value: summary.pending_api_approvals_count,
       onOpen: () => navigate(reviewHubPath('api')),
+    },
+    {
+      key: 'openDeployments',
+      widget: 'myDeployments',
+      label: t('dashboard.summary.open_deployments'),
+      value: summary.open_deployments_count,
+      onOpen: () => navigate('/deployments'),
+    },
+    {
+      key: 'pendingDeploymentApprovals',
+      widget: 'pendingDeploymentApprovals',
+      label: t('dashboard.summary.pending_deployment_approvals'),
+      value: summary.pending_deployment_approvals_count,
+      onOpen: () => navigate(reviewHubPath('deployments')),
     },
   ];
   const cards = allCards.filter((c) => available.includes(c.widget));

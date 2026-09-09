@@ -40,7 +40,7 @@ class DefaultDashboardSummaryExportServiceTest {
     private DashboardWeeklySummary summary() {
         return new DashboardWeeklySummary(ORG, USER, "u@x.io", "User",
                 LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 5,
-                List.of(), List.of(), 2, 1, 3, Instant.parse("2026-06-25T12:00:00Z"));
+                List.of(), List.of(), 2, 1, 3, 0, 0, Instant.parse("2026-06-25T12:00:00Z"));
     }
 
     @Test

@@ -16,6 +16,9 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import org.junit.jupiter.api.Test;
 
@@ -46,17 +49,29 @@ class DashboardWeeklySummaryBuilderTest {
     private final MyQueryInsightsLookupService insights = mock(MyQueryInsightsLookupService.class);
     private final BehaviorAnomalyLookupService anomalyLookup = mock(BehaviorAnomalyLookupService.class);
     private final DashboardSuggestionService suggestionService = mock(DashboardSuggestionService.class);
+    private final DeploymentRequestService deploymentRequestService =
+            mock(DeploymentRequestService.class);
+    private final DeploymentReviewService deploymentReviewService =
+            mock(DeploymentReviewService.class);
     private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     private final DashboardWeeklySummaryBuilder builder = new DashboardWeeklySummaryBuilder(
             userQueryService, rolePermissionResolver, reviewService, insights, anomalyLookup,
-            suggestionService, clock);
+            suggestionService, deploymentRequestService, deploymentReviewService, clock);
 
     {
         lenient().when(rolePermissionResolver.resolve(any(), any())).thenAnswer(inv -> {
             UserRoleType r = inv.getArgument(1);
             return r != null ? SystemRolePermissions.of(r) : Set.<com.bablsoft.accessflow.core.api.Permission>of();
         });
+    }
+
+    /** The deployment reads answer "nothing" unless a test overrides them. */
+    private void stubDeploygovEmpty() {
+        lenient().when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
+                .thenReturn(PageResponse.empty(0, 1));
+        lenient().when(deploymentReviewService.listPending(any(), any(), any()))
+                .thenReturn(PageResponse.empty(0, 1));
     }
 
     private UserView user(UserRoleType role) {
@@ -66,6 +81,7 @@ class DashboardWeeklySummaryBuilderTest {
 
     @Test
     void buildAggregatesTrendsAndCountsForCurrentWeek() {
+        stubDeploygovEmpty();
         when(userQueryService.findById(USER)).thenReturn(Optional.of(user(UserRoleType.REVIEWER)));
         var d = LocalDate.of(2026, 6, 23);
         when(insights.trends(any(), any(), any(), any())).thenReturn(new MyQueryTrendsRaw(
@@ -94,6 +110,7 @@ class DashboardWeeklySummaryBuilderTest {
 
     @Test
     void buildUsesExplicitWeek() {
+        stubDeploygovEmpty();
         when(userQueryService.findById(USER)).thenReturn(Optional.of(user(UserRoleType.ANALYST)));
         when(insights.trends(any(), any(), any(), any()))
                 .thenReturn(new MyQueryTrendsRaw(List.of(), List.of()));
@@ -110,6 +127,7 @@ class DashboardWeeklySummaryBuilderTest {
 
     @Test
     void buildToleratesMissingUser() {
+        stubDeploygovEmpty();
         when(userQueryService.findById(USER)).thenReturn(Optional.empty());
         when(insights.trends(any(), any(), any(), any()))
                 .thenReturn(new MyQueryTrendsRaw(List.of(), List.of()));
@@ -120,5 +138,34 @@ class DashboardWeeklySummaryBuilderTest {
 
         assertThat(summary.userEmail()).isNull();
         assertThat(summary.pendingApprovals()).isZero();
+        // No user, no reviewer context — the deployment review queue is not even consulted.
+        assertThat(summary.pendingDeploymentApprovals()).isZero();
+    }
+
+    @Test
+    void buildCountsOpenDeploymentsSelfScopedAndTheDeploymentReviewQueue() {
+        when(userQueryService.findById(USER)).thenReturn(Optional.of(user(UserRoleType.REVIEWER)));
+        when(insights.trends(any(), any(), any(), any()))
+                .thenReturn(new MyQueryTrendsRaw(List.of(), List.of()));
+        when(reviewService.listPendingForReviewer(any(), any())).thenReturn(PageResponse.empty(0, 1));
+        when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
+        when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
+        // One call per open status; each answers 1, so the total is 3.
+        when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 1, 1, 1));
+        when(deploymentReviewService.listPending(any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 1, 4, 4));
+
+        var summary = builder.build(ORG, USER, null);
+
+        assertThat(summary.openDeployments()).isEqualTo(3);
+        assertThat(summary.pendingDeploymentApprovals()).isEqualTo(4);
+        var captor = org.mockito.ArgumentCaptor.forClass(DeploymentRequestListFilter.class);
+        org.mockito.Mockito.verify(deploymentRequestService, org.mockito.Mockito.atLeastOnce())
+                .list(captor.capture(), any());
+        assertThat(captor.getAllValues()).allSatisfy(f -> {
+            assertThat(f.submittedByUserId()).isEqualTo(USER);
+            assertThat(f.organizationId()).isEqualTo(ORG);
+        });
     }
 }

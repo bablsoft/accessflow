@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-07",
+      "dateModified": "2026-09-09",
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/users-roles/",
       "image": "https://accessflow.io/og-image.png",
@@ -265,7 +265,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Users, roles & organizations.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-07">7 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -318,16 +318,25 @@
               limit) for each cap.</li>
             <li><strong>Change what the org governs.</strong> The same screen carries the two switches
               from the <a href="/docs/install/#first-run">setup wizard</a> — <em>Govern outbound API
-              calls</em> and <em>Gate CI/CD deployments</em>. These are onboarding hints, not
-              entitlements: they only add or remove first-run checklist steps, and
-              <a href="/docs/configuration/connectors/#cfg-api-connectors">API</a> and
-              <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment</a>
-              governance stay fully usable whichever way they are set.</li>
+              calls</em> and <em>Gate CI/CD deployments</em>. An org admin does not need a platform
+              admin for this: the same two switches live at <code>/admin/governance-domains</code>,
+              under <strong>System</strong> in the sidebar.</li>
             <li><strong>Disable a tenant.</strong> Use <em>Disable</em> as a kill-switch — its users are
               blocked at login (local <em>and</em> SSO) and every in-flight session stops on its next
               request. The block is immediate (no cache, no waiting for token expiry). <em>Enable</em>
               restores access.</li>
           </ol>
+          <p>
+            <strong>What the two switches actually do.</strong> They decide what the app
+            <em>shows</em>, not what anyone is allowed to do. Turning a domain off removes its
+            sidebar sections, its tab on the review queue, and its dashboard tiles and cards, so a
+            team that only governs databases is not looking at menus it will never use. Nobody
+            loses a permission, no page stops working, and a link someone already has — from a
+            notification, a bookmark, or a colleague — still opens. Turn the switch back on and
+            everything reappears. <a href="/docs/configuration/connectors/#cfg-api-connectors">API</a>
+            and <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment</a>
+            governance stay fully usable whichever way the switches are set.
+          </p>
           <p>
             Every organization action (create, update, disable, enable) is written to the
             <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a> against the target org. Per-org login pages /

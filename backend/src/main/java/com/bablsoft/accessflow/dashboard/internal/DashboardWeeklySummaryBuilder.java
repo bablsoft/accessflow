@@ -14,6 +14,9 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.api.DashboardRiskCount;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
 import com.bablsoft.accessflow.dashboard.api.DashboardWeeklySummary;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
 import lombok.RequiredArgsConstructor;
@@ -40,12 +43,18 @@ import java.util.UUID;
 @RequiredArgsConstructor
 class DashboardWeeklySummaryBuilder {
 
+    /** Non-terminal statuses that count as a user's "open" (in-flight) deployment requests. */
+    private static final Set<QueryStatus> OPEN_DEPLOYMENT_STATUSES =
+            Set.of(QueryStatus.PENDING_AI, QueryStatus.PENDING_REVIEW, QueryStatus.APPROVED);
+
     private final UserQueryService userQueryService;
     private final RolePermissionResolver rolePermissionResolver;
     private final ReviewService reviewService;
     private final MyQueryInsightsLookupService insightsLookupService;
     private final BehaviorAnomalyLookupService anomalyLookupService;
     private final DashboardSuggestionService suggestionService;
+    private final DeploymentRequestService deploymentRequestService;
+    private final DeploymentReviewService deploymentReviewService;
     private final Clock clock;
 
     @Transactional(readOnly = true)
@@ -85,6 +94,19 @@ class DashboardWeeklySummaryBuilder {
         long openAnomalies = anomalyLookupService.badgeForUser(organizationId, userId).openCount();
         long openSuggestions = suggestionService.countOpen(organizationId, userId);
 
+        // Self-scoped, exactly like the live dashboard summary: the report never leaks another
+        // submitter's deployments into a user's weekly export.
+        long openDeployments = OPEN_DEPLOYMENT_STATUSES.stream()
+                .mapToLong(status -> deploymentRequestService.list(
+                        new DeploymentRequestListFilter(organizationId, userId, null, null, null,
+                                status, null, null),
+                        PageRequest.of(0, 1)).totalElements())
+                .sum();
+        long pendingDeploymentApprovals = user == null ? 0L : deploymentReviewService.listPending(
+                new DeploymentReviewService.ReviewerContext(userId, organizationId, roleName, permissions),
+                new DeploymentReviewService.PendingDeploymentReviewFilter(null),
+                PageRequest.of(0, 1)).totalElements();
+
         return new DashboardWeeklySummary(
                 organizationId,
                 userId,
@@ -98,6 +120,8 @@ class DashboardWeeklySummaryBuilder {
                 pendingApprovals,
                 openAnomalies,
                 openSuggestions,
+                openDeployments,
+                pendingDeploymentApprovals,
                 clock.instant());
     }
 }

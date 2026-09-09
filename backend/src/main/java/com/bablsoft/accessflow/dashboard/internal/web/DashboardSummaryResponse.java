@@ -7,6 +7,9 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.dashboard.api.DashboardSummary;
+import com.bablsoft.accessflow.deploygov.api.DeploymentOutcome;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService.PendingDeploymentReview;
 import com.bablsoft.accessflow.workflow.api.ReviewService.PendingReview;
 
 import java.time.Instant;
@@ -15,7 +18,8 @@ import java.util.UUID;
 
 /**
  * API envelope for the dashboard summary (AF-498). Jackson converts camelCase → snake_case globally.
- * The {@code apiRequest}/{@code pendingApiApproval} blocks back the API Access Governance widgets (AF-500).
+ * The {@code apiRequest}/{@code pendingApiApproval} blocks back the API Access Governance widgets (AF-500),
+ * and the {@code deployment}/{@code pendingDeploymentApproval} blocks the deployment-governance ones (#926).
  */
 public record DashboardSummaryResponse(
         long pendingApprovalsCount,
@@ -24,11 +28,15 @@ public record DashboardSummaryResponse(
         long openSuggestionsCount,
         long openApiRequestsCount,
         long pendingApiApprovalsCount,
+        long openDeploymentsCount,
+        long pendingDeploymentApprovalsCount,
         List<StatusCountResponse> statusCounts,
         List<RecentQueryResponse> recentQueries,
         List<PendingApprovalResponse> recentPendingApprovals,
         List<RecentApiRequestResponse> recentApiRequests,
-        List<PendingApiApprovalResponse> recentPendingApiApprovals) {
+        List<PendingApiApprovalResponse> recentPendingApiApprovals,
+        List<RecentDeploymentResponse> recentDeployments,
+        List<PendingDeploymentApprovalResponse> recentPendingDeploymentApprovals) {
 
     public static DashboardSummaryResponse from(DashboardSummary s) {
         return new DashboardSummaryResponse(
@@ -38,12 +46,17 @@ public record DashboardSummaryResponse(
                 s.openSuggestionsCount(),
                 s.openApiRequestsCount(),
                 s.pendingApiApprovalsCount(),
+                s.openDeploymentsCount(),
+                s.pendingDeploymentApprovalsCount(),
                 s.statusCounts().stream()
                         .map(c -> new StatusCountResponse(c.status(), c.count())).toList(),
                 s.recentQueries().stream().map(RecentQueryResponse::from).toList(),
                 s.recentPendingApprovals().stream().map(PendingApprovalResponse::from).toList(),
                 s.recentApiRequests().stream().map(RecentApiRequestResponse::from).toList(),
-                s.recentPendingApiApprovals().stream().map(PendingApiApprovalResponse::from).toList());
+                s.recentPendingApiApprovals().stream().map(PendingApiApprovalResponse::from).toList(),
+                s.recentDeployments().stream().map(RecentDeploymentResponse::from).toList(),
+                s.recentPendingDeploymentApprovals().stream()
+                        .map(PendingDeploymentApprovalResponse::from).toList());
     }
 
     public record StatusCountResponse(QueryStatus status, long count) {
@@ -82,6 +95,46 @@ public record DashboardSummaryResponse(
             return new PendingApprovalResponse(p.queryRequestId(), p.datasourceId(),
                     p.datasourceName(), p.submittedByEmail(), p.queryType(), p.aiRiskLevel(),
                     p.aiRiskScore(), p.currentStage(), p.createdAt());
+        }
+    }
+
+    public record RecentDeploymentResponse(
+            UUID id,
+            UUID pipelineId,
+            String pipelineName,
+            UUID environmentId,
+            String environmentName,
+            String version,
+            QueryStatus status,
+            RiskLevel aiRiskLevel,
+            Integer aiRiskScore,
+            DeploymentOutcome outcome,
+            Instant createdAt) {
+
+        static RecentDeploymentResponse from(DeploymentRequestView v) {
+            return new RecentDeploymentResponse(v.id(), v.pipelineId(), v.pipelineName(),
+                    v.environmentId(), v.environmentName(), v.version(), v.status(),
+                    v.aiRiskLevel(), v.aiRiskScore(), v.outcome(), v.createdAt());
+        }
+    }
+
+    public record PendingDeploymentApprovalResponse(
+            UUID deploymentRequestId,
+            UUID pipelineId,
+            String pipelineName,
+            UUID environmentId,
+            String environmentName,
+            UUID submittedByUserId,
+            String version,
+            RiskLevel aiRiskLevel,
+            Integer aiRiskScore,
+            int currentStage,
+            Instant createdAt) {
+
+        static PendingDeploymentApprovalResponse from(PendingDeploymentReview p) {
+            return new PendingDeploymentApprovalResponse(p.deploymentRequestId(), p.pipelineId(),
+                    p.pipelineName(), p.environmentId(), p.environmentName(), p.submittedByUserId(),
+                    p.version(), p.aiRiskLevel(), p.aiRiskScore(), p.currentStage(), p.createdAt());
         }
     }
 

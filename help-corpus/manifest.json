@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "90d627d377f7",
-  "generatedAt": "2026-09-08T22:27:10.012Z",
-  "sourceCommit": "5879c161b2b16baf1b932e6e0cccd0f65243ccab",
+  "corpusVersion": "8d179d0bbe3d",
+  "generatedAt": "2026-09-09T07:05:37.561Z",
+  "sourceCommit": "e0c707ba8aa24477a431c1b477ebdfde1041d259",
   "chunkCount": 516,
-  "sha256": "90d627d377f7b37ac710a1292ff887a96a758bcfc58296a70d516302f2436009",
-  "quickReferenceSha256": "ce90daa8fce5ca7fda1ade0b47772c981c2b232af216db3b76ad4c39eabedaf4",
+  "sha256": "8d179d0bbe3d2cd73cb3438349b8d89e243ae6a163196ef66ed487c80324e292",
+  "quickReferenceSha256": "cb37c52a6c0e069fb343a63b5d96d55d7f721fe256e9a6be93089b92e233ed72",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -229,7 +229,7 @@
       "url": "https://accessflow.io/docs/configuration/users-roles/",
       "section": "Reference",
       "chunks": 11,
-      "sha256": "3437135aef1d14fbe1860397895b77c33fef5fe19eed3368f1fcb8b5c7b32738"
+      "sha256": "ced59df6d6855b0d09246065b64d618512e37fe7fb056464681aba20fa2f58ea"
     },
     {
       "path": "website/docs/guides/ai-analysis/index.html",
@@ -269,7 +269,7 @@
       "url": "https://accessflow.io/docs/guides/first-query/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "5e7da643d9b5a9b85d8bf23c2a796e5853fe115016f1a07cdcc9fdfbb4e1aa54"
+      "sha256": "c802fdade592f3a730998e7eaca3c847fa625232ee8298b7004ee8f099326cda"
     },
     {
       "path": "website/docs/guides/index.html",
@@ -333,7 +333,7 @@
       "url": "https://accessflow.io/docs/install/",
       "section": "Documentation",
       "chunks": 13,
-      "sha256": "9356fde261c6318c7c694a223491f0e04e0ba565bd86d495fd84082a4b8d65e0"
+      "sha256": "b182a28098fa396ec883f24c58598d04624a1b465fa1676b59ffd5b1663a35b8"
     },
     {
       "path": "website/docs/workflows/index.html",
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 83,
-      "sha256": "20d27e088963b09e0e6df872a1bc45c1572a33af230a37277a484f2821272640"
+      "sha256": "c667a632da9abf9a2c9fa764e0e86be7a591ad3c55480dff60472a0a6e67ff7b"
     }
   ]
 }

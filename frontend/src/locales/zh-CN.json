@@ -102,7 +102,8 @@
     "deployments": "部署",
     "deploymentVersions": "版本矩阵",
     "deploymentPipelines": "部署流水线",
-    "help_agent": "帮助助手"
+    "help_agent": "帮助助手",
+    "governance_domains": "治理域"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -2397,6 +2398,18 @@
         "embedding_provider_anthropic": "Anthropic 不提供嵌入 API，所选 AI 配置无法索引文档。请将其嵌入提供方指向兼容 OpenAI 的端点以启用检索。",
         "pgvector_unavailable": "本部署的内置 pgvector 存储不可用——可能是未安装 vector 扩展，也可能是 ACCESSFLOW_RAG_PGVECTOR_ENABLED 为 false 导致跳过了 vector_store 迁移。请测试检索以确认，或改用外部 Qdrant 存储。"
       }
+    },
+    "governance_domains": {
+      "title": "治理域",
+      "subtitle": "选择本组织治理哪些域",
+      "description": "数据库访问治理始终启用。关闭某个域只会隐藏其导航、审核标签页和仪表板小组件，不会收回任何权限，已有链接仍然可用。",
+      "label_apis": "治理 API 访问",
+      "help_apis": "显示 API 连接器、API 请求编辑器和 API 审核队列。",
+      "label_deployments": "治理部署",
+      "help_deployments": "显示部署流水线、部署队列、版本跟踪和部署审核标签页。",
+      "save_button": "保存",
+      "save_success": "治理域已更新",
+      "load_error": "无法加载治理域"
     }
   },
   "notifications": {
@@ -3398,7 +3411,9 @@
       "open_anomalies": "未处理的异常",
       "open_suggestions": "未处理的建议",
       "open_api_requests": "进行中的 API 请求",
-      "pending_api_approvals": "待审批的 API 请求"
+      "pending_api_approvals": "待审批的 API 请求",
+      "open_deployments": "进行中的部署",
+      "pending_deployment_approvals": "待审批的部署"
     },
     "widgets": {
       "pendingApprovals": "待批准",
@@ -3413,7 +3428,10 @@
       "myAccessRequests": "我的访问申请",
       "myRequestGroups": "我的请求组",
       "riskMix": "风险分布",
-      "activityHeatmap": "活动热图"
+      "activityHeatmap": "活动热图",
+      "pendingDeploymentApprovals": "待审批的部署",
+      "myDeployments": "我最近的部署",
+      "deploymentVersions": "环境版本"
     },
     "pending": {
       "empty": "没有等待您审核的内容",
@@ -3491,6 +3509,17 @@
     },
     "activity": {
       "empty": "过去 90 天没有查询活动"
+    },
+    "pending_deployment_approvals": {
+      "empty": "没有等待你审核的部署",
+      "review": "审核"
+    },
+    "my_deployments": {
+      "empty": "你还没有触发过任何部署",
+      "view": "查看"
+    },
+    "deployment_versions": {
+      "empty": "所有环境均为最新版本"
     }
   },
   "attestation": {

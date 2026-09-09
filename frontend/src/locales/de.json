@@ -102,7 +102,8 @@
     "deployments": "Deployments",
     "deploymentVersions": "Versionsmatrix",
     "deploymentPipelines": "Deployment-Pipelines",
-    "help_agent": "Hilfe-Assistent"
+    "help_agent": "Hilfe-Assistent",
+    "governance_domains": "Governance-Bereiche"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -2397,6 +2398,18 @@
         "embedding_provider_anthropic": "Anthropic bietet keine Embeddings-API, daher kann die ausgewählte KI-Konfiguration keine Dokumentation indizieren. Richten Sie ihren Embedding-Anbieter auf einen OpenAI-kompatiblen Endpunkt, um die Suche zu aktivieren.",
         "pgvector_unavailable": "Die interne pgvector-Speicherung ist auf dieser Installation nicht verfügbar — entweder ist die vector-Erweiterung nicht installiert oder ACCESSFLOW_RAG_PGVECTOR_ENABLED ist false, wodurch die vector_store-Migration übersprungen wurde. Testen Sie die Suche, um zu sehen welches, oder verwenden Sie einen externen Qdrant-Speicher."
       }
+    },
+    "governance_domains": {
+      "title": "Governance-Bereiche",
+      "subtitle": "Wählen Sie, welche Bereiche diese Organisation steuert",
+      "description": "Die Governance für Datenbankzugriffe ist immer aktiv. Wird ein Bereich deaktiviert, verschwinden dessen Navigation, Prüf-Tabs und Dashboard-Widgets — es wird keine Berechtigung entzogen, und bestehende Links funktionieren weiter.",
+      "label_apis": "API-Zugriffe steuern",
+      "help_apis": "API-Konnektoren, den API-Anfrage-Editor und die API-Prüfliste anzeigen.",
+      "label_deployments": "Deployments steuern",
+      "help_deployments": "Deployment-Pipelines, die Deployment-Liste, die Versionsverfolgung und die Deployment-Prüf-Tabs anzeigen.",
+      "save_button": "Speichern",
+      "save_success": "Governance-Bereiche aktualisiert",
+      "load_error": "Die Governance-Bereiche konnten nicht geladen werden"
     }
   },
   "notifications": {
@@ -3398,7 +3411,9 @@
       "open_anomalies": "Offene Anomalien",
       "open_suggestions": "Offene Vorschläge",
       "open_api_requests": "Offene API-Anfragen",
-      "pending_api_approvals": "Ausstehende API-Genehmigungen"
+      "pending_api_approvals": "Ausstehende API-Genehmigungen",
+      "open_deployments": "Offene Deployments",
+      "pending_deployment_approvals": "Offene Deployment-Freigaben"
     },
     "widgets": {
       "pendingApprovals": "Ausstehende Genehmigungen",
@@ -3413,7 +3428,10 @@
       "myAccessRequests": "Meine Zugriffsanfragen",
       "myRequestGroups": "Meine Anfragegruppen",
       "riskMix": "Risikoverteilung",
-      "activityHeatmap": "Aktivitäts-Heatmap"
+      "activityHeatmap": "Aktivitäts-Heatmap",
+      "pendingDeploymentApprovals": "Offene Deployment-Freigaben",
+      "myDeployments": "Meine letzten Deployments",
+      "deploymentVersions": "Umgebungsversionen"
     },
     "pending": {
       "empty": "Nichts wartet auf Ihre Prüfung",
@@ -3491,6 +3509,17 @@
     },
     "activity": {
       "empty": "Keine Abfrageaktivität in den letzten 90 Tagen"
+    },
+    "pending_deployment_approvals": {
+      "empty": "Keine Deployments warten auf Ihre Prüfung",
+      "review": "Prüfen"
+    },
+    "my_deployments": {
+      "empty": "Sie haben noch keine Deployments ausgelöst",
+      "view": "Ansehen"
+    },
+    "deployment_versions": {
+      "empty": "Alle Umgebungen sind auf der neuesten Version"
     }
   },
   "attestation": {

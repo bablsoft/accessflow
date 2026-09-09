@@ -67,6 +67,7 @@ const RolesPage = lazy(() =>
   import('@/pages/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
 );
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
+import { GovernanceDomainsPage } from '@/pages/admin/GovernanceDomainsPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 const ConnectorsPage = lazy(() => import('@/pages/admin/connectors/ConnectorsPage'));
 const OrganizationsListPage = lazy(() =>
@@ -645,6 +646,14 @@ export function App() {
             element={
               <AuthGuard requirePermission={'LOCALIZATION_CONFIGURE'}>
                 <LanguagesConfigPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/governance-domains"
+            element={
+              <AuthGuard requirePermission={'SETUP_PROGRESS_VIEW'}>
+                <GovernanceDomainsPage />
               </AuthGuard>
             }
           />

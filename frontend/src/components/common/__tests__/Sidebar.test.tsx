@@ -472,4 +472,63 @@ describe('Sidebar — unified review queue (#772)', () => {
     );
     expect(link(screen, 'Review queue').querySelector('.af-sidebar-badge')).toHaveTextContent('7');
   });
+
+  describe('governance-domain visibility (#926)', () => {
+    /** The admin user with the organization's two domain flags set explicitly. */
+    function withDomains(apis: boolean, deployments: boolean): AuthUser {
+      return { ...adminUser, governs_apis: apis, governs_deployments: deployments };
+    }
+
+    it('hides the API sub-sections when the organization governs no APIs', () => {
+      expandAll();
+      const { container } = renderSidebar(withDomains(false, true));
+
+      expect(subgroupItems(container, 'workflow-api')).toBeNull();
+      expect(subgroupItems(container, 'connections-api')).toBeNull();
+      // The deployment sub-sections are untouched.
+      expect(subgroupItems(container, 'workflow-deployments')).not.toBeNull();
+      expect(subgroupItems(container, 'connections-deployments')).not.toBeNull();
+    });
+
+    it('hides the deployment sub-sections when the organization governs no deployments', () => {
+      expandAll();
+      const { container } = renderSidebar(withDomains(true, false));
+
+      expect(subgroupItems(container, 'workflow-deployments')).toBeNull();
+      expect(subgroupItems(container, 'connections-deployments')).toBeNull();
+      expect(subgroupItems(container, 'workflow-api')).not.toBeNull();
+      expect(subgroupItems(container, 'connections-api')).not.toBeNull();
+    });
+
+    it('keeps the always-on database sub-sections when neither domain is governed', () => {
+      expandAll();
+      const { container } = renderSidebar(withDomains(false, false));
+
+      expect(subgroupItems(container, 'workflow-database')).not.toBeNull();
+      expect(subgroupItems(container, 'connections-database')).not.toBeNull();
+      expect(subgroupItems(container, 'workflow-api')).toBeNull();
+      expect(subgroupItems(container, 'workflow-deployments')).toBeNull();
+      // The unified review hub is permission-gated only, so it never disappears with a domain.
+      expect(link(screen, 'Reviews')).toBeInTheDocument();
+    });
+
+    it('shows both domains for a session issued before the flags existed', () => {
+      expandAll();
+      // `adminUser` carries neither flag — exactly a pre-#926 token.
+      const { container } = renderSidebar(adminUser);
+
+      expect(subgroupItems(container, 'workflow-api')).not.toBeNull();
+      expect(subgroupItems(container, 'workflow-deployments')).not.toBeNull();
+    });
+
+    it('offers the governance-domains settings page to a setup-progress admin', () => {
+      renderSidebar(adminUser);
+      expect(link(within(group('System')), 'Governance Domains')).toBeInTheDocument();
+    });
+
+    it('hides the governance-domains settings page from a read-only user', () => {
+      renderSidebar(readonlyUser);
+      expect(screen.queryByText('Governance Domains')).not.toBeInTheDocument();
+    });
+  });
 });

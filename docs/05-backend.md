@@ -990,8 +990,9 @@ modules' `api` packages — `workflow.api` (`ReviewService.listPendingForReviewe
 (`BehaviorAnomalyLookupService` + the new self-scoped `UserBehaviorAnomalyService`), `security.api`
 (`ExportSignatureService`), `audit.api` (`AuditLogService` + the new `DASHBOARD_SUMMARY_EXPORTED` /
 `dashboard_summary` enum values), and — for API Access Governance (AF-500) — `apigov.api`
-(`MyApiRequestInsightsLookupService`, `ApiRequestService`, `ApiReviewService`). Nothing in those modules
-depends back on `dashboard`; the only new edge is `notifications → dashboard` (the digest event),
+(`MyApiRequestInsightsLookupService`, `ApiRequestService`, `ApiReviewService`), and — for deployment
+approval governance (#926) — `deploygov.api` (`DeploymentRequestService`, `DeploymentReviewService`).
+Nothing in those modules depends back on `dashboard`; the only new edge is `notifications → dashboard` (the digest event),
 matching the existing `notifications → ai/workflow` direction — so no cycle.
 
 - **Self-scoped reads.** `MyQueryInsightsLookupService` (`core.api`, Postgres aggregations over
@@ -1006,6 +1007,20 @@ matching the existing `notifications → ai/workflow` direction — so no cycle.
   and per-status counts. `DashboardService.summary` folds in the open-API-request count (non-terminal
   statuses), recent API requests (`ApiRequestService.list`), and the caller's pending API-approval queue
   (`ApiReviewService.listPending` — count + recent list).
+- **Deployment widgets (#926).** `DashboardService.summary` also folds in the caller's own governed
+  deployments and their deployment review queue. There is no deploygov insights service to mirror the
+  SQL/API ones, so the counts come from the existing reads: `open_deployments_count` is one
+  `DeploymentRequestService.list(…, PageRequest.of(0, 1))` per non-terminal status (`PENDING_AI`,
+  `PENDING_REVIEW`, `APPROVED`) summed over `totalElements`, and the recent feed is a fourth call at
+  `RECENT_LIMIT`. Every one of those filters carries `submittedByUserId = me`, so a `DEPLOYMENT_REVIEW`
+  holder — who *could* list the whole organization — still sees only their own submissions on the
+  dashboard. `pending_deployment_approvals_count` + `recent_pending_deployment_approvals` come from
+  `DeploymentReviewService.listPending`. The organization's `governs_deployments` flag is **not**
+  consulted here: the server always computes these fields, and the SPA decides whether to render the
+  widgets (see [`docs/06-frontend.md`](06-frontend.md)). The same two counts are added to
+  `DashboardWeeklySummary` and rendered by both export writers; the email digest event
+  (`WeeklyDigestReadyEvent`) is deliberately unchanged — extending it would touch the notification
+  fan-out for a metric nobody asked to be paged about.
 - **Summary + suggestions.** `DashboardService.summary` composes the headline counts + short recent
   lists. `DashboardSuggestionService` parses each analysis's `optimizations[]` JSON, assigns a stable
   `{aiAnalysisId}:{index}` id, and joins it against `dashboard_suggestion_state` (a row exists only for
@@ -2947,7 +2962,9 @@ Lives in `api/` (the cross-cutting REST aggregator module). Powers the frontend 
 
 Placing the controller in `api/` (which imports `core.api`, `ai.api`, `apigov.api` and `deploygov.api` cleanly, and which nothing imports back) avoids a cycle. The service runs read-only in a single transaction.
 
-The domain answer itself is collected by the first-run wizard and travels on `POST /auth/setup` (`security/internal/web/model/SetupRequest` → `core.api.SetupCommand` → `BootstrapServiceImpl#performSetup`). The two request fields are boxed `Boolean` with defaulted accessors: an **absent** primitive boolean fails Jackson 3's `FAIL_ON_NULL_FOR_PRIMITIVES`, and both flags are optional. Changing the answer later goes through the existing `PUT /platform/organizations/{id}` update surface rather than a new endpoint. A bootstrapped install (`ACCESSFLOW_BOOTSTRAP_ENABLED=true`) never runs the wizard, so both flags stay `false` and the two optional steps simply never appear — the same `PUT` turns them on.
+The domain answer itself is collected by the first-run wizard and travels on `POST /auth/setup` (`security/internal/web/model/SetupRequest` → `core.api.SetupCommand` → `BootstrapServiceImpl#performSetup`). The two request fields are boxed `Boolean` with defaulted accessors: an **absent** primitive boolean fails Jackson 3's `FAIL_ON_NULL_FOR_PRIMITIVES`, and both flags are optional. Changing the answer later is an **org admin's** job since #926: `api/internal/web/AdminGovernanceDomainsController` serves `GET`/`PUT /api/v1/admin/governance-domains`, scoped to `caller.organizationId()` from the JWT (no id in the path, so it can never reach another tenant) and gated on the same `SETUP_PROGRESS_VIEW` that already exposes both flags — no new `Permission` value. `api/internal/DefaultGovernanceDomainsService` reads through `OrganizationSetupLookupService` and writes through `core.api.OrganizationAdminService#update` with every name/quota field null, so the org-scoped path can only ever move the two flags; the cross-org `PUT /platform/organizations/{id}` stays available to a platform admin. A bootstrapped install (`ACCESSFLOW_BOOTSTRAP_ENABLED=true`) never runs the wizard, so both flags default to `false` unless `accessflow.bootstrap.organization.governs-apis` / `.governs-deployments` are set — the `OrganizationReconciler` applies them on every run (created or pre-existing org), and a null leaves the stored value alone.
+
+Since #926 the two flags are also a **visibility** signal in the SPA: they decide which sidebar sub-sections, review-hub tabs and dashboard widgets are offered. They still gate no route, permission or endpoint authorization — see [`docs/06-frontend.md`](06-frontend.md) for the discovery model.
 
 ---
 
