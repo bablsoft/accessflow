@@ -44,17 +44,20 @@ class DatabricksSchemaIntrospector {
             var endpoint = DatabricksEndpoint.resolve(descriptor, messages);
             var accessToken = credentials.decrypt(descriptor.passwordEncrypted());
             var prefix = qualifier(descriptor.databaseName());
-            var tables = client.execute(endpoint, accessToken, descriptor.databaseName(),
-                    "SELECT table_schema, table_name FROM " + prefix + "information_schema.tables"
-                            + " WHERE table_schema <> 'information_schema'"
-                            + " ORDER BY table_schema, table_name",
-                    new LinkedHashMap<>(), null, INTROSPECTION_TIMEOUT);
-            var columns = client.execute(endpoint, accessToken, descriptor.databaseName(),
-                    "SELECT table_schema, table_name, column_name, data_type, is_nullable"
-                            + " FROM " + prefix + "information_schema.columns"
-                            + " WHERE table_schema <> 'information_schema'"
-                            + " ORDER BY table_schema, table_name, ordinal_position",
-                    new LinkedHashMap<>(), null, INTROSPECTION_TIMEOUT);
+            var tables = client.execute(endpoint, accessToken,
+                    DatabricksStatementClient.StatementRequest.read(descriptor.databaseName(),
+                            "SELECT table_schema, table_name FROM " + prefix
+                                    + "information_schema.tables"
+                                    + " WHERE table_schema <> 'information_schema'"
+                                    + " ORDER BY table_schema, table_name",
+                            new LinkedHashMap<>(), null, INTROSPECTION_TIMEOUT));
+            var columns = client.execute(endpoint, accessToken,
+                    DatabricksStatementClient.StatementRequest.read(descriptor.databaseName(),
+                            "SELECT table_schema, table_name, column_name, data_type, is_nullable"
+                                    + " FROM " + prefix + "information_schema.columns"
+                                    + " WHERE table_schema <> 'information_schema'"
+                                    + " ORDER BY table_schema, table_name, ordinal_position",
+                            new LinkedHashMap<>(), null, INTROSPECTION_TIMEOUT));
             return assemble(tables.rows(), columns.rows());
         } catch (DatabricksApiException | IllegalArgumentException e) {
             log.warn("Databricks schema introspection failed for datasource {}: {}",

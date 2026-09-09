@@ -38,8 +38,9 @@ class DatabricksConnectionProbe {
         try {
             var endpoint = DatabricksEndpoint.resolve(descriptor, messages);
             var accessToken = credentials.decrypt(descriptor.passwordEncrypted());
-            client.execute(endpoint, accessToken, descriptor.databaseName(), "SELECT 1",
-                    new LinkedHashMap<>(), 1, PROBE_TIMEOUT);
+            client.execute(endpoint, accessToken,
+                    DatabricksStatementClient.StatementRequest.read(descriptor.databaseName(),
+                            "SELECT 1", new LinkedHashMap<>(), 1, PROBE_TIMEOUT));
             return new ConnectionTestResult(true, System.currentTimeMillis() - start, "ok");
         } catch (DatabricksApiException | IllegalArgumentException e) {
             log.warn("Databricks connection test failed for datasource {}: {}",

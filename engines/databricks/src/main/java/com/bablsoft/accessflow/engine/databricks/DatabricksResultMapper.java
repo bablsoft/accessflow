@@ -25,7 +25,9 @@ import java.util.UUID;
  * column's type name ({@code BOOLEAN} → {@link Boolean}, integral types → {@link Long},
  * fractional/decimal types → {@link BigDecimal}; anything unconvertible stays the raw string).
  * Truncation is flagged when the page exceeds {@code maxRows} (the {@code maxRows + 1} sentinel
- * row is dropped) or when the manifest itself reports the server-side {@code row_limit} cut.
+ * row is dropped) or when the statement result was already cut short, and reported as
+ * {@code truncatedReason} — {@code BYTE_LIMIT} when the engine's {@code max-result-bytes} backstop
+ * stopped the chunk stream (AF-633), {@code ROW_LIMIT} otherwise.
  * Masking is applied post-fetch with flat, case-insensitive column-name matching (a qualified
  * directive ref matches by its last segment): a restricted column without a directive collapses to
  * {@link MaskingStrategy#FULL}, directives apply through the shared {@link ColumnMasker}, and
@@ -43,6 +45,7 @@ class DatabricksResultMapper {
         boolean truncated = result.rows().size() > maxRows || result.truncated();
         var page = result.rows().size() > maxRows ? result.rows().subList(0, maxRows)
                 : result.rows();
+        String truncatedReason = truncatedReason(result.truncation(), truncated);
 
         var appliedPolicyIds = new LinkedHashSet<UUID>();
         var columns = new ArrayList<ResultColumn>(result.columns().size());
@@ -73,7 +76,19 @@ class DatabricksResultMapper {
             rows.add(out);
         }
         return new SelectExecutionResult(columns, rows, rows.size(), truncated, duration,
-                Set.copyOf(appliedPolicyIds));
+                Set.copyOf(appliedPolicyIds), Set.of(), truncatedReason);
+    }
+
+    /**
+     * Why the result was cut short, in the host's vocabulary: the engine's byte backstop wins over
+     * a row cut, and an untruncated result reports nothing.
+     */
+    private static String truncatedReason(DatabricksStatementClient.Truncation truncation,
+                                          boolean truncated) {
+        if (truncation == DatabricksStatementClient.Truncation.BYTE_LIMIT) {
+            return SelectExecutionResult.TRUNCATED_BYTE_LIMIT;
+        }
+        return truncated ? SelectExecutionResult.TRUNCATED_ROW_LIMIT : null;
     }
 
     /** The {@code num_affected_rows} value of a DML result, or 0 when the shape is absent. */

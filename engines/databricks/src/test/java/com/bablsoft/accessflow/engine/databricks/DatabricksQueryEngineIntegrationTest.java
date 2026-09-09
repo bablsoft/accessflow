@@ -217,6 +217,174 @@ class DatabricksQueryEngineIntegrationTest {
         assertThat(stub.requests.get(0).body()).contains("\"row_limit\":3");
     }
 
+    // ---- AF-633: EXTERNAL_LINKS fallback for oversized results ---------------------------------
+
+    @Test
+    void oversizedInlineSelectFallsBackToExternalLinksOnce() {
+        stub.submitResponses.add(oversizeFailure("st20"));
+        stub.submitResponses.add(succeededExternal("st20b", columns(col("id", "INT")), 0, 1));
+        stub.externalBodies.put(0, "[[\"1\"],[\"2\"]]");
+        stub.externalBodies.put(1, "[[\"3\"]]");
+
+        var result = (SelectExecutionResult) execute("SELECT id FROM big", QueryType.SELECT, 100,
+                List.of(), List.of(), TIMEOUT);
+
+        assertThat(result.rows()).containsExactly(List.of(1L), List.of(2L), List.of(3L));
+        assertThat(result.truncated()).isFalse();
+        assertThat(submitBodies()).hasSize(2);
+        assertThat(submitBodies().get(0)).contains("\"disposition\":\"INLINE\"");
+        assertThat(submitBodies().get(1)).contains("\"disposition\":\"EXTERNAL_LINKS\"");
+        // The presigned hop must never present the workspace PAT.
+        assertThat(stub.requests)
+                .filteredOn(r -> r.path().startsWith("/external/"))
+                .hasSize(2)
+                .allSatisfy(r -> assertThat(r.authorization()).isNull());
+    }
+
+    @Test
+    void anUnboundedTruncatedReadFallsBackToExternalLinks() {
+        // rowLimit is null for introspection, so a manifest truncation can only be a size cut.
+        stub.submitResponses.add("""
+                {"statement_id":"st21","status":{"state":"SUCCEEDED"},
+                 "manifest":{"schema":{"columns":[{"name":"table_schema","type_name":"STRING"},
+                                                  {"name":"table_name","type_name":"STRING"}]},
+                             "truncated":true},
+                 "result":{"data_array":[["sales","orders"]]}}""");
+        stub.submitResponses.add(succeededExternal("st21b",
+                columns(col("table_schema", "STRING"), col("table_name", "STRING")), 0));
+        stub.externalBodies.put(0, "[[\"sales\",\"orders\"],[\"sales\",\"returns\"]]");
+        stub.submitResponses.add(succeeded("st22",
+                columns(col("table_schema", "STRING"), col("table_name", "STRING"),
+                        col("column_name", "STRING"), col("data_type", "STRING"),
+                        col("is_nullable", "STRING")),
+                "[[\"sales\",\"orders\",\"id\",\"BIGINT\",\"NO\"]]", false));
+
+        var schema = engine.introspectSchema(descriptor);
+
+        assertThat(submitBodies()).hasSize(3);
+        assertThat(submitBodies().get(1)).contains("\"disposition\":\"EXTERNAL_LINKS\"");
+        assertThat(schema.schemas()).singleElement()
+                .satisfies(s -> assertThat(s.tables()).hasSize(2));
+    }
+
+    @Test
+    void aDmlStatementIsNeverReExecutedByTheFallback() {
+        stub.submitResponses.add(oversizeFailure("st23"));
+
+        assertThatThrownBy(() -> execute("UPDATE orders SET total = 1", QueryType.UPDATE, 100,
+                List.of(), List.of(), TIMEOUT))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(e -> assertThat(((QueryExecutionFailedException) e).detail())
+                        .isEqualTo("Result too large for INLINE; use EXTERNAL_LINKS"));
+        assertThat(submitBodies()).hasSize(1);
+    }
+
+    @Test
+    void aFailingFallbackSurfacesTheOriginalInlineError() {
+        stub.submitResponses.add(oversizeFailure("st24"));
+        stub.submitResponses.add("""
+                {"statement_id":"st24b","status":{"state":"FAILED",
+                 "error":{"error_code":"INTERNAL","message":"warehouse unavailable"}}}""");
+
+        assertThatThrownBy(() -> execute("SELECT id FROM big", QueryType.SELECT, 100, List.of(),
+                List.of(), TIMEOUT))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(e -> assertThat(((QueryExecutionFailedException) e).detail())
+                        .isEqualTo("Result too large for INLINE; use EXTERNAL_LINKS"));
+        assertThat(submitBodies()).hasSize(2);
+    }
+
+    @Test
+    void aFailingFallbackAfterATruncatedReadKeepsTheInlineRows() {
+        // Trigger the fallback from a truncation (not a rejection): the inline attempt SUCCEEDED,
+        // so a failing retry must not turn a usable truncated result into a hard error.
+        stub.submitResponses.add("""
+                {"statement_id":"st29","status":{"state":"SUCCEEDED"},
+                 "manifest":{"schema":{"columns":[{"name":"id","type_name":"INT"}]},
+                             "truncated":true},
+                 "result":{"data_array":[["1"],["2"]]}}""");
+        stub.submitResponses.add("""
+                {"statement_id":"st29b","status":{"state":"FAILED",
+                 "error":{"error_code":"INTERNAL","message":"object store unreachable"}}}""");
+
+        var result = (SelectExecutionResult) execute("SELECT id FROM big", QueryType.SELECT, 100,
+                List.of(), List.of(), TIMEOUT);
+
+        assertThat(result.rows()).containsExactly(List.of(1L), List.of(2L));
+        assertThat(result.truncated()).isTrue();
+        assertThat(submitBodies()).hasSize(2);
+    }
+
+    @Test
+    void theRowCapStopsTheExternalStreamBeforeTheSecondChunk() {
+        stub.submitResponses.add(oversizeFailure("st25"));
+        stub.submitResponses.add(succeededExternal("st25b", columns(col("id", "INT")), 0, 1));
+        stub.externalBodies.put(0, "[[\"1\"],[\"2\"],[\"3\"]]");
+        stub.externalBodies.put(1, "[[\"4\"]]");
+
+        var result = (SelectExecutionResult) execute("SELECT id FROM big", QueryType.SELECT, 2,
+                List.of(), List.of(), TIMEOUT);
+
+        assertThat(result.rows()).hasSize(2);
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
+        assertThat(stub.requests).noneMatch(r -> r.path().equals("/external/1"));
+    }
+
+    @Test
+    void theByteBackstopTruncatesWithTheByteLimitReason() {
+        stub.submitResponses.add(oversizeFailure("st26"));
+        // byte_count alone exceeds the 1 MiB floor the settings clamp to, so the link is skipped.
+        stub.submitResponses.add("{\"statement_id\":\"st26b\",\"status\":{\"state\":\"SUCCEEDED\"},"
+                + "\"manifest\":{\"schema\":{\"columns\":" + columns(col("id", "INT")) + "},"
+                + "\"truncated\":false},\"result\":{\"external_links\":[{\"chunk_index\":0,"
+                + "\"byte_count\":9999999,\"external_link\":\"" + stub.url("/external/0")
+                + "\"}]}}");
+        stub.externalBodies.put(0, "[[\"1\"]]");
+
+        var result = (SelectExecutionResult) executeWith(
+                Map.of("poll-interval", "PT0.05S", "max-result-bytes", "1048576"),
+                "SELECT id FROM big", QueryType.SELECT, 100);
+
+        assertThat(result.rows()).isEmpty();
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
+        assertThat(stub.requests).noneMatch(r -> r.path().startsWith("/external/"));
+    }
+
+    @Test
+    void forcingTheExternalLinksDispositionSkipsTheInlineAttempt() {
+        stub.submitResponses.add(succeededExternal("st27", columns(col("id", "INT")), 0));
+        stub.externalBodies.put(0, "[[\"7\"]]");
+
+        var result = (SelectExecutionResult) executeWith(
+                Map.of("poll-interval", "PT0.05S", "result-disposition", "external-links"),
+                "SELECT id FROM big", QueryType.SELECT, 100);
+
+        assertThat(result.rows()).containsExactly(List.of(7L));
+        assertThat(submitBodies()).hasSize(1);
+        assertThat(submitBodies().get(0)).contains("\"disposition\":\"EXTERNAL_LINKS\"");
+    }
+
+    @Test
+    void anExternalLinkThatIsNeitherHttpsNorTheWorkspaceOriginIsRejected() {
+        stub.submitResponses.add(oversizeFailure("st28"));
+        stub.submitResponses.add("{\"statement_id\":\"st28b\",\"status\":{\"state\":\"SUCCEEDED\"},"
+                + "\"manifest\":{\"schema\":{\"columns\":" + columns(col("id", "INT")) + "}},"
+                + "\"result\":{\"external_links\":[{\"chunk_index\":0,\"byte_count\":10,"
+                + "\"external_link\":\"http://evil.internal/steal\"}]}}");
+
+        assertThatThrownBy(() -> execute("SELECT id FROM big", QueryType.SELECT, 100, List.of(),
+                List.of(), TIMEOUT))
+                .isInstanceOf(QueryExecutionFailedException.class)
+                .satisfies(e -> {
+                    // The fallback failed, so the original inline error is what surfaces.
+                    var detail = ((QueryExecutionFailedException) e).detail();
+                    assertThat(detail).isEqualTo("Result too large for INLINE; use EXTERNAL_LINKS");
+                    assertThat(detail).doesNotContain("evil.internal");
+                });
+    }
+
     @Test
     void rowSecuritySplicesTheStatementAndBindsTypedNamedParameters() {
         stub.submitResponses.add(succeeded("st7", columns(col("id", "INT")), "[[\"1\"]]", false));
@@ -448,6 +616,22 @@ class DatabricksQueryEngineIntegrationTest {
         return execute(descriptor, sql, type, maxRows, rls, masks, timeout);
     }
 
+    /** Runs one statement through a throwaway engine carrying its own tuning config. */
+    private static Object executeWith(Map<String, String> config, String sql, QueryType type,
+                                      int maxRows) {
+        var tuned = new DatabricksQueryEngine();
+        tuned.initialize(new QueryEngineContext(TestMessages.keyEcho(), ciphertext -> ciphertext,
+                config, Clock.systemUTC()));
+        try {
+            var request = new QueryExecutionRequest(descriptor.id(), sql, type, null, null,
+                    List.of(), List.of(), List.of(), false, List.of(sql));
+            return tuned.execute(new QueryEngineExecutionRequest(request, descriptor, maxRows,
+                    TIMEOUT));
+        } finally {
+            tuned.shutdown();
+        }
+    }
+
     private static QueryDryRunResult dryRun(String sql, QueryType type,
                                             List<RowSecurityDirective> rls) {
         var request = new QueryExecutionRequest(descriptor.id(), sql, type, null, null,
@@ -494,6 +678,37 @@ class DatabricksQueryEngineIntegrationTest {
                 + "\"result\":{\"data_array\":" + dataArray + "}}";
     }
 
+    /** A SUCCEEDED response whose result is carried by presigned EXTERNAL_LINKS chunks. */
+    private static String succeededExternal(String id, String columnsJson, int... chunkIndexes) {
+        var links = new ArrayList<String>();
+        for (int i = 0; i < chunkIndexes.length; i++) {
+            var next = i + 1 < chunkIndexes.length ? ",\"next_chunk_index\":" + chunkIndexes[i + 1]
+                    : "";
+            links.add("{\"chunk_index\":" + chunkIndexes[i] + ",\"byte_count\":64,"
+                    + "\"external_link\":\"" + stub.url("/external/" + chunkIndexes[i]) + "\""
+                    + next + "}");
+        }
+        return "{\"statement_id\":\"" + id + "\",\"status\":{\"state\":\"SUCCEEDED\"},"
+                + "\"manifest\":{\"schema\":{\"columns\":" + columnsJson + "},"
+                + "\"truncated\":false},"
+                + "\"result\":{\"external_links\":[" + String.join(",", links) + "]}}";
+    }
+
+    /** A terminal FAILED response carrying the API's oversized-inline-result rejection. */
+    private static String oversizeFailure(String id) {
+        return "{\"statement_id\":\"" + id + "\",\"status\":{\"state\":\"FAILED\","
+                + "\"error\":{\"error_code\":\"MAX_RESULT_SIZE_EXCEEDED\","
+                + "\"message\":\"Result too large for INLINE; use EXTERNAL_LINKS\"}}}";
+    }
+
+    private static List<String> submitBodies() {
+        return stub.requests.stream()
+                .filter(r -> "POST".equals(r.method())
+                        && "/api/2.0/sql/statements".equals(r.path()))
+                .map(StubApi.Recorded::body)
+                .toList();
+    }
+
     /** Programmable in-process stub of the Statement Execution API. */
     private static final class StubApi {
 
@@ -504,6 +719,8 @@ class DatabricksQueryEngineIntegrationTest {
         final ConcurrentLinkedDeque<String> submitResponses = new ConcurrentLinkedDeque<>();
         final ConcurrentLinkedDeque<String> pollResponses = new ConcurrentLinkedDeque<>();
         final Map<Integer, String> chunks = new java.util.concurrent.ConcurrentHashMap<>();
+        /** Presigned EXTERNAL_LINKS chunk bodies, served as bare JSON arrays from /external/{n}. */
+        final Map<Integer, String> externalBodies = new java.util.concurrent.ConcurrentHashMap<>();
         final List<Map.Entry<Predicate<String>, String>> statementRules =
                 new CopyOnWriteArrayList<>();
         final AtomicInteger cancels = new AtomicInteger();
@@ -527,6 +744,7 @@ class DatabricksQueryEngineIntegrationTest {
             submitResponses.clear();
             pollResponses.clear();
             chunks.clear();
+            externalBodies.clear();
             statementRules.clear();
             cancels.set(0);
             defaultPollResponse = null;
@@ -551,6 +769,11 @@ class DatabricksQueryEngineIntegrationTest {
             if ("POST".equals(method) && path.endsWith("/cancel")) {
                 cancels.incrementAndGet();
                 respond(exchange, 200, "{}");
+                return;
+            }
+            if ("GET".equals(method) && path.startsWith("/external/")) {
+                var index = Integer.parseInt(path.substring(path.lastIndexOf('/') + 1));
+                respond(exchange, 200, externalBodies.getOrDefault(index, "[]"));
                 return;
             }
             if ("GET".equals(method) && path.contains("/result/chunks/")) {

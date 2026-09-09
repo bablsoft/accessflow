@@ -1748,7 +1748,7 @@ The replay is **distinctly audited**: a `QUERY_SUBMITTED` audit row is written o
 }
 ```
 
-`truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit the per-result byte cap (`ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES`, #49), and `null` when the result was not truncated (or was persisted before the field existed).
+`truncated_reason` is `"ROW_LIMIT"` when the stored result hit the row cap, `"BYTE_LIMIT"` when it hit a per-result byte cap — `ACCESSFLOW_PROXY_EXECUTION_MAX_RESULT_BYTES` on the relational JDBC path (#49), or an engine's own equivalent, currently only `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_MAX_RESULT_BYTES` (#633), and `null` when the result was not truncated (or was persisted before the field existed).
 
 `columns[].restricted` is `true` when the column matched a `restricted_columns` entry on the caller's `(user_id, datasource_id)` permission row. The matcher (in priority order: `schema.table.column` → `table.column` → bare `column`) flags the column at proxy-result-set time, and the value in `rows` is replaced with `"***"` before persistence — the raw sensitive value is never written to `query_request_results.rows`. Frontends should render restricted columns with a visual marker (lock icon, muted styling) so the user understands the value was redacted.
 

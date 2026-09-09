@@ -35,21 +35,49 @@ never clash with the host's Jackson across the classloader boundary. The shaded 
 
 - **Submit** — `POST /api/2.0/sql/statements` with `wait_timeout` (default `10s`, clamped to the
   API's allowed 5–50 s), `on_wait_timeout=CONTINUE` (hybrid wait: short statements return inline,
-  long ones return `PENDING`), `format=JSON_ARRAY`, `disposition=INLINE`, and — for SELECTs —
-  `row_limit = maxRows + 1` (the truncation sentinel).
+  long ones return `PENDING`), `format=JSON_ARRAY`, `disposition` (`INLINE`, or `EXTERNAL_LINKS` on
+  the oversize fallback below), and — for SELECTs — `row_limit = maxRows + 1` (the truncation
+  sentinel).
 - **Poll** — while the state is `PENDING`/`RUNNING`, `GET /api/2.0/sql/statements/{id}` at the
   configured `poll-interval`; the deadline is the host-computed statement timeout measured with the
   host clock.
 - **Cancel** — on deadline expiry the engine best-effort
   `POST /api/2.0/sql/statements/{id}/cancel`s the statement, then raises
   `QueryExecutionTimeoutException`.
-- **Results** — `INLINE`-only in v1: `result.data_array` pages are followed through
-  `next_chunk_index` via `GET …/result/chunks/{n}`. The `EXTERNAL_LINKS` disposition (presigned
-  cloud-storage URLs for very large results) is **out of scope for v1** — the proxy's row cap keeps
-  governed results well inside the inline limit.
+- **Results** — `INLINE` first: `result.data_array` pages are followed through `next_chunk_index`
+  via `GET …/result/chunks/{n}`.
+- **Oversized results (AF-633)** — the API caps an `INLINE` result at roughly 25 MiB. Two signals
+  say that ceiling was hit: the API rejected the result with a size error, or it succeeded with a
+  manifest `truncated` flag the requested `row_limit` cannot explain — either because no
+  `row_limit` was sent at all (the unbounded introspection reads) or because fewer rows came back
+  than the limit asked for. Either one re-submits the statement **once** with
+  `disposition=EXTERNAL_LINKS`, under the *same* host deadline — and only when the statement is
+  **side-effect-free** (SELECT, `EXPLAIN COST`, `information_schema`, `SELECT 1`), so a DML or DDL
+  statement is never executed twice. The external result is a two-hop read: the authorized
+  `GET …/result/chunks/{n}` returns `external_links`, and each link's presigned URL is fetched
+  **without** an `Authorization` header, because object stores reject a request that also carries a
+  bearer token — the workspace PAT never leaves the Statement Execution API's own host.
+  - A presigned URL arrives in a response body, so it is treated as untrusted: absolute, no
+    userinfo, and `https` unless it is same-origin with the workspace endpoint (the plain-HTTP
+    stub/dev hook). Deliberately **no** private-address or storage-host allow-listing — presigned
+    hosts differ per cloud and a Private Link workspace legitimately resolves to RFC1918 — and the
+    shared client's `followRedirects(NEVER)` closes the redirect pivot.
+  - The URL is never logged, never persisted, and never placed in an error: a chunk failure carries
+    only its index and HTTP status, with no cause and no response body attached, because
+    `QueryExecutionFailedException.detail()` is stored with the query result.
+  - Rows stream until the row cap (`maxRows + 1`, the truncation sentinel) or the engine-side
+    `max-result-bytes` backstop, enforced *during* transfer rather than after it, and reported as
+    `truncated_reason` `ROW_LIMIT` / `BYTE_LIMIT`.
+  - If the fallback itself fails, the inline attempt's own outcome stands: the truncated-but-usable
+    result it already produced when the trigger was a truncation, or the original inline error when
+    the trigger was a rejection. That is what lets the size heuristic be generous — a false positive
+    costs one wasted re-submission and can never downgrade what the caller would otherwise have
+    received.
+  - `result-disposition` forces either mode outright (`inline` / `external-links`).
 - **Errors** — a terminal `FAILED`/`CANCELED`/`CLOSED` state and non-2xx HTTP responses (401/403,
   429, 5xx) surface the verbatim API `message` as the `QueryExecutionFailedException` detail. No
-  retry loops in v1.
+  retry loops — the only re-submission the engine ever performs is the one-shot `EXTERNAL_LINKS`
+  fallback above, bounded to a single extra attempt on a side-effect-free statement.
 - **DML affected rows** — Databricks returns DML results as a one-row result set with a
   `num_affected_rows` column; the executor parses it when present and reports **0** when the shape
   is absent (older channel versions / DDL), preferring a conservative count over guessing. DDL
@@ -68,7 +96,8 @@ mvn clean verify                                   # unit tests + stub-server IT
 The shaded artifact lands at `target/accessflow-engine-databricks-<version>-all.jar`. The
 integration tests need **no containers and no Databricks account**: the full SPI is driven against
 an in-process `com.sun.net.httpserver.HttpServer` stub of the Statement Execution API
-(submit/poll/cancel/chunks), which is what the full-URL `jdbc_url_override` form exists for.
+(submit/poll/cancel/chunks, presigned external links and the oversize fallback), which is what the
+full-URL `jdbc_url_override` form exists for.
 
 ## Versioning and the SHA-256 pin
 
@@ -98,8 +127,10 @@ Databricks specifics:
   (from `accessflow.proxy.engines.databricks.*`, AF-418's generic lane: `connect-timeout` — default
   `PT10S` — the HttpClient connect timeout; `wait-timeout` — default `PT10S`, clamped to 5–50 s —
   the API's server-side hybrid wait; `poll-interval` — default `PT1S` — the client-side status-poll
-  cadence; operators set `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_<KEY>` env vars), and the host UTC
-  clock.
+  cadence; `result-disposition` — `auto` (default) / `inline` / `external-links`, unrecognised text
+  falling back to `auto`; `max-result-bytes` — default `52428800`, clamped 1 MiB–1 GiB — the byte
+  backstop while streaming external chunks; operators set
+  `ACCESSFLOW_PROXY_ENGINES_DATABRICKS_<KEY>` env vars), and the host UTC clock.
 - The plugin must stay free of Spring, Lombok, and host-internal types; it may use only the
   backend's `core.api` surface plus its own shaded (relocated) Jackson.
 - Exceptions cross the boundary as the concrete `core.api` types (`InvalidSqlException`,

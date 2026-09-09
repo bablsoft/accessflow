@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.databricks;
 
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
+import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.engine.databricks.DatabricksStatementClient.Column;
 import com.bablsoft.accessflow.engine.databricks.DatabricksStatementClient.StatementResult;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,7 @@ class DatabricksResultMapperTest {
         assertThat(result.rows()).hasSize(2);
         assertThat(result.rowCount()).isEqualTo(2);
         assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_ROW_LIMIT);
     }
 
     @Test
@@ -91,7 +93,19 @@ class DatabricksResultMapperTest {
                         List.of(new Column("id", "INT")), List.of(row("1")), false),
                 100, DURATION, List.of(), List.of());
         assertThat(result.truncated()).isFalse();
+        assertThat(result.truncatedReason()).isNull();
         assertThat(result.duration()).isEqualTo(DURATION);
+    }
+
+    @Test
+    void byteBackstopTruncationReportsTheByteLimitReason() {
+        var result = mapper.materialize(new StatementResult(
+                        List.of(new Column("id", "INT")), List.of(row("1")),
+                        DatabricksStatementClient.Truncation.BYTE_LIMIT),
+                100, DURATION, List.of(), List.of());
+        assertThat(result.rows()).hasSize(1);
+        assertThat(result.truncated()).isTrue();
+        assertThat(result.truncatedReason()).isEqualTo(SelectExecutionResult.TRUNCATED_BYTE_LIMIT);
     }
 
     @Test
@@ -158,7 +172,9 @@ class DatabricksResultMapperTest {
 
     private static StatementResult result(List<Column> columns, List<List<String>> rows,
                                           boolean truncated) {
-        return new StatementResult(columns, rows, truncated);
+        return new StatementResult(columns, rows, truncated
+                ? DatabricksStatementClient.Truncation.ROW_LIMIT
+                : DatabricksStatementClient.Truncation.NONE);
     }
 
     private static List<String> row(String... values) {
