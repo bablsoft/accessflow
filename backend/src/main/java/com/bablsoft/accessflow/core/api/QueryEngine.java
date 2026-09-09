@@ -93,6 +93,27 @@ public interface QueryEngine {
     }
 
     /**
+     * Classify — <em>offline</em>, without connecting to the datasource and without executing
+     * anything — how the request's row-security directives would apply to its query (issue AF-630).
+     * Used by the policy simulator to show an admin which historical query shapes a draft predicate
+     * would filter, deny outright, or reject as unrewritable, before the policy is ever saved.
+     *
+     * <p>Implementations parse the query with their own offline parser and run their existing
+     * row-security applier, mapping success to {@link RowSecurityClassification#applied} (or
+     * {@link RowSecurityClassification#denyAll} when a directive resolved to no values), a rejected
+     * shape to {@link RowSecurityClassification#failClosed}, and a query no directive targets to
+     * {@link RowSecurityClassification#notApplicable}.
+     *
+     * <p>Engines whose splicing needs live schema knowledge — Cassandra / ScyllaDB, whose predicates
+     * must land on partition or clustering key columns — inherit the default, which returns
+     * {@link RowSecurityClassification#unknown(String)}. An unknown answer is never "safe": the host
+     * reports it as unclassifiable rather than as no-impact.
+     */
+    default RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        return RowSecurityClassification.unknown(engineId());
+    }
+
+    /**
      * Short-lived connectivity probe (the engine analogue of the JDBC {@code SELECT 1}).
      *
      * @throws DatasourceConnectionTestException when the target is unreachable or misconfigured.
