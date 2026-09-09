@@ -69,7 +69,7 @@ Where things are in the app
   /admin/routing-policies            Typed conditions that auto-approve, auto-reject or route a request.
   /admin/attestation                 Scheduled attestation campaigns over standing grants.
   /admin/attestation/:id             One campaign: its scope, progress and evidence export.
-  /admin/ai-configs                  AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible, Hugging Face.
+  /admin/ai-configs                  AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.
   /admin/ai-configs/new              Add an AI provider configuration.
   /admin/ai-configs/:id              Edit one AI provider configuration, its prompt and its knowledge base.
   /admin/ai-analyses                 History of every AI analysis, with tokens and latency.

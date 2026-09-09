@@ -1753,7 +1753,9 @@ available)`. `language` is the BCP-47 language code (see *Response language*). `
 identifies the specific `ai_config` row to use — resolved upstream from the datasource's
 `ai_config_id` binding.
 
-Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. None of
+Three concrete strategy classes (Anthropic, OpenAI, Ollama) live under `ai/internal/`. They cover
+every **chat-capable** provider; `VOYAGE` has no strategy because it has no chat API, and both
+switches in the holder throw if one ever reaches them. None of
 them is a `@Service` — they are plain classes built by `AiAnalyzerStrategyHolder`, the single
 autowired `AiAnalyzerStrategy` bean, from the bound `ai_config` row using Spring AI 2.0
 (`spring-ai-bom:2.0.0` — `spring-ai-starter-model-anthropic`, `…-openai`, `…-ollama`).
@@ -1888,8 +1890,10 @@ endpoint via `LangfuseConfigService.testConnection(...)`.
 ### Setup progress
 
 `DefaultSetupProgressService` reports `ai_provider_configured = true` when the org has at
-least one `ai_config` row that is "usable" on its own — a keyless-capable provider (`OLLAMA`,
-`OPENAI_COMPATIBLE`, or `HUGGING_FACE`) or a non-blank API key is stored. This signal flows through
+least one `ai_config` row that is "usable" on its own — a **chat-capable** provider that is either
+keyless-capable (`OLLAMA`, `OPENAI_COMPATIBLE`, `HUGGING_FACE`) or has a non-blank API key stored. An
+embedding-only provider (`VOYAGE`) never counts, with or without a key, and cannot be stored as a
+row's `provider` in the first place. This signal flows through
 `AiConfigLookupService.hasAnyUsableAiConfig(orgId)`, which simply scans
 `AiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId)` and filters on usability.
 The signal does **not** require any datasource to bind to the config — admins configure AI
@@ -1991,7 +1995,14 @@ Per-datasource `text_to_sql_enabled` lets a user draft a query from a natural-la
 Admins attach a per-`ai_config` knowledge base; at analysis / text-to-SQL time the most relevant chunks are retrieved and injected into the prompt's `{{rag_context}}` token. Retrieval lives **entirely inside the `ai` module** — like the `SystemPromptSource` pattern, `AiAnalyzerStrategyHolder` builds a per-config `RagRetriever` and injects it into each provider delegate, so the public `AiAnalyzerStrategy` API and its callers are unchanged. A disabled config gets `RagRetriever.DISABLED` (returns `null` → the renderer substitutes "(no knowledge base context available)").
 
 - **Pluggable backends via Spring AI `VectorStore`.** `SpringAiVectorStoreFactory` builds a `VectorStore` per config: `PgVectorStore` for `PGVECTOR` (the shared application `JdbcTemplate` + the Flyway-created `vector_store` table, `initializeSchema=false`, cosine distance) and `QdrantVectorStore` for `QDRANT` (a gRPC client built from `rag_endpoint` / `rag_api_key`). Both partition rows by an `ai_config_id` metadata/payload filter so one store serves many configs and orgs.
-- **Dedicated embeddings.** `SpringAiEmbeddingModelFactory` builds an `EmbeddingModel` per config from the `embedding_*` settings — independent of the chat `provider` (an Anthropic chat config still embeds via OpenAI / Ollama). `ANTHROPIC` is rejected as an embedding provider. `RagComponentsFactory` centralizes decrypt + factory wiring and is shared by the holder and the knowledge-base service.
+- **Dedicated embeddings.** `SpringAiEmbeddingModelFactory` builds an `EmbeddingModel` per config from the `embedding_*` settings — independent of the chat `provider` (an Anthropic chat config still embeds via OpenAI / Ollama / Voyage). `ANTHROPIC` is rejected as an embedding provider; `VOYAGE` is accepted and *only* as one. `RagComponentsFactory` centralizes decrypt + factory wiring and is shared by the holder and the knowledge-base service.
+- **Capabilities are one table, not nine comparisons (AF-918).** `core.api.AiProviderCapabilities` answers `supportsChat` / `supportsEmbedding` / `keylessCapable` / `requiresEndpoint` with four **exhaustive** switches over `AiProviderType`, and every caller delegates to it. `AiProviderType` spans two axes that have never been interchangeable: `ANTHROPIC` is chat-only (no embeddings API) and `VOYAGE` is its mirror, embedding-only. Adding a provider is therefore a compile error on all four axes rather than a silent default, and `ai.internal.AiConfigUsability` holds the single definition of "usable `ai_config`" that `AiAnalyzerStrategyHolder` and `DefaultAiConfigLookupService` used to keep two copies of.
+- **Voyage AI embeddings (AF-918).** `VoyageEmbeddingModel` is hand-rolled over `RestClient` (the `LangfuseClient` convention, a `voyageRestClient` bean) rather than reusing the OpenAI client, for one reason: Voyage takes an `input_type` of `query` or `document` and prepends a different instruction prompt per value, and that parameter has no place in the OpenAI wire format. Voyage's own guidance is that it must not be omitted, so an `OPENAI_COMPATIBLE` row pointed at Voyage — which works, and did before this change — embeds below the model's retrieval optimum.
+
+  `RagComponentsFactory` builds **one** `EmbeddingModel` for both ingestion and search, so the model has to work out which it is doing. Both vector stores hand it `EmbeddingOptions.builder().build()` — empty — but they differ in *which overload* they call: `PgVectorStore.add` and `QdrantVectorStore.add` go to `embed(List<Document>, EmbeddingOptions, BatchingStrategy)`, and both `similaritySearch` implementations go to `embed(String)`. The overload is therefore the signal. Each entry point discards the options it was handed, substitutes its own `VoyageEmbeddingOptions`, and delegates to the interface default so the batching loop is reused verbatim. `VoyageEmbeddingDispatchIntegrationTest` pins this against a real `PgVectorStore`, because a Spring AI upgrade that collapsed the overloads would degrade retrieval quality with nothing failing.
+
+  Two other details: `dimensions()` answers from `ai_config.embedding_dimensions` with no network call (`QdrantVectorStore` sizes a new collection from it), probing only when no dimension is configured; and responses are re-sorted by `data[].index` rather than trusted positionally, since the batching loop pairs the i-th result with the i-th document.
+- **An impossible dimension is refused on save, not at ingest (AF-918).** `ai_config.embedding_dimensions` (nullable — null means the provider's default) is validated in `DefaultAiConfigService.validateRag`: a `VOYAGE` row must pick one of 256 / 512 / 1024 / 2048, and a `PGVECTOR` row must match `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`, which Flyway V69 freezes into the `vector(N)` column at the first migration. Those two rules together mean **`VOYAGE` + `PGVECTOR` is unreachable on a default (1536) deployment**; the message names both widths and points at either a Qdrant store or re-provisioning, because "dimension mismatch" is not something an admin can act on. The column is part of `RagFingerprint`, so changing it evicts the cached delegate. It also unlocks shrinking OpenAI's `text-embedding-3-*` output, which was inexpressible before.
 - **Ingestion (synchronous, v1).** `KnowledgeBaseService` (`ai/api`) → `DefaultKnowledgeBaseService` chunks a document with Spring AI's `TokenTextSplitter` (size = `accessflow.rag.chunk-size`), tags each chunk with `{ai_config_id, document_id, organization_id, title}` metadata, and `vectorStore.add(...)` embeds + stores it. Deleting a document removes its chunks (`vectorStore.delete("document_id == '…'")`). Content is capped at `accessflow.rag.max-document-chars`.
 - **Retrieval is fail-safe.** `DefaultRagRetriever.retrieve(query)` runs `similaritySearch(topK, threshold, filter=ai_config_id)` and joins chunk text; any failure (store down, embedding error) is swallowed and returns `null` — analysis is never blocked by RAG. A `rag/test` endpoint embeds a probe + searches to verify connectivity (and, for `PGVECTOR`, that the embedding dimension matches the column).
 - **pgvector is provisioned outside Flyway.** The `vector` extension is not trusted and the app DB role is not a superuser, so a superuser init script creates it (`deploy/postgres-init/02-pgvector.sql` for Compose, the Helm initContainer, `withInitScript` for Testcontainers); Flyway V69 creates only the `vector_store` table. The embedding dimension is a Flyway placeholder (`ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS`, default 1536). The pgvector / Qdrant Spring AI auto-configs are excluded in `application.yml` — stores are built per row, never as context beans.
@@ -2019,8 +2030,8 @@ the row is the next section, and the chat runtime follows.
   must exist **in the caller's organization** whether or not the agent is on — otherwise a bogus id
   reaches the FK as a 500, and a real one from another org persists as a cross-tenant pointer.
   Turning the agent **on** additionally requires a binding and — when `retrieval_enabled` — that the
-  bound row can actually retrieve: RAG on with a store type, an embedding provider that is not
-  `ANTHROPIC`, and, for `PGVECTOR`, a usable in-app store.
+  bound row can actually retrieve: RAG on with a store type, an embedding-capable provider (anything
+  but `ANTHROPIC`), and, for `PGVECTOR`, a usable in-app store.
 - **The live embedding probe runs only on a transition.** Matching the embedding model's dimension
   against `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` costs an outbound call inside the write transaction,
   so it runs only when the save is the one turning retrieval on (`enabled` false→true,

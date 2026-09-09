@@ -13,7 +13,7 @@ import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.HelpAgentConfigRepository;
-import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.AiProviderCapabilities;
 import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
@@ -281,7 +281,7 @@ public class DefaultHelpAgentConfigService implements HelpAgentConfigService {
         if (config.getEmbeddingProvider() == null) {
             throw new HelpAgentConfigInvalidException("error.help_agent.embedding_provider_required");
         }
-        if (config.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
+        if (!AiProviderCapabilities.supportsEmbedding(config.getEmbeddingProvider())) {
             throw new HelpAgentConfigInvalidException("error.help_agent.embedding_provider_invalid");
         }
         if (config.getRagStoreType() != RagStoreType.PGVECTOR) {

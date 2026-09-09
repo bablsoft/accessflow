@@ -63,7 +63,17 @@ class RagComponentsFactoryTest {
         var entity = ragEntity();
         entity.setEmbeddingApiKeyEncrypted("ENC(k)");
         when(encryptionService.decrypt("ENC(k)")).thenReturn("sk-embed");
-        when(embeddingModelFactory.create(AiProviderType.OPENAI, "sk-embed", "text-embedding-3-small", null))
+        when(embeddingModelFactory.create(AiProviderType.OPENAI, "sk-embed", "text-embedding-3-small", null, null))
+                .thenReturn(embeddingModel);
+
+        assertThat(factory().embeddingModel(entity)).isSameAs(embeddingModel);
+    }
+
+    @Test
+    void embeddingModelForwardsTheConfiguredDimension() {
+        var entity = ragEntity();
+        entity.setEmbeddingDimensions(512);
+        when(embeddingModelFactory.create(eq(AiProviderType.OPENAI), any(), any(), any(), eq(512)))
                 .thenReturn(embeddingModel);
 
         assertThat(factory().embeddingModel(entity)).isSameAs(embeddingModel);
@@ -72,7 +82,7 @@ class RagComponentsFactoryTest {
     @Test
     void embeddingModelUsesPlaceholderWhenNoKey() {
         var entity = ragEntity();
-        when(embeddingModelFactory.create(eq(AiProviderType.OPENAI), eq("not-needed"), any(), any()))
+        when(embeddingModelFactory.create(eq(AiProviderType.OPENAI), eq("not-needed"), any(), any(), any()))
                 .thenReturn(embeddingModel);
 
         assertThat(factory().embeddingModel(entity)).isSameAs(embeddingModel);
@@ -115,7 +125,7 @@ class RagComponentsFactoryTest {
     void retrieverIsDisabledWhenBuildFails() {
         var entity = ragEntity();
         when(pgVectorAvailability.isAvailable()).thenReturn(true);
-        when(embeddingModelFactory.create(any(), any(), any(), any()))
+        when(embeddingModelFactory.create(any(), any(), any(), any(), any()))
                 .thenThrow(new RuntimeException("boom"));
 
         assertThat(factory().retriever(entity)).isEqualTo(RagRetriever.DISABLED);
@@ -136,7 +146,7 @@ class RagComponentsFactoryTest {
         entity.setRagStoreType(RagStoreType.QDRANT);
         entity.setRagEndpoint("localhost:6334");
         entity.setRagCollection("kb");
-        when(embeddingModelFactory.create(any(), any(), any(), any())).thenReturn(embeddingModel);
+        when(embeddingModelFactory.create(any(), any(), any(), any(), any())).thenReturn(embeddingModel);
         when(vectorStoreFactory.create(eq(RagStoreType.QDRANT), eq(embeddingModel), eq(1536),
                 any(), any(), any())).thenReturn(vectorStore);
 
@@ -148,7 +158,7 @@ class RagComponentsFactoryTest {
     void retrieverBuildsDefaultRagRetrieverWhenConfigured() {
         var entity = ragEntity();
         when(pgVectorAvailability.isAvailable()).thenReturn(true);
-        when(embeddingModelFactory.create(any(), any(), any(), any())).thenReturn(embeddingModel);
+        when(embeddingModelFactory.create(any(), any(), any(), any(), any())).thenReturn(embeddingModel);
         when(vectorStoreFactory.create(eq(RagStoreType.PGVECTOR), eq(embeddingModel), eq(1536),
                 any(), any(), any())).thenReturn(vectorStore);
 

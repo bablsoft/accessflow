@@ -3,7 +3,7 @@ package com.bablsoft.accessflow.ai.internal.help;
 import com.bablsoft.accessflow.ai.internal.RagComponentsFactory;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
-import com.bablsoft.accessflow.core.api.AiProviderType;
+import com.bablsoft.accessflow.core.api.AiProviderCapabilities;
 import com.bablsoft.accessflow.core.api.PgVectorAvailability;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +46,7 @@ public class HelpCorpusRetrieverFactory {
                 .orElse(null);
         if (aiConfig == null || !aiConfig.isRagEnabled() || aiConfig.getRagStoreType() == null
                 || aiConfig.getEmbeddingProvider() == null
-                || aiConfig.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
+                || !AiProviderCapabilities.supportsEmbedding(aiConfig.getEmbeddingProvider())) {
             log.debug("Help corpus retrieval unavailable for organization {}: the bound AI "
                     + "configuration cannot embed", config.getOrganizationId());
             return Optional.empty();

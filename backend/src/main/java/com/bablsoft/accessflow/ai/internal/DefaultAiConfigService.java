@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.ai.api.AiConfigModelView;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
+import com.bablsoft.accessflow.ai.api.AiConfigProviderInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigService;
 import com.bablsoft.accessflow.ai.api.AiConfigView;
@@ -16,7 +17,9 @@ import com.bablsoft.accessflow.ai.api.UpdateAiConfigCommand;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigModelEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigModelRepository;
+import com.bablsoft.accessflow.ai.internal.config.RagProperties;
 import com.bablsoft.accessflow.ai.internal.persistence.repo.AiConfigRepository;
+import com.bablsoft.accessflow.core.api.AiProviderCapabilities;
 import com.bablsoft.accessflow.core.api.AiProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
 import com.bablsoft.accessflow.core.api.RagStoreType;
@@ -38,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +57,7 @@ class DefaultAiConfigService implements AiConfigService {
     private final ApplicationEventPublisher eventPublisher;
     private final SystemPromptRenderer promptRenderer;
     private final ObjectMapper objectMapper;
+    private final RagProperties ragProperties;
 
     @Override
     @Transactional(readOnly = true)
@@ -131,6 +136,7 @@ class DefaultAiConfigService implements AiConfigService {
         entity.setEmbeddingProvider(command.embeddingProvider());
         entity.setEmbeddingModel(blankToNull(command.embeddingModel()));
         entity.setEmbeddingEndpoint(blankToNull(command.embeddingEndpoint()));
+        entity.setEmbeddingDimensions(clearingSentinel(command.embeddingDimensions()));
         if (command.embeddingApiKey() != null && !command.embeddingApiKey().isBlank()) {
             entity.setEmbeddingApiKeyEncrypted(encryptionService.encrypt(command.embeddingApiKey()));
         }
@@ -140,6 +146,7 @@ class DefaultAiConfigService implements AiConfigService {
         var now = Instant.now();
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
+        requireChatCapableProvider(entity);
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
         validateRag(entity);
@@ -207,6 +214,7 @@ class DefaultAiConfigService implements AiConfigService {
             entity.setFallbackPriority(normalizeFallbackPriority(command.fallbackPriority()));
         }
         entity.setUpdatedAt(Instant.now());
+        requireChatCapableProvider(entity);
         requireEndpointForOpenAiCompatible(entity);
         requireSqlPlaceholder(entity);
         validateRag(entity);
@@ -263,9 +271,20 @@ class DefaultAiConfigService implements AiConfigService {
     }
 
     private static void requireEndpointForOpenAiCompatible(AiConfigEntity entity) {
-        if (entity.getProvider() == AiProviderType.OPENAI_COMPATIBLE
+        if (AiProviderCapabilities.requiresEndpoint(entity.getProvider())
                 && (entity.getEndpoint() == null || entity.getEndpoint().isBlank())) {
             throw new AiConfigEndpointRequiredException();
+        }
+    }
+
+    /**
+     * The row's own {@code provider} drives query analysis, so it must be chat-capable. Voyage is
+     * embeddings-only and belongs in {@code embedding_provider} instead (AF-918). {@code bootstrap}'s
+     * reconciler writes through this same service, so it inherits the guard.
+     */
+    private static void requireChatCapableProvider(AiConfigEntity entity) {
+        if (!AiProviderCapabilities.supportsChat(entity.getProvider())) {
+            throw new AiConfigProviderInvalidException("error.ai_config.provider_not_chat_capable");
         }
     }
 
@@ -318,6 +337,9 @@ class DefaultAiConfigService implements AiConfigService {
         if (command.embeddingEndpoint() != null) {
             entity.setEmbeddingEndpoint(blankToNull(command.embeddingEndpoint()));
         }
+        if (command.embeddingDimensions() != null) {
+            entity.setEmbeddingDimensions(clearingSentinel(command.embeddingDimensions()));
+        }
         entity.setEmbeddingApiKeyEncrypted(
                 resolveEncryptedKey(command.embeddingApiKey(), entity.getEmbeddingApiKeyEncrypted()));
     }
@@ -333,7 +355,7 @@ class DefaultAiConfigService implements AiConfigService {
         return encryptionService.encrypt(submitted);
     }
 
-    private static void validateRag(AiConfigEntity e) {
+    private void validateRag(AiConfigEntity e) {
         if (!e.isRagEnabled()) {
             return;
         }
@@ -343,7 +365,7 @@ class DefaultAiConfigService implements AiConfigService {
         if (e.getEmbeddingProvider() == null) {
             throw new AiConfigRagInvalidException("error.ai_config.rag.embedding_provider_required");
         }
-        if (e.getEmbeddingProvider() == AiProviderType.ANTHROPIC) {
+        if (!AiProviderCapabilities.supportsEmbedding(e.getEmbeddingProvider())) {
             throw new AiConfigRagInvalidException("error.ai_config.rag.embedding_provider_invalid");
         }
         if (e.getEmbeddingModel() == null || e.getEmbeddingModel().isBlank()) {
@@ -363,6 +385,75 @@ class DefaultAiConfigService implements AiConfigService {
         if (e.getRagSimilarityThreshold() < 0 || e.getRagSimilarityThreshold() > 1) {
             throw new AiConfigRagInvalidException("error.ai_config.rag.threshold_range");
         }
+        validateEmbeddingDimensions(e);
+    }
+
+    /**
+     * Refuses a vector length that cannot work, at configuration time rather than as an insert
+     * failure halfway through the first ingest.
+     *
+     * <p>Two ways it cannot work. The provider may not offer it — Voyage produces 256 / 512 / 1024 /
+     * 2048 and nothing else. Or the in-app store may not accept it: {@code vector(N)} is frozen by
+     * Flyway V69 at the first migrate from {@code ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS}, so on a
+     * default deployment (1536) no Voyage model fits at all. Both messages name the two numbers and
+     * the way out, because "dimension mismatch" on its own is not actionable.
+     */
+    private void validateEmbeddingDimensions(AiConfigEntity e) {
+        var provider = e.getEmbeddingProvider();
+        var requested = e.getEmbeddingDimensions();
+        if (requested != null) {
+            if (requested < 1) {
+                throw new AiConfigRagInvalidException(
+                        "error.ai_config.rag.embedding_dimensions_positive");
+            }
+            if (!AiProviderCapabilities.supportsConfigurableDimensions(provider)) {
+                // Accepting it would be worse than refusing it: an Ollama row set to 1536 would pass
+                // the pgvector check below and still emit its model's native width at ingest.
+                throw new AiConfigRagInvalidException(
+                        "error.ai_config.rag.embedding_dimensions_not_configurable");
+            }
+            var supported = AiProviderCapabilities.supportedDimensions(provider);
+            if (!supported.isEmpty() && !supported.contains(requested)) {
+                throw new AiConfigRagInvalidException(
+                        "error.ai_config.rag.embedding_dimensions_unsupported", requested,
+                        label(supported));
+            }
+        }
+        if (e.getRagStoreType() != RagStoreType.PGVECTOR) {
+            return;
+        }
+        var effective = effectiveDimensions(e);
+        if (effective != null && effective.intValue() != ragProperties.pgvectorDimensions()) {
+            throw new AiConfigRagInvalidException(
+                    "error.ai_config.rag.embedding_dimensions_pgvector_mismatch", effective,
+                    ragProperties.pgvectorDimensions());
+        }
+    }
+
+    /**
+     * The vector length this configuration will actually produce, or null when only the provider
+     * knows (it varies by model, so there is nothing to check against the column). A provider with a
+     * pinned default — Voyage's 1024 — is checked even when the field is left blank, because blank
+     * does not mean "whatever the column happens to be".
+     */
+    private static Integer effectiveDimensions(AiConfigEntity e) {
+        return e.getEmbeddingDimensions() != null
+                ? e.getEmbeddingDimensions()
+                : AiProviderCapabilities.defaultDimensions(e.getEmbeddingProvider());
+    }
+
+    /**
+     * Maps the {@code 0} wire sentinel onto "no override" — the form has no way to send an absent
+     * number, and {@code null} already means "leave the stored value alone" on update. Applied on
+     * create too, so 0 never persists as a literal width that only fails later, when RAG is enabled.
+     */
+    private static Integer clearingSentinel(Integer dimensions) {
+        return (dimensions != null && dimensions == 0) ? null : dimensions;
+    }
+
+    /** Supported widths, ascending, for a message the admin has to act on. */
+    private static String label(Set<Integer> dimensions) {
+        return dimensions.stream().sorted().map(String::valueOf).collect(Collectors.joining(", "));
     }
 
     /**
@@ -373,13 +464,14 @@ class DefaultAiConfigService implements AiConfigService {
             boolean ragEnabled, RagStoreType ragStoreType, int ragTopK, double ragSimilarityThreshold,
             String ragEndpoint, String ragCollection, String ragApiKeyEncrypted,
             AiProviderType embeddingProvider, String embeddingModel, String embeddingEndpoint,
-            String embeddingApiKeyEncrypted) {
+            String embeddingApiKeyEncrypted, Integer embeddingDimensions) {
 
         static RagFingerprint of(AiConfigEntity e) {
             return new RagFingerprint(e.isRagEnabled(), e.getRagStoreType(), e.getRagTopK(),
                     e.getRagSimilarityThreshold(), e.getRagEndpoint(), e.getRagCollection(),
                     e.getRagApiKeyEncrypted(), e.getEmbeddingProvider(), e.getEmbeddingModel(),
-                    e.getEmbeddingEndpoint(), e.getEmbeddingApiKeyEncrypted());
+                    e.getEmbeddingEndpoint(), e.getEmbeddingApiKeyEncrypted(),
+                    e.getEmbeddingDimensions());
         }
     }
 
@@ -432,6 +524,7 @@ class DefaultAiConfigService implements AiConfigService {
                 entity.getEmbeddingModel(),
                 entity.getEmbeddingEndpoint(),
                 entity.getEmbeddingApiKeyEncrypted() != null && !entity.getEmbeddingApiKeyEncrypted().isBlank(),
+                entity.getEmbeddingDimensions(),
                 entity.isOrchestrationEnabled(),
                 entity.getVotingStrategy(),
                 entity.getVotingWeight(),
@@ -536,7 +629,11 @@ class DefaultAiConfigService implements AiConfigService {
         if (m.weight() != null && m.weight() <= 0) {
             throw new AiConfigOrchestrationInvalidException("error.ai_config.voting_weight_invalid");
         }
-        if (m.provider() == AiProviderType.OPENAI_COMPATIBLE
+        if (!AiProviderCapabilities.supportsChat(m.provider())) {
+            throw new AiConfigOrchestrationInvalidException(
+                    "error.ai_config.orchestration_member_provider_not_chat_capable");
+        }
+        if (AiProviderCapabilities.requiresEndpoint(m.provider())
                 && (m.endpoint() == null || m.endpoint().isBlank())) {
             throw new AiConfigOrchestrationInvalidException(
                     "error.ai_config.orchestration_member_endpoint_required");

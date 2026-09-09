@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-04",
+      "dateModified": "2026-09-09",
       "url": "https://accessflow.io/docs/configuration/ai/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/ai/",
       "image": "https://accessflow.io/og-image.png",
@@ -264,7 +264,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>AI configuration.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-04">4 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -277,7 +277,7 @@
             <strong>What it is.</strong> The AI brain behind query risk analysis and natural-language
             "text-to-query". Configure it per organization and point it at the provider that fits your
             data-egress policy; AccessFlow then scores every submitted query and, where enabled, drafts
-            queries from plain-language prompts. It ships adapters for five providers — pick one:
+            queries from plain-language prompts. It ships adapters for five analysis providers — pick one:
           </p>
           <h3>Which AI providers does AccessFlow support?</h3>
           <p>
@@ -290,6 +290,13 @@
             <li><strong>Custom (OpenAI-compatible)</strong> — any OpenAI API–compatible backend (vLLM, LM Studio, Together, Groq, OpenRouter, …). Set <em>Endpoint</em> to the server's base URL (required); the API key is optional for keyless self-hosted servers.</li>
             <li><strong>Hugging Face</strong> — default model <code>meta-llama/Llama-3.3-70B-Instruct</code>. <em>Endpoint</em> defaults to the hosted Inference Providers router (<code>https://router.huggingface.co/v1</code>, authenticated with a HF token) and can point at a local / self-hosted <strong>Text Generation Inference (TGI)</strong> server or a Dedicated Inference Endpoint. Keyless-capable, so local TGI runs without a token.</li>
           </ul>
+          <p>
+            Embeddings for the retrieval-augmented generation (RAG) knowledge base are chosen
+            separately, on the same configuration, and the two lists are not the same. Anthropic
+            publishes no embeddings API, so an Anthropic configuration embeds with something else;
+            <strong>Voyage AI</strong> is the mirror case — embeddings only, never analysis. See
+            <a class="prose-link" href="#cfg-rag">RAG knowledge base</a>.
+          </p>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/ai-configs-create-light.webp" media="(prefers-color-scheme: light)" />
@@ -377,14 +384,15 @@
             </picture>
             <figcaption><code>/admin/langfuse</code> — per-org tracing + managed prompts; keys are stored encrypted, <em>Test connection</em> verifies them.</figcaption>
           </figure>
-          <p>
+          <p id="cfg-rag">
             <strong>RAG knowledge base.</strong> Each AI configuration can carry a
             retrieval-augmented-generation knowledge base. Toggle <em>Enable RAG</em> on the create
             wizard's <em>Connection</em> step or the edit page, pick a <em>Vector store</em> —
             <strong>In-app (pgvector)</strong>, which stores vectors in AccessFlow's own PostgreSQL,
             or <strong>Qdrant</strong> (supply the endpoint, collection, and optional API key) — and
             configure a dedicated <em>Embedding provider</em> + <em>model</em> (OpenAI, Ollama,
-            OpenAI-compatible, or Hugging Face; Anthropic has no embeddings API). Then add
+            OpenAI-compatible, Hugging Face, or <strong>Voyage AI</strong>; Anthropic has no
+            embeddings API, so it is not offered here). Then add
             <em>Knowledge documents</em> (data-governance policies, naming conventions, schema notes)
             on the edit page; each is chunked, embedded, and stored. At analysis and text-to-query time
             the most relevant chunks are retrieved (tune <em>Top-K</em> and <em>Similarity
@@ -392,6 +400,20 @@
             <em>Test RAG connection</em> to verify the embedding model and vector store are reachable.
             Retrieval is best-effort — a store outage never blocks analysis.
           </p>
+          <div class="docs-callout info">
+            <strong>Voyage AI for an Anthropic install.</strong> If you run Claude for analysis, Voyage
+            is the embedding provider Anthropic itself recommends — but it is a <em>separate vendor</em>,
+            so it needs its own API key from <a class="prose-link" href="https://www.voyageai.com/" rel="nofollow noopener">voyageai.com</a>;
+            an Anthropic key will not authenticate against it. Selecting it pre-fills the endpoint
+            (<code>https://api.voyageai.com/v1</code>) and model (<code>voyage-4</code>), and adds a
+            <em>Vector dimensions</em> choice: Voyage models emit <strong>256, 512, 1024 (default) or
+            2048</strong> dimensions and nothing else. That matters for the in-app store, whose column
+            width is frozen at <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code> (default
+            <strong>1536</strong>) on the first migration — so on a default deployment Voyage needs an
+            external <strong>Qdrant</strong> store, or a database provisioned at one of those widths
+            from the start. AccessFlow refuses the impossible combination when you save the
+            configuration rather than when the first document is ingested.
+          </div>
           <figure class="docs-figure">
             <picture>
               <source srcset="/images/docs/ai-configs-rag-light.webp" media="(prefers-color-scheme: light)" />

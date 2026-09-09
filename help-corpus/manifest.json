@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "6567ac682e67",
-  "generatedAt": "2026-09-08T11:41:56.539Z",
-  "sourceCommit": "96837df64badd6b80cbe98217ac220fbbcc5c9ae",
-  "chunkCount": 515,
-  "sha256": "6567ac682e679bf01ab589695e5763e99e62efc3437f9dbb8676941fa0d15430",
-  "quickReferenceSha256": "7db407710a9ddc6d96b80ff84dc1d073909be3cd3084c86f18498726087afef9",
+  "corpusVersion": "90d627d377f7",
+  "generatedAt": "2026-09-08T22:27:10.012Z",
+  "sourceCommit": "5879c161b2b16baf1b932e6e0cccd0f65243ccab",
+  "chunkCount": 516,
+  "sha256": "90d627d377f7b37ac710a1292ff887a96a758bcfc58296a70d516302f2436009",
+  "quickReferenceSha256": "ce90daa8fce5ca7fda1ade0b47772c981c2b232af216db3b76ad4c39eabedaf4",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -172,8 +172,8 @@
       "title": "AI configuration",
       "url": "https://accessflow.io/docs/configuration/ai/",
       "section": "Reference",
-      "chunks": 10,
-      "sha256": "af43f52bb6585089aabbea73afd966ab3ca80e4e9232652ce37dad053f4289a9"
+      "chunks": 11,
+      "sha256": "ad93c71c937601d6ab55969e470961c94071f6d99f6ed3739c5c59f060375856"
     },
     {
       "path": "website/docs/configuration/audit-compliance/index.html",
@@ -237,7 +237,7 @@
       "url": "https://accessflow.io/docs/guides/ai-analysis/",
       "section": "Guides",
       "chunks": 8,
-      "sha256": "9385282ce18266a04794b16eeaac60259a01feeae48b5af9f94745d6d65ba3af"
+      "sha256": "2abe17c35e8eae4b3d0c9325c1c9e3b46b953866b32ff55be32de0d00a51fc8d"
     },
     {
       "path": "website/docs/guides/api-governance/index.html",
@@ -373,7 +373,7 @@
       "url": "https://accessflow.io/features/",
       "section": "Features",
       "chunks": 17,
-      "sha256": "67498f05d575e24ad4c2d25e50861cd0894768db372ca64e34d36570e6f6382e"
+      "sha256": "050f273d69e13cb322d47ee760a2a34ab894401a23763b9fbd027f67e64ffb75"
     },
     {
       "path": "website/index.html",
@@ -381,7 +381,7 @@
       "url": "https://accessflow.io/",
       "section": "Overview",
       "chunks": 18,
-      "sha256": "512f9676628a653150a8ee30400f98c4bb0a5eaea17b07821ba6e628ae52962f"
+      "sha256": "2e4b6efccba30d03680757f255f1cc0c6d75d625ab674392676d63f96a1c0144"
     },
     {
       "path": "website/security/index.html",
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 83,
-      "sha256": "751bbd1cad95e709d6b7686d87fbe3b057272b7460811e6a80793cef22fff34b"
+      "sha256": "20d27e088963b09e0e6df872a1bc45c1572a33af230a37277a484f2821272640"
     }
   ]
 }

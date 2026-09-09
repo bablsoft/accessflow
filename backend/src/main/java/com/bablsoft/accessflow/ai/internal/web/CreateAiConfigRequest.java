@@ -45,6 +45,9 @@ record CreateAiConfigRequest(
         @Size(max = 100, message = "{validation.ai_config.embedding_model.max}") String embeddingModel,
         @Size(max = 500, message = "{validation.ai_config.embedding_endpoint.max}") String embeddingEndpoint,
         @Size(max = 4096, message = "{validation.ai_config.embedding_api_key.max}") String embeddingApiKey,
+        @Min(value = 0, message = "{validation.ai_config.embedding_dimensions.min}")
+        @Max(value = 4096, message = "{validation.ai_config.embedding_dimensions.max}")
+        Integer embeddingDimensions,
         Boolean orchestrationEnabled,
         VotingStrategy votingStrategy,
         @DecimalMin(value = "0.0", inclusive = false,
@@ -63,7 +66,7 @@ record CreateAiConfigRequest(
         this(name, provider, model, endpoint, apiKey, timeoutMs, maxPromptTokens, maxCompletionTokens,
                 systemPromptTemplate, langfusePromptName, langfusePromptLabel,
                 null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
     }
 
     CreateAiConfigCommand toCommand() {
@@ -90,6 +93,7 @@ record CreateAiConfigRequest(
                 embeddingModel,
                 embeddingEndpoint,
                 embeddingApiKey,
+                embeddingDimensions,
                 orchestrationEnabled,
                 votingStrategy,
                 votingWeight,

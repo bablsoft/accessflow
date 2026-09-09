@@ -162,7 +162,9 @@ export const VOTING_STRATEGIES: readonly VotingStrategy[] = [
 export const votingStrategyLabel = (t: TFunction, v: VotingStrategy): string =>
   t(`enums.voting_strategy.${v}` as const);
 
-// All providers are valid orchestration members (unlike embedding, which excludes Anthropic).
+// Orchestration members drive chat completions, so every chat-capable provider qualifies — which
+// excludes Voyage, an embeddings-only vendor. The backend rejects it with
+// AI_CONFIG_ORCHESTRATION_INVALID.
 export const ORCHESTRATION_PROVIDERS: readonly AiProvider[] = [
   'OPENAI',
   'ANTHROPIC',
@@ -171,13 +173,32 @@ export const ORCHESTRATION_PROVIDERS: readonly AiProvider[] = [
   'HUGGING_FACE',
 ] as const;
 
-// Anthropic has no embeddings API, so it is excluded from embedding-provider choices.
+// Anthropic has no embeddings API, so it is excluded from embedding-provider choices; Voyage is the
+// mirror case — embeddings only, and absent from the chat tiles and ORCHESTRATION_PROVIDERS.
 export const EMBEDDING_PROVIDERS: readonly AiProvider[] = [
   'OPENAI',
   'OPENAI_COMPATIBLE',
   'HUGGING_FACE',
   'OLLAMA',
+  'VOYAGE',
 ] as const;
+
+/**
+ * Embedding providers that honour a requested vector length — OpenAI and its wire-compatible kin
+ * take a `dimensions` request parameter, Voyage takes `output_dimension`. Ollama returns whatever
+ * its model natively emits, so the backend rejects a length for it outright
+ * (`error.ai_config.rag.embedding_dimensions_not_configurable`). Mirrors
+ * `AiProviderCapabilities.supportsConfigurableDimensions`.
+ */
+export const DIMENSION_CAPABLE_PROVIDERS: readonly AiProvider[] = [
+  'OPENAI',
+  'OPENAI_COMPATIBLE',
+  'HUGGING_FACE',
+  'VOYAGE',
+] as const;
+
+/** The only vector lengths Voyage can emit; mirrors `AiProviderCapabilities.supportedDimensions`. */
+export const VOYAGE_DIMENSIONS = [256, 512, 1024, 2048] as const;
 
 export const authProviderLabel = (t: TFunction, v: AuthProvider): string =>
   t(`enums.auth_provider.${v}` as const);

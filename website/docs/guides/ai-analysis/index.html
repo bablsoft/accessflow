@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-04",
+      "dateModified": "2026-09-09",
       "url": "https://accessflow.io/docs/guides/ai-analysis/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/ai-analysis/",
       "image": "https://accessflow.io/og-image.png",
@@ -273,7 +273,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Turn on AI risk analysis.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-04">4 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -321,6 +321,14 @@
                 <tr><td><strong>Custom (OpenAI-compatible)</strong></td><td>You supply one</td><td>Optional</td></tr>
               </tbody>
             </table>
+          </div>
+          <div class="docs-callout info">
+            <strong>Those five analyze queries; embeddings are a separate choice.</strong>
+            <strong>Voyage AI</strong> (default model <code>voyage-4</code>, Voyage API key required)
+            is an embeddings-only provider: it appears in the retrieval-augmented generation (RAG)
+            knowledge base's <em>Embedding provider</em> list and cannot be an analysis provider.
+            Anthropic is the mirror case — it analyzes queries but publishes no embeddings API, which
+            is exactly why an Anthropic install needs one of the others to embed with.
           </div>
           <p>
             Picking a tile pre-fills the model and, where relevant, the endpoint. On the

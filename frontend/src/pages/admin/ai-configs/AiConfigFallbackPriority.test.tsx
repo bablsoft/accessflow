@@ -55,6 +55,7 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     embedding_model: null,
     embedding_endpoint: null,
     embedding_api_key: null,
+    embedding_dimensions: null,
     orchestration_enabled: false,
     voting_strategy: 'WEIGHTED_AVERAGE',
     voting_weight: 1,

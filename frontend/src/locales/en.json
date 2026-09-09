@@ -1724,6 +1724,14 @@
         "field_embedding_model": "Embedding model",
         "field_embedding_endpoint": "Embedding endpoint",
         "field_embedding_api_key": "Embedding API key",
+        "field_embedding_dimensions": "Vector dimensions",
+        "embedding_dimensions_help": "Leave empty to use the model's own vector length. Whatever you set must match the width your vector store was provisioned with.",
+        "embedding_dimensions_voyage_help": "Voyage models emit 256, 512, 1024 (default) or 2048 dimensions, and nothing else. It must match the width your vector store was provisioned with.",
+        "embedding_dimensions_placeholder": "Model default",
+        "embedding_dimensions_range": "Vector dimensions must be between 0 and 4096",
+        "voyage_api_key_help": "Voyage AI is a separate vendor: this needs a Voyage API key, not an Anthropic one. Sign up at voyageai.com to get one.",
+        "voyage_pgvector_warning": "Voyage cannot write to this in-app vector store",
+        "voyage_pgvector_help": "The in-app pgvector column width is fixed when the database is first migrated — 1536 by default, which Voyage cannot produce. Unless this deployment was provisioned at 256, 512, 1024 or 2048, use an external Qdrant store instead. Saving tells you the exact widths involved.",
         "store_type_required": "A vector store is required when RAG is enabled",
         "embedding_provider_required": "An embedding provider is required",
         "embedding_model_required": "An embedding model is required",
@@ -2750,7 +2758,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Custom (OpenAI-compatible)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Local",

@@ -229,7 +229,7 @@ class AdminAiConfigsControllerTest {
                                   boolean apiKeyMasked, String systemPromptTemplate) {
         return new AiConfigView(configId, organizationId, name, provider, model,
                 null, apiKeyMasked, 30000, 4000, 4000, systemPromptTemplate, null, null,
-                false, null, 4, 0.5, null, null, false, null, null, null, false,
+                false, null, 4, 0.5, null, null, false, null, null, null, false, null,
                 false, com.bablsoft.accessflow.core.api.VotingStrategy.WEIGHTED_AVERAGE, 1.0,
                 java.util.List.of(), java.util.List.of(), null, 0,
                 Instant.parse("2026-01-01T00:00:00Z"),

@@ -93,6 +93,7 @@ function aiConfig(partial: Partial<AiConfig> = {}): AiConfig {
     embedding_model: 'text-embedding-3-small',
     embedding_endpoint: null,
     embedding_api_key: null,
+    embedding_dimensions: null,
     orchestration_enabled: false,
     voting_strategy: 'MAJORITY',
     voting_weight: 1,

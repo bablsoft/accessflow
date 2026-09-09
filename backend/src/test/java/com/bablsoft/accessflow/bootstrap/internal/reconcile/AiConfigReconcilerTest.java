@@ -168,7 +168,7 @@ class AiConfigReconcilerTest {
     private AiConfigView view(UUID id, String name, AiProviderType provider) {
         return new AiConfigView(id, ORG_ID, name, provider, "claude-sonnet-4", "", true,
                 30000, 4000, 1024, null, null, null,
-                false, null, 4, 0.5, null, null, false, null, null, null, false,
+                false, null, 4, 0.5, null, null, false, null, null, null, false, null,
                 false, com.bablsoft.accessflow.core.api.VotingStrategy.WEIGHTED_AVERAGE, 1.0,
                 java.util.List.of(), java.util.List.of(), null, 0,
                 Instant.now(), Instant.now());

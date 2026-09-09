@@ -937,7 +937,7 @@ Stores the result of an AI analysis run for a query request.
 | `api_request_id` | FK → `api_requests` nullable (V101, AF-500). |
 | `request_group_item_id` | FK → `request_group_items` nullable (V106, AF-501). |
 | `deployment_request_id` | FK → `deployment_requests` `ON DELETE CASCADE`, nullable (V152, #691). `chk_ai_analyses_target` enforces exactly one of (`query_request_id`, `api_request_id`, `request_group_item_id`, `deployment_request_id`) — every governed surface's analyses live on one table. Indexed. Note the monthly token-budget aggregate (`AiAnalysisStatsRepository.sumTokensSince`) inner-joins `query_requests`, so only query analyses count toward it; API, grouped-request and deployment analyses are checked against the budget but never increment it (a pre-existing AF-500/AF-501 gap). |
-| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
+| `ai_provider` | ENUM: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` \| `VOYAGE` (V161) — in practice never `VOYAGE` here, which is an embedding-only provider and can never produce an analysis. |
 | `ai_model` | VARCHAR(100) — e.g. `claude-sonnet-4-20250514`, `gpt-4o` |
 | `risk_score` | INTEGER 0–100 |
 | `risk_level` | ENUM: `LOW` \| `MEDIUM` \| `HIGH` \| `CRITICAL` |
@@ -1012,7 +1012,7 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `id` | UUID PK |
 | `organization_id` | FK → `organizations` (not unique — many configs per org) |
 | `name` | VARCHAR(255) — display name; `(organization_id, lower(name))` is UNIQUE |
-| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE` |
+| `provider` | ENUM `ai_provider`: `OPENAI` \| `ANTHROPIC` \| `OLLAMA` \| `OPENAI_COMPATIBLE` \| `HUGGING_FACE`. Must be chat-capable — `VOYAGE` is rejected with HTTP 400 `AI_CONFIG_PROVIDER_INVALID` (AF-918), as it publishes embeddings only. See `core.api.AiProviderCapabilities`. |
 | `model` | VARCHAR(100) — provider-specific model name |
 | `endpoint` | VARCHAR(500) nullable — base URL, honored at runtime for **every** provider. **Required** for `OPENAI_COMPATIBLE`, which has no built-in default. Optional everywhere else, falling back to `http://localhost:11434` (`OLLAMA`), `https://router.huggingface.co/v1` (`HUGGING_FACE`) or Spring AI's built-in provider default (`OPENAI`, `ANTHROPIC`) when blank — set it to front OpenAI or Anthropic with a gateway or proxy. |
 | `api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext; `@JsonIgnore` |
@@ -1029,10 +1029,11 @@ Analyzer Service"](05-backend.md#ai-query-analyzer-service).
 | `rag_endpoint` | VARCHAR(500) nullable — external store endpoint (QDRANT host[:port] or URL). Required for `QDRANT`. |
 | `rag_collection` | VARCHAR(255) nullable — external collection/index name. Required for `QDRANT`. |
 | `rag_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the external store API key; `@JsonIgnore`. |
-| `embedding_provider` | ENUM `ai_provider` nullable — dedicated embedding provider, independent of the chat `provider`. `ANTHROPIC` is rejected (no embeddings API). Required when `rag_enabled`. |
+| `embedding_provider` | ENUM `ai_provider` nullable — dedicated embedding provider, independent of the chat `provider`. Must be embedding-capable: `ANTHROPIC` is rejected (no embeddings API), `VOYAGE` is accepted and is the recommended pairing for an Anthropic chat config (AF-918). Required when `rag_enabled`. |
 | `embedding_model` | VARCHAR(100) nullable — embedding model name. Required when `rag_enabled`. |
-| `embedding_endpoint` | VARCHAR(500) nullable — custom embedding base URL (OLLAMA / OPENAI_COMPATIBLE / HUGGING_FACE). |
-| `embedding_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the embedding provider key; `@JsonIgnore`. |
+| `embedding_endpoint` | VARCHAR(500) nullable — custom embedding base URL (OLLAMA / OPENAI_COMPATIBLE / HUGGING_FACE / VOYAGE, the last defaulting to `https://api.voyageai.com/v1`). |
+| `embedding_api_key_encrypted` | TEXT nullable — AES-256-GCM ciphertext for the embedding provider key; `@JsonIgnore`. Voyage is a separate vendor: this is a Voyage key, never an Anthropic one. |
+| `embedding_dimensions` | INTEGER nullable (V162, AF-918) — requested embedding vector length; `NULL` = the provider's default. Validated on write: a `VOYAGE` row must pick one of 256 / 512 / 1024 / 2048, and any row bound to the `PGVECTOR` store must match `ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS` (a Voyage row with no value is checked against Voyage's 1024 default). Violations return HTTP 400 `RAG_CONFIG_INVALID`. Part of the cached-delegate fingerprint, so changing it rebuilds the embedding model. |
 | `orchestration_enabled` | BOOLEAN DEFAULT false (AF-450) — when true, the primary model votes alongside the enabled `ai_config_model` members; analysis fans out in parallel and aggregates. |
 | `voting_strategy` | ENUM `voting_strategy`: `WEIGHTED_AVERAGE` (default) \| `MAX_RISK` \| `MAJORITY` (AF-450). How members' risk verdicts combine. |
 | `voting_weight` | DOUBLE PRECISION DEFAULT 1.0, CHECK > 0 (AF-450) — the primary model's weight in the vote. |
@@ -1060,13 +1061,19 @@ row. Unbind first (by switching the datasource to a different config or disablin
 `ai_analysis_enabled`) before deleting.
 
 Invalid RAG settings on create/update are rejected with HTTP 400 `RAG_CONFIG_INVALID` (e.g. RAG
-enabled without a store type or embedding model, an `ANTHROPIC` embedding provider, or a `QDRANT`
-backend missing its endpoint/collection).
+enabled without a store type or embedding model, an embedding provider with no embeddings API
+(`ANTHROPIC`), a `QDRANT` backend missing its endpoint/collection, or — AF-918 — an
+`embedding_dimensions` the provider cannot emit, one requested of a provider with no such knob
+(`OLLAMA`), or one that disagrees with the `PGVECTOR` column width).
+
+A `provider` that cannot drive a chat model (`VOYAGE`) is rejected on create **and** update with
+HTTP 400 `AI_CONFIG_PROVIDER_INVALID` (AF-918).
 
 Invalid orchestration / guardrail settings are rejected with HTTP 400
 `AI_CONFIG_ORCHESTRATION_INVALID` (a guardrail pattern that is not a valid regex, a non-positive
-voting weight, an orchestration member missing its provider/model, or an `OPENAI_COMPATIBLE` member
-with no endpoint).
+voting weight, an orchestration member missing its provider/model, a member whose provider cannot
+drive a chat model — `VOYAGE`, which cannot vote — or an `OPENAI_COMPATIBLE` member with no
+endpoint).
 
 ---
 

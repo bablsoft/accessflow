@@ -1666,6 +1666,14 @@
         "field_embedding_model": "Embedding-Modell",
         "field_embedding_endpoint": "Embedding-Endpunkt",
         "field_embedding_api_key": "Embedding-API-Schlüssel",
+        "field_embedding_dimensions": "Vektordimensionen",
+        "embedding_dimensions_help": "Leer lassen, um die Vektorlänge des Modells zu verwenden. Ein gesetzter Wert muss zur Breite passen, mit der Ihr Vektorspeicher eingerichtet wurde.",
+        "embedding_dimensions_voyage_help": "Voyage-Modelle liefern 256, 512, 1024 (Standard) oder 2048 Dimensionen und keine anderen. Der Wert muss zur Breite passen, mit der Ihr Vektorspeicher eingerichtet wurde.",
+        "embedding_dimensions_placeholder": "Modellvorgabe",
+        "embedding_dimensions_range": "Vektordimensionen müssen zwischen 0 und 4096 liegen",
+        "voyage_api_key_help": "Voyage AI ist ein eigener Anbieter: hierfür wird ein Voyage-API-Schlüssel benötigt, kein Anthropic-Schlüssel. Registrieren Sie sich auf voyageai.com, um einen zu erhalten.",
+        "voyage_pgvector_warning": "Voyage kann nicht in diesen internen Vektorspeicher schreiben",
+        "voyage_pgvector_help": "Die Breite der internen pgvector-Spalte wird bei der ersten Datenbankmigration festgelegt — standardmäßig 1536, was Voyage nicht erzeugen kann. Sofern diese Installation nicht mit 256, 512, 1024 oder 2048 eingerichtet wurde, verwenden Sie stattdessen einen externen Qdrant-Speicher. Beim Speichern werden die genauen Breiten genannt.",
         "store_type_required": "Ein Vektorspeicher ist erforderlich, wenn RAG aktiviert ist",
         "embedding_provider_required": "Ein Embedding-Anbieter ist erforderlich",
         "embedding_model_required": "Ein Embedding-Modell ist erforderlich",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Benutzerdefiniert (OpenAI-kompatibel)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Lokal",

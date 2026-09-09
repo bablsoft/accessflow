@@ -288,13 +288,7 @@ public class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
     }
 
     private static boolean isUsable(AiConfigEntity entity) {
-        var provider = entity.getProvider();
-        if (provider == AiProviderType.OLLAMA
-                || provider == AiProviderType.OPENAI_COMPATIBLE
-                || provider == AiProviderType.HUGGING_FACE) {
-            return true;
-        }
-        return entity.getApiKeyEncrypted() != null && !entity.getApiKeyEncrypted().isBlank();
+        return AiConfigUsability.isUsable(entity.getProvider(), entity.getApiKeyEncrypted());
     }
 
     private ChatModel buildChatModel(AiConfigEntity entity) {
@@ -359,6 +353,7 @@ public class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
             case OPENAI_COMPATIBLE -> new OpenAiAnalyzerStrategy(AiProviderType.OPENAI_COMPATIBLE, chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
             case HUGGING_FACE -> new OpenAiAnalyzerStrategy(AiProviderType.HUGGING_FACE, chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
             case OLLAMA -> new OllamaAnalyzerStrategy(chatModel, promptRenderer, responseParser, promptSource, sqlGenerationResponseParser, rag);
+            case VOYAGE -> throw embeddingOnly();
         };
         var tracing = new TracingAiAnalyzerStrategy(base, langfuseTracer, parent.getOrganizationId(),
                 provider, model, clock);
@@ -429,7 +424,18 @@ public class AiAnalyzerStrategyHolder implements AiAnalyzerStrategy {
                     maxCompletionTokens, timeoutMs, baseUrlOrDefault(endpoint, DEFAULT_HUGGING_FACE_BASE_URL));
             case OLLAMA -> chatModelFactory.ollama(baseUrlOrDefault(endpoint, DEFAULT_OLLAMA_BASE_URL),
                     model, maxCompletionTokens);
+            case VOYAGE -> throw embeddingOnly();
         };
+    }
+
+    /**
+     * Voyage publishes embeddings and nothing else. {@code DefaultAiConfigService} refuses to store
+     * it as a chat provider or an orchestration member, so reaching either switch means a row
+     * predating that guard — fail loudly rather than pick an arbitrary client.
+     */
+    private static IllegalArgumentException embeddingOnly() {
+        return new IllegalArgumentException(
+                "VOYAGE is an embedding-only provider and cannot back a chat model");
     }
 
     private String baseUrlOrDefault(String endpoint, String fallback) {

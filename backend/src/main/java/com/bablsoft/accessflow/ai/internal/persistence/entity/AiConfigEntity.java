@@ -112,6 +112,10 @@ public class AiConfigEntity {
     @Column(name = "embedding_api_key_encrypted", columnDefinition = "text")
     private String embeddingApiKeyEncrypted;
 
+    /** Requested vector length; null = the provider's default (AF-918). */
+    @Column(name = "embedding_dimensions")
+    private Integer embeddingDimensions;
+
     // --- Multi-model orchestration + guardrails (AF-450) ---
 
     @Column(name = "orchestration_enabled", nullable = false)

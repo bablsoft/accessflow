@@ -621,6 +621,33 @@ class AiAnalyzerStrategyHolderTest {
         }
     }
 
+    // AF-918: VOYAGE is embedding-only. DefaultAiConfigService refuses to store it as a row's chat
+    // provider or as an orchestration member, so reaching either switch in the holder means a row
+    // that predates that guard — it must fail loudly rather than pick an arbitrary chat client.
+    @Test
+    void analyzeRefusesToBuildAChatModelForAnEmbeddingOnlyProvider() {
+        when(aiConfigRepository.findById(AI_CONFIG_ID))
+                .thenReturn(Optional.of(entityWithKey(AiProviderType.VOYAGE, "ENC(k)", null)));
+
+        assertThatThrownBy(() -> holder.analyze("SELECT 1", DbType.POSTGRESQL, null, "en", AI_CONFIG_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("VOYAGE")
+                .hasMessageContaining("embedding-only");
+        verifyNoInteractions(chatModelFactory);
+    }
+
+    @Test
+    void anEmbeddingOnlyProviderIsNeverResolvedAsTheUsableConfig() {
+        var voyage = entityWithKey(AiProviderType.VOYAGE, "ENC(k)", null);
+        var orgId = voyage.getOrganizationId();
+        when(aiConfigRepository.findAllByOrganizationIdOrderByNameAsc(orgId))
+                .thenReturn(java.util.List.of(voyage));
+
+        // Skipped at resolution rather than selected and then failing inside buildChatModel.
+        assertThat(holder.classifyDiscoveryColumns(orgId, "users.email")).isEmpty();
+        verifyNoInteractions(chatModelFactory);
+    }
+
     private AiConfigEntity entityWithoutKey(AiProviderType provider) {
         var entity = new AiConfigEntity();
         entity.setId(AI_CONFIG_ID);

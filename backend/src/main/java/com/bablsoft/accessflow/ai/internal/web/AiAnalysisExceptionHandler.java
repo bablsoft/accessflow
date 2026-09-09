@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.ai.api.AiConfigInvalidPromptException;
 import com.bablsoft.accessflow.ai.api.AiConfigNameAlreadyExistsException;
 import com.bablsoft.accessflow.ai.api.AiConfigNotFoundException;
 import com.bablsoft.accessflow.ai.api.AiConfigOrchestrationInvalidException;
+import com.bablsoft.accessflow.ai.api.AiConfigProviderInvalidException;
 import com.bablsoft.accessflow.ai.api.AiConfigRagInvalidException;
 import com.bablsoft.accessflow.ai.api.AiGuardrailViolationException;
 import com.bablsoft.accessflow.ai.api.AiRateLimitExceededException;
@@ -41,7 +42,11 @@ class AiAnalysisExceptionHandler {
     private final MessageSource messageSource;
 
     private String msg(String key) {
-        return messageSource.getMessage(key, null, LocaleContextHolder.getLocale());
+        return msg(key, (Object[]) null);
+    }
+
+    private String msg(String key, Object[] args) {
+        return messageSource.getMessage(key, args, LocaleContextHolder.getLocale());
     }
 
     @ExceptionHandler(BadAiAnalysisStatsQueryException.class)
@@ -132,6 +137,14 @@ class AiAnalysisExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(AiConfigProviderInvalidException.class)
+    ProblemDetail handleAiConfigProviderInvalid(AiConfigProviderInvalidException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
+        pd.setProperty("error", "AI_CONFIG_PROVIDER_INVALID");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
     @ExceptionHandler(AiConfigInvalidPromptException.class)
     ProblemDetail handleAiConfigInvalidPrompt(AiConfigInvalidPromptException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
@@ -143,7 +156,8 @@ class AiAnalysisExceptionHandler {
 
     @ExceptionHandler(AiConfigRagInvalidException.class)
     ProblemDetail handleAiConfigRagInvalid(AiConfigRagInvalidException ex) {
-        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg(ex.messageKey()));
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                msg(ex.messageKey(), ex.args()));
         pd.setProperty("error", "RAG_CONFIG_INVALID");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;

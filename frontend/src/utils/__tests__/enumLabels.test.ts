@@ -13,6 +13,7 @@ import {
   invitationStatusLabel,
   maskingStrategyLabel,
   MASKING_STRATEGIES,
+  DIMENSION_CAPABLE_PROVIDERS,
   EMBEDDING_PROVIDERS,
   oauth2ProviderLabel,
   queryStatusLabel,
@@ -23,6 +24,7 @@ import {
   roleLabel,
   sslModeLabel,
   VOTING_STRATEGIES,
+  VOYAGE_DIMENSIONS,
   ORCHESTRATION_PROVIDERS,
   votingStrategyLabel,
 } from '../enumLabels';
@@ -173,6 +175,34 @@ describe('ragStoreTypeLabel', () => {
     expect(RAG_STORE_TYPES).toEqual(['PGVECTOR', 'QDRANT']);
     expect(EMBEDDING_PROVIDERS).not.toContain('ANTHROPIC');
     expect(EMBEDDING_PROVIDERS).toContain('OPENAI');
+  });
+
+  // AF-918: the two capability axes cut in opposite directions — Anthropic is chat-only, Voyage is
+  // embedding-only, and each list must exclude exactly one of them.
+  it('offers Voyage as an embedding provider but never as an orchestration member', () => {
+    expect(EMBEDDING_PROVIDERS).toContain('VOYAGE');
+    expect(ORCHESTRATION_PROVIDERS).not.toContain('VOYAGE');
+  });
+
+  it('labels Voyage by vendor name', () => {
+    expect(aiProviderLabel(t, 'VOYAGE')).toBe('Voyage AI');
+  });
+
+  // Mirrors AiProviderCapabilities.supportsConfigurableDimensions: Ollama returns whatever its model
+  // natively emits, so the backend rejects a requested width for it.
+  it('lists only the providers that honour a requested vector length', () => {
+    expect(DIMENSION_CAPABLE_PROVIDERS).toEqual([
+      'OPENAI',
+      'OPENAI_COMPATIBLE',
+      'HUGGING_FACE',
+      'VOYAGE',
+    ]);
+    expect(DIMENSION_CAPABLE_PROVIDERS).not.toContain('OLLAMA');
+    expect(DIMENSION_CAPABLE_PROVIDERS.every((p) => EMBEDDING_PROVIDERS.includes(p))).toBe(true);
+  });
+
+  it('lists exactly the four widths Voyage can emit', () => {
+    expect(VOYAGE_DIMENSIONS).toEqual([256, 512, 1024, 2048]);
   });
 });
 

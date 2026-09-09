@@ -1666,6 +1666,14 @@
         "field_embedding_model": "Modelo de embeddings",
         "field_embedding_endpoint": "Endpoint de embeddings",
         "field_embedding_api_key": "Clave de API de embeddings",
+        "field_embedding_dimensions": "Dimensiones del vector",
+        "embedding_dimensions_help": "Déjelo vacío para usar la longitud de vector propia del modelo. Si lo define, debe coincidir con el ancho con el que se aprovisionó su almacén de vectores.",
+        "embedding_dimensions_voyage_help": "Los modelos de Voyage emiten 256, 512, 1024 (predeterminado) o 2048 dimensiones, y ninguna otra. Debe coincidir con el ancho con el que se aprovisionó su almacén de vectores.",
+        "embedding_dimensions_placeholder": "Valor del modelo",
+        "embedding_dimensions_range": "Las dimensiones del vector deben estar entre 0 y 4096",
+        "voyage_api_key_help": "Voyage AI es un proveedor independiente: aquí se necesita una clave de API de Voyage, no de Anthropic. Regístrese en voyageai.com para obtenerla.",
+        "voyage_pgvector_warning": "Voyage no puede escribir en este almacén de vectores interno",
+        "voyage_pgvector_help": "El ancho de la columna pgvector interna se fija en la primera migración de la base de datos: 1536 por defecto, que Voyage no puede producir. Salvo que esta instalación se aprovisionara con 256, 512, 1024 o 2048, use un almacén Qdrant externo. Al guardar se indican los anchos exactos.",
         "store_type_required": "Se requiere un almacén de vectores cuando RAG está habilitado",
         "embedding_provider_required": "Se requiere un proveedor de embeddings",
         "embedding_model_required": "Se requiere un modelo de embeddings",
@@ -2726,7 +2734,8 @@
       "ANTHROPIC": "Anthropic",
       "OLLAMA": "Ollama",
       "OPENAI_COMPATIBLE": "Personalizado (compatible con OpenAI)",
-      "HUGGING_FACE": "Hugging Face"
+      "HUGGING_FACE": "Hugging Face",
+      "VOYAGE": "Voyage AI"
     },
     "auth_provider": {
       "LOCAL": "Local",

@@ -44,7 +44,8 @@ public class RagComponentsFactory {
     public EmbeddingModel embeddingModel(AiConfigEntity entity) {
         var apiKey = decryptOrPlaceholder(entity.getEmbeddingApiKeyEncrypted());
         return embeddingModelFactory.create(entity.getEmbeddingProvider(), apiKey,
-                entity.getEmbeddingModel(), entity.getEmbeddingEndpoint());
+                entity.getEmbeddingModel(), entity.getEmbeddingEndpoint(),
+                entity.getEmbeddingDimensions());
     }
 
     public VectorStore vectorStore(AiConfigEntity entity, EmbeddingModel embeddingModel) {
