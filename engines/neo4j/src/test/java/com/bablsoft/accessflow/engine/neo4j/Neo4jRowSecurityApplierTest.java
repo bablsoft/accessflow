@@ -4,6 +4,9 @@ import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.EnumSource.Mode;
 
 import java.util.List;
 import java.util.UUID;
@@ -87,18 +90,31 @@ class Neo4jRowSecurityApplierTest {
         assertThat(applied.cypher()).contains("u.`home region` = $af_rls_0");
     }
 
-    @Test
-    void allowsEmptyInListAsDenyAllWithoutError() {
-        var applied = apply("MATCH (u:User) RETURN u",
-                new RowSecurityDirective(POLICY, "User", "tier", RowSecurityOperator.IN, List.of()));
-        assertThat(applied.cypher()).contains("u.tier IN $af_rls_0");
-        assertThat(applied.parameters()).containsEntry("af_rls_0", List.of());
+    @ParameterizedTest
+    @EnumSource(value = RowSecurityOperator.class, names = "IS_NULL", mode = Mode.EXCLUDE)
+    void failsClosedWithAnAlwaysFalsePredicateWhenValuesAreEmpty(RowSecurityOperator operator) {
+        // An empty values list is the documented fail-closed signal (an unresolvable :user.groups
+        // for a user in no groups, a missing attribute). Every operator must deny, and the negated
+        // ones are the trap: "NOT (u.tier IN [])" matches every node in Cypher.
+        var applied = apply("MATCH (u:User) RETURN u", directive("User", "tier", operator));
+        assertThat(applied.cypher()).contains("WHERE (false)").contains("RETURN u");
+        assertThat(applied.parameters()).isEmpty();
+        assertThat(applied.appliedPolicyIds()).containsExactly(POLICY);
     }
 
     @Test
-    void failsClosedOnScalarOperatorWithNoValue() {
+    void andsTheAlwaysFalsePredicateOntoAnExistingWhere() {
+        var applied = apply("MATCH (u:User) WHERE u.active = true RETURN u",
+                directive("User", "tier", RowSecurityOperator.NOT_IN));
+        assertThat(applied.cypher()).contains("u.active = true").contains("AND (false)");
+        assertThat(applied.cypher()).doesNotContain("$af_rls_");
+    }
+
+    @Test
+    void failsClosedOnTheUnsupportedUnaryIsNullOperator() {
         assertThatThrownBy(() -> apply("MATCH (u:User) RETURN u",
-                new RowSecurityDirective(POLICY, "User", "region", RowSecurityOperator.EQUALS, List.of())))
+                new RowSecurityDirective(POLICY, "User", "deleted_at", RowSecurityOperator.IS_NULL,
+                        List.of())))
                 .isInstanceOf(UnrewritableRowSecurityException.class)
                 .hasMessageContaining("error.row_security_neo4j_unrewritable");
     }
