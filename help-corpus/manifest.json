@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "2b88f9c0ebee",
-  "generatedAt": "2026-09-09T14:47:56.540Z",
-  "sourceCommit": "4ce06d7cf0eef4ba3fa1356eb03d7743c806197f",
+  "corpusVersion": "e36586d2590c",
+  "generatedAt": "2026-09-09T15:32:29.440Z",
+  "sourceCommit": "9402ed5e7be1fb0613193dfcd30521233bc2d8d9",
   "chunkCount": 528,
-  "sha256": "2b88f9c0ebee1d1ddbea3ad166d1f704c3d1f5cf148788f76885fc7192c803b4",
+  "sha256": "e36586d2590c8c265f351e60e069118474e4a56c80828e2cc979810bfbe4a2bb",
   "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 13,
-      "sha256": "6f590e29978c60ac2a1e1b1ffbe94e7e4639c183febb5edc5705dd8bd5bf9588"
+      "sha256": "a5c1cea332cb28dc08782a27978d24e5beb25098bfe2c187d0c6ad66c24e6f5d"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 84,
-      "sha256": "d00fc74b6cb5fb94ab8beac535f8cd6119a86204aa8afd1a4079b1c36a0e86e6"
+      "sha256": "8e5ff9248129199a977f637bde9e3fe3c0316c8fb6e859ce71f8a25aa4ebc6a9"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 8,
-      "sha256": "b61441ce5edb93d3161aa44ec009ba15a3a50af79c88848dca78f95fb986dce5"
+      "sha256": "e5d16aabb344bd98ed8f662dccb28ae870773e1113a3d2a65259756989f7051d"
     }
   ]
 }
