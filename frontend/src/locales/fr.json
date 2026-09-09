@@ -1354,7 +1354,8 @@
         "last_scan": "Dernière analyse : {{time}}",
         "last_scan_error": "Problème lors de la dernière analyse : {{error}}",
         "findings_title": "Découvertes",
-        "findings_description": "Classifications proposées de colonnes sensibles. Confirmer applique l'étiquette et dérive une politique de masquage ; rejeter supprime définitivement la proposition.",
+        "findings_description": "Classifications proposées de colonnes sensibles. Confirmer applique l'étiquette et dérive une politique de masquage ; rejeter supprime définitivement la proposition. Une proposition que l'analyse ne trouve plus est marquée obsolète et quitte cette liste.",
+        "stale_hint": "Non redétectée lors des analyses récentes — les données ont peut-être été supprimées ou masquées, ou la colonne est déjà étiquetée. Rejetez-la ; si elle est à nouveau détectée, elle repasse en attente.",
         "filter_all": "Toutes",
         "col_column": "Colonne",
         "col_classification": "Classification",
@@ -3114,7 +3115,8 @@
     "discovery_finding_status": {
       "PENDING": "En attente",
       "CONFIRMED": "Confirmée",
-      "DISMISSED": "Rejetée"
+      "DISMISSED": "Rejetée",
+      "STALE": "Obsolète"
     },
     "delegation_scope": {
       "DATASOURCE": "Source de données",

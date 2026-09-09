@@ -1066,12 +1066,44 @@ depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
   — never raw values. Same fail-safe posture as the UBA anomaly summary: the AI pass can never block
   or fail a scan.
 - **Worklist.** Findings land as `PENDING` rows keyed by `(column, classification, detector)`;
-  rescans refresh `PENDING` rows in place and never touch decided ones. Confirming (bulk, per-row
+  rescans refresh `PENDING` rows in place and never touch decided ones (`CONFIRMED` / `DISMISSED` —
+  `STALE` is not a decision and is revived, see below). Confirming (bulk, per-row
   independent transactions like the attestation bulk path) applies the tag through
   `DataClassificationAdminService.create(..., applyMasking=true)` — deriving masking exactly like a
   manual tag — and marks the finding `CONFIRMED` (a pre-existing tag reports `TAG_CONFLICT` but
   still clears the worklist). Dismissing marks `DISMISSED`, permanently suppressing the proposal.
   Audited as `DISCOVERY_SCAN_COMPLETED` / `DISCOVERY_FINDING_CONFIRMED` / `DISCOVERY_FINDING_DISMISSED`.
+- **Stale findings (AF-659).** After the table loop, `DiscoveryStaleSweepService` counts every
+  `PENDING` finding the run did **not** re-propose and retires it as `STALE` on the
+  `stale-scans-before-expiry`-th consecutive miss (default 3); re-detection resets the counter and
+  revives a `STALE` row to `PENDING`, preserving `first_detected_at`. `STALE` is an aged `PENDING`,
+  not a decision: it stays listable (`?status=STALE`) and decidable, so the admin bulk-dismisses it
+  rather than hunting for rows with an old `last_detected_at`. Deliberately **not** auto-dismissed —
+  a dismissal suppresses the proposal on every future scan, so absence must never spend it.
+  **Only tables the run actually sampled are eligible**, tracked as a per-run key set rather than
+  the coarse `partial` flag. A table is excluded when it was skipped by the table cap or the
+  deadline, when its sample threw or returned no result set, when *no* column cleared the ≥ 5-value
+  floor (an emptied or truncated table keeps its worklist), or when it was dropped from the schema
+  entirely. Note the floor is evaluated **per column**: one column clearing it makes the whole
+  table eligible, so a finding whose own column — or, after AF-658, whose own dot-path — went
+  sparse this run still ages. That is the intent; it is what the *consecutive*-miss threshold
+  absorbs.
+
+  `AI` findings carry two further gates: the AI pass must have both **run and answered** for that
+  table, and the 50-candidate-per-table cap must not have hidden a column from the model. The pass
+  is opt-in, is capped at `max-ai-tables-per-scan` (25) against a `max-tables-per-scan` of 200, and
+  is fail-safe end to end — a rotated key, a provider outage or a deleted `ai_config` returns an
+  empty suggestion list rather than an exception, which is indistinguishable from "nothing
+  sensitive here". Requiring a real suggestion is therefore what keeps a provider failure from
+  retiring every AI finding in the estate; the cost is that a table where the model genuinely now
+  finds nothing keeps its AI findings, which is the fail-closed direction. Each row is saved independently and a lost
+  optimistic-lock race is skipped (a concurrent admin decision wins, and the next scan re-counts);
+  the whole sweep is wrapped so a bookkeeping failure can never mark a completed scan failed.
+  Audited as `DISCOVERY_FINDING_EXPIRED` per retired finding — capped at 100 rows per scan, since
+  the audit log is hash-chained, with `expiredAuditTruncated` on the scan row — plus
+  `findingsAged` / `findingsExpired` / `findingsRevived` counters on `DISCOVERY_SCAN_COMPLETED`.
+  Because the in-flight guard is per-node, two nodes scanning one datasource can each count the
+  same miss and retire a finding up to a cycle early; harmless, since `STALE` is reversible.
 - **Nested document values (AF-658).** `NestedValueFlattener` walks `Map`/`List` cell values —
   the shape every document engine puts inside a cell, because a column there is a *top-level*
   field (an observed union for MongoDB, Couchbase, Elasticsearch and DynamoDB; the declared schema
@@ -1096,10 +1128,13 @@ depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
   means "tables were skipped"); and a per-path value cap at the sample size — a list fans out one
   value per element per row rather than one per row, so without it a single path could collect far
   more values than there are rows, distorting both the ≥ 5-sample floor and the match ratio. Because
-  the sample has no `ORDER BY`, a bound ceiling can vary the discovered path set between scans —
-  nothing prunes findings, so the cost is a stale `PENDING` row an admin dismisses.
-- **Limitations (v1).** Stale `PENDING` findings whose data disappeared are kept for the admin to
-  dismiss.
+  the sample has no `ORDER BY`, a bound ceiling can vary the discovered path set between scans, so
+  a path can drop out of one run's proposals; the stale sweep above absorbs this, which is why its
+  threshold counts *consecutive* misses rather than expiring on the first.
+- **Limitations (v1).** A finding whose whole table is dropped is never aged — the table cannot be
+  in the scanned set, so it stays `PENDING` until an admin dismisses it. Ageing on absence from the
+  introspected schema is deliberately not done: an introspection that returned a partial schema
+  (a permission change, an engine-plugin quirk) would retire the datasource's entire worklist.
 
 ### Compliance reporting (AF-459)
 

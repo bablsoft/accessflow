@@ -18,7 +18,7 @@ class NestedValueFlattenerTest {
 
     private static NestedValueFlattener flattener(Integer depth, Integer leaves) {
         return new NestedValueFlattener(
-                new DiscoveryProperties(null, null, null, null, null, depth, leaves));
+                new DiscoveryProperties(null, null, null, null, null, depth, leaves, null));
     }
 
     private static NestedValueFlattener defaults() {

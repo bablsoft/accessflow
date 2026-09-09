@@ -28,9 +28,11 @@ import {
 import { dataClassificationKeys } from '@/api/dataClassifications';
 import { maskingPolicyKeys } from '@/api/maskingPolicies';
 import {
+  DISCOVERY_FINDING_STATUSES,
   dataClassificationLabel,
   discoveryDetectorLabel,
   discoveryFindingStatusLabel,
+  enumOptions,
 } from '@/utils/enumLabels';
 import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
@@ -53,6 +55,15 @@ interface ConfigFormValues {
 }
 
 const PAGE_SIZE = 20;
+
+// Exhaustive by type, so adding a DiscoveryFindingStatus is a compile error here rather than a
+// silently grey tag.
+const STATUS_COLORS: Record<DiscoveryFindingStatus, string> = {
+  PENDING: 'processing',
+  CONFIRMED: 'success',
+  DISMISSED: 'default',
+  STALE: 'warning',
+};
 
 export function DiscoveryTab({ dsId }: { dsId: string }) {
   const { t } = useTranslation();
@@ -244,8 +255,11 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
         render: (v: DiscoveryFindingStatus, f: DiscoveryFinding) => {
           const s = rowStatuses[f.id];
           if (s) return rowStatusTag(s);
-          const color = v === 'PENDING' ? 'processing' : v === 'CONFIRMED' ? 'success' : 'default';
-          return <Tag color={color}>{discoveryFindingStatusLabel(t, v)}</Tag>;
+          const tag = <Tag color={STATUS_COLORS[v]}>{discoveryFindingStatusLabel(t, v)}</Tag>;
+          if (v !== 'STALE') return tag;
+          return (
+            <Tooltip title={t('datasources.settings.discovery.stale_hint')}>{tag}</Tooltip>
+          );
         },
       },
     ],
@@ -254,7 +268,12 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
   );
 
   const config = configQuery.data;
-  const pendingSelectable = statusFilter === 'PENDING' || statusFilter === 'ALL';
+  // STALE is an aged PENDING (AF-659), so it stays selectable — bulk-dismissing aged rows is the
+  // whole point of retiring them.
+  const isDecidable = (status: DiscoveryFindingStatus) =>
+    status === 'PENDING' || status === 'STALE';
+  const decidableFilter =
+    statusFilter === 'PENDING' || statusFilter === 'STALE' || statusFilter === 'ALL';
 
   return (
     <div style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -379,18 +398,7 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
               setSelectedRowKeys([]);
             }}
             options={[
-              {
-                value: 'PENDING',
-                label: discoveryFindingStatusLabel(t, 'PENDING'),
-              },
-              {
-                value: 'CONFIRMED',
-                label: discoveryFindingStatusLabel(t, 'CONFIRMED'),
-              },
-              {
-                value: 'DISMISSED',
-                label: discoveryFindingStatusLabel(t, 'DISMISSED'),
-              },
+              ...enumOptions(DISCOVERY_FINDING_STATUSES, discoveryFindingStatusLabel, t),
               { value: 'ALL', label: t('datasources.settings.discovery.filter_all') },
             ]}
           />
@@ -467,11 +475,11 @@ export function DiscoveryTab({ dsId }: { dsId: string }) {
               onChange: (nextPage) => setPage(nextPage - 1),
             }}
             rowSelection={
-              pendingSelectable
+              decidableFilter
                 ? {
                     selectedRowKeys,
                     onChange: (keys) => setSelectedRowKeys(keys as string[]),
-                    getCheckboxProps: (f) => ({ disabled: f.status !== 'PENDING' }),
+                    getCheckboxProps: (f) => ({ disabled: !isDecidable(f.status) }),
                   }
                 : undefined
             }

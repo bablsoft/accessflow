@@ -1354,7 +1354,8 @@
         "last_scan": "Último escaneo: {{time}}",
         "last_scan_error": "Problema en el último escaneo: {{error}}",
         "findings_title": "Hallazgos",
-        "findings_description": "Clasificaciones propuestas de columnas sensibles. Confirmar aplica la etiqueta y deriva una política de enmascaramiento; descartar suprime la propuesta permanentemente.",
+        "findings_description": "Clasificaciones propuestas de columnas sensibles. Confirmar aplica la etiqueta y deriva una política de enmascaramiento; descartar suprime la propuesta permanentemente. Una propuesta que el escaneo deja de encontrar se marca como obsoleta y sale de esta lista.",
+        "stale_hint": "No se ha vuelto a detectar en los escaneos recientes: puede que los datos se hayan eliminado o enmascarado, o que la columna ya esté etiquetada. Descártalo; si se detecta de nuevo, vuelve a Pendiente.",
         "filter_all": "Todos",
         "col_column": "Columna",
         "col_classification": "Clasificación",
@@ -3114,7 +3115,8 @@
     "discovery_finding_status": {
       "PENDING": "Pendiente",
       "CONFIRMED": "Confirmado",
-      "DISMISSED": "Descartado"
+      "DISMISSED": "Descartado",
+      "STALE": "Obsoleto"
     },
     "delegation_scope": {
       "DATASOURCE": "Fuente de datos",

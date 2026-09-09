@@ -1354,7 +1354,8 @@
         "last_scan": "上次扫描:{{time}}",
         "last_scan_error": "上次扫描问题:{{error}}",
         "findings_title": "发现项",
-        "findings_description": "建议的敏感列分类。确认将应用标签并派生脱敏策略;忽略将永久抑制该建议。",
+        "findings_description": "建议的敏感列分类。确认将应用标签并派生脱敏策略;忽略将永久抑制该建议。扫描不再发现的建议会被标记为已过期并移出此列表。",
+        "stale_hint": "最近几次扫描未再检测到 — 数据可能已被删除或脱敏，或该列已被标记。可将其忽略；若再次检测到，它会回到“待处理”。",
         "filter_all": "全部",
         "col_column": "列",
         "col_classification": "分类",
@@ -3114,7 +3115,8 @@
     "discovery_finding_status": {
       "PENDING": "待处理",
       "CONFIRMED": "已确认",
-      "DISMISSED": "已忽略"
+      "DISMISSED": "已忽略",
+      "STALE": "已过期"
     },
     "delegation_scope": {
       "DATASOURCE": "数据源",

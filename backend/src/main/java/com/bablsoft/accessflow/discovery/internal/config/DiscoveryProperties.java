@@ -22,13 +22,20 @@ import java.time.Duration;
  *   <li>{@code maxNestedLeavesPerRow} — per-row allowance of nested nodes visited during that
  *       walk; charged for every node touched, so a pathological document cannot turn a bounded
  *       sample into an unbounded scan. Top-level scalar cells are free.</li>
+ *   <li>{@code staleScansBeforeExpiry} — how many consecutive scans may sample a finding's table
+ *       without re-proposing the column before the finding leaves the active worklist as
+ *       {@code STALE} (AF-659). Re-detection resets the counter. The default is deliberately not
+ *       1: the sample is {@code SELECT *} with a row cap and no {@code ORDER BY}, so which rows
+ *       it sees shifts between runs, and a column sitting near the 30 % match ratio can flap on
+ *       unchanged data. Three consecutive misses make an unlucky sample a non-event.</li>
  * </ul>
  */
 @ConfigurationProperties("accessflow.discovery")
 public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBudget,
                                   Duration sampleStatementTimeout, Integer maxTablesPerScan,
                                   Integer maxAiTablesPerScan, Integer maxNestedDepth,
-                                  Integer maxNestedLeavesPerRow) {
+                                  Integer maxNestedLeavesPerRow,
+                                  Integer staleScansBeforeExpiry) {
 
     public DiscoveryProperties {
         if (scanPollInterval == null) {
@@ -52,6 +59,9 @@ public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBu
         }
         if (maxNestedLeavesPerRow == null || maxNestedLeavesPerRow <= 0) {
             maxNestedLeavesPerRow = 100;
+        }
+        if (staleScansBeforeExpiry == null || staleScansBeforeExpiry <= 0) {
+            staleScansBeforeExpiry = 3;
         }
     }
 }

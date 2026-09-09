@@ -147,7 +147,7 @@ com.bablsoft.accessflow/
 │   ├── api/
 │   ├── events/
 │   └── internal/   # persistence, scheduled (run + timeout jobs), web
-├── discovery/      # Automated sensitive-data discovery (AF-623): DiscoveryScanJob samples column data via the engine sampling path, regex+checksum detectors (email, PAN+Luhn, SSN, IBAN, phone) + optional fail-safe AI pass propose classification tags an admin confirms (AF-447 derivation) or dismisses
+├── discovery/      # Automated sensitive-data discovery (AF-623): DiscoveryScanJob samples column data via the engine sampling path, regex+checksum detectors (email, PAN+Luhn, SSN, IBAN, phone) + optional fail-safe AI pass propose classification tags an admin confirms (AF-447 derivation) or dismisses; a post-scan sweep retires findings the scan stops proposing as STALE, only for tables it actually sampled (#659)
 │   ├── api/
 │   └── internal/   # config, persistence, detect (pure detectors), scheduled, web
 ├── scim/           # SCIM 2.0 provisioning server (#621): /scim/v2 Users+Groups behind a per-org bearer-token filter chain (@Order(0), SCIM error envelope), attribute-mapping config, show-once tokens; deactivation fans out via core.events.UserDeactivatedEvent (security revokes sessions, access revokes JIT grants)

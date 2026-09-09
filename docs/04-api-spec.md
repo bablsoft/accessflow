@@ -201,7 +201,7 @@ The list is rendered by the `LanguageSwitcher` component in `mode="public"`; sel
 | `GET` | `/admin/data-classifications` | ADMIN | List every classification tag in the organization (compliance reporting) |
 | `GET` | `/datasources/{id}/discovery/config` | ADMIN | Get the datasource's sensitive-data discovery settings (AF-623) |
 | `PUT` | `/datasources/{id}/discovery/config` | ADMIN | Create or update the discovery settings |
-| `GET` | `/datasources/{id}/discovery/findings` | ADMIN | Page the discovery-findings worklist (`status`, `page`, `size`) |
+| `GET` | `/datasources/{id}/discovery/findings` | ADMIN | Page the discovery-findings worklist (`status` incl. `STALE`, `page`, `size`) |
 | `POST` | `/datasources/{id}/discovery/findings/bulk-decision` | ADMIN | Confirm or dismiss a batch of findings (partial success) |
 | `POST` | `/datasources/{id}/discovery/scan` | ADMIN | Trigger an immediate discovery scan (202) |
 | `POST` | `/datasources/drivers` | ADMIN | Upload a custom JDBC driver JAR (multipart) |
@@ -1062,8 +1062,10 @@ masking) to the org's first usable `ai_config` — raw sampled values never leav
 
 #### GET /datasources/{id}/discovery/findings — Response 200
 
-Query params: `status` (`PENDING` | `CONFIRMED` | `DISMISSED`, omitted = all), `page`, `size`.
-Sorted by `last_detected_at` descending.
+Query params: `status` (`PENDING` | `CONFIRMED` | `DISMISSED` | `STALE`, omitted = all), `page`,
+`size`. Sorted by `last_detected_at` descending. `STALE` (AF-659) is a proposal recent scans
+sampled but stopped finding — an aged `PENDING`, not a decision, so it is still confirmable and
+dismissable, and re-detection returns it to `PENDING`.
 
 ```json
 {
@@ -1118,9 +1120,10 @@ it `DISMISSED`, permanently suppressing the proposal on future scans. Response 2
 ```
 
 Row `status` values: `SUCCESS`, `NOT_FOUND` (unknown id in this datasource/org),
-`INVALID_STATE` (finding already decided), `TAG_CONFLICT` (the tag already existed — e.g. added
+`INVALID_STATE` (finding already `CONFIRMED` or `DISMISSED`; a `STALE` finding is still
+decidable), `TAG_CONFLICT` (the tag already existed — e.g. added
 manually since the scan; the finding is still marked `CONFIRMED` so the worklist clears, but no
-new tag or masking is derived), `ERROR` (unexpected failure; the finding stays `PENDING`).
+new tag or masking is derived), `ERROR` (unexpected failure; the finding keeps the status it had, `PENDING` or `STALE`).
 
 #### POST /datasources/{id}/discovery/scan — Response 202
 
@@ -1128,7 +1131,7 @@ Triggers an immediate scan on a background virtual thread — allowed even when 
 (ad-hoc preview before opting into the schedule). `409 DISCOVERY_SCAN_ALREADY_RUNNING` when a scan
 for the datasource is already in flight; `404` for an unknown datasource. Scan runs are audited as
 `DISCOVERY_SCAN_COMPLETED`; confirmations/dismissals as `DISCOVERY_FINDING_CONFIRMED` /
-`DISCOVERY_FINDING_DISMISSED`.
+`DISCOVERY_FINDING_DISMISSED`; findings a scan retires as `STALE` as `DISCOVERY_FINDING_EXPIRED`.
 
 ---
 

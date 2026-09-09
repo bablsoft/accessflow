@@ -63,7 +63,10 @@ class DefaultDiscoveryFindingService implements DiscoveryFindingService {
         if (finding == null) {
             return new BulkDecisionOutcome.Row(findingId, DiscoveryRowStatus.NOT_FOUND, null, null);
         }
-        if (finding.getStatus() != DiscoveryFindingStatus.PENDING) {
+        // STALE is an aged PENDING, not a decision (AF-659) — it stays decidable, so the admin can
+        // clear an aged row without it silently failing the bulk action that made it selectable.
+        if (finding.getStatus() != DiscoveryFindingStatus.PENDING
+                && finding.getStatus() != DiscoveryFindingStatus.STALE) {
             return new BulkDecisionOutcome.Row(findingId, DiscoveryRowStatus.INVALID_STATE,
                     finding.getStatus(), DiscoveryViewMapper.toView(finding));
         }
@@ -82,7 +85,7 @@ class DefaultDiscoveryFindingService implements DiscoveryFindingService {
         } catch (RuntimeException ex) {
             log.error("Discovery finding decision failed for finding {}", findingId, ex);
             return new BulkDecisionOutcome.Row(findingId, DiscoveryRowStatus.ERROR,
-                    DiscoveryFindingStatus.PENDING, DiscoveryViewMapper.toView(finding));
+                    finding.getStatus(), DiscoveryViewMapper.toView(finding));
         }
     }
 }

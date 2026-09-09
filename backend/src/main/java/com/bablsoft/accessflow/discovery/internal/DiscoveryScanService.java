@@ -80,6 +80,7 @@ public class DiscoveryScanService {
     private final AuditLogService auditLogService;
     private final DiscoveryProperties properties;
     private final NestedValueFlattener nestedValueFlattener;
+    private final DiscoveryStaleSweepService staleSweepService;
     private final Clock clock;
 
     private final Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
@@ -155,6 +156,7 @@ public class DiscoveryScanService {
             if (stats.tablesFailed > 0 && stats.tablesScanned == 0) {
                 error = truncate("All " + stats.tablesFailed + " sampled tables failed");
             }
+            ageStaleFindings(datasourceId, organizationId, stats);
         } catch (RuntimeException ex) {
             log.error("Discovery scan failed for datasource {}", datasourceId, ex);
             error = truncate(ex.getMessage() == null ? ex.getClass().getSimpleName()
@@ -162,6 +164,23 @@ public class DiscoveryScanService {
         }
         stampConfig(datasourceId, organizationId, error);
         recordScanAudit(datasourceId, organizationId, actorId, startedAt, stats, error);
+    }
+
+    /**
+     * Counts findings this run sampled but no longer proposes, retiring them as STALE at the
+     * configured threshold. Deliberately swallows everything: the scan itself has already
+     * succeeded by this point, and a bookkeeping failure must not be reported as a failed scan.
+     */
+    private void ageStaleFindings(UUID datasourceId, UUID organizationId, ScanStats stats) {
+        try {
+            var result = staleSweepService.sweep(datasourceId, organizationId, stats.scannedTables,
+                    stats.aiScannedTables, stats.seenFindingIds);
+            stats.findingsAged = result.aged();
+            stats.findingsExpired = result.expired();
+            stats.expiredAuditTruncated = result.expiredAuditTruncated();
+        } catch (RuntimeException ex) {
+            log.error("Stale-finding sweep failed for datasource {}", datasourceId, ex);
+        }
     }
 
     private void scanTable(UUID datasourceId, UUID organizationId, TableTarget target,
@@ -177,12 +196,21 @@ public class DiscoveryScanService {
         var now = clock.instant();
         var aiCandidates = new ArrayList<DataDiscoveryAiService.DiscoveryColumnContext>();
         var columnTypes = columnTypesByName(target);
+        // AF-659 eligibility: whether any column yielded enough values to run detection over, and
+        // whether the AI candidate cap hid a column from the model.
+        var sampled = false;
+        var aiCandidatesTruncated = false;
 
         for (var entry : columnValues.entrySet()) {
             var columnName = entry.getKey();
             var values = entry.getValue();
-            if (values.size() < MIN_SAMPLE_COUNT
-                    || isMasked(target, columnName, maskedColumnRefs)) {
+            if (values.size() < MIN_SAMPLE_COUNT) {
+                continue;
+            }
+            // A masked column still proves the sample was real, so this counts towards "sampled"
+            // before the mask check skips it (AF-659).
+            sampled = true;
+            if (isMasked(target, columnName, maskedColumnRefs)) {
                 continue;
             }
             var matches = detect(values);
@@ -205,6 +233,13 @@ public class DiscoveryScanService {
                                 PARTIAL_PARAMS),
                         null, detectorMatches.count, values.size(), now, stats);
             }
+            if (aiEnabled && !proposed && !isTaggedAnyClassification(taggedKeys, target, columnName)
+                    && aiCandidates.size() >= MAX_AI_COLUMNS_PER_TABLE) {
+                // The model never sees this column, so its AI findings cannot be re-proposed and
+                // the table must not age them. The flattened column order is stable, so without
+                // this the same findings would be missed every scan and expire on schedule.
+                aiCandidatesTruncated = true;
+            }
             if (aiEnabled && !proposed && aiCandidates.size() < MAX_AI_COLUMNS_PER_TABLE
                     && !isTaggedAnyClassification(taggedKeys, target, columnName)) {
                 aiCandidates.add(new DataDiscoveryAiService.DiscoveryColumnContext(columnName,
@@ -213,18 +248,35 @@ public class DiscoveryScanService {
             }
         }
 
+        if (!sampled) {
+            return;
+        }
+        stats.scannedTables.add(DiscoveryTableKey.of(target.schemaName(), target.tableName()));
+
         if (aiEnabled && !aiCandidates.isEmpty()
                 && stats.aiTablesUsed < properties.maxAiTablesPerScan()) {
             stats.aiTablesUsed++;
-            runAiPass(datasourceId, organizationId, target, aiCandidates, columnValues,
-                    taggedKeys, stats);
+            var suggested = runAiPass(datasourceId, organizationId, target, aiCandidates,
+                    columnValues, taggedKeys, stats);
+            // Only a table the AI pass demonstrably answered for may age its AI findings, and only
+            // when the model saw every candidate. The pass is capped well below the table cap, is
+            // opt-in, and is fail-safe all the way down — a rotated key, an outage or a deleted
+            // ai_config yields an empty list rather than an exception, indistinguishable from
+            // "nothing sensitive here". Requiring a real suggestion keeps a provider failure from
+            // retiring every AI finding in the estate; the cost is that a table where the model
+            // now finds nothing at all keeps its AI findings, which is the fail-closed direction.
+            if (suggested > 0 && !aiCandidatesTruncated) {
+                stats.aiScannedTables.add(
+                        DiscoveryTableKey.of(target.schemaName(), target.tableName()));
+            }
         }
     }
 
-    private void runAiPass(UUID datasourceId, UUID organizationId, TableTarget target,
-                           List<DataDiscoveryAiService.DiscoveryColumnContext> candidates,
-                           Map<String, List<String>> columnValues, Set<String> taggedKeys,
-                           ScanStats stats) {
+    /** @return how many suggestions the model returned — 0 also means "the AI lane failed". */
+    private int runAiPass(UUID datasourceId, UUID organizationId, TableTarget target,
+                          List<DataDiscoveryAiService.DiscoveryColumnContext> candidates,
+                          Map<String, List<String>> columnValues, Set<String> taggedKeys,
+                          ScanStats stats) {
         var suggestions = dataDiscoveryAiService.classifyColumns(organizationId,
                 new DataDiscoveryAiService.DiscoveryTableContext(target.qualifiedName(),
                         candidates));
@@ -249,6 +301,7 @@ public class DiscoveryScanService {
                     sample, suggestion.rationale(), 0, values.size(), now, stats);
             stats.aiSuggestions++;
         }
+        return suggestions.size();
     }
 
     private void upsertFinding(UUID datasourceId, UUID organizationId, TableTarget target,
@@ -259,6 +312,11 @@ public class DiscoveryScanService {
         var existing = findingRepository.findByNaturalKey(organizationId, datasourceId,
                 target.schemaName(), target.tableName(), columnName, classification, detector)
                 .orElse(null);
+        if (existing != null) {
+            // Recorded before the status guard below so the sweep can never age a finding this
+            // run re-proposed, whatever state the row was in when we found it.
+            stats.seenFindingIds.add(existing.getId());
+        }
         if (existing == null) {
             var entity = new DiscoveryFindingEntity();
             entity.setId(UUID.randomUUID());
@@ -278,12 +336,19 @@ public class DiscoveryScanService {
             entity.setFirstDetectedAt(now);
             entity.setLastDetectedAt(now);
             findingRepository.save(entity);
+            stats.seenFindingIds.add(entity.getId());
             stats.findingsCreated++;
             return;
         }
-        if (existing.getStatus() != DiscoveryFindingStatus.PENDING) {
+        // CONFIRMED and DISMISSED are permanent decisions and are never reopened by a rescan.
+        // STALE is not a decision — it is an aged PENDING, so re-detection revives it (AF-659).
+        if (existing.getStatus() == DiscoveryFindingStatus.CONFIRMED
+                || existing.getStatus() == DiscoveryFindingStatus.DISMISSED) {
             return;
         }
+        var revived = existing.getStatus() == DiscoveryFindingStatus.STALE;
+        existing.setStatus(DiscoveryFindingStatus.PENDING);
+        existing.setMissedScanCount(0);
         existing.setConfidence(confidence);
         existing.setSampleRedacted(sampleRedacted);
         existing.setRationale(rationale);
@@ -292,6 +357,9 @@ public class DiscoveryScanService {
         existing.setLastDetectedAt(now);
         findingRepository.save(existing);
         stats.findingsRefreshed++;
+        if (revived) {
+            stats.findingsRevived++;
+        }
     }
 
     /** Lowercased sampled column name → the spelling the sample actually used. */
@@ -443,6 +511,10 @@ public class DiscoveryScanService {
             metadata.put("tablesFailed", stats.tablesFailed);
             metadata.put("findingsCreated", stats.findingsCreated);
             metadata.put("findingsRefreshed", stats.findingsRefreshed);
+            metadata.put("findingsRevived", stats.findingsRevived);
+            metadata.put("findingsAged", stats.findingsAged);
+            metadata.put("findingsExpired", stats.findingsExpired);
+            metadata.put("expiredAuditTruncated", stats.expiredAuditTruncated);
             metadata.put("aiSuggestions", stats.aiSuggestions);
             metadata.put("durationMs", Duration.between(startedAt, clock.instant()).toMillis());
             metadata.put("partial", stats.partial);
@@ -485,8 +557,21 @@ public class DiscoveryScanService {
         private int tablesFailed;
         private int findingsCreated;
         private int findingsRefreshed;
+        private int findingsRevived;
+        private int findingsAged;
+        private int findingsExpired;
+        private boolean expiredAuditTruncated;
         private int aiSuggestions;
         private int aiTablesUsed;
         private boolean partial;
+
+        /** Tables this run actually sampled — the only ones whose findings may age (AF-659). */
+        private final Set<DiscoveryTableKey> scannedTables = new HashSet<>();
+
+        /** Subset of the above where the capped, opt-in AI pass also ran. */
+        private final Set<DiscoveryTableKey> aiScannedTables = new HashSet<>();
+
+        /** Findings re-proposed by this run, so the sweep leaves them alone. */
+        private final Set<UUID> seenFindingIds = new HashSet<>();
     }
 }
