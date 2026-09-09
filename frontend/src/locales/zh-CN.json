@@ -102,7 +102,8 @@
     "deployments": "部署",
     "deploymentVersions": "版本矩阵",
     "deploymentPipelines": "部署流水线",
-    "help_agent": "帮助助手"
+    "help_agent": "帮助助手",
+    "governance_domains": "治理域"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -196,7 +197,7 @@
       "domains": {
         "title": "您要治理哪些领域？",
         "subtitle": "选择该组织计划治理的领域。之后可以随时更改。",
-        "always_on": "数据库访问治理始终启用。这两项为可选项，仅决定您会看到哪些引导步骤。",
+        "always_on": "数据库访问治理始终启用。这两项是可选的，决定这里所有人看到哪些导航、审核标签页和仪表板小组件——它们不授予也不收回任何权限。",
         "apis_label": "治理出站 API 调用",
         "apis_help": "在 REST、SOAP、GraphQL 和 gRPC 调用离开网络之前进行审查和审批。",
         "deployments_label": "管控 CI/CD 部署",
@@ -1459,7 +1460,7 @@
       "label_max_queries": "每日最大查询数",
       "label_governs_apis": "治理出站 API 调用",
       "label_governs_deployments": "管控 CI/CD 部署",
-      "governs_help": "仅为引导提示 — 它们只增减初次设置清单的步骤，绝不改变该组织可以使用的功能。",
+      "governs_help": "它们决定本组织显示哪些导航、审核标签页和仪表板小组件，而不是它可以使用什么。组织管理员可在 /admin/governance-domains 修改。",
       "quota_help": "留空或填 0 表示无限制。",
       "usage_title": "用量",
       "usage_datasources": "数据源",
@@ -2400,6 +2401,18 @@
         "embedding_provider_anthropic": "Anthropic 不提供嵌入 API，所选 AI 配置无法索引文档。请将其嵌入提供方指向兼容 OpenAI 的端点以启用检索。",
         "pgvector_unavailable": "本部署的内置 pgvector 存储不可用——可能是未安装 vector 扩展，也可能是 ACCESSFLOW_RAG_PGVECTOR_ENABLED 为 false 导致跳过了 vector_store 迁移。请测试检索以确认，或改用外部 Qdrant 存储。"
       }
+    },
+    "governance_domains": {
+      "title": "治理域",
+      "subtitle": "选择本组织治理哪些域",
+      "description": "数据库访问治理始终启用。关闭某个域只会隐藏其导航、审核标签页和仪表板小组件，不会收回任何权限，已有链接仍然可用。",
+      "label_apis": "治理出站 API 调用",
+      "help_apis": "显示 API 连接器、API 请求编辑器和 API 审核队列。",
+      "label_deployments": "管控 CI/CD 部署",
+      "help_deployments": "显示部署流水线、部署队列、版本跟踪和部署审核标签页。",
+      "save_button": "保存",
+      "save_success": "治理域已更新",
+      "load_error": "无法加载治理域"
     }
   },
   "notifications": {
@@ -3064,7 +3077,7 @@
       "SSO_CONFIGURE": "配置 SSO",
       "SMTP_CONFIGURE": "配置 SMTP",
       "LOCALIZATION_CONFIGURE": "配置本地化",
-      "SETUP_PROGRESS_VIEW": "查看设置进度",
+      "SETUP_PROGRESS_VIEW": "查看并修改设置进度和治理域",
       "EXPORT_POLICY_MANAGE": "管理导出策略",
       "DEPLOYMENT_PIPELINE_MANAGE": "管理部署流水线",
       "DEPLOYMENT_REVIEW": "审核部署"
@@ -3401,7 +3414,9 @@
       "open_anomalies": "未处理的异常",
       "open_suggestions": "未处理的建议",
       "open_api_requests": "进行中的 API 请求",
-      "pending_api_approvals": "待审批的 API 请求"
+      "pending_api_approvals": "待审批的 API 请求",
+      "open_deployments": "进行中的部署",
+      "pending_deployment_approvals": "待审批的部署"
     },
     "widgets": {
       "pendingApprovals": "待批准",
@@ -3416,7 +3431,10 @@
       "myAccessRequests": "我的访问申请",
       "myRequestGroups": "我的请求组",
       "riskMix": "风险分布",
-      "activityHeatmap": "活动热图"
+      "activityHeatmap": "活动热图",
+      "pendingDeploymentApprovals": "待审批的部署",
+      "myDeployments": "我最近的部署",
+      "deploymentVersions": "环境版本"
     },
     "pending": {
       "empty": "没有等待您审核的内容",
@@ -3494,6 +3512,17 @@
     },
     "activity": {
       "empty": "过去 90 天没有查询活动"
+    },
+    "pending_deployment_approvals": {
+      "empty": "没有等待你审核的部署",
+      "review": "审核"
+    },
+    "my_deployments": {
+      "empty": "你还没有触发过任何部署",
+      "view": "查看"
+    },
+    "deployment_versions": {
+      "empty": "所有环境均为最新版本"
     }
   },
   "attestation": {

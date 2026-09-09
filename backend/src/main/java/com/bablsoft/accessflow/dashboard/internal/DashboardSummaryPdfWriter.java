@@ -45,6 +45,9 @@ class DashboardSummaryPdfWriter {
             cursor.line(font, BODY_SIZE, "Pending approvals (as reviewer): " + s.pendingApprovals());
             cursor.line(font, BODY_SIZE, "Open anomalies: " + s.openAnomalies());
             cursor.line(font, BODY_SIZE, "Open optimization suggestions: " + s.openSuggestions());
+            cursor.line(font, BODY_SIZE, "Open deployments: " + s.openDeployments());
+            cursor.line(font, BODY_SIZE,
+                    "Pending deployment approvals (as reviewer): " + s.pendingDeploymentApprovals());
             cursor.gap(10f);
 
             cursor.line(bold, HEADING_SIZE, "Status breakdown");

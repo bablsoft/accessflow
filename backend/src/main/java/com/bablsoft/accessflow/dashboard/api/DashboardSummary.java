@@ -4,6 +4,8 @@ import com.bablsoft.accessflow.apigov.api.ApiRequestView;
 import com.bablsoft.accessflow.apigov.api.ApiReviewService.PendingApiReview;
 import com.bablsoft.accessflow.core.api.MyQueryStatusCount;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService.PendingDeploymentReview;
 import com.bablsoft.accessflow.workflow.api.ReviewService.PendingReview;
 
 import java.util.List;
@@ -14,7 +16,8 @@ import java.util.List;
  * {@code ReviewService}, {@code MyQueryInsightsLookupService}, the query read path,
  * {@code BehaviorAnomalyLookupService}, the dashboard suggestion backlog, and — for API Access
  * Governance (AF-500) — {@code MyApiRequestInsightsLookupService}, {@code ApiRequestService}, and
- * {@code ApiReviewService}.
+ * {@code ApiReviewService}. Deployment approval governance (#926) adds {@code DeploymentRequestService}
+ * (self-scoped through the filter's {@code submittedByUserId}) and {@code DeploymentReviewService}.
  */
 public record DashboardSummary(
         long pendingApprovalsCount,
@@ -23,11 +26,15 @@ public record DashboardSummary(
         long openSuggestionsCount,
         long openApiRequestsCount,
         long pendingApiApprovalsCount,
+        long openDeploymentsCount,
+        long pendingDeploymentApprovalsCount,
         List<MyQueryStatusCount> statusCounts,
         List<QueryListItemView> recentQueries,
         List<PendingReview> recentPendingApprovals,
         List<ApiRequestView> recentApiRequests,
-        List<PendingApiReview> recentPendingApiApprovals) {
+        List<PendingApiReview> recentPendingApiApprovals,
+        List<DeploymentRequestView> recentDeployments,
+        List<PendingDeploymentReview> recentPendingDeploymentApprovals) {
 
     public DashboardSummary {
         statusCounts = statusCounts == null ? List.of() : List.copyOf(statusCounts);
@@ -37,5 +44,8 @@ public record DashboardSummary(
         recentApiRequests = recentApiRequests == null ? List.of() : List.copyOf(recentApiRequests);
         recentPendingApiApprovals = recentPendingApiApprovals == null
                 ? List.of() : List.copyOf(recentPendingApiApprovals);
+        recentDeployments = recentDeployments == null ? List.of() : List.copyOf(recentDeployments);
+        recentPendingDeploymentApprovals = recentPendingDeploymentApprovals == null
+                ? List.of() : List.copyOf(recentPendingDeploymentApprovals);
     }
 }

@@ -28,6 +28,9 @@ class DashboardSummaryCsvWriter {
         row(sb, "metrics", "pending_approvals", String.valueOf(summary.pendingApprovals()));
         row(sb, "metrics", "open_anomalies", String.valueOf(summary.openAnomalies()));
         row(sb, "metrics", "open_suggestions", String.valueOf(summary.openSuggestions()));
+        row(sb, "metrics", "open_deployments", String.valueOf(summary.openDeployments()));
+        row(sb, "metrics", "pending_deployment_approvals",
+                String.valueOf(summary.pendingDeploymentApprovals()));
         summary.statusBreakdown().forEach(
                 c -> row(sb, "status_breakdown", c.status().name(), String.valueOf(c.count())));
         summary.riskBreakdown().forEach(

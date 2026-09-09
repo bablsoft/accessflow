@@ -25,8 +25,17 @@ export type DashboardWidgetId =
   | 'anomalies'
   | 'recentApiRequests'
   | 'apiRequestTrends'
-  | 'pendingApiApprovals';
+  | 'pendingApiApprovals'
+  | 'pendingDeploymentApprovals'
+  | 'myDeployments'
+  | 'deploymentVersions';
 
+/**
+ * New ids are appended, never inserted: `DashboardPage` reconciles a user's persisted `order`
+ * with this list by keeping the known ids in their stored positions and appending the rest, and
+ * `hidden[]` is a deny-list, so a widget shipped after the prefs were first persisted shows up
+ * without a store migration and an existing `hidden`/`order`/`size` survives untouched.
+ */
 export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   'pendingApprovals',
   'attestationsDue',
@@ -41,6 +50,9 @@ export const DASHBOARD_WIDGET_IDS: DashboardWidgetId[] = [
   'recentApiRequests',
   'apiRequestTrends',
   'pendingApiApprovals',
+  'pendingDeploymentApprovals',
+  'myDeployments',
+  'deploymentVersions',
 ];
 
 export type DashboardWidgetSize = 'half' | 'full';
@@ -60,6 +72,9 @@ export const DEFAULT_WIDGET_SIZE: Record<DashboardWidgetId, DashboardWidgetSize>
   recentApiRequests: 'half',
   apiRequestTrends: 'half',
   pendingApiApprovals: 'half',
+  pendingDeploymentApprovals: 'half',
+  myDeployments: 'half',
+  deploymentVersions: 'full',
 };
 
 export type DashboardTrendsRange = '7d' | '30d' | '90d';

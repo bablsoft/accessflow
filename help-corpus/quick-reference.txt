@@ -97,6 +97,7 @@ Where things are in the app
     Notifications · /admin/notifications · needs NOTIFICATION_CHANNEL_MANAGE — Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.
     Slack · /admin/slack · needs NOTIFICATION_CHANNEL_MANAGE — Slack workspace connection.
     Languages · /admin/languages · needs LOCALIZATION_CONFIGURE — Which of the seven interface languages are offered.
+    Governance domains · /admin/governance-domains · needs SETUP_PROGRESS_VIEW — Whether this organization governs outbound API calls and CI/CD deployments — which navigation, review tabs and dashboard widgets are shown.
 
   System → AI
     AI configurations · /admin/ai-configs · needs AI_MANAGE — AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.

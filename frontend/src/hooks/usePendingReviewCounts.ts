@@ -11,8 +11,8 @@ import {
   type DeploymentRollbackReviewListFilters,
 } from '@/api/deploymentReviews';
 import { useAuthStore } from '@/store/authStore';
-import { hasPermission } from '@/utils/permissions';
-import { REVIEW_HUB_TAB_PERMISSION, type ReviewHubTabKey } from '@/utils/reviewHubTabs';
+import { useGovernanceDomains } from '@/hooks/useGovernanceDomains';
+import { visibleReviewHubTabs, type ReviewHubTabKey } from '@/utils/reviewHubTabs';
 
 export type PendingReviewCounts = Record<ReviewHubTabKey, number> & { total: number };
 
@@ -36,11 +36,17 @@ const REFETCH_INTERVAL_MS = 30_000;
 
 /**
  * Pending counts for every review queue the current user may work (#772). A queue the user lacks
- * the permission for is never fetched and reports `0`.
+ * the permission for is never fetched and reports `0` — and so is one whose governance domain the
+ * organization switched off (#926), because the sidebar badge this feeds must agree with the tabs
+ * `ReviewHubPage` actually renders. Counting a hidden queue would put an un-actionable number on
+ * the nav: the user clicks it and lands on a hub with no tab to explain it. It also keeps the
+ * hidden queue's endpoints from being polled every 30 s for a domain nobody governs.
  */
 export function usePendingReviewCounts(): PendingReviewCounts {
   const user = useAuthStore((s) => s.user);
-  const may = (tab: ReviewHubTabKey) => !!user && hasPermission(user, REVIEW_HUB_TAB_PERMISSION[tab]);
+  const domains = useGovernanceDomains();
+  const visible = visibleReviewHubTabs(user, domains);
+  const may = (tab: ReviewHubTabKey) => visible.includes(tab);
 
   const queries = useQuery({
     queryKey: reviewKeys.pendingFor(PENDING_COUNT_FILTERS.queries),

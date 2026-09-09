@@ -99,6 +99,12 @@ ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: {{ .Values.bootstrap.organization.name |
 {{- with .Values.bootstrap.organization.slug }}
 ACCESSFLOW_BOOTSTRAP_ORGANIZATION_SLUG: {{ . | quote }}
 {{- end }}
+{{- if not (kindIs "invalid" .Values.bootstrap.organization.governsApis) }}
+ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_APIS: {{ .Values.bootstrap.organization.governsApis | quote }}
+{{- end }}
+{{- if not (kindIs "invalid" .Values.bootstrap.organization.governsDeployments) }}
+ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_DEPLOYMENTS: {{ .Values.bootstrap.organization.governsDeployments | quote }}
+{{- end }}
 ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: {{ .Values.bootstrap.admin.email | quote }}
 ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: {{ .Values.bootstrap.admin.displayName | quote }}
 {{- range $i, $sa := .Values.bootstrap.serviceAccounts }}

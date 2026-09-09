@@ -6,7 +6,9 @@ import com.bablsoft.accessflow.audit.events.BootstrapResourceUpsertedEvent;
 import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
 import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.OrganizationSpec;
+import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.OrganizationProvisioningService;
+import com.bablsoft.accessflow.core.api.UpdateOrganizationCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +32,7 @@ import static org.mockito.Mockito.when;
 class OrganizationReconcilerTest {
 
     @Mock OrganizationProvisioningService organizationProvisioningService;
+    @Mock OrganizationAdminService organizationAdminService;
     @Mock BootstrapStateTracker stateTracker;
     @Spy SpecFingerprinter fingerprinter = new SpecFingerprinter();
     @InjectMocks OrganizationReconciler reconciler;
@@ -43,7 +46,7 @@ class OrganizationReconcilerTest {
 
     @Test
     void throwsWhenNameIsBlank() {
-        assertThatThrownBy(() -> reconciler.reconcile(new OrganizationSpec("  ", null)))
+        assertThatThrownBy(() -> reconciler.reconcile(new OrganizationSpec("  ", null, null, null)))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -52,7 +55,7 @@ class OrganizationReconcilerTest {
         var existingId = UUID.randomUUID();
         when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
 
-        var result = reconciler.reconcile(new OrganizationSpec("Acme", "acme"));
+        var result = reconciler.reconcile(new OrganizationSpec("Acme", "acme", null, null));
 
         assertThat(result).isEqualTo(existingId);
         verify(organizationProvisioningService, never()).create(org.mockito.ArgumentMatchers.anyString(),
@@ -67,7 +70,7 @@ class OrganizationReconcilerTest {
         when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.empty());
         when(organizationProvisioningService.create("Acme", null)).thenReturn(newId);
 
-        var result = reconciler.reconcile(new OrganizationSpec("Acme", null));
+        var result = reconciler.reconcile(new OrganizationSpec("Acme", null, null, null));
 
         assertThat(result).isEqualTo(newId);
         var captor = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
@@ -88,7 +91,7 @@ class OrganizationReconcilerTest {
         when(organizationProvisioningService.findBySlug("custom-slug")).thenReturn(Optional.empty());
         when(organizationProvisioningService.create("Acme", "custom-slug")).thenReturn(newId);
 
-        var result = reconciler.reconcile(new OrganizationSpec("Acme", "custom-slug"));
+        var result = reconciler.reconcile(new OrganizationSpec("Acme", "custom-slug", null, null));
 
         assertThat(result).isEqualTo(newId);
     }
@@ -99,8 +102,71 @@ class OrganizationReconcilerTest {
         when(organizationProvisioningService.findBySlug("org")).thenReturn(Optional.empty());
         when(organizationProvisioningService.create("!!!", null)).thenReturn(newId);
 
-        var result = reconciler.reconcile(new OrganizationSpec("!!!", null));
+        var result = reconciler.reconcile(new OrganizationSpec("!!!", null, null, null));
 
         assertThat(result).isEqualTo(newId);
+    }
+
+    @Test
+    void appliesGovernanceDomainsToANewlyCreatedOrganization() {
+        var orgId = UUID.randomUUID();
+        when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.empty());
+        when(organizationProvisioningService.create("Acme", "acme")).thenReturn(orgId);
+
+        reconciler.reconcile(new OrganizationSpec("Acme", "acme", true, false));
+
+        var command = ArgumentCaptor.forClass(UpdateOrganizationCommand.class);
+        verify(organizationAdminService).update(eq(orgId), command.capture());
+        assertThat(command.getValue().governsApis()).isTrue();
+        assertThat(command.getValue().governsDeployments()).isFalse();
+        assertThat(command.getValue().name()).isNull();
+        assertThat(command.getValue().maxUsers()).isNull();
+    }
+
+    @Test
+    void appliesGovernanceDomainsToAnExistingOrganizationWhoseDeclaredSpecChanged() {
+        var existingId = UUID.randomUUID();
+        when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
+        when(stateTracker.findFingerprint(existingId, BootstrapResourceType.ORGANIZATION, existingId))
+                .thenReturn(Optional.of("a-stale-fingerprint"));
+
+        var result = reconciler.reconcile(new OrganizationSpec("Acme", "acme", true, true));
+
+        assertThat(result).isEqualTo(existingId);
+        var command = ArgumentCaptor.forClass(UpdateOrganizationCommand.class);
+        verify(organizationAdminService).update(eq(existingId), command.capture());
+        assertThat(command.getValue().governsDeployments()).isTrue();
+        // The new fingerprint is recorded with an UPDATE event, like every other reconciler.
+        verify(stateTracker).recordFingerprintAndPublish(eq(existingId),
+                eq(BootstrapResourceType.ORGANIZATION), eq(existingId), any(), any());
+    }
+
+    @Test
+    void leavesAnExistingOrganizationAloneWhenTheDeclaredSpecIsUnchanged() {
+        var existingId = UUID.randomUUID();
+        when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
+        // The fingerprint the previous run stored for exactly this spec.
+        var spec = new OrganizationSpec("Acme", "acme", true, true);
+        var stored = fingerprinter.fingerprint(new java.util.LinkedHashMap<>(java.util.Map.of(
+                "name", "Acme", "slug", "acme", "governs_apis", true, "governs_deployments", true)));
+        when(stateTracker.findFingerprint(existingId, BootstrapResourceType.ORGANIZATION, existingId))
+                .thenReturn(Optional.of(stored));
+
+        reconciler.reconcile(spec);
+
+        // No write, so a restart cannot revert what an admin just changed through
+        // PUT /admin/governance-domains, nor churn organizations.updated_at.
+        verify(organizationAdminService, never()).update(any(), any());
+        verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void leavesGovernanceDomainsAloneWhenTheSpecSetsNeither() {
+        var existingId = UUID.randomUUID();
+        when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
+
+        reconciler.reconcile(new OrganizationSpec("Acme", "acme", null, null));
+
+        verify(organizationAdminService, never()).update(any(), any());
     }
 }

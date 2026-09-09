@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PushApprovalsToggle } from '@/components/review/PushApprovalsToggle';
 import { QueryReviewsTab } from '@/pages/reviews/QueryReviewsTab';
+import { useGovernanceDomains } from '@/hooks/useGovernanceDomains';
 import { usePendingReviewCounts } from '@/hooks/usePendingReviewCounts';
 import { useAuthStore } from '@/store/authStore';
 import { reviewKeys } from '@/api/reviews';
@@ -54,18 +55,21 @@ const TABS: ReviewHubTab[] = [
  * The unified review queue (#772): every request kind the viewer may review, as tabs on one
  * page, with the pending count on each tab and the sum on the sidebar badge. Tabs the viewer
  * lacks the permission for are not rendered — a reviewer holding only `API_REQUEST_REVIEW`
- * sees no Deployments tab, not an empty one. Only the active tab is mounted, so the inactive
- * queues are never fetched (and never leak hidden rows into the DOM).
+ * sees no Deployments tab, not an empty one — and neither are tabs whose governance domain the
+ * organization switched off (#926). An explicit `?tab=` the viewer has permission for is still
+ * honoured and rendered even in that case, so deep links never dead-end. Only the active tab is
+ * mounted, so the inactive queues are never fetched (and never leak hidden rows into the DOM).
  */
 export function ReviewHubPage() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const domains = useGovernanceDomains();
   const queryClient = useQueryClient();
   const counts = usePendingReviewCounts();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const requested = searchParams.get('tab');
-  const active = resolveReviewHubTab(requested, user);
+  const active = resolveReviewHubTab(requested, user, domains);
   if (!active) return null;
   // A `?tab=` the viewer may not see (or that does not exist) is replaced, so the URL never
   // lies about what is on screen. A bare `/reviews` is left alone.
@@ -73,8 +77,10 @@ export function ReviewHubPage() {
     return <Navigate to={reviewHubPath(active)} replace />;
   }
 
-  const visible = visibleReviewHubTabs(user);
-  const tabs = TABS.filter((tab) => visible.includes(tab.key));
+  // The active tab is always in the bar, even when its domain is off: a deep link that resolved
+  // to it must land somewhere the user can see and switch away from.
+  const visible = visibleReviewHubTabs(user, domains);
+  const tabs = TABS.filter((tab) => visible.includes(tab.key) || tab.key === active);
   const activeTab = tabs.find((tab) => tab.key === active);
   if (!activeTab) return null;
 

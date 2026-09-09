@@ -270,6 +270,16 @@ export interface UserAttributes {
   attributes: Record<string, string>;
 }
 
+/**
+ * The organization's own governance-domain switches (#926), read and written by an admin holding
+ * `SETUP_PROGRESS_VIEW`. Visibility only — they decide which sidebar sub-sections, review-hub tabs
+ * and dashboard widgets are offered, never what anyone is allowed to do.
+ */
+export interface GovernanceDomainsConfig {
+  governs_apis: boolean;
+  governs_deployments: boolean;
+}
+
 export interface SetupProgress {
   datasources_configured: boolean;
   review_plans_configured: boolean;
@@ -2568,6 +2578,34 @@ export interface DashboardPendingApiApproval {
   created_at: string;
 }
 
+export interface DashboardRecentDeployment {
+  id: string;
+  pipeline_id: string;
+  pipeline_name: string | null;
+  environment_id: string;
+  environment_name: string | null;
+  version: string;
+  status: QueryStatus;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  outcome: DeploymentOutcome | null;
+  created_at: string;
+}
+
+export interface DashboardPendingDeploymentApproval {
+  deployment_request_id: string;
+  pipeline_id: string;
+  pipeline_name: string | null;
+  environment_id: string;
+  environment_name: string | null;
+  submitted_by_user_id: string;
+  version: string;
+  ai_risk_level: RiskLevel | null;
+  ai_risk_score: number | null;
+  current_stage: number;
+  created_at: string;
+}
+
 export interface DashboardSummary {
   pending_approvals_count: number;
   open_queries_count: number;
@@ -2575,11 +2613,15 @@ export interface DashboardSummary {
   open_suggestions_count: number;
   open_api_requests_count: number;
   pending_api_approvals_count: number;
+  open_deployments_count: number;
+  pending_deployment_approvals_count: number;
   status_counts: DashboardStatusCount[];
   recent_queries: DashboardRecentQuery[];
   recent_pending_approvals: DashboardPendingApproval[];
   recent_api_requests: DashboardRecentApiRequest[];
   recent_pending_api_approvals: DashboardPendingApiApproval[];
+  recent_deployments: DashboardRecentDeployment[];
+  recent_pending_deployment_approvals: DashboardPendingDeploymentApproval[];
 }
 
 export interface DashboardStatusBucket {

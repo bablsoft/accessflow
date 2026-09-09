@@ -45,7 +45,7 @@ class WeeklyDigestDispatchServiceTest {
         when(repo.findById(sub.getId())).thenReturn(Optional.of(sub));
         when(builder.build(ORG, USER, null)).thenReturn(new DashboardWeeklySummary(ORG, USER,
                 "u@x.io", "User", LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 5,
-                List.of(), List.of(), 2, 1, 3, NOW));
+                List.of(), List.of(), 2, 1, 3, 0, 0, NOW));
 
         service.publishDigest(sub.getId(), NOW);
 

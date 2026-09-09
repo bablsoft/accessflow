@@ -9,6 +9,7 @@ import type {
   AccessRequestPage,
   AnomalyPage,
   AttestationItemPage,
+  DeploymentEnvironmentVersionPage,
   DashboardSummary,
   DashboardSuggestions,
   DigestSubscription,
@@ -29,6 +30,7 @@ const {
   listWorklist,
   listAccess,
   listGroups,
+  listVersions,
 } = vi.hoisted(() => ({
   fetchSummary: vi.fn(),
   fetchTrends: vi.fn(),
@@ -42,6 +44,7 @@ const {
   listWorklist: vi.fn(),
   listAccess: vi.fn(),
   listGroups: vi.fn(),
+  listVersions: vi.fn(),
 }));
 
 vi.mock('@/api/dashboard', () => ({
@@ -85,6 +88,12 @@ vi.mock('@/api/requestGroups', async () => {
   return { ...actual, listRequestGroups: listGroups };
 });
 
+vi.mock('@/api/deploymentVersions', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/api/deploymentVersions')>('@/api/deploymentVersions');
+  return { ...actual, listDeploymentEnvironmentVersions: listVersions };
+});
+
 vi.mock('@/components/charts', async () => {
   const { bklitChartMocks } = await import('@/components/dashboard/chartsTestMocks');
   return bklitChartMocks();
@@ -96,7 +105,11 @@ import { SYSTEM_ROLE_PERMISSIONS } from '@/mocks/systemRolePermissions';
 
 const { default: DashboardPage } = await import('./DashboardPage');
 
-function setRole(role: keyof typeof SYSTEM_ROLE_PERMISSIONS) {
+/** `domains` omitted ⇒ the flags are absent from the payload, which must fail open (#926). */
+function setRole(
+  role: keyof typeof SYSTEM_ROLE_PERMISSIONS,
+  domains?: { governs_apis?: boolean; governs_deployments?: boolean },
+) {
   useAuthStore.setState({
     user: {
       id: 'u-1',
@@ -109,6 +122,7 @@ function setRole(role: keyof typeof SYSTEM_ROLE_PERMISSIONS) {
       totp_enabled: false,
       platform_admin: false,
       preferred_language: null,
+      ...(domains ?? {}),
     },
     accessToken: 'token',
   });
@@ -181,6 +195,38 @@ function summary(): DashboardSummary {
         created_at: '2026-06-20T13:00:00Z',
       },
     ],
+    open_deployments_count: 6,
+    pending_deployment_approvals_count: 2,
+    recent_deployments: [
+      {
+        id: 'd1',
+        pipeline_id: 'p1',
+        pipeline_name: 'Checkout',
+        environment_id: 'e1',
+        environment_name: 'prod',
+        version: '1.4.2',
+        status: 'EXECUTED',
+        ai_risk_level: 'LOW',
+        ai_risk_score: 12,
+        outcome: 'SUCCEEDED',
+        created_at: '2026-06-20T14:00:00Z',
+      },
+    ],
+    recent_pending_deployment_approvals: [
+      {
+        deployment_request_id: 'd2',
+        pipeline_id: 'p1',
+        pipeline_name: 'Checkout',
+        environment_id: 'e1',
+        environment_name: 'prod',
+        submitted_by_user_id: 'u-9',
+        version: '1.4.3',
+        ai_risk_level: 'HIGH',
+        ai_risk_score: 88,
+        current_stage: 1,
+        created_at: '2026-06-20T15:00:00Z',
+      },
+    ],
   };
 }
 
@@ -197,6 +243,13 @@ const emptyWorklist: AttestationItemPage = {
   total_pages: 0,
 };
 const emptyAccess: AccessRequestPage = {
+  content: [],
+  page: 0,
+  size: 5,
+  total_elements: 0,
+  total_pages: 0,
+};
+const emptyVersions: DeploymentEnvironmentVersionPage = {
   content: [],
   page: 0,
   size: 5,
@@ -243,6 +296,7 @@ describe('DashboardPage', () => {
     listWorklist.mockResolvedValue(emptyWorklist);
     listAccess.mockResolvedValue(emptyAccess);
     listGroups.mockResolvedValue(emptyGroups);
+    listVersions.mockResolvedValue(emptyVersions);
     exportSummary.mockResolvedValue({ blob: new Blob(['x']), filename: 'dashboard-summary.pdf' });
     // jsdom lacks object-URL helpers used by the export download.
     URL.createObjectURL = vi.fn(() => 'blob:x');
@@ -273,9 +327,67 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('dashboard-widget-attestationsDue')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-myAccessRequests')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-myRequestGroups')).toBeInTheDocument();
+    // Deployment governance widgets + stat cards (#926).
+    expect(screen.getByTestId('dashboard-widget-pendingDeploymentApprovals')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-myDeployments')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-widget-deploymentVersions')).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('dashboard-stat-openDeployments')).getByText('6'),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('dashboard-stat-pendingDeploymentApprovals')).getByText('2'),
+    ).toBeInTheDocument();
     // Bklit chart widgets.
     expect(screen.getByTestId('dashboard-widget-riskMix')).toBeInTheDocument();
     expect(screen.getByTestId('dashboard-widget-activityHeatmap')).toBeInTheDocument();
+  });
+
+  describe('governance-domain visibility (#926)', () => {
+    it('drops the API widgets for an organization that governs no APIs', async () => {
+      setRole('ADMIN', { governs_apis: false, governs_deployments: true });
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
+
+      expect(screen.queryByTestId('dashboard-widget-recentApiRequests')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-widget-apiRequestTrends')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-widget-pendingApiApprovals')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-stat-openApiRequests')).not.toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-widget-myDeployments')).toBeInTheDocument();
+    });
+
+    it('drops the deployment widgets for an organization that governs no deployments', async () => {
+      setRole('ADMIN', { governs_apis: true, governs_deployments: false });
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
+
+      expect(
+        screen.queryByTestId('dashboard-widget-pendingDeploymentApprovals'),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-widget-myDeployments')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-widget-deploymentVersions')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-stat-openDeployments')).not.toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-widget-recentApiRequests')).toBeInTheDocument();
+    });
+
+    it('leaves only the database widgets when the org governs neither domain', async () => {
+      setRole('ADMIN', { governs_apis: false, governs_deployments: false });
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
+
+      expect(screen.queryByTestId('dashboard-widget-recentApiRequests')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('dashboard-widget-myDeployments')).not.toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-widget-recentQueries')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-widget-pendingApprovals')).toBeInTheDocument();
+    });
+
+    it('fails open when the payload carries neither flag (a pre-#926 session)', async () => {
+      setRole('ADMIN');
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('dashboard-stat-pending')).toBeInTheDocument());
+
+      expect(screen.getByTestId('dashboard-widget-recentApiRequests')).toBeInTheDocument();
+      expect(screen.getByTestId('dashboard-widget-myDeployments')).toBeInTheDocument();
+    });
   });
 
   it('shows a sparkline on the open-queries tile when the trends window has activity', async () => {

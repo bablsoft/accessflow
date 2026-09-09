@@ -102,7 +102,8 @@
     "deployments": "Deployments",
     "deploymentVersions": "Version Matrix",
     "deploymentPipelines": "Deployment Pipelines",
-    "help_agent": "Help assistant"
+    "help_agent": "Help assistant",
+    "governance_domains": "Governance domains"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -196,7 +197,7 @@
       "domains": {
         "title": "What will you govern?",
         "subtitle": "Pick the domains this organization plans to govern. You can change this later.",
-        "always_on": "Database access governance is always on. These two are optional and only decide which onboarding steps you see.",
+        "always_on": "Database access governance is always on. These two are optional, and decide which navigation, review tabs and dashboard widgets everyone here is shown — they grant and revoke nothing.",
         "apis_label": "Govern outbound API calls",
         "apis_help": "Review and approve REST, SOAP, GraphQL and gRPC calls before they leave your network.",
         "deployments_label": "Gate CI/CD deployments",
@@ -1459,7 +1460,7 @@
       "label_max_queries": "Max queries per day",
       "label_governs_apis": "Govern outbound API calls",
       "label_governs_deployments": "Gate CI/CD deployments",
-      "governs_help": "Onboarding hints only — they add or remove first-run checklist steps and never change what this organization may use.",
+      "governs_help": "They decide which navigation, review tabs and dashboard widgets this organization is shown — never what it may use. An org admin can change them at /admin/governance-domains.",
       "quota_help": "Leave blank or 0 for unlimited.",
       "usage_title": "Usage",
       "usage_datasources": "Datasources",
@@ -2400,6 +2401,18 @@
         "embedding_provider_anthropic": "Anthropic offers no embeddings API, so the selected AI configuration cannot index documentation. Point its embedding provider at an OpenAI-compatible endpoint to enable retrieval.",
         "pgvector_unavailable": "In-app pgvector storage is unavailable on this deployment — either the vector extension is not installed or ACCESSFLOW_RAG_PGVECTOR_ENABLED is false, which skipped the vector_store migration. Test retrieval to see which, or use an external Qdrant store."
       }
+    },
+    "governance_domains": {
+      "title": "Governance domains",
+      "subtitle": "Choose which domains this organization governs",
+      "description": "Database access governance is always on. Turning a domain off hides its navigation, review tabs and dashboard widgets — it revokes no permission, and existing links keep working.",
+      "label_apis": "Govern outbound API calls",
+      "help_apis": "Show API connectors, the API request editor and the API review queue.",
+      "label_deployments": "Gate CI/CD deployments",
+      "help_deployments": "Show deployment pipelines, the deployment queue, version tracking and the deployment review tabs.",
+      "save_button": "Save",
+      "save_success": "Governance domains updated",
+      "load_error": "Could not load the governance domains"
     }
   },
   "notifications": {
@@ -3088,7 +3101,7 @@
       "SSO_CONFIGURE": "Configure SSO",
       "SMTP_CONFIGURE": "Configure SMTP",
       "LOCALIZATION_CONFIGURE": "Configure localization",
-      "SETUP_PROGRESS_VIEW": "View setup progress",
+      "SETUP_PROGRESS_VIEW": "View & change setup progress and governance domains",
       "EXPORT_POLICY_MANAGE": "Manage export policies",
       "DEPLOYMENT_PIPELINE_MANAGE": "Manage deployment pipelines",
       "DEPLOYMENT_REVIEW": "Review deployments"
@@ -3401,7 +3414,9 @@
       "open_anomalies": "Open anomalies",
       "open_suggestions": "Open suggestions",
       "open_api_requests": "Open API requests",
-      "pending_api_approvals": "Pending API approvals"
+      "pending_api_approvals": "Pending API approvals",
+      "open_deployments": "Open deployments",
+      "pending_deployment_approvals": "Pending deployment approvals"
     },
     "widgets": {
       "pendingApprovals": "Pending approvals",
@@ -3416,7 +3431,10 @@
       "myAccessRequests": "My access requests",
       "myRequestGroups": "My request groups",
       "riskMix": "Risk mix",
-      "activityHeatmap": "Activity heatmap"
+      "activityHeatmap": "Activity heatmap",
+      "pendingDeploymentApprovals": "Pending deployment approvals",
+      "myDeployments": "My recent deployments",
+      "deploymentVersions": "Environment versions"
     },
     "pending": {
       "empty": "Nothing awaiting your review",
@@ -3494,6 +3512,17 @@
     },
     "activity": {
       "empty": "No query activity in the last 90 days"
+    },
+    "pending_deployment_approvals": {
+      "empty": "No deployments awaiting your review",
+      "review": "Review"
+    },
+    "my_deployments": {
+      "empty": "You haven't triggered any deployments yet",
+      "view": "View"
+    },
+    "deployment_versions": {
+      "empty": "Every environment is on the latest version"
     }
   },
   "attestation": {

@@ -649,6 +649,8 @@ The backend exposes a single `@ConfigurationProperties("accessflow.bootstrap")` 
 ```
 accessflow.bootstrap.enabled                              → ACCESSFLOW_BOOTSTRAP_ENABLED
 accessflow.bootstrap.organization.name                    → ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME
+accessflow.bootstrap.organization.governs-apis            → ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_APIS
+accessflow.bootstrap.organization.governs-deployments     → ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_DEPLOYMENTS
 accessflow.bootstrap.admin.display-name                   → ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME
 accessflow.bootstrap.service-accounts[0].email            → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL
 accessflow.bootstrap.service-accounts[0].api-key          → ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY
@@ -658,6 +660,16 @@ accessflow.bootstrap.datasources[2].password              → ACCESSFLOW_BOOTSTR
 ```
 
 The canonical property tree lives in [BootstrapProperties.java](../backend/src/main/java/com/bablsoft/accessflow/bootstrap/internal/BootstrapProperties.java) and its `spec/` sub-records.
+
+`ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_APIS` / `..._GOVERNS_DEPLOYMENTS` (#926) declare which
+optional governance domains the bootstrapped organization uses. Database access governance is
+always on and has no flag. A bootstrapped install never runs the first-run wizard, so without these
+the organization keeps the provisioning default — **both off**, which since #926 means the SPA does
+not offer the API or Deployments navigation, review-hub tabs or dashboard widgets. Both are boxed
+booleans: an unset variable leaves whatever the row already holds, and the reconciler applies a set
+value on every run, to a freshly-created organization and a pre-existing one alike. They are a
+visibility hint only — they gate no route, permission or endpoint authorization, and an org admin
+can change the answer at `/admin/governance-domains`.
 
 ### Reconcile order
 
@@ -727,6 +739,8 @@ bootstrap:
   enabled: true
   organization:
     name: Acme
+    governsApis: true          # optional (#926) — omit to leave the stored value alone
+    governsDeployments: true
   admin:
     email: admin@acme.com
     displayName: Initial Admin

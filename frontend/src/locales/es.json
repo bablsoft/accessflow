@@ -102,7 +102,8 @@
     "deployments": "Despliegues",
     "deploymentVersions": "Matriz de versiones",
     "deploymentPipelines": "Pipelines de despliegue",
-    "help_agent": "Asistente de ayuda"
+    "help_agent": "Asistente de ayuda",
+    "governance_domains": "Dominios de gobernanza"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -196,7 +197,7 @@
       "domains": {
         "title": "¿Qué vas a gobernar?",
         "subtitle": "Elige los dominios que esta organización piensa gobernar. Puedes cambiarlo más adelante.",
-        "always_on": "La gobernanza del acceso a bases de datos siempre está activa. Estas dos opciones son opcionales y solo deciden qué pasos de configuración verás.",
+        "always_on": "La gobernanza del acceso a bases de datos siempre está activa. Estos dos son opcionales y deciden qué navegación, pestañas de revisión y widgets del panel ve todo el mundo aquí: no conceden ni revocan nada.",
         "apis_label": "Gobernar llamadas API salientes",
         "apis_help": "Revisa y aprueba llamadas REST, SOAP, GraphQL y gRPC antes de que salgan de tu red.",
         "deployments_label": "Controlar despliegues de CI/CD",
@@ -1459,7 +1460,7 @@
       "label_max_queries": "Máx. consultas por día",
       "label_governs_apis": "Gobernar llamadas API salientes",
       "label_governs_deployments": "Controlar despliegues de CI/CD",
-      "governs_help": "Solo son pistas de incorporación: añaden o quitan pasos de la lista inicial y nunca cambian lo que esta organización puede usar.",
+      "governs_help": "Deciden qué navegación, pestañas de revisión y widgets del panel se muestran a esta organización, nunca lo que puede usar. Un administrador de la organización puede cambiarlos en /admin/governance-domains.",
       "quota_help": "Déjalo en blanco o en 0 para ilimitado.",
       "usage_title": "Uso",
       "usage_datasources": "Fuentes de datos",
@@ -2400,6 +2401,18 @@
         "embedding_provider_anthropic": "Anthropic no ofrece una API de embeddings, por lo que la configuración de IA seleccionada no puede indexar documentación. Apunte su proveedor de embeddings a un endpoint compatible con OpenAI para activar la búsqueda.",
         "pgvector_unavailable": "El almacenamiento pgvector interno no está disponible en esta instalación: o la extensión vector no está instalada o ACCESSFLOW_RAG_PGVECTOR_ENABLED es false, lo que omitió la migración de vector_store. Pruebe la búsqueda para saber cuál, o use un almacén Qdrant externo."
       }
+    },
+    "governance_domains": {
+      "title": "Dominios de gobernanza",
+      "subtitle": "Elige qué dominios gobierna esta organización",
+      "description": "La gobernanza del acceso a bases de datos siempre está activa. Desactivar un dominio oculta su navegación, sus pestañas de revisión y sus widgets del panel: no revoca ningún permiso y los enlaces existentes siguen funcionando.",
+      "label_apis": "Gobernar las llamadas a API salientes",
+      "help_apis": "Mostrar los conectores de API, el editor de solicitudes de API y la cola de revisión de APIs.",
+      "label_deployments": "Controlar los despliegues de CI/CD",
+      "help_deployments": "Mostrar los pipelines de despliegue, la cola de despliegues, el seguimiento de versiones y las pestañas de revisión de despliegues.",
+      "save_button": "Guardar",
+      "save_success": "Dominios de gobernanza actualizados",
+      "load_error": "No se pudieron cargar los dominios de gobernanza"
     }
   },
   "notifications": {
@@ -3064,7 +3077,7 @@
       "SSO_CONFIGURE": "Configurar SSO",
       "SMTP_CONFIGURE": "Configurar SMTP",
       "LOCALIZATION_CONFIGURE": "Configurar la localización",
-      "SETUP_PROGRESS_VIEW": "Ver el progreso de configuración",
+      "SETUP_PROGRESS_VIEW": "Ver y cambiar el progreso de configuración y los dominios de gobernanza",
       "EXPORT_POLICY_MANAGE": "Gestionar políticas de exportación",
       "DEPLOYMENT_PIPELINE_MANAGE": "Gestionar pipelines de despliegue",
       "DEPLOYMENT_REVIEW": "Revisar despliegues"
@@ -3401,7 +3414,9 @@
       "open_anomalies": "Anomalías abiertas",
       "open_suggestions": "Sugerencias abiertas",
       "open_api_requests": "Solicitudes de API abiertas",
-      "pending_api_approvals": "Aprobaciones de API pendientes"
+      "pending_api_approvals": "Aprobaciones de API pendientes",
+      "open_deployments": "Despliegues abiertos",
+      "pending_deployment_approvals": "Aprobaciones de despliegue pendientes"
     },
     "widgets": {
       "pendingApprovals": "Aprobaciones pendientes",
@@ -3416,7 +3431,10 @@
       "myAccessRequests": "Mis solicitudes de acceso",
       "myRequestGroups": "Mis grupos de solicitudes",
       "riskMix": "Distribución de riesgo",
-      "activityHeatmap": "Mapa de actividad"
+      "activityHeatmap": "Mapa de actividad",
+      "pendingDeploymentApprovals": "Aprobaciones de despliegue pendientes",
+      "myDeployments": "Mis despliegues recientes",
+      "deploymentVersions": "Versiones por entorno"
     },
     "pending": {
       "empty": "No hay nada esperando tu revisión",
@@ -3494,6 +3512,17 @@
     },
     "activity": {
       "empty": "Sin actividad de consultas en los últimos 90 días"
+    },
+    "pending_deployment_approvals": {
+      "empty": "No hay despliegues pendientes de tu revisión",
+      "review": "Revisar"
+    },
+    "my_deployments": {
+      "empty": "Todavía no has lanzado ningún despliegue",
+      "view": "Ver"
+    },
+    "deployment_versions": {
+      "empty": "Todos los entornos están en la última versión"
     }
   },
   "attestation": {
