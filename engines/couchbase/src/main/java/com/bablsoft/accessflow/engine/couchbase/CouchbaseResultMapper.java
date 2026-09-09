@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import java.sql.Types;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -26,7 +27,10 @@ import java.util.UUID;
  * objects/arrays are preserved as {@link Map}/{@link List} so the persisted JSON stays valid and
  * the UI can both flatten to a table and reconstruct the documents for the JSON view. Restricted
  * columns and masking policies are applied per value via the shared {@link ColumnMasker},
- * identical to the SQL and MongoDB engines.
+ * <em>recursively by dot-path</em> (AF-658) so a mask on {@code profile.ssn} redacts the nested
+ * leaf while the rest of {@code profile} stays visible; a whole-field {@code FULL} mask collapses
+ * the subtree, and a list is a fan-out point rather than a path segment, so
+ * {@code contacts.email} covers every element — identical to the MongoDB engine.
  */
 class CouchbaseResultMapper {
 
@@ -47,9 +51,10 @@ class CouchbaseResultMapper {
 
         var columns = new ArrayList<ResultColumn>(fields.size());
         for (var field : fields) {
-            var mask = matcher.maskFor(field);
+            var mask = matcher.maskForPath(field);
             columns.add(new ResultColumn(field, Types.OTHER,
-                    jsonTypeName(firstNonNull(rowsAsMaps, field)), mask != null));
+                    jsonTypeName(firstNonNull(rowsAsMaps, field)),
+                    mask != null || matcher.hasRuleAtOrUnder(field)));
             if (mask != null && mask.policyId() != null) {
                 appliedPolicyIds.add(mask.policyId());
             }
@@ -60,8 +65,10 @@ class CouchbaseResultMapper {
             var row = new ArrayList<>(fields.size());
             for (var field : fields) {
                 var raw = rowMap.get(field);
-                var mask = matcher.maskFor(field);
-                row.add(mask == null ? raw : maskValue(raw, mask));
+                // With no rules at all there is nothing to find, so skip the walk entirely rather
+                // than deep-copying every document of a large result.
+                row.add(matcher.isEmpty() ? raw
+                        : maskValue(raw, field, matcher, appliedPolicyIds));
             }
             rows.add(row);
         }
@@ -107,14 +114,40 @@ class CouchbaseResultMapper {
         return map;
     }
 
-    private static Object maskValue(Object raw, MaskMatcher.AppliedMask mask) {
-        if (raw == null) {
+    private static Object maskValue(Object value, String path, MaskMatcher matcher,
+                                    LinkedHashSet<UUID> appliedPolicyIds) {
+        if (value == null) {
             return null;
         }
-        if (mask.strategy() == MaskingStrategy.FULL) {
-            return ColumnMasker.FULL_MASK;
+        var mask = matcher.maskForPath(path);
+        if (mask != null) {
+            if (mask.policyId() != null) {
+                appliedPolicyIds.add(mask.policyId());
+            }
+            if (mask.strategy() == MaskingStrategy.FULL) {
+                // Redact the whole subtree rather than leaking its keys and shape.
+                return ColumnMasker.FULL_MASK;
+            }
+            return ColumnMasker.apply(mask.strategy(), String.valueOf(value), mask.params());
         }
-        return ColumnMasker.apply(mask.strategy(), String.valueOf(raw), mask.params());
+        if (value instanceof Map<?, ?> map) {
+            var out = new LinkedHashMap<String, Object>();
+            for (var entry : map.entrySet()) {
+                var key = String.valueOf(entry.getKey());
+                out.put(key, maskValue(entry.getValue(), path + "." + key, matcher,
+                        appliedPolicyIds));
+            }
+            return out;
+        }
+        // A list is a fan-out point, not a path segment: every element shares the parent path.
+        if (value instanceof List<?> list) {
+            var out = new ArrayList<>(list.size());
+            for (var element : list) {
+                out.add(maskValue(element, path, matcher, appliedPolicyIds));
+            }
+            return out;
+        }
+        return value;
     }
 
     private static Object firstNonNull(List<Map<String, Object>> rows, String field) {
@@ -140,46 +173,57 @@ class CouchbaseResultMapper {
     }
 
     /**
-     * Resolves the masking that applies to a top-level field, mirroring the SQL
-     * {@code ColumnMaskResolver} precedence ({@code collection.field} → bare {@code field}; the
-     * bucket/scope-qualified levels are unused here). Explicit mask directives win over a bare
-     * restricted-columns entry, which defaults to {@link MaskingStrategy#FULL}.
+     * Resolves the masking that applies to a (possibly nested) field path, extending the SQL
+     * {@code ColumnMaskResolver} precedence to dot-paths: the most qualified ref wins, so a
+     * {@code collection.<path>} form beats an exact-path ref, which beats a bare last-segment
+     * match; an unmatched bare restricted-columns entry defaults to {@link MaskingStrategy#FULL}.
+     * {@link #hasRuleAtOrUnder(String)} lights up a top-level column's restricted flag when only a
+     * nested field under it is masked, so an AF-447 tag on a nested dot-path — which the tag
+     * derivation always writes collection-qualified — addresses the same leaf here (AF-658).
+     *
+     * <p>The <em>walk</em> matches the Elasticsearch mapper, but the <em>precedence</em> is
+     * deliberately inverted: Elasticsearch ranks an exact path above a qualified one, while these
+     * engines keep their pre-existing SQL-style most-qualified-wins order. Given both a
+     * {@code profile.ssn} and a {@code users.profile.ssn} policy, MongoDB/Couchbase apply the
+     * qualified one and Elasticsearch the exact one.
      */
     private static final class MaskMatcher {
 
         record AppliedMask(MaskingStrategy strategy, Map<String, String> params, UUID policyId) {
         }
 
-        private final List<DirectiveRef> directives;
-        private final List<RefKeys> restricted;
+        private final List<DirectiveRef> directives = new ArrayList<>();
+        private final List<String> restricted = new ArrayList<>();
 
         MaskMatcher(List<String> restrictedColumns, List<ColumnMaskDirective> columnMasks) {
-            this.directives = new ArrayList<>();
-            this.restricted = new ArrayList<>();
             if (columnMasks != null) {
                 for (var directive : columnMasks) {
                     if (directive != null && directive.columnRef() != null
                             && !directive.columnRef().isBlank()) {
-                        directives.add(new DirectiveRef(RefKeys.parse(directive.columnRef()),
-                                directive));
+                        directives.add(new DirectiveRef(
+                                directive.columnRef().trim().toLowerCase(Locale.ROOT), directive));
                     }
                 }
             }
             if (restrictedColumns != null) {
                 for (var entry : restrictedColumns) {
                     if (entry != null && !entry.isBlank()) {
-                        restricted.add(RefKeys.parse(entry));
+                        restricted.add(entry.trim().toLowerCase(Locale.ROOT));
                     }
                 }
             }
         }
 
-        AppliedMask maskFor(String field) {
-            var column = field.toLowerCase(Locale.ROOT);
+        boolean isEmpty() {
+            return directives.isEmpty() && restricted.isEmpty();
+        }
+
+        AppliedMask maskForPath(String path) {
+            var column = path.toLowerCase(Locale.ROOT);
             ColumnMaskDirective best = null;
             int bestLevel = 0;
             for (var ref : directives) {
-                int level = ref.keys().matchLevel(column);
+                int level = matchLevel(ref.ref(), column);
                 if (level > bestLevel) {
                     bestLevel = level;
                     best = ref.directive();
@@ -189,34 +233,49 @@ class CouchbaseResultMapper {
                 return new AppliedMask(best.strategy(), best.params(), best.policyId());
             }
             for (var ref : restricted) {
-                if (ref.matchLevel(column) > 0) {
+                if (matchLevel(ref, column) > 0) {
                     return new AppliedMask(MaskingStrategy.FULL, Map.of(), null);
                 }
             }
             return null;
         }
 
-        private record DirectiveRef(RefKeys keys, ColumnMaskDirective directive) {
+        boolean hasRuleAtOrUnder(String top) {
+            var t = top.toLowerCase(Locale.ROOT);
+            for (var ref : directives) {
+                if (atOrUnder(ref.ref(), t)) {
+                    return true;
+                }
+            }
+            for (var ref : restricted) {
+                if (atOrUnder(ref, t)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
-        private record RefKeys(String table, String bare) {
-
-            static RefKeys parse(String entry) {
-                var lower = entry.trim().toLowerCase(Locale.ROOT);
-                var parts = lower.split("\\.");
-                return parts.length == 1
-                        ? new RefKeys(null, parts[0])
-                        : new RefKeys(parts[parts.length - 2] + "." + parts[parts.length - 1],
-                                parts[parts.length - 1]);
+        /** 3 = qualified (….path), 2 = exact path, 1 = bare last-segment, 0 = no match. */
+        private static int matchLevel(String ref, String path) {
+            if (ref.endsWith("." + path)) {
+                return 3;
             }
-
-            /** 2 = collection.field, 1 = bare field, 0 = no match (no scope level here). */
-            int matchLevel(String column) {
-                if (table != null && table.endsWith("." + column)) {
-                    return 2;
-                }
-                return bare.equals(column) ? 1 : 0;
+            if (ref.equals(path)) {
+                return 2;
             }
+            int dot = path.lastIndexOf('.');
+            var last = dot >= 0 ? path.substring(dot + 1) : path;
+            return ref.equals(last) ? 1 : 0;
+        }
+
+        private static boolean atOrUnder(String ref, String top) {
+            return ref.equals(top)
+                    || ref.startsWith(top + ".")
+                    || ref.endsWith("." + top)
+                    || ref.contains("." + top + ".");
+        }
+
+        private record DirectiveRef(String ref, ColumnMaskDirective directive) {
         }
     }
 }

@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-mongodb-1.0.7-all.jar",
-    "fileName": "accessflow-engine-mongodb-1.0.7-all.jar",
-    "sha256": "56922d9da7a6f7ed958a928ac2878c0a5d6d862e4aa235023bb78dce4cecf85f"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-mongodb-1.0.8-all.jar",
+    "fileName": "accessflow-engine-mongodb-1.0.8-all.jar",
+    "sha256": "012b58f5a6445eb0416190f85209ee42f0a058237c1ff94176c3b3429ddedc2a"
   }
 }
