@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.core.api.OrganizationSetupLookupService;
 import com.bablsoft.accessflow.core.api.SystemRolePermissions;
 import com.bablsoft.accessflow.audit.api.AuditEntry;
 import com.bablsoft.accessflow.audit.api.AuditLogService;
@@ -65,6 +66,7 @@ class AuthControllerTest {
     private PasswordResetService passwordResetService;
     private LocalizationConfigService localizationConfigService;
     private StepUpService stepUpService;
+    private OrganizationSetupLookupService organizationSetupLookupService;
     private AuthController controller;
 
     private final RequestAuditContext auditContext =
@@ -81,9 +83,12 @@ class AuthControllerTest {
         passwordResetService = mock(PasswordResetService.class);
         localizationConfigService = mock(LocalizationConfigService.class);
         stepUpService = mock(StepUpService.class);
+        organizationSetupLookupService = mock(OrganizationSetupLookupService.class);
         controller = new AuthController(authenticationService,
-                (roleId, fallback) -> fallback != null
-                        ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                new UserSummaryFactory(
+                        (roleId, fallback) -> fallback != null
+                                ? SystemRolePermissions.of(fallback) : java.util.Set.of(),
+                        organizationSetupLookupService),
                 auditLogService, userQueryService,
                 bootstrapService, passwordEncoder, new RefreshCookieWriter(), userInvitationService,
                 passwordResetService, localizationConfigService, stepUpService);

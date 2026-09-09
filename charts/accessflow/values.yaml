@@ -488,6 +488,13 @@ bootstrap:
   organization:
     name: ""                    # required when enabled
     slug: ""                    # optional; derived from name (slugify) when blank
+    # Which optional governance domains this org uses (#926). Database access
+    # governance is always on and has no flag. Omit (null) to leave whatever the
+    # row already holds — a bootstrapped install never runs the setup wizard, so
+    # unset means both off and the SPA offers no API / Deployments navigation.
+    # Visibility only: they gate no route, permission or endpoint authorization.
+    governsApis: null
+    governsDeployments: null
 
   # First admin user. Created on first start; password is NOT rotated on
   # subsequent restarts (operators rotate via the admin API).

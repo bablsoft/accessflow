@@ -10,6 +10,7 @@ import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
 const SamlCallbackPage = lazy(() => import('@/pages/auth/SamlCallbackPage'));
 const ScimConfigPage = lazy(() => import('@/pages/admin/ScimConfigPage'));
+const GovernanceDomainsPage = lazy(() => import('@/pages/admin/GovernanceDomainsPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
@@ -645,6 +646,16 @@ export function App() {
             element={
               <AuthGuard requirePermission={'LOCALIZATION_CONFIGURE'}>
                 <LanguagesConfigPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/governance-domains"
+            element={
+              <AuthGuard requirePermission={'SETUP_PROGRESS_VIEW'}>
+                <Suspense fallback={null}>
+                  <GovernanceDomainsPage />
+                </Suspense>
               </AuthGuard>
             }
           />

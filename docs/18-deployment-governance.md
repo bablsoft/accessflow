@@ -481,3 +481,36 @@ approvers who granted the release when the pipeline reports `FAILED` or `ROLLED_
 bell links straight to the request — `user_notifications.deployment_request_id` (V155) is the third
 mutually-exclusive target column alongside queries and API requests. The frontend additionally
 receives a `deployment.status_changed` WebSocket event on every transition.
+
+---
+
+## Dashboard surface (#926)
+
+Deployment governance shows up on the personalized dashboard (`/dashboard`) as two stat tiles and
+three widgets, all fed the same way the query and API ones are — nothing here re-implements a
+deploygov read:
+
+| Surface | Source | Permission |
+|---|---|---|
+| **Open deployments** tile → `/deployments` | `open_deployments_count` on `GET /dashboard/summary` | `QUERY_SUBMIT_SELECT` |
+| **Pending deployment approvals** tile → `/reviews?tab=deployments` | `pending_deployment_approvals_count` | `DEPLOYMENT_REVIEW` |
+| **My recent deployments** widget | `recent_deployments` (`DeploymentRequestService#list`) | `QUERY_SUBMIT_SELECT` |
+| **Pending deployment approvals** widget | `recent_pending_deployment_approvals` (`DeploymentReviewService#listPending`) | `DEPLOYMENT_REVIEW` |
+| **Environment versions** widget → `/deployment-versions` | the drifted rows of the [§ 9 version inventory](#9-version-inventory--drift-742) | `DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN` |
+
+Everything a user sees here is **their own**: the recent feed and the open count filter on
+`submittedByUserId = me`, so a `DEPLOYMENT_REVIEW` holder who could list the whole organization
+still sees only their own submissions on the dashboard. The reviewer queue is of course theirs by
+definition. The **Environment versions** widget shows only environments the inventory reports as
+drifted (an up-to-date fleet is its empty state) and links to the full matrix.
+
+The two counts also join the signed weekly summary export (PDF and CSV). The weekly **email
+digest** is unchanged.
+
+Whether these surfaces are *offered* depends on the organization's `governs_deployments` flag
+(#926): with the domain switched off, the deployment sidebar sub-sections, the Deployments and
+Rollbacks review-hub tabs and these three widgets are not rendered. That is **visibility only** —
+no route is unregistered, no permission changes, no endpoint's authorization moves, and a deep
+link into `/deployments` or `/reviews?tab=deployments` still works for anyone holding the
+permission. An org admin flips the domain at `/admin/governance-domains`
+(`PUT /api/v1/admin/governance-domains`, gated on `SETUP_PROGRESS_VIEW`).

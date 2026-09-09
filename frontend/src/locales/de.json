@@ -102,7 +102,8 @@
     "deployments": "Deployments",
     "deploymentVersions": "Versionsmatrix",
     "deploymentPipelines": "Deployment-Pipelines",
-    "help_agent": "Hilfe-Assistent"
+    "help_agent": "Hilfe-Assistent",
+    "governance_domains": "Governance-Bereiche"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -196,7 +197,7 @@
       "domains": {
         "title": "Was möchten Sie steuern?",
         "subtitle": "Wählen Sie die Bereiche, die diese Organisation steuern will. Sie können das später ändern.",
-        "always_on": "Die Governance für Datenbankzugriffe ist immer aktiv. Diese beiden Optionen sind freiwillig und bestimmen nur, welche Einrichtungsschritte Sie sehen.",
+        "always_on": "Die Governance für Datenbankzugriffe ist immer aktiv. Diese beiden sind optional und bestimmen, welche Navigation, Prüf-Tabs und Dashboard-Widgets hier alle sehen — sie gewähren und entziehen nichts.",
         "apis_label": "Ausgehende API-Aufrufe steuern",
         "apis_help": "REST-, SOAP-, GraphQL- und gRPC-Aufrufe prüfen und freigeben, bevor sie Ihr Netzwerk verlassen.",
         "deployments_label": "CI/CD-Deployments absichern",
@@ -1459,7 +1460,7 @@
       "label_max_queries": "Max. Abfragen pro Tag",
       "label_governs_apis": "Ausgehende API-Aufrufe steuern",
       "label_governs_deployments": "CI/CD-Deployments absichern",
-      "governs_help": "Nur Einrichtungshinweise – sie fügen Schritte der Erstkonfiguration hinzu oder entfernen sie und ändern nie, was diese Organisation nutzen darf.",
+      "governs_help": "Sie bestimmen, welche Navigation, Prüf-Tabs und Dashboard-Widgets dieser Organisation angezeigt werden — nie, was sie nutzen darf. Ein Organisations-Admin kann sie unter /admin/governance-domains ändern.",
       "quota_help": "Für unbegrenzt leer lassen oder 0 eingeben.",
       "usage_title": "Nutzung",
       "usage_datasources": "Datenquellen",
@@ -2400,6 +2401,18 @@
         "embedding_provider_anthropic": "Anthropic bietet keine Embeddings-API, daher kann die ausgewählte KI-Konfiguration keine Dokumentation indizieren. Richten Sie ihren Embedding-Anbieter auf einen OpenAI-kompatiblen Endpunkt, um die Suche zu aktivieren.",
         "pgvector_unavailable": "Die interne pgvector-Speicherung ist auf dieser Installation nicht verfügbar — entweder ist die vector-Erweiterung nicht installiert oder ACCESSFLOW_RAG_PGVECTOR_ENABLED ist false, wodurch die vector_store-Migration übersprungen wurde. Testen Sie die Suche, um zu sehen welches, oder verwenden Sie einen externen Qdrant-Speicher."
       }
+    },
+    "governance_domains": {
+      "title": "Governance-Bereiche",
+      "subtitle": "Wählen Sie, welche Bereiche diese Organisation steuert",
+      "description": "Die Governance für Datenbankzugriffe ist immer aktiv. Wird ein Bereich deaktiviert, verschwinden dessen Navigation, Prüf-Tabs und Dashboard-Widgets — es wird keine Berechtigung entzogen, und bestehende Links funktionieren weiter.",
+      "label_apis": "Ausgehende API-Aufrufe steuern",
+      "help_apis": "API-Konnektoren, den API-Anfrage-Editor und die API-Prüfliste anzeigen.",
+      "label_deployments": "CI/CD-Deployments freigabepflichtig machen",
+      "help_deployments": "Deployment-Pipelines, die Deployment-Liste, die Versionsverfolgung und die Deployment-Prüf-Tabs anzeigen.",
+      "save_button": "Speichern",
+      "save_success": "Governance-Bereiche aktualisiert",
+      "load_error": "Die Governance-Bereiche konnten nicht geladen werden"
     }
   },
   "notifications": {
@@ -3064,7 +3077,7 @@
       "SSO_CONFIGURE": "SSO konfigurieren",
       "SMTP_CONFIGURE": "SMTP konfigurieren",
       "LOCALIZATION_CONFIGURE": "Lokalisierung konfigurieren",
-      "SETUP_PROGRESS_VIEW": "Einrichtungsfortschritt anzeigen",
+      "SETUP_PROGRESS_VIEW": "Setup-Fortschritt und Governance-Bereiche ansehen & ändern",
       "EXPORT_POLICY_MANAGE": "Exportrichtlinien verwalten",
       "DEPLOYMENT_PIPELINE_MANAGE": "Deployment-Pipelines verwalten",
       "DEPLOYMENT_REVIEW": "Deployments prüfen"
@@ -3401,7 +3414,9 @@
       "open_anomalies": "Offene Anomalien",
       "open_suggestions": "Offene Vorschläge",
       "open_api_requests": "Offene API-Anfragen",
-      "pending_api_approvals": "Ausstehende API-Genehmigungen"
+      "pending_api_approvals": "Ausstehende API-Genehmigungen",
+      "open_deployments": "Offene Deployments",
+      "pending_deployment_approvals": "Offene Deployment-Freigaben"
     },
     "widgets": {
       "pendingApprovals": "Ausstehende Genehmigungen",
@@ -3416,7 +3431,10 @@
       "myAccessRequests": "Meine Zugriffsanfragen",
       "myRequestGroups": "Meine Anfragegruppen",
       "riskMix": "Risikoverteilung",
-      "activityHeatmap": "Aktivitäts-Heatmap"
+      "activityHeatmap": "Aktivitäts-Heatmap",
+      "pendingDeploymentApprovals": "Offene Deployment-Freigaben",
+      "myDeployments": "Meine letzten Deployments",
+      "deploymentVersions": "Umgebungsversionen"
     },
     "pending": {
       "empty": "Nichts wartet auf Ihre Prüfung",
@@ -3494,6 +3512,17 @@
     },
     "activity": {
       "empty": "Keine Abfrageaktivität in den letzten 90 Tagen"
+    },
+    "pending_deployment_approvals": {
+      "empty": "Keine Deployments warten auf Ihre Prüfung",
+      "review": "Prüfen"
+    },
+    "my_deployments": {
+      "empty": "Sie haben noch keine Deployments ausgelöst",
+      "view": "Ansehen"
+    },
+    "deployment_versions": {
+      "empty": "Alle Umgebungen sind auf der neuesten Version"
     }
   },
   "attestation": {

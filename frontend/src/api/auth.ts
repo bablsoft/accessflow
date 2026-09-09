@@ -14,6 +14,15 @@ export interface AuthUser {
   totp_enabled: boolean;
   platform_admin: boolean;
   preferred_language: string | null;
+  /**
+   * The organization's governance-domain hints (AF-898), the single source of truth for which
+   * discovery surfaces the app offers — sidebar sub-sections, review-hub tabs, dashboard widgets
+   * (#926). Optional because a session issued before #926 carries neither: `useGovernanceDomains`
+   * treats an absent flag as "on", so an older session renders exactly as it did before. They are
+   * never an entitlement — no route, guard or endpoint reads them.
+   */
+  governs_apis?: boolean;
+  governs_deployments?: boolean;
 }
 
 export interface LoginPayload {

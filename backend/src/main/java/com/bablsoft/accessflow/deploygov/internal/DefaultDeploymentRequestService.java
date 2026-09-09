@@ -59,6 +59,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DefaultDeploymentRequestService implements DeploymentRequestService {
 
+    /** The non-terminal statuses that count as an in-flight ("open") deployment request (#926). */
+    private static final Set<QueryStatus> OPEN_STATUSES =
+            Set.of(QueryStatus.PENDING_AI, QueryStatus.PENDING_REVIEW, QueryStatus.APPROVED);
+
     private static final TypeReference<Map<String, Object>> METADATA_TYPE = new TypeReference<>() {
     };
 
@@ -279,6 +283,13 @@ public class DefaultDeploymentRequestService implements DeploymentRequestService
                 DeploymentRequestSpecifications.forFilter(filter, environmentIds),
                 toPageable(pageRequest));
         return toPage(page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countOpenForSubmitter(UUID organizationId, UUID submittedByUserId) {
+        return requestRepository.countByOrganizationIdAndSubmittedByAndStatusIn(
+                organizationId, submittedByUserId, OPEN_STATUSES);
     }
 
     @Override

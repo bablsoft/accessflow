@@ -521,6 +521,7 @@ const ROUTES = [
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
   ['/admin/organizations/:id', 'One organization and its settings.', 'open a row in Organizations'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],
+  ['/admin/governance-domains', 'Whether this organization governs outbound API calls and CI/CD deployments — which navigation, review tabs and dashboard widgets are shown.'],
   ['/admin/access-requests', 'Approve or reject incoming access requests.'],
   ['/admin/break-glass', 'Break-glass grants and the mandatory retro-review of each use.'],
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],

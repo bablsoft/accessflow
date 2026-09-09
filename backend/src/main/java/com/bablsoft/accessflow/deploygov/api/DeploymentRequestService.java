@@ -42,6 +42,14 @@ public interface DeploymentRequestService {
     PageResponse<DeploymentRequestView> list(DeploymentRequestListFilter filter, PageRequest pageRequest);
 
     /**
+     * How many of {@code submittedByUserId}'s own requests are still in flight — the non-terminal
+     * statuses {@code PENDING_AI}, {@code PENDING_REVIEW} and {@code APPROVED} (#926). A single
+     * aggregate, so the personalized dashboard's badge does not pay for a paged read per status.
+     * Always self-scoped: there is no organization-wide variant.
+     */
+    long countOpenForSubmitter(UUID organizationId, UUID submittedByUserId);
+
+    /**
      * Returns the detail view of one request. Visible to the submitter and — per the
      * {@code docs/07-security.md} role matrix — to any holder of {@code DEPLOYMENT_REVIEW} or
      * {@code QUERY_ADMIN} in the organization. Everyone else gets

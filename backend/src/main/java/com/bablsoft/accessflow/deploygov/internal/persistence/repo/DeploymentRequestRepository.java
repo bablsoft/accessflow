@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +32,15 @@ public interface DeploymentRequestRepository extends JpaRepository<DeploymentReq
      */
     Optional<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdAndVersionAndExternalRunId(
             UUID pipelineId, UUID environmentId, String version, String externalRunId);
+
+    /**
+     * How many of one submitter's requests sit in any of the given statuses (#926) — the dashboard's
+     * open-deployment count. One aggregate instead of a paged read per status, and it never
+     * materializes a row, so the per-row pipeline/environment/analysis/user lookups that
+     * {@code toView} performs are never paid for a number nobody clicks through.
+     */
+    long countByOrganizationIdAndSubmittedByAndStatusIn(
+            UUID organizationId, UUID submittedBy, Collection<QueryStatus> statuses);
 
     /** History timeline (#742): every request for the environment, newest first. */
     Page<DeploymentRequestEntity> findByPipelineIdAndEnvironmentIdOrderByCreatedAtDesc(

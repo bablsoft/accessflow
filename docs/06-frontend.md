@@ -121,6 +121,7 @@ accessflow-ui/
 │   │   ├── useSchemaIntrospect.ts  # Fetch and cache datasource schema
 │   │   ├── useAiAnalysis.ts        # Debounced AI analysis calls from editor
 │   │   ├── useHelpChat.ts          # Help chat availability + conversation + ask (AF-906)
+│   │   ├── useGovernanceDomains.ts # The org's governance-domain visibility flags (#926)
 │   │   └── useCurrentUser.ts       # Auth state, role checks
 │   │
 │   ├── layouts/
@@ -228,20 +229,29 @@ Features:
 **only for the permissions the viewer holds** — a reviewer with `API_REQUEST_REVIEW` and no
 `DEPLOYMENT_REVIEW` sees no Deployments tab, not an empty one:
 
-| `?tab=` | Permission | Body | Formerly |
-|---|---|---|---|
-| `queries` | `QUERY_REVIEW` | `QueryReviewsTab` (`pages/reviews/`) | the whole `/reviews` page |
-| `api` | `API_REQUEST_REVIEW` | `ApiReviewsTab` (`pages/apigov/`) | `/api-reviews` |
-| `deployments` | `DEPLOYMENT_REVIEW` | `PendingDeploymentsTab` (`pages/deployments/DeploymentReviewTabs.tsx`) | `/deployment-reviews` |
-| `rollbacks` | `DEPLOYMENT_REVIEW` | `RollbackReviewsTab` (same file) | `/deployment-reviews?tab=rollbacks` |
+| `?tab=` | Permission | Governance domain (#926) | Body | Formerly |
+|---|---|---|---|---|
+| `queries` | `QUERY_REVIEW` | — (always on) | `QueryReviewsTab` (`pages/reviews/`) | the whole `/reviews` page |
+| `api` | `API_REQUEST_REVIEW` | `apis` | `ApiReviewsTab` (`pages/apigov/`) | `/api-reviews` |
+| `deployments` | `DEPLOYMENT_REVIEW` | `deployments` | `PendingDeploymentsTab` (`pages/deployments/DeploymentReviewTabs.tsx`) | `/deployment-reviews` |
+| `rollbacks` | `DEPLOYMENT_REVIEW` | `deployments` | `RollbackReviewsTab` (same file) | `/deployment-reviews?tab=rollbacks` |
 
-- The tab registry (`TABS` in `ReviewHubPage.tsx`) plus `REVIEW_HUB_TAB_PERMISSION` in the pure
-  `utils/reviewHubTabs.ts` are the two places a new queue is added; `reviewHubPath(tab)` is the
-  single owner of the `/reviews?tab=` URL shape (used by `NotificationBell`, the dashboard tiles
-  and the redirects). Erasure, attestation and request-group reviews are still separate pages.
+- The tab registry (`TABS` in `ReviewHubPage.tsx`) plus `REVIEW_HUB_TAB_PERMISSION` and
+  `REVIEW_HUB_TAB_DOMAIN` in the pure `utils/reviewHubTabs.ts` are the places a new queue is added;
+  `reviewHubPath(tab)` is the single owner of the `/reviews?tab=` URL shape (used by
+  `NotificationBell`, the dashboard tiles and the redirects). Erasure, attestation and request-group
+  reviews are still separate pages.
+- A tab needs **permission AND an enabled governance domain** (#926) to be offered:
+  `visibleReviewHubTabs(user, domains)` is the tab bar, `permittedReviewHubTabs(user)` is
+  permission alone. `REVIEW_HUB_PERMISSIONS` — the `/reviews` route guard and the sidebar entry —
+  stays permission-only, so hiding a domain never turns a reachable page into a 403.
 - The tab is synced to `?tab=` (`replace`, like the old deployment page). A bare `/reviews` is
   left alone and shows the first visible tab; a `?tab=` the viewer may not see, or that does not
-  exist, is replaced by the first visible tab so the URL never lies about what is on screen.
+  exist, is replaced by the first visible tab so the URL never lies about what is on screen. An
+  **explicit `?tab=` the viewer holds the permission for wins even when its domain is off**, and
+  the tab bar keeps that tab, so notification and dashboard deep links into a de-emphasised queue
+  never dead-end. A reviewer whose only queue is in a switched-off domain still lands on it
+  (`resolveReviewHubTab` falls through visible → permitted → `null`).
 - **Only the active tab is mounted** (rendered beside the `Tabs`, never as `items[].children`),
   so inactive queues are never fetched and never leak hidden rows into the DOM.
 - Each tab label carries its pending count (`Queries · 3`) from `hooks/usePendingReviewCounts.ts`:
@@ -408,7 +418,8 @@ of the sidebar, above **Workflow**; the
 default post-login landing for non-auditor roles). The header shows **clickable** headline stat tiles
 (`StatTile` — whole surface navigates to the matching list page: pending approvals → `/reviews`, open
 queries → `/queries`, anomalies → `/admin/anomalies`, API requests → `/api-requests`, API approvals →
-`/reviews?tab=api`; the suggestions tile scrolls to and expands the suggestions widget since no dedicated
+`/reviews?tab=api`, open deployments → `/deployments`, deployment approvals → `/reviews?tab=deployments`;
+the suggestions tile scrolls to and expands the suggestions widget since no dedicated
 page exists). The open-queries tile renders the summary's `status_counts` as a mini per-status
 breakdown, and the open-queries / open-API-requests tiles carry a **Bklit sparkline + `DeltaBadge`**
 (second-half vs first-half of the trends window, sharing the trends query cache).
@@ -427,12 +438,22 @@ widget from the card header, defaults in `DEFAULT_WIDGET_SIZE` — collapsing to
 1100 px. Drag-and-drop reorder uses `@dnd-kit` with `rectSortingStrategy`.
 
 Widgets (and their matching stat tiles) are **role-gated** to what the current user can actually use,
-mirroring the sidebar nav model (`WIDGET_PERMISSIONS`): **Pending approvals** (`QUERY_REVIEW`),
+mirroring the sidebar nav model (`WIDGET_PERMISSIONS`), and since #926 additionally **domain-gated**
+through `WIDGET_DOMAIN` — `availableIds` keeps a widget only when the permission check passes *and*
+its governance domain is enabled (a widget with no entry, i.e. the database domain, is always on): **Pending approvals** (`QUERY_REVIEW`),
 **Attestations due** (`ATTESTATION_REVIEW`, from `/reviews/attestations/items`), **My recent queries**
 / **My access requests** / **My request groups** / trends (any query-submitting role), **AI
 optimization suggestions** (`QUERY_SUBMIT_DML`), **Anomaly alerts** (`ANOMALY_MANAGE`), **My recent
-API requests** / **API request trends** (AF-500), and **Pending API approvals**
-(`API_REQUEST_REVIEW`). Row lists share `components/dashboard/ActivityList` (aligned pill/primary/meta
+API requests** / **API request trends** (AF-500), **Pending API approvals**
+(`API_REQUEST_REVIEW`), and — for deployment approval governance (#926) — **Pending deployment
+approvals** (`DEPLOYMENT_REVIEW`, deep-links to `reviewHubPath('deployments')`), **My recent
+deployments** (any query-submitting role, rows link to `/deployments/:id`) and **Environment
+versions** (`DEPLOYMENT_PIPELINE_MANAGE` / `DEPLOYMENT_REVIEW` / `QUERY_ADMIN`, matching the
+`deployment-versions` nav item). The first two read the summary's `recent_pending_deployment_approvals`
+/ `recent_deployments`; **Environment versions** is the only deployment widget with its own query —
+it asks the #742 org-wide inventory for the **drifted** rows only (`drifted: true, size: 5`), so an
+up-to-date fleet is its empty state and the full matrix is one **View all** click away on
+`/deployment-versions`. Row lists share `components/dashboard/ActivityList` (aligned pill/primary/meta
 columns, single-line truncation with tooltip, ≤5 rows, a **View all** footer link to the full page);
 every widget has a `Skeleton` (or the Bklit loading chrome) while loading, a compact
 `EmptyState size="sm"` when empty, and a `WidgetError` block (surfacing the server `detail`, with
@@ -500,7 +521,7 @@ One further row is appended, last, per governance domain the organization opted 
 
 Rows are numbered by rendered position, so with only `governs_deployments` on, the pipeline step is row 4.
 
-The permission half of each condition is the widget's own: the payload is identical for every `SETUP_PROGRESS_VIEW` holder, and a step that links to a 403 is worse than no step. The domain flags are an onboarding hint only — they never gate the `/api-connectors` or `/admin/deployment-pipelines` routes themselves.
+The permission half of each condition is the widget's own: the payload is identical for every `SETUP_PROGRESS_VIEW` holder, and a step that links to a 403 is worse than no step. The domain half is the same visibility signal the sidebar, review-hub tabs and dashboard widgets read since #926 (see [§ Governance domains](#governance-domains--the-discovery-model-926)) — it decides what is *offered*, and never gates the `/api-connectors` or `/admin/deployment-pipelines` routes themselves, which stay registered and reachable.
 
 Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once every rendered step is accounted for, the widget hides entirely.
 
@@ -1111,6 +1132,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/deployment-pipelines/:id     → DeploymentPipelineSettingsPage (lazy; tabs synced to ?tab=: general / environments / versions / permissions / freeze windows / routing policies / CI setup — #696, #743)
 /admin/notifications                → NotificationsPage
 /admin/languages                    → LanguagesConfigPage
+/admin/governance-domains           → GovernanceDomainsPage (SETUP_PROGRESS_VIEW — the org's own API / deployment domain switches, #926)
 /admin/drivers                      → CustomDriversPage (admin-uploaded JDBC drivers)
 /admin/saml                         → SamlConfigPage
 /admin/scim                         → ScimConfigPage (lazy; SCIM 2.0 provisioning — #621)
@@ -1136,7 +1158,12 @@ All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/re
 `components/common/Sidebar.tsx` renders a **three-level** nav model:
 
 ```ts
-interface NavSubGroup { id: string; label: string; items: NavItem[] }
+interface NavSubGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
+  domain?: GovernanceDomain;  // #926; absent ⇒ the always-on database domain
+}
 interface NavGroup {
   id: string;
   label?: string;          // absent ⇒ no divider heading (the top generic group)
@@ -1153,18 +1180,18 @@ still gates each entry.
 |---|---|---|
 | *(no heading)* | *(none)* | `/dashboard`, `/reviews` (the unified review queue — any of `QUERY_REVIEW` / `API_REQUEST_REVIEW` / `DEPLOYMENT_REVIEW`; the pending badge sums every queue the viewer may work, #772) |
 | `WORKFLOW` | **Database** | `/editor`, `/queries` |
-| | **API** | `/api-editor`, `/api-requests` |
-| | **Deployments** | `/deployments`, `/deployment-versions` |
+| | **API** *(domain `apis`)* | `/api-editor`, `/api-requests` |
+| | **Deployments** *(domain `deployments`)* | `/deployments`, `/deployment-versions` |
 | | **Request groups** | `/request-groups`, `/request-groups/reviews` |
 | | **Access & lifecycle** | `/access-requests`, `/lifecycle/erasure`, `/lifecycle/erasure-reviews`, `/reviews/attestations` |
 | `CONNECTIONS` | **Database** | `/datasources`, `/admin/connectors`, `/admin/drivers` |
-| | **API** | `/api-connectors` |
-| | **Deployments** | `/admin/deployment-pipelines` |
+| | **API** *(domain `apis`)* | `/api-connectors` |
+| | **Deployments** *(domain `deployments`)* | `/admin/deployment-pipelines` |
 | `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
 | | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/over-provisioned-access`, `/admin/break-glass` |
 | | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
-| `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages` |
+| `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages`, `/admin/governance-domains` |
 | | **AI** | `/admin/ai-configs`, `/admin/ai-analyses`, `/admin/langfuse`, `/admin/help-agent` |
 | `PLATFORM` | *(none)* | `/admin/organizations` |
 
@@ -1199,6 +1226,13 @@ Behaviour:
 - **Permission filtering** cascades: invisible items are dropped, then sub-sections left empty,
   then groups left with neither items nor sub-sections. A sub-section that survives with a single
   item still renders its header, so positions stay predictable across roles.
+- **Governance-domain filtering (#926)** runs first, on whole sub-sections: a `NavSubGroup` whose
+  `domain` the organization switched off is dropped before its items are permission-filtered. It is
+  **visibility, never entitlement** — an enabled domain grants nothing, a disabled one hides only
+  entries the user could already see, every route stays registered and every deep link still works.
+  The flags come from `governanceDomainsOf(user)` over the same signed-in user the permission
+  checks use, so the nav can never disagree with itself; both default to `true` when absent, which
+  is what keeps a session issued before #926 rendering the full nav.
 - **Accessibility (a11y).** Each header is a real `<button aria-expanded aria-controls>` whose accessible name is
   `nav.expand_section` / `nav.collapse_section`; the controlled item list carries
   `id="af-nav-sub-<subgroup id>"`. Labelled groups are `role="group" aria-label="<group label>"`,
@@ -1207,6 +1241,38 @@ Behaviour:
 
 Labels are `t()`-keyed under `nav.sub_*` (plus `nav.group_connections`, which replaced
 `nav.group_data`) in all seven locales.
+
+### Governance domains — the discovery model (#926)
+
+`organizations.governs_apis` / `.governs_deployments` (AF-898) reach the SPA on the auth payload
+(`AuthUser.governs_apis` / `.governs_deployments`, both **optional**) and are read through one
+place — `hooks/useGovernanceDomains.ts`:
+
+```ts
+export type GovernanceDomain = 'apis' | 'deployments';
+export type GovernanceDomains = Record<GovernanceDomain, boolean>;
+export function governanceDomainsOf(user: AuthUser | null | undefined): GovernanceDomains;
+export function useGovernanceDomains(): GovernanceDomains;   // the same, over authStore
+```
+
+Three surfaces consume it, and only these three: the sidebar sub-sections (`NavSubGroup.domain`),
+the review-hub tabs (`REVIEW_HUB_TAB_DOMAIN`) and the dashboard widget catalogue
+(`WIDGET_DOMAIN`). Two rules hold everywhere:
+
+- **Permission AND domain.** An enabled domain grants nothing; a disabled one hides only what the
+  user could already see. No route is unregistered, no `AuthGuard` check changes, no endpoint's
+  authorization moves — hiding a domain must never 403 anyone, and the notification deep links
+  into `/deployments` and `/reviews?tab=deployments` keep working.
+- **Fail open on unknown.** An absent flag reads as `true`. A session issued before #926, or any
+  payload that omits one, renders exactly as it did before; only an explicit `false` hides
+  anything.
+
+`GovernanceDomainsPage` (`/admin/governance-domains`, nav entry in **System**, guarded on
+`SETUP_PROGRESS_VIEW`) is the in-app way back for an org admin who declined a domain in the
+first-run wizard — before #926 that needed a platform admin on `/admin/organizations/:id`. Two
+switches over `GET`/`PUT /admin/governance-domains`; on save it patches the cached session user
+through `authStore.patchUser`, so the sidebar, review tabs and dashboard react on that render
+rather than at the next token refresh.
 
 ### Setup wizard
 
@@ -1218,7 +1284,7 @@ Step 2 (AF-898) asks which domains the organization plans to govern: two switche
 
 Each step's `<Form>` carries its own `key`, so React remounts rather than reusing the fiber: rc-field-form latches both the `form` prop and `initialValues` on first mount, so without the keys only `accountForm` would ever be bound and every step's `initialValues` after the first would be silently dropped.
 
-The answer is changeable later on `/admin/organizations/:id` (`OrganizationDetailPage`), which carries the same two switches and sends them on `PUT /platform/organizations/{id}` — a platform-admin surface, and the first-run admin is provisioned as a platform admin.
+The answer is changeable later by an org admin on `/admin/governance-domains` (`GovernanceDomainsPage`, `PUT /admin/governance-domains`, `SETUP_PROGRESS_VIEW` — #926). The same two switches also remain on `/admin/organizations/:id` (`OrganizationDetailPage`, `PUT /platform/organizations/{id}`) for a platform admin managing any tenant; the first-run admin is provisioned as a platform admin, so both routes are open to them.
 
 Step 3 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
 

@@ -63,7 +63,7 @@ class BootstrapPropertiesTest {
         var props = bind(values);
 
         assertThat(props.enabled()).isTrue();
-        assertThat(props.organization()).isEqualTo(new OrganizationSpec("Acme", "acme"));
+        assertThat(props.organization()).isEqualTo(new OrganizationSpec("Acme", "acme", null, null));
         assertThat(props.admin()).isEqualTo(new AdminSpec("admin@acme.com", "Initial Admin", "s3cret"));
     }
 

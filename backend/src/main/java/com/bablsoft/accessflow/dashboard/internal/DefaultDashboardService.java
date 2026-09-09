@@ -22,6 +22,12 @@ import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.dashboard.api.DashboardService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
 import com.bablsoft.accessflow.dashboard.api.DashboardSummary;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentRequestView;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService.PendingDeploymentReview;
+import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService.PendingDeploymentReviewFilter;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService.PendingReview;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
@@ -40,7 +46,9 @@ import java.util.UUID;
  * Composes the self-scoped personalized dashboard (AF-498) from existing module {@code api} services:
  * reviewer queue ({@code ReviewService}), the user's queries + status/risk insights
  * ({@code QueryRequestLookupService} / {@code MyQueryInsightsLookupService}), open anomalies
- * ({@code BehaviorAnomalyLookupService}), and the AI suggestion backlog. No cross-module
+ * ({@code BehaviorAnomalyLookupService}), the AI suggestion backlog, and — for deployment approval
+ * governance (#926) — the caller's own deployment requests ({@code DeploymentRequestService}) plus
+ * their deployment review queue ({@code DeploymentReviewService}). No cross-module
  * {@code internal} access; read-only.
  */
 @Service
@@ -62,6 +70,8 @@ class DefaultDashboardService implements DashboardService {
     private final MyApiRequestInsightsLookupService apiRequestInsightsLookupService;
     private final ApiRequestService apiRequestService;
     private final ApiReviewService apiReviewService;
+    private final DeploymentRequestService deploymentRequestService;
+    private final DeploymentReviewService deploymentReviewService;
     private final Clock clock;
 
     @Override
@@ -105,6 +115,20 @@ class DefaultDashboardService implements DashboardService {
                 new PendingApiReviewFilter(null, null), PageRequest.of(0, RECENT_LIMIT));
         List<PendingApiReview> recentPendingApi = pendingApi.content();
 
+        // Always self-scoped: the dashboard shows the caller's own deployments, never the
+        // organization-wide feed a DEPLOYMENT_REVIEW holder could also list.
+        List<DeploymentRequestView> recentDeployments = deploymentRequestService.list(
+                new DeploymentRequestListFilter(organizationId, userId, null, null, null, null,
+                        null, null),
+                PageRequest.of(0, RECENT_LIMIT)).content();
+        // One aggregate, like the query and API status counts above — not a paged read per status.
+        long openDeployments = deploymentRequestService.countOpenForSubmitter(organizationId, userId);
+
+        var pendingDeployments = deploymentReviewService.listPending(
+                new DeploymentReviewService.ReviewerContext(userId, organizationId, roleName, permissions),
+                new PendingDeploymentReviewFilter(null), PageRequest.of(0, RECENT_LIMIT));
+        List<PendingDeploymentReview> recentPendingDeployments = pendingDeployments.content();
+
         return new DashboardSummary(
                 pending.totalElements(),
                 openQueries,
@@ -112,11 +136,15 @@ class DefaultDashboardService implements DashboardService {
                 openSuggestions,
                 openApiRequests,
                 pendingApi.totalElements(),
+                openDeployments,
+                pendingDeployments.totalElements(),
                 statusCounts,
                 recentQueries,
                 recentPending,
                 recentApiRequests,
-                recentPendingApi);
+                recentPendingApi,
+                recentDeployments,
+                recentPendingDeployments);
     }
 
     @Override

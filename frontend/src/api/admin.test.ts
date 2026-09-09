@@ -506,6 +506,28 @@ describe('api/admin', () => {
     expect(result).toEqual(fixture);
   });
 
+  // ── Governance domains (#926) ───────────────────────────────────────────
+  it('getGovernanceDomains GETs /admin/governance-domains', async () => {
+    const fixture = { governs_apis: true, governs_deployments: false };
+    get.mockResolvedValueOnce({ data: fixture });
+    const result = await adminApi.getGovernanceDomains();
+    expect(get).toHaveBeenCalledWith('/api/v1/admin/governance-domains');
+    expect(result).toEqual(fixture);
+  });
+
+  it('updateGovernanceDomains PUTs both flags', async () => {
+    const body = { governs_apis: false, governs_deployments: true };
+    put.mockResolvedValueOnce({ data: body });
+    const result = await adminApi.updateGovernanceDomains(body);
+    expect(put).toHaveBeenCalledWith('/api/v1/admin/governance-domains', body);
+    expect(result).toEqual(body);
+  });
+
+  it('governanceDomainKeys produce stable factory output', () => {
+    expect(adminApi.governanceDomainKeys.all).toEqual(['governanceDomains']);
+    expect(adminApi.governanceDomainKeys.current()).toEqual(['governanceDomains', 'current']);
+  });
+
   it('setupProgressKeys produce stable factory output', () => {
     expect(adminApi.setupProgressKeys.all).toEqual(['setupProgress']);
     expect(adminApi.setupProgressKeys.current()).toEqual(['setupProgress', 'current']);

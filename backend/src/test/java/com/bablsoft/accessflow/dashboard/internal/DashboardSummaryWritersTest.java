@@ -28,7 +28,7 @@ class DashboardSummaryWritersTest {
                         new MyQueryStatusCount(QueryStatus.PENDING_REVIEW, 2)),
                 List.of(new DashboardRiskCount(RiskLevel.LOW, 4),
                         new DashboardRiskCount(RiskLevel.HIGH, 1)),
-                2, 1, 3, Instant.parse("2026-06-25T12:00:00Z"));
+                2, 1, 3, 4, 6, Instant.parse("2026-06-25T12:00:00Z"));
     }
 
     @Test
@@ -38,6 +38,8 @@ class DashboardSummaryWritersTest {
         assertThat(out).contains("metrics,total_queries,5");
         assertThat(out).contains("status_breakdown,EXECUTED,3");
         assertThat(out).contains("risk_breakdown,HIGH,1");
+        assertThat(out).contains("metrics,open_deployments,4");
+        assertThat(out).contains("metrics,pending_deployment_approvals,6");
         // comma in the email is quoted; embedded quote in display name is doubled
         assertThat(out).contains("\"user, with comma@x.io\"");
         assertThat(out).contains("\"User \"\"Q\"\"\"");
@@ -47,7 +49,7 @@ class DashboardSummaryWritersTest {
     void csvHandlesEmptyBreakdowns() {
         var empty = new DashboardWeeklySummary(UUID.randomUUID(), UUID.randomUUID(), null, null,
                 LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 0,
-                List.of(), List.of(), 0, 0, 0, Instant.parse("2026-06-25T12:00:00Z"));
+                List.of(), List.of(), 0, 0, 0, 0, 0, Instant.parse("2026-06-25T12:00:00Z"));
         var out = new String(csv.write(empty), StandardCharsets.UTF_8);
         assertThat(out).contains("metrics,total_queries,0");
     }
@@ -63,7 +65,7 @@ class DashboardSummaryWritersTest {
     void pdfRendersEmptySummary() {
         var empty = new DashboardWeeklySummary(UUID.randomUUID(), UUID.randomUUID(), null, null,
                 LocalDate.of(2026, 6, 22), LocalDate.of(2026, 6, 29), 0,
-                List.of(), List.of(), 0, 0, 0, Instant.parse("2026-06-25T12:00:00Z"));
+                List.of(), List.of(), 0, 0, 0, 0, 0, Instant.parse("2026-06-25T12:00:00Z"));
         assertThat(pdf.write(empty)).isNotEmpty();
     }
 }

@@ -26,6 +26,7 @@ import type {
   CreateScimTokenInput,
   CreatedScimToken,
   UpdateScimConfigInput,
+  GovernanceDomainsConfig,
   SetupProgress,
   TestAiConfigResult,
   TestNotificationChannelInput,
@@ -58,6 +59,7 @@ const SCIM_TOKENS_BASE = '/api/v1/admin/scim/tokens';
 const LANGFUSE_CONFIG_BASE = '/api/v1/admin/langfuse-config';
 const OAUTH2_CONFIG_BASE = '/api/v1/admin/oauth2-config';
 const SETUP_PROGRESS_BASE = '/api/v1/admin/setup-progress';
+const GOVERNANCE_DOMAINS_BASE = '/api/v1/admin/governance-domains';
 const SYSTEM_SMTP_BASE = '/api/v1/admin/system-smtp';
 const INVITATIONS_BASE = '/api/v1/admin/users/invitations';
 
@@ -127,6 +129,11 @@ export const oauth2ConfigKeys = {
 export const setupProgressKeys = {
   all: ['setupProgress'] as const,
   current: () => ['setupProgress', 'current'] as const,
+};
+
+export const governanceDomainKeys = {
+  all: ['governanceDomains'] as const,
+  current: () => ['governanceDomains', 'current'] as const,
 };
 
 export const systemSmtpKeys = {
@@ -444,6 +451,20 @@ export async function deleteOAuth2Config(provider: OAuth2Provider): Promise<void
 
 export async function getSetupProgress(): Promise<SetupProgress> {
   const { data } = await apiClient.get<SetupProgress>(SETUP_PROGRESS_BASE);
+  return data;
+}
+
+// ── Governance domains ───────────────────────────────────────────────────────
+
+export async function getGovernanceDomains(): Promise<GovernanceDomainsConfig> {
+  const { data } = await apiClient.get<GovernanceDomainsConfig>(GOVERNANCE_DOMAINS_BASE);
+  return data;
+}
+
+export async function updateGovernanceDomains(
+  input: GovernanceDomainsConfig,
+): Promise<GovernanceDomainsConfig> {
+  const { data } = await apiClient.put<GovernanceDomainsConfig>(GOVERNANCE_DOMAINS_BASE, input);
   return data;
 }
 
