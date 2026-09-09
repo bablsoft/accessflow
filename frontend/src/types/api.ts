@@ -1495,6 +1495,11 @@ export interface RoutingSimulationResponse {
   datasource_id: string | null;
   evaluated_count: number;
   changed_count: number;
+  /**
+   * Rows excluded because AI analysis failed on them: production sends those straight to human
+   * review without consulting routing, so replaying them would over-report. Outside evaluated_count.
+   */
+  skipped_ai_failed_count: number;
   truncated: boolean;
   outcome_deltas: {
     baseline_action: RoutingSimulationOutcome;

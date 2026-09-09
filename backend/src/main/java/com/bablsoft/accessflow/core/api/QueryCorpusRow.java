@@ -5,8 +5,8 @@ import java.util.UUID;
 
 /**
  * One historical query as the policy simulator (issue AF-630) replays it: every signal the routing,
- * row-security and masking simulations need, read in a single pass so a 5 000-row window is not
- * 5 000 round trips.
+ * row-security and masking simulations need, gathered on the read side so the simulation loop
+ * itself does no per-row lookup.
  *
  * <p>The corpus is {@code query_requests} rather than {@code query_snapshots}: routing runs at
  * submission, so restricting to executed queries would under-report an auto-reject's blast radius,

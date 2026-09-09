@@ -307,4 +307,47 @@ class DefaultMaskingPolicySimulationServiceTest {
         assertThat(sample.submittedByEmail()).isEqualTo("a@x.io");
         assertThat(sample.queryRequestId()).isNotNull();
     }
+
+    @Test
+    void changingOnlyTheStrategyOnTheSameColumnIsStillAChange() {
+        corpus.add(row(alice, "a@x.io"));
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(List.of(mask("customers.email")));
+        when(maskingPolicyResolutionService.resolveWithDraft(any(), any(), any(), any()))
+                .thenReturn(List.of(new ResolvedColumnMask(UUID.randomUUID(), "customers.email",
+                        MaskingStrategy.PARTIAL, Map.of("visible_suffix", "4"))));
+
+        var result = service.simulate(orgId, datasourceId, window(), draft());
+
+        // The same column stays masked either way; comparing only *which* columns are masked would
+        // report a strategy swap — one of the commonest edits — as no impact at all.
+        assertThat(result.changedCount()).isEqualTo(1);
+        assertThat(result.newlyMaskedCount()).isEqualTo(1);
+        assertThat(result.userImpacts().get(0).newlyMaskedColumns()).containsExactly("email");
+    }
+
+    @Test
+    void changingOnlyTheStrategyParamsIsAChange() {
+        corpus.add(row(alice, "a@x.io"));
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(List.of(new ResolvedColumnMask(UUID.randomUUID(), "customers.email",
+                        MaskingStrategy.PARTIAL, Map.of("visible_suffix", "2"))));
+        when(maskingPolicyResolutionService.resolveWithDraft(any(), any(), any(), any()))
+                .thenReturn(List.of(new ResolvedColumnMask(UUID.randomUUID(), "customers.email",
+                        MaskingStrategy.PARTIAL, Map.of("visible_suffix", "4"))));
+
+        assertThat(service.simulate(orgId, datasourceId, window(), draft()).changedCount())
+                .isEqualTo(1);
+    }
+
+    @Test
+    void anIdenticalMaskOnBothArmsIsNotAChange() {
+        corpus.add(row(alice, "a@x.io"));
+        when(maskingPolicyResolutionService.resolveApplicable(any(), any(), any()))
+                .thenReturn(List.of(mask("customers.email")));
+        when(maskingPolicyResolutionService.resolveWithDraft(any(), any(), any(), any()))
+                .thenReturn(List.of(mask("customers.email")));
+
+        assertThat(service.simulate(orgId, datasourceId, window(), draft()).changedCount()).isZero();
+    }
 }

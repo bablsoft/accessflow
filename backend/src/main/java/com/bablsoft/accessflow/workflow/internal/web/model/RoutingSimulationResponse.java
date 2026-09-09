@@ -17,6 +17,7 @@ public record RoutingSimulationResponse(
         UUID datasourceId,
         int evaluatedCount,
         int changedCount,
+        int skippedAiFailedCount,
         boolean truncated,
         List<OutcomeDelta> outcomeDeltas,
         List<UserImpact> userImpacts,
@@ -26,7 +27,8 @@ public record RoutingSimulationResponse(
     public static RoutingSimulationResponse from(RoutingSimulationResult result) {
         return new RoutingSimulationResponse(
                 result.periodFrom(), result.periodTo(), result.datasourceId(),
-                result.evaluatedCount(), result.changedCount(), result.truncated(),
+                result.evaluatedCount(), result.changedCount(), result.skippedAiFailedCount(),
+                result.truncated(),
                 result.outcomeDeltas().stream()
                         .map(d -> new OutcomeDelta(d.baseline(), d.simulated(), d.count())).toList(),
                 result.userImpacts().stream()

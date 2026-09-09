@@ -104,10 +104,13 @@ public interface QueryEngine {
      * shape to {@link RowSecurityClassification#failClosed}, and a query no directive targets to
      * {@link RowSecurityClassification#notApplicable}.
      *
-     * <p>Engines whose splicing needs live schema knowledge — Cassandra / ScyllaDB, whose predicates
-     * must land on partition or clustering key columns — inherit the default, which returns
-     * {@link RowSecurityClassification#unknown(String)}. An unknown answer is never "safe": the host
-     * reports it as unclassifiable rather than as no-impact.
+     * <p>The default returns {@link RowSecurityClassification#unknown(String)}, so an engine that
+     * cannot answer offline degrades honestly without overriding — and without a connector re-pin.
+     * All ten shipped plugins do override it. Cassandra / ScyllaDB override it only partially:
+     * their predicates must land on partition or clustering key columns, and that key set comes
+     * from a live session, so they report the outcomes that hold for <em>any</em> key set and
+     * return {@code UNKNOWN} for the rest. An unknown answer is never "safe" — the host reports it
+     * as unclassifiable, never as no-impact.
      */
     default RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
         return RowSecurityClassification.unknown(engineId());

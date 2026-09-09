@@ -26,7 +26,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
-import { draftFingerprint, isMaskingDraftHighImpact, windowForDays }
+import { draftFingerprint, isMaskingDraftHighImpact }
   from '@/components/policies/policyImpact';
 import { simulateMaskingPolicy } from '@/api/policySimulation';
 import { maskingSimulationSummary } from './policySimulationSummaries';
@@ -254,8 +254,7 @@ interface MaskingPolicyModalProps {
 
 function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalProps) {
   const { t } = useTranslation();
-  const { modal } = App.useApp();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<MaskingFormValues>();
   const [simulationOpen, setSimulationOpen] = useState(false);
@@ -351,7 +350,6 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
         ? { visible_suffix: String(values.visible_suffix) }
         : {};
     return {
-      ...windowForDays(30),
       draft: {
         replaces_policy_id: policy?.id ?? null,
         column_ref: values.column_ref.trim(),
@@ -368,7 +366,10 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
   /** Soft nudge, never a gate: saving is always one click away. */
   const confirmHighImpactSave = () => {
     const unsimulated = draftFingerprint(buildSimulationDraft()) !== simulatedKey;
-    if (!unsimulated || !isMaskingDraftHighImpact(form.getFieldsValue())) {
+    if (
+      !unsimulated ||
+      !isMaskingDraftHighImpact({ ...form.getFieldsValue(), replacesPolicyId: policy?.id ?? null })
+    ) {
       form.submit();
       return;
     }
@@ -377,6 +378,9 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
       content: t('policySimulation.nudge_body'),
       okText: t('policySimulation.nudge_simulate'),
       cancelText: t('policySimulation.nudge_save'),
+      // AntD calls onCancel for Esc as well as the Cancel button, and here onCancel is the write
+      // path. Esc must not be able to commit a policy the admin has not looked at.
+      keyboard: false,
       onOk: () => setSimulationOpen(true),
       onCancel: () => form.submit(),
     });
@@ -423,7 +427,11 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
         <Flex justify="space-between" align="center">
           <Button
             onClick={() => {
-              void form.validateFields().then(() => setSimulationOpen(true));
+              // Field errors render inline; nothing more to report here.
+              void form.validateFields().then(
+                () => setSimulationOpen(true),
+                () => undefined,
+              );
             }}
           >
             {t('policySimulation.run')}
@@ -564,7 +572,7 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
         run={(window) => {
           const payload = buildSimulationDraft();
           if (!payload) {
-            return Promise.reject(new Error('incomplete draft'));
+            return Promise.reject(new Error(t('policySimulation.incomplete_draft')));
           }
           return simulateMaskingPolicy(dsId, { ...payload, ...window });
         }}

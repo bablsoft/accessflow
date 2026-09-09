@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Button, Drawer, Flex, Segmented, Skeleton, Space, Statistic, Table, Tabs } from 'antd';
 import { useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -55,10 +55,9 @@ function SimulationBody<TResult>({
     onSuccess: () => onSimulated?.(draftKey),
   });
 
-  const summary = useMemo(
-    () => (simulation.data ? summarize(simulation.data) : null),
-    [simulation.data, summarize],
-  );
+  // Not memoised: `summarize` is an inline arrow at every call site, so a useMemo keyed on it
+  // would recompute anyway. Reducing one capped result is cheap.
+  const summary = simulation.data ? summarize(simulation.data) : null;
 
   return (
     <Space orientation="vertical" size="middle" style={{ width: '100%' }}>

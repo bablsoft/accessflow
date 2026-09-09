@@ -11,6 +11,7 @@ const base: RoutingSimulationResponse = {
   datasource_id: null,
   evaluated_count: 1284,
   changed_count: 312,
+  skipped_ai_failed_count: 0,
   truncated: false,
   outcome_deltas: [],
   user_impacts: [],

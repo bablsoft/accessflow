@@ -103,9 +103,13 @@ class DefaultRoutingPolicySimulationServiceTest {
     }
 
     private QueryCorpusRow row(UUID submitter, String email, UUID dsId) {
+        return row(submitter, email, dsId, false);
+    }
+
+    private QueryCorpusRow row(UUID submitter, String email, UUID dsId, boolean aiFailed) {
         return new QueryCorpusRow(UUID.randomUUID(), orgId, dsId, "prod", DbType.POSTGRESQL,
                 submitter, email, "Name", "SELECT * FROM orders", QueryType.SELECT,
-                QueryStatus.EXECUTED, false, RiskLevel.LOW, 10, false, null, null, false, FROM);
+                QueryStatus.EXECUTED, false, RiskLevel.LOW, 10, aiFailed, null, null, false, FROM);
     }
 
     private EvaluablePolicy policy(UUID id, String name, int priority, RoutingAction action,
@@ -342,5 +346,66 @@ class DefaultRoutingPolicySimulationServiceTest {
         assertThat(result.datasourceId()).isEqualTo(datasourceId);
         assertThat(result.periodFrom()).isEqualTo(FROM);
         assertThat(result.periodTo()).isEqualTo(TO);
+    }
+
+    // ---- rows production never routes -------------------------------------------------------------
+
+    @Test
+    void aiFailedRowsAreExcludedBecauseProductionNeverRoutesThem() {
+        corpus.add(row(alice, "a@x.io", datasourceId, true));
+        corpus.add(row(alice, "a@x.io", datasourceId, false));
+        stubMatches(Optional.empty(),
+                Optional.of(policy(null, "Draft", 10, RoutingAction.AUTO_REJECT, true)));
+
+        var result = service.simulate(orgId, window(), null,
+                draft(null, null, true, RoutingAction.AUTO_REJECT));
+
+        // QueryReviewStateMachine.onAiFailed goes straight to PENDING_REVIEW without consulting
+        // routing, so counting that row would credit the draft with traffic it never sees.
+        assertThat(result.evaluatedCount()).isEqualTo(1);
+        assertThat(result.changedCount()).isEqualTo(1);
+        assertThat(result.skippedAiFailedCount()).isEqualTo(1);
+    }
+
+    @Test
+    void aCorpusOfOnlyAiFailedRowsEvaluatesNothing() {
+        corpus.add(row(alice, "a@x.io", datasourceId, true));
+        stubMatches(Optional.empty(), Optional.empty());
+
+        var result = service.simulate(orgId, window(), null, null);
+
+        assertThat(result.evaluatedCount()).isZero();
+        assertThat(result.skippedAiFailedCount()).isEqualTo(1);
+    }
+
+    // ---- editing a policy without changing its effect ---------------------------------------------
+
+    @Test
+    void replacingAPolicyWithoutChangingItsEffectIsNotAChange() {
+        corpus.add(row(alice, "a@x.io", datasourceId));
+        var existing = policy(existingPolicyId, "Existing", 20, RoutingAction.AUTO_REJECT, false);
+        // A replacing draft keeps the id it replaces; only its name/reason differ here.
+        var renamed = policy(existingPolicyId, "Renamed", 20, RoutingAction.AUTO_REJECT, true);
+        stubMatches(Optional.of(existing), Optional.of(renamed));
+
+        var result = service.simulate(orgId, window(), null,
+                draft(existingPolicyId, null, true, RoutingAction.AUTO_REJECT));
+
+        // Editing only the label must not report 100% of the policy's matched traffic as changed.
+        assertThat(result.changedCount()).isZero();
+        assertThat(result.outcomeDeltas()).isEmpty();
+    }
+
+    @Test
+    void replacingAPolicyAndChangingItsActionIsAChange() {
+        corpus.add(row(alice, "a@x.io", datasourceId));
+        var existing = policy(existingPolicyId, "Existing", 20, RoutingAction.ESCALATE, false);
+        var edited = policy(existingPolicyId, "Existing", 20, RoutingAction.AUTO_REJECT, true);
+        stubMatches(Optional.of(existing), Optional.of(edited));
+
+        var result = service.simulate(orgId, window(), null,
+                draft(existingPolicyId, null, true, RoutingAction.AUTO_REJECT));
+
+        assertThat(result.changedCount()).isEqualTo(1);
     }
 }

@@ -57,14 +57,27 @@ public class RoutingPolicyEngine {
         return evaluable;
     }
 
-    /** First match by the supplied order wins; evaluation stops there. */
+    /**
+     * First match by the supplied order wins; evaluation stops there. A policy that throws while
+     * being evaluated is logged and skipped, exactly as an undecodable one is — one bad stored row
+     * must never break routing for the whole organization.
+     */
     Optional<EvaluablePolicy> firstMatch(List<EvaluablePolicy> policies, ConditionContext context) {
         for (var policy : policies) {
-            if (routingConditionEvaluator.matches(policy.condition(), context)) {
+            if (matches(policy, context)) {
                 return Optional.of(policy);
             }
         }
         return Optional.empty();
+    }
+
+    private boolean matches(EvaluablePolicy policy, ConditionContext context) {
+        try {
+            return routingConditionEvaluator.matches(policy.condition(), context);
+        } catch (RuntimeException ex) {
+            log.error("Skipping routing policy {} that failed to evaluate", policy.id(), ex);
+            return false;
+        }
     }
 
     /** A policy whose stored condition will not decode is logged and skipped, never fatal. */

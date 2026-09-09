@@ -1,14 +1,36 @@
 import type { TFunction } from 'i18next';
-import type { MaskingSimulationResponse, RowSecuritySimulationResponse } from '@/types/api';
+import type {
+  MaskingSimulationResponse,
+  RowSecuritySimulationResponse,
+  RowSecurityTransition,
+} from '@/types/api';
 import type { SimulationSummary } from '@/components/policies/PolicySimulationDrawer';
 import { fmtDate } from '@/utils/dateFormat';
+
+/**
+ * Every RowSecurityTransition, mapped to its label key explicitly. A derived key
+ * (`rls_${transition.toLowerCase()}`) silently rendered the raw SCREAMING_SNAKE constant for the
+ * two transitions whose key name did not happen to match, and a `defaultValue` fallback hid it.
+ */
+const TRANSITION_LABEL_KEYS: Record<RowSecurityTransition, string> = {
+  UNCHANGED: 'policySimulation.rls_unchanged',
+  NEWLY_FILTERED: 'policySimulation.rls_newly_filtered',
+  NEWLY_DENY_ALL: 'policySimulation.rls_newly_denied',
+  NEWLY_FAILS_CLOSED: 'policySimulation.rls_newly_fails_closed',
+  NO_LONGER_FILTERED: 'policySimulation.rls_no_longer_filtered',
+  UNCLASSIFIABLE: 'policySimulation.rls_unclassifiable',
+};
+
+/** Label for one transition. Exported so the mapping is directly testable across all six values. */
+export function transitionLabel(transition: RowSecurityTransition, t: TFunction): string {
+  return t(TRANSITION_LABEL_KEYS[transition]);
+}
 
 /** Reduces a row-security dry run into the rows and stats the shared drawer renders. */
 export function rowSecuritySimulationSummary(
   result: RowSecuritySimulationResponse,
   t: TFunction,
 ): SimulationSummary {
-  const transition = (key: string) => t(`policySimulation.rls_${key}`);
   return {
     evaluatedCount: result.evaluated_count,
     changedCount: result.changed_count,
@@ -33,9 +55,9 @@ export function rowSecuritySimulationSummary(
     ],
     userColumns: [
       { title: t('policySimulation.col_user'), dataIndex: 'email' },
-      { title: transition('newly_filtered'), dataIndex: 'filtered' },
-      { title: transition('newly_denied'), dataIndex: 'denied' },
-      { title: transition('newly_fails_closed'), dataIndex: 'failsClosed' },
+      { title: t('policySimulation.rls_newly_filtered'), dataIndex: 'filtered' },
+      { title: t('policySimulation.rls_newly_denied'), dataIndex: 'denied' },
+      { title: t('policySimulation.rls_newly_fails_closed'), dataIndex: 'failsClosed' },
     ],
     userRows: result.user_impacts.map((impact) => ({
       key: impact.user_id,
@@ -55,9 +77,7 @@ export function rowSecuritySimulationSummary(
       key: sample.query_request_id,
       submitter: sample.submitted_by_email,
       when: fmtDate(sample.created_at),
-      transition: t(`policySimulation.rls_${sample.transition.toLowerCase()}`, {
-        defaultValue: sample.transition,
-      }),
+      transition: transitionLabel(sample.transition, t),
       reason: sample.reason ?? '',
     })),
   };

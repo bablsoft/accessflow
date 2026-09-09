@@ -19,6 +19,9 @@ import java.util.UUID;
  *
  * @param evaluatedCount rows actually replayed (never more than the configured cap)
  * @param changedCount   rows whose outcome differs between the two arms
+ * @param skippedAiFailedCount rows excluded because AI analysis failed on them. Production never
+ *                       routes those — the state machine sends them straight to human review — so
+ *                       replaying them would credit a draft with traffic it would never have seen.
  * @param truncated      more rows matched the window than the cap allowed; counts cover the
  *                       evaluated subset only
  */
@@ -28,6 +31,7 @@ public record RoutingSimulationResult(
         UUID datasourceId,
         int evaluatedCount,
         int changedCount,
+        int skippedAiFailedCount,
         boolean truncated,
         List<OutcomeDelta> outcomeDeltas,
         List<UserImpact> userImpacts,

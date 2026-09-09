@@ -64,6 +64,13 @@ class ConditionContextFactoryTest {
                 .thenReturn(Optional.empty());
     }
 
+    private com.bablsoft.accessflow.core.api.QueryEstimateSnapshot estimate(
+            Long estimatedRows, Long affectedRowCount, String scanType, boolean failed) {
+        return new com.bablsoft.accessflow.core.api.QueryEstimateSnapshot(UUID.randomUUID(),
+                queryId, "postgresql", QueryType.SELECT, true, estimatedRows, affectedRowCount,
+                scanType, null, null, null, null, failed, null, 5, SUBMITTED_AT);
+    }
+
     private QueryCorpusRow row(RiskLevel level, Integer score) {
         return new QueryCorpusRow(queryId, orgId, datasourceId, "prod", DbType.POSTGRESQL,
                 submitterId, "a@x.io", "Ada", "SELECT * FROM orders", QueryType.SELECT,
@@ -125,12 +132,44 @@ class ConditionContextFactoryTest {
     }
 
     @Test
-    void historicalRowCarriesNoCostEstimateSignal() {
+    void historicalRowReplaysThePersistedCostEstimate() {
+        when(queryEstimateLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(estimate(5_000L, null, "Seq Scan", false)));
+
+        var context = factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"));
+
+        // The AF-624 estimate is a persisted per-query fact. Dropping it would make an
+        // estimated_rows policy simulate as matching nothing — a false all-clear.
+        assertThat(context.hasEstimateSignal()).isTrue();
+        assertThat(context.estimatedRows()).isEqualTo(5_000L);
+        assertThat(context.scanType()).isEqualTo("Seq Scan");
+    }
+
+    @Test
+    void historicalRowPrefersTheExactAffectedRowCountOverThePlanEstimate() {
+        when(queryEstimateLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(estimate(5_000L, 12L, "Index Scan", false)));
+
+        assertThat(factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC")).estimatedRows())
+                .isEqualTo(12L);
+    }
+
+    @Test
+    void aFailedEstimateLeavesTheSignalAbsentSoThoseOperandsFailClosed() {
+        when(queryEstimateLookupService.findByQueryRequestId(queryId))
+                .thenReturn(Optional.of(estimate(5_000L, null, "Seq Scan", true)));
+
         var context = factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"));
 
         assertThat(context.hasEstimateSignal()).isFalse();
-        assertThat(context.estimatedRows()).isNull();
         assertThat(context.scanType()).isNull();
+    }
+
+    @Test
+    void anAbsentEstimateLeavesTheSignalAbsent() {
+        var context = factory.forHistoricalRow(row(RiskLevel.LOW, 10), ZoneId.of("UTC"));
+
+        assertThat(context.hasEstimateSignal()).isFalse();
     }
 
     @Test

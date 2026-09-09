@@ -3500,9 +3500,10 @@ under-report.
   "datasource_id": null,
   "evaluated_count": 1284,
   "changed_count": 312,
+  "skipped_ai_failed_count": 7,
   "truncated": false,
   "outcome_deltas": [
-    { "baseline_action": null, "simulated_action": "AUTO_REJECT", "count": 297 },
+    { "baseline_action": "NO_MATCH", "simulated_action": "AUTO_REJECT", "count": 297 },
     { "baseline_action": "ESCALATE", "simulated_action": "AUTO_REJECT", "count": 15 }
   ],
   "user_impacts": [
@@ -3535,6 +3536,10 @@ under-report.
   "caveats": ["MEMBERSHIP_STATE_CURRENT", "ANOMALY_STATE_CURRENT"]
 }
 ```
+
+`skipped_ai_failed_count` is the number of rows excluded because AI analysis failed on them:
+production sends those straight to human review without consulting routing at all, so replaying them
+would credit a draft with traffic it would never have seen. They are outside `evaluated_count`.
 
 `baseline` and `simulated` are each `null` when **no** policy matched on that side — the query falls
 through to the grant fast-path and then the datasource's review plan, exactly as in production.

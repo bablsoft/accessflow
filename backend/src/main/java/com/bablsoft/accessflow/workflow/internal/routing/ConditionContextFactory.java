@@ -54,18 +54,7 @@ public class ConditionContextFactory {
     public ConditionContext forLiveQuery(QueryRequestSnapshot query, RiskLevel riskLevel,
                                          int riskScore, Clock clock) {
         var parsed = parse(query.id(), query.sqlText(), query.transactional());
-        Long estimatedRows = null;
-        String scanType = null;
-        // AF-624: live, fail-closed lookup of the pre-flight estimate — the estimate pipeline runs
-        // independently of AI analysis, so whatever is persisted right now is the signal; absent /
-        // unsupported / failed rows leave both fields null and the matching conditions false.
-        var estimate = queryEstimateLookupService.findByQueryRequestId(query.id()).orElse(null);
-        if (estimate != null && !estimate.failed()) {
-            estimatedRows = estimate.affectedRowCount() != null
-                    ? estimate.affectedRowCount()
-                    : estimate.estimatedRows();
-            scanType = estimate.scanType();
-        }
+        var estimate = estimateSignals(query.id());
         return new ConditionContext(query.queryType(), parsed.tables(), riskLevel, riskScore,
                 roleName(query.submittedByUserId()), groupIds(query.submittedByUserId()),
                 LocalDateTime.now(clock), parsed.hasWhere(), parsed.hasLimit(), parsed.transactional(),
@@ -74,20 +63,22 @@ public class ConditionContextFactory {
                         query.datasourceId(), query.id(), clock.instant()),
                 behaviorAnomalyLookupService.hasActiveAnomaly(query.organizationId(),
                         query.submittedByUserId(), query.datasourceId()),
-                estimatedRows, scanType);
+                estimate.rows(), estimate.scanType());
     }
 
     /**
      * The replay path: the same signals, evaluated as of {@code row}'s submission instant.
      *
-     * <p>Two signals cannot be reconstructed and are approximated on purpose — the caller reports
-     * them as caveats rather than hiding them. Role and group membership are read as they are now,
-     * and {@code anomalyActive} is forced to {@code false} because the UBA signal is a statement
-     * about today's open anomalies, not about the historical query. Both arms of a simulation see
-     * the identical approximation, so the diff between them stays sound.
+     * <p>Exactly two signals cannot be reconstructed and are approximated on purpose — the caller
+     * reports them as caveats rather than hiding them. Role and group membership are read as they
+     * are now, and {@code anomalyActive} is forced to {@code false} because the UBA signal is a
+     * statement about today's open anomalies, not about the historical query. Both arms of a
+     * simulation see the identical approximation, so the diff between them stays sound. Everything
+     * else — including the AF-624 cost estimate — is replayed from what was persisted.
      */
     public ConditionContext forHistoricalRow(QueryCorpusRow row, ZoneId zone) {
         var parsed = parse(row.id(), row.sqlText(), row.transactional());
+        var estimate = estimateSignals(row.id());
         return new ConditionContext(row.queryType(), parsed.tables(), row.aiRiskLevel(),
                 row.aiRiskScore() != null ? row.aiRiskScore() : -1,
                 roleName(row.submittedByUserId()), groupIds(row.submittedByUserId()),
@@ -95,7 +86,30 @@ public class ConditionContextFactory {
                 parsed.transactional(), row.submittedIp(), row.submittedUserAgent(), row.ciCdOrigin(),
                 minutesSinceLastApproval(row.organizationId(), row.submittedByUserId(),
                         row.datasourceId(), row.id(), row.createdAt()),
-                false, null, null);
+                false, estimate.rows(), estimate.scanType());
+    }
+
+    /**
+     * AF-624 pre-flight estimate signals. The estimate pipeline runs independently of AI analysis,
+     * so whatever is persisted for the query is the signal; absent / unsupported / failed rows
+     * leave both fields null and the matching conditions fail closed.
+     *
+     * <p>The replay arm reads it too: unlike membership or the anomaly flag, the estimate is a
+     * persisted per-query fact, so dropping it would make an {@code estimated_rows} policy simulate
+     * as matching nothing — a false all-clear on a policy that would start firing once saved.
+     */
+    private EstimateSignals estimateSignals(UUID queryRequestId) {
+        var estimate = queryEstimateLookupService.findByQueryRequestId(queryRequestId).orElse(null);
+        if (estimate == null || estimate.failed()) {
+            return new EstimateSignals(null, null);
+        }
+        var rows = estimate.affectedRowCount() != null
+                ? estimate.affectedRowCount()
+                : estimate.estimatedRows();
+        return new EstimateSignals(rows, estimate.scanType());
+    }
+
+    private record EstimateSignals(Long rows, String scanType) {
     }
 
     private String roleName(UUID userId) {

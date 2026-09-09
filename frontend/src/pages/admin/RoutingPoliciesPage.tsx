@@ -29,7 +29,7 @@ import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDr
 import {
   draftFingerprint,
   isRoutingDraftHighImpact,
-  windowForDays,
+  type RoutingDraftPayload,
 } from '@/components/policies/policyImpact';
 import { simulateRoutingPolicy } from '@/api/policySimulation';
 import { routingSimulationSummary } from './routingSimulationSummary';
@@ -77,7 +77,6 @@ import {
   type RoutingConditionRow,
 } from './routingPolicyForm';
 import type {
-  RoutingSimulationRequest,
   RoutingAction,
   RoutingConditionOperand,
   RoutingPolicy,
@@ -246,14 +245,13 @@ export function RoutingPoliciesPage() {
   });
 
   /** The draft the Simulate button replays, built from whatever is in the form right now. */
-  const buildSimulationPayload = (): RoutingSimulationRequest | null => {
+  const buildSimulationPayload = (): RoutingDraftPayload | null => {
     const values = form.getFieldsValue();
     if (!values.name || !values.action) {
       return null;
     }
     const rows = (values.conditions ?? []).map(fromFormRow);
     return {
-      ...windowForDays(30),
       datasource_id: values.datasource_id ?? null,
       draft: {
         replaces_policy_id: editing?.id ?? null,
@@ -271,10 +269,13 @@ export function RoutingPoliciesPage() {
     };
   };
 
-  const openSimulation = async () => {
-    // Validate first so the draft we replay is one the API would actually accept.
-    await form.validateFields();
-    setSimulationOpen(true);
+  const openSimulation = () => {
+    // Validate first so the draft we replay is one the API would actually accept. Field errors
+    // render inline, so a rejection needs no further reporting.
+    form.validateFields().then(
+      () => setSimulationOpen(true),
+      () => undefined,
+    );
   };
 
   /**
@@ -294,6 +295,9 @@ export function RoutingPoliciesPage() {
       content: t('policySimulation.nudge_body'),
       okText: t('policySimulation.nudge_simulate'),
       cancelText: t('policySimulation.nudge_save'),
+      // AntD calls onCancel for Esc as well as the Cancel button, and here onCancel is the write
+      // path. Esc must not be able to commit a policy the admin has not looked at.
+      keyboard: false,
       onOk: () => setSimulationOpen(true),
       onCancel: submit,
     });
@@ -539,7 +543,7 @@ export function RoutingPoliciesPage() {
         width={720}
         footer={(_, { OkBtn, CancelBtn }) => (
           <Flex justify="space-between" align="center">
-            <Button onClick={() => void openSimulation()}>
+            <Button onClick={openSimulation}>
               {t('policySimulation.run')}
             </Button>
             <Space>
@@ -746,7 +750,7 @@ export function RoutingPoliciesPage() {
         run={(window) => {
           const payload = buildSimulationPayload();
           if (!payload) {
-            return Promise.reject(new Error('incomplete draft'));
+            return Promise.reject(new Error(t('policySimulation.incomplete_draft')));
           }
           return simulateRoutingPolicy({ ...payload, ...window });
         }}

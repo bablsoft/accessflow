@@ -823,7 +823,14 @@ reading of a conflict the save path would `409` on.
 For routing, policies are resolved **per the row's own datasource**, because that is what routing
 does: an org-wide corpus spans datasources, and a datasource-scoped policy must not judge a query
 that never touched it. Two matches with the same action still count as a change when a *different*
-policy decided it — an admin needs to see their draft take a decision over from another rule.
+policy decided it — an admin needs to see their draft take a decision over from another rule — but a
+draft that *replaces* a policy keeps the id it replaces, so editing only a name or reason is not a
+change and must not report 100 % of that policy's traffic as one.
+
+Rows whose **AI analysis failed** are excluded from the routing arm and reported separately as
+`skipped_ai_failed_count`. `QueryReviewStateMachine.onAiFailed` sends those straight to
+`PENDING_REVIEW` without consulting routing at all — a missing AI signal never feeds an automated
+decision — so replaying them would credit a draft with traffic it would never have seen.
 
 #### The corpus: `query_requests`, not `query_snapshots`
 

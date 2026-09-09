@@ -6,10 +6,8 @@ import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
-import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
-import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.exceptions.JedisException;
@@ -289,7 +287,6 @@ class RedisQueryExecutor {
         } while (!ScanParams.SCAN_POINTER_START.equals(cursor) && keys.size() < limit);
         return keys.size() > limit ? new ArrayList<>(keys.subList(0, limit)) : keys;
     }
-
 
     // ---- shaping helpers ------------------------------------------------------------------------
 

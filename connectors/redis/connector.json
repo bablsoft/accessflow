@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-redis-1.0.2-all.jar",
-    "fileName": "accessflow-engine-redis-1.0.2-all.jar",
-    "sha256": "a2b89a9578814a1503ab6786d98c7c798616358a16faf0ba9f3e813d3e5889d3"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-redis-1.0.3-all.jar",
+    "fileName": "accessflow-engine-redis-1.0.3-all.jar",
+    "sha256": "de58518bf38d38ddda39ad783f4b2573258392591521a307c8406b7ef10148c7"
   }
 }

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { apiClient } from './client';
 import {
-  policySimulationKeys,
   simulateMaskingPolicy,
   simulateRoutingPolicy,
   simulateRowSecurityPolicy,
@@ -17,25 +16,6 @@ vi.mock('./client', () => ({ apiClient: { post: vi.fn() } }));
 const post = vi.mocked(apiClient.post);
 
 const WINDOW = { from: '2026-06-01T00:00:00Z', to: '2026-07-01T00:00:00Z' };
-
-describe('policySimulationKeys', () => {
-  it('is hierarchical and domain-prefixed', () => {
-    expect(policySimulationKeys.all).toEqual(['policySimulation']);
-    expect(policySimulationKeys.routing()).toEqual(['policySimulation', 'routing']);
-    expect(policySimulationKeys.rowSecurity('ds-1')).toEqual([
-      'policySimulation',
-      'rowSecurity',
-      'ds-1',
-    ]);
-    expect(policySimulationKeys.masking('ds-1')).toEqual(['policySimulation', 'masking', 'ds-1']);
-  });
-
-  it('scopes the datasource-bound keys so two datasources never share a cache entry', () => {
-    expect(policySimulationKeys.rowSecurity('ds-1')).not.toEqual(
-      policySimulationKeys.rowSecurity('ds-2'),
-    );
-  });
-});
 
 describe('simulateRoutingPolicy', () => {
   beforeEach(() => vi.clearAllMocks());

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
@@ -89,6 +90,12 @@ class MongoRowSecurityApplier {
         }
         try {
             var applied = apply(command, directives);
+            if (command.operation().queryType() == QueryType.DDL) {
+                // DDL against a policied collection reads and affects no documents, so nothing is
+                // filtered. Reporting APPLIED here would land every historical DDL row in the
+                // simulator's "newly filtered" count.
+                return RowSecurityClassification.notApplicable(engineId);
+            }
             return deniesEverything(matching)
                     ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
                     : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());

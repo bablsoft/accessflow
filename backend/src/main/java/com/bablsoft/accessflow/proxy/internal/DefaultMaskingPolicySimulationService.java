@@ -115,7 +115,7 @@ class DefaultMaskingPolicySimulationService implements MaskingPolicySimulationSe
             var sets = masksBySubmitter.computeIfAbsent(row.submittedByUserId(), this::resolveFor);
             var before = maskedColumns(columnNames, sets.baseline());
             var after = maskedColumns(columnNames, sets.simulated());
-            record(row, difference(after, before), difference(before, after));
+            record(row, newlyMaskedIn(after, before), newlyRevealedIn(before, after));
         }
 
         private ResolvedSets resolveFor(UUID submitterId) {
@@ -197,23 +197,42 @@ class DefaultMaskingPolicySimulationService implements MaskingPolicySimulationSe
         }
     }
 
-    /** The subset of {@code columnNames} any resolved mask covers, matched on the bare name. */
-    private static Set<String> maskedColumns(List<String> columnNames,
-                                             List<ResolvedColumnMask> masks) {
-        var masked = new LinkedHashSet<String>();
+    /**
+     * Each covered column mapped to <em>how</em> it would be masked, keyed on the bare name.
+     *
+     * <p>The value matters: comparing only which columns are masked would report a draft that
+     * swaps {@code FULL} for {@code PARTIAL} on the same column as no impact at all, and changing
+     * a strategy is one of the commonest edits there is.
+     */
+    private static Map<String, String> maskedColumns(List<String> columnNames,
+                                                     List<ResolvedColumnMask> masks) {
+        var masked = new LinkedHashMap<String, String>();
         for (var mask : masks) {
             var keys = ColumnRefKeys.parse(mask.columnRef());
+            var treatment = mask.strategy() + new TreeMap<>(mask.params()).toString();
             for (var column : columnNames) {
                 if (keys.matchLevel(null, null, column) > 0) {
-                    masked.add(column);
+                    // Most specific wins is the resolver's rule; first match here is stable enough
+                    // for a diff, and any change to the winner still shows up as a changed value.
+                    masked.putIfAbsent(column, treatment);
                 }
             }
         }
         return masked;
     }
 
-    private static List<String> difference(Set<String> from, Set<String> without) {
-        return from.stream().filter(column -> !without.contains(column)).toList();
+    /** Columns masked in {@code after} that were unmasked, or masked differently, in {@code before}. */
+    private static List<String> newlyMaskedIn(Map<String, String> after, Map<String, String> before) {
+        return after.entrySet().stream()
+                .filter(entry -> !entry.getValue().equals(before.get(entry.getKey())))
+                .map(Map.Entry::getKey)
+                .toList();
+    }
+
+    /** Columns that were masked in {@code before} and are no longer masked at all in {@code after}. */
+    private static List<String> newlyRevealedIn(Map<String, String> before,
+                                                Map<String, String> after) {
+        return before.keySet().stream().filter(column -> !after.containsKey(column)).toList();
     }
 
     private record ResolvedSets(List<ResolvedColumnMask> baseline,

@@ -149,7 +149,7 @@ class AdminRoutingPolicyControllerTest {
         var to = java.time.Instant.parse("2026-07-01T00:00:00Z");
         var replaces = UUID.randomUUID();
         var result = new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(from, to, null,
-                12, 3, false, List.of(), List.of(), List.of(), List.of());
+                12, 3, 0, false, List.of(), List.of(), List.of(), List.of());
         when(simulationService.simulate(org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any())).thenReturn(result);
@@ -183,7 +183,7 @@ class AdminRoutingPolicyControllerTest {
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(
-                        from, to, null, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
+                        from, to, null, 0, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
 
         controller.simulate(new com.bablsoft.accessflow.workflow.internal.web.model
                 .SimulateRoutingPolicyRequest(from, to, null,
@@ -208,7 +208,7 @@ class AdminRoutingPolicyControllerTest {
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(
-                        from, to, null, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
+                        from, to, null, 0, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
 
         controller.simulate(new com.bablsoft.accessflow.workflow.internal.web.model
                 .SimulateRoutingPolicyRequest(from, to, null,

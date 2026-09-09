@@ -1,8 +1,10 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import {
+  apiBase,
   createPostgresDatasource,
   createReviewPlanViaApi,
   deleteDatasource,
+  executeQueryViaApi,
   loginViaApi,
   submitQueryViaApi,
   waitForQueryStatus,
@@ -59,12 +61,15 @@ test.describe.serial('policy simulator (AF-630)', () => {
       request,
       token,
       datasourceId,
-      'SELECT 1',
+      'SELECT 1 AS email',
       'policy simulator corpus',
     );
-    // The plan auto-approves, so the query lands in APPROVED without a reviewer; that is enough
-    // corpus for routing, which is evaluated at submission whatever the final status.
     await waitForQueryStatus(request, token, submitted.id, 'APPROVED', 30_000);
+    // Execute it for real: the row-security and masking corpora are EXECUTED rows only (masking
+    // additionally needs a stored result set), so an approved-but-never-run query would leave both
+    // empty and make every assertion below pass trivially.
+    await executeQueryViaApi(request, token, submitted.id);
+    await waitForQueryStatus(request, token, submitted.id, 'EXECUTED', 30_000);
   }
 
   test('replays traffic against a draft routing policy and reports the diff', async ({ page }) => {
@@ -97,11 +102,17 @@ test.describe.serial('policy simulator (AF-630)', () => {
       caveats: string[];
       samples: unknown[];
     };
-    expect(body.evaluated_count).toBeGreaterThanOrEqual(0);
+    // The seeded query is in the window, so the corpus is genuinely non-empty.
+    expect(body.evaluated_count).toBeGreaterThan(0);
     // Every simulation is honest about the approximations it made.
     expect(body.caveats).toContain('MEMBERSHIP_STATE_CURRENT');
 
+    // The drawer must actually render the numbers — a remount that discarded the result would
+    // leave the shell behind with no stats.
     await expect(drawer.getByText('Queries replayed')).toBeVisible({ timeout: 15_000 });
+    await expect(drawer.getByText(String(body.evaluated_count)).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test('nudges before saving a high-impact policy but never blocks the save', async ({ page }) => {
@@ -112,6 +123,10 @@ test.describe.serial('policy simulator (AF-630)', () => {
     const modal = page.getByRole('dialog').filter({ hasText: 'Add routing policy' }).first();
     await expect(modal).toBeVisible({ timeout: 15_000 });
     await modal.getByLabel('Name').fill(`Nudged policy ${SUFFIX}`);
+    // Scope it to this spec's own datasource: an org-wide AUTO_REJECT would judge every other
+    // parallel spec's DELETE traffic for as long as it exists.
+    await modal.locator('#datasource_id').click();
+    await page.getByTitle(`Postgres E2E Simulator ${SUFFIX}`, { exact: true }).click();
     // AUTO_REJECT decides without a human, so it trips the high-impact nudge.
     await modal.locator('#action').click();
     await page.getByTitle('Auto-reject', { exact: true }).click();
@@ -133,10 +148,9 @@ test.describe.serial('policy simulator (AF-630)', () => {
     expect(created.status()).toBe(201);
 
     const body = (await created.json()) as { id: string };
-    await page.request.delete(
-      `${process.env.E2E_API_BASE ?? 'http://localhost:8080'}/api/v1/admin/routing-policies/${body.id}`,
-      { headers: { Authorization: `Bearer ${adminToken}` } },
-    );
+    await page.request.delete(`${apiBase()}/api/v1/admin/routing-policies/${body.id}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
   });
 
   test('dry-runs a draft row-security predicate from the datasource settings tab', async ({
@@ -169,10 +183,19 @@ test.describe.serial('policy simulator (AF-630)', () => {
 
     const response = await simulateResponse;
     expect(response.status()).toBe(200);
-    const body = (await response.json()) as { unclassifiable_count: number; caveats: string[] };
+    const body = (await response.json()) as {
+      evaluated_count: number;
+      unclassifiable_count: number;
+      caveats: string[];
+    };
+    // The executed seed query is in the corpus, so this is a real classification, not an empty run.
+    expect(body.evaluated_count).toBeGreaterThan(0);
     // A Postgres datasource classifies in-process, so nothing should be unclassifiable.
     expect(body.unclassifiable_count).toBe(0);
     expect(body.caveats).toContain('MEMBERSHIP_STATE_CURRENT');
+    expect(body.caveats).not.toContain('ENGINE_CLASSIFICATION_UNAVAILABLE');
+
+    await expect(drawer.getByText('Queries replayed')).toBeVisible({ timeout: 15_000 });
   });
 
   test('dry-runs a draft masking policy and reports the bare-name caveat', async ({ page }) => {
@@ -199,8 +222,18 @@ test.describe.serial('policy simulator (AF-630)', () => {
 
     const response = await simulateResponse;
     expect(response.status()).toBe(200);
-    const body = (await response.json()) as { caveats: string[] };
+    const body = (await response.json()) as {
+      evaluated_count: number;
+      newly_masked_count: number;
+      caveats: string[];
+    };
+    // The seeded SELECT returns an `email` column and the draft masks `…​.email`, so the bare-name
+    // match is genuinely exercised rather than asserted against an empty corpus.
+    expect(body.evaluated_count).toBeGreaterThan(0);
+    expect(body.newly_masked_count).toBeGreaterThan(0);
     // Stored results record a column name but no table, and the UI must say so.
     expect(body.caveats).toContain('COLUMN_MATCH_BARE_NAME');
+
+    await expect(drawer.getByText('Queries replayed')).toBeVisible({ timeout: 15_000 });
   });
 });

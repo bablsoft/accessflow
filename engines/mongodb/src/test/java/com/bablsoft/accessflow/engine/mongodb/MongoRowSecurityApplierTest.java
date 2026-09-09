@@ -177,4 +177,13 @@ class MongoRowSecurityApplierTest {
         assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
         assertThat(command.filter()).isEqualTo(before);
     }
+
+    @Test
+    void classifyReportsNotApplicableForDdlAgainstAPoliciedCollection() {
+        var command = parser.parseCommand("db.users.createIndex({ tenant: 1 })");
+        var result = applier.classify("mongodb", command, List.of(eq("users", "tenant", 7)));
+        // A createIndex reads and affects no documents, so nothing is filtered. Reporting APPLIED
+        // would land every historical DDL row in the simulator's "newly filtered" count.
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
 }

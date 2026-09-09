@@ -170,10 +170,10 @@ class EsRowSecurityApplierTest {
     }
 
     @Test
-    void classifyReportsAppliedWithNoPolicyIdsForUnaffectedDdl() {
+    void classifyReportsNotApplicableForUnaffectedDdl() {
         var result = applier.classify("elasticsearch", parser.parseCommand("{\"delete_index\":\"logs\"}"),
                 List.of(directive(RowSecurityOperator.EQUALS, "acme")));
-        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
         assertThat(result.appliedPolicyIds()).isEmpty();
     }
 

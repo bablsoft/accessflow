@@ -21,7 +21,7 @@ class RoutingSimulationResponseTest {
     @Test
     void mapsAnEmptyResultWithoutNulls() {
         var response = RoutingSimulationResponse.from(new RoutingSimulationResult(
-                FROM, TO, null, 0, 0, false, null, null, null, null));
+                FROM, TO, null, 0, 0, 0, false, null, null, null, null));
 
         assertThat(response.outcomeDeltas()).isEmpty();
         assertThat(response.userImpacts()).isEmpty();
@@ -34,7 +34,7 @@ class RoutingSimulationResponseTest {
     void mapsCountsWindowAndCaveats() {
         var datasourceId = UUID.randomUUID();
         var response = RoutingSimulationResponse.from(new RoutingSimulationResult(
-                FROM, TO, datasourceId, 1284, 312, true, List.of(), List.of(), List.of(),
+                FROM, TO, datasourceId, 1284, 312, 0, true, List.of(), List.of(), List.of(),
                 List.of(SimulationCaveat.MEMBERSHIP_STATE_CURRENT)));
 
         assertThat(response.periodFrom()).isEqualTo(FROM);
@@ -50,7 +50,7 @@ class RoutingSimulationResponseTest {
     void mapsDeltasAndUserImpacts() {
         var userId = UUID.randomUUID();
         var response = RoutingSimulationResponse.from(new RoutingSimulationResult(
-                FROM, TO, null, 10, 4, false,
+                FROM, TO, null, 10, 4, 0, false,
                 List.of(new RoutingSimulationResult.OutcomeDelta(RoutingSimulationOutcome.NO_MATCH,
                         RoutingSimulationOutcome.AUTO_REJECT, 4)),
                 List.of(new RoutingSimulationResult.UserImpact(userId, "a@x.io", "Ada", 4,
@@ -75,7 +75,7 @@ class RoutingSimulationResponseTest {
     void aNullBaselineMatchStaysNullMeaningNoPolicyMatchedOnThatArm() {
         var queryId = UUID.randomUUID();
         var response = RoutingSimulationResponse.from(new RoutingSimulationResult(
-                FROM, TO, null, 1, 1, false, List.of(), List.of(),
+                FROM, TO, null, 1, 1, 0, false, List.of(), List.of(),
                 List.of(new RoutingSimulationResult.Sample(queryId, "a@x.io", "prod",
                         QueryType.DELETE, QueryStatus.EXECUTED, FROM, null,
                         new RoutingSimulationResult.MatchedPolicy(
@@ -96,7 +96,7 @@ class RoutingSimulationResponseTest {
     void mapsAPersistedBaselineMatchWithItsPolicyId() {
         var policyId = UUID.randomUUID();
         var response = RoutingSimulationResponse.from(new RoutingSimulationResult(
-                FROM, TO, null, 1, 1, false, List.of(), List.of(),
+                FROM, TO, null, 1, 1, 0, false, List.of(), List.of(),
                 List.of(new RoutingSimulationResult.Sample(UUID.randomUUID(), "a@x.io", "prod",
                         QueryType.SELECT, QueryStatus.EXECUTED, FROM,
                         new RoutingSimulationResult.MatchedPolicy(

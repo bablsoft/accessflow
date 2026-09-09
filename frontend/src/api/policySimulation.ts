@@ -12,16 +12,9 @@ import type {
  * Policy simulator (AF-630) — one module for all three policy kinds, because their responses share
  * an envelope (counts, per-user impact, capped samples, caveats) and the UI renders them the same
  * way. Each call is a POST that takes a draft, so callers use `useMutation`, not `useQuery`: a
- * simulation must never run on its own.
+ * simulation must never run on its own, and there is deliberately no query-key factory here — a
+ * simulation is not cached server state.
  */
-export const policySimulationKeys = {
-  all: ['policySimulation'] as const,
-  routing: () => ['policySimulation', 'routing'] as const,
-  rowSecurity: (datasourceId: string) =>
-    ['policySimulation', 'rowSecurity', datasourceId] as const,
-  masking: (datasourceId: string) => ['policySimulation', 'masking', datasourceId] as const,
-};
-
 export async function simulateRoutingPolicy(
   payload: RoutingSimulationRequest,
 ): Promise<RoutingSimulationResponse> {

@@ -3,8 +3,24 @@ import type { TFunction } from 'i18next';
 import {
   maskingSimulationSummary,
   rowSecuritySimulationSummary,
+  transitionLabel,
 } from './policySimulationSummaries';
-import type { MaskingSimulationResponse, RowSecuritySimulationResponse } from '@/types/api';
+import en from '@/locales/en.json';
+import type {
+  MaskingSimulationResponse,
+  RowSecuritySimulationResponse,
+  RowSecurityTransition,
+} from '@/types/api';
+
+/** Every value the API can return, so a missing label can never hide behind a fallback. */
+const ALL_TRANSITIONS: RowSecurityTransition[] = [
+  'UNCHANGED',
+  'NEWLY_FILTERED',
+  'NEWLY_DENY_ALL',
+  'NEWLY_FAILS_CLOSED',
+  'NO_LONGER_FILTERED',
+  'UNCLASSIFIABLE',
+];
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -39,6 +55,23 @@ const masking: MaskingSimulationResponse = {
   samples: [],
   caveats: ['COLUMN_MATCH_BARE_NAME'],
 };
+
+describe('transitionLabel', () => {
+  it.each(ALL_TRANSITIONS)('resolves a key that exists in en.json for %s', (transition) => {
+    // A derived key (`rls_${transition.toLowerCase()}`) silently rendered the raw SCREAMING_SNAKE
+    // constant for the two transitions whose key name did not match, and a defaultValue hid it.
+    // Asserting the key shape alone would not have caught that — the key has to actually exist.
+    const label = transitionLabel(transition, t);
+    expect(label).toMatch(/^policySimulation\.rls_/);
+    const leaf = label.replace('policySimulation.', '');
+    expect(Object.keys(en.policySimulation)).toContain(leaf);
+  });
+
+  it('maps every transition to a distinct key', () => {
+    const keys = ALL_TRANSITIONS.map((transition) => transitionLabel(transition, t));
+    expect(new Set(keys).size).toBe(ALL_TRANSITIONS.length);
+  });
+});
 
 describe('rowSecuritySimulationSummary', () => {
   it('surfaces the two loss-of-access counts and the unclassifiable count as headline stats', () => {

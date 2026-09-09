@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -87,6 +88,7 @@ class DefaultRoutingPolicySimulationService implements RoutingPolicySimulationSe
         private boolean anyPolicyReadsAnomaly;
         private int evaluated;
         private int changed;
+        private int skippedAiFailed;
 
         private Run(UUID organizationId, RoutingPolicyDraft draft) {
             this.organizationId = organizationId;
@@ -96,6 +98,13 @@ class DefaultRoutingPolicySimulationService implements RoutingPolicySimulationSe
         void accept(QueryCorpusRow row) {
             if (evaluated >= limits.maxRows()) {
                 return; // the cap+1 probe row: counted as truncation, never evaluated
+            }
+            if (row.aiFailed()) {
+                // QueryReviewStateMachine.onAiFailed goes straight to PENDING_REVIEW without
+                // consulting routing at all: a missing AI signal never feeds an automated decision.
+                // Replaying these rows would credit a draft with traffic it would never have seen.
+                skippedAiFailed++;
+                return;
             }
             evaluated++;
             var sets = policySetsByDatasource.computeIfAbsent(row.datasourceId(), this::policySetsFor);
@@ -162,8 +171,12 @@ class DefaultRoutingPolicySimulationService implements RoutingPolicySimulationSe
         }
 
         /**
-         * Two matches with the same action still differ when a different policy decided it — the
-         * admin needs to see that their draft took over a decision another rule used to make.
+         * Two matches with the same action still differ when a <em>different</em> policy decided it
+         * — the admin needs to see their draft take a decision over from another rule.
+         *
+         * <p>But a draft that replaces a policy keeps the id it replaces, so draft-ness alone is not
+         * a difference: editing only a policy's name or reason must not report 100% of its matched
+         * traffic as changed. Same rule, same effect, no change.
          */
         private boolean sameMatch(Optional<EvaluablePolicy> baseline,
                                   Optional<EvaluablePolicy> simulated) {
@@ -173,8 +186,11 @@ class DefaultRoutingPolicySimulationService implements RoutingPolicySimulationSe
             if (baseline.isEmpty() || simulated.isEmpty()) {
                 return false;
             }
-            return !simulated.get().draft()
-                    && java.util.Objects.equals(baseline.get().id(), simulated.get().id());
+            var before = baseline.get();
+            var after = simulated.get();
+            return Objects.equals(before.id(), after.id())
+                    && before.action() == after.action()
+                    && Objects.equals(before.requiredApprovals(), after.requiredApprovals());
         }
 
         RoutingSimulationResult toResult(SimulationWindow window, UUID datasourceId,
@@ -197,7 +213,8 @@ class DefaultRoutingPolicySimulationService implements RoutingPolicySimulationSe
                 caveats.add(SimulationCaveat.ANOMALY_STATE_CURRENT);
             }
             return new RoutingSimulationResult(window.from(), window.to(), datasourceId, evaluated,
-                    changed, truncated, outcomeDeltas, userImpacts, samples, caveats);
+                    changed, skippedAiFailed, truncated, outcomeDeltas, userImpacts, samples,
+                    caveats);
         }
     }
 

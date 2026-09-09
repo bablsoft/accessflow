@@ -82,7 +82,11 @@ class EsRowSecurityApplier {
             var applied = apply(command, directives);
             return deniesEverything(matching)
                     ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
-                    : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+                    : applied.appliedPolicyIds().isEmpty()
+                            // DDL against a policied index reads and affects no documents, so
+                            // nothing is filtered; APPLIED would pollute "newly filtered".
+                            ? RowSecurityClassification.notApplicable(engineId)
+                            : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
         } catch (UnrewritableRowSecurityException ex) {
             return RowSecurityClassification.failClosed(engineId, ex.getMessage());
         }

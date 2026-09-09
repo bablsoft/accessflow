@@ -18,6 +18,7 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,7 +64,16 @@ class DefaultRowSecurityClassificationService implements RowSecurityClassificati
             // The plugin JAR is not resolvable right now (offline host, uncached jar, checksum
             // mismatch). A simulation must degrade, never 500 — and never claim "no impact".
             log.warn("Row-security classification unavailable for {}: {}", dbType, ex.getMessage());
-            return RowSecurityClassification.unknown(dbType.name().toLowerCase(java.util.Locale.ROOT),
+            return RowSecurityClassification.unknown(engineId(dbType),
+                    msg("error.policy_simulation.engine_unavailable"));
+        } catch (RuntimeException ex) {
+            // A plugin runs third-party parsers inside its own shaded classloader. One row that
+            // trips an unexpected failure there must degrade to "cannot tell", not abort a
+            // 5 000-row simulation with a 500. Deliberate per-row carve-out, as with a scheduled
+            // job's per-row guard.
+            log.warn("Row-security classification failed for datasource {} on {}", datasourceId,
+                    dbType, ex);
+            return RowSecurityClassification.unknown(engineId(dbType),
                     msg("error.policy_simulation.engine_unavailable"));
         }
     }
@@ -109,7 +119,7 @@ class DefaultRowSecurityClassificationService implements RowSecurityClassificati
     /** The relational path has no plugin, so it reports a stable synthetic id. */
     private String engineId(DbType dbType) {
         return engineCatalog.isEngineManaged(dbType)
-                ? dbType.name().toLowerCase(java.util.Locale.ROOT)
+                ? dbType.name().toLowerCase(Locale.ROOT)
                 : RELATIONAL_ENGINE_ID;
     }
 
