@@ -45,6 +45,7 @@ test('Snowflake wizard shows account host + URL override and hides port', async 
   await page.locator('#password').fill('hunter2');
   await page.locator('#private_key_passphrase').fill('key-passphrase');
   await expect(page.locator('#database_name')).toHaveValue('ANALYTICS');
+  await expect(page.locator('#private_key_passphrase')).toHaveValue('key-passphrase');
 });
 
 test('BigQuery wizard shows GCP project + service-account JSON and hides host/port/username', async ({
@@ -56,9 +57,6 @@ test('BigQuery wizard shows GCP project + service-account JSON and hides host/po
   const option = page.getByRole('radio', { name: /BigQuery/i });
   await expect(option).toBeVisible();
   await option.click();
-
-  // The key passphrase is Snowflake-only.
-  await expect(page.locator('#private_key_passphrase')).toHaveCount(0);
 
   // Cloud-credentials model: no host/port/username fields.
   await expect(page.locator('#host')).toHaveCount(0);
@@ -74,6 +72,11 @@ test('BigQuery wizard shows GCP project + service-account JSON and hides host/po
   await expect(
     page.locator('.ant-form-item').filter({ hasText: 'Service account key (JSON)' }),
   ).toBeVisible();
+
+  // The key passphrase is Snowflake-only. Asserted after a positive anchor above, so the form is
+  // known to have rendered — toHaveCount(0) resolves immediately and would otherwise also pass
+  // on the type-selection step.
+  await expect(page.locator('#private_key_passphrase')).toHaveCount(0);
 
   await page.locator('#database_name').fill('my-project.analytics');
   await page.locator('#password').fill('{"type":"service_account"}');

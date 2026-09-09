@@ -189,7 +189,9 @@ export default function DatasourceCreateWizardPage() {
           input.api_key = useApiKey ? values.api_key : '';
         }
         if (isSnowflake) {
-          // Blank clears a stored passphrase (the key is no longer encrypted).
+          // Blank clears a stored passphrase (the key is no longer encrypted). This branch owns a
+          // just-created row whose form state is authoritative, so it can use the API's
+          // blank-clears semantics; the settings page deliberately cannot — see onFinish there.
           input.private_key_passphrase = values.private_key_passphrase || '';
         }
         return updateDatasource(createdDatasource.id, input);

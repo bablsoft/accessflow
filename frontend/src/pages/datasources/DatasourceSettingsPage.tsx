@@ -338,6 +338,12 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const secretRefRule = secretReferenceRule(secretProviders, t);
   // Snowflake's connection is an account host (port is always 443 and never stored) and its
   // credential may be a multi-line PKCS#8 PEM, optionally passphrase-protected (#632).
+  //
+  // NOTE: this page is otherwise NOT db_type-aware, and the required host/port/username rules
+  // below still make BIGQUERY, DATABRICKS and DYNAMODB unsaveable here — the wizard creates all
+  // three without a port (and BigQuery/DynamoDB without a host, BigQuery/Databricks without a
+  // username). Only Snowflake is unblocked here because only Snowflake is in scope for #632;
+  // the rest is tracked separately.
   const isSnowflake = ds.db_type === 'SNOWFLAKE';
 
   const initialValues: SettingsFormValues = {
@@ -433,7 +439,11 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
-    // Blank keeps the stored passphrase, exactly like the credential above.
+    // Blank keeps the stored passphrase, exactly like the credential above. Note this is
+    // deliberately NOT the API's blank-clears semantics: omitting the field is the only way to
+    // express "leave it alone" from a form that cannot distinguish untouched from emptied. The
+    // cost is that this page cannot clear a passphrase; a stale one is inert, since
+    // SnowflakeConnectionFactory only reads it for a BEGIN ENCRYPTED PRIVATE KEY credential.
     if (!body.private_key_passphrase || body.private_key_passphrase.trim().length === 0) {
       delete body.private_key_passphrase;
     }
@@ -536,7 +546,11 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
               <Form.Item
                 label={t('datasources.create.field_private_key_passphrase')}
                 name="private_key_passphrase"
-                extra={secretRefHelp}
+                extra={
+                  secretRefHelp
+                    ? `${t('datasources.create.field_private_key_passphrase_help')} ${secretRefHelp}`
+                    : t('datasources.create.field_private_key_passphrase_help')
+                }
                 rules={[{ max: 1024 }, secretRefRule]}
               >
                 <Input.Password
