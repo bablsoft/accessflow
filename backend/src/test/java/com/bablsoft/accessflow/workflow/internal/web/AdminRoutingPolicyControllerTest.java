@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AdminRoutingPolicyControllerTest {
@@ -56,12 +57,15 @@ class AdminRoutingPolicyControllerTest {
             JwtClaims.forSystemRole(userId, "admin@x.com", UserRoleType.ADMIN, organizationId), "n/a",
             List.of());
     private final ConditionNode condition = new ConditionNode.QueryTypeIn(Set.of(QueryType.DELETE));
+    private com.bablsoft.accessflow.workflow.api.RoutingPolicySimulationService simulationService;
 
     @BeforeEach
     void setUp() {
         service = mock(RoutingPolicyService.class);
+        simulationService = mock(com.bablsoft.accessflow.workflow.api.RoutingPolicySimulationService.class);
         auditLogService = mock(AuditLogService.class);
-        controller = new AdminRoutingPolicyController(service, codec, auditLogService);
+        controller = new AdminRoutingPolicyController(service, simulationService, codec,
+                auditLogService);
         var request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/admin/routing-policies");
         request.setServerName("localhost");
@@ -135,5 +139,84 @@ class AdminRoutingPolicyControllerTest {
 
         assertThat(result).hasSize(1);
         verify(auditLogService).record(any(AuditEntry.class));
+    }
+
+    // ---- simulate (AF-630) -----------------------------------------------------------------------
+
+    @Test
+    void simulateDecodesTheDraftConditionAndPassesTheWindowThrough() {
+        var from = java.time.Instant.parse("2026-06-01T00:00:00Z");
+        var to = java.time.Instant.parse("2026-07-01T00:00:00Z");
+        var replaces = UUID.randomUUID();
+        var result = new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(from, to, null,
+                12, 3, false, List.of(), List.of(), List.of(), List.of());
+        when(simulationService.simulate(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any())).thenReturn(result);
+
+        var body = new com.bablsoft.accessflow.workflow.internal.web.model
+                .SimulateRoutingPolicyRequest(from, to, null,
+                new com.bablsoft.accessflow.workflow.internal.web.model
+                        .SimulateRoutingPolicyRequest.Draft(replaces, "Draft", null, 10, null,
+                        codec.toJson(condition), RoutingAction.AUTO_REJECT, null, "because"));
+
+        var response = controller.simulate(body, authentication);
+
+        assertThat(response.evaluatedCount()).isEqualTo(12);
+        assertThat(response.changedCount()).isEqualTo(3);
+        var captor = org.mockito.ArgumentCaptor
+                .forClass(com.bablsoft.accessflow.workflow.api.RoutingPolicyDraft.class);
+        verify(simulationService).simulate(org.mockito.ArgumentMatchers.eq(organizationId),
+                org.mockito.ArgumentMatchers.eq(
+                        new com.bablsoft.accessflow.core.api.SimulationWindow(from, to)),
+                org.mockito.ArgumentMatchers.isNull(), captor.capture());
+        assertThat(captor.getValue().replacesPolicyId()).isEqualTo(replaces);
+        assertThat(captor.getValue().condition()).isEqualTo(condition);
+        assertThat(captor.getValue().enabled()).isTrue();
+    }
+
+    @Test
+    void simulateDefaultsAnOmittedEnabledFlagToTrue() {
+        var from = java.time.Instant.parse("2026-06-01T00:00:00Z");
+        var to = java.time.Instant.parse("2026-07-01T00:00:00Z");
+        when(simulationService.simulate(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(
+                        from, to, null, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
+
+        controller.simulate(new com.bablsoft.accessflow.workflow.internal.web.model
+                .SimulateRoutingPolicyRequest(from, to, null,
+                new com.bablsoft.accessflow.workflow.internal.web.model
+                        .SimulateRoutingPolicyRequest.Draft(null, "Draft", null, 10, Boolean.FALSE,
+                        codec.toJson(condition), RoutingAction.AUTO_APPROVE, null, null)),
+                authentication);
+
+        var captor = org.mockito.ArgumentCaptor
+                .forClass(com.bablsoft.accessflow.workflow.api.RoutingPolicyDraft.class);
+        verify(simulationService).simulate(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                captor.capture());
+        assertThat(captor.getValue().enabled()).isFalse();
+    }
+
+    @Test
+    void simulateWritesNoAuditRowBecauseItChangesNothing() {
+        var from = java.time.Instant.parse("2026-06-01T00:00:00Z");
+        var to = java.time.Instant.parse("2026-07-01T00:00:00Z");
+        when(simulationService.simulate(org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.bablsoft.accessflow.workflow.api.RoutingSimulationResult(
+                        from, to, null, 0, 0, false, List.of(), List.of(), List.of(), List.of()));
+
+        controller.simulate(new com.bablsoft.accessflow.workflow.internal.web.model
+                .SimulateRoutingPolicyRequest(from, to, null,
+                new com.bablsoft.accessflow.workflow.internal.web.model
+                        .SimulateRoutingPolicyRequest.Draft(null, "Draft", null, 10, null,
+                        codec.toJson(condition), RoutingAction.AUTO_REJECT, null, null)),
+                authentication);
+
+        verifyNoInteractions(auditLogService);
     }
 }

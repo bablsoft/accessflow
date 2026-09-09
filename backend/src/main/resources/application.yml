@@ -356,6 +356,15 @@ accessflow:
       private-key: ${ACCESSFLOW_PUSH_VAPID_PRIVATE_KEY:}
       # VAPID `sub` claim — a mailto: or https: contact URL identifying this application server.
       subject: ${ACCESSFLOW_PUSH_VAPID_SUBJECT:mailto:accessflow@localhost}
+  # Bounds for the policy simulator (AF-630): a read-only dry run of a draft routing /
+  # row-security / masking policy against the org's own historical query traffic. Every replayed
+  # row is re-parsed and evaluated twice (once per arm of the A/B), so max-rows sits well below
+  # the compliance report's cap.
+  policy-simulation:
+    max-rows: ${ACCESSFLOW_POLICY_SIMULATION_MAX_ROWS:5000}
+    max-samples: ${ACCESSFLOW_POLICY_SIMULATION_MAX_SAMPLES:100}
+    max-user-impacts: ${ACCESSFLOW_POLICY_SIMULATION_MAX_USER_IMPACTS:100}
+    max-window: ${ACCESSFLOW_POLICY_SIMULATION_MAX_WINDOW:P90D}
   workflow:
     # Cadence at which QueryTimeoutJob scans for PENDING_REVIEW queries past their plan's
     # approval_timeout_hours. ShedLock makes this safe under horizontal scaling.

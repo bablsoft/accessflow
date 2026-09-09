@@ -25,6 +25,7 @@ import com.bablsoft.accessflow.core.api.IllegalMaskingPolicyException;
 import com.bablsoft.accessflow.core.api.ExportPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.IllegalExportPolicyException;
 import com.bablsoft.accessflow.core.api.IllegalRowSecurityPolicyException;
+import com.bablsoft.accessflow.core.api.InvalidSimulationPeriodException;
 import com.bablsoft.accessflow.core.api.MaskingPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.RowSecurityPolicyNotFoundException;
 import com.bablsoft.accessflow.core.api.TableNotFoundException;
@@ -545,6 +546,16 @@ class GlobalExceptionHandler {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
                 msg("error.row_security_policy_not_found"));
         pd.setProperty("error", "ROW_SECURITY_POLICY_NOT_FOUND");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(InvalidSimulationPeriodException.class)
+    ProblemDetail handleInvalidSimulationPeriod(InvalidSimulationPeriodException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                messageSource.getMessage("error.invalid_simulation_period", null,
+                        LocaleContextHolder.getLocale()));
+        pd.setProperty("error", "INVALID_SIMULATION_PERIOD");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }
