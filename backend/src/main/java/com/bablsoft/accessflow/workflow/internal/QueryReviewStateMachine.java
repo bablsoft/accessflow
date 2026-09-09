@@ -2,8 +2,6 @@ package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
-import com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService;
-import com.bablsoft.accessflow.core.api.QueryEstimateLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
@@ -12,9 +10,6 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
-import com.bablsoft.accessflow.core.api.UserGroupService;
-import com.bablsoft.accessflow.core.api.UserQueryService;
-import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisFailedEvent;
 import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
@@ -23,6 +18,7 @@ import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
+import com.bablsoft.accessflow.workflow.internal.routing.ConditionContextFactory;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
@@ -35,8 +31,6 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -67,14 +61,14 @@ class QueryReviewStateMachine {
     private final QueryRequestLookupService queryRequestLookupService;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final QueryRequestStateService queryRequestStateService;
+    private final ConditionContextFactory conditionContextFactory;
+    // The grant fast-path re-parses on its own: it must fail CLOSED on a parse failure, whereas the
+    // context builder degrades to empty table signals, which here would read as "no tables" and
+    // wrongly satisfy the grant's table scope.
     private final SqlParserService sqlParserService;
-    private final UserQueryService userQueryService;
-    private final UserGroupService userGroupService;
     private final RoutingPolicyEngine routingPolicyEngine;
     private final RoutingDecisionService routingDecisionService;
-    private final BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     private final AccessGrantLookupService accessGrantLookupService;
-    private final QueryEstimateLookupService queryEstimateLookupService;
     private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -271,47 +265,7 @@ class QueryReviewStateMachine {
 
     private ConditionContext buildContext(QueryRequestSnapshot query, RiskLevel riskLevel,
                                           int riskScore) {
-        var roleName = userQueryService.findById(query.submittedByUserId())
-                .map(UserView::roleName)
-                .orElse(null);
-        var groupIds = Set.copyOf(userGroupService.findGroupIdsForUser(query.submittedByUserId()));
-        Set<String> referencedTables = Set.of();
-        boolean hasWhere = false;
-        boolean hasLimit = false;
-        boolean transactional = query.transactional();
-        try {
-            var parsed = sqlParserService.parse(query.sqlText());
-            referencedTables = parsed.referencedTables();
-            hasWhere = parsed.hasWhereClause();
-            hasLimit = parsed.hasLimitClause();
-            transactional = parsed.transactional();
-        } catch (RuntimeException ex) {
-            log.warn("Routing: failed to re-parse SQL for query {}; table/clause signals unavailable",
-                    query.id());
-        }
-        Integer minutesSinceLastApproval = queryRequestLookupService
-                .findLastApprovalInstant(query.organizationId(), query.submittedByUserId(),
-                        query.datasourceId(), query.id())
-                .map(last -> (int) Math.max(0, Duration.between(last, clock.instant()).toMinutes()))
-                .orElse(null);
-        boolean anomalyActive = behaviorAnomalyLookupService.hasActiveAnomaly(
-                query.organizationId(), query.submittedByUserId(), query.datasourceId());
-        // AF-624: live, fail-closed lookup of the pre-flight estimate — the estimate pipeline runs
-        // independently of AI analysis, so whatever is persisted right now is the signal; absent /
-        // unsupported / failed rows leave both fields null and the matching conditions false.
-        Long estimatedRows = null;
-        String scanType = null;
-        var estimate = queryEstimateLookupService.findByQueryRequestId(query.id()).orElse(null);
-        if (estimate != null && !estimate.failed()) {
-            estimatedRows = estimate.affectedRowCount() != null
-                    ? estimate.affectedRowCount()
-                    : estimate.estimatedRows();
-            scanType = estimate.scanType();
-        }
-        return new ConditionContext(query.queryType(), referencedTables, riskLevel, riskScore, roleName,
-                groupIds, LocalDateTime.now(clock), hasWhere, hasLimit, transactional,
-                query.submittedIp(), query.submittedUserAgent(), query.ciCdOrigin(),
-                minutesSinceLastApproval, anomalyActive, estimatedRows, scanType);
+        return conditionContextFactory.forLiveQuery(query, riskLevel, riskScore, clock);
     }
 
     private QueryStatus decideNextStatus(ReviewPlanSnapshot plan, QueryRequestSnapshot query,
