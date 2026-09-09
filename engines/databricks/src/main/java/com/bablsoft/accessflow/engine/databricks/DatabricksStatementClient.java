@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.engine.databricks;
 
+import com.bablsoft.accessflow.engine.databricks.DatabricksEngineSettings.ResultDisposition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -18,7 +19,6 @@ import java.net.http.HttpTimeoutException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.SequencedMap;
 
@@ -27,14 +27,23 @@ import java.util.SequencedMap;
  * ({@code /api/2.0/sql/statements}), built on the JDK {@link HttpClient} — deliberately no vendor
  * SDK and no JDBC driver, so the shaded plugin stays a couple of megabytes. One statement runs as:
  * submit ({@code POST}, hybrid wait via {@code wait_timeout}/{@code on_wait_timeout=CONTINUE},
- * {@code format=JSON_ARRAY}, {@code disposition=INLINE}) → poll ({@code GET …/{id}}) while
- * {@code PENDING}/{@code RUNNING} at the configured interval → on the host deadline (measured with
- * the host clock) a best-effort cancel ({@code POST …/{id}/cancel}) and a timed-out
- * {@link DatabricksApiException}. A {@code SUCCEEDED} statement's inline result follows
+ * {@code format=JSON_ARRAY}) → poll ({@code GET …/{id}}) while {@code PENDING}/{@code RUNNING} at
+ * the configured interval → on the host deadline (measured with the host clock) a best-effort
+ * cancel ({@code POST …/{id}/cancel}) and a timed-out {@link DatabricksApiException}. A
+ * {@code SUCCEEDED} statement's result is materialized by {@link DatabricksResultReader}, following
  * {@code next_chunk_index} chunk links ({@code GET …/{id}/result/chunks/{n}}) until complete.
  * Terminal {@code FAILED}/{@code CANCELED}/{@code CLOSED} states and non-2xx HTTP responses raise
  * {@link DatabricksApiException} carrying the verbatim API error message. Row-security values ride
  * as typed named {@code parameters} — never concatenated into the statement text.
+ *
+ * <p><strong>Disposition (AF-633).</strong> {@code INLINE} results are capped at roughly 25 MiB by
+ * the API. Under the default {@code result-disposition=auto} the client submits {@code INLINE} and,
+ * when {@link DatabricksInlineLimitDetector} sees that ceiling hit, re-submits the statement
+ * <em>once</em> with {@code disposition=EXTERNAL_LINKS} under the <em>same</em> deadline — only for
+ * a {@link StatementRequest#sideEffectFree()} statement, so a DML/DDL statement is never executed
+ * twice. If the fallback itself fails, the <em>original</em> inline failure is what surfaces, which
+ * is what lets the detector be generous: a false positive costs one wasted re-submission and can
+ * never make the reported error worse than it is today.</p>
  */
 class DatabricksStatementClient {
 
@@ -47,12 +56,47 @@ class DatabricksStatementClient {
     record Column(String name, String typeName) {
     }
 
+    /** Why a result stopped short of everything the statement produced. */
+    enum Truncation {
+        NONE, ROW_LIMIT, BYTE_LIMIT
+    }
+
     /**
-     * The materialized inline result of a {@code SUCCEEDED} statement: ordered columns, rows of
-     * string-or-null values (the {@code JSON_ARRAY} wire format), and the manifest's own
-     * truncation flag (set when the server-side {@code row_limit} cut the result).
+     * The materialized result of a {@code SUCCEEDED} statement: ordered columns, rows of
+     * string-or-null values (the {@code JSON_ARRAY} wire format), and why it was cut short — the
+     * server-side {@code row_limit} / manifest truncation flag, or the engine's byte backstop.
      */
-    record StatementResult(List<Column> columns, List<List<String>> rows, boolean truncated) {
+    record StatementResult(List<Column> columns, List<List<String>> rows, Truncation truncation) {
+
+        boolean truncated() {
+            return truncation != Truncation.NONE;
+        }
+    }
+
+    /**
+     * One statement to run. The endpoint and the access token are deliberately <em>not</em> fields
+     * here: a record generates a {@code toString()}, and one holding the workspace PAT is a leak
+     * waiting for its first {@code log.debug("{}", request)}.
+     *
+     * @param rowLimit       server-side {@code row_limit} ({@code null} to omit — DML/DDL and the
+     *                       unbounded introspection reads)
+     * @param sideEffectFree whether re-running this statement is harmless, which is what makes it
+     *                       eligible for the {@code EXTERNAL_LINKS} fallback
+     */
+    record StatementRequest(String catalog, String statement,
+                            SequencedMap<String, Object> parameters, Integer rowLimit,
+                            Duration timeout, boolean sideEffectFree) {
+
+        static StatementRequest read(String catalog, String statement,
+                                     SequencedMap<String, Object> parameters, Integer rowLimit,
+                                     Duration timeout) {
+            return new StatementRequest(catalog, statement, parameters, rowLimit, timeout, true);
+        }
+
+        static StatementRequest write(String catalog, String statement,
+                                      SequencedMap<String, Object> parameters, Duration timeout) {
+            return new StatementRequest(catalog, statement, parameters, null, timeout, false);
+        }
     }
 
     private final HttpClient http;
@@ -67,16 +111,63 @@ class DatabricksStatementClient {
     }
 
     /**
-     * Runs one statement to completion within {@code timeout} (the host-computed statement
-     * timeout) and returns its inline result.
-     *
-     * @param rowLimit server-side {@code row_limit} ({@code null} to omit — DML/DDL)
+     * Runs one statement to completion within the request's timeout (the host-computed statement
+     * timeout) and returns its result, falling back to {@code EXTERNAL_LINKS} when the inline
+     * ceiling is hit and the statement is safe to re-run.
      */
-    StatementResult execute(DatabricksEndpoint endpoint, String accessToken, String catalog,
-                            String statement, SequencedMap<String, Object> parameters,
-                            Integer rowLimit, Duration timeout) {
-        var deadline = clock.instant().plus(timeout);
-        var body = submitBody(endpoint, catalog, statement, parameters, rowLimit);
+    StatementResult execute(DatabricksEndpoint endpoint, String accessToken,
+                            StatementRequest request) {
+        var deadline = clock.instant().plus(request.timeout());
+        if (settings.resultDisposition() == ResultDisposition.EXTERNAL_LINKS) {
+            return run(endpoint, accessToken, request, ResultDisposition.EXTERNAL_LINKS, deadline);
+        }
+        DatabricksApiException inlineFailure;
+        try {
+            var result = run(endpoint, accessToken, request, ResultDisposition.INLINE, deadline);
+            if (!fallbackAllowed(request) || !DatabricksInlineLimitDetector.sizeTruncatedInline(
+                    result.truncated(), request.rowLimit(), result.rows().size())) {
+                return result;
+            }
+            inlineFailure = null;
+        } catch (DatabricksApiException e) {
+            if (!fallbackAllowed(request)
+                    || !DatabricksInlineLimitDetector.inlineLimitExceeded(e)) {
+                throw e;
+            }
+            inlineFailure = e;
+        }
+        return fallBack(endpoint, accessToken, request, deadline, inlineFailure);
+    }
+
+    private boolean fallbackAllowed(StatementRequest request) {
+        return request.sideEffectFree() && settings.resultDisposition() == ResultDisposition.AUTO;
+    }
+
+    /**
+     * The one-shot {@code EXTERNAL_LINKS} retry. When it fails, the inline failure that triggered
+     * it is what the caller sees — it is the actionable one, and it keeps a false-positive
+     * detection invisible.
+     */
+    private StatementResult fallBack(DatabricksEndpoint endpoint, String accessToken,
+                                     StatementRequest request, Instant deadline,
+                                     DatabricksApiException inlineFailure) {
+        log.info("Databricks inline result limit reached; retrying with EXTERNAL_LINKS");
+        try {
+            return run(endpoint, accessToken, request, ResultDisposition.EXTERNAL_LINKS, deadline);
+        } catch (DatabricksApiException e) {
+            if (inlineFailure == null) {
+                throw e;
+            }
+            log.warn("Databricks EXTERNAL_LINKS fallback failed ({}); surfacing the inline error",
+                    e.getMessage());
+            throw inlineFailure;
+        }
+    }
+
+    private StatementResult run(DatabricksEndpoint endpoint, String accessToken,
+                                StatementRequest request, ResultDisposition disposition,
+                                Instant deadline) {
+        var body = submitBody(endpoint, request, disposition);
         var response = send(post(endpoint.baseUrl() + STATEMENTS_PATH, accessToken, body,
                 deadline), endpoint, accessToken, null, deadline);
         var statementId = response.path("statement_id").asText(null);
@@ -85,26 +176,34 @@ class DatabricksStatementClient {
         if (!"SUCCEEDED".equals(state)) {
             throw terminalFailure(response, state);
         }
-        return materialize(response, endpoint, accessToken, statementId, deadline);
+        return new DatabricksResultReader(settings.maxResultBytes()).read(response,
+                request.rowLimit(),
+                chunkIndex -> send(get(statementUrl(endpoint, statementId) + "/result/chunks/"
+                        + chunkIndex, accessToken, deadline), endpoint, accessToken, statementId,
+                        deadline),
+                new DatabricksExternalLinkReader(http, endpoint, clock, deadline));
     }
 
     // ---- request building --------------------------------------------------------------------
 
-    private String submitBody(DatabricksEndpoint endpoint, String catalog, String statement,
-                              SequencedMap<String, Object> parameters, Integer rowLimit) {
+    private String submitBody(DatabricksEndpoint endpoint, StatementRequest request,
+                              ResultDisposition disposition) {
         ObjectNode body = mapper.createObjectNode();
-        body.put("statement", statement);
+        body.put("statement", request.statement());
         body.put("warehouse_id", endpoint.warehouseId());
         body.put("wait_timeout", settings.waitTimeoutValue());
         body.put("on_wait_timeout", "CONTINUE");
         body.put("format", "JSON_ARRAY");
-        body.put("disposition", "INLINE");
-        if (rowLimit != null) {
-            body.put("row_limit", rowLimit.longValue());
+        body.put("disposition", disposition == ResultDisposition.EXTERNAL_LINKS
+                ? "EXTERNAL_LINKS" : "INLINE");
+        if (request.rowLimit() != null) {
+            body.put("row_limit", request.rowLimit().longValue());
         }
+        var catalog = request.catalog();
         if (catalog != null && !catalog.isBlank()) {
             body.put("catalog", catalog.strip());
         }
+        var parameters = request.parameters();
         if (parameters != null && !parameters.isEmpty()) {
             ArrayNode array = body.putArray("parameters");
             for (var entry : parameters.entrySet()) {
@@ -198,41 +297,6 @@ class DatabricksStatementClient {
         }
         return new DatabricksApiException(message, error.path("error_code").asText(null), 200,
                 false);
-    }
-
-    // ---- result materialization ------------------------------------------------------------------
-
-    private StatementResult materialize(JsonNode response, DatabricksEndpoint endpoint,
-                                        String accessToken, String statementId, Instant deadline) {
-        var manifest = response.path("manifest");
-        var columns = new ArrayList<Column>();
-        for (var column : manifest.path("schema").path("columns")) {
-            columns.add(new Column(column.path("name").asText(""),
-                    column.path("type_name").asText("")));
-        }
-        var rows = new ArrayList<List<String>>();
-        var result = response.path("result");
-        appendRows(result, rows);
-        var next = result.path("next_chunk_index");
-        while (next.isNumber()) {
-            var chunk = send(get(statementUrl(endpoint, statementId) + "/result/chunks/"
-                    + next.asInt(), accessToken, deadline), endpoint, accessToken, statementId,
-                    deadline);
-            appendRows(chunk, rows);
-            next = chunk.path("next_chunk_index");
-        }
-        return new StatementResult(List.copyOf(columns), rows,
-                manifest.path("truncated").asBoolean(false));
-    }
-
-    private static void appendRows(JsonNode container, List<List<String>> rows) {
-        for (var row : container.path("data_array")) {
-            var values = new ArrayList<String>(row.size());
-            for (var value : row) {
-                values.add(value.isNull() ? null : value.asText());
-            }
-            rows.add(values);
-        }
     }
 
     // ---- HTTP plumbing -----------------------------------------------------------------------------

@@ -54,6 +54,44 @@ class DatabricksEngineSettingsTest {
     }
 
     @Test
+    void defaultsToAutoDispositionAndTheFiftyMebibyteBackstop() {
+        var settings = DatabricksEngineSettings.from(Map.of());
+        assertThat(settings.resultDisposition())
+                .isEqualTo(DatabricksEngineSettings.ResultDisposition.AUTO);
+        assertThat(settings.maxResultBytes()).isEqualTo(52_428_800L);
+    }
+
+    @Test
+    void parsesResultDispositionLenientlyAndFallsBackToAuto() {
+        assertThat(DatabricksEngineSettings.from(Map.of("result-disposition", "external-links"))
+                .resultDisposition())
+                .isEqualTo(DatabricksEngineSettings.ResultDisposition.EXTERNAL_LINKS);
+        assertThat(DatabricksEngineSettings.from(Map.of("result-disposition", " INLINE "))
+                .resultDisposition())
+                .isEqualTo(DatabricksEngineSettings.ResultDisposition.INLINE);
+        assertThat(DatabricksEngineSettings.from(Map.of("result-disposition", "arrow"))
+                .resultDisposition())
+                .isEqualTo(DatabricksEngineSettings.ResultDisposition.AUTO);
+        assertThat(DatabricksEngineSettings.from(Map.of("result-disposition", " "))
+                .resultDisposition())
+                .isEqualTo(DatabricksEngineSettings.ResultDisposition.AUTO);
+    }
+
+    @Test
+    void clampsMaxResultBytesAndFallsBackOnJunk() {
+        assertThat(DatabricksEngineSettings.from(Map.of("max-result-bytes", "1024"))
+                .maxResultBytes()).isEqualTo(1_048_576L);
+        assertThat(DatabricksEngineSettings.from(Map.of("max-result-bytes", "9999999999"))
+                .maxResultBytes()).isEqualTo(1_073_741_824L);
+        assertThat(DatabricksEngineSettings.from(Map.of("max-result-bytes", "10485760"))
+                .maxResultBytes()).isEqualTo(10_485_760L);
+        assertThat(DatabricksEngineSettings.from(Map.of("max-result-bytes", "nonsense"))
+                .maxResultBytes()).isEqualTo(52_428_800L);
+        assertThat(DatabricksEngineSettings.from(Map.of("max-result-bytes", "-1"))
+                .maxResultBytes()).isEqualTo(52_428_800L);
+    }
+
+    @Test
     void formatsWaitTimeoutForTheApi() {
         assertThat(DatabricksEngineSettings.from(Map.of()).waitTimeoutValue()).isEqualTo("10s");
         assertThat(DatabricksEngineSettings.from(Map.of("wait-timeout", "PT15S"))
