@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import type { AuthUser } from '@/api/auth';
 import { useAuthStore } from '@/store/authStore';
 
@@ -24,8 +25,18 @@ export function governanceDomainsOf(user: AuthUser | null | undefined): Governan
   };
 }
 
-/** The shared read over the auth store — no per-component fetch, no prop drilling. */
+/**
+ * The shared read over the auth store — no per-component fetch, no prop drilling.
+ *
+ * Memoized on the two booleans rather than on the user object: `governanceDomainsOf` builds a
+ * fresh record every call, and callers put the result straight into `useMemo`/`useEffect`
+ * dependency arrays, where a new identity each render would silently defeat them.
+ */
 export function useGovernanceDomains(): GovernanceDomains {
-  const user = useAuthStore((s) => s.user);
-  return governanceDomainsOf(user);
+  const governsApis = useAuthStore((s) => s.user?.governs_apis);
+  const governsDeployments = useAuthStore((s) => s.user?.governs_deployments);
+  return useMemo(
+    () => ({ apis: governsApis ?? true, deployments: governsDeployments ?? true }),
+    [governsApis, governsDeployments],
+  );
 }
