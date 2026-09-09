@@ -704,4 +704,98 @@ class DefaultQueryRequestLookupServiceTest {
         entity.setCreatedAt(Instant.parse("2025-01-15T10:00:00Z"));
         return entity;
     }
+
+    // ---- policy-simulator corpus reader (AF-630) ------------------------------------------------
+
+    @Test
+    void streamCorpusEmitsEveryRowAndReturnsTheCountWhenUnderCap() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var e1 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "a@example.com", QueryStatus.EXECUTED);
+        var e2 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "b@example.com", QueryStatus.REJECTED);
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(e1, e2), PageRequest.of(0, 500), 2));
+
+        var collected = new ArrayList<UUID>();
+        int emitted = service.streamCorpusForOrganization(filter, 100, row -> collected.add(row.id()));
+
+        assertThat(emitted).isEqualTo(2);
+        assertThat(collected).containsExactly(e1.getId(), e2.getId());
+    }
+
+    @Test
+    void streamCorpusStopsAtMaxRowsSoTheCallerCanDetectTruncation() {
+        var orgId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var e1 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "a@example.com", QueryStatus.EXECUTED);
+        var e2 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "b@example.com", QueryStatus.PENDING_AI);
+        var e3 = entityWith(UUID.randomUUID(), UUID.randomUUID(), orgId, UUID.randomUUID(),
+                "c@example.com", QueryStatus.PENDING_REVIEW);
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(e1, e2, e3), PageRequest.of(0, 2), 3));
+
+        var collected = new ArrayList<UUID>();
+        int emitted = service.streamCorpusForOrganization(filter, 2, row -> collected.add(row.id()));
+
+        assertThat(emitted).isEqualTo(2);
+        assertThat(collected).containsExactly(e1.getId(), e2.getId());
+        verify(queryRequestRepository, times(1)).findAll(
+                any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
+    void streamCorpusEmitsNothingForANonPositiveCap() {
+        var filter = new QueryListFilter(UUID.randomUUID(), null, null, null, null, null, null);
+        var collected = new ArrayList<UUID>();
+
+        assertThat(service.streamCorpusForOrganization(filter, 0, row -> collected.add(row.id())))
+                .isZero();
+
+        assertThat(collected).isEmpty();
+        verifyNoInteractions(queryRequestRepository);
+    }
+
+    @Test
+    void streamCorpusCarriesTheSignalsASimulationNeeds() {
+        var orgId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var userId = UUID.randomUUID();
+        var filter = new QueryListFilter(orgId, null, null, null, null, null, null);
+        var entity = entityWith(UUID.randomUUID(), datasourceId, orgId, userId,
+                "a@example.com", QueryStatus.EXECUTED);
+        entity.setSubmittedIp("10.0.0.7");
+        entity.setSubmittedUserAgent("psql/16");
+        entity.setCiCdOrigin(true);
+        entity.setTransactional(true);
+        when(queryRequestRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class),
+                any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(entity), PageRequest.of(0, 500), 1));
+
+        var rows = new ArrayList<com.bablsoft.accessflow.core.api.QueryCorpusRow>();
+        service.streamCorpusForOrganization(filter, 100, rows::add);
+
+        assertThat(rows).hasSize(1);
+        var row = rows.get(0);
+        assertThat(row.organizationId()).isEqualTo(orgId);
+        assertThat(row.datasourceId()).isEqualTo(datasourceId);
+        assertThat(row.dbType()).isEqualTo(DbType.POSTGRESQL);
+        assertThat(row.submittedByUserId()).isEqualTo(userId);
+        assertThat(row.sqlText()).isEqualTo("SELECT 1");
+        assertThat(row.submittedIp()).isEqualTo("10.0.0.7");
+        assertThat(row.submittedUserAgent()).isEqualTo("psql/16");
+        assertThat(row.ciCdOrigin()).isTrue();
+        assertThat(row.transactional()).isTrue();
+        assertThat(row.createdAt()).isEqualTo(Instant.parse("2025-01-15T10:00:00Z"));
+        // No ai_analysis_id on the row, so the risk operands see no signal and fail closed.
+        assertThat(row.aiRiskLevel()).isNull();
+        assertThat(row.aiRiskScore()).isNull();
+        assertThat(row.aiFailed()).isFalse();
+    }
 }

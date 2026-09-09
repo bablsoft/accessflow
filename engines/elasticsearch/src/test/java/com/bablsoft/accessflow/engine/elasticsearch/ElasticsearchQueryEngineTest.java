@@ -4,8 +4,12 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.SslMode;
 import org.junit.jupiter.api.Test;
 
@@ -60,5 +64,62 @@ class ElasticsearchQueryEngineTest {
                 Duration.ofSeconds(30)));
         assertThat(result.supported()).isFalse();
         assertThat(result.engineId()).isEqualTo("elasticsearch");
+    }
+
+    // ---- offline row-security classification (AF-630) -------------------------------------------
+
+    static QueryEngineRowSecurityRequest classifyRequest(String query,
+                                                         RowSecurityDirective... directives) {
+        return new QueryEngineRowSecurityRequest(UUID.randomUUID(), query, List.of(directives));
+    }
+
+    static RowSecurityDirective tenantEquals(String index) {
+        return new RowSecurityDirective(UUID.randomUUID(), index, "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+    }
+
+    private ElasticsearchQueryEngine initialized() {
+        engine.initialize(new QueryEngineContext(TestMessages.keyEcho(), c -> c, Map.of(),
+                Clock.systemDefaultZone().withZone(ZoneOffset.UTC)));
+        return engine;
+    }
+
+    @Test
+    void classifyRowSecurityShortCircuitsWhenThereAreNoDirectives() {
+        var result = initialized().classifyRowSecurity(classifyRequest("{\"search\":\"logs\"}"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("elasticsearch");
+    }
+
+    @Test
+    void classifyRowSecurityDelegatesToTheApplier() {
+        var directive = tenantEquals("logs");
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("{\"search\":\"logs\"}", directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyRowSecurityReportsFailClosedForAPoliciedIndexWrite() {
+        var result = initialized().classifyRowSecurity(classifyRequest(
+                "{\"index\":\"logs\",\"document\":{\"a\":1}}", tenantEquals("logs")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityReportsUnknownRatherThanSafeForAnUnparseableQuery() {
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("not a search envelope", tenantEquals("logs")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.UNKNOWN);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityFailsBeforeInitialize() {
+        assertThatThrownBy(() -> new ElasticsearchQueryEngine()
+                .classifyRowSecurity(classifyRequest("{\"search\":\"logs\"}", tenantEquals("logs"))))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

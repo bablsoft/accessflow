@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.couchbase;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -75,12 +76,7 @@ class CouchbaseRowSecurityApplier {
                 }
             }
         }
-        var matching = new ArrayList<RowSecurityDirective>();
-        for (var directive : directives) {
-            if (matchesKeyspace(directive.tableRef(), statement.target())) {
-                matching.add(directive);
-            }
-        }
+        var matching = matching(statement, directives);
         var policyIds = new LinkedHashSet<UUID>();
         var parameters = new LinkedHashMap<String, Object>();
         var fragments = new ArrayList<String>(matching.size());
@@ -94,6 +90,63 @@ class CouchbaseRowSecurityApplier {
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), Map.copyOf(parameters),
                 Set.copyOf(policyIds));
+    }
+
+    /** The directives whose {@code tableRef} targets this statement's rewrite target keyspace. */
+    private List<RowSecurityDirective> matching(CouchbaseStatement statement,
+                                                List<RowSecurityDirective> directives) {
+        var matching = new ArrayList<RowSecurityDirective>();
+        if (directives != null) {
+            for (var directive : directives) {
+                if (matchesKeyspace(directive.tableRef(), statement.target())) {
+                    matching.add(directive);
+                }
+            }
+        }
+        return matching;
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this statement without executing anything and
+     * without opening a cluster connection (issue AF-630). Runs the same rewrite and reads the
+     * outcome off it, so the classification can never drift from the enforcement it predicts.
+     *
+     * <p>The gate is {@link #policiedKeyspaces}, not just the target: a statement whose target
+     * carries no directive can still reference a policied keyspace from a JOIN or subquery, and
+     * {@link #apply} rejects that rather than running it unfiltered.
+     */
+    RowSecurityClassification classify(String engineId, CouchbaseStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        if (policiedKeyspaces(statement, directives).isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        Applied applied;
+        try {
+            applied = apply(statement, directives);
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+        if (applied.appliedPolicyIds().isEmpty()) {
+            // DDL over a policied keyspace: no rows are read or affected, so nothing is filtered.
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        return deniesEverything(matching(statement, directives))
+                ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+    }
+
+    /**
+     * True when any matching directive resolved to no values — {@link #toFragment} turns that into
+     * a literal {@code FALSE} that is ANDed into the WHERE clause, so the submitter would see
+     * nothing. {@code IS_NULL} is unary and is excluded: it carries no values by design.
+     */
+    private static boolean deniesEverything(List<RowSecurityDirective> matching) {
+        for (var directive : matching) {
+            if (directive.operator() != RowSecurityOperator.IS_NULL && directive.values().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---- predicate building -------------------------------------------------------------------

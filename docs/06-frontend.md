@@ -1329,6 +1329,56 @@ The builder covers the `estimated_rows` (comparison operator + row count) and `s
 original leaf set. `QueryDetailPage` shows a **matched-policy** alert when `GET /queries/{id}`
 returns a non-null `matched_policy`.
 
+### Policy simulator (AF-630)
+
+The **Simulate** affordance lets an admin dry-run a *draft* policy against the organization's own
+historical traffic before saving it. It appears on all three policy forms, driven by one shared API
+module and one shared drawer:
+
+- **Where.** The create/edit `Modal` on `RoutingPoliciesPage` (`/admin/routing-policies`), and the
+  create/edit modals of the **Masking** and **Row security** tabs on `DatasourceSettingsPage`. Each
+  form gets a secondary **Simulate** button beside its submit action — enabled only once the form
+  passes the same client-side rules a save would, since the backend validates the draft exactly as a
+  create.
+- **API module.** [frontend/src/api/policySimulation.ts](../frontend/src/api/policySimulation.ts) —
+  one function per endpoint (`simulateRoutingPolicy`, `simulateRowSecurityPolicy`,
+  `simulateMaskingPolicy`) over the three `POST …/simulate` paths. The call is a **TanStack Query
+  mutation**, not a query: it is user-triggered, has a request body, and must not re-run on focus.
+  There is deliberately no query-key factory — a simulation is not cached server state. Response
+  types (`RoutingSimulationResponse`, `RowSecuritySimulationResponse`, `MaskingSimulationResponse`,
+  `SimulationCaveat`) live in `src/types/api.ts`.
+- **The window.** The drawer picks the replay window itself, with a `Segmented` control offering the
+  last 7 / 30 / 90 days (30 by default). 90 days is the server's own `max-window` default, so the
+  presets cannot produce a `400 INVALID_SIMULATION_PERIOD`; if a deployment lowers the knob, the
+  error detail is surfaced through `apiErrorMessage` rather than swallowed. The routing corpus is
+  the draft's own `datasource_id` — the API accepts a separate corpus scope, but the UI does not
+  expose one.
+- **The results drawer.**
+  [frontend/src/components/policies/PolicySimulationDrawer.tsx](../frontend/src/components/policies/PolicySimulationDrawer.tsx)
+  — a right-side `Drawer` (never a nested modal: the form stays open behind it, so an admin can
+  adjust the draft and re-run) showing the replayed-row count and the headline stats for that policy
+  kind, a `truncated` warning when the row cap was hit, a **per-user impact** table ordered by blast
+  radius, and a second drill-down tab (routing and row security: sample queries; masking: per-column
+  counts). Its body is **keyed on the draft**, so editing the form and reopening starts a clean run
+  with no `useEffect`. An error renders as an error — never as "nothing would change", which is a
+  positive claim about governance data that a failed request must not be able to make.
+  Every string is `t()`-keyed under `policySimulation.*`; row-security transitions resolve through an
+  exhaustive `Record<RowSecurityTransition, string>` map in `policySimulationSummaries.ts`, never a
+  key built by string interpolation.
+- **Caveats are rendered, not hidden.** The response's `caveats` array becomes a visible `Alert` list
+  above the numbers ("memberships are read as they are now", "masking is matched on bare column
+  names", …). Unclassifiable rows carry their own count — the UI must never fold them into
+  "unaffected", because "we could not tell" is not "nothing breaks".
+- **A soft nudge, never a hard gate.** Saving is never blocked on having simulated. A draft that
+  could take access away without a human seeing it — a routing `AUTO_APPROVE`/`AUTO_REJECT`, or an
+  *edit* to a row-security or masking policy that applies to everyone — gets one `modal.confirm`
+  step offering **Simulate first** or **Save anyway**, and only when the current draft differs from
+  the last one simulated. Esc is disabled on that confirm (`keyboard: false`) because its cancel arm
+  is the write path. Creates never nudge: the forms default to org-wide, applies-to-everyone values,
+  so prompting there would fire every time and train the admin to dismiss it. The pure predicates
+  live in
+  [frontend/src/components/policies/policyImpact.ts](../frontend/src/components/policies/policyImpact.ts).
+
 ### OAuth 2.0 sign-in
 
 `LoginPage` renders one "Continue with &lt;Provider&gt;" button per active row returned by

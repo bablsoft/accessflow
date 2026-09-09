@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.databricks;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -93,6 +94,40 @@ class DatabricksRowSecurityApplier {
         }
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), parameters, Set.copyOf(policyIds), false);
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this statement without rewriting anything the caller
+     * can execute and without opening any connection (issue AF-630). Runs the same rewrite and
+     * reads the outcome straight off it, so the classification can never drift from the enforcement
+     * it predicts.
+     *
+     * <p>The up-front gate is {@link #matchingDirectives}, which matches against <em>every</em>
+     * table the statement references — not just the rewrite target — so a policied table reached
+     * only from a JOIN, a comma-join or a subquery is reported as the fail-closed rejection
+     * {@link #apply} would raise, never as "unaffected".
+     */
+    RowSecurityClassification classify(String engineId, DatabricksStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        if (matchingDirectives(statement, directives).isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        Applied applied;
+        try {
+            applied = apply(statement, directives);
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+        if (applied.appliedPolicyIds().isEmpty()) {
+            // DDL over a policied table: no rows are read or affected, so nothing is filtered.
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        // Applied.denyAll() is set by the apply loop for exactly the directives that resolved to no
+        // values on a non-unary operator (IS_NULL carries none by design), which is the signal the
+        // executor reads to short circuit to an empty result without any HTTP call.
+        return applied.denyAll()
+                ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
     }
 
     // ---- rewritability guards -------------------------------------------------------------------

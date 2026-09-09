@@ -22,7 +22,8 @@ engines/redis/
     │   ├── RedisQueryEngine.java            # implements core.api.QueryEngine
     │   ├── RedisCommandParser.java          # dialect -> QueryType classification
     │   ├── RedisQueryExecutor.java
-    │   ├── RedisRowSecurityApplier.java     # fails CLOSED on anything unprovable
+    │   ├── RedisRowSecurityClassifier.java  # fails CLOSED on anything unprovable, and
+│   │                                    # classifies it offline for the policy simulator
     │   ├── RedisSchemaIntrospector.java
     │   ├── RedisExceptionTranslator.java
     │   └── RedisEngineSettings.java

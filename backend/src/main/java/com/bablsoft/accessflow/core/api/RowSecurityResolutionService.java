@@ -20,4 +20,17 @@ public interface RowSecurityResolutionService {
 
     List<ResolvedRowSecurityPredicate> resolveApplicable(UUID organizationId, UUID datasourceId,
                                                          UUID requesterUserId);
+
+    /**
+     * Same resolution, but over the policy set the datasource <em>would</em> have if {@code draft}
+     * were saved: the draft replaces {@link RowSecurityPolicyDraft#replacesPolicyId()} when that is
+     * set, and is added otherwise. Used by the policy simulator (issue AF-630) to compute the
+     * "simulated" arm of its A/B; the draft is never persisted.
+     *
+     * <p>A disabled draft resolves to the persisted set minus the policy it replaces — which is
+     * exactly what saving it would mean.
+     */
+    List<ResolvedRowSecurityPredicate> resolveWithDraft(UUID organizationId, UUID datasourceId,
+                                                        UUID requesterUserId,
+                                                        RowSecurityPolicyDraft draft);
 }

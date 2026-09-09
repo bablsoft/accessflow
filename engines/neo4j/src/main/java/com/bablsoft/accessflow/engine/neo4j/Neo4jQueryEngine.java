@@ -3,14 +3,17 @@ package com.bablsoft.accessflow.engine.neo4j;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -35,6 +38,7 @@ public final class Neo4jQueryEngine implements QueryEngine {
     private volatile Neo4jConnectionProbe connectionProbe;
     private volatile Neo4jSchemaIntrospector schemaIntrospector;
     private volatile Neo4jDriverManager driverManager;
+    private volatile Neo4jRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public Neo4jQueryEngine() {
@@ -52,10 +56,12 @@ public final class Neo4jQueryEngine implements QueryEngine {
         var driverFactory = new Neo4jDriverFactory(context.credentials(), settings);
         var manager = new Neo4jDriverManager(driverFactory);
         var queryParser = new CypherQueryParser(context.messages());
+        var applier = new Neo4jRowSecurityApplier(context.messages());
         this.driverManager = manager;
         this.parser = queryParser;
-        this.executor = new Neo4jQueryExecutor(manager, queryParser,
-                new Neo4jRowSecurityApplier(context.messages()), new Neo4jResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new Neo4jQueryExecutor(manager, queryParser, applier,
+                new Neo4jResultMapper(),
                 new Neo4jExceptionTranslator(context.messages()), context.clock());
         this.connectionProbe = new Neo4jConnectionProbe(driverFactory);
         this.schemaIntrospector = new Neo4jSchemaIntrospector(driverFactory);
@@ -64,6 +70,22 @@ public final class Neo4jQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        CypherStatement statement;
+        try {
+            statement = initialized(parser).parseStatement(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(ENGINE_ID, statement, request.directives());
     }
 
     @Override

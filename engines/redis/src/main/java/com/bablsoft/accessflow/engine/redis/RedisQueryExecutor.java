@@ -6,10 +6,8 @@ import com.bablsoft.accessflow.core.api.EngineMessages;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
-import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
-import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import com.bablsoft.accessflow.core.api.UpdateExecutionResult;
 import redis.clients.jedis.JedisPooled;
 import redis.clients.jedis.exceptions.JedisException;
@@ -43,16 +41,19 @@ class RedisQueryExecutor {
     private final RedisCommandParser parser;
     private final RedisResultMapper resultMapper;
     private final RedisExceptionTranslator exceptionTranslator;
+    private final RedisRowSecurityClassifier rowSecurityClassifier;
     private final EngineMessages messages;
     private final Clock clock;
 
     RedisQueryExecutor(RedisClientManager clientManager, RedisCommandParser parser,
                        RedisResultMapper resultMapper, RedisExceptionTranslator exceptionTranslator,
-                       EngineMessages messages, Clock clock) {
+                       RedisRowSecurityClassifier rowSecurityClassifier, EngineMessages messages,
+                       Clock clock) {
         this.clientManager = clientManager;
         this.parser = parser;
         this.resultMapper = resultMapper;
         this.exceptionTranslator = exceptionTranslator;
+        this.rowSecurityClassifier = rowSecurityClassifier;
         this.messages = messages;
         this.clock = clock;
     }
@@ -62,7 +63,7 @@ class RedisQueryExecutor {
                                  Duration timeout) {
         var start = clock.instant();
         var parsed = parser.parseCommand(request.sql());
-        failClosedOnRowSecurity(parsed, request.rowSecurityPredicates());
+        rowSecurityClassifier.failClosedOnRowSecurity(parsed, request.rowSecurityPredicates());
         var jedis = clientManager.client(descriptor);
         var restricted = request.restrictedColumns();
         var masks = request.columnMasks();
@@ -205,7 +206,7 @@ class RedisQueryExecutor {
         // Row security has no per-row meaning in a key-value model: fail closed if a policy targets
         // this prefix (parity with execute's failClosedOnRowSecurity). Otherwise SCAN the prefix and
         // fetch values, with field masking applied by the shared mapper.
-        failClosedForPrefix(request.table(), request.rowSecurityPredicates());
+        rowSecurityClassifier.failClosedForPrefix(request.table(), request.rowSecurityPredicates());
         var jedis = clientManager.client(descriptor);
         var restricted = request.restrictedColumns();
         var masks = request.columnMasks();
@@ -285,46 +286,6 @@ class RedisQueryExecutor {
             cursor = result.getCursor();
         } while (!ScanParams.SCAN_POINTER_START.equals(cursor) && keys.size() < limit);
         return keys.size() > limit ? new ArrayList<>(keys.subList(0, limit)) : keys;
-    }
-
-    private void failClosedForPrefix(String prefix, List<RowSecurityDirective> directives) {
-        if (directives == null || directives.isEmpty()) {
-            return;
-        }
-        var prefixes = Set.of(prefix.toLowerCase(Locale.ROOT).trim());
-        for (var directive : directives) {
-            if (matchingPrefix(directive.tableRef(), prefixes) != null) {
-                throw new UnrewritableRowSecurityException(
-                        messages.get("error.row_security_redis_unsupported", prefix));
-            }
-        }
-    }
-
-    // ---- row-security fail-closed ---------------------------------------------------------------
-
-    private void failClosedOnRowSecurity(ParsedRedisCommand parsed,
-                                         List<RowSecurityDirective> directives) {
-        if (directives == null || directives.isEmpty()) {
-            return;
-        }
-        for (var directive : directives) {
-            var prefix = matchingPrefix(directive.tableRef(), parsed.keyPrefixes());
-            if (prefix != null) {
-                throw new UnrewritableRowSecurityException(
-                        messages.get("error.row_security_redis_unsupported", prefix));
-            }
-        }
-    }
-
-    /** The referenced prefix a directive's tableRef targets (last dot-segment, lowercased), or null. */
-    private static String matchingPrefix(String tableRef, Set<String> prefixes) {
-        if (tableRef == null) {
-            return null;
-        }
-        var ref = tableRef.toLowerCase(Locale.ROOT).trim();
-        int dot = ref.lastIndexOf('.');
-        var candidate = dot >= 0 ? ref.substring(dot + 1) : ref;
-        return prefixes.contains(candidate) ? candidate : null;
     }
 
     // ---- shaping helpers ------------------------------------------------------------------------

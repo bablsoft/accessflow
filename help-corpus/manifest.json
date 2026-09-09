@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "2136e356f996",
-  "generatedAt": "2026-09-09T13:15:02.033Z",
-  "sourceCommit": "cae78b79ed24741e8f6d6f99f81b4f20b7bae178",
-  "chunkCount": 525,
-  "sha256": "2136e356f9960ae285358b3306db387ae33bbf2ef27e5f1f7bb6e685bf466c62",
+  "corpusVersion": "2b88f9c0ebee",
+  "generatedAt": "2026-09-09T14:47:56.540Z",
+  "sourceCommit": "4ce06d7cf0eef4ba3fa1356eb03d7743c806197f",
+  "chunkCount": 528,
+  "sha256": "2b88f9c0ebee1d1ddbea3ad166d1f704c3d1f5cf148788f76885fc7192c803b4",
   "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
@@ -204,8 +204,8 @@
       "title": "Datasources",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
-      "chunks": 12,
-      "sha256": "13db996a61affe0e78ec492b721cffbe1d457d540aadc2f08c3534d2cc371327"
+      "chunks": 13,
+      "sha256": "6f590e29978c60ac2a1e1b1ffbe94e7e4639c183febb5edc5705dd8bd5bf9588"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -221,7 +221,7 @@
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "section": "Reference",
       "chunks": 11,
-      "sha256": "1dea9b7796c620302f303e62e1a59a39efe5f744749897790e235e33ebc9d3d9"
+      "sha256": "cf122c31db0bc50091b00e056f51e063a3481d520e74d6efa4564a6e0e4c083e"
     },
     {
       "path": "website/docs/configuration/users-roles/index.html",
@@ -356,8 +356,8 @@
       "title": "Database access governance — every query reviewed before it runs",
       "url": "https://accessflow.io/features/database-access-governance/",
       "section": "Features",
-      "chunks": 14,
-      "sha256": "293ff71031e58e54a6491bccfa4d330670e66ff395d7175fd3328a99998ecfce"
+      "chunks": 15,
+      "sha256": "2c65ccba7dfe25d2357e9a78d26e12a725af539d7d46dfb3c08b3a522f61258f"
     },
     {
       "path": "website/features/deployment-governance/index.html",
@@ -373,7 +373,7 @@
       "url": "https://accessflow.io/features/",
       "section": "Features",
       "chunks": 17,
-      "sha256": "050f273d69e13cb322d47ee760a2a34ab894401a23763b9fbd027f67e64ffb75"
+      "sha256": "cefdfbac88d7ea756ff66d7d8de89ac91e1c22a3f51f2c21c5daa2544c26e74b"
     },
     {
       "path": "website/index.html",
@@ -404,8 +404,8 @@
       "title": "Deploying and configuring AccessFlow",
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
-      "chunks": 83,
-      "sha256": "185729c53ed6792b6f98e040bb79e6d83711c78629346843d7af6477efb448fb"
+      "chunks": 84,
+      "sha256": "d00fc74b6cb5fb94ab8beac535f8cd6119a86204aa8afd1a4079b1c36a0e86e6"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 8,
-      "sha256": "8786cc66c12492e9fb42c3aa8792ea0c97b8fc7f2086d269c897f3cf579f0895"
+      "sha256": "b61441ce5edb93d3161aa44ec009ba15a3a50af79c88848dca78f95fb986dce5"
     }
   ]
 }

@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-cassandra-1.0.1-all.jar",
-    "fileName": "accessflow-engine-cassandra-1.0.1-all.jar",
-    "sha256": "f19f265433e05729c91ae602fbd0617c801fede77664b781629e9219988a79f1"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-cassandra-1.0.2-all.jar",
+    "fileName": "accessflow-engine-cassandra-1.0.2-all.jar",
+    "sha256": "5ffb3c2ed81ff5609c838ed21ea049559786878385eb80ee67258102bbeeee3d"
   }
 }

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.dynamodb;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -81,6 +82,28 @@ class DynamoDbRowSecurityApplier {
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), List.copyOf(parameters),
                 Set.copyOf(policyIds), false);
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this statement without executing anything and without
+     * opening a client (issue AF-630). Runs the same rewrite and reads the outcome off it — including
+     * its own {@link Applied#denyAll()} verdict, which is set exactly when a matching directive
+     * resolved to no values (unary {@code IS_NULL} carries none by design and is excluded there) — so
+     * the classification can never drift from the enforcement it predicts.
+     */
+    RowSecurityClassification classify(String engineId, PartiQlStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        if (matchingDirectives(statement, directives).isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        try {
+            var applied = apply(statement, directives);
+            return applied.denyAll()
+                    ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                    : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
     }
 
     // ---- predicate building -------------------------------------------------------------------

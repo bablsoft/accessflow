@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.PendingReviewView;
+import com.bablsoft.accessflow.core.api.QueryCorpusRow;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryListFilter;
 import com.bablsoft.accessflow.core.api.QueryListItemView;
@@ -178,6 +179,63 @@ class DefaultQueryRequestLookupService implements QueryRequestLookupService {
             }
             pageIndex++;
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public int streamCorpusForOrganization(QueryListFilter filter, int maxRows,
+                                           Consumer<QueryCorpusRow> consumer) {
+        if (maxRows <= 0) {
+            return 0;
+        }
+        var spec = QueryRequestSpecifications.forFilter(filter);
+        int emitted = 0;
+        int pageIndex = 0;
+        while (emitted < maxRows) {
+            int remaining = maxRows - emitted;
+            int pageSize = Math.min(STREAM_PAGE_SIZE, remaining);
+            var page = queryRequestRepository.findAll(spec,
+                    org.springframework.data.domain.PageRequest.of(pageIndex, pageSize));
+            for (var entity : page.getContent()) {
+                consumer.accept(toCorpusRow(entity));
+                emitted++;
+                if (emitted >= maxRows) {
+                    return emitted;
+                }
+            }
+            if (!page.hasNext()) {
+                return emitted;
+            }
+            pageIndex++;
+        }
+        return emitted;
+    }
+
+    private QueryCorpusRow toCorpusRow(QueryRequestEntity entity) {
+        var aiAnalysis = entity.getAiAnalysisId() != null
+                ? aiAnalysisRepository.findById(entity.getAiAnalysisId()).orElse(null)
+                : null;
+        var datasource = entity.getDatasource();
+        return new QueryCorpusRow(
+                entity.getId(),
+                datasource.getOrganization().getId(),
+                datasource.getId(),
+                datasource.getName(),
+                datasource.getDbType(),
+                entity.getSubmittedBy().getId(),
+                entity.getSubmittedBy().getEmail(),
+                entity.getSubmittedBy().getDisplayName(),
+                entity.getSqlText(),
+                entity.getQueryType(),
+                entity.getStatus(),
+                entity.isTransactional(),
+                aiAnalysis != null ? aiAnalysis.getRiskLevel() : null,
+                aiAnalysis != null ? aiAnalysis.getRiskScore() : null,
+                aiAnalysis != null && aiAnalysis.isFailed(),
+                entity.getSubmittedIp(),
+                entity.getSubmittedUserAgent(),
+                entity.isCiCdOrigin(),
+                entity.getCreatedAt());
     }
 
     @Override

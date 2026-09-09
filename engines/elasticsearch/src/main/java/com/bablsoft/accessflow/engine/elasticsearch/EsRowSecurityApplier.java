@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.elasticsearch;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -40,14 +41,7 @@ class EsRowSecurityApplier {
     }
 
     Applied apply(EsCommand command, List<RowSecurityDirective> directives) {
-        var matching = new ArrayList<RowSecurityDirective>();
-        if (directives != null) {
-            for (var directive : directives) {
-                if (matchesIndex(directive.tableRef(), command.index())) {
-                    matching.add(directive);
-                }
-            }
-        }
+        var matching = matching(command, directives);
         if (matching.isEmpty()) {
             return new Applied(command, Set.of());
         }
@@ -57,6 +51,59 @@ class EsRowSecurityApplier {
                     messages.get("error.row_security_search_insert_unsupported", command.index()));
             case CREATE_INDEX, PUT_MAPPING, DELETE_INDEX -> new Applied(command, Set.of());
         };
+    }
+
+    /** The directives whose {@code tableRef} targets this command's index. */
+    private List<RowSecurityDirective> matching(EsCommand command,
+                                                List<RowSecurityDirective> directives) {
+        var matching = new ArrayList<RowSecurityDirective>();
+        if (directives != null) {
+            for (var directive : directives) {
+                if (matchesIndex(directive.tableRef(), command.index())) {
+                    matching.add(directive);
+                }
+            }
+        }
+        return matching;
+    }
+
+    /**
+     * Classify what {@link #apply} would do to this command without mutating or executing anything
+     * (issue AF-630). Runs the same rewrite and reads the outcome off it, so the classification can
+     * never drift from the enforcement it predicts.
+     */
+    RowSecurityClassification classify(String engineId, EsCommand command,
+                                       List<RowSecurityDirective> directives) {
+        var matching = matching(command, directives);
+        if (matching.isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        try {
+            var applied = apply(command, directives);
+            return deniesEverything(matching)
+                    ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                    : applied.appliedPolicyIds().isEmpty()
+                            // DDL against a policied index reads and affects no documents, so
+                            // nothing is filtered; APPLIED would pollute "newly filtered".
+                            ? RowSecurityClassification.notApplicable(engineId)
+                            : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+    }
+
+    /**
+     * True when any matching directive resolved to no values — {@link #toClause} turns that into a
+     * {@code must_not match_all}, so the submitter would see nothing. {@code IS_NULL} is unary and
+     * is excluded: it carries no values by design.
+     */
+    private static boolean deniesEverything(List<RowSecurityDirective> matching) {
+        for (var directive : matching) {
+            if (directive.operator() != RowSecurityOperator.IS_NULL && directive.values().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Applied wrap(EsCommand command, List<RowSecurityDirective> matching) {

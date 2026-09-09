@@ -414,6 +414,34 @@
             <figcaption><code>/datasources/&lt;id&gt;/settings</code> → <em>Row security</em>. Per-table predicates injected into the parsed SQL; values bound as parameters.</figcaption>
           </figure>
           <p>
+            <strong>Simulate a policy before you save it.</strong> Both the <em>Masking</em> and
+            <em>Row security</em> forms have a <em>Simulate</em> button that dry-runs the draft
+            against this datasource's own past queries, so you see the blast radius first. Pick a
+            date range (up to 90 days) and AccessFlow replays that traffic <strong>twice</strong> —
+            once against the policies in place today, once with the draft added or replacing the one
+            you are editing — then reports the difference: for masking, which columns would start (or
+            stop) being hidden, in how many past queries, and for whom; for row security, which
+            queries would newly come back filtered, come back empty, or be rejected outright because
+            the engine cannot safely apply the predicate to that shape. Redis is the clearest case —
+            a row rule has no meaning over a key-value store, so the simulation lists exactly the
+            commands the policy would start refusing. The same button sits on the
+            <a href="/docs/configuration/review-workflows/#cfg-routing-policies">routing policy</a>
+            form.
+          </p>
+          <div class="docs-callout info">
+            <strong>What a simulation is, and is not.</strong> It is strictly a preview: nothing is
+            saved, no query is re-run, and AccessFlow never connects to your database to produce it —
+            row rules are worked out on the stored query text alone. It compares <em>policies against
+            policies</em> — today's rules versus the draft — rather than against what actually
+            happened, because a past result may have come from an emergency, a ticket, or a standing
+            grant the draft has no say over. The results name their own limits: roles and group
+            memberships are read as they stand today, masking is matched on the column name alone
+            (so a name two tables share can be over-counted), and where an engine cannot work out
+            offline what a row rule would do — Cassandra and ScyllaDB need live key information —
+            those queries are listed as <em>unclassifiable</em> rather than counted as unaffected.
+            Simulating is always optional; nothing blocks you from saving.
+          </div>
+          <p>
             <strong>Export policies.</strong> Masking and row security govern what a user
             <em>sees</em>; the datasource <em>Export policy</em> tab governs what <em>leaves</em>.
             Each policy sets a mode — <em>allow</em>, <em>watermark</em>, <em>row cap</em>, or

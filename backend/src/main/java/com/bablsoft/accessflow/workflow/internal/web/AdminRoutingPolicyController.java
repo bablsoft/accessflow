@@ -7,13 +7,18 @@ import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.CreateRoutingPolicyCommand;
+import com.bablsoft.accessflow.core.api.SimulationWindow;
+import com.bablsoft.accessflow.workflow.api.RoutingPolicyDraft;
 import com.bablsoft.accessflow.workflow.api.RoutingPolicyService;
+import com.bablsoft.accessflow.workflow.api.RoutingPolicySimulationService;
 import com.bablsoft.accessflow.workflow.api.RoutingPolicyView;
 import com.bablsoft.accessflow.workflow.api.UpdateRoutingPolicyCommand;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingConditionCodec;
 import com.bablsoft.accessflow.workflow.internal.web.model.CreateRoutingPolicyRequest;
 import com.bablsoft.accessflow.workflow.internal.web.model.ReorderRoutingPoliciesRequest;
 import com.bablsoft.accessflow.workflow.internal.web.model.RoutingPolicyResponse;
+import com.bablsoft.accessflow.workflow.internal.web.model.RoutingSimulationResponse;
+import com.bablsoft.accessflow.workflow.internal.web.model.SimulateRoutingPolicyRequest;
 import com.bablsoft.accessflow.workflow.internal.web.model.UpdateRoutingPolicyRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -51,6 +56,7 @@ import java.util.UUID;
 class AdminRoutingPolicyController {
 
     private final RoutingPolicyService routingPolicyService;
+    private final RoutingPolicySimulationService routingPolicySimulationService;
     private final RoutingConditionCodec routingConditionCodec;
     private final AuditLogService auditLogService;
 
@@ -106,6 +112,28 @@ class AdminRoutingPolicyController {
                 .buildAndExpand(created.id())
                 .toUri();
         return ResponseEntity.created(location).body(toResponse(created));
+    }
+
+    @PostMapping("/simulate")
+    @Operation(summary = "Dry-run a draft routing policy against historical query traffic",
+            description = "Replays the window twice — once against the organization's current "
+                    + "policies, once with the draft applied — and returns the diff. Read-only: "
+                    + "nothing is persisted and nothing runs against a customer database.")
+    @ApiResponse(responseCode = "200", description = "Simulation diff")
+    @ApiResponse(responseCode = "400", description = "Validation error or invalid simulation period")
+    @ApiResponse(responseCode = "403", description = "Caller cannot manage routing policies")
+    @ApiResponse(responseCode = "422", description = "Malformed condition or action parameters")
+    RoutingSimulationResponse simulate(@Valid @RequestBody SimulateRoutingPolicyRequest body,
+                                       Authentication authentication) {
+        var caller = currentClaims(authentication);
+        var draft = body.draft();
+        var command = new RoutingPolicyDraft(draft.replacesPolicyId(), draft.name(),
+                draft.datasourceId(), draft.priority(), draft.enabled() == null || draft.enabled(),
+                routingConditionCodec.fromJson(draft.condition()), draft.action(),
+                draft.requiredApprovals(), draft.reason());
+        var result = routingPolicySimulationService.simulate(caller.organizationId(),
+                new SimulationWindow(body.from(), body.to()), body.datasourceId(), command);
+        return RoutingSimulationResponse.from(result);
     }
 
     @PutMapping("/{id}")

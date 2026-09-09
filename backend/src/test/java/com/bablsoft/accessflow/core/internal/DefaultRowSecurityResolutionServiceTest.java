@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityPolicyDraft;
 import com.bablsoft.accessflow.core.api.RowSecurityValueType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowSecurityPolicyEntity;
@@ -217,5 +218,93 @@ class DefaultRowSecurityResolutionServiceTest {
         entity.setValueExpression(value);
         entity.setEnabled(true);
         return entity;
+    }
+
+    // ---- draft resolution for the policy simulator (AF-630) -------------------------------------
+
+    private RowSecurityPolicyDraft draft(UUID replaces, String table, String column, boolean enabled) {
+        return new RowSecurityPolicyDraft(replaces, table, column, RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "acme", List.of(), List.of(), List.of(), enabled);
+    }
+
+    @Test
+    void resolveWithDraftAddsAnUnsavedPolicyToThePersistedSet() {
+        stubPolicies(policy("orders", "region", RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "eu"));
+        stubUser(UserRoleType.ANALYST, "a@x.io", null);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(null, "invoices", "tenant", true));
+
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting("tableRef").containsExactly("orders", "invoices");
+        assertThat(result.get(1).policyId())
+                .isEqualTo(DefaultRowSecurityResolutionService.DRAFT_POLICY_ID);
+    }
+
+    @Test
+    void resolveWithDraftReplacesTheNamedPolicyRatherThanAddingBesideIt() {
+        var existing = policy("orders", "region", RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "eu");
+        stubPolicies(existing);
+        stubUser(UserRoleType.ANALYST, "a@x.io", null);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(existing.getId(), "orders", "tenant", true));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).columnName()).isEqualTo("tenant");
+        // A replacing draft keeps the id it replaces, so callers can still tell the arms apart.
+        assertThat(result.get(0).policyId()).isEqualTo(existing.getId());
+    }
+
+    @Test
+    void resolveWithDraftTreatsADisabledDraftAsRemovingThePolicyItReplaces() {
+        var existing = policy("orders", "region", RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "eu");
+        stubPolicies(existing);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(existing.getId(), "orders", "tenant", false));
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void resolveWithDraftHonoursTheDraftScopeSoANonTargetedUserIsUnaffected() {
+        stubPolicies();
+        stubUser(UserRoleType.ANALYST, "a@x.io", null);
+        var scoped = new RowSecurityPolicyDraft(null, "orders", "tenant",
+                RowSecurityOperator.EQUALS, RowSecurityValueType.LITERAL, "acme",
+                List.of("ADMIN"), List.of(), List.of(), true);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId, scoped);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void resolveWithDraftFailsClosedWhenTheDraftVariableCannotBeResolved() {
+        stubPolicies();
+        stubUser(UserRoleType.ANALYST, "a@x.io", null);
+        var unresolvable = new RowSecurityPolicyDraft(null, "orders", "tenant",
+                RowSecurityOperator.EQUALS, RowSecurityValueType.VARIABLE, "user.no_such_attribute",
+                List.of(), List.of(), List.of(), true);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId, unresolvable);
+
+        // Empty values is the deny-all signal the proxy turns into an always-false predicate.
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).values()).isEmpty();
+    }
+
+    @Test
+    void resolveWithDraftWithoutADraftIsJustThePersistedSet() {
+        stubPolicies(policy("orders", "region", RowSecurityOperator.EQUALS,
+                RowSecurityValueType.LITERAL, "eu"));
+        stubUser(UserRoleType.ANALYST, "a@x.io", null);
+
+        assertThat(service.resolveWithDraft(orgId, datasourceId, userId, null))
+                .isEqualTo(service.resolveApplicable(orgId, datasourceId, userId));
     }
 }

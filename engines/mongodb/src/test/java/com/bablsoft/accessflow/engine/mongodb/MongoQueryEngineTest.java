@@ -4,8 +4,12 @@ import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.SslMode;
 import org.junit.jupiter.api.Test;
 
@@ -115,5 +119,56 @@ class MongoQueryEngineTest {
         engine.evictDatasource(UUID.randomUUID());
         engine.shutdown();
         engine.shutdown();
+    }
+
+    // ---- offline row-security classification (AF-630) -------------------------------------------
+
+    private static QueryEngineRowSecurityRequest classifyRequest(String query,
+                                                                 RowSecurityDirective... directives) {
+        return new QueryEngineRowSecurityRequest(UUID.randomUUID(), query, List.of(directives));
+    }
+
+    private static RowSecurityDirective tenantEquals(String collection) {
+        return new RowSecurityDirective(UUID.randomUUID(), collection, "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+    }
+
+    @Test
+    void classifyRowSecurityShortCircuitsWhenThereAreNoDirectives() {
+        var result = initialized().classifyRowSecurity(classifyRequest("db.users.find({})"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("mongodb");
+    }
+
+    @Test
+    void classifyRowSecurityDelegatesToTheApplier() {
+        var directive = tenantEquals("users");
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("db.users.find({})", directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyRowSecurityReportsFailClosedForAPoliciedInsert() {
+        var result = initialized().classifyRowSecurity(
+                classifyRequest("db.users.insertOne({ name: \"ada\" })", tenantEquals("users")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityReportsUnknownRatherThanSafeForAnUnparseableQuery() {
+        var result = initialized()
+                .classifyRowSecurity(classifyRequest("not a mongo command", tenantEquals("users")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.UNKNOWN);
+        assertThat(result.reason()).isNotBlank();
+    }
+
+    @Test
+    void classifyRowSecurityFailsBeforeInitialize() {
+        assertThatThrownBy(() -> new MongoQueryEngine()
+                .classifyRowSecurity(classifyRequest("db.users.find({})", tenantEquals("users"))))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

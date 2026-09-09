@@ -3,11 +3,13 @@ import {
   App,
   AutoComplete,
   Button,
+  Flex,
   Form,
   Input,
   InputNumber,
   Modal,
   Select,
+  Space,
   Switch,
   Table,
   Tag,
@@ -23,6 +25,11 @@ import {
 } from '@ant-design/icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
+import { draftFingerprint, isMaskingDraftHighImpact }
+  from '@/components/policies/policyImpact';
+import { simulateMaskingPolicy } from '@/api/policySimulation';
+import { maskingSimulationSummary } from './policySimulationSummaries';
 import { EmptyState } from '@/components/common/EmptyState';
 import {
   createMaskingPolicy,
@@ -247,9 +254,11 @@ interface MaskingPolicyModalProps {
 
 function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalProps) {
   const { t } = useTranslation();
-  const { message } = App.useApp();
+  const { message, modal } = App.useApp();
   const queryClient = useQueryClient();
   const [form] = Form.useForm<MaskingFormValues>();
+  const [simulationOpen, setSimulationOpen] = useState(false);
+  const [simulatedKey, setSimulatedKey] = useState('');
   const strategy = Form.useWatch('strategy', form);
   const visibleSuffix = Form.useWatch('visible_suffix', form);
   const [sample, setSample] = useState('jane.doe@example.com');
@@ -330,6 +339,53 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
     },
   });
 
+  /** The draft the Simulate button replays, built from whatever is in the form right now. */
+  const buildSimulationDraft = () => {
+    const values = form.getFieldsValue();
+    if (!values.column_ref || !values.strategy) {
+      return null;
+    }
+    const strategyParams: Record<string, string> =
+      values.strategy === 'PARTIAL' && values.visible_suffix != null
+        ? { visible_suffix: String(values.visible_suffix) }
+        : {};
+    return {
+      draft: {
+        replaces_policy_id: policy?.id ?? null,
+        column_ref: values.column_ref.trim(),
+        strategy: values.strategy,
+        strategy_params: strategyParams,
+        reveal_to_roles: values.reveal_to_roles ?? [],
+        reveal_to_group_ids: values.reveal_to_group_ids ?? [],
+        reveal_to_user_ids: values.reveal_to_user_ids ?? [],
+        enabled: values.enabled,
+      },
+    };
+  };
+
+  /** Soft nudge, never a gate: saving is always one click away. */
+  const confirmHighImpactSave = () => {
+    const unsimulated = draftFingerprint(buildSimulationDraft()) !== simulatedKey;
+    if (
+      !unsimulated ||
+      !isMaskingDraftHighImpact({ ...form.getFieldsValue(), replacesPolicyId: policy?.id ?? null })
+    ) {
+      form.submit();
+      return;
+    }
+    modal.confirm({
+      title: t('policySimulation.nudge_title'),
+      content: t('policySimulation.nudge_body'),
+      okText: t('policySimulation.nudge_simulate'),
+      cancelText: t('policySimulation.nudge_save'),
+      // AntD calls onCancel for Esc as well as the Cancel button, and here onCancel is the write
+      // path. Esc must not be able to commit a policy the admin has not looked at.
+      keyboard: false,
+      onOk: () => setSimulationOpen(true),
+      onCancel: () => form.submit(),
+    });
+  };
+
   const onFinish = (values: MaskingFormValues) => {
     const params =
       values.strategy === 'PARTIAL' && values.visible_suffix != null
@@ -361,12 +417,31 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
           : t('datasources.settings.masking.create_title')
       }
       onCancel={onClose}
-      onOk={() => form.submit()}
+      onOk={confirmHighImpactSave}
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       confirmLoading={saveMutation.isPending}
       destroyOnHidden
       width={560}
+      footer={(_, { OkBtn, CancelBtn }) => (
+        <Flex justify="space-between" align="center">
+          <Button
+            onClick={() => {
+              // Field errors render inline; nothing more to report here.
+              void form.validateFields().then(
+                () => setSimulationOpen(true),
+                () => undefined,
+              );
+            }}
+          >
+            {t('policySimulation.run')}
+          </Button>
+          <Space>
+            <CancelBtn />
+            <OkBtn />
+          </Space>
+        </Flex>
+      )}
     >
       <Form<MaskingFormValues>
         form={form}
@@ -489,6 +564,21 @@ function MaskingPolicyModal({ open, dsId, policy, onClose }: MaskingPolicyModalP
           </Typography.Text>
         </div>
       </Form>
+      <PolicySimulationDrawer
+        open={simulationOpen}
+        onClose={() => setSimulationOpen(false)}
+        title={t('policySimulation.title')}
+        draftKey={draftFingerprint(buildSimulationDraft())}
+        run={(window) => {
+          const payload = buildSimulationDraft();
+          if (!payload) {
+            return Promise.reject(new Error(t('policySimulation.incomplete_draft')));
+          }
+          return simulateMaskingPolicy(dsId, { ...payload, ...window });
+        }}
+        summarize={(result) => maskingSimulationSummary(result, t)}
+        onSimulated={setSimulatedKey}
+      />
     </Modal>
   );
 }

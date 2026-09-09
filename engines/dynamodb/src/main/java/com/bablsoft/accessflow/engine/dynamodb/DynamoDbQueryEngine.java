@@ -3,11 +3,14 @@ package com.bablsoft.accessflow.engine.dynamodb;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -32,6 +35,7 @@ public final class DynamoDbQueryEngine implements QueryEngine {
     private volatile DynamoDbConnectionProbe connectionProbe;
     private volatile DynamoDbSchemaIntrospector schemaIntrospector;
     private volatile DynamoDbClientManager clientManager;
+    private volatile DynamoDbRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public DynamoDbQueryEngine() {
@@ -49,10 +53,12 @@ public final class DynamoDbQueryEngine implements QueryEngine {
         var clientFactory = new DynamoDbClientFactory(context.credentials(), settings);
         var manager = new DynamoDbClientManager(clientFactory);
         var queryParser = new PartiQlQueryParser(context.messages());
+        var applier = new DynamoDbRowSecurityApplier(context.messages());
         this.clientManager = manager;
         this.parser = queryParser;
-        this.executor = new DynamoDbQueryExecutor(manager, queryParser,
-                new DynamoDbRowSecurityApplier(context.messages()), new DynamoDbResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new DynamoDbQueryExecutor(manager, queryParser, applier,
+                new DynamoDbResultMapper(),
                 new DynamoDbExceptionTranslator(context.messages()), context.messages(),
                 context.clock());
         this.connectionProbe = new DynamoDbConnectionProbe(clientFactory);
@@ -62,6 +68,22 @@ public final class DynamoDbQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        PartiQlStatement statement;
+        try {
+            statement = initialized(parser).parseStatement(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(ENGINE_ID, statement, request.directives());
     }
 
     @Override

@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.engine.couchbase;
 
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 
@@ -24,6 +26,10 @@ class CouchbaseRowSecurityApplierTest {
 
     private CouchbaseRowSecurityApplier.Applied apply(String sql, RowSecurityDirective... ds) {
         return applier.apply(parser.parseStatement(sql), List.of(ds));
+    }
+
+    private RowSecurityClassification classify(String sql, RowSecurityDirective... ds) {
+        return applier.classify("couchbase", parser.parseStatement(sql), List.of(ds));
     }
 
     // ---- no-op paths ---------------------------------------------------------------------------
@@ -216,5 +222,138 @@ class CouchbaseRowSecurityApplierTest {
                     .isInstanceOf(UnrewritableRowSecurityException.class)
                     .hasMessageContaining("error.row_security_couchbase_unrewritable");
         }
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheStatement() {
+        var result = classify("SELECT * FROM users",
+                directive("orders", "region", RowSecurityOperator.EQUALS, List.of("emea")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("couchbase");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(classify("SELECT * FROM users").outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsNotApplicableForDdlOnAPoliciedKeyspace() {
+        var result = classify("CREATE INDEX idx ON users(age)",
+                directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var first = directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng"));
+        var second = directive("travel.inventory.users", "level",
+                RowSecurityOperator.GREATER_THAN_OR_EQUAL, List.of(3));
+        var ignored = directive("orders", "region", RowSecurityOperator.EQUALS, List.of("emea"));
+        var result = classify("SELECT name FROM users WHERE age > 21", first, second, ignored);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds())
+                .containsExactlyInAnyOrder(first.policyId(), second.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsAppliedForUpdateAndDelete() {
+        assertThat(classify("UPDATE users SET bonus = 1",
+                directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng"))).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(classify("DELETE FROM users WHERE age < 18",
+                directive("users", "team", RowSecurityOperator.IN, List.of("eng"))).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var denying = directive("users", "team", RowSecurityOperator.IN, List.of());
+        var other = directive("users", "level", RowSecurityOperator.EQUALS, List.of(3));
+        var result = classify("SELECT * FROM users", denying, other);
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds())
+                .containsExactlyInAnyOrder(denying.policyId(), other.policyId());
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        var result = classify("SELECT * FROM users",
+                directive("users", "deleted_at", RowSecurityOperator.IS_NULL, List.of()));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForInsertAndUpsertIntoAPoliciedKeyspace() {
+        var d = directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng"));
+        for (var sql : new String[]{
+                "INSERT INTO users (KEY, VALUE) VALUES ('k', {'a': 1})",
+                "UPSERT INTO users (KEY, VALUE) VALUES ('k', {'a': 1})"}) {
+            var result = classify(sql, d);
+            assertThat(result.outcome()).as(sql).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+            assertThat(result.reason()).as(sql)
+                    .contains("error.row_security_couchbase_insert_unsupported");
+            assertThat(result.appliedPolicyIds()).as(sql).isEmpty();
+        }
+    }
+
+    @Test
+    void classifyReportsFailClosedForInsertSelectReadingAPoliciedKeyspace() {
+        var result = classify("INSERT INTO archive (KEY META(u).id, VALUE u) SELECT u FROM users u",
+                directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_couchbase_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedForAPoliciedMerge() {
+        var result = classify("MERGE INTO users AS t USING staged AS s ON t.id = s.id "
+                        + "WHEN MATCHED THEN UPDATE SET t.a = s.a",
+                directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_couchbase_unrewritable");
+    }
+
+    @Test
+    void classifyReportsFailClosedForEveryUnrewritableSelectShape() {
+        var d = directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng"));
+        for (var sql : new String[]{
+                "WITH x AS (SELECT t.* FROM users t) SELECT * FROM x",
+                "SELECT * FROM orders WHERE uid IN (SELECT RAW id FROM users)",
+                "SELECT * FROM orders o JOIN users u ON o.uid = META(u).id",
+                "SELECT * FROM orders o UNNEST o.items i JOIN users u ON i.uid = META(u).id",
+                "SELECT * FROM users USE KEYS ['k1']",
+                "SELECT * FROM users UNION SELECT * FROM admins"}) {
+            var result = classify(sql, d);
+            assertThat(result.outcome()).as(sql).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+            assertThat(result.reason()).as(sql)
+                    .contains("error.row_security_couchbase_unrewritable");
+            assertThat(result.appliedPolicyIds()).as(sql).isEmpty();
+        }
+    }
+
+    @Test
+    void classifyReportsFailClosedWhenThePoliciedKeyspaceIsOnlyReachedFromAJoin() {
+        // The rewrite target (orders) carries no directive, but the statement still reads a
+        // policied keyspace — apply() rejects it, so the classification must not say "unaffected".
+        var result = classify("SELECT * FROM orders o JOIN users u ON o.uid = META(u).id",
+                directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+    }
+
+    @Test
+    void classifyNeverMutatesTheStatementItInspects() {
+        var statement = parser.parseStatement("SELECT * FROM users WHERE age > 21");
+        var result = applier.classify("couchbase", statement,
+                List.of(directive("users", "team", RowSecurityOperator.EQUALS, List.of("eng"))));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(statement.sql()).isEqualTo("SELECT * FROM users WHERE age > 21");
     }
 }

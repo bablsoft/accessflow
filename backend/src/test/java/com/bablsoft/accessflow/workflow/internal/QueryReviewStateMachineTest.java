@@ -30,7 +30,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,7 +65,10 @@ class QueryReviewStateMachineTest {
     @Mock com.bablsoft.accessflow.core.api.QueryEstimateLookupService queryEstimateLookupService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
-    @InjectMocks QueryReviewStateMachine stateMachine;
+
+    // A real ConditionContextFactory over the same mocks, not a mock of it: the context builder is
+    // what turns these signals into routing input, and mocking it away would stop testing that.
+    private QueryReviewStateMachine stateMachine;
 
     private final UUID queryId = UUID.randomUUID();
     private final UUID datasourceId = UUID.randomUUID();
@@ -75,6 +77,17 @@ class QueryReviewStateMachineTest {
     private final UUID aiAnalysisId = UUID.randomUUID();
     private final UUID policyId = UUID.randomUUID();
     private final UUID grantId = UUID.randomUUID();
+
+    @BeforeEach
+    void buildStateMachine() {
+        var contextFactory = new com.bablsoft.accessflow.workflow.internal.routing
+                .ConditionContextFactory(queryRequestLookupService, sqlParserService,
+                userQueryService, userGroupService, behaviorAnomalyLookupService,
+                queryEstimateLookupService);
+        stateMachine = new QueryReviewStateMachine(queryRequestLookupService, reviewPlanLookupService,
+                queryRequestStateService, contextFactory, sqlParserService, routingPolicyEngine,
+                routingDecisionService, accessGrantLookupService, messageSource, eventPublisher);
+    }
 
     @BeforeEach
     void stubSignals() {

@@ -3,13 +3,16 @@ package com.bablsoft.accessflow.engine.snowflake;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -34,6 +37,7 @@ public final class SnowflakeQueryEngine implements QueryEngine {
     private volatile SnowflakeQueryExecutor executor;
     private volatile SnowflakeConnectionProbe connectionProbe;
     private volatile SnowflakeSchemaIntrospector schemaIntrospector;
+    private volatile SnowflakeRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public SnowflakeQueryEngine() {
@@ -50,9 +54,11 @@ public final class SnowflakeQueryEngine implements QueryEngine {
         var settings = SnowflakeEngineSettings.from(context.config());
         var connectionFactory = new SnowflakeConnectionFactory(context.credentials(), settings);
         var queryParser = new SnowflakeQueryParser(context.messages());
+        var applier = new SnowflakeRowSecurityApplier(context.messages());
         this.parser = queryParser;
-        this.executor = new SnowflakeQueryExecutor(connectionFactory, queryParser,
-                new SnowflakeRowSecurityApplier(context.messages()), new SnowflakeResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new SnowflakeQueryExecutor(connectionFactory, queryParser, applier,
+                new SnowflakeResultMapper(),
                 new SnowflakeExceptionTranslator(context.messages()), context.messages(),
                 context.clock());
         this.connectionProbe = new SnowflakeConnectionProbe(connectionFactory, context.messages());
@@ -63,6 +69,22 @@ public final class SnowflakeQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        SnowflakeStatement statement;
+        try {
+            statement = initialized(parser).parseStatement(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(ENGINE_ID, statement, request.directives());
     }
 
     @Override

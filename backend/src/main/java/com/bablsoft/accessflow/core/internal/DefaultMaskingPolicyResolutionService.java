@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.MaskingPolicyDraft;
 import com.bablsoft.accessflow.core.api.MaskingPolicyResolutionService;
 import com.bablsoft.accessflow.core.api.ResolvedColumnMask;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
@@ -35,12 +36,41 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
     private final UserGroupMembershipRepository membershipRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Synthetic id stamped on a simulated draft that does not replace an existing policy, so the
+     * simulator can tell the draft's mask apart from the persisted ones it is compared against.
+     */
+    public static final UUID DRAFT_POLICY_ID = new UUID(0L, 0L);
+
     @Override
     @Transactional(readOnly = true)
     public List<ResolvedColumnMask> resolveApplicable(UUID organizationId, UUID datasourceId,
                                                        UUID requesterUserId) {
-        var policies = maskingPolicyRepository
+        return resolve(maskingPolicyRepository
+                .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId),
+                requesterUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ResolvedColumnMask> resolveWithDraft(UUID organizationId, UUID datasourceId,
+                                                     UUID requesterUserId, MaskingPolicyDraft draft) {
+        var persisted = maskingPolicyRepository
                 .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId);
+        var candidate = new ArrayList<MaskingPolicyEntity>(persisted.size() + 1);
+        for (var policy : persisted) {
+            if (draft == null || !policy.getId().equals(draft.replacesPolicyId())) {
+                candidate.add(policy);
+            }
+        }
+        if (draft != null && draft.enabled()) {
+            candidate.add(toTransientEntity(draft));
+        }
+        return resolve(candidate, requesterUserId);
+    }
+
+    private List<ResolvedColumnMask> resolve(List<MaskingPolicyEntity> policies,
+                                             UUID requesterUserId) {
         if (policies.isEmpty()) {
             return List.of();
         }
@@ -57,6 +87,23 @@ class DefaultMaskingPolicyResolutionService implements MaskingPolicyResolutionSe
                     policy.getStrategy(), parseParams(policy.getStrategyParams())));
         }
         return resolved;
+    }
+
+    /**
+     * A detached, never-persisted entity carrying the draft's fields, so reveal matching runs
+     * through the exact same code the saved path uses. It is never handed to a repository.
+     */
+    private MaskingPolicyEntity toTransientEntity(MaskingPolicyDraft draft) {
+        var entity = new MaskingPolicyEntity();
+        entity.setId(draft.replacesPolicyId() != null ? draft.replacesPolicyId() : DRAFT_POLICY_ID);
+        entity.setColumnRef(draft.columnRef());
+        entity.setStrategy(draft.strategy());
+        entity.setStrategyParams(objectMapper.writeValueAsString(draft.strategyParams()));
+        entity.setRevealToRoles(draft.revealToRoles().toArray(String[]::new));
+        entity.setRevealToGroupIds(draft.revealToGroupIds().toArray(UUID[]::new));
+        entity.setRevealToUserIds(draft.revealToUserIds().toArray(UUID[]::new));
+        entity.setEnabled(true);
+        return entity;
     }
 
     private static boolean isRevealed(MaskingPolicyEntity policy, UUID userId, String roleName,
