@@ -1,7 +1,9 @@
 package com.bablsoft.accessflow.engine.mongodb;
 
-import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
+import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
@@ -108,5 +110,71 @@ class MongoRowSecurityApplierTest {
         assertThat(MongoRowSecurityApplier.matchesCollection("users", "users")).isTrue();
         assertThat(MongoRowSecurityApplier.matchesCollection("orders", "users")).isFalse();
         assertThat(MongoRowSecurityApplier.matchesCollection(null, "users")).isFalse();
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheCollection() {
+        var command = parser.parseCommand("db.users.find({})");
+        var result = applier.classify("mongodb", command, List.of(eq("orders", "tenant", 7)));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("mongodb");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        var command = parser.parseCommand("db.users.find({})");
+        assertThat(applier.classify("mongodb", command, List.of()).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var command = parser.parseCommand("db.users.find({ active: true })");
+        var directive = eq("users", "tenant", 7);
+        var result = applier.classify("mongodb", command, List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var command = parser.parseCommand("db.users.find({})");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "users", "tenant",
+                RowSecurityOperator.IN, List.of());
+        var result = applier.classify("mongodb", command, List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        var command = parser.parseCommand("db.users.find({})");
+        var directive = new RowSecurityDirective(UUID.randomUUID(), "users", "deleted_at",
+                RowSecurityOperator.IS_NULL, List.of());
+        assertThat(applier.classify("mongodb", command, List.of(directive)).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnInsertIntoAPoliciedCollection() {
+        var command = parser.parseCommand("db.users.insertOne({ name: \"ada\" })");
+        var result = applier.classify("mongodb", command, List.of(eq("users", "tenant", 7)));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_mongo_insert_unsupported");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyNeverMutatesTheCommandItInspects() {
+        var command = parser.parseCommand("db.users.find({ active: true })");
+        var before = command.filter();
+        RowSecurityClassification result =
+                applier.classify("mongodb", command, List.of(eq("users", "tenant", 7)));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(command.filter()).isEqualTo(before);
     }
 }
