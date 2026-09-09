@@ -140,4 +140,71 @@ class CouchbaseResultMapperTest {
         assertThat(result.columns()).extracting("typeName")
                 .containsExactly("string", "number", "boolean", "object", "array", "null");
     }
+
+    @Test
+    void masksNestedFieldByDotPathLeavingSiblingsIntact() {
+        var policyId = UUID.randomUUID();
+        var mask = new ColumnMaskDirective("profile.ssn", MaskingStrategy.FULL, Map.of(), policyId);
+        var result = mapper.materialize(
+                List.of(doc("profile", doc("ssn", "123-45-6789", "city", "NYC"))),
+                null, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        var profile = (Map<?, ?>) result.rows().get(0).get(0);
+        assertThat(profile.get("ssn")).isEqualTo(ColumnMasker.FULL_MASK);
+        assertThat(profile.get("city")).isEqualTo("NYC");
+        assertThat(result.appliedMaskingPolicyIds()).containsExactly(policyId);
+    }
+
+    @Test
+    void keyspaceQualifiedRefMasksTheNestedLeaf() {
+        // The form AF-447 tag derivation writes: <collection>.<dot-path>.
+        var mask = new ColumnMaskDirective("users.profile.ssn", MaskingStrategy.FULL, Map.of(),
+                null);
+        var result = mapper.materialize(List.of(doc("profile", doc("ssn", "123-45-6789"))),
+                null, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        assertThat(((Map<?, ?>) result.rows().get(0).get(0)).get("ssn"))
+                .isEqualTo(ColumnMasker.FULL_MASK);
+    }
+
+    @Test
+    void masksNestedFieldInsideEveryArrayElement() {
+        var mask = new ColumnMaskDirective("contacts.email", MaskingStrategy.FULL, Map.of(), null);
+        var result = mapper.materialize(
+                List.of(doc("contacts", List.of(doc("email", "a@x.io"), doc("email", "b@x.io")))),
+                null, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        assertThat((List<?>) result.rows().get(0).get(0)).allSatisfy(element ->
+                assertThat(((Map<?, ?>) element).get("email"))
+                        .isEqualTo(ColumnMasker.FULL_MASK));
+    }
+
+    @Test
+    void fullMaskOnTheWholeFieldCollapsesTheSubtree() {
+        var result = mapper.materialize(List.of(doc("profile", doc("ssn", "123-45-6789"))),
+                null, 10, Duration.ZERO, List.of("profile"), List.of());
+
+        // Never leak the nested keys or shape.
+        assertThat(result.rows().get(0).get(0)).isEqualTo(ColumnMasker.FULL_MASK);
+    }
+
+    @Test
+    void topLevelColumnIsRestrictedWhenOnlyADescendantIsMasked() {
+        var mask = new ColumnMaskDirective("profile.ssn", MaskingStrategy.FULL, Map.of(), null);
+        var result = mapper.materialize(List.of(doc("profile", doc("ssn", "1", "city", "NYC"))),
+                null, 10, Duration.ZERO, List.of(), List.of(mask));
+
+        assertThat(result.columns().get(0).restricted()).isTrue();
+    }
+
+    @Test
+    void unmaskedNestedDocumentsAreUnchanged() {
+        var result = mapper.materialize(List.of(doc("profile", doc("city", "NYC"),
+                        "tags", List.of("a", "b"))),
+                null, 10, Duration.ZERO, List.of(), List.of());
+
+        assertThat(result.rows().get(0).get(0)).isEqualTo(Map.of("city", "NYC"));
+        assertThat(result.rows().get(0).get(1)).isEqualTo(List.of("a", "b"));
+        assertThat(result.columns().get(0).restricted()).isFalse();
+    }
 }

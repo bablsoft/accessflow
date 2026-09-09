@@ -72,6 +72,7 @@ public class DiscoveryScanService {
     private final DataDiscoveryAiService dataDiscoveryAiService;
     private final AuditLogService auditLogService;
     private final DiscoveryProperties properties;
+    private final NestedValueFlattener nestedValueFlattener;
     private final Clock clock;
 
     private final Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
@@ -165,7 +166,7 @@ public class DiscoveryScanService {
         if (!(result instanceof SelectExecutionResult select)) {
             return;
         }
-        var columnValues = collectStringColumns(select);
+        var columnValues = nestedValueFlattener.collect(select, sampleSize);
         var now = clock.instant();
         var aiCandidates = new ArrayList<DataDiscoveryAiService.DiscoveryColumnContext>();
         var columnTypes = columnTypesByName(target);
@@ -220,17 +221,23 @@ public class DiscoveryScanService {
         var suggestions = dataDiscoveryAiService.classifyColumns(organizationId,
                 new DataDiscoveryAiService.DiscoveryTableContext(target.qualifiedName(),
                         candidates));
+        var canonicalColumns = canonicalColumnNames(columnValues);
         var now = clock.instant();
         for (var suggestion : suggestions) {
-            if (isTagged(taggedKeys, target, suggestion.columnName(),
-                    suggestion.classification())) {
+            // The model echoes the column name back, and a dot-path invites re-casing. Resolve to
+            // the sampled spelling so a re-cased echo cannot open a second natural key, and drop
+            // anything that resolves to no sampled column at all.
+            var columnName = canonicalColumns.get(
+                    suggestion.columnName().toLowerCase(Locale.ROOT));
+            if (columnName == null
+                    || isTagged(taggedKeys, target, columnName, suggestion.classification())) {
                 continue;
             }
-            var values = columnValues.getOrDefault(suggestion.columnName(), List.of());
+            var values = columnValues.getOrDefault(columnName, List.of());
             var sample = values.isEmpty() ? null
                     : ColumnMasker.apply(MaskingStrategy.FORMAT_PRESERVING, values.getFirst(),
                             Map.of());
-            upsertFinding(datasourceId, organizationId, target, suggestion.columnName(),
+            upsertFinding(datasourceId, organizationId, target, columnName,
                     suggestion.classification(), DiscoveryDetector.AI, suggestion.confidence(),
                     sample, suggestion.rationale(), 0, values.size(), now, stats);
             stats.aiSuggestions++;
@@ -280,21 +287,13 @@ public class DiscoveryScanService {
         stats.findingsRefreshed++;
     }
 
-    /** Non-blank string values per column name, preserving the result's column order. */
-    private static Map<String, List<String>> collectStringColumns(SelectExecutionResult select) {
-        var byColumn = new java.util.LinkedHashMap<String, List<String>>();
-        var columns = select.columns();
-        for (var column : columns) {
-            byColumn.put(column.name(), new ArrayList<>());
+    /** Lowercased sampled column name → the spelling the sample actually used. */
+    private static Map<String, String> canonicalColumnNames(Map<String, List<String>> columnValues) {
+        var canonical = new HashMap<String, String>();
+        for (var name : columnValues.keySet()) {
+            canonical.putIfAbsent(name.toLowerCase(Locale.ROOT), name);
         }
-        for (var row : select.rows()) {
-            for (var i = 0; i < columns.size() && i < row.size(); i++) {
-                if (row.get(i) instanceof String s && !s.isBlank()) {
-                    byColumn.get(columns.get(i).name()).add(s);
-                }
-            }
-        }
-        return byColumn;
+        return canonical;
     }
 
     /** First-match-wins detector counts over the column's sampled values. */
@@ -389,7 +388,16 @@ public class DiscoveryScanService {
         return refs;
     }
 
-    /** Mirrors the executor's mask-matching precedence: schema.table.column, table.column, column. */
+    /**
+     * Mirrors the executor's mask-matching precedence: schema.table.column, table.column, column.
+     *
+     * <p>A flattened nested column (AF-658) is just a dot-path string here, sharing the ambiguous
+     * {@code table.column} namespace: a pseudo-column {@code profile.email} can match a policy
+     * authored for a collection named {@code profile}, and a bare {@code email} policy does not
+     * suppress {@code profile.contact.email}. Both are tolerable — the scan reads an
+     * <em>unmasked</em> sample, so this is only a "don't propose what is already handled" filter
+     * and a miss costs a redundant PENDING finding, never bad detection.
+     */
     private boolean isMasked(TableTarget target, String columnName, Set<String> maskedColumnRefs) {
         var column = columnName.toLowerCase(Locale.ROOT);
         var table = target.tableName().toLowerCase(Locale.ROOT);

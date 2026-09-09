@@ -30,6 +30,9 @@ import java.util.UUID;
  * policies are applied per value via the shared {@link ColumnMasker}; a mask ref is a <em>dot-path</em>
  * into the item, so {@code user.email} redacts only that nested leaf while siblings stay intact (a
  * bare {@code email} masks the whole attribute, recursing into nested maps/lists).
+ * A ref may also carry the table/schema qualification the AF-447 tag derivation
+ * prepends ({@code orders.user.email}) — the plan anchors on the first segment naming the
+ * column and treats everything before it as the qualification (AF-658).
  */
 class DynamoDbResultMapper {
 
@@ -273,18 +276,22 @@ class DynamoDbResultMapper {
             AppliedMask wholeRestricted = null;
             var paths = new ArrayList<PathMask>();
             for (var ref : refs) {
-                if (ref.segments().isEmpty() || !ref.segments().get(0).equals(col)) {
+                // A ref may be unqualified (profile.ssn) or carry a table/schema qualification the
+                // AF-447 tag derivation prepends (orders.profile.ssn). Anchor on the first segment
+                // naming this column and treat everything before it as the qualification.
+                int anchor = ref.segments().indexOf(col);
+                if (anchor < 0) {
                     continue;
                 }
-                if (ref.segments().size() == 1) {
+                var rest = ref.segments().subList(anchor + 1, ref.segments().size());
+                if (rest.isEmpty()) {
                     if (ref.fromDirective() && wholeDirective == null) {
                         wholeDirective = ref.mask();
                     } else if (!ref.fromDirective() && wholeRestricted == null) {
                         wholeRestricted = ref.mask();
                     }
                 } else {
-                    paths.add(new PathMask(ref.segments().subList(1, ref.segments().size()),
-                            ref.mask()));
+                    paths.add(new PathMask(rest, ref.mask()));
                 }
             }
             var whole = wholeDirective != null ? wholeDirective : wholeRestricted;

@@ -144,6 +144,29 @@ class BigQueryResultMapperTest {
     }
 
     @Test
+    void tableQualifiedRefRedactsTheNestedRecordLeaf() {
+        // The form AF-447 tag derivation writes: <table>.<dot-path> (AF-658).
+        var mask = new ColumnMaskDirective("orders.profile.ssn", MaskingStrategy.FULL, Map.of(),
+                UUID.randomUUID());
+        var result = mapper.materialize(FIELDS, List.of(row("7", "Ada", "111-22-3333", "555-01")),
+                10, Duration.ZERO, List.of(), List.of(mask));
+        @SuppressWarnings("unchecked")
+        var profile = (Map<String, Object>) result.rows().get(0).get(7);
+        assertThat(profile.get("ssn")).isEqualTo(ColumnMasker.FULL_MASK);
+        assertThat(profile.get("phone")).isEqualTo("555-01");
+        assertThat(result.columns().get(7).restricted()).isTrue();
+    }
+
+    @Test
+    void anUnrelatedQualifiedRefStillMasksNothing() {
+        var mask = new ColumnMaskDirective("orders.total", MaskingStrategy.FULL, Map.of(),
+                UUID.randomUUID());
+        var result = mapper.materialize(FIELDS, List.of(row("7", "Ada", "111-22-3333", "555-01")),
+                10, Duration.ZERO, List.of(), List.of(mask));
+        assertThat(result.appliedMaskingPolicyIds()).isEmpty();
+    }
+
+    @Test
     void wholeColumnFullMaskCollapsesRecordAndRepeatedValues() {
         var result = mapper.materialize(FIELDS, List.of(row("7", "Ada", "111", "555")), 10,
                 Duration.ZERO, List.of("profile", "tags"), List.of());

@@ -98,6 +98,43 @@ class DynamoDbResultMapperTest {
     }
 
     @Test
+    void tableQualifiedRefMasksTheNestedLeaf() {
+        // The form AF-447 tag derivation writes: <table>.<dot-path> (AF-658).
+        var profile = AttributeValue.fromM(Map.of("ssn", AttributeValue.fromS("123456789"),
+                "phone", AttributeValue.fromS("555-0100")));
+        var items = List.of(item("id", AttributeValue.fromS("1"), "profile", profile));
+        var result = mapper.materialize(items, 10, Duration.ZERO, List.of(),
+                List.of(new ColumnMaskDirective("users.profile.ssn", MaskingStrategy.FULL,
+                        Map.of(), null)));
+        @SuppressWarnings("unchecked")
+        var masked = (Map<String, Object>) result.rows().get(0)
+                .get(columnIndex(result.columns(), "profile"));
+        assertThat(masked).containsEntry("ssn", "***").containsEntry("phone", "555-0100");
+    }
+
+    @Test
+    void tableQualifiedRefMasksAWholeTopLevelAttribute() {
+        var items = List.of(item("id", AttributeValue.fromS("1"),
+                "email", AttributeValue.fromS("ada@example.com")));
+        var result = mapper.materialize(items, 10, Duration.ZERO, List.of(),
+                List.of(new ColumnMaskDirective("users.email", MaskingStrategy.FULL, Map.of(),
+                        null)));
+        assertThat(result.rows().get(0).get(columnIndex(result.columns(), "email")))
+                .isEqualTo("***");
+    }
+
+    @Test
+    void anUnrelatedRefStillMasksNothing() {
+        var items = List.of(item("id", AttributeValue.fromS("1"),
+                "email", AttributeValue.fromS("ada@example.com")));
+        var result = mapper.materialize(items, 10, Duration.ZERO, List.of(),
+                List.of(new ColumnMaskDirective("orders.total", MaskingStrategy.FULL, Map.of(),
+                        null)));
+        assertThat(result.rows().get(0).get(columnIndex(result.columns(), "email")))
+                .isEqualTo("ada@example.com");
+    }
+
+    @Test
     void detectsTruncationAtMaxRows() {
         var items = List.of(
                 item("id", AttributeValue.fromS("1")),

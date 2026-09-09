@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-dynamodb-1.0.3-all.jar",
-    "fileName": "accessflow-engine-dynamodb-1.0.3-all.jar",
-    "sha256": "41f6751d610f3a557b0db9c244b476512b02e9f30764954c9c6f25b853bc9b30"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-dynamodb-1.0.4-all.jar",
+    "fileName": "accessflow-engine-dynamodb-1.0.4-all.jar",
+    "sha256": "86c0a37c554002e77f9d09e028f243e2fb4b28997d413af7b9a66475319fda2f"
   }
 }

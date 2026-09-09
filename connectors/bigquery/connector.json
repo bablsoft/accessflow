@@ -13,8 +13,8 @@
   "bundled": false,
   "driver": {
     "type": "url",
-    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-bigquery-1.0.1-all.jar",
-    "fileName": "accessflow-engine-bigquery-1.0.1-all.jar",
-    "sha256": "5c598c7d59c248f77fccee97a2f98d0b6bc4235030c12a870c270a6b38cfac2c"
+    "url": "https://bablsoft.github.io/accessflow/engines/accessflow-engine-bigquery-1.0.2-all.jar",
+    "fileName": "accessflow-engine-bigquery-1.0.2-all.jar",
+    "sha256": "d53099e12f70cb0ff9ab2573db84947fb17e3b2b9bdf3c8083b6159ac624bd2e"
   }
 }
