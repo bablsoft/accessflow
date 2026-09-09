@@ -95,11 +95,12 @@ orientation block the agent falls back to would quietly describe an app that no 
 ## The UI vocabulary, and why it is derived
 
 Everything above describes the product in the documentation's words. That is not what a user
-clicks — and where the two drifted, the agent invented the difference. Asked how to submit a query
-it answered "open the SQL editor (`/editor`)": a screen name the menu does not use, a URL where a
-menu path belongs, and "the Justification field is not strictly required" against a field labelled
-`· required for review`. An instruction naming a menu item that is not there reads authoritative
-and sends the reader looking for nothing.
+clicks. Asked how to submit a query, the agent answered "open the SQL editor (`/editor`)" — a name
+the sidebar does not use for that entry, and a URL where a menu path belongs. It had nothing else
+to offer: not one string in the corpus came from the frontend, so the sixteen group and
+sub-section names the menu is organised into were unreachable, and so was every button label a
+step-by-step answer is made of. An instruction naming a menu item that is not there reads
+authoritative and sends the reader looking for nothing.
 
 So three more inputs are **parsed, never paraphrased**:
 
@@ -115,6 +116,12 @@ permissions and purpose for every destination), the screens that have **no** men
 they are reached instead, and the exact button and field labels on the submit → analyse → review →
 execute path. The same block is rendered into `quick-reference.txt`, which is the mode with no
 citations at all and therefore the one most worth getting literally right.
+
+The notes beside each control are the one hand-written part, and they carry what the label alone
+cannot: that **Analyze** gates **Submit for review** on an AI-enabled datasource, that
+`· required for review` beside **Justification** is advisory rather than a validation rule (the
+identical note on the Emergency access modal is not), and which controls appear only for some
+engines. A label quoted without its condition is the same failure in a smaller box.
 
 `CONTROL_VOCABULARY` is a curated list, not a dump: `en.json` holds thousands of strings, and the
 tooltips and toasts among them would drown retrieval. Only the *reference* is hand-written — every

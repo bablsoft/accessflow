@@ -72,13 +72,21 @@ class HelpChatPromptRendererTest {
                 .contains("Name a screen by its exact label in the interface and give the menu "
                         + "path a reader follows — \"Workflow → Database → Query editor\" — never "
                         + "a URL as the instruction.")
+                // Deliberately *not* "if a field is marked required, it is required": the editor's
+                // own "· required for review" note sits on a field the submit endpoint does not
+                // enforce, so an absolute reading of a label is a claim the product contradicts.
                 .contains("Quote button, tab and field labels exactly as the excerpts spell them, "
-                        + "and do not soften what a label states: if a field is marked required, "
-                        + "it is required.")
-                .contains("The sidebar is filtered by permission. When an excerpt names the "
-                        + "permission a destination needs, say so (\"if you have "
-                        + "QUERY_SUBMIT_DML, ...\") rather than asserting the entry is in "
-                        + "everyone's menu.");
+                        + "qualifiers included, and claim nothing about a control that the "
+                        + "excerpts do not say about it.")
+                .contains("Those labels are the English interface strings. Answering in another "
+                        + "language, give the label verbatim anyway and say it is the English "
+                        + "wording, because the reader's interface may be showing them a "
+                        + "translation of it.")
+                .contains("The sidebar is filtered by permission, and so are some controls. When "
+                        + "an excerpt names the permission a destination needs, or says a control "
+                        + "appears only in some cases, carry that over (\"if you have "
+                        + "QUERY_SUBMIT_DML, ...\") rather than asserting it is on everyone's "
+                        + "screen.");
     }
 
     @Test

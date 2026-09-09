@@ -56,7 +56,7 @@ Where things are in the app
     Attestation reviews · /reviews/attestations · needs ATTESTATION_REVIEW — Access recertification worklist: certify or revoke standing grants.
 
   Connections → Database
-    Datasources · /datasources · needs DATASOURCE_MANAGE — Databases the user may query, and their connection health.
+    Datasources · /datasources · needs DATASOURCE_MANAGE — The registered databases: engine, connection settings and health. This is the administrator's registry, not a list of what you personally may query.
     Connectors · /admin/connectors · needs DATASOURCE_MANAGE — Connector catalog: engines available and their driver pins.
     Custom JDBC drivers · /admin/drivers · needs DATASOURCE_MANAGE — Uploaded JDBC driver JARs for custom engines.
 
@@ -107,52 +107,27 @@ Where things are in the app
   Platform
     Organizations · /admin/organizations · platform administrators only — Organizations (tenants) and their settings.
 
-Screens with no menu entry
-  / — Lands on the dashboard once signed in. Reached by: The application root — signing in arrives here.
-  /queries/:id — One query: SQL, AI analysis, approval chain, results, audit trail. Reached by: Open a row in Query history, or follow the link in a notification.
-  /reviews/:id/decide — Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional. Reached by: Follow the decision link in a review notification or push message.
-  /request-groups/:id — One grouped request: its members, their order, and the aggregated approval. Reached by: Open a row in Request Groups.
-  /request-groups/new — Build a grouped request and order its members. Reached by: The create action on Request Groups.
-  /request-groups/:id/edit — Change a grouped request before it is submitted. Reached by: The edit action on a grouped request that has not been submitted yet.
-  /datasources/new — Register a database: engine, host, credentials, SSL mode. Reached by: The add action on Datasources.
-  /datasources/:id/settings — Per-datasource schema, masking, row security and ER diagram. Reached by: Open a datasource from Datasources.
-  /api-connectors/:id/settings — Per-connector schema, permissions, response masking and classification tags. Reached by: Open a connector from API Connectors.
-  /api-requests/:id — One API call: request, AI analysis, approval chain, response. Reached by: Open a row in API Requests.
-  /reviews?tab=api — The API-requests queue. Reached by: The API-requests tab of the Review queue. The older /api-reviews URL redirects here.
-  /deployments/:id — One deployment request: what it releases, its analysis and its decisions. Reached by: Open a row in Deployments.
-  /reviews?tab=deployments — The deployment queue; ?tab=rollbacks is the rollback worklist. Reached by: The deployments tab of the Review queue. The older /deployment-reviews URL redirects here.
-  /deployment-versions/:pipelineId — The same matrix for one pipeline, plus per-environment history. Reached by: Open a pipeline from Version Matrix.
-  /profile — Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link. Reached by: The user menu behind your avatar, top right.
-  /setup — First-run wizard. Shown until an active admin exists. Reached by: Shown automatically on a fresh install; there is no menu entry for it.
-  /login — Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO. Reached by: Where anyone who is not signed in is sent.
-  /forgot-password — Ask for a password-reset email. Reached by: The forgotten-password link on the sign-in screen.
-  /reset-password/:token — Set a new password from the link in that email. Reached by: The link in the password-reset email.
-  /invite/:token — Accept an invitation and choose a password. Reached by: The link in the invitation email.
-  /admin/groups/:id — One group: its members and the permissions it grants them. Reached by: Open a row in Groups.
-  /admin/organizations/:id — One organization and its settings. Reached by: Open a row in Organizations.
-  /admin/attestation/:id — One campaign: its scope, progress and evidence export. Reached by: Open a campaign from Attestation.
-  /admin/ai-configs/new — Add an AI provider configuration. Reached by: The add action on AI configurations.
-  /admin/ai-configs/:id — Edit one AI provider configuration, its prompt and its knowledge base. Reached by: Open a row in AI configurations.
-  /admin/deployment-pipelines/:id — One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet. Reached by: Open a pipeline from Deployment Pipelines.
-
 Buttons and fields on the main screens (quote these labels verbatim)
   Query editor (Workflow → Database → Query editor)
+    "SQL editor" — page heading. The heading at the top of this screen. It differs from the menu entry that opens it, which is the label in the sidebar block above — this is the one screen where the two names disagree.
     "Datasource" — field. Which database the query runs against.
-    "Describe your query" — field. Optional plain-language description the AI turns into SQL.
-    "Generate query" — button. Writes a draft query from that description.
-    "Format" — button. Reformats the SQL in the editor.
+    "Describe your query" — field. Optional plain-language description the AI turns into SQL. Present only on a datasource whose engine supports text-to-SQL.
+    "Generate query" — button. Writes a draft query from that description. Shown with the field above.
+    "Format" — button. Reformats the SQL. Shown only for engines whose syntax can be formatted.
     "Templates" — button. Opens the saved query templates.
     "Save as template" — button. Saves the current query as a template.
-    "Justification" — field. Why the query is being run.
-    "· required for review" — note. Sits beside the Justification label: a query that goes to a reviewer needs one.
+    "Justification" — field. Why the query is being run. Not enforced: a normal submission is accepted without one.
+    "· required for review" — note. The advisory qualifier beside the Justification label. It marks what a reviewer expects, not a validation rule — the same note on the Emergency access modal marks a field that is enforced.
     "Why are you running this query?" — placeholder. The prompt inside the empty Justification field.
-    "Analyze" — button. Runs the AI risk analysis without submitting anything.
+    "Analyze" — button. Runs the AI risk analysis. Shown only on a datasource with AI analysis enabled, where it is a precondition rather than a side-trip: Submit for review stays disabled until a fresh analysis exists.
+    "Run AI analysis before submitting." — tooltip. Why Submit for review is greyed out before the analysis has run.
     "Dry run" — button. Asks the database for an execution plan without running the query.
-    "Scheduled execution" — field. Optional date and time for the approved query to run automatically.
-    "Recurring execution" — field. Optional repeating schedule; it replaces one-time scheduling.
-    "Submit for review" — button. Sends the query into the review workflow.
+    "Scheduled execution" — field. Optional date and time for the approved query to run automatically. Mutually exclusive with Recurring execution.
+    "Recurring execution" — field. Optional repeating schedule. Mutually exclusive with Scheduled execution.
+    "Submit for review" — button. Sends the query into the review workflow. Disabled until the SQL is non-empty and, where AI analysis is enabled, a fresh analysis exists.
     "Emergency access" — button. Runs immediately, bypassing review — only for someone holding the break-glass permission on that datasource.
-    "History" — button. Recent queries submitted from this editor.
+    "Explain the emergency (required)" — placeholder. The justification field inside that modal, which unlike the ordinary one is enforced.
+    "History" — button. Opens Query history — every query you have submitted, not only the ones written here.
 
   Query history (Workflow → Database → Query history)
     "Search SQL, ID or submitter…" — placeholder. Filters the list by SQL, id or submitter.
@@ -171,7 +146,9 @@ Buttons and fields on the main screens (quote these labels verbatim)
 
   Review queue (at the top of the sidebar)
     "All caught up" — empty state. Shown when nothing is waiting on you.
-    "Reject" — button. Confirms a rejection; a comment is required.
+    "Approve" — row action. Approves that one query, from its row in the queue.
+    "Reject" — row action. Opens the rejection modal for that one query.
+    "Reject" — button. Confirms the rejection inside that modal; it stays disabled until a comment is entered.
     "Approve selected" — button. Approves every selected row with one shared comment.
     "Reject selected" — button. Rejects every selected row with one shared comment.
     "Request changes" — button. Sends every selected row back to its submitter.
@@ -186,6 +163,34 @@ Buttons and fields on the main screens (quote these labels verbatim)
   Profile (/profile)
     "Profile settings" — menu entry. Opens the profile screen, from the avatar menu at the top right.
     "Sign out" — menu entry. Ends the session, from that same menu.
+
+Screens with no menu entry
+  / — Lands on the dashboard once signed in. How you get there: the application root; signing in lands here.
+  /queries/:id — One query: SQL, AI analysis, approval chain, results, audit trail. How you get there: open a row in Query history, or follow the link in a notification.
+  /reviews/:id/decide — Approve or reject one request, re-authenticating with your password or TOTP code. There is no comment field on this screen — the review queue is where a decision takes a comment. How you get there: follow the decision link in a review notification or push message.
+  /request-groups/:id — One grouped request: its members, their order, and the aggregated approval. How you get there: open a row in Request Groups.
+  /request-groups/new — Build a grouped request and order its members. How you get there: the create action on Request Groups.
+  /request-groups/:id/edit — Change a grouped request before it is submitted. How you get there: the edit action on a grouped request that has not been submitted yet.
+  /datasources/new — Register a database: engine, host, credentials, SSL mode. How you get there: the add action on Datasources.
+  /datasources/:id/settings — Per-datasource schema, masking, row security and ER diagram. How you get there: open a datasource from Datasources.
+  /api-connectors/:id/settings — Per-connector schema, permissions, response masking and classification tags. How you get there: open a connector from API Connectors.
+  /api-requests/:id — One API call: request, AI analysis, approval chain, response. How you get there: open a row in API Requests.
+  /reviews?tab=api — The API requests queue. How you get there: the API requests tab of the Review queue — the older /api-reviews URL redirects here.
+  /deployments/:id — One deployment request: what it releases, its analysis and its decisions. How you get there: open a row in Deployments.
+  /reviews?tab=deployments — The deployment queue; ?tab=rollbacks is the rollback worklist. How you get there: the Deployments tab of the Review queue — the older /deployment-reviews URL redirects here.
+  /deployment-versions/:pipelineId — The same matrix for one pipeline, plus per-environment history. How you get there: open a pipeline from Version Matrix.
+  /profile — Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link. How you get there: the user menu behind your avatar, top right.
+  /setup — First-run wizard. Shown until an active admin exists. How you get there: shown automatically on a fresh install, until an active administrator exists; there is no menu entry for it.
+  /login — Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO. How you get there: where anyone who is not signed in is sent.
+  /forgot-password — Ask for a password-reset email. How you get there: the forgotten-password link on the sign-in screen.
+  /reset-password/:token — Set a new password from the link in that email. How you get there: the link in the password-reset email.
+  /invite/:token — Accept an invitation and choose a password. How you get there: the link in the invitation email.
+  /admin/groups/:id — One group: its members and the permissions it grants them. How you get there: open a row in Groups.
+  /admin/organizations/:id — One organization and its settings. How you get there: open a row in Organizations.
+  /admin/attestation/:id — One campaign: its scope, progress and evidence export. How you get there: open a campaign from Attestation.
+  /admin/ai-configs/new — Add an AI provider configuration. How you get there: the add action on AI configurations.
+  /admin/ai-configs/:id — Edit one AI provider configuration, its prompt and its knowledge base. How you get there: open a row in AI configurations.
+  /admin/deployment-pipelines/:id — One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet. How you get there: open a pipeline from Deployment Pipelines.
 
 What the documentation covers
   AI agents: Your agent doesn't need your database. It needs an answer

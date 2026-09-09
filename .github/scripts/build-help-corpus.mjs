@@ -39,9 +39,10 @@ const MAX_CHUNKS = 600;
 // Below this a "section" is a label and a date stamp, not an answer.
 const MIN_SECTION_TOKENS = 40;
 const MIN_QUICK_REF_TOKENS = 1500;
-// Raised from 4000 with the derived UI vocabulary (#925), which is the largest single block in
-// the file. At the 8000-token default `ai_config.max_prompt_tokens` the whole block still fits
-// the renderer's character budget with the rules and the conversation alongside it.
+// Raised from 4000 with the derived UI vocabulary (#925), which is the largest single block in the
+// file. `HelpChatPromptRenderer` plain-truncates this block's tail to whatever the conversation
+// leaves of the character budget, so growth costs the *end* of the file first — which is why the
+// menu and the control labels are rendered above the off-menu route list rather than below it.
 const MAX_QUICK_REF_TOKENS = 6000;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
@@ -477,58 +478,58 @@ const ROUTES_NOT_LISTED = ['*', '/auth/oauth/callback', '/auth/saml/callback', '
 // menu path of everything else is derived from Sidebar.tsx rather than retyped here, and the two
 // are cross-checked both ways below.
 const ROUTES = [
-  ['/', 'Lands on the dashboard once signed in.', 'The application root — signing in arrives here.'],
+  ['/', 'Lands on the dashboard once signed in.', 'the application root; signing in lands here'],
   ['/dashboard', 'Personalized home: summary tiles, query trends, AI suggestions, weekly digest.'],
   ['/editor', 'Pick a datasource, write a query, and submit it for review.'],
   ['/queries', 'Queries the signed-in user submitted, with status and AI risk. A query admin sees the whole organization here.'],
-  ['/queries/:id', 'One query: SQL, AI analysis, approval chain, results, audit trail.', 'Open a row in Query history, or follow the link in a notification.'],
+  ['/queries/:id', 'One query: SQL, AI analysis, approval chain, results, audit trail.', 'open a row in Query history, or follow the link in a notification'],
   ['/reviews', 'Everything waiting on your decision, in tabs for queries, API calls, deployments and rollbacks.'],
-  ['/reviews/:id/decide', 'Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional.', 'Follow the decision link in a review notification or push message.'],
+  ['/reviews/:id/decide', 'Approve or reject one request, re-authenticating with your password or TOTP code. There is no comment field on this screen — the review queue is where a decision takes a comment.', 'follow the decision link in a review notification or push message'],
   ['/reviews/attestations', 'Access recertification worklist: certify or revoke standing grants.'],
   ['/request-groups', 'Grouped requests that bundle ordered query and API-call members.'],
-  ['/request-groups/:id', 'One grouped request: its members, their order, and the aggregated approval.', 'Open a row in Request Groups.'],
-  ['/request-groups/new', 'Build a grouped request and order its members.', 'The create action on Request Groups.'],
-  ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.', 'The edit action on a grouped request that has not been submitted yet.'],
+  ['/request-groups/:id', 'One grouped request: its members, their order, and the aggregated approval.', 'open a row in Request Groups'],
+  ['/request-groups/new', 'Build a grouped request and order its members.', 'the create action on Request Groups'],
+  ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.', 'the edit action on a grouped request that has not been submitted yet'],
   ['/request-groups/reviews', 'Review queue for grouped requests.'],
-  ['/datasources', 'Databases the user may query, and their connection health.'],
-  ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.', 'The add action on Datasources.'],
-  ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.', 'Open a datasource from Datasources.'],
+  ['/datasources', 'The registered databases: engine, connection settings and health. This is the administrator\'s registry, not a list of what you personally may query.'],
+  ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.', 'the add action on Datasources'],
+  ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.', 'open a datasource from Datasources'],
   ['/api-connectors', 'Governed outbound REST, SOAP, GraphQL and gRPC connectors.'],
-  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.', 'Open a connector from API Connectors.'],
+  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.', 'open a connector from API Connectors'],
   ['/api-editor', 'Compose a governed API call and submit it for review.'],
   ['/api-requests', 'API calls the user submitted, with status and AI risk.'],
-  ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.', 'Open a row in API Requests.'],
-  ['/reviews?tab=api', 'The API-requests queue.', 'The API-requests tab of the Review queue. The older /api-reviews URL redirects here.'],
+  ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.', 'open a row in API Requests'],
+  ['/reviews?tab=api', 'The API requests queue.', 'the API requests tab of the Review queue — the older /api-reviews URL redirects here'],
   ['/deployments', 'Deployment requests raised by CI/CD pipelines.'],
-  ['/deployments/:id', 'One deployment request: what it releases, its analysis and its decisions.', 'Open a row in Deployments.'],
-  ['/reviews?tab=deployments', 'The deployment queue; ?tab=rollbacks is the rollback worklist.', 'The deployments tab of the Review queue. The older /deployment-reviews URL redirects here.'],
+  ['/deployments/:id', 'One deployment request: what it releases, its analysis and its decisions.', 'open a row in Deployments'],
+  ['/reviews?tab=deployments', 'The deployment queue; ?tab=rollbacks is the rollback worklist.', 'the Deployments tab of the Review queue — the older /deployment-reviews URL redirects here'],
   ['/deployment-versions', 'What version each environment is running, and where it has drifted.'],
-  ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.', 'Open a pipeline from Version Matrix.'],
+  ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.', 'open a pipeline from Version Matrix'],
   ['/access-requests', 'Ask for access to a datasource, or track a request already made.'],
   ['/lifecycle/erasure', 'Right-to-erasure requests over personal data.'],
   ['/lifecycle/erasure-reviews', 'Review queue for erasure requests.'],
-  ['/profile', 'Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.', 'The user menu behind your avatar, top right.'],
-  ['/setup', 'First-run wizard. Shown until an active admin exists.', 'Shown automatically on a fresh install; there is no menu entry for it.'],
-  ['/login', 'Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.', 'Where anyone who is not signed in is sent.'],
-  ['/forgot-password', 'Ask for a password-reset email.', 'The forgotten-password link on the sign-in screen.'],
-  ['/reset-password/:token', 'Set a new password from the link in that email.', 'The link in the password-reset email.'],
-  ['/invite/:token', 'Accept an invitation and choose a password.', 'The link in the invitation email.'],
+  ['/profile', 'Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.', 'the user menu behind your avatar, top right'],
+  ['/setup', 'First-run wizard. Shown until an active admin exists.', 'shown automatically on a fresh install, until an active administrator exists; there is no menu entry for it'],
+  ['/login', 'Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.', 'where anyone who is not signed in is sent'],
+  ['/forgot-password', 'Ask for a password-reset email.', 'the forgotten-password link on the sign-in screen'],
+  ['/reset-password/:token', 'Set a new password from the link in that email.', 'the link in the password-reset email'],
+  ['/invite/:token', 'Accept an invitation and choose a password.', 'the link in the invitation email'],
   ['/admin/users', 'Create, deactivate and re-invite users; assign roles and permissions.'],
   ['/admin/groups', 'User groups and the grants attached to them.'],
-  ['/admin/groups/:id', 'One group: its members and the permissions it grants them.', 'Open a row in Groups.'],
+  ['/admin/groups/:id', 'One group: its members and the permissions it grants them.', 'open a row in Groups'],
   ['/admin/roles', 'Roles and the permissions each one carries.'],
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
-  ['/admin/organizations/:id', 'One organization and its settings.', 'Open a row in Organizations.'],
+  ['/admin/organizations/:id', 'One organization and its settings.', 'open a row in Organizations'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],
   ['/admin/access-requests', 'Approve or reject incoming access requests.'],
   ['/admin/break-glass', 'Break-glass grants and the mandatory retro-review of each use.'],
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],
   ['/admin/routing-policies', 'Typed conditions that auto-approve, auto-reject or route a request.'],
   ['/admin/attestation', 'Scheduled attestation campaigns over standing grants.'],
-  ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.', 'Open a campaign from Attestation.'],
+  ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.', 'open a campaign from Attestation'],
   ['/admin/ai-configs', 'AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.'],
-  ['/admin/ai-configs/new', 'Add an AI provider configuration.', 'The add action on AI configurations.'],
-  ['/admin/ai-configs/:id', 'Edit one AI provider configuration, its prompt and its knowledge base.', 'Open a row in AI configurations.'],
+  ['/admin/ai-configs/new', 'Add an AI provider configuration.', 'the add action on AI configurations'],
+  ['/admin/ai-configs/:id', 'Edit one AI provider configuration, its prompt and its knowledge base.', 'open a row in AI configurations'],
   ['/admin/ai-analyses', 'History of every AI analysis, with tokens and latency.'],
   ['/admin/anomalies', 'User-behaviour anomalies the AI flagged.'],
   ['/admin/langfuse', 'Langfuse tracing for AI calls.'],
@@ -538,7 +539,7 @@ const ROUTES = [
   ['/admin/datasource-health', 'Connection health across every registered datasource.'],
   ['/admin/data-classifications', 'Classification tags and the masking they derive.'],
   ['/admin/deployment-pipelines', 'CI/CD pipelines, environments, freeze windows and permissions.'],
-  ['/admin/deployment-pipelines/:id', 'One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.', 'Open a pipeline from Deployment Pipelines.'],
+  ['/admin/deployment-pipelines/:id', 'One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.', 'open a pipeline from Deployment Pipelines'],
   ['/admin/notifications', 'Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.'],
   ['/admin/slack', 'Slack workspace connection.'],
   ['/admin/oauth2', 'OAuth 2.0 / OIDC sign-in providers.'],
@@ -618,8 +619,10 @@ function uiLabel(key) {
     node = node !== null && typeof node === 'object' ? node[part] : undefined;
   }
   if (typeof node !== 'string' || node.trim() === '') {
-    fail(`${LOCALES_FILE} has no string at "${key}" — the label it names was renamed or removed;`
-      + ' update the reference in this script so the corpus quotes what the interface actually says');
+    fail(`${LOCALES_FILE} has no string at "${key}" — the label it names was renamed or removed.`
+      + ` A nav.* key is referenced from ${SIDEBAR_FILE}; anything else is named by`
+      + ' CONTROL_VOCABULARY in this script. Follow the rename so the corpus keeps quoting what the'
+      + ' interface actually says');
     return `«${key}»`;
   }
   // A placeholder would reach the reader as a literal "{{count}}". Curate a key without one.
@@ -704,7 +707,16 @@ function parseNavGroups() {
 function visibilityOf(item) {
   const permissions = Array.isArray(item.permissions) ? item.permissions : [];
   if (permissions.length === 0) {
-    return item.platformAdmin === true ? 'platform administrators only' : 'visible to everyone signed in';
+    if (item.platformAdmin === true) {
+      return 'platform administrators only';
+    }
+    // `canSee` is `hasAnyPermission(user, it.permissions) || (platformAdmin && …)`, and
+    // `hasAnyPermission` is `permissions.some(...)` — an empty array is false for *everyone*. So an
+    // entry like this is visible to nobody, and any sentence this function could write about it
+    // would send a reader after a menu item that is not on their screen.
+    fail(`${SIDEBAR_FILE}: "${item.to}" has an empty permissions array and no platformAdmin flag,`
+      + ' so hasAnyPermission() hides it from every user — give it the permissions that reveal it');
+    return 'visible to nobody as declared';
   }
   const named = permissions.length === 1
     ? permissions[0]
@@ -764,7 +776,7 @@ for (const [route, , reachedBy] of navDestinations.length === 0 ? [] : ROUTES) {
   }
 }
 
-// The primary-action vocabulary for the submit → analyse → review → execute path. Curated by hand
+// The primary-action vocabulary for the submit, review and execute path. Curated by hand
 // and deliberately short: en.json holds thousands of strings, and a blanket dump of the tooltips
 // and toasts among them would drown retrieval. Only the reference is hand-written — every label is
 // resolved from en.json, so what the corpus quotes is what the control actually says, and a rename
@@ -774,22 +786,25 @@ const CONTROL_VOCABULARY = [
   {
     route: '/editor',
     controls: [
+      ['editor.title', 'page heading', 'The heading at the top of this screen. It differs from the menu entry that opens it, which is the label in the sidebar block above — this is the one screen where the two names disagree.'],
       ['editor.datasource_label', 'field', 'Which database the query runs against.'],
-      ['editor.text_to_sql.label', 'field', 'Optional plain-language description the AI turns into SQL.'],
-      ['editor.text_to_sql.generate_button', 'button', 'Writes a draft query from that description.'],
-      ['editor.format_button', 'button', 'Reformats the SQL in the editor.'],
+      ['editor.text_to_sql.label', 'field', 'Optional plain-language description the AI turns into SQL. Present only on a datasource whose engine supports text-to-SQL.'],
+      ['editor.text_to_sql.generate_button', 'button', 'Writes a draft query from that description. Shown with the field above.'],
+      ['editor.format_button', 'button', 'Reformats the SQL. Shown only for engines whose syntax can be formatted.'],
       ['editor.templates_button', 'button', 'Opens the saved query templates.'],
       ['editor.save_template_button', 'button', 'Saves the current query as a template.'],
-      ['editor.justification_label', 'field', 'Why the query is being run.'],
-      ['editor.justification_required_note', 'note', 'Sits beside the Justification label: a query that goes to a reviewer needs one.'],
+      ['editor.justification_label', 'field', 'Why the query is being run. Not enforced: a normal submission is accepted without one.'],
+      ['editor.justification_required_note', 'note', 'The advisory qualifier beside the Justification label. It marks what a reviewer expects, not a validation rule — the same note on the Emergency access modal marks a field that is enforced.'],
       ['editor.justification_placeholder', 'placeholder', 'The prompt inside the empty Justification field.'],
-      ['editor.analyze_button', 'button', 'Runs the AI risk analysis without submitting anything.'],
+      ['editor.analyze_button', 'button', 'Runs the AI risk analysis. Shown only on a datasource with AI analysis enabled, where it is a precondition rather than a side-trip: Submit for review stays disabled until a fresh analysis exists.'],
+      ['editor.submit_disabled_needs_analysis_tooltip', 'tooltip', 'Why Submit for review is greyed out before the analysis has run.'],
       ['editor.dry_run_button', 'button', 'Asks the database for an execution plan without running the query.'],
-      ['editor.schedule_label', 'field', 'Optional date and time for the approved query to run automatically.'],
-      ['editor.recurrence_label', 'field', 'Optional repeating schedule; it replaces one-time scheduling.'],
-      ['editor.submit_button', 'button', 'Sends the query into the review workflow.'],
+      ['editor.schedule_label', 'field', 'Optional date and time for the approved query to run automatically. Mutually exclusive with Recurring execution.'],
+      ['editor.recurrence_label', 'field', 'Optional repeating schedule. Mutually exclusive with Scheduled execution.'],
+      ['editor.submit_button', 'button', 'Sends the query into the review workflow. Disabled until the SQL is non-empty and, where AI analysis is enabled, a fresh analysis exists.'],
       ['editor.break_glass_button', 'button', 'Runs immediately, bypassing review — only for someone holding the break-glass permission on that datasource.'],
-      ['editor.history_button', 'button', 'Recent queries submitted from this editor.'],
+      ['editor.break_glass_justification_placeholder', 'placeholder', 'The justification field inside that modal, which unlike the ordinary one is enforced.'],
+      ['editor.history_button', 'button', 'Opens Query history — every query you have submitted, not only the ones written here.'],
     ],
   },
   {
@@ -818,7 +833,9 @@ const CONTROL_VOCABULARY = [
     route: '/reviews',
     controls: [
       ['reviews.empty_title', 'empty state', 'Shown when nothing is waiting on you.'],
-      ['reviews.reject_modal_confirm', 'button', 'Confirms a rejection; a comment is required.'],
+      ['common.approve', 'row action', 'Approves that one query, from its row in the queue.'],
+      ['common.reject', 'row action', 'Opens the rejection modal for that one query.'],
+      ['reviews.reject_modal_confirm', 'button', 'Confirms the rejection inside that modal; it stays disabled until a comment is entered.'],
       ['reviews.bulk.approve_selected', 'button', 'Approves every selected row with one shared comment.'],
       ['reviews.bulk.reject_selected', 'button', 'Rejects every selected row with one shared comment.'],
       ['reviews.bulk.request_changes_selected', 'button', 'Sends every selected row back to its submitter.'],
@@ -877,12 +894,12 @@ function renderNavLines() {
 
 function renderOffMenuLines() {
   return ROUTES.filter(([route, , reachedBy]) => reachedBy && !navByRoute.has(route))
-    .map(([route, purpose, reachedBy]) => `  ${route} — ${purpose} Reached by: ${reachedBy}`);
+    .map(([route, purpose, reachedBy]) => `  ${route} — ${purpose} How you get there: ${reachedBy}.`);
 }
 
 function renderControlLines() {
   const lines = [];
-  for (const entry of CONTROL_VOCABULARY) {
+  for (const entry of navDestinations.length === 0 ? [] : CONTROL_VOCABULARY) {
     if (!routePurpose.has(entry.route)) {
       fail(`CONTROL_VOCABULARY names ${entry.route}, which ROUTES does not describe`);
     }
@@ -927,15 +944,15 @@ const uiVocabularyChunks = addPage({
     { anchor: '', title: 'The sidebar menu', body: `${NAV_PREAMBLE}\n\n${navLines.join('\n')}` },
     {
       anchor: '',
-      title: 'Screens with no menu entry',
-      body: 'These screens are real but have no sidebar entry, so say how they are reached rather'
-        + ` than naming a menu item for them.\n\n${offMenuLines.join('\n')}`,
+      title: 'Buttons and fields on the main screens',
+      body: 'The exact control labels on the submit, review and execute path. Quote them verbatim'
+        + ` in step-by-step instructions, with any condition noted beside them.\n${controlLines.join('\n')}`,
     },
     {
       anchor: '',
-      title: 'Buttons and fields on the main screens',
-      body: 'The exact control labels on the submit, review and execute path. Quote them verbatim'
-        + ` in step-by-step instructions.\n\n${controlLines.join('\n')}`,
+      title: 'Screens with no menu entry',
+      body: 'These screens are real but have no sidebar entry, so say how they are reached rather'
+        + ` than naming a menu item for them.\n${offMenuLines.join('\n')}`,
     },
   ],
 });
@@ -945,8 +962,8 @@ sources.push({
   url: UI_VOCABULARY_URL,
   section: UI_VOCABULARY_SECTION,
   chunks: uiVocabularyChunks,
-  // Both inputs, so the manifest records everything the derived vocabulary was derived from.
-  sha256: sha256(`${sidebarSource}\u0000${localesSource}`),
+  // All three inputs, so the manifest records everything the derived vocabulary was derived from.
+  sha256: sha256([sidebarSource, localesSource, reviewHubSource].join('\u0000')),
 });
 
 const quickReference = [
@@ -968,11 +985,11 @@ const quickReference = [
   '',
   ...navLines,
   '',
-  'Screens with no menu entry',
-  ...offMenuLines,
-  '',
   'Buttons and fields on the main screens (quote these labels verbatim)',
   ...controlLines,
+  '',
+  'Screens with no menu entry',
+  ...offMenuLines,
   '',
   // Titles only, no URLs: the model emits [n] citation indices and the server resolves them to
   // {title, url} (epic decision 6). Feeding it link targets would invite it to write its own.

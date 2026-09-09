@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "703ecca10702",
-  "generatedAt": "2026-09-09T06:27:37.298Z",
-  "sourceCommit": "e0c707ba8aa24477a431c1b477ebdfde1041d259",
+  "corpusVersion": "ab5a27a7fdb3",
+  "generatedAt": "2026-09-09T06:46:54.522Z",
+  "sourceCommit": "fc982b526c2fe236e550def13591f4ce233b6034",
   "chunkCount": 524,
-  "sha256": "703ecca107025c0e8d5b8a8a1a2f9f8da19e79cd5a32e81d335b25a6ff3adbca",
-  "quickReferenceSha256": "c157997c756a89271db2300e928fe2a8715b4ed43535f2c794085b7a4943754b",
+  "sha256": "ab5a27a7fdb34036756b4ddec89e1c3af449d6f36577f255c4c810f1b35ed86c",
+  "quickReferenceSha256": "ff096e185c86272730919fe179adfb70ce43b5384050cc450696dc0c11049a51",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -269,7 +269,7 @@
       "url": "https://accessflow.io/docs/guides/first-query/",
       "section": "Guides",
       "chunks": 9,
-      "sha256": "5e7da643d9b5a9b85d8bf23c2a796e5853fe115016f1a07cdcc9fdfbb4e1aa54"
+      "sha256": "5a86607b97b9f88d00cb556adf61db163fbf1a750a3a13bb71d4477da7359e92"
     },
     {
       "path": "website/docs/guides/index.html",
@@ -341,7 +341,7 @@
       "url": "https://accessflow.io/docs/workflows/",
       "section": "Reference",
       "chunks": 12,
-      "sha256": "805a683122d985241248cd678fa8752405b1009a700d332e72465b4c637a2aca"
+      "sha256": "b5a0118dfe773769b0e28a47fbdbce17278e9f0f78df9a10a39d376793b1321d"
     },
     {
       "path": "website/features/api-access-governance/index.html",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 8,
-      "sha256": "a8bf4ce05a40e2ac123e9b987b45c9785bdf257257ea67ae08a4b4ea500a12c2"
+      "sha256": "11f8599523101f41c930d120fc20846395115a2a142af829fb0e6538113679e5"
     }
   ]
 }
