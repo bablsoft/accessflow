@@ -523,12 +523,12 @@ describe('Sidebar — unified review queue (#772)', () => {
 
     it('offers the governance-domains settings page to a setup-progress admin', () => {
       renderSidebar(adminUser);
-      expect(link(within(group('System')), 'Governance Domains')).toBeInTheDocument();
+      expect(link(within(group('System')), 'Governance domains')).toBeInTheDocument();
     });
 
     it('hides the governance-domains settings page from a read-only user', () => {
       renderSidebar(readonlyUser);
-      expect(screen.queryByText('Governance Domains')).not.toBeInTheDocument();
+      expect(screen.queryByText('Governance domains')).not.toBeInTheDocument();
     });
   });
 });

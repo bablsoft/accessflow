@@ -121,12 +121,8 @@ class DefaultDashboardService implements DashboardService {
                 new DeploymentRequestListFilter(organizationId, userId, null, null, null, null,
                         null, null),
                 PageRequest.of(0, RECENT_LIMIT)).content();
-        long openDeployments = OPEN_STATUSES.stream()
-                .mapToLong(status -> deploymentRequestService.list(
-                        new DeploymentRequestListFilter(organizationId, userId, null, null, null,
-                                status, null, null),
-                        PageRequest.of(0, 1)).totalElements())
-                .sum();
+        // One aggregate, like the query and API status counts above — not a paged read per status.
+        long openDeployments = deploymentRequestService.countOpenForSubmitter(organizationId, userId);
 
         var pendingDeployments = deploymentReviewService.listPending(
                 new DeploymentReviewService.ReviewerContext(userId, organizationId, roleName, permissions),

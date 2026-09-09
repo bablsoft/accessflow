@@ -712,6 +712,24 @@ class DefaultDeploymentRequestServiceTest {
         return entity;
     }
 
+    @Test
+    void countOpenForSubmitterAsksOneAggregateOverTheThreeNonTerminalStatuses() {
+        when(requestRepository.countByOrganizationIdAndSubmittedByAndStatusIn(
+                eq(ORG), eq(SUBMITTER), any())).thenReturn(7L);
+
+        assertThat(service.countOpenForSubmitter(ORG, SUBMITTER)).isEqualTo(7L);
+
+        var statuses = org.mockito.ArgumentCaptor.forClass(java.util.Collection.class);
+        verify(requestRepository)
+                .countByOrganizationIdAndSubmittedByAndStatusIn(eq(ORG), eq(SUBMITTER),
+                        statuses.capture());
+        assertThat(statuses.getValue()).containsExactlyInAnyOrder(
+                QueryStatus.PENDING_AI, QueryStatus.PENDING_REVIEW, QueryStatus.APPROVED);
+        // Never a paged read: the dashboard badge must not materialize a row it does not render.
+        verify(requestRepository, never())
+                .findAll(any(Specification.class), any(org.springframework.data.domain.Pageable.class));
+    }
+
     private static UserView user() {
         return new UserView(SUBMITTER, "ci@example.com", "CI Runner", UserRoleType.ANALYST, ORG,
                 true, AuthProviderType.LOCAL, null, null, "en", false, Instant.now());

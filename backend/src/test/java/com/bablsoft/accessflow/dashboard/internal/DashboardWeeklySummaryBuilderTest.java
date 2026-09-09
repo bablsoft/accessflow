@@ -16,7 +16,6 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.dashboard.api.DashboardSuggestionService;
-import com.bablsoft.accessflow.deploygov.api.DeploymentRequestListFilter;
 import com.bablsoft.accessflow.deploygov.api.DeploymentRequestService;
 import com.bablsoft.accessflow.deploygov.api.DeploymentReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
@@ -68,8 +67,7 @@ class DashboardWeeklySummaryBuilderTest {
 
     /** The deployment reads answer "nothing" unless a test overrides them. */
     private void stubDeploygovEmpty() {
-        lenient().when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
-                .thenReturn(PageResponse.empty(0, 1));
+        lenient().when(deploymentRequestService.countOpenForSubmitter(ORG, USER)).thenReturn(0L);
         lenient().when(deploymentReviewService.listPending(any(), any(), any()))
                 .thenReturn(PageResponse.empty(0, 1));
     }
@@ -150,9 +148,7 @@ class DashboardWeeklySummaryBuilderTest {
         when(reviewService.listPendingForReviewer(any(), any())).thenReturn(PageResponse.empty(0, 1));
         when(anomalyLookup.badgeForUser(ORG, USER)).thenReturn(AnomalyBadgeView.none());
         when(suggestionService.countOpen(ORG, USER)).thenReturn(0L);
-        // One call per open status; each answers 1, so the total is 3.
-        when(deploymentRequestService.list(any(DeploymentRequestListFilter.class), any()))
-                .thenReturn(new PageResponse<>(List.of(), 0, 1, 1, 1));
+        when(deploymentRequestService.countOpenForSubmitter(ORG, USER)).thenReturn(3L);
         when(deploymentReviewService.listPending(any(), any(), any()))
                 .thenReturn(new PageResponse<>(List.of(), 0, 1, 4, 4));
 
@@ -160,12 +156,8 @@ class DashboardWeeklySummaryBuilderTest {
 
         assertThat(summary.openDeployments()).isEqualTo(3);
         assertThat(summary.pendingDeploymentApprovals()).isEqualTo(4);
-        var captor = org.mockito.ArgumentCaptor.forClass(DeploymentRequestListFilter.class);
-        org.mockito.Mockito.verify(deploymentRequestService, org.mockito.Mockito.atLeastOnce())
-                .list(captor.capture(), any());
-        assertThat(captor.getAllValues()).allSatisfy(f -> {
-            assertThat(f.submittedByUserId()).isEqualTo(USER);
-            assertThat(f.organizationId()).isEqualTo(ORG);
-        });
+        // Self-scoped by construction: the aggregate takes the caller's own id, so the digest can
+        // never leak another submitter's in-flight deployments into someone's weekly report.
+        org.mockito.Mockito.verify(deploymentRequestService).countOpenForSubmitter(ORG, USER);
     }
 }

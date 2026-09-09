@@ -5309,6 +5309,10 @@ deep link into either keeps working.
 
 Validation: both fields are required (`400` when either is missing).
 
+Audited as `ORGANIZATION_UPDATED` against the caller's own organization, with the two new values in
+the metadata — the same action the platform-admin path records for the same column write, so
+neither surface is a silent way to change what the organization sees. The `GET` is not audited.
+
 **Response 200:** the persisted flags (same shape as `GET`).
 **Response 400:** Validation error. **Response 401:** Not authenticated.
 **Response 403:** Caller lacks `SETUP_PROGRESS_VIEW`.
@@ -5423,8 +5427,9 @@ caller without the authority gets `403`. Every mutation is audited against the t
 ```
 
 A `max_*` value of `null` or `0` means unlimited. `governs_apis` / `governs_deployments` are the
-onboarding governance-domain hints (AF-898) first set by the setup wizard — see
-[`POST /auth/setup`](#post-authsetup).
+governance-domain flags (AF-898) first set by the setup wizard — see
+[`POST /auth/setup`](#post-authsetup). Since #926 they decide which sidebar sub-sections,
+review-hub tabs and dashboard widgets the SPA offers, on top of the onboarding checklist steps.
 
 ### GET /platform/organizations — Query Parameters
 
@@ -5496,9 +5501,12 @@ The organization response object.
 }
 ```
 
-Updates the name, quotas and governance-domain hints. A `null` field is left unchanged; a quota of
-`0` sets the limit to unlimited. This is where an admin changes the answer given in the first-run
-wizard — the flags only add or remove onboarding checklist steps, never access.
+Updates the name, quotas and governance-domain flags. A `null` field is left unchanged; a quota of
+`0` sets the limit to unlimited. This is the **cross-org** way to change the answer given in the
+first-run wizard; an org admin changes it for their own tenant at
+[`PUT /admin/governance-domains`](#put-admingovernance-domains), and both paths write the same two
+columns. The flags decide what the SPA *offers* — onboarding checklist steps, sidebar sub-sections,
+review-hub tabs and dashboard widgets — and never what anyone may access (#926).
 
 **Response 200:** The updated organization response object.
 **Response 404:** `ORGANIZATION_NOT_FOUND`.

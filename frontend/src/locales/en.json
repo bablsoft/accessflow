@@ -103,7 +103,7 @@
     "deploymentVersions": "Version Matrix",
     "deploymentPipelines": "Deployment Pipelines",
     "help_agent": "Help assistant",
-    "governance_domains": "Governance Domains"
+    "governance_domains": "Governance domains"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -197,7 +197,7 @@
       "domains": {
         "title": "What will you govern?",
         "subtitle": "Pick the domains this organization plans to govern. You can change this later.",
-        "always_on": "Database access governance is always on. These two are optional and only decide which onboarding steps you see.",
+        "always_on": "Database access governance is always on. These two are optional, and decide which navigation, review tabs and dashboard widgets everyone here is shown — they grant and revoke nothing.",
         "apis_label": "Govern outbound API calls",
         "apis_help": "Review and approve REST, SOAP, GraphQL and gRPC calls before they leave your network.",
         "deployments_label": "Gate CI/CD deployments",
@@ -1457,7 +1457,7 @@
       "label_max_queries": "Max queries per day",
       "label_governs_apis": "Govern outbound API calls",
       "label_governs_deployments": "Gate CI/CD deployments",
-      "governs_help": "Onboarding hints only — they add or remove first-run checklist steps and never change what this organization may use.",
+      "governs_help": "They decide which navigation, review tabs and dashboard widgets this organization is shown — never what it may use. An org admin can change them at /admin/governance-domains.",
       "quota_help": "Leave blank or 0 for unlimited.",
       "usage_title": "Usage",
       "usage_datasources": "Datasources",
@@ -2400,12 +2400,12 @@
       }
     },
     "governance_domains": {
-      "title": "Governance Domains",
+      "title": "Governance domains",
       "subtitle": "Choose which domains this organization governs",
       "description": "Database access governance is always on. Turning a domain off hides its navigation, review tabs and dashboard widgets — it revokes no permission, and existing links keep working.",
-      "label_apis": "Govern API access",
+      "label_apis": "Govern outbound API calls",
       "help_apis": "Show API connectors, the API request editor and the API review queue.",
-      "label_deployments": "Govern deployments",
+      "label_deployments": "Gate CI/CD deployments",
       "help_deployments": "Show deployment pipelines, the deployment queue, version tracking and the deployment review tabs.",
       "save_button": "Save",
       "save_success": "Governance domains updated",
@@ -3098,7 +3098,7 @@
       "SSO_CONFIGURE": "Configure SSO",
       "SMTP_CONFIGURE": "Configure SMTP",
       "LOCALIZATION_CONFIGURE": "Configure localization",
-      "SETUP_PROGRESS_VIEW": "View setup progress",
+      "SETUP_PROGRESS_VIEW": "View & change setup progress and governance domains",
       "EXPORT_POLICY_MANAGE": "Manage export policies",
       "DEPLOYMENT_PIPELINE_MANAGE": "Manage deployment pipelines",
       "DEPLOYMENT_REVIEW": "Review deployments"

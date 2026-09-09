@@ -521,7 +521,7 @@ One further row is appended, last, per governance domain the organization opted 
 
 Rows are numbered by rendered position, so with only `governs_deployments` on, the pipeline step is row 4.
 
-The permission half of each condition is the widget's own: the payload is identical for every `SETUP_PROGRESS_VIEW` holder, and a step that links to a 403 is worse than no step. The domain flags are an onboarding hint only — they never gate the `/api-connectors` or `/admin/deployment-pipelines` routes themselves.
+The permission half of each condition is the widget's own: the payload is identical for every `SETUP_PROGRESS_VIEW` holder, and a step that links to a 403 is worse than no step. The domain half is the same visibility signal the sidebar, review-hub tabs and dashboard widgets read since #926 (see [§ Governance domains](#governance-domains--the-discovery-model-926)) — it decides what is *offered*, and never gates the `/api-connectors` or `/admin/deployment-pipelines` routes themselves, which stay registered and reachable.
 
 Each pending step renders a primary "Set up" button plus a quieter "Skip" affordance — admins who don't want to configure that step (e.g. running without AI) can mark it skipped and see it stop nagging. Skipped steps render a "Skipped" tag with an "Undo skip" link so the decision is reversible. The progress bar counts skipped + configured equally; once every rendered step is accounted for, the widget hides entirely.
 
@@ -1276,7 +1276,7 @@ Step 2 (AF-898) asks which domains the organization plans to govern: two switche
 
 Each step's `<Form>` carries its own `key`, so React remounts rather than reusing the fiber: rc-field-form latches both the `form` prop and `initialValues` on first mount, so without the keys only `accountForm` would ever be bound and every step's `initialValues` after the first would be silently dropped.
 
-The answer is changeable later on `/admin/organizations/:id` (`OrganizationDetailPage`), which carries the same two switches and sends them on `PUT /platform/organizations/{id}` — a platform-admin surface, and the first-run admin is provisioned as a platform admin.
+The answer is changeable later by an org admin on `/admin/governance-domains` (`GovernanceDomainsPage`, `PUT /admin/governance-domains`, `SETUP_PROGRESS_VIEW` — #926). The same two switches also remain on `/admin/organizations/:id` (`OrganizationDetailPage`, `PUT /platform/organizations/{id}`) for a platform admin managing any tenant; the first-run admin is provisioned as a platform admin, so both routes are open to them.
 
 Step 3 is optional system-SMTP configuration that posts to `PUT /admin/system-smtp` — the **Skip for now** button bypasses it and lands on `/queries`. Users can configure or change SMTP later from `/admin/notifications` (the **System SMTP** card sits above the channels grid).
 

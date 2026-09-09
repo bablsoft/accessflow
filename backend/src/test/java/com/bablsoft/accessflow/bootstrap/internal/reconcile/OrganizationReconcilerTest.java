@@ -124,9 +124,11 @@ class OrganizationReconcilerTest {
     }
 
     @Test
-    void appliesGovernanceDomainsToAnAlreadyExistingOrganization() {
+    void appliesGovernanceDomainsToAnExistingOrganizationWhoseDeclaredSpecChanged() {
         var existingId = UUID.randomUUID();
         when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
+        when(stateTracker.findFingerprint(existingId, BootstrapResourceType.ORGANIZATION, existingId))
+                .thenReturn(Optional.of("a-stale-fingerprint"));
 
         var result = reconciler.reconcile(new OrganizationSpec("Acme", "acme", true, true));
 
@@ -134,6 +136,28 @@ class OrganizationReconcilerTest {
         var command = ArgumentCaptor.forClass(UpdateOrganizationCommand.class);
         verify(organizationAdminService).update(eq(existingId), command.capture());
         assertThat(command.getValue().governsDeployments()).isTrue();
+        // The new fingerprint is recorded with an UPDATE event, like every other reconciler.
+        verify(stateTracker).recordFingerprintAndPublish(eq(existingId),
+                eq(BootstrapResourceType.ORGANIZATION), eq(existingId), any(), any());
+    }
+
+    @Test
+    void leavesAnExistingOrganizationAloneWhenTheDeclaredSpecIsUnchanged() {
+        var existingId = UUID.randomUUID();
+        when(organizationProvisioningService.findBySlug("acme")).thenReturn(Optional.of(existingId));
+        // The fingerprint the previous run stored for exactly this spec.
+        var spec = new OrganizationSpec("Acme", "acme", true, true);
+        var stored = fingerprinter.fingerprint(new java.util.LinkedHashMap<>(java.util.Map.of(
+                "name", "Acme", "slug", "acme", "governs_apis", true, "governs_deployments", true)));
+        when(stateTracker.findFingerprint(existingId, BootstrapResourceType.ORGANIZATION, existingId))
+                .thenReturn(Optional.of(stored));
+
+        reconciler.reconcile(spec);
+
+        // No write, so a restart cannot revert what an admin just changed through
+        // PUT /admin/governance-domains, nor churn organizations.updated_at.
+        verify(organizationAdminService, never()).update(any(), any());
+        verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
     }
 
     @Test

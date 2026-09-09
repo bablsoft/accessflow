@@ -9,6 +9,7 @@ import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
 import com.bablsoft.accessflow.core.internal.persistence.repo.OrganizationRepository;
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import com.bablsoft.accessflow.security.internal.jwt.JwtService;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,10 +35,12 @@ class AdminGovernanceDomainsControllerIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired JwtService jwtService;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     private MockMvcTester mvc;
     private OrganizationEntity org;
     private OrganizationEntity otherOrg;
+    private UserEntity admin;
     private String adminToken;
     private String analystToken;
 
@@ -53,7 +56,8 @@ class AdminGovernanceDomainsControllerIntegrationTest {
         otherOrg.setGovernsDeployments(true);
         organizationRepository.save(otherOrg);
 
-        adminToken = generateToken(saveUser("admin@example.com", UserRoleType.ADMIN));
+        admin = saveUser("admin@example.com", UserRoleType.ADMIN);
+        adminToken = generateToken(admin);
         analystToken = generateToken(saveUser("analyst@example.com", UserRoleType.ANALYST));
     }
 
@@ -88,6 +92,45 @@ class AdminGovernanceDomainsControllerIntegrationTest {
         // There is no id in the path, so another tenant cannot be reached from this endpoint.
         assertThat(organizationRepository.findById(otherOrg.getId()).orElseThrow().isGovernsApis())
                 .isTrue();
+    }
+
+    @Test
+    void auditsTheChangeTheWayThePlatformAdminPathDoes() {
+        // Both surfaces write the same two columns, so both must leave the same trail — otherwise
+        // an org admin could change what every user sees with nothing in the audit log.
+        var before = auditRowCount();
+
+        var result = mvc.put().uri(URI)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"governs_apis\":true,\"governs_deployments\":false}")
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(auditRowCount()).isEqualTo(before + 1);
+        var row = jdbcTemplate.queryForMap(
+                "SELECT actor_id, organization_id, resource_id, metadata::text AS metadata "
+                        + "FROM audit_log WHERE action = 'ORGANIZATION_UPDATED' "
+                        + "ORDER BY created_at DESC LIMIT 1");
+        assertThat(row.get("actor_id")).isEqualTo(admin.getId());
+        assertThat(row.get("organization_id")).isEqualTo(org.getId());
+        assertThat(row.get("resource_id")).isEqualTo(org.getId());
+        assertThat((String) row.get("metadata")).contains("governs_apis");
+    }
+
+    @Test
+    void doesNotAuditAPlainRead() {
+        var before = auditRowCount();
+
+        mvc.get().uri(URI).header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken).exchange();
+
+        assertThat(auditRowCount()).isEqualTo(before);
+    }
+
+    private long auditRowCount() {
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM audit_log WHERE action = 'ORGANIZATION_UPDATED'", Long.class);
+        return count == null ? 0L : count;
     }
 
     @Test

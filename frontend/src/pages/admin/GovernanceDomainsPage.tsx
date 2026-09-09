@@ -1,5 +1,4 @@
 import { App, Button, Form, Skeleton, Switch } from 'antd';
-import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -25,19 +24,12 @@ export function GovernanceDomainsPage() {
   const { t } = useTranslation();
   const { message } = App.useApp();
   const queryClient = useQueryClient();
-  const [form] = Form.useForm<GovernanceDomainsConfig>();
   const patchUser = useAuthStore((s) => s.patchUser);
 
   const domainsQuery = useQuery({
     queryKey: governanceDomainKeys.current(),
     queryFn: getGovernanceDomains,
   });
-
-  useEffect(() => {
-    if (domainsQuery.data) {
-      form.setFieldsValue(domainsQuery.data);
-    }
-  }, [domainsQuery.data, form]);
 
   const saveMutation = useMutation({
     mutationFn: (input: GovernanceDomainsConfig) => updateGovernanceDomains(input),
@@ -82,7 +74,6 @@ export function GovernanceDomainsPage() {
           {t('admin.governance_domains.description')}
         </p>
         <Form<GovernanceDomainsConfig>
-          form={form}
           layout="horizontal"
           onFinish={(values) => saveMutation.mutate(values)}
           initialValues={domainsQuery.data}
@@ -114,3 +105,5 @@ export function GovernanceDomainsPage() {
     </div>
   );
 }
+
+export default GovernanceDomainsPage;

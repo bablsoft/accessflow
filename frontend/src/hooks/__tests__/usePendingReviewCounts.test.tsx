@@ -43,7 +43,10 @@ const { deploymentReviewKeys, deploymentRollbackReviewKeys } = await import(
   '@/api/deploymentReviews'
 );
 
-function user(permissions: string[]): AuthUser {
+function user(
+  permissions: string[],
+  domains?: { governs_apis?: boolean; governs_deployments?: boolean },
+): AuthUser {
   return {
     id: 'u-1',
     email: 'u@example.com',
@@ -55,6 +58,7 @@ function user(permissions: string[]): AuthUser {
     totp_enabled: false,
     platform_admin: false,
     preferred_language: null,
+    ...(domains ?? {}),
   };
 }
 
@@ -127,5 +131,43 @@ describe('usePendingReviewCounts (#772)', () => {
     // Prefix invalidation, as the WS bridge does it, reaches the badge entries.
     expect(cache.findAll({ queryKey: ['reviews', 'pending'] })).toHaveLength(1);
     expect(cache.findAll({ queryKey: ['api-reviews', 'queue'] })).toHaveLength(1);
+  });
+
+  describe('governance domains (#926)', () => {
+    it('drops a switched-off domain from the badge and never probes its queues', async () => {
+      useAuthStore.setState({
+        user: user(SYSTEM_ROLE_PERMISSIONS.REVIEWER, { governs_deployments: false }),
+        accessToken: 't',
+      });
+      const { result } = setup();
+
+      // 3 queries + 2 API; the deployment queues are neither counted nor polled, so the sidebar
+      // badge cannot show a number the review hub has no tab to explain.
+      await waitFor(() => expect(result.current.total).toBe(5));
+      expect(result.current.deployments).toBe(0);
+      expect(result.current.rollbacks).toBe(0);
+      expect(listDeploymentReviewsMock).not.toHaveBeenCalled();
+      expect(listDeploymentRollbackReviewsMock).not.toHaveBeenCalled();
+      expect(listPendingApiReviewsMock).toHaveBeenCalled();
+    });
+
+    it('drops the API queue when the organization governs no APIs', async () => {
+      useAuthStore.setState({
+        user: user(SYSTEM_ROLE_PERMISSIONS.REVIEWER, { governs_apis: false }),
+        accessToken: 't',
+      });
+      const { result } = setup();
+
+      await waitFor(() => expect(result.current.total).toBe(8));
+      expect(result.current.api).toBe(0);
+      expect(listPendingApiReviewsMock).not.toHaveBeenCalled();
+    });
+
+    it('counts every queue for a session issued before the flags existed', async () => {
+      useAuthStore.setState({ user: user(SYSTEM_ROLE_PERMISSIONS.REVIEWER), accessToken: 't' });
+      const { result } = setup();
+
+      await waitFor(() => expect(result.current.total).toBe(10));
+    });
   });
 });

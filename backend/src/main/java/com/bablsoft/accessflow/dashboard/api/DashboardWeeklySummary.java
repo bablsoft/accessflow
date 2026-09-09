@@ -9,7 +9,11 @@ import java.util.UUID;
 
 /**
  * The report model for a user's weekly dashboard summary (AF-498) — the input to both the signed
- * on-demand export and the scheduled email digest. Covers the ISO week {@code [weekStart, weekEnd)}.
+ * on-demand export and the scheduled email digest. The export renders every field; the digest
+ * event ({@code WeeklyDigestReadyEvent}) carries only the four original counts, so the two
+ * deployment figures below reach the PDF/CSV but not the email.
+ *
+ * <p>Covers the ISO week {@code [weekStart, weekEnd)}.
  * Counts under {@code statusBreakdown}/{@code riskBreakdown}/{@code totalQueries} are scoped to
  * queries submitted within the week; {@code pendingApprovals}/{@code openAnomalies}/
  * {@code openSuggestions}/{@code openDeployments}/{@code pendingDeploymentApprovals} are current

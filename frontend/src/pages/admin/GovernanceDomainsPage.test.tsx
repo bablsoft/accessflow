@@ -62,9 +62,9 @@ describe('GovernanceDomainsPage (#926)', () => {
     getDomains.mockResolvedValue(both);
     renderPage();
 
-    const apis = await screen.findByRole('switch', { name: 'Govern API access' });
+    const apis = await screen.findByRole('switch', { name: 'Govern outbound API calls' });
     expect(apis).toBeChecked();
-    expect(screen.getByRole('switch', { name: 'Govern deployments' })).toBeChecked();
+    expect(screen.getByRole('switch', { name: 'Gate CI/CD deployments' })).toBeChecked();
   });
 
   it('saves the toggled flags and pushes them into the cached session user', async () => {
@@ -72,7 +72,7 @@ describe('GovernanceDomainsPage (#926)', () => {
     updateDomains.mockResolvedValue({ governs_apis: false, governs_deployments: true });
     renderPage();
 
-    fireEvent.click(await screen.findByRole('switch', { name: 'Govern API access' }));
+    fireEvent.click(await screen.findByRole('switch', { name: 'Govern outbound API calls' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     await waitFor(() =>

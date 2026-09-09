@@ -114,7 +114,13 @@ public enum Permission {
     SMTP_CONFIGURE(PermissionGroup.SETTINGS),
     /** Configure localization (available languages). */
     LOCALIZATION_CONFIGURE(PermissionGroup.SETTINGS),
-    /** View the admin setup-progress checklist. */
+    /**
+     * View the admin setup-progress checklist, and read <em>and change</em> the organization's
+     * governance-domain switches (#926) — the same two flags the checklist is built from. The
+     * write is deliberately on this permission rather than a new one, but it is a write: granting
+     * it lets the holder change which navigation, review tabs and dashboard widgets every user in
+     * the organization is offered. It still grants no access to any governed resource.
+     */
     SETUP_PROGRESS_VIEW(PermissionGroup.SETTINGS);
 
     private final PermissionGroup group;

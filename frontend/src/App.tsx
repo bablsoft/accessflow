@@ -10,6 +10,7 @@ import { SetupPage } from '@/pages/auth/SetupPage';
 const OAuthCallbackPage = lazy(() => import('@/pages/auth/OAuthCallbackPage'));
 const SamlCallbackPage = lazy(() => import('@/pages/auth/SamlCallbackPage'));
 const ScimConfigPage = lazy(() => import('@/pages/admin/ScimConfigPage'));
+const GovernanceDomainsPage = lazy(() => import('@/pages/admin/GovernanceDomainsPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'));
@@ -67,7 +68,6 @@ const RolesPage = lazy(() =>
   import('@/pages/admin/RolesPage').then((m) => ({ default: m.RolesPage })),
 );
 import { LanguagesConfigPage } from '@/pages/admin/LanguagesConfigPage';
-import { GovernanceDomainsPage } from '@/pages/admin/GovernanceDomainsPage';
 const CustomDriversPage = lazy(() => import('@/pages/admin/drivers/CustomDriversPage'));
 const ConnectorsPage = lazy(() => import('@/pages/admin/connectors/ConnectorsPage'));
 const OrganizationsListPage = lazy(() =>
@@ -653,7 +653,9 @@ export function App() {
             path="/admin/governance-domains"
             element={
               <AuthGuard requirePermission={'SETUP_PROGRESS_VIEW'}>
-                <GovernanceDomainsPage />
+                <Suspense fallback={null}>
+                  <GovernanceDomainsPage />
+                </Suspense>
               </AuthGuard>
             }
           />
