@@ -257,18 +257,26 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
     );
     expect(stale.id).toBe(pending.id);
 
-    // It has left the default PENDING worklist and is reachable under the Stale filter, where it
-    // stays selectable so an admin can clear it.
+    // It has left the PENDING worklist. Asserted over the API rather than the UI: the datasource
+    // points at the shared e2e database, so the scan proposes findings for other specs' tables
+    // too — the PENDING list is never empty, and a bare toHaveCount(0) on it would be satisfied
+    // by the table's own loading state anyway.
+    const stillPending = await request.get(
+      `${apiBase()}/api/v1/datasources/${datasource.id}/discovery/findings?status=PENDING&size=100`,
+      { headers: { Authorization: `Bearer ${adminAccessToken}` } },
+    );
+    expect(stillPending.ok()).toBe(true);
+    const pendingBody = (await stillPending.json()) as { content: DiscoveryFindingRow[] };
+    expect(
+      pendingBody.content.some(
+        (f) => f.table_name === TABLE && f.column_name === 'secondary_email',
+      ),
+    ).toBe(false);
+
+    // In the UI it is reachable under the Stale filter, where it stays selectable so an admin can
+    // bulk-dismiss it — the behaviour the whole change exists to provide.
     await page.reload();
     await page.getByRole('tab', { name: /Discovery/ }).click();
-    // Wait for a positive signal first: a bare toHaveCount(0) is satisfied by the loading state,
-    // so it would pass even if the row were still PENDING. customer_email was confirmed by the
-    // previous test and secondary_email is now stale, so PENDING is empty.
-    await expect(page.getByText('No findings')).toBeVisible({ timeout: 15_000 });
-    await expect(
-      page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) }),
-    ).toHaveCount(0);
-
     await page.getByTitle('Stale', { exact: true }).click();
     const row = page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) });
     await expect(row).toBeVisible({ timeout: 15_000 });
