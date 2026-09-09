@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.MaskingPolicyDraft;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.MaskingPolicyEntity;
@@ -155,5 +156,83 @@ class DefaultMaskingPolicyResolutionServiceTest {
         entity.setStrategyParams(params);
         entity.setEnabled(true);
         return entity;
+    }
+
+    // ---- draft resolution for the policy simulator (AF-630) -------------------------------------
+
+    private MaskingPolicyDraft draft(UUID replaces, String columnRef, boolean enabled) {
+        return new MaskingPolicyDraft(replaces, columnRef, MaskingStrategy.FULL,
+                java.util.Map.of(), List.of(), List.of(), List.of(), enabled);
+    }
+
+    @Test
+    void resolveWithDraftAddsAnUnsavedPolicyToThePersistedSet() {
+        stubPolicies(policy("customers.ssn", MaskingStrategy.FULL, "{}"));
+        stubRole(UserRoleType.ANALYST);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(null, "customers.email", true));
+
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting("columnRef")
+                .containsExactly("customers.ssn", "customers.email");
+        assertThat(result.get(1).policyId())
+                .isEqualTo(DefaultMaskingPolicyResolutionService.DRAFT_POLICY_ID);
+    }
+
+    @Test
+    void resolveWithDraftReplacesTheNamedPolicyRatherThanAddingBesideIt() {
+        var existing = policy("customers.ssn", MaskingStrategy.FULL, "{}");
+        stubPolicies(existing);
+        stubRole(UserRoleType.ANALYST);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(existing.getId(), "customers.email", true));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).columnRef()).isEqualTo("customers.email");
+        assertThat(result.get(0).policyId()).isEqualTo(existing.getId());
+    }
+
+    @Test
+    void resolveWithDraftTreatsADisabledDraftAsRemovingThePolicyItReplaces() {
+        var existing = policy("customers.ssn", MaskingStrategy.FULL, "{}");
+        stubPolicies(existing);
+
+        assertThat(service.resolveWithDraft(orgId, datasourceId, userId,
+                draft(existing.getId(), "customers.ssn", false))).isEmpty();
+    }
+
+    @Test
+    void resolveWithDraftHonoursTheDraftRevealListSoARevealedUserSeesNoMask() {
+        stubPolicies();
+        stubRole(UserRoleType.ADMIN);
+        var revealing = new MaskingPolicyDraft(null, "customers.email", MaskingStrategy.FULL,
+                java.util.Map.of(), List.of("ADMIN"), List.of(), List.of(), true);
+
+        assertThat(service.resolveWithDraft(orgId, datasourceId, userId, revealing)).isEmpty();
+    }
+
+    @Test
+    void resolveWithDraftCarriesTheDraftStrategyParams() {
+        stubPolicies();
+        stubRole(UserRoleType.ANALYST);
+        var partial = new MaskingPolicyDraft(null, "customers.email", MaskingStrategy.PARTIAL,
+                java.util.Map.of("visible_suffix", "4"), List.of(), List.of(), List.of(), true);
+
+        var result = service.resolveWithDraft(orgId, datasourceId, userId, partial);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).strategy()).isEqualTo(MaskingStrategy.PARTIAL);
+        assertThat(result.get(0).params()).containsEntry("visible_suffix", "4");
+    }
+
+    @Test
+    void resolveWithDraftWithoutADraftIsJustThePersistedSet() {
+        stubPolicies(policy("customers.ssn", MaskingStrategy.FULL, "{}"));
+        stubRole(UserRoleType.ANALYST);
+
+        assertThat(service.resolveWithDraft(orgId, datasourceId, userId, null))
+                .isEqualTo(service.resolveApplicable(orgId, datasourceId, userId));
     }
 }

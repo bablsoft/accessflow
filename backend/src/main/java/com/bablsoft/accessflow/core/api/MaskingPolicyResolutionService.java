@@ -15,4 +15,13 @@ public interface MaskingPolicyResolutionService {
 
     List<ResolvedColumnMask> resolveApplicable(UUID organizationId, UUID datasourceId,
                                                UUID requesterUserId);
+
+    /**
+     * Same resolution, but over the policy set the datasource <em>would</em> have if {@code draft}
+     * were saved: the draft replaces {@link MaskingPolicyDraft#replacesPolicyId()} when that is set,
+     * and is added otherwise. Used by the policy simulator (issue AF-630) to compute the "simulated"
+     * arm of its A/B; the draft is never persisted.
+     */
+    List<ResolvedColumnMask> resolveWithDraft(UUID organizationId, UUID datasourceId,
+                                              UUID requesterUserId, MaskingPolicyDraft draft);
 }

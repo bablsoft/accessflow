@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
 import com.bablsoft.accessflow.core.api.ResolvedRowSecurityPredicate;
+import com.bablsoft.accessflow.core.api.RowSecurityPolicyDraft;
 import com.bablsoft.accessflow.core.api.RowSecurityResolutionService;
 import com.bablsoft.accessflow.core.api.RowSecurityValueType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.RowSecurityPolicyEntity;
@@ -37,13 +38,44 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
     private final UserGroupMembershipRepository membershipRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Synthetic id stamped on a simulated draft that does not replace an existing policy, so the
+     * simulator can tell the draft's predicate apart from the persisted ones it is compared against.
+     */
+    public static final UUID DRAFT_POLICY_ID = new UUID(0L, 0L);
+
     @Override
     @Transactional(readOnly = true)
     public List<ResolvedRowSecurityPredicate> resolveApplicable(UUID organizationId,
                                                                 UUID datasourceId,
                                                                 UUID requesterUserId) {
-        var policies = rowSecurityPolicyRepository
+        return resolve(rowSecurityPolicyRepository
+                .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId),
+                requesterUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ResolvedRowSecurityPredicate> resolveWithDraft(UUID organizationId,
+                                                               UUID datasourceId,
+                                                               UUID requesterUserId,
+                                                               RowSecurityPolicyDraft draft) {
+        var persisted = rowSecurityPolicyRepository
                 .findAllByOrganizationIdAndDatasourceIdAndEnabledTrue(organizationId, datasourceId);
+        var candidate = new ArrayList<RowSecurityPolicyEntity>(persisted.size() + 1);
+        for (var policy : persisted) {
+            if (draft == null || !policy.getId().equals(draft.replacesPolicyId())) {
+                candidate.add(policy);
+            }
+        }
+        if (draft != null && draft.enabled()) {
+            candidate.add(toTransientEntity(draft));
+        }
+        return resolve(candidate, requesterUserId);
+    }
+
+    private List<ResolvedRowSecurityPredicate> resolve(List<RowSecurityPolicyEntity> policies,
+                                                       UUID requesterUserId) {
         if (policies.isEmpty()) {
             return List.of();
         }
@@ -60,6 +92,27 @@ class DefaultRowSecurityResolutionService implements RowSecurityResolutionServic
                     policy.getColumnName(), policy.getOperator(), values));
         }
         return resolved;
+    }
+
+    /**
+     * A detached, never-persisted entity carrying the draft's fields, so scope matching and value
+     * resolution run through the exact same code the saved path uses — a second implementation
+     * would be free to drift from the one that actually governs queries. It is never handed to a
+     * repository.
+     */
+    private static RowSecurityPolicyEntity toTransientEntity(RowSecurityPolicyDraft draft) {
+        var entity = new RowSecurityPolicyEntity();
+        entity.setId(draft.replacesPolicyId() != null ? draft.replacesPolicyId() : DRAFT_POLICY_ID);
+        entity.setTableName(draft.tableName());
+        entity.setColumnName(draft.columnName());
+        entity.setOperator(draft.operator());
+        entity.setValueType(draft.valueType());
+        entity.setValueExpression(draft.valueExpression());
+        entity.setAppliesToRoles(draft.appliesToRoles().toArray(String[]::new));
+        entity.setAppliesToGroupIds(draft.appliesToGroupIds().toArray(UUID[]::new));
+        entity.setAppliesToUserIds(draft.appliesToUserIds().toArray(UUID[]::new));
+        entity.setEnabled(true);
+        return entity;
     }
 
     private static boolean appliesTo(RowSecurityPolicyEntity policy, UUID userId, String roleName,
