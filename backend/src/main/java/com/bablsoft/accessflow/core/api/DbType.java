@@ -108,7 +108,8 @@ public enum DbType {
      * the connector catalog. Connection mapping: {@code host} = account host
      * ({@code <account>.snowflakecomputing.com}), {@code database_name} = database,
      * {@code username} = user, {@code password_encrypted} = password <em>or</em> a PKCS#8
-     * private-key PEM (key-pair JWT auth, detected by the {@code -----BEGIN} prefix), and
+     * private-key PEM (key-pair JWT auth, detected by the {@code -----BEGIN} prefix; an encrypted
+     * PEM additionally needs {@code private_key_passphrase_encrypted}), and
      * {@code jdbc_url_override} = an optional full {@code jdbc:snowflake://} URL carrying
      * warehouse / role / schema parameters. Row security splices parameter-bound predicates into
      * the WHERE clause (fail-closed on CTE / subquery / JOIN / set-op shapes). See

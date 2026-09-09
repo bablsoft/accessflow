@@ -121,6 +121,11 @@ public class DatasourceEntity {
     @Column(name = "api_key_encrypted", columnDefinition = "TEXT")
     private String apiKeyEncrypted;
 
+    /** Passphrase for an encrypted PKCS#8 private key (Snowflake key-pair auth, issue #632). */
+    @JsonIgnore
+    @Column(name = "private_key_passphrase_encrypted", columnDefinition = "TEXT")
+    private String privateKeyPassphraseEncrypted;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

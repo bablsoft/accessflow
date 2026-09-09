@@ -39,6 +39,7 @@ class DefaultDatasourceLookupServiceTest {
         entity.setDatabaseName("appdb");
         entity.setUsername("svc");
         entity.setPasswordEncrypted("ENC(secret)");
+        entity.setPrivateKeyPassphraseEncrypted("ENC(hunter2)");
         entity.setSslMode(SslMode.REQUIRE);
         entity.setConnectionPoolSize(15);
         entity.setActive(true);
@@ -56,6 +57,8 @@ class DefaultDatasourceLookupServiceTest {
         assertThat(descriptor.databaseName()).isEqualTo("appdb");
         assertThat(descriptor.username()).isEqualTo("svc");
         assertThat(descriptor.passwordEncrypted()).isEqualTo("ENC(secret)");
+        // The only entity -> descriptor -> engine credential link the engine tests cannot reach.
+        assertThat(descriptor.privateKeyPassphraseEncrypted()).isEqualTo("ENC(hunter2)");
         assertThat(descriptor.sslMode()).isEqualTo(SslMode.REQUIRE);
         assertThat(descriptor.connectionPoolSize()).isEqualTo(15);
         assertThat(descriptor.active()).isTrue();

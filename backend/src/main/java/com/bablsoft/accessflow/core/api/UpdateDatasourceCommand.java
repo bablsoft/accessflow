@@ -33,8 +33,28 @@ public record UpdateDatasourceCommand(
         String localDatacenter,
         String apiKey,
         Boolean resultCacheEnabled,
-        Integer resultCacheTtlSeconds
+        Integer resultCacheTtlSeconds,
+        String privateKeyPassphrase
 ) {
+    /**
+     * Backward-compatible constructor for the pre-#632 canonical shape (no
+     * {@code privateKeyPassphrase}); delegates with {@code null}.
+     */
+    public UpdateDatasourceCommand(
+            String name, String host, Integer port, String databaseName, String username,
+            String password, SslMode sslMode, Integer connectionPoolSize, Integer maxRowsPerQuery,
+            Boolean requireReviewReads, Boolean requireReviewWrites, UUID reviewPlanId,
+            Boolean aiAnalysisEnabled, UUID aiConfigId, Boolean textToSqlEnabled,
+            Boolean clearAiConfig, String jdbcUrlOverride,
+            List<ReplicaEndpointInput> readReplicas, Boolean active, String localDatacenter,
+            String apiKey, Boolean resultCacheEnabled, Integer resultCacheTtlSeconds) {
+        this(name, host, port, databaseName, username, password, sslMode, connectionPoolSize,
+                maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
+                aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
+                readReplicas, active, localDatacenter, apiKey, resultCacheEnabled,
+                resultCacheTtlSeconds, null);
+    }
+
     /**
      * Backward-compatible constructor taking the pre-AF-457 single-replica triple. A {@code null}
      * URL keeps the current replica list, a blank URL clears it, a non-blank URL replaces it with a
@@ -52,7 +72,7 @@ public record UpdateDatasourceCommand(
                 maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
                 aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
                 legacyReplicaList(readReplicaJdbcUrl, readReplicaUsername, readReplicaPassword),
-                active, localDatacenter, apiKey, null, null);
+                active, localDatacenter, apiKey, null, null, null);
     }
 
     /** Backward-compatible constructor for the dialects with no {@code apiKey} (everything but the search engines). */

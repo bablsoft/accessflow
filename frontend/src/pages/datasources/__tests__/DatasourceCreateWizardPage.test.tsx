@@ -317,6 +317,53 @@ describe('DatasourceCreateWizardPage', () => {
     );
     expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('port');
     expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('jdbc_url_override');
+    // Left blank for a password credential, so it is omitted rather than sent empty.
+    expect(createDatasource.mock.calls[0]?.[0]).not.toHaveProperty('private_key_passphrase');
+  });
+
+  it('sends the private key passphrase for a passphrase-protected Snowflake key', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    createDatasource.mockResolvedValueOnce({
+      ...baseDatasource,
+      db_type: 'SNOWFLAKE',
+      port: null,
+    });
+
+    render(wrap(<DatasourceCreateWizardPage />));
+
+    const cards = await screen.findAllByText('Snowflake');
+    fireEvent.click(cards[0]!);
+    await screen.findByLabelText('Account host');
+
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Wh' } });
+    fireEvent.change(screen.getByLabelText('Account host'), {
+      target: { value: 'xy1.eu-central-1.snowflakecomputing.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Database name'), {
+      target: { value: 'ANALYTICS' },
+    });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'svc' } });
+    fireEvent.change(screen.getByLabelText('Password or private key (PEM)'), {
+      target: { value: '-----BEGIN ENCRYPTED PRIVATE KEY-----\nabc\n-----END ENCRYPTED PRIVATE KEY-----' },
+    });
+    fireEvent.change(screen.getByLabelText('Private key passphrase'), {
+      target: { value: 'hunter2' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save and test' }));
+
+    await waitFor(() => expect(createDatasource).toHaveBeenCalledTimes(1));
+    expect(createDatasource).toHaveBeenCalledWith(
+      expect.objectContaining({ private_key_passphrase: 'hunter2' }),
+    );
+  });
+
+  it('does not offer a private key passphrase for a non-Snowflake warehouse', async () => {
+    getDatasourceTypes.mockResolvedValue(warehouseTypesResponse);
+    render(wrap(<DatasourceCreateWizardPage />));
+    const cards = await screen.findAllByText('Google BigQuery');
+    fireEvent.click(cards[0]!);
+    await screen.findByLabelText('GCP project');
+    expect(screen.queryByLabelText('Private key passphrase')).toBeNull();
   });
 
   it('renders the BigQuery connection form and sends project + service-account JSON only', async () => {

@@ -7,6 +7,7 @@ import net.snowflake.client.api.driver.SnowflakeDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 /**
  * Opens a Snowflake JDBC {@link Connection} from a {@link DatasourceConnectionDescriptor} — the
@@ -19,10 +20,11 @@ import java.util.Properties;
  * otherwise the URL is {@code jdbc:snowflake://<host>} (the account host, e.g.
  * {@code myorg-myacct.snowflakecomputing.com}). {@code database_name} maps to the {@code db}
  * property, {@code username} to {@code user}. The decrypted credential is a password <em>or</em>
- * an unencrypted PKCS#8 private-key PEM (key-pair auth, detected by its {@code -----BEGIN}
- * header and passed as the object-valued {@code privateKey} property); passphrase-protected PEMs
- * are rejected. Credentials are decrypted only here, at connection construction, mirroring the
- * host rule that plaintext lives no longer than pool init.
+ * a PKCS#8 private-key PEM (key-pair auth, detected by its {@code -----BEGIN} header and passed as
+ * the object-valued {@code privateKey} property). A passphrase-protected PEM is opened with the
+ * separately stored {@code private_key_passphrase_encrypted} (issue #632). Credentials are
+ * decrypted only here, at connection construction, mirroring the host rule that plaintext lives no
+ * longer than pool init.
  *
  * <p>Deliberately <em>per-request</em>: every call opens a fresh connection and the caller closes
  * it — no pool, no cache. Warehouse sessions are billed while resumed, governance traffic is
@@ -75,13 +77,30 @@ class SnowflakeConnectionFactory {
         }
         properties.put("loginTimeout", String.valueOf(settings.loginTimeout().toSeconds()));
         properties.put("networkTimeout", String.valueOf(settings.networkTimeout().toMillis()));
-        applyCredential(properties, credentials.decrypt(descriptor.passwordEncrypted()));
+        applyCredential(properties, credentials.decrypt(descriptor.passwordEncrypted()),
+                () -> decryptPassphrase(descriptor));
         return properties;
     }
 
-    private static void applyCredential(Properties properties, String credential) {
+    /**
+     * Resolves the key passphrase, if any. Deliberately reached through a {@link Supplier} from
+     * {@link #applyCredential}: the stored value may be an external secret reference, which the
+     * host re-fetches from the store and audits on <em>every</em> resolve, and these connections
+     * are per-request with no pool. A password or plain-PEM datasource that still carries a stale
+     * passphrase (see the update path, which explicitly allows that state) must therefore not pay
+     * a secret fetch — or fail — for a value it never uses.
+     */
+    private String decryptPassphrase(DatasourceConnectionDescriptor descriptor) {
+        var stored = descriptor.privateKeyPassphraseEncrypted();
+        return stored == null || stored.isBlank() ? null : credentials.decrypt(stored);
+    }
+
+    private static void applyCredential(Properties properties, String credential,
+                                        Supplier<String> passphrase) {
         if (SnowflakePrivateKeyParser.isEncryptedPrivateKeyPem(credential)) {
-            throw new SnowflakeConfigException("error.snowflake.encrypted_private_key_unsupported");
+            properties.put("privateKey",
+                    SnowflakePrivateKeyParser.parseEncrypted(credential.strip(), passphrase.get()));
+            return;
         }
         if (SnowflakePrivateKeyParser.isPrivateKeyPem(credential)) {
             properties.put("privateKey", SnowflakePrivateKeyParser.parse(credential.strip()));

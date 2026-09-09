@@ -203,7 +203,7 @@ engines that are nonetheless engine-managed because their auth models don't fit 
 host/port/username/password lane). Each ships as its own shaded plugin JAR
 ([`engines/snowflake/`](../engines/snowflake/), [`engines/bigquery/`](../engines/bigquery/),
 [`engines/databricks/`](../engines/databricks/), each with its own version line and SHA-256 pin).
-Snowflake authenticates with a password **or** a key-pair PKCS#8 private-key PEM in the encrypted
+Snowflake authenticates with a password **or** a key-pair PKCS#8 private-key PEM, passphrase-protected or not (a passphrase-protected key stores its passphrase in `private_key_passphrase_encrypted`), held in the encrypted
 credential column and opens a short-lived connection per request (warehouse sessions are billed
 while resumed); BigQuery's "connection" is a service-account key JSON + GCP project
 (`database_name` = `project` or `project.dataset`); Databricks talks to the SQL Statement

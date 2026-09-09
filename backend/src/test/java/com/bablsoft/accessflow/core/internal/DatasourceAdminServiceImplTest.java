@@ -29,6 +29,7 @@ import com.bablsoft.accessflow.core.internal.persistence.repo.ReviewPlanReposito
 import com.bablsoft.accessflow.core.internal.persistence.repo.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
@@ -382,6 +383,143 @@ class DatasourceAdminServiceImplTest {
 
         assertThat(result.databaseName()).isEqualTo("ANALYTICS");
         verify(engineCatalog).engineFor(DbType.SNOWFLAKE);
+    }
+
+    @Test
+    void createSnowflakeEncryptsThePrivateKeyPassphrase() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pem")).thenReturn("ENC(pem)");
+        when(encryptionService.encrypt("hunter2")).thenReturn("ENC(hunter2)");
+        when(engineCatalog.isEngineManaged(DbType.SNOWFLAKE)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        service.create(snowflakeCommand("hunter2"));
+
+        var saved = ArgumentCaptor.forClass(DatasourceEntity.class);
+        verify(datasourceRepository).save(saved.capture());
+        assertThat(saved.getValue().getPrivateKeyPassphraseEncrypted()).isEqualTo("ENC(hunter2)");
+    }
+
+    @Test
+    void createSnowflakeWithoutAPassphraseLeavesTheColumnNull() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pem")).thenReturn("ENC(pem)");
+        when(engineCatalog.isEngineManaged(DbType.SNOWFLAKE)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        service.create(snowflakeCommand(null));
+
+        var saved = ArgumentCaptor.forClass(DatasourceEntity.class);
+        verify(datasourceRepository).save(saved.capture());
+        assertThat(saved.getValue().getPrivateKeyPassphraseEncrypted()).isNull();
+    }
+
+    @Test
+    void createNonSnowflakeWithAPrivateKeyPassphraseThrows() {
+        // The passphrase is Snowflake-only, mirroring how api_key is search-engine-only.
+        var command = new CreateDatasourceCommand(orgId, "Pg", DbType.POSTGRESQL, "db", 5432,
+                "appdb", "svc", "pw", SslMode.DISABLE, null, null, null, null, null, false, null,
+                null, null, null, null, null, null, null, null, null, "hunter2");
+        assertThatThrownBy(() -> service.create(command))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("private_key_passphrase");
+        verify(datasourceRepository, never()).save(any());
+    }
+
+    @Test
+    void createSnowflakeStoresAPassphraseSecretReferenceVerbatim() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pem")).thenReturn("ENC(pem)");
+        when(engineCatalog.isEngineManaged(DbType.SNOWFLAKE)).thenReturn(true);
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(secretResolutionService.isReference("pem")).thenReturn(false);
+        when(secretResolutionService.isReference("vault:secret/data/snowflake#passphrase"))
+                .thenReturn(true);
+
+        service.create(snowflakeCommand("vault:secret/data/snowflake#passphrase"));
+
+        var saved = ArgumentCaptor.forClass(DatasourceEntity.class);
+        verify(datasourceRepository).save(saved.capture());
+        // A secret reference is stored as-is, never encrypted — resolved at connection time.
+        assertThat(saved.getValue().getPrivateKeyPassphraseEncrypted())
+                .isEqualTo("vault:secret/data/snowflake#passphrase");
+        verify(secretResolutionService).validateReference("vault:secret/data/snowflake#passphrase");
+        verify(encryptionService, never()).encrypt("vault:secret/data/snowflake#passphrase");
+    }
+
+    @Test
+    void updateSnowflakePassphraseNullKeepsItAndBlankClearsIt() {
+        var entity = buildDatasource(datasourceId, orgId, "Wh");
+        entity.setDbType(DbType.SNOWFLAKE);
+        entity.setPrivateKeyPassphraseEncrypted("ENC(old)");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, updatePassphraseCommand(null));
+        assertThat(entity.getPrivateKeyPassphraseEncrypted()).isEqualTo("ENC(old)");
+
+        service.update(datasourceId, orgId, updatePassphraseCommand(""));
+        assertThat(entity.getPrivateKeyPassphraseEncrypted()).isNull();
+    }
+
+    @Test
+    void updateSnowflakePassphraseReEncryptsANonBlankValue() {
+        var entity = buildDatasource(datasourceId, orgId, "Wh");
+        entity.setDbType(DbType.SNOWFLAKE);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("rotated")).thenReturn("ENC(rotated)");
+
+        service.update(datasourceId, orgId, updatePassphraseCommand("rotated"));
+
+        assertThat(entity.getPrivateKeyPassphraseEncrypted()).isEqualTo("ENC(rotated)");
+    }
+
+    @Test
+    void updateNonSnowflakeWithAPrivateKeyPassphraseThrows() {
+        // validateCredentials() runs on create only, so update carries its own dialect guard.
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() ->
+                service.update(datasourceId, orgId, updatePassphraseCommand("hunter2")))
+                .isInstanceOf(IllegalDatasourcePermissionException.class)
+                .hasMessageContaining("private_key_passphrase");
+    }
+
+    @Test
+    void rotatingOnlyThePassphraseEvictsThePool() {
+        // The passphrase is part of the pool fingerprint: without it a rotation would leave live
+        // connections using the old key.
+        var entity = buildDatasource(datasourceId, orgId, "Wh");
+        entity.setDbType(DbType.SNOWFLAKE);
+        entity.setPrivateKeyPassphraseEncrypted("ENC(old)");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(encryptionService.encrypt("rotated")).thenReturn("ENC(rotated)");
+
+        service.update(datasourceId, orgId, updatePassphraseCommand("rotated"));
+
+        verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    private CreateDatasourceCommand snowflakeCommand(String privateKeyPassphrase) {
+        return new CreateDatasourceCommand(orgId, "Wh", DbType.SNOWFLAKE,
+                "xy1.eu-central-1.snowflakecomputing.com", null, "ANALYTICS", "svc", "pem",
+                SslMode.REQUIRE, null, null, null, null, null, false, null, null, null, null, null,
+                null, null, null, null, null, privateKeyPassphrase);
+    }
+
+    private static UpdateDatasourceCommand updatePassphraseCommand(String privateKeyPassphrase) {
+        return new UpdateDatasourceCommand(null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                privateKeyPassphrase);
     }
 
     @Test
