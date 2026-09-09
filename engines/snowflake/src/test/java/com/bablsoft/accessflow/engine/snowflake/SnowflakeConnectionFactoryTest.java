@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +167,23 @@ class SnowflakeConnectionFactoryTest {
         var properties = factory.connectionProperties(descriptor);
         assertThat(properties.get("password")).isEqualTo("secret");
         assertThat(properties.containsKey("privateKey")).isFalse();
+    }
+
+    @Test
+    void aStalePassphraseIsNeverResolvedForANonEncryptedCredential() {
+        // The stored value may be an external secret reference, which the host re-fetches and
+        // audits on every resolve — and these connections are per-request with no pool. A
+        // datasource whose credential went back to a password (or a plain PEM) must not pay a
+        // secret fetch, or fail on a since-deleted reference, for a passphrase it never reads.
+        var resolved = new ArrayList<String>();
+        var counting = new SnowflakeConnectionFactory(ciphertext -> {
+            resolved.add(ciphertext);
+            return ciphertext.replace("enc:", "");
+        }, settings);
+
+        counting.connectionProperties(descriptorWithPassphrase("enc:secret", "enc:stale"));
+
+        assertThat(resolved).containsExactly("enc:secret");
     }
 
     @Test

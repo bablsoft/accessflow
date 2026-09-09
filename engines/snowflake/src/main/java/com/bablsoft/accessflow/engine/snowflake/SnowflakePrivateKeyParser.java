@@ -48,9 +48,20 @@ final class SnowflakePrivateKeyParser {
     private static final String ENCRYPTED_HEADER = "-----BEGIN ENCRYPTED PRIVATE KEY";
     private static final String HEADER = "-----BEGIN PRIVATE KEY";
 
-    private static final Provider BOUNCY_CASTLE = new BouncyCastleProvider();
 
     private SnowflakePrivateKeyParser() {
+    }
+
+    /**
+     * Holder so the provider (which builds its whole algorithm table on construction) is created
+     * only when an encrypted PEM is actually parsed. The enclosing class is touched on every
+     * credential path, including plain passwords, by {@link #isEncryptedPrivateKeyPem}.
+     */
+    private static final class BouncyCastleHolder {
+        private static final Provider INSTANCE = new BouncyCastleProvider();
+
+        private BouncyCastleHolder() {
+        }
     }
 
     /** Whether the credential is a passphrase-protected PKCS#8 PEM. */
@@ -101,6 +112,11 @@ final class SnowflakePrivateKeyParser {
                 throw new SnowflakeConfigException("error.snowflake.invalid_private_key");
             }
             der = pemObject.getContent();
+            if (der.length == 0) {
+                // BC NPEs on an empty body deep inside decryptPrivateKeyInfo and rewraps it as
+                // PKCSException, which would misreport an empty key as a wrong passphrase.
+                throw new SnowflakeConfigException("error.snowflake.invalid_private_key");
+            }
         } catch (IOException | DecoderException e) {
             // DecoderException is Bouncy Castle's unchecked signal for a corrupt base64 body; it
             // must surface as the same localized error as any other malformed PEM.
@@ -114,10 +130,10 @@ final class SnowflakePrivateKeyParser {
         }
         try {
             var decryptor = new JcePKCSPBEInputDecryptorProviderBuilder()
-                    .setProvider(BOUNCY_CASTLE)
+                    .setProvider(BouncyCastleHolder.INSTANCE)
                     .build(passphrase.toCharArray());
             return new JcaPEMKeyConverter()
-                    .setProvider(BOUNCY_CASTLE)
+                    .setProvider(BouncyCastleHolder.INSTANCE)
                     .getPrivateKey(encrypted.decryptPrivateKeyInfo(decryptor));
         } catch (PKCSException | PEMException e) {
             // A wrong passphrase and an unsupported PBE algorithm both surface here; the message

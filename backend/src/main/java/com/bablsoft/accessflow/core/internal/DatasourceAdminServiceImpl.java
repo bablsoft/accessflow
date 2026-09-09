@@ -271,10 +271,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.privateKeyPassphrase() != null) {
             // validateCredentials() runs on create only, so the Snowflake-only rule is re-checked
             // here rather than left to the create path.
-            if (!command.privateKeyPassphrase().isBlank() && entity.getDbType() != DbType.SNOWFLAKE) {
-                throw new IllegalDatasourcePermissionException(
-                        "private_key_passphrase is only allowed for Snowflake datasources");
-            }
+            requireSnowflakeForPassphrase(entity.getDbType(), command.privateKeyPassphrase());
             // A blank passphrase clears it (the key is no longer encrypted, or the credential went
             // back to a password); a non-blank one is re-encrypted.
             entity.setPrivateKeyPassphraseEncrypted(command.privateKeyPassphrase().isBlank()
@@ -986,11 +983,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         boolean hasBasic = username != null && !username.isBlank()
                 && password != null && !password.isBlank();
         boolean hasApiKey = apiKey != null && !apiKey.isBlank();
-        if (privateKeyPassphrase != null && !privateKeyPassphrase.isBlank()
-                && dbType != DbType.SNOWFLAKE) {
-            throw new IllegalDatasourcePermissionException(
-                    "private_key_passphrase is only allowed for Snowflake datasources");
-        }
+        requireSnowflakeForPassphrase(dbType, privateKeyPassphrase);
         if (isSearchEngine(dbType)) {
             if (!hasBasic && !hasApiKey) {
                 throw new IllegalDatasourcePermissionException(
@@ -1018,6 +1011,19 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 throw new IllegalDatasourcePermissionException(
                         "Datasource password is required for db_type " + dbType);
             }
+        }
+    }
+
+    /**
+     * The private-key passphrase only means anything for Snowflake key-pair auth, mirroring how
+     * {@code api_key} is search-engine-only. Shared by create (through
+     * {@code validateCredentials}) and update, which never calls it.
+     */
+    private static void requireSnowflakeForPassphrase(DbType dbType, String privateKeyPassphrase) {
+        if (privateKeyPassphrase != null && !privateKeyPassphrase.isBlank()
+                && dbType != DbType.SNOWFLAKE) {
+            throw new IllegalDatasourcePermissionException(
+                    "private_key_passphrase is only allowed for Snowflake datasources");
         }
     }
 

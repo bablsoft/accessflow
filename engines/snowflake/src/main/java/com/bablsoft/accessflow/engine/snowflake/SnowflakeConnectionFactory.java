@@ -7,6 +7,7 @@ import net.snowflake.client.api.driver.SnowflakeDriver;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.function.Supplier;
 
 /**
  * Opens a Snowflake JDBC {@link Connection} from a {@link DatasourceConnectionDescriptor} — the
@@ -77,13 +78,17 @@ class SnowflakeConnectionFactory {
         properties.put("loginTimeout", String.valueOf(settings.loginTimeout().toSeconds()));
         properties.put("networkTimeout", String.valueOf(settings.networkTimeout().toMillis()));
         applyCredential(properties, credentials.decrypt(descriptor.passwordEncrypted()),
-                decryptPassphrase(descriptor));
+                () -> decryptPassphrase(descriptor));
         return properties;
     }
 
     /**
-     * Resolves the key passphrase, if any. Only decrypted when actually set, so a password
-     * datasource never round-trips a null through the host's credential resolver.
+     * Resolves the key passphrase, if any. Deliberately reached through a {@link Supplier} from
+     * {@link #applyCredential}: the stored value may be an external secret reference, which the
+     * host re-fetches from the store and audits on <em>every</em> resolve, and these connections
+     * are per-request with no pool. A password or plain-PEM datasource that still carries a stale
+     * passphrase (see the update path, which explicitly allows that state) must therefore not pay
+     * a secret fetch — or fail — for a value it never uses.
      */
     private String decryptPassphrase(DatasourceConnectionDescriptor descriptor) {
         var stored = descriptor.privateKeyPassphraseEncrypted();
@@ -91,10 +96,10 @@ class SnowflakeConnectionFactory {
     }
 
     private static void applyCredential(Properties properties, String credential,
-                                        String passphrase) {
+                                        Supplier<String> passphrase) {
         if (SnowflakePrivateKeyParser.isEncryptedPrivateKeyPem(credential)) {
             properties.put("privateKey",
-                    SnowflakePrivateKeyParser.parseEncrypted(credential.strip(), passphrase));
+                    SnowflakePrivateKeyParser.parseEncrypted(credential.strip(), passphrase.get()));
             return;
         }
         if (SnowflakePrivateKeyParser.isPrivateKeyPem(credential)) {

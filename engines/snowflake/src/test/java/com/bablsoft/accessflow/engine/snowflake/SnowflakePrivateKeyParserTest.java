@@ -123,6 +123,17 @@ class SnowflakePrivateKeyParserTest {
     }
 
     @Test
+    void emptyPemBodyIsReportedAsMalformedNotAsAWrongPassphrase() {
+        // Bouncy Castle NPEs on an empty body deep inside decryptPrivateKeyInfo and rewraps it as
+        // PKCSException, which without the explicit guard would blame the operator's passphrase.
+        assertThatThrownBy(() -> SnowflakePrivateKeyParser.parseEncrypted(
+                "-----BEGIN ENCRYPTED PRIVATE KEY-----\n\n-----END ENCRYPTED PRIVATE KEY-----",
+                "hunter2"))
+                .isInstanceOf(SnowflakeConfigException.class)
+                .hasMessage("error.snowflake.invalid_private_key");
+    }
+
+    @Test
     void headerWithoutAPemBodyIsRejected() {
         assertThatThrownBy(() -> SnowflakePrivateKeyParser.parseEncrypted(
                 "-----BEGIN ENCRYPTED PRIVATE KEY-----", "hunter2"))
