@@ -79,7 +79,9 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
       `help-corpus/` in the same change. `website/**` is the corpus's source, so every page edit
       makes the committed bundle stale and the `help-corpus` CI job fails on the diff. A brand-new
       top-level area additionally needs a `SECTION_RULES` entry in that script (it fails loudly on
-      a page it cannot classify, rather than dropping it from the corpus).
+      a page it cannot classify, rather than dropping it from the corpus). The same applies to a
+      renamed `nav.*` label or a regrouped sidebar entry — the corpus derives its menu vocabulary
+      from `Sidebar.tsx` + `en.json` (#925), so those are corpus sources too.
 - [ ] `<meta name="description">` ≤ **160 rendered characters** (Google truncates past that and
       substitutes its own snippet).
 - [ ] Link the homepage as `/` — never `../index.html`, which costs a 307 redirect hop.

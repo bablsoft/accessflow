@@ -2200,6 +2200,20 @@ arrives in the request and leaves in the answer. Storing it is `HelpChatSessionS
   answer in the user's interface language unless the question is plainly written in another. The
   context block is `[n] <title> — <section>` plus the chunk text, joined by the same `\n\n---\n\n`
   separator `DefaultRagRetriever` uses.
+- **One rule makes the model spend the derived UI vocabulary (#925).** The corpus carries the
+  sidebar's own labels, full menu paths and revealing permissions, derived from
+  `frontend/src/components/common/Sidebar.tsx` and `frontend/src/locales/en.json` — see
+  [help-corpus/README.md](../help-corpus/README.md) → "The UI vocabulary, and why it is derived".
+  The preamble tells the model to name a screen by its exact interface label and give the menu path
+  ("Workflow → Database → Query editor") rather than a URL; to quote a control's label verbatim with
+  its qualifiers, adding no claim an excerpt does not make; and to carry over a stated permission or
+  condition ("if you have `QUERY_SUBMIT_DML`, …") instead of asserting the entry is on everyone's
+  screen. The labels are English — the corpus is not localised (epic #899) — so a non-English answer
+  gives the label anyway and says so, since the reader's interface may show a translation.
+  **It is one bullet on purpose.** The rule block is charged against the whole
+  `ai_config.max_prompt_tokens` budget before any excerpt is rendered, and at 800 tokens what is
+  left over is one trimmed chunk; `DefaultHelpChatServiceTest.boundedByTheBoundModelsMaxPromptTokens`
+  fails when a new rule spends that headroom, which is the point of it.
 - **Route and permission context is all-or-nothing.** The screen label and the user's permission names
   appear in the preamble only when the organization has `send_user_context` on, and are suppressed
   entirely — not sent as an empty heading — when it is off, so an admin who turned it off can tell

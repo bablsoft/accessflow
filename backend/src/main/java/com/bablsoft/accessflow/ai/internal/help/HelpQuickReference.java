@@ -10,9 +10,11 @@ import org.springframework.stereotype.Component;
  * mode an install whose embedding provider cannot embed at all ever has (epic AF-899 decision 9).
  *
  * <p>The text is {@code help-corpus/quick-reference.txt}, generated with the corpus (AF-900) and
- * verified with it, so it always describes the version actually running. It is roughly 3,000 tokens
- * of product orientation: the query lifecycle, the rules that never bend, and where things are in the
- * app. An answer from it is a real answer — it simply cannot cite a section.
+ * verified with it, so it always describes the version actually running. It is roughly 5,900 tokens
+ * of product orientation: the query lifecycle, the rules that never bend, the sidebar menu with each
+ * destination's label, menu path and revealing permissions, the exact control labels on the main task
+ * flows (#925), and the screens with no menu entry. An answer from it is a real answer — it simply
+ * cannot cite a section.
  *
  * <p>{@link #usable(HelpAgentConfigEntity)} is the other half: retrieval is only worth attempting
  * when this organization's stored vectors are the ones the running build ships. A row that has never

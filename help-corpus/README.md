@@ -31,7 +31,7 @@ re-runs the generator and fails the build when the committed bundle has drifted 
 |---|---|
 | `corpus.jsonl` | One JSON chunk per line: `{id, path, url, anchor, title, section, order, tokens, text}`. Each `text` opens with a breadcrumb line (`AccessFlow Docs > Guides > Run your first governed query > 5. Submit a query`) before the section body — a cheap recall win when the chunk is embedded. |
 | `manifest.json` | `{schemaVersion, corpusVersion, generatedAt, sourceCommit, chunkCount, sha256, quickReferenceSha256, sources[]}`. |
-| `quick-reference.txt` | A ~2,300-token orientation block — the query lifecycle, the rules that never bend, what each route in the app is for, and what the documentation covers. Substituted for retrieved context whenever retrieval is unavailable (no pgvector, no embedding provider, or an Anthropic-only install), so the agent still answers correctly; it just cannot cite a section. |
+| `quick-reference.txt` | A ~5,400-token orientation block — the query lifecycle, the rules that never bend, the sidebar menu with each destination's label, menu path and permissions, the screens that have no menu entry, the exact control labels on the main task flows, and what the documentation covers. Substituted for retrieved context whenever retrieval is unavailable (no pgvector, no embedding provider, or an Anthropic-only install), so the agent still answers correctly; it just cannot cite a section. |
 
 The artifact is chunked **text**, never precomputed embeddings. Vector dimensions and the embedding
 model are the operator's choice — OpenAI `text-embedding-3-small` is 1536, Ollama
@@ -49,6 +49,9 @@ Included: **every** `.html` file under `website/`, plus `docs/09-deployment.md` 
 env-var reference, which nothing on the website covers). The generator walks the tree rather than
 naming folders, and **fails on any page it cannot classify** — so a new documentation area has to
 be given a `SECTION_RULES` section label or an explicit exclusion, and cannot be silently dropped.
+
+Included as well, and derived rather than written: the app's **UI vocabulary** (#925) — see
+[below](#the-ui-vocabulary-and-why-it-is-derived).
 
 Excluded on purpose:
 
@@ -88,6 +91,54 @@ the bottom of `.github/scripts/build-help-corpus.mjs`. That table is **cross-che
 fails the build, and so does a description of a route that no longer exists. Adding a route means
 adding a line saying what the screen is for (or listing it in `ROUTES_NOT_LISTED`) — otherwise the
 orientation block the agent falls back to would quietly describe an app that no longer exists.
+
+## The UI vocabulary, and why it is derived
+
+Everything above describes the product in the documentation's words. That is not what a user
+clicks. Asked how to submit a query, the agent answered "open the SQL editor (`/editor`)" — a name
+the sidebar does not use for that entry, and a URL where a menu path belongs. It had nothing else
+to offer: not one string in the corpus came from the frontend, so the sixteen group and
+sub-section names the menu is organised into were unreachable, and so was every button label a
+step-by-step answer is made of. An instruction naming a menu item that is not there reads
+authoritative and sends the reader looking for nothing.
+
+So three more inputs are **parsed, never paraphrased**:
+
+| Source | What is taken from it |
+|---|---|
+| `frontend/src/components/common/Sidebar.tsx` | The `GROUPS` literal: which group and sub-section each destination sits in, its route, and the permissions that reveal it. |
+| `frontend/src/locales/en.json` | Every `nav.*` label, and the curated control labels named by `CONTROL_VOCABULARY`. |
+| `frontend/src/utils/reviewHubTabs.ts` | `REVIEW_HUB_TAB_PERMISSION`, from which the review queue's any-of permission set is derived. |
+
+They produce one synthetic page, `Finding your way around the AccessFlow interface`, in a
+`Navigation` section: the sidebar menu (label, full `Group → Subgroup → Item` path, route,
+permissions and purpose for every destination), the screens that have **no** menu entry and how
+they are reached instead, and the exact button and field labels on the submit → analyse → review →
+execute path. The same block is rendered into `quick-reference.txt`, which is the mode with no
+citations at all and therefore the one most worth getting literally right.
+
+The notes beside each control are the one hand-written part, and they carry what the label alone
+cannot: that **Analyze** gates **Submit for review** on an AI-enabled datasource, that
+`· required for review` beside **Justification** is advisory rather than a validation rule (the
+identical note on the Emergency access modal is not), and which controls appear only for some
+engines. A label quoted without its condition is the same failure in a smaller box.
+
+`CONTROL_VOCABULARY` is a curated list, not a dump: `en.json` holds thousands of strings, and the
+tooltips and toasts among them would drown retrieval. Only the *reference* is hand-written — every
+label is resolved from `en.json`, so what the corpus quotes is what the control says.
+
+The generator fails, loudly, when these stop agreeing:
+
+- a `nav.*` or control key that no longer resolves, or one whose value interpolates (`{{count}}`
+  would reach the reader literally);
+- a sidebar destination whose route `ROUTES` does not describe;
+- a `ROUTES` line that claims a screen is reached some other way while the sidebar lists it, or one
+  that claims neither a menu entry nor another way in;
+- a `GROUPS` literal whose shape the parser no longer recognises — it never degrades to a partial
+  nav tree, which would silently drop destinations.
+
+Because CI's `help-corpus` paths filter watches all three files, renaming a menu entry or moving it
+between groups fails the drift guard until the bundle is regenerated.
 
 ## Determinism
 

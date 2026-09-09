@@ -70,6 +70,13 @@ jobs:
               # cross-checks that list against the router — so a new route fails this job until
               # someone says what the screen is for.
               - 'frontend/src/App.tsx'
+              # The corpus quotes the interface's own words (#925): menu labels, the group tree
+              # and control names are derived from these files, so a rename or a regroup fails
+              # this job until the bundle is regenerated. Without them the assistant would keep
+              # confidently naming a menu item nobody can find.
+              - 'frontend/src/locales/en.json'
+              - 'frontend/src/components/common/Sidebar.tsx'
+              - 'frontend/src/utils/reviewHubTabs.ts'
               - '.github/workflows/ci.yml'
             # backend/** is included because the plugins compile against the backend's core.api —
             # an SPI change can break a plugin or shift its reproducible-build sha pin.

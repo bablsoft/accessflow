@@ -1125,6 +1125,14 @@ All routes except `/login`, `/setup`, `/invite/:token`, `/forgot-password`, `/re
 
 ### Sidebar navigation (AF-837)
 
+> **This file and `locales/en.json` are help-corpus sources (#925).** The in-app help assistant's
+> menu vocabulary — every destination's label, its full `Group → Subgroup → Item` path and the
+> permissions that reveal it — is parsed out of the `GROUPS` literal below and the `nav.*` keys it
+> resolves. Renaming an entry or moving it between groups means regenerating
+> `help-corpus/` (`node .github/scripts/build-help-corpus.mjs`) in the same commit, or the
+> `help-corpus` CI job fails; a route with no `ROUTES` line in that script fails it too. See
+> [help-corpus/README.md](../help-corpus/README.md) → "The UI vocabulary, and why it is derived".
+
 `components/common/Sidebar.tsx` renders a **three-level** nav model:
 
 ```ts

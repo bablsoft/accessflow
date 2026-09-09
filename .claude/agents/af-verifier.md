@@ -54,7 +54,7 @@ Run **only** what the touched paths imply. Note what you skipped and why.
 | `e2e/tests/**` | `cd e2e && npm run typecheck`. A full Playwright run needs a booted stack — do **not** start one unless the caller asked; report it as `NOT_RUN (needs stack)` |
 | `charts/**` | `helm dependency update charts/accessflow && helm lint charts/accessflow && helm template charts/accessflow >/dev/null` |
 | `terraform-provider/**` | `cd terraform-provider && gofmt -l . && go vet ./... && go test ./... -count=1` |
-| `docs/09-deployment.md`, `frontend/src/App.tsx`, `help-corpus/**` | `node .github/scripts/build-help-corpus.mjs && git status --porcelain -- help-corpus/` (empty output) |
+| `docs/09-deployment.md`, `frontend/src/App.tsx`, `frontend/src/locales/en.json`, `frontend/src/components/common/Sidebar.tsx`, `frontend/src/utils/reviewHubTabs.ts`, `help-corpus/**` | `node .github/scripts/build-help-corpus.mjs && git status --porcelain -- help-corpus/` (empty output) |
 | `.claude/**`, `docs/**` (other than `09-deployment.md`), `*.md` only | nothing to run — report `NO_GATES_APPLY` |
 
 ## 3. Capture real exit codes

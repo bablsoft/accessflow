@@ -71,7 +71,9 @@ staged '^website/.*\.html$' && ! staged '^website/sitemap\.xml$' \
   && warn "website/*.html is staged without website/sitemap.xml — bump <lastmod> (and the JSON-LD dateModified) for every page you touched"
 
 # The help corpus is generated from the documentation; both halves land together.
-{ staged '^website/.*\.html$' || staged '^docs/09-deployment\.md$' || staged '^frontend/src/App\.tsx$'; } \
+{ staged '^website/.*\.html$' || staged '^docs/09-deployment\.md$' || staged '^frontend/src/App\.tsx$' \
+  || staged '^frontend/src/locales/en\.json$' || staged '^frontend/src/components/common/Sidebar\.tsx$' \
+  || staged '^frontend/src/utils/reviewHubTabs\.ts$'; } \
   && ! staged '^help-corpus/' \
   && warn "a help-corpus source is staged without help-corpus/ — run 'node .github/scripts/build-help-corpus.mjs' and stage the result, or the help-corpus CI job fails"
 
