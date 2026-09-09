@@ -5,8 +5,8 @@ import { login } from '../helpers/login';
 // rendering (incl. the redesign's attestation/access-request/request-group widgets), widget
 // visibility + reset-layout customization persisting across reloads, clickable stat tiles, the
 // trends range control, and the signed weekly-summary export download. #926 adds the
-// deployment-governance widgets and stat tiles (this stack governs both optional domains — see
-// ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_* in docker-compose.e2e.yml).
+// deployment-governance widgets and stat tiles. Those are only *offered* while the organization
+// governs deployments (#926); global-setup.ts turns both optional domains on for the suite.
 
 
 async function waitForSummary(page: Page): Promise<void> {

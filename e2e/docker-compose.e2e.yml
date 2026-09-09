@@ -147,11 +147,13 @@ services:
       # Bootstrap reconciler seeds the deterministic E2E admin on startup.
       ACCESSFLOW_BOOTSTRAP_ENABLED: "true"
       ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: "E2E Test Org"
-      # #926 — the two governance-domain flags gate the API and deployment navigation,
-      # review-hub tabs and dashboard widgets. Provisioning defaults them off, so the specs
-      # (and the release screenshots driven off this stack) would see a database-only nav.
-      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_APIS: "true"
-      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_DEPLOYMENTS: "true"
+      # #926 — the two governance-domain flags are deliberately NOT set here. The suite needs
+      # them on (review-hub.spec.ts expects four review tabs, dashboard.spec.ts the API and
+      # deployment widgets), but turning them on also adds two admin-onboarding steps, and
+      # `AppLayout` renders the setup-progress banner above every page until every step is
+      # satisfied — which reflows the page under whatever a test is clicking. So the flags and the
+      # seed that satisfies their steps live together in e2e/global-setup.ts instead of being
+      # split across two files that can drift apart.
       ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
       ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
       ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"

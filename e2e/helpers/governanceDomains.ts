@@ -42,3 +42,19 @@ export async function setGovernanceDomainsViaApi(
     throw new Error(`PUT governance-domains failed: ${res.status()} ${await res.text()}`);
   }
 }
+
+/**
+ * Restore the suite baseline: both optional domains on, as `global-setup.ts` leaves them. Safe to
+ * call after a failure, and the only correct way for a spec that toggles a domain to clean up —
+ * leaving one off would strip the navigation, review tabs and dashboard widgets that later specs
+ * (review-hub.spec.ts, dashboard.spec.ts) assert on.
+ */
+export async function resetGovernanceDomainsToBaseline(
+  request: APIRequestContext,
+  token: string,
+): Promise<void> {
+  await setGovernanceDomainsViaApi(request, token, {
+    governs_apis: true,
+    governs_deployments: true,
+  });
+}

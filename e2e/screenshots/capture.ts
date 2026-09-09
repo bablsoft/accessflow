@@ -33,6 +33,7 @@ import {
   createRetentionPolicyViaApi,
 } from '../helpers/datasources';
 import { createApiConnectorViaApi } from '../helpers/apiConnectors';
+import { setGovernanceDomainsViaApi } from '../helpers/governanceDomains';
 import {
   createDeploymentPipelineViaApi,
   createDeploymentEnvironmentViaApi,
@@ -445,6 +446,21 @@ async function seedData() {
     else console.warn(`  [warn] rollback outcome failed: ${outcome.status} ${outcome.error}`);
   } catch (e) {
     console.warn(`  [warn] deploygov seed: ${(e as Error).message}`);
+  }
+
+  // #926 — the stack's baseline is database-only, which hides the API and Deployments nav
+  // sub-sections, the review-hub tabs and the dashboard widgets. The published screenshots must
+  // show the full product, so switch both domains on. Deliberately last: the connector and the
+  // pipeline seeded above satisfy the two onboarding steps the domains add, so the admin
+  // setup-progress banner stays hidden instead of appearing across every capture.
+  try {
+    await setGovernanceDomainsViaApi(api, adminToken, {
+      governs_apis: true,
+      governs_deployments: true,
+    });
+    console.log('[seed] governance domains: API + deployments on');
+  } catch (e) {
+    console.warn(`  [warn] governance domains: ${(e as Error).message}`);
   }
 
   await api.dispose();

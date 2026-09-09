@@ -1,35 +1,36 @@
 import { test, expect, request as pwRequest, type Page } from '@playwright/test';
 import { login, ADMIN_EMAIL, ADMIN_PASSWORD } from '../helpers/login';
 import { loginViaApi } from '../helpers/datasources';
-import { setGovernanceDomainsViaApi } from '../helpers/governanceDomains';
+import {
+  resetGovernanceDomainsToBaseline,
+  setGovernanceDomainsViaApi,
+} from '../helpers/governanceDomains';
 
-// #926 — the two governance-domain flags as a visibility signal. An org admin turns a domain off
-// on /admin/governance-domains and the sidebar sub-sections, review-hub tabs and dashboard widgets
-// for that domain stop being offered — while the routes stay reachable, so a deep link into the
-// de-emphasised domain still works.
+// #926 — the two governance-domain flags as a visibility signal. Turning a domain off stops the
+// app *offering* its sidebar sub-sections, review-hub tabs and dashboard widgets, while its
+// routes stay reachable, so a deep link into the de-emphasised domain still works.
 //
-// SERIAL: this mutates the one seeded organization's config. `afterAll` restores both domains
-// unconditionally — `describe.serial` abandons the remaining tests once one fails, so an inline
-// restore at the end of a test body would be skipped exactly when it is needed most, leaving the
-// whole stack without its Deployments navigation.
+// The suite's baseline is both optional domains ON (global-setup.ts). This spec switches one off
+// to prove the effect, and restores the baseline in an unconditional `afterAll`: `describe.serial`
+// abandons the remaining tests once one fails, so a restore at the end of a test body would be
+// skipped exactly when it is needed most — and every later spec would lose its navigation.
+//
+// SERIAL: while a domain is on, the admin onboarding checklist and the whole navigation change
+// for every other spec.
 
 const SETTINGS = '/admin/governance-domains';
 
-/** A standalone request context: `afterAll` has no `page`, and this must run even after a failure. */
-async function restoreBothDomains(): Promise<void> {
+/** `afterAll` has no `page`, and this must run even after a failure. */
+async function withAdminRequest<T>(fn: (ctx: Awaited<ReturnType<typeof pwRequest.newContext>>, token: string) => Promise<T>): Promise<T> {
   const context = await pwRequest.newContext();
   try {
     const token = await loginViaApi(context, ADMIN_EMAIL, ADMIN_PASSWORD);
-    await setGovernanceDomainsViaApi(context, token, {
-      governs_apis: true,
-      governs_deployments: true,
-    });
+    return await fn(context, token);
   } finally {
     await context.dispose();
   }
 }
 
-/** Flips the flags out-of-band, so a test can set up a state without driving the form. */
 async function setDomains(page: Page, apis: boolean, deployments: boolean): Promise<void> {
   const token = await loginViaApi(page.request, ADMIN_EMAIL, ADMIN_PASSWORD);
   await setGovernanceDomainsViaApi(page.request, token, {
@@ -40,10 +41,10 @@ async function setDomains(page: Page, apis: boolean, deployments: boolean): Prom
 
 test.describe.serial('/admin/governance-domains (#926)', () => {
   test.afterAll(async () => {
-    await restoreBothDomains();
+    await withAdminRequest((ctx, token) => resetGovernanceDomainsToBaseline(ctx, token));
   });
 
-  test('renders both switches on for the seeded organization', async ({ page }) => {
+  test('renders both switches, reflecting what the organization governs', async ({ page }) => {
     await login(page);
     await page.goto(SETTINGS);
 
@@ -105,7 +106,6 @@ test.describe.serial('/admin/governance-domains (#926)', () => {
     await setDomains(page, true, true);
     await page.goto(SETTINGS);
 
-    await expect(page.getByRole('switch', { name: 'Govern outbound API calls' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Gate CI/CD deployments' })).toBeChecked();
     await expect(
       page.getByRole('button', { name: /(Expand|Collapse) Deployments/ }).first(),

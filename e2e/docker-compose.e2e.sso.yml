@@ -196,11 +196,6 @@ services:
       # target for the SAML user.
       ACCESSFLOW_BOOTSTRAP_ENABLED: "true"
       ACCESSFLOW_BOOTSTRAP_ORGANIZATION_NAME: "E2E Test Org"
-      # #926 — the two governance-domain flags gate the API and deployment navigation,
-      # review-hub tabs and dashboard widgets. Provisioning defaults them off, so the specs
-      # (and the release screenshots driven off this stack) would see a database-only nav.
-      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_APIS: "true"
-      ACCESSFLOW_BOOTSTRAP_ORGANIZATION_GOVERNS_DEPLOYMENTS: "true"
       ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
       ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
       ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"

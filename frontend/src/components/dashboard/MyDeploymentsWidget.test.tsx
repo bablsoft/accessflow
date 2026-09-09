@@ -46,6 +46,36 @@ describe('MyDeploymentsWidget (#926)', () => {
     expect(screen.getByText('Pending review')).toBeInTheDocument();
   });
 
+  it('survives an outcome the payload omits entirely rather than sends as null', () => {
+    // The backend runs Jackson with `default-property-inclusion: non_null`, so a null field is
+    // dropped from the JSON and reaches the component as `undefined`, not `null`. A strict
+    // `=== null` guard let it through to `deploymentOutcomeColor` — whose switch has no default
+    // — and reading `.fg` off the resulting `undefined` unmounted the entire app, taking every
+    // page down with it. Build the row the way the wire actually does.
+    const { outcome: _omitted, ...withoutOutcome } = item({ status: 'PENDING_REVIEW' });
+    renderWidget({ items: [withoutOutcome as DashboardRecentDeployment] });
+
+    expect(screen.getByText('Checkout')).toBeInTheDocument();
+    expect(screen.getByText('Pending review')).toBeInTheDocument();
+    expect(screen.queryByText('succeeded')).not.toBeInTheDocument();
+  });
+
+  it('survives every nullable field being omitted, as the wire sends them', () => {
+    const full = item({ status: 'PENDING_REVIEW' });
+    const {
+      outcome: _o,
+      pipeline_name: _p,
+      environment_name: _e,
+      ai_risk_level: _rl,
+      ai_risk_score: _rs,
+      ...sparse
+    } = full;
+    renderWidget({ items: [sparse as DashboardRecentDeployment] });
+
+    expect(screen.getByText('1.4.2')).toBeInTheDocument();
+    expect(screen.getAllByText('—')).toHaveLength(2);
+  });
+
   it('links each row to its deployment and the footer to the deployment list', () => {
     renderWidget();
     expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute('href', '/deployments/d-1');

@@ -31,7 +31,13 @@ export function MyDeploymentsWidget({ items, loading, error, onRetry }: Props) {
       viewAllTo="/deployments"
       renderRow={(it) => {
         // The outcome only exists once CI reported back; until then the status pill is the story.
-        const color = it.outcome === null ? null : deploymentOutcomeColor(it.outcome);
+        // Normalized with `??` rather than compared to null: the backend runs Jackson with
+        // `default-property-inclusion: non_null`, so a null field is *omitted* from the payload
+        // and arrives as `undefined`. A strict `=== null` guard let it through to
+        // `deploymentOutcomeColor`, whose switch is exhaustive over the three real values and has
+        // no default — it returned `undefined`, and reading `.fg` off that unmounted the whole app.
+        const outcome = it.outcome ?? null;
+        const color = outcome === null ? null : deploymentOutcomeColor(outcome);
         return {
           pills: (
             <>
@@ -39,11 +45,11 @@ export function MyDeploymentsWidget({ items, loading, error, onRetry }: Props) {
                 {it.version}
               </span>
               <StatusPill status={it.status} size="sm" />
-              {it.outcome !== null && color !== null && (
+              {outcome !== null && color !== null && (
                 <Tag
                   style={{ color: color.fg, background: color.bg, borderColor: color.border }}
                 >
-                  {deploymentOutcomeLabel(t, it.outcome)}
+                  {deploymentOutcomeLabel(t, outcome)}
                 </Tag>
               )}
             </>

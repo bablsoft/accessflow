@@ -69,6 +69,10 @@ const SERIAL_SPECS = [
 
 export default defineConfig({
   testDir: './tests',
+  // Turns both optional governance domains on and satisfies the onboarding steps they add, so
+  // the whole suite sees the full navigation without the setup-progress banner reflowing pages
+  // mid-test (#926). See global-setup.ts for why the seeding half is load-bearing.
+  globalSetup: './global-setup.ts',
   testIgnore: VARIANT_STACK_SPECS,
   timeout: 30_000,
   expect: { timeout: 5_000 },
