@@ -3,14 +3,17 @@ package com.bablsoft.accessflow.engine.couchbase;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -34,6 +37,7 @@ public final class CouchbaseQueryEngine implements QueryEngine {
     private volatile CouchbaseConnectionProbe connectionProbe;
     private volatile CouchbaseSchemaIntrospector schemaIntrospector;
     private volatile CouchbaseClusterManager clusterManager;
+    private volatile CouchbaseRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public CouchbaseQueryEngine() {
@@ -52,10 +56,12 @@ public final class CouchbaseQueryEngine implements QueryEngine {
         var manager = new CouchbaseClusterManager(context.credentials(), connectionStringFactory,
                 settings);
         var queryParser = new CouchbaseQueryParser(context.messages());
+        var applier = new CouchbaseRowSecurityApplier(context.messages());
         this.clusterManager = manager;
         this.parser = queryParser;
-        this.executor = new CouchbaseQueryExecutor(manager, queryParser,
-                new CouchbaseRowSecurityApplier(context.messages()), new CouchbaseResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new CouchbaseQueryExecutor(manager, queryParser, applier,
+                new CouchbaseResultMapper(),
                 new CouchbaseExceptionTranslator(context.messages()), settings.scanConsistency(),
                 context.clock());
         this.connectionProbe = new CouchbaseConnectionProbe(context.credentials(),
@@ -67,6 +73,22 @@ public final class CouchbaseQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(ENGINE_ID);
+        }
+        CouchbaseStatement statement;
+        try {
+            statement = initialized(parser).parseStatement(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(ENGINE_ID, ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(ENGINE_ID, statement, request.directives());
     }
 
     @Override

@@ -3,14 +3,17 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 import com.bablsoft.accessflow.core.api.ConnectionTestResult;
 import com.bablsoft.accessflow.core.api.DatabaseSchemaView;
 import com.bablsoft.accessflow.core.api.DatasourceConnectionDescriptor;
+import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.core.api.QueryAffectedRowsResult;
 import com.bablsoft.accessflow.core.api.QueryDryRunResult;
 import com.bablsoft.accessflow.core.api.QueryEngine;
 import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineExecutionRequest;
+import com.bablsoft.accessflow.core.api.QueryEngineRowSecurityRequest;
 import com.bablsoft.accessflow.core.api.QueryEngineSampleRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionResult;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.SqlParseResult;
 
 import java.util.Objects;
@@ -38,6 +41,7 @@ public class ElasticsearchQueryEngine implements QueryEngine {
     private volatile EsConnectionProbe connectionProbe;
     private volatile EsSchemaIntrospector schemaIntrospector;
     private volatile SearchClientManager clientManager;
+    private volatile EsRowSecurityApplier rowSecurityApplier;
 
     /** Public no-arg constructor required by {@link java.util.ServiceLoader}. */
     public ElasticsearchQueryEngine() {
@@ -60,10 +64,11 @@ public class ElasticsearchQueryEngine implements QueryEngine {
         var factory = new SearchTransportFactory(context.credentials(), settings, flavor());
         var manager = new SearchClientManager(factory);
         var queryParser = new EsQueryParser(context.messages());
+        var applier = new EsRowSecurityApplier(context.messages());
         this.clientManager = manager;
         this.parser = queryParser;
-        this.executor = new EsQueryExecutor(manager, queryParser,
-                new EsRowSecurityApplier(context.messages()), new EsResultMapper(),
+        this.rowSecurityApplier = applier;
+        this.executor = new EsQueryExecutor(manager, queryParser, applier, new EsResultMapper(),
                 new EsExceptionTranslator(context.messages()), context.clock());
         this.connectionProbe = new EsConnectionProbe(factory);
         this.schemaIntrospector = new EsSchemaIntrospector(factory);
@@ -72,6 +77,24 @@ public class ElasticsearchQueryEngine implements QueryEngine {
     @Override
     public SqlParseResult parse(String query) {
         return initialized(parser).parse(query);
+    }
+
+    @Override
+    public RowSecurityClassification classifyRowSecurity(QueryEngineRowSecurityRequest request) {
+        // engineId() is polymorphic — "elasticsearch" here, "opensearch" in the subclass — so the
+        // classification is attributed to the connector the query was actually submitted against.
+        if (request.directives().isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId());
+        }
+        EsCommand command;
+        try {
+            command = initialized(parser).parseCommand(request.query());
+        } catch (InvalidSqlException ex) {
+            // A stored query that no longer parses cannot be classified — report it as unknown so
+            // the simulator counts it as unclassifiable rather than as unaffected.
+            return RowSecurityClassification.unknown(engineId(), ex.getMessage());
+        }
+        return initialized(rowSecurityApplier).classify(engineId(), command, request.directives());
     }
 
     @Override

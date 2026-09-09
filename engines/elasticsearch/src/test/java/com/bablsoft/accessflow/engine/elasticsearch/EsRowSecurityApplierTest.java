@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.engine.elasticsearch;
 
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
 import org.junit.jupiter.api.Test;
 
@@ -99,6 +100,98 @@ class EsRowSecurityApplierTest {
     void matchesIndexOnLastDotSegmentCaseInsensitively() {
         assertThat(EsRowSecurityApplier.matchesIndex("es.Logs", "logs")).isTrue();
         assertThat(EsRowSecurityApplier.matchesIndex("logs", "other")).isFalse();
+    }
+
+    // ---- offline classification (AF-630) --------------------------------------------------------
+
+    private EsCommand search() {
+        return parser.parseCommand("{\"search\":\"logs\",\"query\":{\"match_all\":{}}}");
+    }
+
+    @Test
+    void classifyReportsNotApplicableWhenNoDirectiveTargetsTheIndex() {
+        var unrelated = new RowSecurityDirective(UUID.randomUUID(), "other", "tenant",
+                RowSecurityOperator.EQUALS, List.of("acme"));
+        var result = applier.classify("elasticsearch", search(), List.of(unrelated));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+        assertThat(result.engineId()).isEqualTo("elasticsearch");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsNotApplicableForNoDirectivesAtAll() {
+        assertThat(applier.classify("elasticsearch", search(), List.of()).outcome())
+                .isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
+    }
+
+    @Test
+    void classifyReportsAppliedWithThePolicyIdsThatWouldTakeEffect() {
+        var directive = directive(RowSecurityOperator.EQUALS, "acme");
+        var result = applier.classify("elasticsearch", search(), List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+        assertThat(result.reason()).isNull();
+    }
+
+    @Test
+    void classifyReportsDenyAllWhenADirectiveResolvedToNoValues() {
+        var directive = directive(RowSecurityOperator.IN);
+        var result = applier.classify("elasticsearch", search(), List.of(directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.DENY_ALL);
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyTreatsUnaryIsNullAsAppliedNotDenyAll() {
+        assertThat(applier.classify("elasticsearch", search(),
+                List.of(directive(RowSecurityOperator.IS_NULL))).outcome())
+                .isEqualTo(RowSecurityOutcome.APPLIED);
+    }
+
+    @Test
+    void classifyReportsFailClosedForAnIndexIntoAPoliciedIndex() {
+        var command = parser.parseCommand("{\"index\":\"logs\",\"document\":{\"a\":1}}");
+        var result = applier.classify("elasticsearch", command,
+                List.of(directive(RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_search_insert_unsupported");
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyReportsFailClosedForABulkIntoAPoliciedIndex() {
+        var command = parser.parseCommand(
+                "{\"bulk\":\"logs\",\"operations\":[{\"document\":{\"a\":1}}]}");
+        var result = applier.classify("elasticsearch", command,
+                List.of(directive(RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.FAIL_CLOSED);
+        assertThat(result.reason()).contains("error.row_security_search_insert_unsupported");
+    }
+
+    @Test
+    void classifyReportsAppliedWithNoPolicyIdsForUnaffectedDdl() {
+        var result = applier.classify("elasticsearch", parser.parseCommand("{\"delete_index\":\"logs\"}"),
+                List.of(directive(RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.appliedPolicyIds()).isEmpty();
+    }
+
+    @Test
+    void classifyStampsTheEngineIdItIsGiven() {
+        assertThat(applier.classify("opensearch", search(),
+                List.of(directive(RowSecurityOperator.EQUALS, "acme"))).engineId())
+                .isEqualTo("opensearch");
+    }
+
+    @Test
+    void classifyNeverMutatesTheCommandItInspects() {
+        var command = search();
+        var before = EsJson.write(command.query());
+        var result = applier.classify("elasticsearch", command,
+                List.of(directive(RowSecurityOperator.EQUALS, "acme")));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(EsJson.write(command.query())).isEqualTo(before);
     }
 
     private String filterJson(RowSecurityOperator op, Object... values) {

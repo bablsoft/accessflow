@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.QueryEngineContext;
 import com.bablsoft.accessflow.core.api.QueryEngineDryRunRequest;
 import com.bablsoft.accessflow.core.api.QueryExecutionRequest;
 import com.bablsoft.accessflow.core.api.QueryType;
+import com.bablsoft.accessflow.core.api.RowSecurityOutcome;
 import com.bablsoft.accessflow.core.api.SslMode;
 import org.junit.jupiter.api.Test;
 
@@ -47,6 +48,26 @@ class OpenSearchQueryEngineTest {
         var result = engine.countAffectedRows(new QueryEngineDryRunRequest(request, descriptor,
                 Duration.ofSeconds(30)));
         assertThat(result.supported()).isFalse();
+        assertThat(result.engineId()).isEqualTo("opensearch");
+    }
+
+    @Test
+    void classifyRowSecurityInheritsTheSharedLogicButStampsTheOpenSearchEngineId() {
+        engine.initialize(new QueryEngineContext(TestMessages.keyEcho(), c -> c, Map.of(),
+                Clock.systemDefaultZone().withZone(ZoneOffset.UTC)));
+        var directive = ElasticsearchQueryEngineTest.tenantEquals("events");
+        var result = engine.classifyRowSecurity(ElasticsearchQueryEngineTest
+                .classifyRequest("{\"search\":\"events\"}", directive));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.APPLIED);
+        assertThat(result.engineId()).isEqualTo("opensearch");
+        assertThat(result.appliedPolicyIds()).containsExactly(directive.policyId());
+    }
+
+    @Test
+    void classifyRowSecurityWithNoDirectivesStampsTheOpenSearchEngineId() {
+        var result = engine.classifyRowSecurity(
+                ElasticsearchQueryEngineTest.classifyRequest("{\"search\":\"events\"}"));
+        assertThat(result.outcome()).isEqualTo(RowSecurityOutcome.NOT_APPLICABLE);
         assertThat(result.engineId()).isEqualTo("opensearch");
     }
 }

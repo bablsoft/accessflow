@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.cassandra;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -76,6 +77,49 @@ class CassandraRowSecurityApplier {
         var predicate = "(" + String.join(" AND ", fragments) + ")";
         return new Applied(splice(statement, predicate), Map.copyOf(parameters),
                 Set.copyOf(policyIds));
+    }
+
+    /**
+     * Classify offline what {@link #apply} would do (issue AF-630) — <em>without</em> the key-column
+     * set, which only a live {@code CqlSession} can supply.
+     *
+     * <p>Cassandra is the one engine that cannot always answer. Splicing succeeds only when the
+     * directive's column is a partition or clustering key, and that is exactly the fact we lack
+     * offline. So this reports only what is provable regardless of the key set — an INSERT into a
+     * policied table, a deny-all directive, and an operator CQL cannot filter all fail closed no
+     * matter which columns are keys — and returns {@link RowSecurityClassification#unknown} for the
+     * remainder rather than guessing. An unknown answer is never "no impact".
+     */
+    RowSecurityClassification classify(String engineId, CqlStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        var matching = matchingDirectives(statement, directives);
+        if (matching.isEmpty() || statement.kind() == CqlStatementKind.DDL) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        if (statement.kind() == CqlStatementKind.INSERT) {
+            return RowSecurityClassification.failClosed(engineId, messages.get(
+                    "error.row_security_cassandra_insert_unsupported", targetName(statement)));
+        }
+        for (var directive : matching) {
+            if (failsClosedWhateverTheKeys(directive)) {
+                return RowSecurityClassification.failClosed(engineId, messages.get(
+                        "error.row_security_cassandra_unrewritable", targetName(statement)));
+            }
+        }
+        return RowSecurityClassification.unknown(engineId, messages.get(
+                "error.row_security_cassandra_keys_unknown", targetName(statement)));
+    }
+
+    /**
+     * True when {@link #toFragment} would reject this directive for a reason independent of the key
+     * columns: no values to bind (the deny-all signal), or an operator CQL cannot express without
+     * {@code ALLOW FILTERING}.
+     */
+    private static boolean failsClosedWhateverTheKeys(RowSecurityDirective directive) {
+        return directive.values().isEmpty()
+                || directive.operator() == RowSecurityOperator.NOT_EQUALS
+                || directive.operator() == RowSecurityOperator.NOT_IN
+                || directive.operator() == RowSecurityOperator.IS_NULL;
     }
 
     // ---- predicate building -------------------------------------------------------------------

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.engine.neo4j;
 
 import com.bablsoft.accessflow.core.api.EngineMessages;
+import com.bablsoft.accessflow.core.api.RowSecurityClassification;
 import com.bablsoft.accessflow.core.api.RowSecurityDirective;
 import com.bablsoft.accessflow.core.api.RowSecurityOperator;
 import com.bablsoft.accessflow.core.api.UnrewritableRowSecurityException;
@@ -54,18 +55,16 @@ class Neo4jRowSecurityApplier {
     }
 
     Applied apply(CypherStatement statement, List<RowSecurityDirective> directives) {
-        if (directives == null || directives.isEmpty() || statement.kind() == CypherStatementKind.DDL) {
+        var matching = matching(statement, directives);
+        if (matching.isEmpty()) {
             return new Applied(statement.cypher(), Map.of(), Set.of());
         }
         var parameters = new LinkedHashMap<String, Object>();
         var policyIds = new LinkedHashSet<UUID>();
         // clause anchor token index -> AND-joined predicate fragments to splice into that clause
         var fragmentsByClause = new LinkedHashMap<Integer, List<String>>();
-        for (var directive : directives) {
+        for (var directive : matching) {
             var label = lastSegment(directive.tableRef());
-            if (label.isEmpty() || !statement.references().contains(label)) {
-                continue; // policy does not target a label this statement touches
-            }
             var matches = bindingsFor(statement, label);
             for (var pattern : matches) {
                 var fragment = toFragment(pattern.variable(), directive, parameters, label);
@@ -81,7 +80,60 @@ class Neo4jRowSecurityApplier {
                 Set.copyOf(policyIds));
     }
 
+    /**
+     * Classify what {@link #apply} would do to this statement without mutating or executing anything
+     * (issue AF-630). Runs the same rewrite and reads the outcome off it, so the classification can
+     * never drift from the enforcement it predicts.
+     */
+    RowSecurityClassification classify(String engineId, CypherStatement statement,
+                                       List<RowSecurityDirective> directives) {
+        var matching = matching(statement, directives);
+        if (matching.isEmpty()) {
+            return RowSecurityClassification.notApplicable(engineId);
+        }
+        try {
+            var applied = apply(statement, directives);
+            return deniesEverything(matching)
+                    ? RowSecurityClassification.denyAll(engineId, applied.appliedPolicyIds())
+                    : RowSecurityClassification.applied(engineId, applied.appliedPolicyIds());
+        } catch (UnrewritableRowSecurityException ex) {
+            return RowSecurityClassification.failClosed(engineId, ex.getMessage());
+        }
+    }
+
+    /**
+     * True when any matching directive resolved to no values — {@link #toFragment} turns that into a
+     * membership test against an empty list, which no node can satisfy, so the submitter would see
+     * nothing. {@code IS_NULL} is unary and is excluded: it carries no values by design. In Cypher it
+     * never reaches here, because the scalar path rejects a value-less operator outright and the
+     * classification reports that as fail-closed.
+     */
+    private static boolean deniesEverything(List<RowSecurityDirective> matching) {
+        for (var directive : matching) {
+            if (directive.operator() != RowSecurityOperator.IS_NULL && directive.values().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // ---- directive matching -------------------------------------------------------------------
+
+    /** The directives targeting a label this statement references; empty for DDL, which is never filtered. */
+    private static List<RowSecurityDirective> matching(CypherStatement statement,
+                                                       List<RowSecurityDirective> directives) {
+        var matching = new ArrayList<RowSecurityDirective>();
+        if (directives == null || statement.kind() == CypherStatementKind.DDL) {
+            return matching;
+        }
+        for (var directive : directives) {
+            var label = lastSegment(directive.tableRef());
+            if (!label.isEmpty() && statement.references().contains(label)) {
+                matching.add(directive);
+            }
+        }
+        return matching;
+    }
 
     /** The clause-level MATCH node patterns bound to {@code label}; fail-closed on unfilterable shapes. */
     private List<CypherNodePattern> bindingsFor(CypherStatement statement, String label) {
