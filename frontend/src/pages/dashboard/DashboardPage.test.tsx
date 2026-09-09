@@ -279,8 +279,12 @@ describe('DashboardPage', () => {
   });
 
   it('shows a sparkline on the open-queries tile when the trends window has activity', async () => {
+    // Relative to now, like ActivityHeatmapWidget.test: the default 30-day window is anchored on
+    // today (`trendsFiltersForRange`), so a hardcoded date silently ages out of range and the
+    // sparkline stops rendering — which is exactly what happened to '2026-08-10'.
+    const today = new Date().toISOString().slice(0, 10);
     fetchTrends.mockResolvedValue({
-      status_by_day: [{ date: '2026-08-10', status: 'EXECUTED', count: 3 }],
+      status_by_day: [{ date: today, status: 'EXECUTED', count: 3 }],
       risk_by_day: [],
     });
     renderPage();
