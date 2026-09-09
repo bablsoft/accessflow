@@ -3,7 +3,8 @@
 // Dependency-free by design, like validate-connectors.mjs and check-engine-pins.mjs.
 //
 // Reads the hand-authored public documentation (website/**) plus the operator env-var
-// reference (docs/09-deployment.md), chunks it on heading boundaries, and writes:
+// reference (docs/09-deployment.md), derives the app's own UI vocabulary from the frontend's
+// sidebar and English locale, chunks it all on heading boundaries, and writes:
 //   help-corpus/corpus.jsonl        one JSON chunk per line, embedded by the app at runtime
 //   help-corpus/manifest.json       schema/corpus version, chunk count, per-source digests
 //   help-corpus/quick-reference.txt orientation block used when retrieval is unavailable
@@ -38,7 +39,10 @@ const MAX_CHUNKS = 600;
 // Below this a "section" is a label and a date stamp, not an answer.
 const MIN_SECTION_TOKENS = 40;
 const MIN_QUICK_REF_TOKENS = 1500;
-const MAX_QUICK_REF_TOKENS = 4000;
+// Raised from 4000 with the derived UI vocabulary (#925), which is the largest single block in
+// the file. At the 8000-token default `ai_config.max_prompt_tokens` the whole block still fits
+// the renderer's character budget with the rules and the conversation alongside it.
+const MAX_QUICK_REF_TOKENS = 6000;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GITHUB_BLOB = 'https://github.com/bablsoft/accessflow/blob/main/';
@@ -86,6 +90,16 @@ const EXCLUDED_FILES = [
 const MARKDOWN_FILES = [
   { file: 'docs/09-deployment.md', section: 'Deployment', title: 'Deploying and configuring AccessFlow' },
 ];
+
+// The frontend's own sources of truth for what the interface calls things (#925). Parsed, never
+// paraphrased: the corpus quotes the labels a user actually sees, and a rename in either file
+// fails the drift guard until the bundle is regenerated.
+const SIDEBAR_FILE = 'frontend/src/components/common/Sidebar.tsx';
+const LOCALES_FILE = 'frontend/src/locales/en.json';
+const REVIEW_HUB_FILE = 'frontend/src/utils/reviewHubTabs.ts';
+
+const UI_VOCABULARY_SECTION = 'Navigation';
+const UI_VOCABULARY_URL = 'https://accessflow.io/docs/';
 
 // ---------------------------------------------------------------------------------------------
 // Small helpers
@@ -437,6 +451,16 @@ for (const rel of listHtmlFiles('website')) {
 }
 for (const entry of MARKDOWN_FILES) ingestMarkdown(entry.file, entry.section, entry.title);
 
+const sidebarSource = readFileSync(path.join(ROOT, SIDEBAR_FILE), 'utf8');
+const localesSource = readFileSync(path.join(ROOT, LOCALES_FILE), 'utf8');
+const reviewHubSource = readFileSync(path.join(ROOT, REVIEW_HUB_FILE), 'utf8');
+let messages = {};
+try {
+  messages = JSON.parse(localesSource);
+} catch (error) {
+  fail(`${LOCALES_FILE} is not parseable JSON: ${error.message}`);
+}
+
 // ---------------------------------------------------------------------------------------------
 // Quick reference (epic decision 9): substituted for retrieved context when retrieval is
 // unavailable — no pgvector, no embedding provider, or an Anthropic-only install. Generated here
@@ -448,59 +472,63 @@ for (const entry of MARKDOWN_FILES) ingestMarkdown(entry.file, entry.section, en
 // because the pre-#772 paths they replaced are redirect stubs).
 const ROUTES_NOT_LISTED = ['*', '/auth/oauth/callback', '/auth/saml/callback', '/api-reviews', '/deployment-reviews'];
 
+// The screens the application serves. `purpose` is what the screen is for; `reachedBy` says how a
+// user gets there and is present exactly when the sidebar has no entry for the route (#925) — the
+// menu path of everything else is derived from Sidebar.tsx rather than retyped here, and the two
+// are cross-checked both ways below.
 const ROUTES = [
-  ['/', 'Lands on the dashboard once signed in.'],
+  ['/', 'Lands on the dashboard once signed in.', 'The application root — signing in arrives here.'],
   ['/dashboard', 'Personalized home: summary tiles, query trends, AI suggestions, weekly digest.'],
-  ['/editor', 'SQL editor. Pick a datasource, write a query, submit it for review.'],
+  ['/editor', 'Pick a datasource, write a query, and submit it for review.'],
   ['/queries', 'Queries the signed-in user submitted, with status and AI risk. A query admin sees the whole organization here.'],
-  ['/queries/:id', 'One query: SQL, AI analysis, approval chain, results, audit trail.'],
-  ['/reviews', 'Unified review hub. Tabs for queries, API calls, deployments and rollbacks.'],
-  ['/reviews/:id/decide', 'Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional.'],
+  ['/queries/:id', 'One query: SQL, AI analysis, approval chain, results, audit trail.', 'Open a row in Query history, or follow the link in a notification.'],
+  ['/reviews', 'Everything waiting on your decision, in tabs for queries, API calls, deployments and rollbacks.'],
+  ['/reviews/:id/decide', 'Approve or reject one request. The decision is re-authenticated — it asks for your password or TOTP code. A comment is optional.', 'Follow the decision link in a review notification or push message.'],
   ['/reviews/attestations', 'Access recertification worklist: certify or revoke standing grants.'],
   ['/request-groups', 'Grouped requests that bundle ordered query and API-call members.'],
-  ['/request-groups/:id', 'One grouped request: its members, their order, and the aggregated approval.'],
-  ['/request-groups/new', 'Build a grouped request and order its members.'],
-  ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.'],
+  ['/request-groups/:id', 'One grouped request: its members, their order, and the aggregated approval.', 'Open a row in Request Groups.'],
+  ['/request-groups/new', 'Build a grouped request and order its members.', 'The create action on Request Groups.'],
+  ['/request-groups/:id/edit', 'Change a grouped request before it is submitted.', 'The edit action on a grouped request that has not been submitted yet.'],
   ['/request-groups/reviews', 'Review queue for grouped requests.'],
   ['/datasources', 'Databases the user may query, and their connection health.'],
-  ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.'],
-  ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.'],
+  ['/datasources/new', 'Register a database: engine, host, credentials, SSL mode.', 'The add action on Datasources.'],
+  ['/datasources/:id/settings', 'Per-datasource schema, masking, row security and ER diagram.', 'Open a datasource from Datasources.'],
   ['/api-connectors', 'Governed outbound REST, SOAP, GraphQL and gRPC connectors.'],
-  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.'],
+  ['/api-connectors/:id/settings', 'Per-connector schema, permissions, response masking and classification tags.', 'Open a connector from API Connectors.'],
   ['/api-editor', 'Compose a governed API call and submit it for review.'],
   ['/api-requests', 'API calls the user submitted, with status and AI risk.'],
-  ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.'],
-  ['/reviews?tab=api', 'Review queue for API calls. The older /api-reviews URL redirects here.'],
+  ['/api-requests/:id', 'One API call: request, AI analysis, approval chain, response.', 'Open a row in API Requests.'],
+  ['/reviews?tab=api', 'The API-requests queue.', 'The API-requests tab of the Review queue. The older /api-reviews URL redirects here.'],
   ['/deployments', 'Deployment requests raised by CI/CD pipelines.'],
-  ['/deployments/:id', 'One deployment request: what it releases, its analysis and its decisions.'],
-  ['/reviews?tab=deployments', 'Review queue for deployments; ?tab=rollbacks is the rollback worklist. The older /deployment-reviews URL redirects here.'],
+  ['/deployments/:id', 'One deployment request: what it releases, its analysis and its decisions.', 'Open a row in Deployments.'],
+  ['/reviews?tab=deployments', 'The deployment queue; ?tab=rollbacks is the rollback worklist.', 'The deployments tab of the Review queue. The older /deployment-reviews URL redirects here.'],
   ['/deployment-versions', 'What version each environment is running, and where it has drifted.'],
-  ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.'],
+  ['/deployment-versions/:pipelineId', 'The same matrix for one pipeline, plus per-environment history.', 'Open a pipeline from Version Matrix.'],
   ['/access-requests', 'Ask for access to a datasource, or track a request already made.'],
   ['/lifecycle/erasure', 'Right-to-erasure requests over personal data.'],
   ['/lifecycle/erasure-reviews', 'Review queue for erasure requests.'],
-  ['/profile', 'Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.'],
-  ['/setup', 'First-run wizard. Shown until an active admin exists.'],
-  ['/login', 'Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.'],
-  ['/forgot-password', 'Ask for a password-reset email.'],
-  ['/reset-password/:token', 'Set a new password from the link in that email.'],
-  ['/invite/:token', 'Accept an invitation and choose a password.'],
+  ['/profile', 'Own account: display name, password, two-factor (TOTP), review delegation while you are away, API keys, Slack account link.', 'The user menu behind your avatar, top right.'],
+  ['/setup', 'First-run wizard. Shown until an active admin exists.', 'Shown automatically on a fresh install; there is no menu entry for it.'],
+  ['/login', 'Sign in with password, OAuth 2.0 / OIDC or SAML 2.0 SSO.', 'Where anyone who is not signed in is sent.'],
+  ['/forgot-password', 'Ask for a password-reset email.', 'The forgotten-password link on the sign-in screen.'],
+  ['/reset-password/:token', 'Set a new password from the link in that email.', 'The link in the password-reset email.'],
+  ['/invite/:token', 'Accept an invitation and choose a password.', 'The link in the invitation email.'],
   ['/admin/users', 'Create, deactivate and re-invite users; assign roles and permissions.'],
   ['/admin/groups', 'User groups and the grants attached to them.'],
-  ['/admin/groups/:id', 'One group: its members and the permissions it grants them.'],
+  ['/admin/groups/:id', 'One group: its members and the permissions it grants them.', 'Open a row in Groups.'],
   ['/admin/roles', 'Roles and the permissions each one carries.'],
   ['/admin/organizations', 'Organizations (tenants) and their settings.'],
-  ['/admin/organizations/:id', 'One organization and its settings.'],
+  ['/admin/organizations/:id', 'One organization and its settings.', 'Open a row in Organizations.'],
   ['/admin/languages', 'Which of the seven interface languages are offered.'],
   ['/admin/access-requests', 'Approve or reject incoming access requests.'],
   ['/admin/break-glass', 'Break-glass grants and the mandatory retro-review of each use.'],
   ['/admin/review-plans', 'Review plans: approval stages, approvers, timeouts, escalation.'],
   ['/admin/routing-policies', 'Typed conditions that auto-approve, auto-reject or route a request.'],
   ['/admin/attestation', 'Scheduled attestation campaigns over standing grants.'],
-  ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.'],
+  ['/admin/attestation/:id', 'One campaign: its scope, progress and evidence export.', 'Open a campaign from Attestation.'],
   ['/admin/ai-configs', 'AI providers: OpenAI, Anthropic, Ollama, OpenAI-compatible and Hugging Face for analysis; Voyage AI for embeddings only.'],
-  ['/admin/ai-configs/new', 'Add an AI provider configuration.'],
-  ['/admin/ai-configs/:id', 'Edit one AI provider configuration, its prompt and its knowledge base.'],
+  ['/admin/ai-configs/new', 'Add an AI provider configuration.', 'The add action on AI configurations.'],
+  ['/admin/ai-configs/:id', 'Edit one AI provider configuration, its prompt and its knowledge base.', 'Open a row in AI configurations.'],
   ['/admin/ai-analyses', 'History of every AI analysis, with tokens and latency.'],
   ['/admin/anomalies', 'User-behaviour anomalies the AI flagged.'],
   ['/admin/langfuse', 'Langfuse tracing for AI calls.'],
@@ -510,7 +538,7 @@ const ROUTES = [
   ['/admin/datasource-health', 'Connection health across every registered datasource.'],
   ['/admin/data-classifications', 'Classification tags and the masking they derive.'],
   ['/admin/deployment-pipelines', 'CI/CD pipelines, environments, freeze windows and permissions.'],
-  ['/admin/deployment-pipelines/:id', 'One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.'],
+  ['/admin/deployment-pipelines/:id', 'One pipeline: environments, permissions, freeze windows, routing policies and the CI snippet.', 'Open a pipeline from Deployment Pipelines.'],
   ['/admin/notifications', 'Notification channels: email, Slack, webhooks, Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira.'],
   ['/admin/slack', 'Slack workspace connection.'],
   ['/admin/oauth2', 'OAuth 2.0 / OIDC sign-in providers.'],
@@ -568,6 +596,359 @@ for (const route of describedRoutes) {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// UI vocabulary (#925): the app's own names for its screens and controls
+// ---------------------------------------------------------------------------------------------
+//
+// Everything above describes the product in the documentation's words. That is not what a user
+// clicks. The corpus called /editor the "SQL editor" while the sidebar says "Query editor", and
+// the agent — having no menu path to offer — answered with a URL instead. An instruction naming a
+// menu item that is not there reads authoritative and sends the reader looking for nothing.
+//
+// So the vocabulary is derived, never retyped: the group/sub-section/item tree out of Sidebar.tsx
+// and every label out of en.json. A rename in either file changes this output, the committed
+// bundle no longer matches, and the `help-corpus` CI job fails until it is regenerated. Where the
+// two sources stop agreeing with each other, or with ROUTES, the build fails with a message
+// rather than emitting stale text.
+
+/** Resolves a dotted i18n key to its English string, failing loudly on a key that no longer exists. */
+function uiLabel(key) {
+  let node = messages;
+  for (const part of key.split('.')) {
+    node = node !== null && typeof node === 'object' ? node[part] : undefined;
+  }
+  if (typeof node !== 'string' || node.trim() === '') {
+    fail(`${LOCALES_FILE} has no string at "${key}" — the label it names was renamed or removed;`
+      + ' update the reference in this script so the corpus quotes what the interface actually says');
+    return `«${key}»`;
+  }
+  // A placeholder would reach the reader as a literal "{{count}}". Curate a key without one.
+  if (node.includes('{{')) {
+    fail(`${LOCALES_FILE} value at "${key}" interpolates ("${node}") — name a placeholder-free key instead`);
+    return `«${key}»`;
+  }
+  return node;
+}
+
+/**
+ * The any-of permission set the sidebar gates the review queue on, read from its own declaration
+ * rather than hardcoded — it is derived there from the per-tab map, and a new queue tab changes it.
+ */
+function reviewHubPermissions() {
+  const literal = /REVIEW_HUB_TAB_PERMISSION[^=]*=\s*\{([\s\S]*?)\n\};/.exec(reviewHubSource);
+  if (!literal) {
+    fail(`${REVIEW_HUB_FILE}: no REVIEW_HUB_TAB_PERMISSION literal — ${SIDEBAR_FILE} gates the`
+      + ' review queue on the set derived from it, so this script cannot say who sees that entry');
+    return [];
+  }
+  const permissions = [...literal[1].matchAll(/:\s*'([A-Z_]+)'/g)].map((m) => m[1]);
+  if (permissions.length === 0) {
+    fail(`${REVIEW_HUB_FILE}: REVIEW_HUB_TAB_PERMISSION names no permissions`);
+  }
+  return [...new Set(permissions)];
+}
+
+const GROUPS_DECLARATION = 'const GROUPS: NavGroup[] = [';
+
+/**
+ * Reads the `GROUPS` literal out of Sidebar.tsx as data.
+ *
+ * The generator is dependency-free by design, so this is a regex pass in the same spirit as the
+ * `path="…"` scan of App.tsx: strip the JSX icons, turn `t('nav.x')` into the key it resolves,
+ * inline the one imported permission constant, and quote the keys — then let `JSON.parse` be the
+ * validator. When the literal's shape stops matching, parsing fails and so does the build; it never
+ * degrades to a partial nav tree, which would silently drop destinations from the corpus.
+ */
+function parseNavGroups() {
+  const declaration = sidebarSource.indexOf(GROUPS_DECLARATION);
+  if (declaration < 0) {
+    fail(`${SIDEBAR_FILE}: no "${GROUPS_DECLARATION}" declaration — the nav tree moved or was renamed`);
+    return [];
+  }
+  const open = declaration + GROUPS_DECLARATION.length - 1;
+  let depth = 0;
+  let end = -1;
+  for (let i = open; i < sidebarSource.length; i += 1) {
+    const ch = sidebarSource[i];
+    if (ch === '[' || ch === '{') depth += 1;
+    else if (ch === ']' || ch === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+  }
+  if (end < 0) {
+    fail(`${SIDEBAR_FILE}: the GROUPS literal never closes — brackets are unbalanced`);
+    return [];
+  }
+  const asJson = sidebarSource.slice(open, end)
+    .split('\n').filter((line) => !line.trim().startsWith('//')).join('\n')
+    .replace(/icon:\s*<[A-Za-z]+\s*\/>\s*,?/g, '')
+    .replace(/\bREVIEW_HUB_PERMISSIONS\b/g, JSON.stringify(reviewHubPermissions()))
+    .replace(/\bt\('([^']*)'\)/g, '"$1"')
+    .replace(/'([^'"\\]*)'/g, '"$1"')
+    .replace(/([{,]\s*)([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
+    .replace(/,(\s*[}\]])/g, '$1');
+  try {
+    return JSON.parse(asJson);
+  } catch (error) {
+    fail(`${SIDEBAR_FILE}: the GROUPS literal no longer reads as data (${error.message}) — its shape`
+      + ' changed; teach parseNavGroups() the new shape rather than letting the corpus go stale');
+    return [];
+  }
+}
+
+/** Sentence naming who sees a destination, from the `permissions` array the sidebar filters on. */
+function visibilityOf(item) {
+  const permissions = Array.isArray(item.permissions) ? item.permissions : [];
+  if (permissions.length === 0) {
+    return item.platformAdmin === true ? 'platform administrators only' : 'visible to everyone signed in';
+  }
+  const named = permissions.length === 1
+    ? permissions[0]
+    : `${permissions.slice(0, -1).join(', ')} or ${permissions[permissions.length - 1]}`;
+  return `needs ${named}${item.platformAdmin === true ? ', or platform administrator' : ''}`;
+}
+
+/** The nav tree flattened to one entry per destination, in the order the sidebar renders them. */
+function flattenNavGroups(groups) {
+  const destinations = [];
+  for (const group of groups) {
+    const groupLabel = group.label ? uiLabel(group.label) : null;
+    const collect = (items, subgroupLabel) => {
+      for (const item of items ?? []) {
+        const itemLabel = uiLabel(item.label);
+        destinations.push({
+          route: item.to,
+          label: itemLabel,
+          group: groupLabel,
+          subgroup: subgroupLabel,
+          menuPath: [groupLabel, subgroupLabel, itemLabel].filter(Boolean).join(' → '),
+          visibility: visibilityOf(item),
+        });
+      }
+    };
+    collect(group.items, null);
+    for (const subgroup of group.subgroups ?? []) collect(subgroup.items, uiLabel(subgroup.label));
+  }
+  return destinations;
+}
+
+const navDestinations = flattenNavGroups(parseNavGroups());
+const navByRoute = new Map(navDestinations.map((destination) => [destination.route, destination]));
+const routePurpose = new Map(ROUTES.map(([route, purpose]) => [route, purpose]));
+
+// Cross-check the nav tree against ROUTES in both directions, the way ROUTES is already
+// cross-checked against the router. Every route is reached either from a menu entry or by some
+// other means, never both and never neither — so a destination that leaves the menu has to be
+// given the prose saying how it is reached now, and one that joins it has to be described.
+// Only meaningful once the nav tree actually parsed. Skipping it on an empty tree keeps a single
+// "GROUPS no longer reads as data" failure from being buried under one line per described route.
+for (const destination of navDestinations) {
+  if (!routePurpose.has(destination.route)) {
+    fail(`${SIDEBAR_FILE} puts "${destination.menuPath}" at ${destination.route}, which ROUTES in`
+      + ' this script does not describe — add a line saying what the screen is for');
+  }
+}
+for (const [route, , reachedBy] of navDestinations.length === 0 ? [] : ROUTES) {
+  const destination = navByRoute.get(route);
+  if (destination && reachedBy) {
+    fail(`ROUTES says ${route} is reached by "${reachedBy}", but ${SIDEBAR_FILE} lists it as`
+      + ` "${destination.menuPath}" — drop the third element and let the menu path be derived`);
+  }
+  if (!destination && !reachedBy) {
+    fail(`ROUTES describes ${route}, which has no sidebar entry — add a third element saying how a`
+      + ' user reaches it, or add the entry to Sidebar.tsx');
+  }
+}
+
+// The primary-action vocabulary for the submit → analyse → review → execute path. Curated by hand
+// and deliberately short: en.json holds thousands of strings, and a blanket dump of the tooltips
+// and toasts among them would drown retrieval. Only the reference is hand-written — every label is
+// resolved from en.json, so what the corpus quotes is what the control actually says, and a rename
+// fails the build instead of leaving the agent quoting a button nobody can find.
+// `screen` names the screen for routes the sidebar does not list; for the rest it is derived.
+const CONTROL_VOCABULARY = [
+  {
+    route: '/editor',
+    controls: [
+      ['editor.datasource_label', 'field', 'Which database the query runs against.'],
+      ['editor.text_to_sql.label', 'field', 'Optional plain-language description the AI turns into SQL.'],
+      ['editor.text_to_sql.generate_button', 'button', 'Writes a draft query from that description.'],
+      ['editor.format_button', 'button', 'Reformats the SQL in the editor.'],
+      ['editor.templates_button', 'button', 'Opens the saved query templates.'],
+      ['editor.save_template_button', 'button', 'Saves the current query as a template.'],
+      ['editor.justification_label', 'field', 'Why the query is being run.'],
+      ['editor.justification_required_note', 'note', 'Sits beside the Justification label: a query that goes to a reviewer needs one.'],
+      ['editor.justification_placeholder', 'placeholder', 'The prompt inside the empty Justification field.'],
+      ['editor.analyze_button', 'button', 'Runs the AI risk analysis without submitting anything.'],
+      ['editor.dry_run_button', 'button', 'Asks the database for an execution plan without running the query.'],
+      ['editor.schedule_label', 'field', 'Optional date and time for the approved query to run automatically.'],
+      ['editor.recurrence_label', 'field', 'Optional repeating schedule; it replaces one-time scheduling.'],
+      ['editor.submit_button', 'button', 'Sends the query into the review workflow.'],
+      ['editor.break_glass_button', 'button', 'Runs immediately, bypassing review — only for someone holding the break-glass permission on that datasource.'],
+      ['editor.history_button', 'button', 'Recent queries submitted from this editor.'],
+    ],
+  },
+  {
+    route: '/queries',
+    controls: [
+      ['queries.list.search_placeholder', 'placeholder', 'Filters the list by SQL, id or submitter.'],
+      ['queries.list.col_status', 'column', 'Where the query stands in the workflow.'],
+      ['queries.list.col_risk', 'column', 'The risk rating the AI analysis gave it.'],
+    ],
+  },
+  {
+    route: '/queries/:id',
+    screen: 'Query detail',
+    controls: [
+      ['queries.detail.card_justification', 'section', 'The justification the submitter gave.'],
+      ['queries.detail.card_ai', 'section', 'The AI risk score and its explanation.'],
+      ['queries.detail.card_execution', 'section', 'Rows affected, duration, and any database error.'],
+      ['queries.detail.execute_button', 'button', 'Runs an approved query now.'],
+      ['queries.detail.cancel_query', 'button', 'Withdraws a query the submitter no longer wants reviewed.'],
+      ['queries.detail.replay_button', 'button', 'Re-submits the same SQL against a test datasource; it re-enters review.'],
+      ['queries.detail.export_csv', 'button', 'Exports the result rows as CSV, subject to the export policy.'],
+      ['queries.detail.export_pdf', 'button', 'Exports the result rows as PDF, subject to the export policy.'],
+    ],
+  },
+  {
+    route: '/reviews',
+    controls: [
+      ['reviews.empty_title', 'empty state', 'Shown when nothing is waiting on you.'],
+      ['reviews.reject_modal_confirm', 'button', 'Confirms a rejection; a comment is required.'],
+      ['reviews.bulk.approve_selected', 'button', 'Approves every selected row with one shared comment.'],
+      ['reviews.bulk.reject_selected', 'button', 'Rejects every selected row with one shared comment.'],
+      ['reviews.bulk.request_changes_selected', 'button', 'Sends every selected row back to its submitter.'],
+    ],
+  },
+  {
+    route: '/reviews/:id/decide',
+    screen: 'Approve or reject',
+    controls: [
+      ['reviews.decide.approve', 'button', 'Records an approval and forwards the query to execution.'],
+      ['reviews.decide.reject', 'button', 'Records a rejection and notifies the submitter.'],
+      ['reviews.decide.password_label', 'field', 'Re-authentication before the decision is committed.'],
+      ['reviews.decide.totp_label', 'field', 'The one-time code instead, when two-factor is on.'],
+      ['reviews.decide.own_query', 'message', 'Shown when the signed-in user submitted the query themselves — nobody reviews their own.'],
+    ],
+  },
+  {
+    route: '/profile',
+    screen: 'Profile',
+    controls: [
+      ['user_menu.profile', 'menu entry', 'Opens the profile screen, from the avatar menu at the top right.'],
+      ['user_menu.sign_out', 'menu entry', 'Ends the session, from that same menu.'],
+    ],
+  },
+];
+
+const NAV_PREAMBLE = [
+  'Screens are reached from the left sidebar, a two-level menu: a group heading, an optional',
+  'collapsible sub-section, then the destination. Name a screen by the label below and give its',
+  'menu path — "Workflow → Database → Query editor" — rather than its URL.',
+  '',
+  'The menu is filtered by permission. An entry appears only for someone holding one of the',
+  'permissions listed with it, and a sub-section or group left with nothing visible is hidden',
+  'entirely. Say which permission a destination needs rather than asserting it is in every',
+  "reader's sidebar.",
+].join('\n');
+
+/** Heading for a group of destinations: the menu path down to, but not including, the item. */
+const TOP_OF_SIDEBAR = 'Top of the sidebar (above the first group heading)';
+
+function renderNavLines() {
+  const lines = [];
+  let heading = null;
+  for (const destination of navDestinations) {
+    const path = [destination.group ?? TOP_OF_SIDEBAR, destination.subgroup].filter(Boolean).join(' → ');
+    if (path !== heading) {
+      if (heading !== null) lines.push('');
+      lines.push(`  ${path}`);
+      heading = path;
+    }
+    lines.push(`    ${destination.label} · ${destination.route} · ${destination.visibility}`
+      + ` — ${routePurpose.get(destination.route) ?? ''}`);
+  }
+  return lines;
+}
+
+function renderOffMenuLines() {
+  return ROUTES.filter(([route, , reachedBy]) => reachedBy && !navByRoute.has(route))
+    .map(([route, purpose, reachedBy]) => `  ${route} — ${purpose} Reached by: ${reachedBy}`);
+}
+
+function renderControlLines() {
+  const lines = [];
+  for (const entry of CONTROL_VOCABULARY) {
+    if (!routePurpose.has(entry.route)) {
+      fail(`CONTROL_VOCABULARY names ${entry.route}, which ROUTES does not describe`);
+    }
+    const destination = navByRoute.get(entry.route);
+    if (!destination && !entry.screen) {
+      fail(`CONTROL_VOCABULARY names ${entry.route}, which has no sidebar entry to take a name from`
+        + ' — give the entry a `screen` name');
+    }
+    if (lines.length > 0) lines.push('');
+    // The top group has no heading, so its items' menu path is the label itself; saying
+    // "Review queue (Review queue)" would read as a mistake.
+    const where = destination && destination.menuPath !== destination.label
+      ? destination.menuPath
+      : 'at the top of the sidebar';
+    lines.push(destination
+      ? `  ${destination.label} (${where})`
+      : `  ${entry.screen ?? entry.route} (${entry.route})`);
+    for (const [key, kind, note] of entry.controls) {
+      lines.push(`    "${uiLabel(key)}" — ${kind}. ${note}`);
+    }
+  }
+  return lines;
+}
+
+const navLines = renderNavLines();
+const offMenuLines = renderOffMenuLines();
+const controlLines = renderControlLines();
+
+// Emitted as one synthetic page so the retrieval path carries the same vocabulary the
+// quick-reference block does. It cites the documentation hub: the derived vocabulary has no page of
+// its own on the website, and a citation the reader can open beats one pointing at a source file
+// they cannot. Each section is left whole for `addPage` to split on its own token budget — carving
+// it up per menu group here would leave the one-item groups under MIN_SECTION_TOKENS and drop them
+// silently, which is the failure this whole change exists to remove.
+const UI_VOCABULARY_TITLE = 'Finding your way around the AccessFlow interface';
+const uiVocabularyChunks = addPage({
+  relPath: SIDEBAR_FILE,
+  section: UI_VOCABULARY_SECTION,
+  pageTitle: UI_VOCABULARY_TITLE,
+  baseUrl: UI_VOCABULARY_URL,
+  sections: [
+    { anchor: '', title: 'The sidebar menu', body: `${NAV_PREAMBLE}\n\n${navLines.join('\n')}` },
+    {
+      anchor: '',
+      title: 'Screens with no menu entry',
+      body: 'These screens are real but have no sidebar entry, so say how they are reached rather'
+        + ` than naming a menu item for them.\n\n${offMenuLines.join('\n')}`,
+    },
+    {
+      anchor: '',
+      title: 'Buttons and fields on the main screens',
+      body: 'The exact control labels on the submit, review and execute path. Quote them verbatim'
+        + ` in step-by-step instructions.\n\n${controlLines.join('\n')}`,
+    },
+  ],
+});
+sources.push({
+  path: SIDEBAR_FILE,
+  title: UI_VOCABULARY_TITLE,
+  url: UI_VOCABULARY_URL,
+  section: UI_VOCABULARY_SECTION,
+  chunks: uiVocabularyChunks,
+  // Both inputs, so the manifest records everything the derived vocabulary was derived from.
+  sha256: sha256(`${sidebarSource}\u0000${localesSource}`),
+});
+
 const quickReference = [
   'AccessFlow — quick reference',
   '',
@@ -583,7 +964,15 @@ const quickReference = [
   ...RULES.map((line) => `  - ${line}`),
   '',
   'Where things are in the app',
-  ...ROUTES.map(([route, purpose]) => `  ${route.padEnd(34)} ${purpose}`),
+  ...NAV_PREAMBLE.split('\n').map((line) => (line ? `  ${line}` : '')),
+  '',
+  ...navLines,
+  '',
+  'Screens with no menu entry',
+  ...offMenuLines,
+  '',
+  'Buttons and fields on the main screens (quote these labels verbatim)',
+  ...controlLines,
   '',
   // Titles only, no URLs: the model emits [n] citation indices and the server resolves them to
   // {title, url} (epic decision 6). Feeding it link targets would invite it to write its own.

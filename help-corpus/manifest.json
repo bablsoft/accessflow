@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "90d627d377f7",
-  "generatedAt": "2026-09-08T22:27:10.012Z",
-  "sourceCommit": "5879c161b2b16baf1b932e6e0cccd0f65243ccab",
-  "chunkCount": 516,
-  "sha256": "90d627d377f7b37ac710a1292ff887a96a758bcfc58296a70d516302f2436009",
-  "quickReferenceSha256": "ce90daa8fce5ca7fda1ade0b47772c981c2b232af216db3b76ad4c39eabedaf4",
+  "corpusVersion": "703ecca10702",
+  "generatedAt": "2026-09-09T06:27:37.298Z",
+  "sourceCommit": "e0c707ba8aa24477a431c1b477ebdfde1041d259",
+  "chunkCount": 524,
+  "sha256": "703ecca107025c0e8d5b8a8a1a2f9f8da19e79cd5a32e81d335b25a6ff3adbca",
+  "quickReferenceSha256": "c157997c756a89271db2300e928fe2a8715b4ed43535f2c794085b7a4943754b",
   "sources": [
     {
       "path": "website/ai-agents/index.html",
@@ -406,6 +406,14 @@
       "section": "Deployment",
       "chunks": 83,
       "sha256": "20d27e088963b09e0e6df872a1bc45c1572a33af230a37277a484f2821272640"
+    },
+    {
+      "path": "frontend/src/components/common/Sidebar.tsx",
+      "title": "Finding your way around the AccessFlow interface",
+      "url": "https://accessflow.io/docs/",
+      "section": "Navigation",
+      "chunks": 8,
+      "sha256": "a8bf4ce05a40e2ac123e9b987b45c9785bdf257257ea67ae08a4b4ea500a12c2"
     }
   ]
 }

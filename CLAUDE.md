@@ -702,10 +702,13 @@ Each line is a hard rule. Where a pattern file expands on it, follow the arrow.
   `frontend/src/config/docs.ts` ↔ `website/app.js` anchor contract →
   `patterns/website-drift.md`.
 - `docs/09-deployment.md`, when you add a config knob.
-- `help-corpus/`, when you edit `website/**`, `docs/09-deployment.md` or `frontend/src/App.tsx`
-  — regenerate with `node .github/scripts/build-help-corpus.mjs` and commit the result; the
-  `help-corpus` CI job fails on drift. A new route needs a line in that script's `ROUTES` table
-  and a new `website/` area needs a `SECTION_RULES` entry; the generator fails loudly on both.
+- `help-corpus/`, when you edit `website/**`, `docs/09-deployment.md`, `frontend/src/App.tsx`,
+  `frontend/src/locales/en.json`, `frontend/src/components/common/Sidebar.tsx` or
+  `frontend/src/utils/reviewHubTabs.ts` — regenerate with
+  `node .github/scripts/build-help-corpus.mjs` and commit the result; the `help-corpus` CI job
+  fails on drift. A new route needs a line in that script's `ROUTES` table, a new `website/` area
+  needs a `SECTION_RULES` entry, and a renamed or regrouped menu entry re-derives the corpus's UI
+  vocabulary; the generator fails loudly on all three.
 
 **Process**
 - Multi-paragraph comments or doc comments on obvious methods.
