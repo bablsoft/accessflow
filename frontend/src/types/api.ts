@@ -1428,6 +1428,189 @@ export interface RoutingPolicyWriteRequest {
   reason?: string | null;
 }
 
+/* ---- Policy simulator (AF-630) ---------------------------------------------------------------
+ * A read-only dry run of a draft policy against the org's own historical query traffic. Every
+ * simulation is an A/B: the corpus is evaluated once against the current policy set and once
+ * against that set with the draft applied, and the response reports the diff between those two
+ * runs — never against what actually happened, which is confounded by grants, break-glass and
+ * review-plan fall-through. Approximations the replay cannot avoid are named in `caveats`.
+ */
+
+export type SimulationCaveat =
+  | 'MEMBERSHIP_STATE_CURRENT'
+  | 'ANOMALY_STATE_CURRENT'
+  | 'COLUMN_MATCH_BARE_NAME'
+  | 'ENGINE_CLASSIFICATION_UNAVAILABLE';
+
+/** The four routing effects plus NO_MATCH (falls through to the grant path and the review plan). */
+export type RoutingSimulationOutcome = RoutingAction | 'NO_MATCH';
+
+export type RowSecurityOutcome =
+  | 'APPLIED'
+  | 'DENY_ALL'
+  | 'FAIL_CLOSED'
+  | 'NOT_APPLICABLE'
+  | 'UNKNOWN';
+
+export type RowSecurityTransition =
+  | 'UNCHANGED'
+  | 'NEWLY_FILTERED'
+  | 'NEWLY_DENY_ALL'
+  | 'NEWLY_FAILS_CLOSED'
+  | 'NO_LONGER_FILTERED'
+  | 'UNCLASSIFIABLE';
+
+export interface SimulationWindowRequest {
+  from: string;
+  to: string;
+}
+
+export interface RoutingSimulationRequest extends SimulationWindowRequest {
+  datasource_id?: string | null;
+  draft: {
+    replaces_policy_id?: string | null;
+    name: string;
+    datasource_id?: string | null;
+    priority: number;
+    enabled: boolean;
+    condition: RoutingCondition;
+    action: RoutingAction;
+    required_approvals?: number | null;
+    reason?: string | null;
+  };
+}
+
+/** `null` on an arm means no policy matched there. */
+export interface SimulatedMatchedPolicy {
+  action: RoutingSimulationOutcome;
+  policy_id: string | null;
+  policy_name: string;
+  is_draft: boolean;
+  required_approvals: number | null;
+}
+
+export interface RoutingSimulationResponse {
+  period_from: string;
+  period_to: string;
+  datasource_id: string | null;
+  evaluated_count: number;
+  changed_count: number;
+  truncated: boolean;
+  outcome_deltas: {
+    baseline_action: RoutingSimulationOutcome;
+    simulated_action: RoutingSimulationOutcome;
+    count: number;
+  }[];
+  user_impacts: {
+    user_id: string;
+    email: string;
+    display_name: string | null;
+    changed_count: number;
+    simulated_actions: RoutingSimulationOutcome[];
+  }[];
+  samples: {
+    query_request_id: string;
+    submitted_by_email: string;
+    datasource_name: string;
+    query_type: QueryType;
+    historical_status: QueryStatus;
+    created_at: string;
+    baseline: SimulatedMatchedPolicy | null;
+    simulated: SimulatedMatchedPolicy | null;
+  }[];
+  caveats: SimulationCaveat[];
+}
+
+export interface RowSecuritySimulationRequest extends SimulationWindowRequest {
+  draft: {
+    replaces_policy_id?: string | null;
+    table_name: string;
+    column_name: string;
+    operator: RowSecurityOperator;
+    value_type: RowSecurityValueType;
+    value_expression: string;
+    applies_to_roles: string[];
+    applies_to_group_ids: string[];
+    applies_to_user_ids: string[];
+    enabled: boolean;
+  };
+}
+
+export interface RowSecuritySimulationResponse {
+  period_from: string;
+  period_to: string;
+  datasource_id: string;
+  evaluated_count: number;
+  changed_count: number;
+  unclassifiable_count: number;
+  truncated: boolean;
+  transition_counts: { transition: RowSecurityTransition; count: number }[];
+  user_impacts: {
+    user_id: string;
+    email: string;
+    display_name: string | null;
+    newly_filtered_count: number;
+    newly_denied_count: number;
+    newly_fails_closed_count: number;
+  }[];
+  samples: {
+    query_request_id: string;
+    submitted_by_email: string;
+    query_type: QueryType;
+    created_at: string;
+    transition: RowSecurityTransition;
+    baseline_outcome: RowSecurityOutcome;
+    simulated_outcome: RowSecurityOutcome;
+    reason: string | null;
+  }[];
+  caveats: SimulationCaveat[];
+}
+
+export interface MaskingSimulationRequest extends SimulationWindowRequest {
+  draft: {
+    replaces_policy_id?: string | null;
+    column_ref: string;
+    strategy: MaskingStrategy;
+    strategy_params: Record<string, string>;
+    reveal_to_roles: string[];
+    reveal_to_group_ids: string[];
+    reveal_to_user_ids: string[];
+    enabled: boolean;
+  };
+}
+
+export interface MaskingSimulationResponse {
+  period_from: string;
+  period_to: string;
+  datasource_id: string;
+  evaluated_count: number;
+  changed_count: number;
+  newly_masked_count: number;
+  newly_revealed_count: number;
+  truncated: boolean;
+  user_impacts: {
+    user_id: string;
+    email: string;
+    display_name: string | null;
+    newly_masked_columns: string[];
+    newly_revealed_columns: string[];
+    affected_query_count: number;
+  }[];
+  column_impacts: {
+    column_name: string;
+    newly_masked_query_count: number;
+    newly_revealed_query_count: number;
+  }[];
+  samples: {
+    query_request_id: string;
+    submitted_by_email: string;
+    created_at: string;
+    newly_masked_columns: string[];
+    newly_revealed_columns: string[];
+  }[];
+  caveats: SimulationCaveat[];
+}
+
 export interface ReorderRoutingPoliciesRequest {
   ordered_ids: string[];
 }

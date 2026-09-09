@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   App,
   Button,
+  Flex,
   Form,
   Input,
   InputNumber,
   Modal,
   Select,
   Skeleton,
+  Space,
   Switch,
   Table,
   TimePicker,
@@ -23,6 +25,14 @@ import {
 import dayjs, { type Dayjs } from 'dayjs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { PolicySimulationDrawer } from '@/components/policies/PolicySimulationDrawer';
+import {
+  draftFingerprint,
+  isRoutingDraftHighImpact,
+  windowForDays,
+} from '@/components/policies/policyImpact';
+import { simulateRoutingPolicy } from '@/api/policySimulation';
+import { routingSimulationSummary } from './routingSimulationSummary';
 import { PageHeader } from '@/components/common/PageHeader';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Pill } from '@/components/common/Pill';
@@ -67,6 +77,7 @@ import {
   type RoutingConditionRow,
 } from './routingPolicyForm';
 import type {
+  RoutingSimulationRequest,
   RoutingAction,
   RoutingConditionOperand,
   RoutingPolicy,
@@ -128,6 +139,10 @@ export function RoutingPoliciesPage() {
   const [editing, setEditing] = useState<RoutingPolicy | null>(null);
   const [creating, setCreating] = useState(false);
   const [form] = Form.useForm<RoutingPolicyFormState>();
+  // AF-630: the draft last simulated, so the save nudge can tell whether what is about to be
+  // saved is still what the admin looked at.
+  const [simulatedKey, setSimulatedKey] = useState('');
+  const [simulationOpen, setSimulationOpen] = useState(false);
 
   const policiesQuery = useQuery({
     queryKey: routingPolicyKeys.lists(),
@@ -229,6 +244,60 @@ export function RoutingPoliciesPage() {
     onSuccess: () => void invalidate(),
     onError: (err) => showApiError(message, err, routingPolicyErrorMessage),
   });
+
+  /** The draft the Simulate button replays, built from whatever is in the form right now. */
+  const buildSimulationPayload = (): RoutingSimulationRequest | null => {
+    const values = form.getFieldsValue();
+    if (!values.name || !values.action) {
+      return null;
+    }
+    const rows = (values.conditions ?? []).map(fromFormRow);
+    return {
+      ...windowForDays(30),
+      datasource_id: values.datasource_id ?? null,
+      draft: {
+        replaces_policy_id: editing?.id ?? null,
+        name: values.name.trim(),
+        datasource_id: values.datasource_id ?? null,
+        priority: values.priority,
+        enabled: values.enabled,
+        condition: rowsToCondition(values.match_type, rows),
+        action: values.action,
+        required_approvals: actionRequiresApprovals(values.action)
+          ? values.required_approvals ?? null
+          : null,
+        reason: values.reason?.trim() || null,
+      },
+    };
+  };
+
+  const openSimulation = async () => {
+    // Validate first so the draft we replay is one the API would actually accept.
+    await form.validateFields();
+    setSimulationOpen(true);
+  };
+
+  /**
+   * Soft nudge, never a gate: a wide-blast-radius policy that has not been simulated in its
+   * current shape gets one confirm step, with saving always available.
+   */
+  const confirmHighImpactSave = (submit: () => void) => {
+    const payload = buildSimulationPayload();
+    const values = form.getFieldsValue();
+    const unsimulated = draftFingerprint(payload) !== simulatedKey;
+    if (!unsimulated || !isRoutingDraftHighImpact(values)) {
+      submit();
+      return;
+    }
+    modal.confirm({
+      title: t('policySimulation.nudge_title'),
+      content: t('policySimulation.nudge_body'),
+      okText: t('policySimulation.nudge_simulate'),
+      cancelText: t('policySimulation.nudge_save'),
+      onOk: () => setSimulationOpen(true),
+      onCancel: submit,
+    });
+  };
 
   const onFinish = (values: RoutingPolicyFormState) => {
     const rows = (values.conditions ?? []).map(fromFormRow);
@@ -458,7 +527,7 @@ export function RoutingPoliciesPage() {
             : t('admin.routing_policies.create_modal_title')
         }
         onCancel={closeModal}
-        onOk={() => form.submit()}
+        onOk={() => confirmHighImpactSave(() => form.submit())}
         okText={
           editing
             ? t('admin.routing_policies.save_update')
@@ -468,6 +537,17 @@ export function RoutingPoliciesPage() {
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         destroyOnHidden
         width={720}
+        footer={(_, { OkBtn, CancelBtn }) => (
+          <Flex justify="space-between" align="center">
+            <Button onClick={() => void openSimulation()}>
+              {t('policySimulation.run')}
+            </Button>
+            <Space>
+              <CancelBtn />
+              <OkBtn />
+            </Space>
+          </Flex>
+        )}
       >
         <Form<RoutingPolicyFormState>
           form={form}
@@ -657,6 +737,22 @@ export function RoutingPoliciesPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      <PolicySimulationDrawer
+        open={simulationOpen}
+        onClose={() => setSimulationOpen(false)}
+        title={t('policySimulation.title')}
+        draftKey={draftFingerprint(buildSimulationPayload())}
+        run={(window) => {
+          const payload = buildSimulationPayload();
+          if (!payload) {
+            return Promise.reject(new Error('incomplete draft'));
+          }
+          return simulateRoutingPolicy({ ...payload, ...window });
+        }}
+        summarize={(result) => routingSimulationSummary(result, t)}
+        onSimulated={setSimulatedKey}
+      />
     </div>
   );
 }
