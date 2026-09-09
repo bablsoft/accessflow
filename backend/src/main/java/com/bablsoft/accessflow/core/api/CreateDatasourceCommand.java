@@ -28,7 +28,8 @@ public record CreateDatasourceCommand(
         String localDatacenter,
         String apiKey,
         Boolean resultCacheEnabled,
-        Integer resultCacheTtlSeconds
+        Integer resultCacheTtlSeconds,
+        String privateKeyPassphrase
 ) {
     /**
      * Backward-compatible constructor taking the pre-AF-457 single-replica triple; a non-blank
@@ -47,7 +48,7 @@ public record CreateDatasourceCommand(
                 reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
                 connectorId, jdbcUrlOverride,
                 legacyReplicaList(readReplicaJdbcUrl, readReplicaUsername, readReplicaPassword),
-                localDatacenter, apiKey, null, null);
+                localDatacenter, apiKey, null, null, null);
     }
 
     /** Backward-compatible constructor for the dialects with no {@code apiKey} (everything but the search engines). */

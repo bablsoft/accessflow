@@ -43,6 +43,7 @@ import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors'
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
 import { showApiError } from '@/utils/showApiError';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
+import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { flattenSchemaToColumns } from '@/utils/schemaColumns';
 import { userDisplay } from '@/utils/userDisplay';
@@ -336,13 +337,36 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   const secretProviders = useSecretProviders();
   const secretRefHelp = secretReferenceHelp(secretProviders, t);
   const secretRefRule = secretReferenceRule(secretProviders, t);
+  // Which connection fields exist is db_type-specific, and a required rule on a field the create
+  // wizard never collects makes every save from this page fail validation. These flags mirror
+  // DatasourceCreateWizardPage one-for-one:
+  //   SNOWFLAKE  — account host; the port is always 443 and never stored, and the credential may
+  //                be a multi-line PKCS#8 PEM, optionally passphrase-protected (#632)
+  //   DATABRICKS — workspace host, no port; a PAT replaces the username, catalog is optional
+  //   BIGQUERY   — cloud credentials: no host, no port, and a service-account JSON instead of a
+  //                username (database_name is the GCP project)
+  //   DYNAMODB   — cloud credentials: no host, no port (database_name is the AWS region and the
+  //                username is the access key id, so both stay required)
+  //   search     — API-key auth stores a blank username, and the index pattern is optional
+  const isSnowflake = ds.db_type === 'SNOWFLAKE';
+  const isDatabricks = ds.db_type === 'DATABRICKS';
+  const isBigQuery = ds.db_type === 'BIGQUERY';
+  const isDynamoDb = ds.db_type === 'DYNAMODB';
+  const isSearchEngine = SEARCH_ENGINES.includes(ds.db_type);
+  const hasHost = !isBigQuery && !isDynamoDb;
+  const hasPort = !isSnowflake && !isDatabricks && !isBigQuery && !isDynamoDb;
+  const hasUsername = !isBigQuery && !isDatabricks;
+  const usernameRequired = !isSearchEngine;
+  const databaseNameRequired = !isSearchEngine && !isDatabricks;
 
   const initialValues: SettingsFormValues = {
     name: ds.name,
     host: ds.host ?? undefined,
     port: ds.port ?? undefined,
     database_name: ds.database_name ?? undefined,
-    username: ds.username,
+    // Blank for the cloud-credential dialects; undefined so it JSON-drops and the backend's
+    // `command.username() != null` keeps the stored value (an empty string trips @Size(min = 1)).
+    username: ds.username || undefined,
     ssl_mode: ds.ssl_mode,
     connection_pool_size: ds.connection_pool_size,
     max_rows_per_query: ds.max_rows_per_query,
@@ -430,6 +454,22 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
+    // The optional connection fields are NOT NULL, min-length-1 columns: blank means "unchanged"
+    // here, never "clear it", so an emptied box must drop out of the body rather than 400.
+    if (typeof body.username === 'string' && body.username.trim().length === 0) {
+      delete body.username;
+    }
+    if (typeof body.database_name === 'string' && body.database_name.trim().length === 0) {
+      delete body.database_name;
+    }
+    // Blank keeps the stored passphrase, exactly like the credential above. Note this is
+    // deliberately NOT the API's blank-clears semantics: omitting the field is the only way to
+    // express "leave it alone" from a form that cannot distinguish untouched from emptied. The
+    // cost is that this page cannot clear a passphrase; a stale one is inert, since
+    // SnowflakeConnectionFactory only reads it for a BEGIN ENCRYPTED PRIVATE KEY credential.
+    if (!body.private_key_passphrase || body.private_key_passphrase.trim().length === 0) {
+      delete body.private_key_passphrase;
+    }
     // The AI config is shared by AI analysis and text-to-SQL; only unbind it when both are off.
     if (body.ai_analysis_enabled === false && body.text_to_sql_enabled === false) {
       body.clear_ai_config = true;
@@ -464,24 +504,28 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
             <Form.Item label={t('datasources.settings.label_db_type')}>
               <Input value={dbTypeLabel(t, ds.db_type)} disabled />
             </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_host')}
-              name="host"
-              rules={[{ required: true, max: 255 }]}
-            >
-              <Input />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_port')}
-              name="port"
-              rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
-            >
-              <Input className="mono" type="number" />
-            </Form.Item>
+            {hasHost && (
+              <Form.Item
+                label={t('datasources.settings.label_host')}
+                name="host"
+                rules={[{ required: true, max: 255 }]}
+              >
+                <Input />
+              </Form.Item>
+            )}
+            {hasPort && (
+              <Form.Item
+                label={t('datasources.settings.label_port')}
+                name="port"
+                rules={[{ required: true, type: 'number', min: 1, max: 65535 }]}
+              >
+                <Input className="mono" type="number" />
+              </Form.Item>
+            )}
             <Form.Item
               label={t('datasources.settings.label_database_name')}
               name="database_name"
-              rules={[{ required: true, max: 255 }]}
+              rules={[{ required: databaseNameRequired, max: 255 }]}
             >
               <Input />
             </Form.Item>
@@ -495,21 +539,52 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 ]}
               />
             </Form.Item>
+            {hasUsername && (
+              <Form.Item
+                label={t('datasources.settings.label_username')}
+                name="username"
+                rules={[{ required: usernameRequired, max: 255 }]}
+              >
+                <Input className="mono" />
+              </Form.Item>
+            )}
             <Form.Item
-              label={t('datasources.settings.label_username')}
-              name="username"
-              rules={[{ required: true, max: 255 }]}
-            >
-              <Input className="mono" />
-            </Form.Item>
-            <Form.Item
-              label={t('datasources.settings.label_password')}
+              label={
+                isSnowflake
+                  ? t('datasources.create.field_password_or_key')
+                  : t('datasources.settings.label_password')
+              }
               name="password"
               extra={secretRefHelp}
               rules={[secretRefRule]}
             >
-              <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
+              {/* A PKCS#8 PEM is multi-line — a password box cannot hold it. */}
+              {isSnowflake ? (
+                <Input.TextArea
+                  rows={3}
+                  className="mono"
+                  placeholder={t('datasources.settings.password_placeholder')}
+                />
+              ) : (
+                <Input.Password placeholder={t('datasources.settings.password_placeholder')} />
+              )}
             </Form.Item>
+            {isSnowflake && (
+              <Form.Item
+                label={t('datasources.create.field_private_key_passphrase')}
+                name="private_key_passphrase"
+                extra={
+                  secretRefHelp
+                    ? `${t('datasources.create.field_private_key_passphrase_help')} ${secretRefHelp}`
+                    : t('datasources.create.field_private_key_passphrase_help')
+                }
+                rules={[{ max: 1024 }, secretRefRule]}
+              >
+                <Input.Password
+                  placeholder={t('datasources.settings.private_key_passphrase_placeholder')}
+                />
+              </Form.Item>
+            )}
           </Grid>
         </Section>
         <Section title={t('datasources.settings.section_read_replica')}>

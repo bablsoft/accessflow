@@ -20,6 +20,7 @@ import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { showApiError } from '@/utils/showApiError';
+import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
 import type {
   ConnectionTestResult,
   CreateDatasourceInput,
@@ -54,10 +55,9 @@ interface ConnectionFormValues {
   api_key: string;
   username: string;
   password: string;
+  private_key_passphrase: string;
   ssl_mode: SslMode;
 }
-
-const SEARCH_ENGINES = ['ELASTICSEARCH', 'OPENSEARCH'];
 
 interface SettingsFormValues {
   connection_pool_size: number;
@@ -187,6 +187,12 @@ export default function DatasourceCreateWizardPage() {
         if (isSearchEngine) {
           input.api_key = useApiKey ? values.api_key : '';
         }
+        if (isSnowflake) {
+          // Blank clears a stored passphrase (the key is no longer encrypted). This branch owns a
+          // just-created row whose form state is authoritative, so it can use the API's
+          // blank-clears semantics; the settings page deliberately cannot — see onFinish there.
+          input.private_key_passphrase = values.private_key_passphrase || '';
+        }
         return updateDatasource(createdDatasource.id, input);
       }
       const input: CreateDatasourceInput = {
@@ -241,6 +247,10 @@ export default function DatasourceCreateWizardPage() {
       }
       if (useApiKey) {
         input.api_key = values.api_key;
+      }
+      if (isSnowflake && values.private_key_passphrase) {
+        // Only for a passphrase-protected PKCS#8 key; a password or plain PEM leaves it unset.
+        input.private_key_passphrase = values.private_key_passphrase;
       }
       return createDatasource(input);
     },
@@ -658,6 +668,20 @@ export default function DatasourceCreateWizardPage() {
                     <Input.Password />
                   )}
                 </Form.Item>
+                {isSnowflake && (
+                  <Form.Item
+                    label={t('datasources.create.field_private_key_passphrase')}
+                    name="private_key_passphrase"
+                    extra={
+                      secretRefHelp
+                        ? `${t('datasources.create.field_private_key_passphrase_help')} ${secretRefHelp}`
+                        : t('datasources.create.field_private_key_passphrase_help')
+                    }
+                    rules={[{ max: 1024 }, secretRefRule]}
+                  >
+                    <Input.Password />
+                  </Form.Item>
+                )}
               </>
             )}
             {isSearchEngine && authMethod === 'api_key' && (

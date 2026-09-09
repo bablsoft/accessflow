@@ -1031,7 +1031,7 @@ the retention period expires, so size `retention_days` deliberately.
 
 Optional external secret stores for datasource credentials. All providers are **off by default**
 — when a provider is enabled, a datasource credential field (`password`,
-each `read_replicas[].password`, `api_key`) may hold a secret reference
+each `read_replicas[].password`, `api_key`, `private_key_passphrase`) may hold a secret reference
 (`vault:<mount>/<path>#<field>` / `aws:<name-or-arn>[#jsonField]` / `azure:<secret-name>`)
 that is stored verbatim and resolved through the store at credential-use time instead of the
 local `ENCRYPTION_KEY` AES layer. Enabling a provider with missing required settings aborts

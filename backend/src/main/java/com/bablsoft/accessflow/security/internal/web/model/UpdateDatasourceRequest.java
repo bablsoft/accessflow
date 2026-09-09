@@ -44,5 +44,9 @@ public record UpdateDatasourceRequest(
         Boolean resultCacheEnabled,
         @Min(value = 1, message = "{validation.result_cache_ttl.range}")
         @Max(value = 86_400, message = "{validation.result_cache_ttl.range}")
-        Integer resultCacheTtlSeconds
+        Integer resultCacheTtlSeconds,
+        // Passphrase for an encrypted PKCS#8 private key (Snowflake key-pair auth); a blank
+        // value clears it.
+        @Size(max = 1024, message = "{validation.private_key_passphrase.max}")
+        String privateKeyPassphrase
 ) {}

@@ -42,6 +42,7 @@ final class DatasourceDescriptorMapper {
                 entity.getLocalDatacenter(),
                 entity.getApiKeyEncrypted(),
                 entity.isResultCacheEnabled(),
-                entity.getResultCacheTtlSeconds());
+                entity.getResultCacheTtlSeconds(),
+                entity.getPrivateKeyPassphraseEncrypted());
     }
 }

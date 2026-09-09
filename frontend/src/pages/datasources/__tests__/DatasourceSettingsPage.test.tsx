@@ -322,6 +322,224 @@ describe('DatasourceSettingsPage — performance card', () => {
   });
 });
 
+describe('DatasourceSettingsPage — Snowflake credential rotation', () => {
+  const snowflakeDs: Datasource = {
+    ...baseDs,
+    db_type: 'SNOWFLAKE',
+    host: 'xy1.eu-central-1.snowflakecomputing.com',
+    port: null,
+    database_name: 'ANALYTICS',
+  };
+
+  beforeEach(() => {
+    getDatasource.mockReset();
+    updateDatasource.mockReset();
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+  });
+
+  it('offers the key passphrase and hides the unused port field', async () => {
+    getDatasource.mockResolvedValue(snowflakeDs);
+    updateDatasource.mockResolvedValue(snowflakeDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Private key passphrase')).toBeInTheDocument(),
+    );
+    // Snowflake stores no port (always 443); a required port field would block every save.
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.getByLabelText('Password or private key (PEM)')).toBeInTheDocument();
+  });
+
+  it('rotates the passphrase and omits it when left blank', async () => {
+    getDatasource.mockResolvedValue(snowflakeDs);
+    updateDatasource.mockResolvedValue(snowflakeDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() =>
+      expect(screen.getByLabelText('Private key passphrase')).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    // Blank keeps the stored passphrase — it must not be sent as an empty string, which the
+    // backend would read as "clear it".
+    expect(updateDatasource.mock.calls[0]![1] as Record<string, unknown>)
+      .not.toHaveProperty('private_key_passphrase');
+
+    updateDatasource.mockClear();
+    fireEvent.change(screen.getByLabelText('Private key passphrase'), {
+      target: { value: 'rotated' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.private_key_passphrase).toBe('rotated');
+  });
+});
+
+describe('DatasourceSettingsPage — cloud-credential connection fields', () => {
+  beforeEach(() => {
+    getDatasource.mockReset();
+    updateDatasource.mockReset();
+    listPermissions.mockReset();
+    listPermissions.mockResolvedValue([]);
+    listGroupPermissions.mockReset();
+    listGroupPermissions.mockResolvedValue([]);
+    listAllGroups.mockReset();
+    listAllGroups.mockResolvedValue([]);
+  });
+
+  /**
+   * The body as it reaches the wire: a rendered-but-blank field still occupies a key with an
+   * `undefined` value, and it is `JSON.stringify` that drops it — which is what lets the
+   * backend's `command.x() != null` keep the stored value.
+   */
+  function wireBody(call: number): Record<string, unknown> {
+    return JSON.parse(JSON.stringify(updateDatasource.mock.calls[call]![1])) as Record<
+      string,
+      unknown
+    >;
+  }
+
+  /** Renders the config tab for `ds` and saves it, returning the body sent to the API. */
+  async function renderAndSave(ds: Datasource): Promise<Record<string, unknown>> {
+    getDatasource.mockResolvedValue(ds);
+    updateDatasource.mockResolvedValue(ds);
+
+    render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() => expect(screen.getByLabelText('Name')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    return wireBody(0);
+  }
+
+  const bigQueryDs: Datasource = {
+    ...baseDs,
+    db_type: 'BIGQUERY',
+    // The wizard sends no host and no port, and blanks the username (the credential is a
+    // service-account JSON). database_name is the GCP project.
+    host: null,
+    port: null,
+    database_name: 'my-project.analytics',
+    username: '',
+  };
+
+  const databricksDs: Datasource = {
+    ...baseDs,
+    db_type: 'DATABRICKS',
+    host: 'adb-1234567890.1.azuredatabricks.net',
+    port: null,
+    database_name: null,
+    username: '',
+  };
+
+  const dynamoDbDs: Datasource = {
+    ...baseDs,
+    db_type: 'DYNAMODB',
+    host: null,
+    port: null,
+    // database_name is the AWS region and username is the access key id — both are sent.
+    database_name: 'us-east-1',
+    username: 'AKIAEXAMPLE',
+  };
+
+  const openSearchDs: Datasource = {
+    ...baseDs,
+    db_type: 'OPENSEARCH',
+    host: 'search.internal',
+    port: 9200,
+    // API-key auth: no index pattern, no username.
+    database_name: null,
+    username: '',
+  };
+
+  it('hides host, port and username for BigQuery and still saves', async () => {
+    const body = await renderAndSave(bigQueryDs);
+
+    expect(screen.queryByLabelText('Host')).toBeNull();
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.queryByLabelText('Username')).toBeNull();
+    // Untouched keys must drop out entirely — the backend keeps the stored value when the field
+    // is null, and rejects an empty string outright.
+    expect(body).not.toHaveProperty('host');
+    expect(body).not.toHaveProperty('port');
+    expect(body).not.toHaveProperty('username');
+    expect(body.database_name).toBe('my-project.analytics');
+  });
+
+  it('keeps the workspace host but hides port and username for Databricks', async () => {
+    const body = await renderAndSave(databricksDs);
+
+    expect(screen.getByLabelText('Host')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.queryByLabelText('Username')).toBeNull();
+    expect(body.host).toBe('adb-1234567890.1.azuredatabricks.net');
+    expect(body).not.toHaveProperty('port');
+    expect(body).not.toHaveProperty('username');
+    // The catalog is optional for Databricks, so a blank one must not block the save.
+    expect(body).not.toHaveProperty('database_name');
+  });
+
+  it('hides host and port but keeps the access key id for DynamoDB', async () => {
+    const body = await renderAndSave(dynamoDbDs);
+
+    expect(screen.queryByLabelText('Host')).toBeNull();
+    expect(screen.queryByLabelText('Port')).toBeNull();
+    expect(screen.getByLabelText('Username')).toHaveValue('AKIAEXAMPLE');
+    expect(body).not.toHaveProperty('host');
+    expect(body).not.toHaveProperty('port');
+    expect(body.username).toBe('AKIAEXAMPLE');
+    expect(body.database_name).toBe('us-east-1');
+  });
+
+  it('keeps host and port but relaxes username for an API-key search engine', async () => {
+    const body = await renderAndSave(openSearchDs);
+
+    // Basic auth still edits a username here, so the field stays — only the required rule goes.
+    expect(screen.getByLabelText('Username')).toHaveValue('');
+    expect(body.host).toBe('search.internal');
+    expect(body.port).toBe(9200);
+    expect(body).not.toHaveProperty('username');
+    expect(body).not.toHaveProperty('database_name');
+  });
+
+  it('drops a username the operator emptied rather than sending a blank one', async () => {
+    getDatasource.mockResolvedValue({ ...baseDs, db_type: 'OPENSEARCH' });
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() => expect(screen.getByLabelText('Username')).toHaveValue('svc'));
+
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: '  ' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    expect(wireBody(0)).not.toHaveProperty('username');
+  });
+
+  it('still requires host, port and username for a relational datasource', async () => {
+    getDatasource.mockResolvedValue(baseDs);
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+    await waitFor(() => expect(screen.getByLabelText('Host')).toBeInTheDocument());
+    expect(screen.getByLabelText('Port')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Host'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).not.toHaveBeenCalled());
+  });
+});
+
 const analystUser: User = {
   id: 'u-analyst',
   email: 'analyst@example.com',

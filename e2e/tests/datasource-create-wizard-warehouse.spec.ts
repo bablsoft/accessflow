@@ -32,16 +32,20 @@ test('Snowflake wizard shows account host + URL override and hides port', async 
   await expect(page.locator('#database_name')).toBeVisible();
   await expect(page.locator('#snowflake_url_override')).toBeVisible();
 
-  // The credential field accepts a password or an unencrypted PKCS#8 private-key PEM.
+  // The credential field accepts a password or a PKCS#8 private-key PEM, encrypted or not; a
+  // passphrase-protected key carries its passphrase in the separate optional field (#632).
   await expect(
     page.locator('.ant-form-item').filter({ hasText: 'Password or private key (PEM)' }),
   ).toBeVisible();
+  await expect(page.locator('#private_key_passphrase')).toBeVisible();
 
   await page.locator('#host').fill('xy1.eu-central-1.snowflakecomputing.com');
   await page.locator('#database_name').fill('ANALYTICS');
   await page.locator('#username').fill('accessflow_svc');
   await page.locator('#password').fill('hunter2');
+  await page.locator('#private_key_passphrase').fill('key-passphrase');
   await expect(page.locator('#database_name')).toHaveValue('ANALYTICS');
+  await expect(page.locator('#private_key_passphrase')).toHaveValue('key-passphrase');
 });
 
 test('BigQuery wizard shows GCP project + service-account JSON and hides host/port/username', async ({
@@ -68,6 +72,11 @@ test('BigQuery wizard shows GCP project + service-account JSON and hides host/po
   await expect(
     page.locator('.ant-form-item').filter({ hasText: 'Service account key (JSON)' }),
   ).toBeVisible();
+
+  // The key passphrase is Snowflake-only. Asserted after a positive anchor above, so the form is
+  // known to have rendered — toHaveCount(0) resolves immediately and would otherwise also pass
+  // on the type-selection step.
+  await expect(page.locator('#private_key_passphrase')).toHaveCount(0);
 
   await page.locator('#database_name').fill('my-project.analytics');
   await page.locator('#password').fill('{"type":"service_account"}');
