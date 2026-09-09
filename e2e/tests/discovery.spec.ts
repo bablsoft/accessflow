@@ -18,6 +18,7 @@ import {
   type CreatedReviewPlan,
 } from '../helpers/datasources';
 import { login } from '../helpers/login';
+import { findRowAcrossPages } from '../helpers/ui';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
 const ADMIN_PASSWORD = 'E2ePassword!123';
@@ -279,7 +280,9 @@ test.describe.serial('sensitive-data discovery (AF-623)', () => {
     await page.getByRole('tab', { name: /Discovery/ }).click();
     await page.getByTitle('Stale', { exact: true }).click();
     const row = page.getByRole('row', { name: new RegExp(`public\\.${TABLE}\\.secondary_email`) });
-    await expect(row).toBeVisible({ timeout: 15_000 });
+    // The scan covers every table in the shared e2e database, so this datasource's Stale list can
+    // hold other specs' rows too and page 1 is not guaranteed.
+    await findRowAcrossPages(page, row);
     await row.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Dismiss selected' }).click();
     await expect(page.getByText('1 finding decided')).toBeVisible({ timeout: 15_000 });
