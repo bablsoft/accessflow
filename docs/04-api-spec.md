@@ -3565,8 +3565,10 @@ the CRUD endpoint. `outcome_deltas` lists only rows where the two sides differ, 
 }
 ```
 
-The corpus is the datasource's `query_snapshots` in the window — row security acts on what actually
-ran, so only executed queries carry a meaningful SQL shape.
+The corpus is the datasource's `query_requests` in the window, restricted to `EXECUTED` rows — row
+security acts on what actually ran, so only executed queries carry a meaningful SQL shape. (All three
+simulators read `query_requests` through `core.api`; `query_snapshots` lives in the `workflow` module,
+and `proxy`/`security` reading it would close a Spring Modulith cycle.)
 
 #### POST /datasources/{id}/row-security-policies/simulate — Response 200
 
@@ -3599,7 +3601,7 @@ ran, so only executed queries carry a meaningful SQL shape.
       "query_request_id": "uuid",
       "submitted_by_email": "analyst@example.com",
       "query_type": "SELECT",
-      "executed_at": "2026-07-14T09:12:00Z",
+      "created_at": "2026-07-14T09:12:00Z",
       "transition": "NEWLY_FAILS_CLOSED",
       "baseline_outcome": "NOT_APPLICABLE",
       "simulated_outcome": "FAIL_CLOSED",
@@ -3666,7 +3668,7 @@ in `unclassifiable_count`, listed in `transition_counts`, and must never be pres
     {
       "query_request_id": "uuid",
       "submitted_by_email": "analyst@example.com",
-      "executed_at": "2026-07-14T09:12:00Z",
+      "created_at": "2026-07-14T09:12:00Z",
       "newly_masked_columns": ["email"],
       "newly_revealed_columns": []
     }
@@ -3675,9 +3677,16 @@ in `unclassifiable_count`, listed in `transition_counts`, and must never be pres
 }
 ```
 
-Only SELECT snapshots with a persisted result set (`query_request_results`) contribute — a query
-with no stored result has no columns to compare, and is skipped rather than counted as unchanged.
-`changed_count` is the number of snapshots where at least one column's masked-ness flips.
+Only executed SELECTs with a persisted result set (`query_request_results`) contribute — a query with
+no stored result has no columns to compare, and is skipped rather than counted as unchanged, so
+`evaluated_count` reports how many rows actually carried column metadata. `changed_count` is the
+number of those where at least one column's masked-ness flips.
+
+The response carries **no SQL text**. A per-user impact list is inherent to the feature ("these four
+users would lose access"), but the statements themselves are not: `MASKING_POLICY_MANAGE` and
+`ROW_SECURITY_MANAGE` do not otherwise grant read access to other people's queries, and a simulation
+must not become a side channel for them. Drill-down rows carry the query id, so a caller who *does*
+hold `QUERY_VIEW_ALL` can follow the link.
 
 #### Policy-simulator Error Codes
 
