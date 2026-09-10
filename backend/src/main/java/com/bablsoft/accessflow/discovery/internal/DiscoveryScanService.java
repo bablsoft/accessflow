@@ -16,7 +16,6 @@ import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.discovery.api.DiscoveryDetector;
 import com.bablsoft.accessflow.discovery.api.DiscoveryFindingStatus;
-import com.bablsoft.accessflow.discovery.api.DiscoveryScanAlreadyRunningException;
 import com.bablsoft.accessflow.discovery.internal.config.DiscoveryProperties;
 import com.bablsoft.accessflow.discovery.internal.detect.ValueDetector;
 import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoveryFindingEntity;
@@ -24,6 +23,7 @@ import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoverySc
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryFindingRepository;
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryScanConfigRepository;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 
 /**
  * The discovery scan pipeline (AF-623): enumerate tables via system-lane introspection, read a
@@ -49,8 +49,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * PENDING findings. CONFIRMED/DISMISSED rows are never touched — a dismissal permanently
  * suppresses the proposal.
  *
- * <p>The in-flight guard is per node; cluster races between a "Scan now" and the scheduled job
- * are harmless because upserts are idempotent and the natural-key unique index breaks ties.
+ * <p>One scan per datasource at a time, cluster-wide (AF-660): both entry points take the
+ * {@code discoveryScan:<datasourceId>} lock through {@link DistributedLockService}, so a "Scan now"
+ * on one replica and the scheduled job on another cannot sample the same customer database at once.
+ * A caller that does not get the lock is told so — it never silently queues behind the winner.
  */
 @Service
 @RequiredArgsConstructor
@@ -81,32 +83,41 @@ public class DiscoveryScanService {
     private final DiscoveryProperties properties;
     private final NestedValueFlattener nestedValueFlattener;
     private final DiscoveryStaleSweepService staleSweepService;
+    private final DistributedLockService distributedLockService;
+    private final ExecutorService discoveryScanExecutor;
     private final Clock clock;
 
-    private final Set<UUID> inFlight = ConcurrentHashMap.newKeySet();
-
-    /** Best-effort pre-check for the on-demand trigger; {@link #scan} re-checks atomically. */
-    boolean isInFlight(UUID datasourceId) {
-        return inFlight.contains(datasourceId);
+    /** The cluster-wide lock one scan of one datasource holds for its whole run. */
+    static String lockName(UUID datasourceId) {
+        return "discoveryScan:" + datasourceId;
     }
 
     /**
-     * Runs a full scan of the datasource synchronously. Never throws once started — all failures
-     * are logged, stamped on the config row, and audited. {@code actorId} is {@code null} for the
-     * scheduled path.
+     * Runs a full scan of the datasource on the calling thread. Never throws once started — all
+     * failures are logged, stamped on the config row, and audited. {@code actorId} is {@code null}
+     * for the scheduled path.
      *
-     * @throws DiscoveryScanAlreadyRunningException when a scan for the datasource is already in
-     *         flight on this node
+     * @return {@code true} when the scan ran; {@code false} when another replica is already
+     *         scanning this datasource and nothing was done
      */
-    public void scan(UUID datasourceId, UUID organizationId, UUID actorId) {
-        if (!inFlight.add(datasourceId)) {
-            throw new DiscoveryScanAlreadyRunningException(datasourceId);
-        }
-        try {
-            runScan(datasourceId, organizationId, actorId);
-        } finally {
-            inFlight.remove(datasourceId);
-        }
+    public boolean scan(UUID datasourceId, UUID organizationId, UUID actorId) {
+        return distributedLockService.runLocked(lockName(datasourceId),
+                properties.scanLockAtMostFor(),
+                () -> runScan(datasourceId, organizationId, actorId));
+    }
+
+    /**
+     * Same scan, run on the discovery executor instead of the caller's thread — the on-demand
+     * path, where the HTTP request must return 202 or 409 immediately. The lock is taken
+     * synchronously, so the answer is accurate cluster-wide rather than a guess.
+     *
+     * @return {@code true} when the scan was started; {@code false} when another replica is
+     *         already scanning this datasource and nothing was started
+     */
+    public boolean scanAsync(UUID datasourceId, UUID organizationId, UUID actorId) {
+        return distributedLockService.runLockedAsync(lockName(datasourceId),
+                properties.scanLockAtMostFor(), discoveryScanExecutor,
+                () -> runScan(datasourceId, organizationId, actorId));
     }
 
     private void runScan(UUID datasourceId, UUID organizationId, UUID actorId) {

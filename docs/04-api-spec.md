@@ -1129,7 +1129,8 @@ new tag or masking is derived), `ERROR` (unexpected failure; the finding keeps t
 
 Triggers an immediate scan on a background virtual thread — allowed even when `enabled` is false
 (ad-hoc preview before opting into the schedule). `409 DISCOVERY_SCAN_ALREADY_RUNNING` when a scan
-for the datasource is already in flight; `404` for an unknown datasource. Scan runs are audited as
+for the datasource is already running on *any* replica (the guard is the cluster-wide
+`discoveryScan:<datasourceId>` lock, AF-660); `404` for an unknown datasource. Scan runs are audited as
 `DISCOVERY_SCAN_COMPLETED`; confirmations/dismissals as `DISCOVERY_FINDING_CONFIRMED` /
 `DISCOVERY_FINDING_DISMISSED`; findings a scan retires as `STALE` as `DISCOVERY_FINDING_EXPIRED`.
 

@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.discovery.internal.scheduled;
 
-import com.bablsoft.accessflow.discovery.api.DiscoveryScanAlreadyRunningException;
 import com.bablsoft.accessflow.discovery.internal.DiscoveryScanService;
 import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoveryScanConfigEntity;
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryScanConfigRepository;
@@ -82,12 +81,11 @@ class DiscoveryScanJobTest {
     }
 
     @Test
-    void alreadyRunningScanIsSkippedQuietly() {
+    void datasourceLockedByAnotherReplicaIsSkippedQuietly() {
         var first = config(null, 24);
         var second = config(null, 24);
         when(configRepository.findAllByEnabledTrue()).thenReturn(List.of(first, second));
-        doThrow(new DiscoveryScanAlreadyRunningException(first.getDatasourceId()))
-                .when(scanService).scan(eq(first.getDatasourceId()), any(), isNull());
+        when(scanService.scan(eq(first.getDatasourceId()), any(), isNull())).thenReturn(false);
 
         job().run();
 

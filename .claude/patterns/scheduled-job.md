@@ -33,11 +33,13 @@ public class DiscoveryScanJob {
         var scanned = 0;
         for (var config : due) {
             try {
-                scanService.scan(config.getDatasourceId(), config.getOrganizationId(), null);
-                scanned++;
-            } catch (DiscoveryScanAlreadyRunningException ex) {   // expected "skip" -> info
-                log.info("Skipping discovery scan for datasource {} — already running",
-                        config.getDatasourceId());
+                // false = another replica holds this datasource's lock; expected "skip" -> info
+                if (scanService.scan(config.getDatasourceId(), config.getOrganizationId(), null)) {
+                    scanned++;
+                } else {
+                    log.info("Skipping discovery scan for datasource {} — already running "
+                            + "on another replica", config.getDatasourceId());
+                }
             } catch (RuntimeException ex) {                        // one bad row must not
                 log.error("Discovery scan failed for datasource {}",  // abort the batch
                         config.getDatasourceId(), ex);
@@ -92,6 +94,16 @@ public class DiscoveryScanJob {
 `runLocked(name, lockAtMostFor, action)`; it returns `true` if the action ran, `false` if another
 node held the lock. Same Redis backend, same `accessflow:shedlock:` key prefix, and the ShedLock
 types stay inside `scheduling.internal/` so callers need no third-party import.
+
+`runLockedAsync(name, lockAtMostFor, executor, action)` is the same lock for a caller that must
+*answer* synchronously but *work* asynchronously — a controller that owes the client an immediate
+`409` when the job is already running elsewhere. It acquires on the calling thread, hands the action
+to `executor`, and releases when the action finishes. `runLocked` cannot serve that: it occupies the
+caller's thread for the whole critical section. Both share one rule — size `lockAtMostFor` above the
+work's worst case, because it is the only thing that frees the lock if the JVM dies mid-action.
+Where the work has its own time budget, derive the floor from it (`DiscoveryProperties` clamps
+`scan-lock-at-most-for` to twice `scan-time-budget`) rather than trusting two knobs to stay in
+step.
 
 `@EnableScheduling` already lives in `scheduling/internal/SchedulingConfiguration` — don't add a
 second one. A new module's own `@Configuration` toggles belong in its `internal/config/`.

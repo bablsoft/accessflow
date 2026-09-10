@@ -28,6 +28,16 @@ import java.time.Duration;
  *       1: the sample is {@code SELECT *} with a row cap and no {@code ORDER BY}, so which rows
  *       it sees shifts between runs, and a column sitting near the 30 % match ratio can flap on
  *       unchanged data. Three consecutive misses make an unlucky sample a non-event.</li>
+ *   <li>{@code scanLockAtMostFor} — how long the cluster-wide {@code discoveryScan:<datasourceId>}
+ *       lock may be held (AF-660). It is the crash ceiling, not a timeout: the lock is released as
+ *       soon as the scan ends, and this only bounds how long a dead node can keep a datasource
+ *       locked out. Clamped to at least {@code 2 × scanTimeBudget + 10m}, because a lock that
+ *       lapses under a still-running scan admits the second scanner it exists to keep out. Note
+ *       {@code scanTimeBudget} bounds the table loop, not the whole run — schema introspection
+ *       precedes it, and the last table's sample, AI call and the stale sweep all follow it — so
+ *       the additive term, not the multiple, is what covers that tail. It is a generous floor, not
+ *       a proof: a datasource whose introspection alone runs for hours can still outlive its
+ *       lock.</li>
  * </ul>
  */
 @ConfigurationProperties("accessflow.discovery")
@@ -35,7 +45,7 @@ public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBu
                                   Duration sampleStatementTimeout, Integer maxTablesPerScan,
                                   Integer maxAiTablesPerScan, Integer maxNestedDepth,
                                   Integer maxNestedLeavesPerRow,
-                                  Integer staleScansBeforeExpiry) {
+                                  Integer staleScansBeforeExpiry, Duration scanLockAtMostFor) {
 
     public DiscoveryProperties {
         if (scanPollInterval == null) {
@@ -62,6 +72,17 @@ public record DiscoveryProperties(Duration scanPollInterval, Duration scanTimeBu
         }
         if (staleScansBeforeExpiry == null || staleScansBeforeExpiry <= 0) {
             staleScansBeforeExpiry = 3;
+        }
+        // Last, so scanTimeBudget above is already defaulted when the floor below reads it.
+        if (scanLockAtMostFor == null) {
+            scanLockAtMostFor = Duration.ofMinutes(30);
+        }
+        // The additive term is what covers the work outside scanTimeBudget (introspection before
+        // the loop, the overrunning last table, the AI call, the stale sweep) — it does not
+        // shrink as the budget does, which a bare multiple would.
+        var floor = scanTimeBudget.multipliedBy(2).plus(Duration.ofMinutes(10));
+        if (scanLockAtMostFor.compareTo(floor) < 0) {
+            scanLockAtMostFor = floor;
         }
     }
 }
