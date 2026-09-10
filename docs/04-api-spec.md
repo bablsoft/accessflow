@@ -3103,6 +3103,8 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `POST` | `/admin/routing-policies/simulate` | Dry-run a draft routing policy against historical traffic (AF-630) *(ADMIN only)* |
 | `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
+| `POST` | `/admin/api-call-simulations` | Trace one hypothetical API call through the live apigov evaluator (AF-967) *(`API_CONNECTOR_MANAGE`)* |
+| `POST` | `/admin/deployment-simulations` | Trace one hypothetical deployment through the live deploygov evaluator and release gate (AF-967) *(`DEPLOYMENT_PIPELINE_MANAGE`)* |
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
@@ -3809,6 +3811,9 @@ disagrees with the gate is worse than none.
 class of data at [`/admin/over-provisioned-access`](#over-provisioned-access-endpoints-625) — can use it
 read-only. Neither endpoint adds a `Permission` value.
 
+The sibling traces for the other two governed request kinds are
+[Decision traces for API calls and deployments (AF-967)](#decision-traces-for-api-calls-and-deployments-af-967).
+
 **Not the policy simulator.** [Policy simulator (AF-630)](#policy-simulator-af-630) replays *historical
 traffic* against a *draft policy* and reports an aggregated A/B diff. This replays *current policy* against
 *one hypothetical request* and returns a per-step trace for a single decision. Neither is an umbrella over
@@ -4123,6 +4128,276 @@ page returned.
 | 400 | `VALIDATION_ERROR` | Bean Validation failure on the body, an unparseable enum query parameter, or a `table` that normalizes to empty |
 | 403 | `FORBIDDEN` | Caller holds neither required permission |
 | 404 | `DATASOURCE_NOT_FOUND` | Datasource missing or in another organization |
+| 404 | `USER_NOT_FOUND` | `user_id` missing or in another organization |
+
+
+### Decision traces for API calls and deployments (AF-967)
+
+Two more **read-only** admin endpoints, one per remaining governed request kind, answering the same
+question [Access explainer (AF-859)](#access-explainer-af-859) answers for queries: *why would this
+request be decided this way*. Same guarantee, same shape, same reason for existing — each drives the
+evaluator production drives, so the explanation cannot drift from enforcement.
+
+| Method | Path | Permission |
+|--------|------|------------|
+| `POST` | `/admin/api-call-simulations` | `API_CONNECTOR_MANAGE` |
+| `POST` | `/admin/deployment-simulations` | `DEPLOYMENT_PIPELINE_MANAGE` |
+
+Neither adds a `Permission` value: each reuses the one that already governs its kind.
+
+**The stages are per-kind, not shared.** A deployment has freeze windows and a releasability gate; an
+API call has connector gates and response masking; a query has SQL parsing and row security. The three
+traces share their *vocabulary* — `outcome` is the same five values, a stage that did not apply is
+reported `SKIP` rather than omitted, `reason` is localized to `Accept-Language` — and nothing else. A
+client renders each kind against its own fixed checklist.
+
+**Read-only guarantee.** A simulation creates no `api_requests` / `deployment_requests` row, publishes
+no event, sends no notification, makes no AI call, and — this is the one specific to API governance —
+never contacts the governed third-party API. `risk_level` is the *hypothetical* verdict supplied by the
+caller, exactly as in AF-859.
+
+#### POST /admin/api-call-simulations — Request Body
+
+```json
+{
+  "user_id": "8f14e45f-ceea-467a-9fb2-6e1f9c1f6a11",
+  "connector_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "operation_id": "deleteCustomer",
+  "verb": "DELETE",
+  "ai_outcome": "COMPLETED",
+  "risk_level": "HIGH"
+}
+```
+
+`operation_id` and `verb` are both optional, but not independently useful: `operation_id` is what the
+schema catalog and the permission allow-list are checked against, and `verb` is the fallback the live
+classifier uses when no schema operation matches. Omitting both models a free-form call on a
+protocol-defaulted connector.
+
+There is **no `risk_score`**. API routing conditions gate on `minRiskLevel` only — unlike query
+routing, nothing on this kind reads a numeric score, so accepting one would imply a precision the
+evaluator does not have. `ai_outcome` defaults to `SKIPPED` and carries the same three meanings as on
+the query endpoint; on `FAILED`, routing and the review-requirement fold are both `SKIP`, because
+production sends a failed analysis straight to `PENDING_REVIEW`.
+
+#### POST /admin/api-call-simulations — Response 200
+
+```json
+{
+  "resulting_status": "PENDING_REVIEW",
+  "steps": [
+    {
+      "step": "CONNECTOR_GATES",
+      "outcome": "ALLOW",
+      "reason": "The connector is active and visible in this organization",
+      "details": { "connector_name": "billing-api", "protocol": "REST", "active": true, "ai_analysis_enabled": true }
+    },
+    {
+      "step": "CALL_CLASSIFICATION",
+      "outcome": "ALLOW",
+      "reason": "Classified as a write from the schema operation",
+      "details": { "write": true, "classified_from": "SCHEMA_OPERATION", "operation_id": "deleteCustomer", "verb": "DELETE" }
+    },
+    { "step": "SCHEMA_VALIDATION", "outcome": "ALLOW", "reason": "The operation is in the connector schema", "details": { "operation_id": "deleteCustomer", "operation_count": 42 } },
+    {
+      "step": "OPERATION_PERMISSION",
+      "outcome": "ALLOW",
+      "reason": "The effective permission grants write and covers this operation",
+      "details": {
+        "query_admin_short_circuit": false,
+        "can_read": true, "can_write": true,
+        "allowed_operations": ["deleteCustomer", "getCustomer"],
+        "expires_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "step": "ROUTING_POLICIES",
+      "outcome": "MATCH",
+      "reason": "Policy \"Escalate destructive billing calls\" matched at priority 10",
+      "details": {
+        "matched_policy_id": "b1f0…",
+        "matched_policy_name": "Escalate destructive billing calls",
+        "action": "ESCALATE",
+        "policies": [
+          { "policy_id": "a0c1…", "name": "Auto-approve reads", "priority": 5, "action": "AUTO_APPROVE", "matched": false, "decisive": false },
+          { "policy_id": "b1f0…", "name": "Escalate destructive billing calls", "priority": 10, "action": "ESCALATE", "required_approvals": 1, "matched": true, "decisive": true }
+        ],
+        "effective_min_approvals": 3
+      }
+    },
+    { "step": "REVIEW_REQUIREMENT", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": { "require_review_reads": false, "require_review_writes": true, "review_plan_id": "77b2…", "requires_human_approval": true, "min_approvals_required": 2 } },
+    {
+      "step": "ELIGIBLE_REVIEWERS",
+      "outcome": "ALLOW",
+      "reason": "Reviewers could act on this request",
+      "details": { "submitter_excluded": true, "reviewers": [ { "user_id": "4d2b…", "email": "dana@example.com", "display_name": "Dana Okonkwo" } ] }
+    },
+    {
+      "step": "RESPONSE_MASKING",
+      "outcome": "MATCH",
+      "reason": "2 masking rules resolve for this connector and caller",
+      "details": {
+        "masks": [
+          { "policy_id": "6cab…", "matcher_type": "JSON_PATH", "field_ref": "customer.iban", "strategy": "PARTIAL", "operation_id": null },
+          { "policy_id": null, "matcher_type": "JSON_PATH", "field_ref": "customer.ssn", "strategy": "FULL", "operation_id": null }
+        ],
+        "restricted_response_field_count": 1
+      }
+    },
+    { "step": "BREAK_GLASS", "outcome": "DENY", "reason": "The simulated user holds no break-glass grant on this connector", "details": { "can_break_glass": false } }
+  ],
+  "caveats": ["RESPONSE_SHAPE_ABSENT"]
+}
+```
+
+**`steps` is always all nine, in this fixed order.** As on the query endpoint, `resulting_status` is
+**omitted** when the request would be refused before a status is assigned — an inactive or foreign
+connector, an operation not in the schema, a permission denial — and every later step is still present
+with `outcome: "SKIP"`.
+
+| Step | Keys | Present when |
+|---|---|---|
+| `CONNECTOR_GATES` | `connector_name`, `protocol`, `active`, `ai_analysis_enabled` | always |
+| `CALL_CLASSIFICATION` | `write`, `classified_from` (`SCHEMA_OPERATION` / `REST_VERB` / `PROTOCOL_DEFAULT`), `operation_id`, `verb` | always |
+| `SCHEMA_VALIDATION` | `operation_id`, `operation_count` | whenever an `operation_id` was supplied; `SKIP` with `{}` for a free-form call |
+| `OPERATION_PERMISSION` | `query_admin_short_circuit`, `can_read`, `can_write`, `allowed_operations`, `expires_at` | always (`expires_at` omitted when standing or short-circuited) |
+| `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
+| `REVIEW_REQUIREMENT` | `require_review_reads`, `require_review_writes` | always |
+| | `review_plan_id`, `requires_human_approval`, `min_approvals_required` | only when the connector has a review plan |
+| `ELIGIBLE_REVIEWERS` | `submitter_excluded`, `reviewers[]` (`user_id`, `email`, `display_name`) | when the request would reach review |
+| | `plan_approvers[]` (`user_id`, `role`, `stage`) | **instead of** `reviewers[]` when the resolved review plan names approvers |
+| `RESPONSE_MASKING` | `masks[]` (`policy_id`, `matcher_type`, `field_ref`, `strategy`, `operation_id`), `restricted_response_field_count` | always (`masks: []` when none resolve) |
+| `BREAK_GLASS` | `can_break_glass` | always |
+
+**There is no connector-health stage**, because enforcement has none. The only reachability probe is
+the admin-triggered [`POST /api-connectors/{id}/test`](#post-apiv1api-connectorsidtest); the submit path
+gates on `active` and nothing else. A health stage here would report something the pipeline never checks.
+
+**Masking is reported at rule granularity, not field granularity** — hence the mandatory
+`RESPONSE_SHAPE_ABSENT` caveat. The live masker walks the actual response body by dot-path, which does
+not exist until the call has run, so the step reports which masking policies and legacy
+`restricted_response_fields` entries *resolve* for this connector and caller. A `policy_id` of `null`
+marks a legacy restricted-field entry rather than an AF-518 policy.
+
+**Audit.** One `ACCESS_SIMULATION_RUN` row against the **connector** (`resource_type=api_connector`),
+carrying `simulated_user_id`, `ai_outcome`, `step_count` and optional `risk_level` / `resulting_status`.
+It carries no request path, headers or body — `API_CONNECTOR_MANAGE` does not otherwise grant read
+access to another user's call content.
+
+#### POST /admin/deployment-simulations — Request Body
+
+```json
+{
+  "user_id": "8f14e45f-ceea-467a-9fb2-6e1f9c1f6a11",
+  "pipeline_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "environment_id": "0a41e9d2-1b77-4a11-9c3d-5e2f8b7a6c40",
+  "version": "2.6.0",
+  "ai_outcome": "COMPLETED",
+  "risk_level": "HIGH",
+  "scheduled_for": "2026-09-12T02:00:00Z",
+  "at": "2026-09-11T18:30:00Z"
+}
+```
+
+`at` is **the instant the whole trace is evaluated at**, defaulting to now. It is the one input the
+query endpoint has no equivalent for, and it exists because the two things a deployment admin most needs
+to ask are time-shaped: *is Friday evening inside a freeze window*, and *would this policy's maintenance
+hour match*. Both the freeze evaluator and the routing engine already take an explicit instant, so `at`
+is passed to the real ones rather than modelled. `scheduled_for` is the hypothetical deferred-release
+moment and is compared against `at`.
+
+There is no `risk_score`, for the same reason as the API endpoint: deployment routing gates on
+`minRiskLevel` alone.
+
+#### POST /admin/deployment-simulations — Response 200
+
+```json
+{
+  "resulting_status": "PENDING_REVIEW",
+  "releasable": false,
+  "evaluated_at": "2026-09-11T18:30:00Z",
+  "steps": [
+    {
+      "step": "PIPELINE_GATES",
+      "outcome": "ALLOW",
+      "reason": "The pipeline is active and the environment belongs to it",
+      "details": { "pipeline_name": "checkout-service", "provider": "GITHUB_ACTIONS", "active": true, "environment_name": "production", "ai_analysis_enabled": true }
+    },
+    { "step": "TRIGGER_PERMISSION", "outcome": "ALLOW", "reason": "The user holds an effective can_trigger grant on this pipeline", "details": { "can_trigger": true, "admin_bypass": false, "expires_at": null } },
+    {
+      "step": "FREEZE_WINDOW",
+      "outcome": "MATCH",
+      "reason": "A HOLD freeze window is active",
+      "details": { "freeze_window_id": "9f31…", "behavior": "HOLD", "reason_text": "Q3 change freeze", "scope": "PIPELINE" }
+    },
+    {
+      "step": "ROUTING_POLICIES",
+      "outcome": "NO_MATCH",
+      "reason": "No enabled routing policy matched",
+      "details": { "policies": [ { "policy_id": "a0c1…", "name": "Auto-approve staging", "priority": 5, "action": "AUTO_APPROVE", "matched": false, "decisive": false } ] }
+    },
+    { "step": "ENVIRONMENT_POLICY", "outcome": "DENY", "reason": "The environment requires human review", "details": { "require_review": true, "environment_required_approvals": 2, "review_plan_id": "77b2…", "requires_human_approval": true, "min_approvals_required": 1, "effective_min_approvals": 2, "plan_source": "ENVIRONMENT" } },
+    {
+      "step": "ELIGIBLE_REVIEWERS",
+      "outcome": "ALLOW",
+      "reason": "The review plan's approver rules apply",
+      "details": { "submitter_excluded": true, "plan_approvers": [ { "user_id": "4d2b…", "role": null, "stage": 1 } ] }
+    },
+    { "step": "SCHEDULED_RELEASE", "outcome": "DENY", "reason": "The scheduled moment has not passed", "details": { "scheduled_for": "2026-09-12T02:00:00Z", "evaluated_at": "2026-09-11T18:30:00Z" } },
+    { "step": "GATE_RELEASABILITY", "outcome": "DENY", "reason": "The gate would not release this deployment", "details": { "releasable": false, "status": "PENDING_REVIEW", "frozen": true, "scheduled_for": "2026-09-12T02:00:00Z" } },
+    { "step": "BREAK_GLASS", "outcome": "DENY", "reason": "The environment does not allow break-glass deploys", "details": { "can_break_glass": true, "environment_allows_break_glass": false } }
+  ],
+  "caveats": []
+}
+```
+
+**`steps` is always all nine, in this fixed order**, with the same omit-`resulting_status`-on-refusal
+rule as the other two endpoints.
+
+| Step | Keys | Present when |
+|---|---|---|
+| `PIPELINE_GATES` | `pipeline_name`, `provider`, `active`, `environment_name`, `ai_analysis_enabled` | always |
+| `TRIGGER_PERMISSION` | `can_trigger`, `admin_bypass`, `expires_at` | always (`expires_at` omitted for a standing grant or none) |
+| `FREEZE_WINDOW` | `freeze_window_id`, `behavior`, `reason_text`, `scope` (`ORGANIZATION` / `PIPELINE` / `ENVIRONMENT`) | `MATCH` only; `{}` when no window is active |
+| `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
+| `ENVIRONMENT_POLICY` | `require_review`, `environment_required_approvals`, `effective_min_approvals` | always |
+| | `review_plan_id`, `requires_human_approval`, `min_approvals_required`, `plan_source` (`ENVIRONMENT` / `PIPELINE`) | only when a review plan resolves |
+| `ELIGIBLE_REVIEWERS` | `submitter_excluded`, `reviewers[]` or `plan_approvers[]` | when the request would reach review |
+| `SCHEDULED_RELEASE` | `scheduled_for`, `evaluated_at` | always (`scheduled_for` omitted when none was supplied) |
+| `GATE_RELEASABILITY` | `releasable`, `status`, `frozen`, `scheduled_for` | always |
+| `BREAK_GLASS` | `can_break_glass`, `environment_allows_break_glass` | always |
+
+**`FREEZE_WINDOW` reports the submission-time effect; `GATE_RELEASABILITY` reports the release-time
+one.** They are genuinely different questions and a deployment can fail either: a `REJECT` window
+auto-rejects at submission and denies the first, while a `HOLD` window lets submission through and
+withholds releasability at the second. An unevaluable window definition counts as an active `HOLD` —
+fail-closed — and is reported as such rather than as "no freeze".
+
+**`GATE_RELEASABILITY` is the real gate function.** The step calls the same
+`releasable(status, frozen, scheduled_for, at)` that
+[`GET /deployment-gate`](#get-apiv1deployment-gate) blocks on — not a reimplementation — so the
+top-level `releasable` in the response is what the pipeline would actually see at `at`. It is `false`
+for any request that has not reached `APPROVED`, which is the common case in a trace and is not an error.
+
+**No delegation.** `ELIGIBLE_REVIEWERS` reports the plan's approver rules or the `DEPLOYMENT_REVIEW`
+holders, minus the submitter. Review delegation (#622) deliberately does not extend to deployments, so
+unlike the query endpoint there is nothing further to caveat here.
+
+**Audit.** One `ACCESS_SIMULATION_RUN` row against the **pipeline**
+(`resource_type=deployment_pipeline`), carrying `simulated_user_id`, `environment`, `ai_outcome`,
+`evaluated_at`, `step_count` and optional `risk_level` / `resulting_status`.
+
+#### Decision-trace Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the body, or an unparseable enum value |
+| 403 | `FORBIDDEN` | Caller lacks the kind's manage permission |
+| 404 | `API_CONNECTOR_NOT_FOUND` | Connector missing or in another organization |
+| 404 | `DEPLOYMENT_PIPELINE_NOT_FOUND` | Pipeline missing or in another organization |
+| 404 | `DEPLOYMENT_ENVIRONMENT_NOT_FOUND` | Environment missing or not on that pipeline |
 | 404 | `USER_NOT_FOUND` | `user_id` missing or in another organization |
 
 
