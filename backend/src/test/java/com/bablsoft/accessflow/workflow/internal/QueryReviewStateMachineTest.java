@@ -84,9 +84,12 @@ class QueryReviewStateMachineTest {
                 .ConditionContextFactory(queryRequestLookupService, sqlParserService,
                 userQueryService, userGroupService, behaviorAnomalyLookupService,
                 queryEstimateLookupService);
-        stateMachine = new QueryReviewStateMachine(queryRequestLookupService, reviewPlanLookupService,
-                queryRequestStateService, contextFactory, sqlParserService, routingPolicyEngine,
-                routingDecisionService, accessGrantLookupService, messageSource, eventPublisher);
+        // A real QueryDecisionEvaluator too, for the same reason: the assertions below are about the
+        // chain's behaviour, and mocking the decision away would leave only the switch under test.
+        var evaluator = new QueryDecisionEvaluator(reviewPlanLookupService, contextFactory,
+                sqlParserService, routingPolicyEngine, accessGrantLookupService);
+        stateMachine = new QueryReviewStateMachine(queryRequestLookupService, evaluator,
+                queryRequestStateService, routingDecisionService, messageSource, eventPublisher);
     }
 
     @BeforeEach

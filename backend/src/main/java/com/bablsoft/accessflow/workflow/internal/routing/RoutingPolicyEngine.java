@@ -43,7 +43,7 @@ public class RoutingPolicyEngine {
      * includes an unsaved draft — a second ordering implementation would be free to disagree with
      * the one that routes real queries.
      */
-    List<EvaluablePolicy> enabledFor(UUID organizationId, UUID datasourceId) {
+    public List<EvaluablePolicy> enabledFor(UUID organizationId, UUID datasourceId) {
         var policies = routingPolicyRepository.findEnabledForEvaluation(organizationId, datasourceId);
         var evaluable = new ArrayList<EvaluablePolicy>(policies.size());
         for (RoutingPolicyEntity policy : policies) {
@@ -62,13 +62,41 @@ public class RoutingPolicyEngine {
      * being evaluated is logged and skipped, exactly as an undecodable one is — one bad stored row
      * must never break routing for the whole organization.
      */
-    Optional<EvaluablePolicy> firstMatch(List<EvaluablePolicy> policies, ConditionContext context) {
+    public Optional<EvaluablePolicy> firstMatch(List<EvaluablePolicy> policies,
+                                               ConditionContext context) {
         for (var policy : policies) {
             if (matches(policy, context)) {
                 return Optional.of(policy);
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Every policy with its match flag, in the same order and by the same rule as
+     * {@link #firstMatch} (issue AF-859). The access explainer shows the whole ordered list, because
+     * a policy that <em>nearly</em> matched is usually the most useful line in a trace — and it goes
+     * through the shared {@link #matches} helper so that view can never disagree with the one that
+     * routes.
+     *
+     * <p>Deliberately not used on the live path, which short-circuits at the first match.
+     */
+    public List<PolicyEvaluation> evaluateAll(List<EvaluablePolicy> policies,
+                                              ConditionContext context) {
+        var evaluations = new ArrayList<PolicyEvaluation>(policies.size());
+        boolean decided = false;
+        for (var policy : policies) {
+            boolean matched = matches(policy, context);
+            // "decided" marks the winner: later policies are still reported as matching so an admin
+            // can see the overlap, but only the first one actually routes.
+            evaluations.add(new PolicyEvaluation(policy, matched, matched && !decided));
+            decided |= matched;
+        }
+        return List.copyOf(evaluations);
+    }
+
+    /** One policy's verdict for the explainer. {@code decisive} marks the first match. */
+    public record PolicyEvaluation(EvaluablePolicy policy, boolean matched, boolean decisive) {
     }
 
     private boolean matches(EvaluablePolicy policy, ConditionContext context) {

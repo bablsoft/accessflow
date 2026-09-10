@@ -44,4 +44,9 @@ public interface AccessGrantRequestRepository
     findAllByOrganizationIdAndRequesterIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
             UUID organizationId, UUID requesterId, UUID datasourceId,
             AccessGrantStatus status, Instant now);
+
+    /** The same set for every requester on the datasource, for the reverse index (AF-859). */
+    List<AccessGrantRequestEntity>
+    findAllByOrganizationIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
+            UUID organizationId, UUID datasourceId, AccessGrantStatus status, Instant now);
 }

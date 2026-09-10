@@ -961,6 +961,36 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void isVisibleToUserAnswersTheSamePredicateWithoutThrowing() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
+                .thenReturn(true);
+
+        assertThat(service.isVisibleToUser(datasourceId, orgId, userId)).isTrue();
+    }
+
+    @Test
+    void isVisibleToUserIsFalseWithoutAGrant() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        when(datasourceRepository.existsVisibleToUser(eq(datasourceId), eq(userId), any()))
+                .thenReturn(false);
+
+        assertThat(service.isVisibleToUser(datasourceId, orgId, userId)).isFalse();
+    }
+
+    @Test
+    void isVisibleToUserIsFalseForAnotherOrganizationOrAMissingDatasource() {
+        var entity = buildDatasource(datasourceId, UUID.randomUUID(), "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        assertThat(service.isVisibleToUser(datasourceId, orgId, userId)).isFalse();
+
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.empty());
+        assertThat(service.isVisibleToUser(datasourceId, orgId, userId)).isFalse();
+    }
+
+    @Test
     void grantPermissionRejectsUserFromDifferentOrg() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));

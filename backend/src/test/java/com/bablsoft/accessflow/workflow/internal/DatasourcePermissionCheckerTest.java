@@ -101,4 +101,41 @@ class DatasourcePermissionCheckerTest {
                 UUID.randomUUID(), true, true, true, true,
                 allowedSchemas, allowedTables, List.of(), null);
     }
+
+    @Test
+    void coveringEntryNamesTheTableEntryThatMatched() {
+        assertThat(DatasourcePermissionChecker.coveringEntry(List.of(), List.of("public.payments"),
+                "public.payments")).isEqualTo("public.payments");
+    }
+
+    @Test
+    void coveringEntryNamesTheSchemaWhenOnlyTheSchemaIsListed() {
+        assertThat(DatasourcePermissionChecker.coveringEntry(List.of("public"), List.of(),
+                "public.payments")).isEqualTo("public");
+    }
+
+    @Test
+    void coveringEntryIsNullWhenNothingCoversTheTable() {
+        assertThat(DatasourcePermissionChecker.coveringEntry(List.of("reporting"),
+                List.of("orders"), "public.payments")).isNull();
+    }
+
+    @Test
+    void coveringEntryDoesNotTreatABareTableAsSchemaQualified() {
+        assertThat(DatasourcePermissionChecker.coveringEntry(List.of("payments"), List.of(),
+                "payments")).isNull();
+    }
+
+    @Test
+    void coveringEntryAgreesWithRejectedTables() {
+        var schemas = List.of("public");
+        var tables = List.of("reporting.summary");
+        for (var table : List.of("public.payments", "reporting.summary", "audit.trail")) {
+            boolean covered = DatasourcePermissionChecker.coveringEntry(schemas, tables, table)
+                    != null;
+            boolean allowed = DatasourcePermissionChecker
+                    .rejectedTables(schemas, tables, Set.of(table)).isEmpty();
+            assertThat(covered).as(table).isEqualTo(allowed);
+        }
+    }
 }

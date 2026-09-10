@@ -4764,7 +4764,9 @@
       "MEMBERSHIP_STATE_CURRENT": "Roles and group memberships are read as they are now, not as they were when each query was submitted.",
       "ANOMALY_STATE_CURRENT": "A policy here reads the behavioural-anomaly signal, which reflects today's open anomalies rather than each query's own moment.",
       "COLUMN_MATCH_BARE_NAME": "Stored results record a column name but no table, so columns are matched by name alone and the count may be generous.",
-      "ENGINE_CLASSIFICATION_UNAVAILABLE": "Some queries could not be classified without a live connection and are reported as unclassifiable — not as unaffected."
+      "ENGINE_CLASSIFICATION_UNAVAILABLE": "Some queries could not be classified without a live connection and are reported as unclassifiable — not as unaffected.",
+      "COST_ESTIMATE_ABSENT": "The pre-flight cost estimate is computed per submitted query, so conditions on estimated rows or scan type do not match here.",
+      "CLIENT_CONTEXT_ABSENT": "A hypothetical request carries no source IP, user agent or CI/CD origin, so conditions on those do not match here."
     }
   }
 }

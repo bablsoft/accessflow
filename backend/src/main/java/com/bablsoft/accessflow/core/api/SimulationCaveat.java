@@ -33,5 +33,21 @@ public enum SimulationCaveat {
      * knowledge (Cassandra / ScyllaDB). Those rows are counted separately and are never reported as
      * unaffected.
      */
-    ENGINE_CLASSIFICATION_UNAVAILABLE
+    ENGINE_CLASSIFICATION_UNAVAILABLE,
+
+    /**
+     * The AF-624 pre-flight cost estimate is computed per <em>submitted</em> query, and an access
+     * simulation (issue AF-859) has no submitted query — so {@code estimated_rows} and
+     * {@code scan_type} conditions evaluate to {@code false} rather than to what they would see in
+     * production.
+     */
+    COST_ESTIMATE_ABSENT,
+
+    /**
+     * A hypothetical request carries no source IP, user agent or CI/CD origin (issue AF-859), so
+     * every AF-446 client-context condition evaluates to {@code false}. A policy keyed on one of
+     * those reports as unmatched here and would still fire on the real submission — which is why
+     * this is surfaced rather than smoothed over.
+     */
+    CLIENT_CONTEXT_ABSENT
 }

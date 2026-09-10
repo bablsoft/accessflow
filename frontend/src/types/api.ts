@@ -1461,7 +1461,12 @@ export type SimulationCaveat =
   | 'MEMBERSHIP_STATE_CURRENT'
   | 'ANOMALY_STATE_CURRENT'
   | 'COLUMN_MATCH_BARE_NAME'
-  | 'ENGINE_CLASSIFICATION_UNAVAILABLE';
+  | 'ENGINE_CLASSIFICATION_UNAVAILABLE'
+  // AF-859. Only the access explainer emits these two; the policy-simulator endpoints that feed
+  // PolicySimulationDrawer never can. Mirrored here anyway so the union stays a complete mirror of
+  // the backend enum rather than a partial one the next widening silently misreads.
+  | 'COST_ESTIMATE_ABSENT'
+  | 'CLIENT_CONTEXT_ABSENT';
 
 /** The four routing effects plus NO_MATCH (falls through to the grant path and the review plan). */
 export type RoutingSimulationOutcome = RoutingAction | 'NO_MATCH';

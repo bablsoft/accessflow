@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.core.internal;
 
+import com.bablsoft.accessflow.core.api.DatasourcePermissionContribution;
+import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionView;
 import com.bablsoft.accessflow.core.internal.persistence.entity.DatasourceGroupPermissionEntity;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 @Service
 @RequiredArgsConstructor
@@ -31,24 +34,77 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     @Override
     @Transactional(readOnly = true)
     public Optional<DatasourceUserPermissionView> findFor(UUID userId, UUID datasourceId) {
+        var contributions = findContributions(userId, datasourceId);
+        if (contributions.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(merge(userId, datasourceId, contributions));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourcePermissionContribution> findContributions(UUID userId, UUID datasourceId) {
         var now = Instant.now();
-        var contributions = new ArrayList<Contribution>();
+        var contributions = new ArrayList<DatasourcePermissionContribution>();
         permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId)
                 .filter(p -> isActive(p.getExpiresAt(), now))
-                .map(Contribution::from)
+                .map(DefaultDatasourceUserPermissionLookupService::toContribution)
                 .ifPresent(contributions::add);
         var groupIds = membershipRepository.findGroupIdsForUser(userId);
         if (!groupIds.isEmpty()) {
             groupPermissionRepository.findAllByGroup_IdIn(groupIds).stream()
                     .filter(p -> p.getDatasource().getId().equals(datasourceId))
                     .filter(p -> isActive(p.getExpiresAt(), now))
-                    .map(Contribution::from)
+                    .map(p -> toContribution(p, userId))
                     .forEach(contributions::add);
         }
-        if (contributions.isEmpty()) {
+        return contributions;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourcePermissionContribution> findContributionsForDatasource(UUID datasourceId) {
+        var now = Instant.now();
+        var contributions = new ArrayList<DatasourcePermissionContribution>();
+        permissionRepository.findAllByDatasource_Id(datasourceId).stream()
+                .filter(p -> isActive(p.getExpiresAt(), now))
+                .map(DefaultDatasourceUserPermissionLookupService::toContribution)
+                .forEach(contributions::add);
+        var groupPermissions = groupPermissionRepository.findAllByDatasource_Id(datasourceId).stream()
+                .filter(p -> isActive(p.getExpiresAt(), now))
+                .toList();
+        if (groupPermissions.isEmpty()) {
+            return contributions;
+        }
+        // One membership query for all of them, not one per grant.
+        var membersByGroup = new LinkedHashMap<UUID, List<UUID>>();
+        var groupIds = groupPermissions.stream()
+                .map(p -> p.getGroup().getId())
+                .distinct()
+                .toList();
+        for (var membership : membershipRepository.findAllByGroup_IdIn(groupIds)) {
+            membersByGroup.computeIfAbsent(membership.getGroup().getId(), k -> new ArrayList<>())
+                    .add(membership.getUser().getId());
+        }
+        // One contribution per member: the merge is per-user, so a group grant has to be expanded
+        // before it can be merged with that member's own direct row.
+        for (var groupPermission : groupPermissions) {
+            for (var memberId : membersByGroup.getOrDefault(groupPermission.getGroup().getId(),
+                    List.of())) {
+                contributions.add(toContribution(groupPermission, memberId));
+            }
+        }
+        return contributions;
+    }
+
+    @Override
+    public Optional<DatasourceUserPermissionView> mergeContributions(
+            List<DatasourcePermissionContribution> contributions) {
+        if (contributions == null || contributions.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(merge(userId, datasourceId, contributions));
+        var first = contributions.get(0);
+        return Optional.of(merge(first.userId(), first.datasourceId(), contributions));
     }
 
     @Override
@@ -63,19 +119,19 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     public List<DatasourceUserPermissionView> findBreakGlassEligible(UUID userId) {
         var now = Instant.now();
         // One bucket of contributions per datasource, merged into a single effective view.
-        var byDatasource = new LinkedHashMap<UUID, List<Contribution>>();
+        var byDatasource = new LinkedHashMap<UUID, List<DatasourcePermissionContribution>>();
         permissionRepository.findAllByUser_IdAndCanBreakGlassTrue(userId).stream()
                 .filter(p -> isActive(p.getExpiresAt(), now))
                 .forEach(p -> byDatasource
                         .computeIfAbsent(p.getDatasource().getId(), k -> new ArrayList<>())
-                        .add(Contribution.from(p)));
+                        .add(toContribution(p)));
         var groupIds = membershipRepository.findGroupIdsForUser(userId);
         if (!groupIds.isEmpty()) {
             groupPermissionRepository.findAllByGroup_IdInAndCanBreakGlassTrue(groupIds).stream()
                     .filter(p -> isActive(p.getExpiresAt(), now))
                     .forEach(p -> byDatasource
                             .computeIfAbsent(p.getDatasource().getId(), k -> new ArrayList<>())
-                            .add(Contribution.from(p)));
+                            .add(toContribution(p, userId)));
         }
         return byDatasource.entrySet().stream()
                 .map(e -> merge(userId, e.getKey(), e.getValue()))
@@ -92,7 +148,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
      * nothing masked); expiry is the latest among contributors (null wins = never expires).
      */
     private static DatasourceUserPermissionView merge(UUID userId, UUID datasourceId,
-                                                      List<Contribution> parts) {
+                                                      List<DatasourcePermissionContribution> parts) {
         boolean canRead = false;
         boolean canWrite = false;
         boolean canDdl = false;
@@ -111,44 +167,44 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
             }
         }
         return new DatasourceUserPermissionView(
-                parts.get(0).id(),
+                parts.get(0).sourceId(),
                 userId,
                 datasourceId,
                 canRead,
                 canWrite,
                 canDdl,
                 canBreakGlass,
-                unionAllowList(parts, Contribution::allowedSchemas),
-                unionAllowList(parts, Contribution::allowedTables),
+                unionAllowList(parts, DatasourcePermissionContribution::allowedSchemas),
+                unionAllowList(parts, DatasourcePermissionContribution::allowedTables),
                 intersectRestriction(parts),
                 anyNeverExpires ? null : expiresAt);
     }
 
     /** Allow-list union: a null/empty contribution means "all allowed", so it wins → empty list. */
-    private static List<String> unionAllowList(List<Contribution> parts,
-                                               java.util.function.Function<Contribution, String[]> field) {
+    private static List<String> unionAllowList(
+            List<DatasourcePermissionContribution> parts,
+            Function<DatasourcePermissionContribution, List<String>> field) {
         var union = new LinkedHashSet<String>();
         for (var p : parts) {
             var values = field.apply(p);
-            if (values == null || values.length == 0) {
+            if (values == null || values.isEmpty()) {
                 return List.of();
             }
-            for (var v : values) {
-                union.add(v);
-            }
+            union.addAll(values);
         }
         return List.copyOf(union);
     }
 
     /** Restriction intersection: a column is masked only when every contribution masks it. */
-    private static List<String> intersectRestriction(List<Contribution> parts) {
+    private static List<String> intersectRestriction(
+            List<DatasourcePermissionContribution> parts) {
         Set<String> intersection = null;
         for (var p : parts) {
             var values = p.restrictedColumns();
-            if (values == null || values.length == 0) {
+            if (values == null || values.isEmpty()) {
                 return List.of();
             }
-            var current = new LinkedHashSet<>(List.of(values));
+            var current = new LinkedHashSet<>(values);
             if (intersection == null) {
                 intersection = current;
             } else {
@@ -176,24 +232,25 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 entity.getExpiresAt());
     }
 
-    private static List<String> toList(String[] array) {
-        return array == null ? List.of() : List.of(array);
+    private static DatasourcePermissionContribution toContribution(
+            DatasourceUserPermissionEntity e) {
+        return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
+                e.getId(), e.getUser().getId(), e.getDatasource().getId(), null, null,
+                e.isCanRead(), e.isCanWrite(), e.isCanDdl(), e.isCanBreakGlass(),
+                toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
+                toList(e.getRestrictedColumns()), e.getExpiresAt());
     }
 
-    private record Contribution(UUID id, boolean canRead, boolean canWrite, boolean canDdl,
-                                boolean canBreakGlass, String[] allowedSchemas, String[] allowedTables,
-                                String[] restrictedColumns, Instant expiresAt) {
+    private static DatasourcePermissionContribution toContribution(
+            DatasourceGroupPermissionEntity e, UUID userId) {
+        return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
+                e.getId(), userId, e.getDatasource().getId(), e.getGroup().getId(),
+                e.getGroup().getName(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
+                e.isCanBreakGlass(), toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
+                toList(e.getRestrictedColumns()), e.getExpiresAt());
+    }
 
-        static Contribution from(DatasourceUserPermissionEntity e) {
-            return new Contribution(e.getId(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
-                    e.isCanBreakGlass(), e.getAllowedSchemas(), e.getAllowedTables(),
-                    e.getRestrictedColumns(), e.getExpiresAt());
-        }
-
-        static Contribution from(DatasourceGroupPermissionEntity e) {
-            return new Contribution(e.getId(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
-                    e.isCanBreakGlass(), e.getAllowedSchemas(), e.getAllowedTables(),
-                    e.getRestrictedColumns(), e.getExpiresAt());
-        }
+    private static List<String> toList(String[] array) {
+        return array == null ? List.of() : List.of(array);
     }
 }

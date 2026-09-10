@@ -57,16 +57,36 @@ final class DatasourcePermissionChecker {
         }
         var rejected = new TreeSet<String>();
         for (String table : referencedTables) {
-            if (allowedTables.contains(table)) {
-                continue;
+            if (coveringEntry(allowedSchemas, allowedTables, table) == null) {
+                rejected.add(table);
             }
-            int dotIdx = table.indexOf('.');
-            if (dotIdx > 0 && allowedSchemas.contains(table.substring(0, dotIdx))) {
-                continue;
-            }
-            rejected.add(table);
         }
         return rejected;
+    }
+
+    /**
+     * Which allow-list entry covers {@code table} — the qualified table itself, or the schema whose
+     * prefix it carries — or {@code null} when none does.
+     *
+     * <p>The reverse index (AF-859) needs to name the covering entry, not just know one exists, and
+     * this is the branch {@link #rejectedTables} makes its decision on. One rule, so a report can
+     * never disagree with the gate about which grant lets a query through.
+     *
+     * <p>Both lists must already be {@link #normalizeList}d, and so must {@code table}.
+     */
+    static String coveringEntry(List<String> allowedSchemas, List<String> allowedTables,
+                                String table) {
+        if (allowedTables.contains(table)) {
+            return table;
+        }
+        int dotIdx = table.indexOf('.');
+        if (dotIdx > 0) {
+            var schema = table.substring(0, dotIdx);
+            if (allowedSchemas.contains(schema)) {
+                return schema;
+            }
+        }
+        return null;
     }
 
     static List<String> normalizeList(List<String> raw) {

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,6 +17,9 @@ public interface UserGroupMembershipRepository
     List<UserGroupMembershipEntity> findAllByUser_Id(UUID userId);
 
     List<UserGroupMembershipEntity> findAllByGroup_Id(UUID groupId);
+
+    /** Memberships of several groups at once, so a per-datasource scan stays one query. */
+    List<UserGroupMembershipEntity> findAllByGroup_IdIn(Collection<UUID> groupIds);
 
     long countByGroup_Id(UUID groupId);
 

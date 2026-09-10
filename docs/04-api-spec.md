@@ -3101,6 +3101,8 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `DELETE` | `/admin/routing-policies/{id}` | Delete a routing policy *(ADMIN only)* |
 | `PUT` | `/admin/routing-policies/reorder` | Reorder routing policies by priority *(ADMIN only)* |
 | `POST` | `/admin/routing-policies/simulate` | Dry-run a draft routing policy against historical traffic (AF-630) *(ADMIN only)* |
+| `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
+| `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
 | `GET` | `/admin/notification-channels` | List notification channels |
 | `POST` | `/admin/notification-channels` | Add a notification channel |
 | `PUT` | `/admin/notification-channels/{id}` | Update channel configuration |
@@ -3789,6 +3791,339 @@ hold `QUERY_VIEW_ALL` can follow the link.
 | 404 | `DATASOURCE_NOT_FOUND` | Datasource missing or in another organization |
 | 404 | `ROUTING_POLICY_NOT_FOUND` / `ROW_SECURITY_POLICY_NOT_FOUND` / `MASKING_POLICY_NOT_FOUND` | `replaces_policy_id` names a policy that does not exist here |
 | 422 | `ROUTING_POLICY_INVALID` / `ILLEGAL_ROW_SECURITY_POLICY` / `ILLEGAL_MASKING_POLICY` | The draft would be rejected as a create |
+
+
+### Access explainer (AF-859)
+
+Two **read-only** admin endpoints that answer *why* a query would be decided the way it would, and
+*who* can reach a table — both by driving the **same evaluators production uses** rather than
+re-deriving their rules. A second implementation would drift from enforcement, and an explainer that
+disagrees with the gate is worse than none.
+
+| Method | Path | Permission |
+|--------|------|------------|
+| `POST` | `/admin/access-simulations` | `DATASOURCE_PERMISSION_MANAGE` |
+| `GET` | `/admin/effective-access` | `DATASOURCE_PERMISSION_MANAGE` **or** `ACCESS_USAGE_REPORT_VIEW` |
+
+`effective-access` also admits `ACCESS_USAGE_REPORT_VIEW` so auditors — who already read exactly this
+class of data at [`/admin/over-provisioned-access`](#over-provisioned-access-endpoints-625) — can use it
+read-only. Neither endpoint adds a `Permission` value.
+
+**Not the policy simulator.** [Policy simulator (AF-630)](#policy-simulator-af-630) replays *historical
+traffic* against a *draft policy* and reports an aggregated A/B diff. This replays *current policy* against
+*one hypothetical request* and returns a per-step trace for a single decision. Neither is an umbrella over
+the other — which is why the trace endpoint is `access-simulations` rather than the `policy-simulations`
+the issue proposed: the latter name would have read as the umbrella over the three per-policy-kind
+endpoints that AF-630 deliberately declined to build.
+
+**Read-only guarantee.** A simulation creates no `query_requests` row, opens no connection to a customer
+database, publishes no event, sends no notification, and makes no AI call. `risk_level` / `risk_score` are
+the *hypothetical* verdict supplied by the caller — the simulator never calls the AI provider, which would
+spend the organization's budget against the AF-55 guardrails and make the endpoint non-deterministic.
+
+**Scope boundary.** `effective-access` answers *who may submit*, not *what would happen*. For the latter,
+follow up with one simulation per user of interest. It is deliberately not an N-user simulation loop.
+
+#### POST /admin/access-simulations — Request Body
+
+```json
+{
+  "user_id": "8f14e45f-ceea-467a-9fb2-6e1f9c1f6a11",
+  "datasource_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "sql": "UPDATE payments SET status = 'void' WHERE id = 42",
+  "ai_outcome": "COMPLETED",
+  "risk_level": "HIGH",
+  "risk_score": 82
+}
+```
+
+`ai_outcome` selects which of the three production listener branches to model:
+
+| `ai_outcome` | Models | Effect on the trace |
+|---|---|---|
+| `COMPLETED` | AI analysis returned a verdict | Full chain with the supplied risk signal |
+| `SKIPPED` | `datasource.ai_analysis_enabled = false` | Full chain with **no** risk signal — risk-based routing conditions evaluate to `false`, and the review plan's `auto_approve_reads` fast path cannot fire (it needs an AI verdict) |
+| `FAILED` | AI analysis errored | Routing, the grant fast path and the review plan are all **`SKIP`** — production sends a failed analysis straight to `PENDING_REVIEW` and never routes it |
+
+`ai_outcome` defaults to `SKIPPED` when omitted. `risk_score` defaults to `-1`, which is the same
+"absent" sentinel the live `AiAnalysisCompletedEvent` uses.
+
+> **Send `risk_level` and `risk_score` together, or neither.** Every risk-based routing condition —
+> on the level as well as on the score — requires *both* a level and a score of `0` or more. The
+> grant-covered fast path (#582) is the exception: it gates on the level alone. So
+> `{"risk_level": "HIGH"}` with no score suppresses the fast path while making every risk policy,
+> including a `risk_level in [HIGH, CRITICAL]` one, report `matched: false`. That is the single most
+> likely thing to misread in this endpoint.
+
+#### POST /admin/access-simulations — Response 200
+
+```json
+{
+  "resulting_status": "PENDING_REVIEW",
+  "steps": [
+    {
+      "step": "DATASOURCE_GATES",
+      "outcome": "ALLOW",
+      "reason": "Datasource is active and visible to the simulated user",
+      "details": { "db_type": "POSTGRESQL", "active": true, "ai_analysis_enabled": true, "visible_to_user": true }
+    },
+    { "step": "QUOTA", "outcome": "ALLOW", "reason": "Organization query quota not exceeded", "details": {} },
+    {
+      "step": "SQL_PARSE",
+      "outcome": "ALLOW",
+      "reason": "Statement parsed as UPDATE",
+      "details": { "query_type": "UPDATE", "referenced_tables": ["payments"], "transactional": false, "has_where_clause": true, "has_limit_clause": false }
+    },
+    {
+      "step": "EFFECTIVE_PERMISSION",
+      "outcome": "ALLOW",
+      "reason": "Effective permission grants WRITE and covers every referenced table",
+      "details": {
+        "query_admin_short_circuit": false,
+        "contributing_grants": [
+          { "source_kind": "DIRECT", "source_id": "1c9a…", "group_id": null, "group_name": null, "expires_at": null },
+          { "source_kind": "GROUP", "source_id": "77b2…", "group_id": "0a41…", "group_name": "payments-oncall", "expires_at": "2026-10-01T00:00:00Z" }
+        ],
+        "rejected_tables": [],
+        "expires_at": "2026-10-01T00:00:00Z"
+      }
+    },
+    {
+      "step": "ROUTING_POLICIES",
+      "outcome": "MATCH",
+      "reason": "Policy \"Escalate prod payment writes\" matched at priority 10",
+      "details": {
+        "matched_policy_id": "b1f0…",
+        "matched_policy_name": "Escalate prod payment writes",
+        "action": "ESCALATE",
+        "policies": [
+          { "policy_id": "a0c1…", "name": "Block payroll deletes", "priority": 5, "action": "AUTO_REJECT", "matched": false, "decisive": false },
+          { "policy_id": "b1f0…", "name": "Escalate prod payment writes", "priority": 10, "action": "ESCALATE", "required_approvals": 2, "matched": true, "decisive": true },
+          { "policy_id": "c2e3…", "name": "Auto-approve low-risk reads", "priority": 20, "action": "AUTO_APPROVE", "matched": false, "decisive": false }
+        ],
+        "effective_min_approvals": 3
+      }
+    },
+    { "step": "GRANT_FAST_PATH", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": {} },
+    { "step": "REVIEW_PLAN", "outcome": "SKIP", "reason": "A routing policy already decided this request", "details": { "requires_human_approval": true, "auto_approve_reads": false, "min_approvals_required": 1 } },
+    {
+      "step": "ELIGIBLE_REVIEWERS",
+      "outcome": "ALLOW",
+      "reason": "Reviewers are assigned to this datasource and could act on the request",
+      "details": { "submitter_excluded": true, "reviewers": [ { "user_id": "4d2b…", "email": "dana@example.com", "display_name": "Dana Okonkwo" } ] }
+    },
+    {
+      "step": "ROW_SECURITY",
+      "outcome": "MATCH",
+      "reason": "Row-security predicates would be injected",
+      "details": { "engine_id": "jdbc", "row_security_outcome": "APPLIED", "applied_policy_ids": ["9f31…"], "predicates": [ { "policy_id": "9f31…", "table_ref": "public.payments", "column_name": "tenant_id", "operator": "EQUALS", "value_count": 1 } ] }
+    },
+    {
+      "step": "MASKING",
+      "outcome": "MATCH",
+      "reason": "1 masking policy resolves for the referenced tables",
+      "details": { "policies": [ { "policy_id": "6cab…", "column_ref": "public.payments.card_number", "strategy": "PARTIAL", "bare_column_name": false } ] }
+    },
+    { "step": "BREAK_GLASS", "outcome": "DENY", "reason": "The simulated user holds no break-glass grant on this datasource", "details": { "can_break_glass": false } }
+  ],
+  "evaluated_context": {
+    "query_type": "UPDATE",
+    "referenced_tables": ["payments"],
+    "risk_level": "HIGH",
+    "risk_score": 82,
+    "requester_role_name": "ANALYST",
+    "requester_group_ids": ["0a41…"],
+    "evaluated_at": "2026-09-10T11:04:00",
+    "has_where_clause": true,
+    "has_limit_clause": false,
+    "transactional": false,
+    "requester_ip_address": null,
+    "requester_user_agent": null,
+    "ci_cd_origin": false,
+    "minutes_since_last_approval": 47,
+    "anomaly_active": false,
+    "estimated_rows": null,
+    "scan_type": null
+  },
+  "caveats": ["CLIENT_CONTEXT_ABSENT", "COST_ESTIMATE_ABSENT"]
+}
+```
+
+`resulting_status` is **omitted** when the request would be refused before a status is ever
+assigned — a datasource that is inactive or not visible to the simulated user, an exceeded quota,
+unparseable SQL, or a permission denial. The step carrying `outcome: "DENY"` says which gate stopped
+it. Every later step is still present with `outcome: "SKIP"`.
+
+`evaluated_context` is **omitted** whenever routing never ran: on all of those refusal paths, and on
+`ai_outcome=FAILED`, where production sends the query straight to review without building a context at
+all. Those are exactly the traces worth reading closely, so treat its absence as information — it means
+no routing condition was evaluated, not that the signals were empty.
+
+**`steps` is always all eleven, in this fixed order**, so a client can render a stable checklist: a step
+that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outcome` is one of `ALLOW`,
+`DENY`, `MATCH`, `NO_MATCH`, `SKIP`. `reason` is localized to the request's `Accept-Language`.
+
+**`details` keys vary by outcome within a step, and a key with no value is omitted rather than sent as
+`null`.** Read an absent key as "not applicable", never as an error. The full set per step:
+
+| Step | Keys | Present when |
+|---|---|---|
+| `DATASOURCE_GATES` | `db_type`, `active`, `ai_analysis_enabled`, `visible_to_user` | always |
+| `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
+| `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause` | whenever the statement parsed; `{}` when it did not |
+| `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
+| `GRANT_FAST_PATH` | `considered_grant_ids` | whenever grants were looked up |
+| | `grant_id`, `approver_email` | `MATCH` only |
+| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads` | always |
+| | `review_plan_id`, `min_approvals_required` | only when the datasource has a review plan |
+| `ELIGIBLE_REVIEWERS` | `submitter_excluded` | always |
+| | `reviewers[]` (`user_id`, `email`, `display_name`) | when the datasource has its own reviewer assignment |
+| | `plan_approvers[]` (`user_id`, `role`, `stage`) | **instead of** `reviewers[]` when it does not |
+| `ROW_SECURITY` | `engine_id`, `row_security_outcome`, `applied_policy_ids`, `predicates[]` | when at least one policy applies; `{}` otherwise |
+| `MASKING` | `policies[]` (`policy_id`, `column_ref`, `strategy`, `bare_column_name`) | always (`[]` when none resolve) |
+| `BREAK_GLASS` | `can_break_glass`, `expires_at` | always (`expires_at` omitted for a standing grant or none) |
+
+`ELIGIBLE_REVIEWERS` is the one to read carefully. It reports the datasource's **reviewer assignment**
+minus the submitter, not the full live eligibility test — a decision additionally requires
+`QUERY_REVIEW`, approver-rule membership at the current stage, and delegation resolution (#622), none of
+which this step re-runs. Treat it as "who is on the hook", not as a guarantee that each of them could
+click approve today.
+
+`ROUTING_POLICIES.details.policies` lists **every** enabled policy in ascending priority order with its
+`matched` flag — not just the winner. A policy that *nearly* matched is usually the most useful line in
+the trace, and `evaluated_context` is echoed for the same reason: half of routing debugging is a signal
+that was stale or absent, not a rule that was wrong.
+
+**Caveats.** A hypothetical request is not a submitted one, and the response names each approximation
+rather than implying a precision it does not have. These four are the only values this endpoint emits —
+`MEMBERSHIP_STATE_CURRENT` and `ANOMALY_STATE_CURRENT` belong to the
+[policy simulator](#policy-simulator-af-630)'s historical replay and never appear here, because this
+endpoint reads both signals live:
+
+| `caveats` value | Meaning |
+|---|---|
+| `CLIENT_CONTEXT_ABSENT` | A hypothetical request carries no source IP, user agent or CI/CD origin, so every client-context routing condition (AF-446) evaluates to `false`. A policy keyed on one of those will report `matched: false` here and still fire on the real submission. |
+| `COST_ESTIMATE_ABSENT` | The AF-624 pre-flight estimate is computed per submitted query, so `estimated_rows` / `scan_type` conditions evaluate to `false`. |
+| `COLUMN_MATCH_BARE_NAME` | At least one masking policy's `column_ref` is a bare column name, which matches every table. See below. |
+| `ENGINE_CLASSIFICATION_UNAVAILABLE` | Row security could not be classified offline — the datasource's engine needs live schema knowledge (Cassandra / ScyllaDB). Reported as `UNKNOWN`, never as "no impact". |
+
+**Masking is reported at policy granularity, not column granularity.** The live resolver keys off the
+executing statement's `ResultSetMetaData`, which a simulation has no access to — so the `MASKING` step
+reports which masking *policies* resolve for the referenced tables, not which result columns would be
+masked. A policy whose `column_ref` is a bare column name matches any table and is reported with the
+`COLUMN_MATCH_BARE_NAME` caveat.
+
+**Audit.** Every call writes one `ACCESS_SIMULATION_RUN` audit row against the datasource, carrying the
+simulated user, `ai_outcome`, risk level, resulting status and step count. It deliberately does **not**
+carry the SQL: `DATASOURCE_PERMISSION_MANAGE` does not otherwise grant read access to query text.
+
+#### GET /admin/effective-access — Query Parameters
+
+| Parameter | Required | Description |
+|---|---|---|
+| `datasource_id` | yes | Datasource to report on; 404 when missing or in another organization |
+| `table` | yes | Table to test, `schema.table` or bare. Normalized exactly as the enforcement gate normalizes an allow-list entry — quotes/brackets stripped, trimmed, lower-cased |
+| `capability` | yes | `READ`, `WRITE` or `DDL` — the statement class, mapped to `can_read` / `can_write` / `can_ddl` |
+| `page`, `size` | no | 0-indexed; `size` defaults to 20, max 100 |
+
+#### GET /admin/effective-access — Response 200
+
+```json
+{
+  "content": [
+    {
+      "user_id": "8f14e45f-ceea-467a-9fb2-6e1f9c1f6a11",
+      "email": "dana@example.com",
+      "display_name": "Dana Okonkwo",
+      "role_name": "ANALYST",
+      "granted": true,
+      "table_scope": "ALLOW_LISTED",
+      "effective_expires_at": "2026-10-01T00:00:00Z",
+      "can_break_glass": false,
+      "sources": [
+        {
+          "kind": "GROUP_PERMISSION",
+          "source_id": "77b2…",
+          "group_id": "0a41…",
+          "group_name": "payments-oncall",
+          "grants_capability": true,
+          "table_scope": "ALLOW_LISTED",
+          "covering_allow_list_entry": "public",
+          "expires_at": "2026-10-01T00:00:00Z",
+          "pre_approve_queries": false
+        }
+      ]
+    },
+    {
+      "user_id": "c9d0…",
+      "email": "root@example.com",
+      "display_name": "Ops Root",
+      "role_name": "ADMIN",
+      "granted": true,
+      "table_scope": "ALL_TABLES",
+      "effective_expires_at": null,
+      "can_break_glass": true,
+      "sources": [
+        { "kind": "QUERY_ADMIN_BYPASS", "source_id": null, "group_id": null, "group_name": null, "grants_capability": true, "table_scope": "ALL_TABLES", "covering_allow_list_entry": null, "expires_at": null, "pre_approve_queries": false },
+        { "kind": "BREAK_GLASS", "source_id": "1c9a…", "group_id": null, "group_name": null, "grants_capability": false, "table_scope": "ALL_TABLES", "covering_allow_list_entry": null, "expires_at": null, "pre_approve_queries": false }
+      ]
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 2,
+  "total_pages": 1
+}
+```
+
+One row per user who could submit that statement class against that table, each naming **every** source
+that grants it. `sources[].kind` is one of (note the longer spellings: these are the same two origins the
+simulator's `EFFECTIVE_PERMISSION` step reports as `source_kind: DIRECT` / `GROUP`, plus three this
+endpoint adds):
+
+| `kind` | Meaning |
+|---|---|
+| `DIRECT_PERMISSION` | An unexpired `datasource_user_permissions` row |
+| `GROUP_PERMISSION` | An unexpired group permission inherited through membership (AF-530) |
+| `JIT_GRANT` | A time-boxed direct row correlated to an active `APPROVED` JIT grant. `pre_approve_queries` is always `true` on this kind — the label is applied only when such a grant exists — and means queries under it also skip review (#582) |
+| `QUERY_ADMIN_BYPASS` | The user holds `QUERY_ADMIN`, which **skips the per-datasource gate entirely**. Such a user appears here with `granted: true` and this single source even when they have **no** permission row at all — the row no other screen shows |
+| `BREAK_GLASS` | The user holds `can_break_glass` on this datasource |
+
+**`table_scope`.** `ALL_TABLES` means the contributor imposes no allow-list, so it covers every table on
+the datasource — present and future. It is never expanded into a table list: enumerating would need a live
+schema read (which this endpoint never performs) and would go stale the moment a table is created.
+`ALLOW_LISTED` carries the entry that covered the table in `covering_allow_list_entry` — the schema
+(`"public"`) or the qualified table (`"public.payments"`). It is `null`, and therefore absent, on a
+source whose own allow-list does not reach the table: `granted` is computed over the **merged** union,
+so a source can legitimately contribute the capability while another contributes the coverage. Read the
+row's `table_scope` for the verdict and the sources for the provenance.
+
+**`can_break_glass` does not feed `granted`.** Break-glass is a separate submission mode with its own
+compensating controls (instant admin fanout, a prominent audit row, a mandatory retro-review), not a
+capability on the ordinary path. Folding it into `granted` would tell an auditor a user can run the
+statement normally when they can only run it as a logged emergency. It is reported as a row-level flag and
+as its own source.
+
+> **`JIT_GRANT` is a correlation, not a foreign key.** A JIT grant is materialized as an ordinary
+> `datasource_user_permissions` row with a non-null `expires_at`, and the originating
+> `access_grant_request` id is not recorded on it. A time-boxed row is labelled `JIT_GRANT` only when an
+> active pre-approving grant exists for the same `(user, datasource)`; otherwise it stays
+> `DIRECT_PERMISSION` with its `expires_at`. Treat the label as a strong hint, and `expires_at` as the fact.
+
+**Audit.** Every call writes one `ACCESS_SIMULATION_RUN` audit row against the datasource, carrying the
+table and capability queried and `row_count` — the total number of matching users, not the size of the
+page returned.
+
+#### Access-explainer Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure on the body, an unparseable enum query parameter, or a `table` that normalizes to empty |
+| 403 | `FORBIDDEN` | Caller holds neither required permission |
+| 404 | `DATASOURCE_NOT_FOUND` | Datasource missing or in another organization |
+| 404 | `USER_NOT_FOUND` | `user_id` missing or in another organization |
 
 
 ### Notification Channels (`/admin/notification-channels`)

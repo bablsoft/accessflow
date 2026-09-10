@@ -133,6 +133,13 @@ public enum AuditAction {
     ATTESTATION_ITEM_REVOKED,
     ATTESTATION_EVIDENCE_EXPORTED,
     OVER_PROVISIONED_ACCESS_EXPORTED,
+
+    /**
+     * An admin traced a hypothetical request through the live evaluators, or read who can reach a
+     * table (AF-859). Both endpoints are read-only, but they disclose the organization's access
+     * topology, so they are audited like the other sensitive reads.
+     */
+    ACCESS_SIMULATION_RUN,
     API_CONNECTOR_CREATED,
     API_CONNECTOR_UPDATED,
     API_CONNECTOR_DELETED,

@@ -20,6 +20,17 @@ public interface AccessGrantLookupService {
                                                       UUID datasourceId);
 
     /**
+     * Every requester's {@code APPROVED}, unexpired, query-pre-approving grant on one datasource
+     * (AF-859).
+     *
+     * <p>The reverse index needs this because a JIT grant is materialised as an ordinary
+     * {@code datasource_user_permissions} row: the permission itself is already visible, but whether
+     * queries under it also skip review is recorded only here.
+     */
+    List<AccessGrantView> findPreApprovingGrantsForDatasource(UUID organizationId,
+                                                              UUID datasourceId);
+
+    /**
      * A grant by id regardless of status — the query-detail page must still render the grant
      * provenance after the grant expired or was revoked.
      */

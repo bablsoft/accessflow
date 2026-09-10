@@ -4764,7 +4764,9 @@
       "MEMBERSHIP_STATE_CURRENT": "Rollen und Gruppenmitgliedschaften werden im aktuellen Stand gelesen, nicht wie zum Zeitpunkt der jeweiligen Abfrage.",
       "ANOMALY_STATE_CURRENT": "Eine Richtlinie liest hier das Verhaltensanomalie-Signal, das die heute offenen Anomalien widerspiegelt und nicht den Zeitpunkt der Abfrage.",
       "COLUMN_MATCH_BARE_NAME": "Gespeicherte Ergebnisse enthalten einen Spaltennamen, aber keine Tabelle; Spalten werden daher nur nach Namen abgeglichen und die Zahl kann zu hoch sein.",
-      "ENGINE_CLASSIFICATION_UNAVAILABLE": "Einige Abfragen konnten ohne aktive Verbindung nicht klassifiziert werden und gelten als nicht klassifizierbar – nicht als unbeeinflusst."
+      "ENGINE_CLASSIFICATION_UNAVAILABLE": "Einige Abfragen konnten ohne aktive Verbindung nicht klassifiziert werden und gelten als nicht klassifizierbar – nicht als unbeeinflusst.",
+      "COST_ESTIMATE_ABSENT": "Die Vorab-Kostenschätzung wird je eingereichter Abfrage berechnet, daher greifen Bedingungen zu geschätzten Zeilen oder Scan-Typ hier nicht.",
+      "CLIENT_CONTEXT_ABSENT": "Eine hypothetische Anfrage hat weder Quell-IP noch User-Agent oder CI/CD-Herkunft, daher greifen Bedingungen dazu hier nicht."
     }
   }
 }
