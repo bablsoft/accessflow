@@ -148,6 +148,15 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean isVisibleToUser(UUID id, UUID organizationId, UUID userId) {
+        return datasourceRepository.findById(id)
+                .filter(entity -> entity.getOrganization().getId().equals(organizationId))
+                .isPresent()
+                && datasourceRepository.existsVisibleToUser(id, userId, Instant.now());
+    }
+
+    @Override
     @Transactional
     public DatasourceView create(CreateDatasourceCommand command) {
         if (datasourceRepository.existsByOrganization_IdAndNameIgnoreCase(

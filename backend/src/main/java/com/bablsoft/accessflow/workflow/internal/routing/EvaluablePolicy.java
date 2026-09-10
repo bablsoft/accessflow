@@ -13,11 +13,11 @@ import java.util.UUID;
  * <p>{@code draft} marks the unsaved policy in the simulated set: it has no persisted id of its
  * own unless it replaces one, so callers cannot tell it apart by id alone.
  */
-record EvaluablePolicy(UUID id, String name, int priority, RoutingAction action,
+public record EvaluablePolicy(UUID id, String name, int priority, RoutingAction action,
                        Integer requiredApprovals, String reason, ConditionNode condition,
                        boolean draft) {
 
-    RoutingMatch toMatch() {
+    public RoutingMatch toMatch() {
         return new RoutingMatch(id, name, action, requiredApprovals, reason);
     }
 }

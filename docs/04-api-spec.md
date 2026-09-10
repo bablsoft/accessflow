@@ -3943,6 +3943,11 @@ follow up with one simulation per user of interest. It is deliberately not an N-
 }
 ```
 
+`resulting_status` is **omitted** when the request would be refused before a status is ever
+assigned — an inactive datasource, an exceeded quota, unparseable SQL, or a permission denial. The
+step carrying `outcome: "DENY"` says which gate stopped it. Every later step is still present with
+`outcome: "SKIP"`.
+
 **`steps` is always all eleven, in this fixed order**, so a client can render a stable checklist: a step
 that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outcome` is one of `ALLOW`,
 `DENY`, `MATCH`, `NO_MATCH`, `SKIP`. `reason` is localized to the request's `Accept-Language`; `details`

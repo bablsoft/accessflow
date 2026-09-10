@@ -13,6 +13,14 @@ public interface DatasourceAdminService {
 
     DatasourceView getForUser(UUID id, UUID organizationId, UUID userId);
 
+    /**
+     * The same visibility predicate {@link #getForUser} enforces, as a question rather than an
+     * exception (AF-859). The access explainer has to report "not visible to this user" as one step
+     * of a trace, and catching {@code DatasourceNotFoundException} from a transactional method marks
+     * the caller's transaction rollback-only even when the exception is handled.
+     */
+    boolean isVisibleToUser(UUID id, UUID organizationId, UUID userId);
+
     DatasourceView create(CreateDatasourceCommand command);
 
     DatasourceView update(UUID id, UUID organizationId, UpdateDatasourceCommand command);

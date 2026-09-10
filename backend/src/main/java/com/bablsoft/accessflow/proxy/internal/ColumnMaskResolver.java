@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.proxy.internal;
 
+import com.bablsoft.accessflow.core.api.ColumnRefKeys;
 import com.bablsoft.accessflow.core.api.MaskingStrategy;
 import com.bablsoft.accessflow.core.api.ColumnMaskDirective;
 

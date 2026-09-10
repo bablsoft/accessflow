@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.proxy.internal;
+package com.bablsoft.accessflow.core.api;
 
 import java.util.Locale;
 
@@ -10,10 +10,15 @@ import java.util.Locale;
  * same way. The simulator only ever has bare column names — persisted result columns record a name
  * and a JDBC type but no schema or table — so it calls {@link #matchLevel} with nulls and gets
  * exactly bare-name matching, which is honest rather than guessed.
+ *
+ * <p>It lives beside {@link ResolvedColumnMask} because that is the type whose {@code columnRef} it
+ * parses, and because the access explainer (issue AF-859) needs the same parse from another module
+ * to say which masking policies touch a referenced table. A second parser would be free to disagree
+ * with the one that masks real result columns.
  */
-record ColumnRefKeys(String full, String table, String bare) {
+public record ColumnRefKeys(String full, String table, String bare) {
 
-    static ColumnRefKeys parse(String entry) {
+    public static ColumnRefKeys parse(String entry) {
         var lower = entry.trim().toLowerCase(Locale.ROOT);
         var parts = lower.split("\\.");
         return switch (parts.length) {
@@ -28,7 +33,7 @@ record ColumnRefKeys(String full, String table, String bare) {
     }
 
     /** 3 = schema.table.column, 2 = table.column, 1 = bare column, 0 = no match. */
-    int matchLevel(String schema, String table, String column) {
+    public int matchLevel(String schema, String table, String column) {
         if (full != null && schema != null && table != null
                 && full.equals(schema + "." + table + "." + column)) {
             return 3;
