@@ -24,6 +24,25 @@ public interface DatasourceUserPermissionLookupService {
     Optional<DatasourceUserPermissionView> findDirectFor(UUID userId, UUID datasourceId);
 
     /**
+     * The unexpired grants that <em>feed</em> {@link #findFor}, before they are merged (AF-859).
+     *
+     * <p>{@code findFor} merges over exactly this list, so a caller that needs to name the
+     * contributing grants gets the real inputs rather than a second derivation that could disagree
+     * with the one enforcement uses. Empty when no unexpired grant applies.
+     */
+    List<DatasourcePermissionContribution> findContributions(UUID userId, UUID datasourceId);
+
+    /**
+     * Every unexpired contribution on a datasource, for every user who has one (AF-859) — the
+     * direct rows plus each group row expanded across that group's members.
+     *
+     * <p>Backs the reverse index ("who can reach this table"). Deliberately not paginated: the
+     * merge that decides whether a user is actually granted runs in Java over a user's whole set of
+     * contributions, so a caller must see all of them before it can filter or slice.
+     */
+    List<DatasourcePermissionContribution> findContributionsForDatasource(UUID datasourceId);
+
+    /**
      * The user's currently-effective break-glass grants — permissions with {@code can_break_glass}
      * set whose {@code expires_at} is null or in the future. Backs the break-glass eligibility check
      * (AF-385).

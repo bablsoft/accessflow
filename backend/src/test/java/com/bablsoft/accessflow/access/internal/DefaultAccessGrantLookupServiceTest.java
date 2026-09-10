@@ -122,6 +122,37 @@ class DefaultAccessGrantLookupServiceTest {
     }
 
     @Test
+    void findPreApprovingGrantsForDatasourceCoversEveryRequester() {
+        var reviewerId = UUID.randomUUID();
+        when(requestRepository
+                .findAllByOrganizationIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
+                        organizationId, datasourceId, AccessGrantStatus.APPROVED, now))
+                .thenReturn(List.of(grant()));
+        when(decisionRepository.findAllByAccessGrantRequest_IdOrderByDecidedAtAsc(grantId))
+                .thenReturn(List.of(decision(DecisionType.APPROVED, reviewerId, now.minusSeconds(60))));
+        when(userQueryService.findById(reviewerId)).thenReturn(Optional.of(
+                userView(reviewerId, "rev@x.io", UserRoleType.REVIEWER)));
+
+        var views = service.findPreApprovingGrantsForDatasource(organizationId, datasourceId);
+
+        assertThat(views).hasSize(1);
+        assertThat(views.get(0).id()).isEqualTo(grantId);
+        assertThat(views.get(0).requesterId()).isEqualTo(requesterId);
+        assertThat(views.get(0).approverEmail()).isEqualTo("rev@x.io");
+    }
+
+    @Test
+    void findPreApprovingGrantsForDatasourceEmptyWhenNoneMatch() {
+        when(requestRepository
+                .findAllByOrganizationIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
+                        organizationId, datasourceId, AccessGrantStatus.APPROVED, now))
+                .thenReturn(List.of());
+
+        assertThat(service.findPreApprovingGrantsForDatasource(organizationId, datasourceId))
+                .isEmpty();
+    }
+
+    @Test
     void multiStageProvenancePicksTheLastApprovedDecision() {
         var stageOne = UUID.randomUUID();
         var stageTwo = UUID.randomUUID();

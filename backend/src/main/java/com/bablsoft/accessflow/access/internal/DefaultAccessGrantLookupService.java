@@ -42,6 +42,18 @@ class DefaultAccessGrantLookupService implements AccessGrantLookupService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<AccessGrantView> findPreApprovingGrantsForDatasource(UUID organizationId,
+                                                                     UUID datasourceId) {
+        return requestRepository
+                .findAllByOrganizationIdAndDatasourceIdAndStatusAndPreApproveQueriesTrueAndExpiresAtAfter(
+                        organizationId, datasourceId, AccessGrantStatus.APPROVED, clock.instant())
+                .stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<AccessGrantView> findGrant(UUID accessGrantId) {
         return requestRepository.findById(accessGrantId).map(this::toView);
     }
