@@ -376,6 +376,8 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Approve own access request | — | — | — | — | — |
 | Early-revoke an active grant | — | — | — | ✓ | — |
 | View / export the over-provisioned access report (`ACCESS_USAGE_REPORT_VIEW`, #625) | — | — | — | ✓ | ✓ |
+| Trace a hypothetical request through the live evaluators (`DATASOURCE_PERMISSION_MANAGE`, AF-859) | — | — | — | ✓ | — |
+| Read who can reach a table (`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`, AF-859) | — | — | — | ✓ | ✓ |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ | — |
 | Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ | — |
 | Create / edit datasources | — | — | — | ✓ | — |
@@ -760,6 +762,45 @@ approximations (memberships and the UBA signal read as of *now*, masking matched
 names) are returned as explicit `caveats` rather than smoothed over, so the UI cannot imply a
 precision the data does not have. Mechanism:
 [docs/05-backend.md → Policy simulator](05-backend.md#policy-simulator-af-630).
+
+### Access explainer (AF-859)
+
+Two read-only admin endpoints — `POST /admin/access-simulations` (trace one hypothetical request
+through the live evaluators) and `GET /admin/effective-access` (who could submit a statement class
+against one table). Distinct from the policy simulator above: that one replays *historical traffic*
+against a *draft policy*; this one replays *current policy* against a *hypothetical request*.
+
+- **Read-only, and structurally so.** A simulation creates no `query_requests` row, opens no
+  connection to a customer database, publishes no event, sends no notification, and makes no AI call.
+  That is enforced by construction rather than by discipline: the simulation service is not wired to a
+  persistence service, a state service, an event publisher, an AI analyzer or a notification
+  dispatcher, and a test asserts its declared dependencies contain none of them. Row security is
+  classified through the same offline `RowSecurityClassificationService` the policy simulator uses.
+- **The AI verdict is an input, never a call.** `risk_level` / `risk_score` are supplied by the
+  caller as the *hypothetical* verdict. Calling the provider would spend the organization's AI budget
+  against the AF-55 guardrails and make the endpoint non-deterministic, so the simulator never does.
+- **No new permission.** `access-simulations` requires `DATASOURCE_PERMISSION_MANAGE`.
+  `effective-access` requires `DATASOURCE_PERMISSION_MANAGE` **or** `ACCESS_USAGE_REPORT_VIEW`, so
+  auditors — who already read this class of data at `/admin/over-provisioned-access` (#625) — can use
+  it read-only. Adding a `Permission` value would fan out to `SystemRolePermissions`, the `V114` seed
+  rows and their parity test, and the frontend union, for no capability those two do not already
+  describe. Both are organization-scoped; a `datasource_id` or `user_id` outside the caller's
+  organization is `DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND`, never `403`.
+- **Simulating *as* another user reads their access and grants nothing.** The endpoints return no data
+  from the customer database and confer no capability on the caller or the simulated user. What they
+  do disclose is the organization's access topology — allow-lists, group provenance, row-security
+  shapes, masking policies and reviewer sets — which is why an analyst or a reviewer cannot reach
+  either one, and why both write an `ACCESS_SIMULATION_RUN` audit row naming the subject user,
+  datasource and table, following the `AUDIT_LOG_EXPORTED` / `OVER_PROVISIONED_ACCESS_EXPORTED`
+  precedent for sensitive reads. **Neither audit row carries the SQL**: `DATASOURCE_PERMISSION_MANAGE`
+  does not otherwise grant read access to query text, and an audit row must not become a side channel.
+
+The explainer's honesty rule is the same one the policy simulator follows. A hypothetical request
+carries no client context and no cost estimate, so conditions keyed on those evaluate to `false`; a
+policy that would fire on the real submission can therefore report as unmatched. Those approximations
+are returned as explicit `caveats` (`CLIENT_CONTEXT_ABSENT`, `COST_ESTIMATE_ABSENT`) rather than
+smoothed over. Mechanism:
+[docs/05-backend.md → Access explainer](05-backend.md#access-explainer-af-859).
 
 ### Data classification tags (AF-447)
 
