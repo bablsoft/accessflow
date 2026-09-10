@@ -17,7 +17,7 @@ import java.nio.file.Path;
  * ({@code @ImportTestcontainers({TestcontainersConfig.class, MysqlDriverCacheTestcontainersConfig.class})})
  * gives all four the same key, so they share one context and one cache directory.
  *
- * <p>See {@link TestcontainersConfig#accessFlowTestKeys} for why a holder costs nothing and a
+ * <p>See {@link TestKeysContextCustomizerFactory} for why a holder costs nothing and a
  * per-class method costs a full context.
  */
 public final class MysqlDriverCacheTestcontainersConfig {

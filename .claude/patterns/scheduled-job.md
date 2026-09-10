@@ -93,5 +93,24 @@ public class DiscoveryScanJob {
 node held the lock. Same Redis backend, same `accessflow:shedlock:` key prefix, and the ShedLock
 types stay inside `scheduling.internal/` so callers need no third-party import.
 
-`@EnableScheduling` already lives in `workflow/internal/config/WorkflowConfiguration` — don't add
-a second one. A new module's own `@Configuration` toggles belong in its `internal/config/`.
+`@EnableScheduling` already lives in `scheduling/internal/SchedulingConfiguration` — don't add a
+second one. A new module's own `@Configuration` toggles belong in its `internal/config/`.
+
+**Scheduling is off for the whole backend test suite**
+(`accessflow.scheduling.enabled=false` in `backend/src/test/resources/application.properties`),
+so a job never fires on its own in a test — drive the method directly and never wait for a tick.
+
+**Drive the service the job delegates to, not the job bean.** `@SchedulerLock` sits on the job's
+`run()`, so the service path is lock-free and needs no special wiring — that is what
+`AuditSinkDrainJobIntegrationTest` and `RecurringQueryIntegrationTest` do.
+
+Autowiring the **job bean** costs you more. `SchedulerLockConfiguration` is deliberately ungated,
+so the advice is live even on a direct call, and the lock is keyed by job name alone against one
+Redis shared by the whole surefire run — no per-context discriminator — so invocations of the same
+job collide **across** test classes, not merely within one, and `lockAtLeastFor` turns the next
+call into a silent no-op that leaves assertions reading stale state. The fix is a no-op
+`lockProvider` override, but it needs a `@TestConfiguration` plus
+`spring.main.allow-bean-definition-overriding=true` — both context-cache-key components, so it
+buys the class a private Spring context against the `maxSize` ceiling
+(`.claude/patterns/backend-test-parity.md`). `QueryTimeoutJobIntegrationTest` is the only test in
+the suite that needs it.

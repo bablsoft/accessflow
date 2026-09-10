@@ -34,8 +34,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -70,10 +68,12 @@ class QueryTimeoutJobIntegrationTest {
         }
 
         /**
-         * Replaces the Redis-backed lock provider so tests can call {@code job.run()} directly
-         * without contending with the auto-fired scheduled invocation (which holds the lock for
-         * its {@code lockAtLeastFor} window). The no-op lock always succeeds and never blocks.
-         * Bean name matches the production bean so it overrides via
+         * Replaces the Redis-backed lock provider — <em>not</em> the retired suppress-the-scheduler
+         * workaround (#765). {@code SchedulerLockConfiguration} stays ungated, so
+         * {@code @SchedulerLock} advice is live even on a direct {@code job.run()}, and
+         * {@code lockAtLeastFor = PT30S} outlives this class: without the override the repeat calls
+         * are silently skipped and the timeout assertions read stale state. Verified by removing
+         * it. Bean name matches the production bean so it overrides via
          * {@code spring.main.allow-bean-definition-overriding=true}.
          */
         @Bean("lockProvider")
@@ -96,12 +96,6 @@ class QueryTimeoutJobIntegrationTest {
         void onTimedOut(QueryTimedOutEvent event) {
             events.add(event);
         }
-    }
-
-    @DynamicPropertySource
-    static void securityProperties(DynamicPropertyRegistry registry) {
-        // Suppress automatic scheduler firing during the test — we drive job.run() explicitly.
-        registry.add("accessflow.workflow.timeout-poll-interval", () -> "PT24H");
     }
 
     @BeforeEach

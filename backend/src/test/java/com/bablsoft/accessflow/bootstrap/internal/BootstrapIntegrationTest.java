@@ -42,9 +42,11 @@ class BootstrapIntegrationTest {
     @TestConfiguration
     static class LockConfig {
         /**
-         * Replaces the Redis-backed lock provider so the bootstrap reconcile runs without
-         * needing a Redis container in this integration test. The no-op lock always succeeds
-         * and never blocks, mirroring {@code QueryTimeoutJobIntegrationTest.CaptureConfig}.
+         * Replaces the Redis-backed lock provider so this class can drive {@code run()} repeatedly
+         * on top of the {@code ApplicationReadyEvent} pass. (The old rationale here — "without
+         * needing a Redis container" — was never true: {@link TestcontainersConfig} always starts
+         * one.) The no-op lock always succeeds and never blocks, mirroring
+         * {@code QueryTimeoutJobIntegrationTest.CaptureConfig}.
          */
         @Bean("lockProvider")
         @Primary

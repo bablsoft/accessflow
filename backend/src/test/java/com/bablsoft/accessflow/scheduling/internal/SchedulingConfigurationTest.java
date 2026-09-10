@@ -13,8 +13,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Guards the scheduling on/off switch and, more importantly, the split that makes it safe.
  *
- * <p>The integration suite disables scheduling so its one shared Spring context does not have 36
- * {@code @Scheduled} jobs mutating the shared test database. That must not take ShedLock's advice
+ * <p>The integration suite disables scheduling so its one shared Spring context does not have every
+ * {@code @Scheduled} job mutating the shared test database. That must not take ShedLock's advice
  * down with it, or the suite would stop asserting the wiring that production depends on.
  */
 class SchedulingConfigurationTest {

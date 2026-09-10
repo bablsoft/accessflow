@@ -4,20 +4,14 @@ import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.lifecycle.api.ErasureStatus;
 import com.bablsoft.accessflow.lifecycle.api.LifecycleSubjectType;
 import com.bablsoft.accessflow.lifecycle.internal.persistence.entity.DeletionRequestEntity;
-import net.javacrumbs.shedlock.core.LockConfiguration;
-import net.javacrumbs.shedlock.core.LockProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,28 +21,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code status} predicate with a cast to the Java enum class name instead of the
  * {@code erasure_status} Postgres enum type (#546).
  */
-@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
+@SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
 class DeletionRequestRepositoryIntegrationTest {
 
     @Autowired DeletionRequestRepository repository;
 
     private static final Instant CUTOFF = Instant.parse("2026-06-22T00:00:00Z");
-
-    /**
-     * The lifecycle scheduled jobs (e.g. {@code ErasureReviewTimeoutJob}) run in the full context and
-     * would otherwise select and mutate the rows this test seeds — bumping their {@code @Version} and
-     * flaking the version-checked cleanup delete. A lock provider that never acquires the lock makes
-     * ShedLock skip every {@code @Scheduled} job for the duration of this test.
-     */
-    @TestConfiguration
-    static class NoScheduledJobsConfig {
-        @Bean("lockProvider")
-        @Primary
-        LockProvider neverAcquiresLockProvider() {
-            return (LockConfiguration lockConfig) -> Optional.empty();
-        }
-    }
 
     @BeforeEach
     @AfterEach
