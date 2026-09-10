@@ -16,6 +16,12 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
  * <p>This bean is what makes scheduled jobs safe under horizontal scaling: every {@code @Scheduled}
  * method annotated with {@code @SchedulerLock} acquires a Redis lock keyed by name; only one node
  * in the cluster runs the job per invocation.
+ *
+ * <p>{@code safeUpdate(true)} is deliberate (AF-660): the plain constructor releases a lock with an
+ * unconditional {@code DEL}, so a holder that overruns its {@code lockAtMostFor} — after Redis has
+ * expired the key and a second node has taken it — deletes <em>that</em> node's lock on its way
+ * out, admitting a third. The safe form compares the lock's own value first, at the cost of a Lua
+ * {@code EVAL} (single key, so cluster-safe) instead of a bare {@code DEL}.
  */
 @Configuration(proxyBeanMethods = false)
 class RedisLockProviderConfiguration {
@@ -24,6 +30,9 @@ class RedisLockProviderConfiguration {
 
     @Bean
     LockProvider lockProvider(RedisConnectionFactory connectionFactory) {
-        return new RedisLockProvider(connectionFactory, ENVIRONMENT);
+        return new RedisLockProvider.Builder(connectionFactory)
+                .environment(ENVIRONMENT)
+                .safeUpdate(true)
+                .build();
     }
 }

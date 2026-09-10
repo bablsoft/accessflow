@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-09",
+      "dateModified": "2026-09-10",
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/datasources/",
       "image": "https://accessflow.io/og-image.png",
@@ -263,7 +263,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Datasources.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-10">10 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -494,7 +494,23 @@
             <code>ACCESSFLOW_DISCOVERY_MAX_AI_TABLES_PER_SCAN</code> (<code>25</code>),
             <code>ACCESSFLOW_DISCOVERY_MAX_NESTED_DEPTH</code> (<code>5</code>),
             <code>ACCESSFLOW_DISCOVERY_MAX_NESTED_LEAVES_PER_ROW</code> (<code>100</code>),
-            <code>ACCESSFLOW_DISCOVERY_STALE_SCANS_BEFORE_EXPIRY</code> (<code>3</code>).
+            <code>ACCESSFLOW_DISCOVERY_STALE_SCANS_BEFORE_EXPIRY</code> (<code>3</code>),
+            <code>ACCESSFLOW_DISCOVERY_SCAN_LOCK_AT_MOST_FOR</code> (<code>PT30M</code>).
+          </p>
+          <p>
+            <strong>One scan per datasource at a time.</strong> A scan claims its datasource for as
+            long as it runs, so the same tables are never sampled twice at once — including when
+            you run AccessFlow on several servers, where a <em>Scan now</em> and a scheduled scan
+            could otherwise start on different ones. <em>Scan now</em> is refused outright while a
+            scan is under way, so you always know which run you are looking at; a scheduled scan
+            that finds the datasource busy simply leaves it due and picks it up on the next round.
+            <code>ACCESSFLOW_DISCOVERY_SCAN_LOCK_AT_MOST_FOR</code> above is only the safety net for
+            a server that dies mid-scan: it caps how long the claim can outlive the machine holding
+            it. Raising <code>ACCESSFLOW_DISCOVERY_SCAN_TIME_BUDGET</code> raises the claim with it,
+            keeping a wide margin over the time a scan is expected to take — so leaving this one
+            alone is normally right. To hand a datasource back sooner than the cap after a server
+            has died, delete the Redis key
+            <code>job-lock:accessflow:shedlock:discoveryScan:&lt;datasource id&gt;</code>.
           </p>
           <p>
             <strong>Proposals that go quiet clean themselves up.</strong> When a column is dropped,

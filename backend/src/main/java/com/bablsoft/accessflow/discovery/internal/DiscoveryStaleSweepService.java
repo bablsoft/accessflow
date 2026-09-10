@@ -36,9 +36,10 @@ import java.util.UUID;
  * may throw: the caller has already completed a real scan, and a bookkeeping failure must never
  * mark that scan failed.
  *
- * <p>Two nodes scanning the same datasource at once (the in-flight guard is per-node) can each
- * count the same miss, retiring a finding up to one cycle early. Harmless: {@code STALE} is
- * reversible — re-detection revives the finding to {@code PENDING} with the counter reset.
+ * <p>Miss counting assumes one scan of a datasource at a time, which the cluster-wide
+ * {@code discoveryScan:<datasourceId>} lock guarantees (AF-660). Even a double-count would only
+ * retire a finding a cycle early: {@code STALE} is reversible — re-detection revives the finding to
+ * {@code PENDING} with the counter reset.
  */
 @Service
 @RequiredArgsConstructor
