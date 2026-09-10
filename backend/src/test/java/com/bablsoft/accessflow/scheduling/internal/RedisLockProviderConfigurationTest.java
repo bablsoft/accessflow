@@ -38,4 +38,20 @@ class RedisLockProviderConfigurationTest {
         environmentField.setAccessible(true);
         assertThat(environmentField.get(internalProvider)).isEqualTo("accessflow:shedlock");
     }
+
+    @Test
+    void lockProviderReleasesLocksSafely() throws Exception {
+        var connectionFactory = mock(RedisConnectionFactory.class);
+
+        LockProvider provider = configuration.lockProvider(connectionFactory);
+
+        // Without safeUpdate the release is an unconditional DEL, so a holder that overran its
+        // lockAtMostFor deletes whichever node's lock it finds on the way out (AF-660).
+        Field internalField = RedisLockProvider.class.getDeclaredField("internalRedisLockProvider");
+        internalField.setAccessible(true);
+        Object internalProvider = internalField.get(provider);
+        Field safeUpdateField = internalProvider.getClass().getDeclaredField("safeUpdate");
+        safeUpdateField.setAccessible(true);
+        assertThat(safeUpdateField.get(internalProvider)).isEqualTo(true);
+    }
 }

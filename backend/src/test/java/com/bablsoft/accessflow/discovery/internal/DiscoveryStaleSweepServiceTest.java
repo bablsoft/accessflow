@@ -43,7 +43,7 @@ class DiscoveryStaleSweepServiceTest {
 
     private DiscoveryStaleSweepService newService(int threshold) {
         return new DiscoveryStaleSweepService(findingRepository, auditLogService,
-                new DiscoveryProperties(null, null, null, null, null, null, null, threshold));
+                new DiscoveryProperties(null, null, null, null, null, null, null, threshold, null));
     }
 
     private DiscoveryFindingEntity finding(String schema, String table, int missed) {

@@ -1036,7 +1036,7 @@ REST surface lives in the `security` module (`DataClassificationTagController`,
 
 The `discovery` module closes the AF-447 loop: instead of waiting for an admin to know a column is
 sensitive, a scanner **finds** the sensitive columns and proposes the classification tags. It
-depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
+depends only on `core.api`, `proxy.api`, `ai.api`, `audit.api`, and `scheduling.api`.
 
 - **Scan pipeline** (`DiscoveryScanService.scan`, driven by `DiscoveryScanJob` per due
   `discovery_scan_config` row or by the on-demand `POST /datasources/{id}/discovery/scan`): enumerate
@@ -1047,9 +1047,8 @@ depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
   pipeline over them, and upsert findings. Raw sampled values live only on the scan method's stack — findings persist a **redacted** sample only
   (`ColumnMasker` `PARTIAL`, `visible_suffix=4`). Guards: `max-tables-per-scan` (default 200), a
   wall-clock `scan-time-budget` (default `PT10M`; exceeding either flags the run `partial`), per-table
-  failures swallowed, a per-node in-flight set (cluster races are harmless — upserts are idempotent
-  against the natural-key unique index), and columns already covered by an enabled masking policy or
-  an existing tag are skipped.
+  failures swallowed, a cluster-wide `discoveryScan:<datasourceId>` lock (see the AF-660 bullet below), and columns already
+  covered by an enabled masking policy or an existing tag are skipped.
 - **Detectors** (`discovery.internal.detect`, pure classes): `EMAIL`→PII, `CREDIT_CARD` (13–19
   digits + Luhn)→PCI, `SSN` (US, never-issued ranges rejected)→PII, `IBAN` (per-country length +
   mod-97)→FINANCIAL, `PHONE`→PII. First-match-wins per value in that order (checksum detectors
@@ -1102,8 +1101,25 @@ depends only on `core.api`, `proxy.api`, `ai.api`, and `audit.api`.
   Audited as `DISCOVERY_FINDING_EXPIRED` per retired finding — capped at 100 rows per scan, since
   the audit log is hash-chained, with `expiredAuditTruncated` on the scan row — plus
   `findingsAged` / `findingsExpired` / `findingsRevived` counters on `DISCOVERY_SCAN_COMPLETED`.
-  Because the in-flight guard is per-node, two nodes scanning one datasource can each count the
-  same miss and retire a finding up to a cycle early; harmless, since `STALE` is reversible.
+- **One scan per datasource, cluster-wide (AF-660).** Both entry points take the
+  `discoveryScan:<datasourceId>` lock through `scheduling.api.DistributedLockService` — the Redis
+  `accessflow:shedlock:` namespace every `@SchedulerLock` uses — and hold it for the whole run. The
+  scheduled path calls `runLocked` and, when another replica already holds it, logs and moves on;
+  the datasource is not stamped, so it stays due and the next tick retries it. The on-demand path
+  calls `runLockedAsync`, which acquires on the request thread and runs the scan on the discovery
+  executor, so `POST /datasources/{id}/discovery/scan` can still answer `202` or
+  `409 DISCOVERY_SCAN_ALREADY_RUNNING` immediately — and the `409` now means "running *somewhere*",
+  not "running on the node you happened to hit". The lock's TTL is
+  `accessflow.discovery.scan-lock-at-most-for` (default `PT30M`), clamped to at least
+  `2 × scan-time-budget + 10m`: a lock that lapses under a still-running scan is a lock that admits
+  the second scanner it exists to keep out. The additive term is doing the real work there, because
+  `scan-time-budget` bounds the *table loop*, not the run — schema introspection precedes it, and
+  the last table's sample, its AI call and the stale sweep all follow it. So the floor is a
+  generous margin, not a proof: a datasource whose introspection alone runs for hours can still
+  outlive its lock, and the compensating control is `safeUpdate(true)` on the provider, which stops
+  the overrunning holder from deleting the lock its successor has taken. It is a crash ceiling, not a timeout — the lock is released
+  the moment the scan ends. Redis being unreachable fails the request (500) rather than scanning
+  unguarded.
 - **Nested document values (AF-658).** `NestedValueFlattener` walks `Map`/`List` cell values —
   the shape every document engine puts inside a cell, because a column there is a *top-level*
   field (an observed union for MongoDB, Couchbase, Elasticsearch and DynamoDB; the declared schema
@@ -1449,7 +1465,7 @@ Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec
 
 `@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 26 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
 
-Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). ShedLock types stay confined to `scheduling.internal/`.
+Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). It offers two shapes: `runLocked` runs the critical section on the calling thread, and `runLockedAsync` acquires on the calling thread but runs the section on a caller-supplied `Executor`, releasing when it finishes — what lets a request-scoped caller answer "already running" synchronously without occupying its thread for the whole job (AF-660). ShedLock types stay confined to `scheduling.internal/`, and the provider is built with `safeUpdate(true)` so a holder that overruns its `lockAtMostFor` cannot delete a lock a second node has since taken.
 
 This makes horizontal scaling safe: when the AccessFlow backend runs as multiple replicas (Kubernetes Deployment with `replicas > 1`, or any process supervisor that runs N instances against the same Postgres + Redis), only one replica wins the lock per tick and runs the job. The other replicas observe the lock and skip — they will see no PENDING_REVIEW rows that match by the time their own next tick fires, because the winner already drained them.
 

@@ -18,13 +18,14 @@ import com.bablsoft.accessflow.core.api.SampleTableRequest;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
 import com.bablsoft.accessflow.discovery.api.DiscoveryDetector;
 import com.bablsoft.accessflow.discovery.api.DiscoveryFindingStatus;
-import com.bablsoft.accessflow.discovery.api.DiscoveryScanAlreadyRunningException;
 import com.bablsoft.accessflow.discovery.internal.config.DiscoveryProperties;
 import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoveryFindingEntity;
 import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoveryScanConfigEntity;
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryFindingRepository;
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryScanConfigRepository;
 import com.bablsoft.accessflow.proxy.api.QueryExecutor;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,14 +41,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -71,6 +75,11 @@ class DiscoveryScanServiceTest {
     private DataDiscoveryAiService dataDiscoveryAiService;
     @Mock
     private AuditLogService auditLogService;
+    @Mock
+    private DistributedLockService distributedLockService;
+
+    private final ExecutorService discoveryScanExecutor =
+            Executors.newVirtualThreadPerTaskExecutor();
 
     private final UUID dsId = UUID.randomUUID();
     private final UUID orgId = UUID.randomUUID();
@@ -79,7 +88,25 @@ class DiscoveryScanServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, null));
+        // Every test but the lock ones wants the lock granted; the lock behaviour itself is
+        // pinned in DefaultDistributedLockServiceTest.
+        lenient().when(distributedLockService.runLocked(any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    invocation.getArgument(2, Runnable.class).run();
+                    return true;
+                });
+        lenient().when(distributedLockService.runLockedAsync(any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    invocation.getArgument(3, Runnable.class).run();
+                    return true;
+                });
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null,
+                null, null));
+    }
+
+    @AfterEach
+    void tearDown() {
+        discoveryScanExecutor.shutdownNow();
     }
 
     private DiscoveryScanService newService(DiscoveryProperties properties) {
@@ -94,7 +121,7 @@ class DiscoveryScanServiceTest {
                 queryExecutor, dataDiscoveryAiService, auditLogService, properties,
                 new NestedValueFlattener(properties),
                 new DiscoveryStaleSweepService(findingRepository, auditLogService, properties),
-                clock);
+                distributedLockService, discoveryScanExecutor, clock);
     }
 
     /** A clock that advances by {@code step} on every read — drives the scan's time budget. */
@@ -269,7 +296,7 @@ class DiscoveryScanServiceTest {
         }
         var schema = new DatabaseSchemaView(List.of(
                 new DatabaseSchemaView.Schema("public", tables)));
-        service = newService(new DiscoveryProperties(null, null, null, 2, null, null, null, null));
+        service = newService(new DiscoveryProperties(null, null, null, 2, null, null, null, null, null));
         stubHappyPath(schema, new SelectExecutionResult(List.of(), List.of(), 0, false,
                 Duration.ofMillis(1), null, null, null));
 
@@ -457,7 +484,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void respectsConfiguredNestedDepthLimit() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, 1, null, null));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, 1, null, null, null));
         stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
 
         service.scan(dsId, orgId, null);
@@ -467,7 +494,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void respectsConfiguredPerRowLeafBudget() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, 1, null));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, 1, null, null));
         stubHappyPath(schemaWithUsersTable(), nestedProfileSample());
 
         service.scan(dsId, orgId, null);
@@ -560,27 +587,42 @@ class DiscoveryScanServiceTest {
     }
 
     @Test
-    void secondConcurrentScanIsRejected() throws Exception {
-        var latch = new java.util.concurrent.CountDownLatch(1);
-        var release = new java.util.concurrent.CountDownLatch(1);
-        when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
-                .thenReturn(Optional.empty());
-        when(datasourceAdminService.introspectSchemaForSystem(dsId, orgId)).thenAnswer(inv -> {
-            latch.countDown();
-            release.await();
-            return new DatabaseSchemaView(List.of());
-        });
+    void scanHoldsThePerDatasourceClusterLock() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
 
-        var first = new Thread(() -> service.scan(dsId, orgId, null));
-        first.start();
-        latch.await();
-        try {
-            assertThatThrownBy(() -> service.scan(dsId, orgId, null))
-                    .isInstanceOf(DiscoveryScanAlreadyRunningException.class);
-        } finally {
-            release.countDown();
-            first.join();
-        }
+        assertThat(service.scan(dsId, orgId, null)).isTrue();
+
+        verify(distributedLockService).runLocked(eq("discoveryScan:" + dsId),
+                eq(Duration.ofMinutes(30)), any());
+    }
+
+    @Test
+    void scanDoesNothingWhenAnotherReplicaHoldsTheLock() {
+        doReturn(false).when(distributedLockService).runLocked(any(), any(), any());
+
+        assertThat(service.scan(dsId, orgId, null)).isFalse();
+
+        verifyNoInteractions(datasourceAdminService, queryExecutor, findingRepository);
+    }
+
+    @Test
+    void scanAsyncTakesTheSameLockAsTheScheduledPath() {
+        stubHappyPath(schemaWithUsersTable(), usersSample());
+
+        assertThat(service.scanAsync(dsId, orgId, UUID.randomUUID())).isTrue();
+
+        verify(distributedLockService).runLockedAsync(eq("discoveryScan:" + dsId),
+                eq(Duration.ofMinutes(30)), eq(discoveryScanExecutor), any());
+    }
+
+    @Test
+    void scanAsyncStartsNothingWhenAnotherReplicaHoldsTheLock() {
+        doReturn(false).when(distributedLockService)
+                .runLockedAsync(any(), any(), any(), any());
+
+        assertThat(service.scanAsync(dsId, orgId, UUID.randomUUID())).isFalse();
+
+        verifyNoInteractions(datasourceAdminService, queryExecutor, findingRepository);
     }
 
     @Test
@@ -642,7 +684,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void retiresPendingFindingAsStaleAtTheThreshold() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         stubHappyPath(schemaWithUsersTable(), usersSample());
         var orphan = stalePendingFinding("public", "users", 0);
         stubPendingForSweep(orphan);
@@ -665,7 +707,7 @@ class DiscoveryScanServiceTest {
         var schema = new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
                 List.of(new DatabaseSchemaView.Table("users", List.of(), List.of()),
                         new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
-        service = newService(new DiscoveryProperties(null, null, null, 1, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, 1, null, null, null, 1, null));
         stubHappyPath(schema, usersSample());
         var orphan = stalePendingFinding("public", "orders", 0);
         stubPendingForSweep(orphan);
@@ -682,7 +724,7 @@ class DiscoveryScanServiceTest {
                 List.of(new DatabaseSchemaView.Table("users", List.of(), List.of()),
                         new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
         // Each clock read advances 6 minutes, so the PT10M budget expires after the first table.
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1),
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null),
                 steppingClock(Duration.ofMinutes(6)));
         stubHappyPath(schema, usersSample());
         var orphan = stalePendingFinding("public", "orders", 0);
@@ -698,7 +740,7 @@ class DiscoveryScanServiceTest {
     void doesNotAgeFindingsForATableWhoseSampleThrew() {
         var schema = new DatabaseSchemaView(List.of(new DatabaseSchemaView.Schema("public",
                 List.of(new DatabaseSchemaView.Table("orders", List.of(), List.of())))));
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         stubHappyPath(schema, usersSample());
         when(queryExecutor.sampleTable(any()))
                 .thenThrow(new IllegalStateException("connection refused"));
@@ -715,7 +757,7 @@ class DiscoveryScanServiceTest {
     void doesNotAgeFindingsWhenTheSampleYieldedTooFewValues() {
         var columns = List.of(new ResultColumn("email", 12, "varchar"));
         var rows = List.<List<Object>>of(List.of("alice@example.com"), List.of("bob@example.com"));
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         stubHappyPath(schemaWithUsersTable(),
                 new SelectExecutionResult(columns, rows, 2, false, Duration.ofMillis(1), null,
                         null, null));
@@ -816,7 +858,7 @@ class DiscoveryScanServiceTest {
     void doesNotAgeAiFindingsWhenTheAiPassReturnedNothing() {
         // The AI lane is fail-safe: a rotated key, an outage or a deleted ai_config yields an
         // empty list, not an exception. Ageing on that would retire every AI finding in the estate.
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         var columns = List.of(new ResultColumn("national_id", 12, "varchar"));
         var rows = List.<List<Object>>of(List.of("11-22-33"), List.of("44-55-66"),
                 List.of("77-88-99"), List.of("12-34-56"), List.of("65-43-21"));
@@ -837,7 +879,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void agesAiFindingsWhenTheAiPassAnsweredForTheTable() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         var columns = List.of(new ResultColumn("national_id", 12, "varchar"));
         var rows = List.<List<Object>>of(List.of("11-22-33"), List.of("44-55-66"),
                 List.of("77-88-99"), List.of("12-34-56"), List.of("65-43-21"));
@@ -859,7 +901,7 @@ class DiscoveryScanServiceTest {
 
     @Test
     void doesNotAgeAiFindingsWhenTheAiPassIsDisabled() {
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         stubHappyPath(schemaWithUsersTable(), usersSample());
         var orphan = staleAiFinding();
         stubPendingForSweep(orphan);
@@ -872,7 +914,7 @@ class DiscoveryScanServiceTest {
     @Test
     void stillAgesRegexFindingsWhenTheAiPassReturnedNothing() {
         // The AI gate is scoped to AI-detector findings; a regex proposal must still age.
-        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1));
+        service = newService(new DiscoveryProperties(null, null, null, null, null, null, null, 1, null));
         stubHappyPath(schemaWithUsersTable(), usersSample());
         when(configRepository.findByDatasourceIdAndOrganizationId(dsId, orgId))
                 .thenReturn(Optional.of(aiEnabledConfig()));

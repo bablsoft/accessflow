@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.discovery.internal.scheduled;
 
-import com.bablsoft.accessflow.discovery.api.DiscoveryScanAlreadyRunningException;
 import com.bablsoft.accessflow.discovery.internal.DiscoveryScanService;
 import com.bablsoft.accessflow.discovery.internal.persistence.entity.DiscoveryScanConfigEntity;
 import com.bablsoft.accessflow.discovery.internal.persistence.repo.DiscoveryScanConfigRepository;
@@ -21,8 +20,9 @@ import java.time.Instant;
  * {@code scan_interval_hours} (or was never scanned).
  *
  * <p>The {@link SchedulerLock} guarantees only one node in a cluster runs per tick (Redis-backed
- * {@code LockProvider} in the {@code scheduling} module). Per-datasource failures are logged and
- * skipped so one bad datasource never aborts the batch.
+ * {@code LockProvider} in the {@code scheduling} module), and each datasource is scanned under its
+ * own cluster lock, so an on-demand "Scan now" elsewhere cannot double up (AF-660). Per-datasource
+ * failures are logged and skipped so one bad datasource never aborts the batch.
  */
 @Component
 @RequiredArgsConstructor
@@ -47,11 +47,14 @@ public class DiscoveryScanJob {
         var scanned = 0;
         for (var config : due) {
             try {
-                scanService.scan(config.getDatasourceId(), config.getOrganizationId(), null);
-                scanned++;
-            } catch (DiscoveryScanAlreadyRunningException ex) {
-                log.info("Skipping discovery scan for datasource {} — already running",
-                        config.getDatasourceId());
+                // A skipped datasource is never stamped (last_scan_at is written inside the scan),
+                // so it stays due and the next tick retries it.
+                if (scanService.scan(config.getDatasourceId(), config.getOrganizationId(), null)) {
+                    scanned++;
+                } else {
+                    log.info("Skipping discovery scan for datasource {} — already running "
+                            + "on another replica", config.getDatasourceId());
+                }
             } catch (RuntimeException ex) {
                 log.error("Discovery scan failed for datasource {}", config.getDatasourceId(), ex);
             }

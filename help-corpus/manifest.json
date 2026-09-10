@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "e36586d2590c",
-  "generatedAt": "2026-09-09T15:32:29.440Z",
-  "sourceCommit": "9402ed5e7be1fb0613193dfcd30521233bc2d8d9",
-  "chunkCount": 528,
-  "sha256": "e36586d2590c8c265f351e60e069118474e4a56c80828e2cc979810bfbe4a2bb",
+  "corpusVersion": "71aa679935cf",
+  "generatedAt": "2026-09-10T07:07:33.521Z",
+  "sourceCommit": "66a1b83a1178cda82bf6a326dcaad3cfe74c3e6d",
+  "chunkCount": 529,
+  "sha256": "71aa679935cfdde1a9096fc0c795a182b87c45ab74cc2e1d245b9bfc5fe8a6dc",
   "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
@@ -205,7 +205,7 @@
       "url": "https://accessflow.io/docs/configuration/datasources/",
       "section": "Reference",
       "chunks": 13,
-      "sha256": "a5c1cea332cb28dc08782a27978d24e5beb25098bfe2c187d0c6ad66c24e6f5d"
+      "sha256": "f7bb42116e1c15516bb683255a64284c4ddc791c6f8990ea5ac4a058df0b0275"
     },
     {
       "path": "website/docs/configuration/notifications/index.html",
@@ -404,8 +404,8 @@
       "title": "Deploying and configuring AccessFlow",
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
-      "chunks": 84,
-      "sha256": "8e5ff9248129199a977f637bde9e3fe3c0316c8fb6e859ce71f8a25aa4ebc6a9"
+      "chunks": 85,
+      "sha256": "6f1de27fe8fb655e57ef4f5259d2b9a9d38ed340f0b954ee67ee2aa710c56991"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",

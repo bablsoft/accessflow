@@ -102,6 +102,8 @@ class DiscoveryController {
     @ApiResponse(responseCode = "202", description = "Scan accepted")
     @ApiResponse(responseCode = "404", description = "Datasource not found")
     @ApiResponse(responseCode = "409", description = "A scan for this datasource is already running")
+    @ApiResponse(responseCode = "500",
+            description = "The cluster lock backing the scan guard is unreachable")
     ResponseEntity<Void> triggerScan(@PathVariable UUID datasourceId,
                                      Authentication authentication) {
         var caller = currentClaims(authentication);
