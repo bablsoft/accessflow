@@ -95,4 +95,38 @@ class DefaultApiConnectorLookupServiceTest {
 
         assertThat(service.hasAnyConnector(organizationId)).isFalse();
     }
+
+    // ── The governance projection (AF-967) ────────────────────────────────────
+
+    @Test
+    void findGovernanceViewCarriesTheDecisionChainsFieldsAndNothingElse() {
+        var entity = connector(connectorId, "billing-api", reviewPlanId);
+        entity.setRequireReviewReads(false);
+        entity.setRequireReviewWrites(true);
+        entity.setAiAnalysisEnabled(true);
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, organizationId))
+                .thenReturn(Optional.of(entity));
+
+        var view = service.findGovernanceView(connectorId, organizationId).orElseThrow();
+
+        assertThat(view.id()).isEqualTo(connectorId);
+        assertThat(view.organizationId()).isEqualTo(organizationId);
+        assertThat(view.name()).isEqualTo("billing-api");
+        assertThat(view.protocol()).isEqualTo(ApiProtocol.REST);
+        assertThat(view.active()).isTrue();
+        assertThat(view.aiAnalysisEnabled()).isTrue();
+        assertThat(view.reviewPlanId()).isEqualTo(reviewPlanId);
+        assertThat(view.requireReviewReads()).isFalse();
+        assertThat(view.requireReviewWrites()).isTrue();
+    }
+
+    @Test
+    void findGovernanceViewIsEmptyForAConnectorInAnotherOrganization() {
+        // The repository query is organization-scoped, so a foreign connector is indistinguishable
+        // from a missing one — the 404-never-403 shape the module uses everywhere.
+        when(connectorRepository.findByIdAndOrganizationId(connectorId, organizationId))
+                .thenReturn(Optional.empty());
+
+        assertThat(service.findGovernanceView(connectorId, organizationId)).isEmpty();
+    }
 }

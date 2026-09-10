@@ -76,7 +76,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
      */
     @Override
     public ApiCallSimulationResult simulate(UUID organizationId, ApiCallSimulationInput input) {
-        var user = userQueryService.findById(input.userId())
+        userQueryService.findById(input.userId())
                 .filter(u -> organizationId.equals(u.organizationId()))
                 .orElseThrow(() -> new UserNotFoundException(input.userId()));
         var connector = connectorLookupService
@@ -92,7 +92,8 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         steps.add(classificationStep(input, classification));
         boolean schemaOk = schemaStep(input, operations, steps);
         var permission = permissionResolver.resolve(connector.id(), input.userId()).orElse(null);
-        boolean permitted = permissionStep(user, input, classification.write(), permission, steps);
+        boolean permitted = permissionStep(organizationId, input, classification.write(),
+                permission, steps);
         if (!connector.active() || !schemaOk || !permitted) {
             return blocked(steps, caveats);
         }
@@ -104,7 +105,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         var decision = decisionEvaluator.evaluate(decisionInput);
         steps.addAll(withFullPolicyList(decision, decisionInput));
 
-        steps.add(reviewerStep(connector, input, decision.nextStatus()));
+        steps.add(reviewerStep(organizationId, connector, input, decision.nextStatus()));
         steps.add(maskingStep(organizationId, input, permission));
         steps.add(breakGlassStep(permission));
         return new ApiCallSimulationResult(steps, decision.nextStatus(), List.copyOf(caveats));
@@ -212,7 +213,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
     // ── 4. Operation permission ───────────────────────────────────────────────
 
     /** @return false when the call would be refused at the permission gate */
-    private boolean permissionStep(UserView user, ApiCallSimulationInput input, boolean write,
+    private boolean permissionStep(UUID organizationId, ApiCallSimulationInput input, boolean write,
                                    ResolvedApiConnectorPermission permission,
                                    List<DecisionTraceStep> steps) {
         var details = new LinkedHashMap<String, Object>();
@@ -220,7 +221,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         // appear in no permission table while being able to reach everything. Naming the bypass is
         // the whole reason this key is in the trace.
         boolean queryAdmin = rolePermissionHolderLookupService
-                .findUserIdsWithPermission(user.organizationId(), Permission.QUERY_ADMIN)
+                .findUserIdsWithPermission(organizationId, Permission.QUERY_ADMIN)
                 .contains(input.userId());
         details.put("query_admin_short_circuit", queryAdmin);
         if (queryAdmin) {
@@ -310,8 +311,10 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
 
     // ── 7. Eligible reviewers ─────────────────────────────────────────────────
 
-    private DecisionTraceStep reviewerStep(ApiConnectorGovernanceView connector,
-                                           ApiCallSimulationInput input, QueryStatus resultingStatus) {
+    private DecisionTraceStep reviewerStep(UUID organizationId,
+                                           ApiConnectorGovernanceView connector,
+                                           ApiCallSimulationInput input,
+                                           QueryStatus resultingStatus) {
         if (resultingStatus != QueryStatus.PENDING_REVIEW) {
             return DecisionTraceStep.of(ApiDecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.SKIP,
                     "apigov.simulation.reviewers.not_pending_review");
@@ -331,7 +334,7 @@ class DefaultApiCallSimulationService implements ApiCallSimulationService {
         // No approver rules: the request is open to any API_REQUEST_REVIEW holder. Security rule —
         // a user can never approve their own call, whatever else they hold.
         var reviewerIds = rolePermissionHolderLookupService
-                .findUserIdsWithPermission(connector.organizationId(), Permission.API_REQUEST_REVIEW)
+                .findUserIdsWithPermission(organizationId, Permission.API_REQUEST_REVIEW)
                 .stream()
                 .filter(id -> !id.equals(input.userId()))
                 .toList();
