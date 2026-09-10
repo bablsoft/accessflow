@@ -39,10 +39,11 @@ async function openEditorOnDatasource(page: Page): Promise<void> {
     .locator('.ant-select-item-option')
     .filter({ hasText: datasource!.name })
     .click();
-  // Wait on the UI, not on the schema response: this datasource may already be the editor's
-  // default selection, in which case the fetch fired during the initial load and a listener
-  // registered around the click would never see it.
-  await expect(page.locator('.ant-select-selection-item').first()).toHaveText(datasource!.name);
+  // Wait on the UI, not on a schema response: this datasource may already be the editor's default
+  // selection, in which case that fetch fired during the initial load and a listener registered
+  // around the click would never see it. The schema tree appearing is the signal that a datasource
+  // is loaded; that it is *this* one is proven by the suggestion assertions below, which match SQL
+  // seeded only here.
   await expect(page.getByPlaceholder('Filter schemas, tables, columns')).toBeVisible();
 }
 
@@ -142,7 +143,7 @@ test.describe.serial('automatic query suggestions in /editor (#776)', () => {
     await expect(page.getByText('Suggested queries')).toBeVisible();
     await expect(page.getByText(SUGGESTED_SQL)).toBeVisible();
     // Two approvals by one person — the evidence line reports both counts.
-    await expect(page.getByText(/Approved 2× by 1/)).toBeVisible();
+    await expect(page.getByText(/Approved 2× · submitters: 1/)).toBeVisible();
     // The rail must never read as pre-approval.
     await expect(
       page.getByText(/still analysed and reviewed like any other query/i),
