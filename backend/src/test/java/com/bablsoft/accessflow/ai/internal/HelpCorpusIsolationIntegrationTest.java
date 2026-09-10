@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.VectorStoreTestTable;
 import com.bablsoft.accessflow.ai.internal.help.HelpCorpusRetriever;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import org.junit.jupiter.api.AfterEach;
@@ -60,7 +61,7 @@ class HelpCorpusIsolationIntegrationTest {
     void seedBothCorpora() {
         store = new SpringAiVectorStoreFactory(jdbcTemplate)
                 .create(RagStoreType.PGVECTOR, new StubEmbeddingModel(), DIMENSIONS, null, null, null);
-        jdbcTemplate.update("DELETE FROM vector_store");
+        VectorStoreTestTable.clear(jdbcTemplate);
         // Identical text in both, so nothing but the metadata filter can separate them.
         store.add(List.of(
                 Document.builder().text(SHARED_TEXT).metadata(Map.of(
@@ -82,7 +83,7 @@ class HelpCorpusIsolationIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM vector_store");
+        VectorStoreTestTable.clear(jdbcTemplate);
     }
 
     @Test

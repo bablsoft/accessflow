@@ -69,6 +69,16 @@ exist. A hand-rolled `PostgreSQLContainer` fails on both.
   milliseconds, and the whole suite shares one context cache.
 - **Asserting only the happy path on a service with documented exceptions** → the exception
   branches are exactly what the ProblemDetail contract depends on.
+- **`DELETE FROM vector_store` to clean up** → use `VectorStoreTestTable.clear(jdbcTemplate)`
+  (`TRUNCATE`). `vector_store` carries an HNSW index, which is *approximate*: a scan walks a fixed
+  neighbour budget and returns the live rows it reached — never an error, never an exact fallback.
+  `DELETE` leaves dead heap tuples and dead graph entries, and it leaves the table *empty*, so the
+  reset listener's "truncate only tables that hold rows" pre-pass skips it and ~150 pages of bloat
+  survive the class. Autoanalyze then stamps `reltuples = 0` on a 150-page relation, the planner
+  starts pricing the index scan under a seq scan, and the *next* class to seed two rows and search
+  reads back nothing. Measured: after `DELETE`, 0 hits on a row sitting at distance 0.0; after
+  `TRUNCATE`, 1 hit. Clean up this way even if your own class never searches — the damage lands on
+  whoever runs next.
 
 ## Test-context cache — three invariants
 
