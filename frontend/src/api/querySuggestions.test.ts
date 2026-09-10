@@ -1,21 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 
-vi.mock('./client', () => ({ apiClient: { get, post } }));
+vi.mock('./client', () => ({ apiClient: { get } }));
 
-const { fetchQuerySuggestions, querySuggestionKeys, recomputeQuerySuggestions } = await import(
-  './querySuggestions'
-);
+const { fetchQuerySuggestions, querySuggestionKeys } = await import('./querySuggestions');
 
 const DATASOURCE = 'ds-1';
 
 describe('querySuggestions api', () => {
   beforeEach(() => {
     get.mockReset();
-    post.mockReset();
     get.mockResolvedValue({ data: { suggestions: [] } });
-    post.mockResolvedValue({ data: undefined });
   });
 
   it('exposes stable query keys', () => {
@@ -47,11 +43,5 @@ describe('querySuggestions api', () => {
     await fetchQuerySuggestions(DATASOURCE, 5);
 
     expect(get.mock.calls[0]?.[1]).toEqual({ params: { limit: 5 } });
-  });
-
-  it('posts the recompute trigger', async () => {
-    await recomputeQuerySuggestions(DATASOURCE);
-
-    expect(post.mock.calls[0]?.[0]).toBe('/api/v1/datasources/ds-1/query-suggestions/recompute');
   });
 });

@@ -9,14 +9,15 @@ import { showApiError } from '@/utils/showApiError';
 import { activeSyntax, engineMode, syntaxForQuery, type EngineMode } from '@/utils/engineModes';
 import type { AiAnalysis, Datasource, QueryDryRunResult, QueryTemplate } from '@/types/api';
 
-/**
- * Where an SQL change came from, so hosts can keep their own semantics on top (the standalone
- * editor maps 'ai_suggestion' onto submission_reason=AI_SUGGESTION and everything else back to
- * USER_SUBMITTED).
- */
 /** Which panel the editor's right rail is showing. */
 export type RightPanel = 'ai' | 'plan' | 'suggestions';
 
+/**
+ * Where an SQL change came from, so hosts can keep their own semantics on top. The standalone
+ * editor maps the two suggestion sources onto their own submission reasons — 'ai_suggestion' onto
+ * AI_SUGGESTION and 'history_suggestion' onto HISTORY_SUGGESTION — and everything else back to
+ * USER_SUBMITTED.
+ */
 export type SqlChangeSource =
   | 'user'
   | 'ai_suggestion'
@@ -184,7 +185,7 @@ export function useQueryAuthoring({ ds, sql, onSqlChange }: UseQueryAuthoringArg
     applyHistorySuggestion: (suggestionSql) => {
       // Same choreography as an AI suggestion — seed the draft, switch the editor to the engine's
       // native mode, and leave the analysis stale so Submit re-gates. Only the provenance differs,
-      // and #776 keeps it distinct so AI-suggestion adoption stays measurable.
+      // and #776 keeps it distinct so the audit trail can still tell the two apart.
       handleSqlChange(suggestionSql, 'history_suggestion');
       setSyntax(syntaxForQuery(ds?.db_type, suggestionSql));
     },

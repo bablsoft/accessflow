@@ -99,6 +99,13 @@ class DefaultQuerySuggestionService implements QuerySuggestionService {
         var visible = new ArrayList<QuerySuggestionView>();
         for (var row : rows) {
             var tables = Arrays.asList(row.getReferencedTables());
+            // Belt for the invariant the aggregation enforces: rejectedTables() reports "nothing
+            // rejected" for an empty set, so a row that somehow reached the table with no resolved
+            // tables would clear the allow-list for every viewer. One guard is not enough for the
+            // whole feature's disclosure story.
+            if (tables.isEmpty()) {
+                continue;
+            }
             if (permission != null && !isReachable(permission, row, tables)) {
                 continue;
             }

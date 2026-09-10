@@ -602,9 +602,12 @@ caller is allow-listed for the tables involved and could author the same query t
 suggestion reveals nothing they could not already reach. It is not acceptable without that filter,
 which is why the filter is in the service and not the UI.
 
-**The corpus excludes what never cleared a review.** `EMERGENCY_ACCESS` (break-glass, AF-385) is
-excluded because it bypassed review entirely — break-glass SQL is exactly the SQL that must not be
-recommended onward. `RECURRING` occurrences and recurring-series parents are excluded as
+**The corpus excludes what went around the approval path.** `EMERGENCY_ACCESS` (break-glass,
+AF-385) is excluded because it bypassed review entirely — break-glass SQL is exactly the SQL that
+must not be recommended onward. The corpus does *not* require a human decision: a routing policy's
+`AUTO_APPROVE`, a `pre_approve_queries` grant, and a plan needing no human approval all reach
+`APPROVED` and are all included, because each is the organisation's own configured judgement about
+that shape. The line drawn is "went through the approval path", not "a person read it". `RECURRING` occurrences and recurring-series parents are excluded as
 machine-generated. Rejected, timed-out, cancelled and still-pending queries never enter, because
 only `APPROVED` and `EXECUTED` are read.
 

@@ -20,6 +20,17 @@ public interface QuerySuggestionRepository extends JpaRepository<QuerySuggestion
             UUID datasourceId);
 
     /**
+     * Datasources in the organisation that currently hold suggestions.
+     *
+     * <p>The aggregation walk is driven by the union of this and "datasources with qualifying
+     * history". Without it a datasource whose last approved query ages out of the lookback window
+     * simply stops appearing in the corpus query — so it is never visited, its sweep never runs,
+     * and it serves stale suggestions forever with no path back short of a manual recompute.
+     */
+    @Query("select distinct s.datasourceId from QuerySuggestionEntity s where s.organizationId = :orgId")
+    List<UUID> findDatasourceIdsWithSuggestions(@Param("orgId") UUID organizationId);
+
+    /**
      * Removes the rows an aggregation pass did not rewrite — a query shape that has dropped out of
      * the lookback window, or that no longer earns a place in the datasource's top slice. Scoped to
      * one datasource, matching the aggregation's unit of work, so a datasource whose pass failed

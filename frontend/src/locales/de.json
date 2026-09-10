@@ -581,7 +581,7 @@
       "empty": "Noch keine Vorschläge. Sie erscheinen, sobald diese Datenquelle einige genehmigte Abfragen hat, auf die Sie Zugriff haben.",
       "load_error": "Vorschläge konnten nicht geladen werden.",
       "apply": "Als Entwurf übernehmen",
-      "evidence": "{{times}}× genehmigt von {{people}} · zuletzt {{when}}"
+      "evidence": "{{times}}× genehmigt · Einreichende: {{people}}"
     }
   },
   "dry_run_panel": {

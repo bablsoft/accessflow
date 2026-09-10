@@ -9,8 +9,12 @@ import java.util.UUID;
  * <em>approved</em> query requests, newest first.
  *
  * <p>"Approved" here means {@link QueryStatus#APPROVED} or {@link QueryStatus#EXECUTED} — the two
- * states a request reaches only after clearing review. Four kinds of row are excluded, because none
- * of them is evidence that a human found the query safe to hand to another analyst:
+ * states a request reaches by going <em>through</em> the organisation's approval path. That is
+ * deliberately wider than "a human looked at it": a routing policy's {@code AUTO_APPROVE}
+ * (AF-379), a grant with {@code pre_approve_queries} (#582), and a review plan that does not
+ * require human approval all land here, and all three are the organisation's own configured
+ * judgement that the shape is safe. What is excluded is everything that went <em>around</em> that
+ * path, or that no analyst authored:
  * {@link SubmissionReason#EMERGENCY_ACCESS} bypassed review entirely (AF-385);
  * {@link SubmissionReason#RECURRING} rows are machine-generated occurrences of a series, so a single
  * approved five-minute schedule would otherwise read as thousands of independent approvals (#627);

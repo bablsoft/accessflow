@@ -581,7 +581,7 @@
       "empty": "Todavía no hay sugerencias. Aparecerán cuando esta fuente de datos tenga algunas consultas aprobadas a las que usted tenga acceso.",
       "load_error": "No se pudieron cargar las sugerencias.",
       "apply": "Aplicar como borrador",
-      "evidence": "Aprobada {{times}} veces por {{people}} · última {{when}}"
+      "evidence": "Aprobada {{times}}× · autores: {{people}}"
     }
   },
   "dry_run_panel": {

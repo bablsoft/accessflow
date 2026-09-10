@@ -7,6 +7,7 @@ import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import com.bablsoft.accessflow.workflow.api.QuerySuggestionAggregationService;
 import com.bablsoft.accessflow.workflow.internal.config.QuerySuggestionProperties;
+import com.bablsoft.accessflow.workflow.internal.persistence.repo.QuerySuggestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,13 +15,15 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import java.util.UUID;
 
 /**
  * Organisation fan-out for the automatic query suggestion rebuild (#776).
  *
  * <p>Thin by design: the per-organisation transaction and all of the mining live one level down in
- * {@link QuerySuggestionOrganizationAggregator}, reached across the Spring proxy so
+ * {@link QuerySuggestionDatasourceAggregator}, reached across the Spring proxy so
  * {@code @Transactional} actually applies. What lives here is the master switch, the paged
  * organisation walk, and the per-organisation {@code RuntimeException} swallow — one organisation's
  * unparseable history must not cost every other organisation its suggestions.
@@ -39,6 +42,7 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
     private final QuerySuggestionCorpusLookupService corpusLookupService;
     private final QuerySuggestionDatasourceAggregator aggregator;
     private final DistributedLockService distributedLockService;
+    private final QuerySuggestionRepository suggestionRepository;
     private final QuerySuggestionProperties properties;
     private final Clock clock;
 
@@ -81,7 +85,8 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
             return false;
         }
         // The caller already holds this datasource's lock (that is how the endpoint answers 202 vs
-        // 409), so re-acquiring here would deadlock against itself. The scheduled path takes it in
+        // 409). Re-acquiring here would not deadlock — the Redis provider would simply decline —
+        // but the rebuild would then silently no-op. The scheduled path takes the lock in
         // aggregateLocked instead.
         aggregator.aggregate(organizationId, datasourceId, clock.instant());
         return true;
@@ -115,8 +120,7 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
     private int aggregateOrganization(UUID organizationId, Instant runStamp) {
         var since = runStamp.minus(properties.lookback());
         int aggregated = 0;
-        for (var datasourceId : corpusLookupService.findDatasourceIdsWithHistory(organizationId,
-                since)) {
+        for (var datasourceId : datasourcesToVisit(organizationId, since)) {
             try {
                 if (aggregateLocked(organizationId, datasourceId, runStamp)) {
                     aggregated++;
@@ -127,5 +131,22 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
             }
         }
         return aggregated;
+    }
+
+    /**
+     * Every datasource this pass must touch: those with qualifying history, <em>plus</em> those that
+     * merely still hold rows.
+     *
+     * <p>The second half is what makes the sweep reachable. A datasource whose last approved query
+     * ages out of the lookback window drops off the corpus query, so driving the walk from history
+     * alone would never visit it again — and its now-stale suggestions would be served indefinitely,
+     * which is exactly the case the sweep exists for. Visiting it costs one empty corpus read and
+     * one delete.
+     */
+    private Set<UUID> datasourcesToVisit(UUID organizationId, Instant since) {
+        var ids = new LinkedHashSet<>(
+                corpusLookupService.findDatasourceIdsWithHistory(organizationId, since));
+        ids.addAll(suggestionRepository.findDatasourceIdsWithSuggestions(organizationId));
+        return ids;
     }
 }

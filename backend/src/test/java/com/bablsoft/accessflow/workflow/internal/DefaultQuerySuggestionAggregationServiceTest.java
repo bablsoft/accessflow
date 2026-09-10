@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.core.api.OrganizationView;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QuerySuggestionCorpusLookupService;
 import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
+import com.bablsoft.accessflow.workflow.internal.persistence.repo.QuerySuggestionRepository;
 import com.bablsoft.accessflow.workflow.internal.config.QuerySuggestionProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +40,7 @@ class DefaultQuerySuggestionAggregationServiceTest {
     private QuerySuggestionCorpusLookupService corpusLookupService;
     private QuerySuggestionDatasourceAggregator aggregator;
     private DistributedLockService distributedLockService;
+    private QuerySuggestionRepository suggestionRepository;
 
     @BeforeEach
     void setUp() {
@@ -45,6 +48,8 @@ class DefaultQuerySuggestionAggregationServiceTest {
         corpusLookupService = mock(QuerySuggestionCorpusLookupService.class);
         aggregator = mock(QuerySuggestionDatasourceAggregator.class);
         distributedLockService = mock(DistributedLockService.class);
+        suggestionRepository = mock(QuerySuggestionRepository.class);
+        when(suggestionRepository.findDatasourceIdsWithSuggestions(any())).thenReturn(List.of());
         // Default: the lock is free, so the action runs on the calling thread.
         when(distributedLockService.runLocked(anyString(), any(), any())).thenAnswer(inv -> {
             inv.getArgument(2, Runnable.class).run();
@@ -56,8 +61,8 @@ class DefaultQuerySuggestionAggregationServiceTest {
         var properties = new QuerySuggestionProperties(enabled, null, Duration.ofDays(90), 0, 0, 0,
                 0, 0, null, 1, 1, 1, 10, 50, null);
         return new DefaultQuerySuggestionAggregationService(organizationAdminService,
-                corpusLookupService, aggregator, distributedLockService, properties,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                corpusLookupService, aggregator, distributedLockService, suggestionRepository,
+                properties, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -130,6 +135,34 @@ class DefaultQuerySuggestionAggregationServiceTest {
 
         verify(corpusLookupService).findDatasourceIdsWithHistory(ORG_A,
                 NOW.minus(Duration.ofDays(90)));
+    }
+
+    @Test
+    void aDatasourceWhoseHistoryAgedOutIsStillVisitedSoItsSweepRuns() {
+        givenOrganizations(org(ORG_A, false));
+        // No qualifying history left, but rows are still being served.
+        when(corpusLookupService.findDatasourceIdsWithHistory(eq(ORG_A), any()))
+                .thenReturn(List.of());
+        when(suggestionRepository.findDatasourceIdsWithSuggestions(ORG_A))
+                .thenReturn(List.of(DS_1));
+
+        newService(true).aggregateAll();
+
+        verify(aggregator).aggregate(ORG_A, DS_1, NOW);
+    }
+
+    @Test
+    void aDatasourceInBothSetsIsVisitedOnlyOnce() {
+        givenOrganizations(org(ORG_A, false));
+        when(corpusLookupService.findDatasourceIdsWithHistory(eq(ORG_A), any()))
+                .thenReturn(List.of(DS_1, DS_2));
+        when(suggestionRepository.findDatasourceIdsWithSuggestions(ORG_A))
+                .thenReturn(List.of(DS_1));
+
+        newService(true).aggregateAll();
+
+        verify(aggregator, times(1)).aggregate(ORG_A, DS_1, NOW);
+        verify(aggregator, times(1)).aggregate(ORG_A, DS_2, NOW);
     }
 
     @Test

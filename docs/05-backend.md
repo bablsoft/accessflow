@@ -3092,10 +3092,13 @@ worklist over AF-451's unapplied output. This one starts from no query at all, a
 provider: the ranking is a deterministic local heuristic, so the rail keeps working with AI switched
 off and the whole of it is exercised by unit tests rather than a recorded completion.
 
-**The corpus.** `query_requests` in `APPROVED` or `EXECUTED` — the two states a request reaches only
-after clearing review — within `accessflow.workflow.query-suggestions.lookback` (default `P90D`).
-Four kinds of row are excluded because none of them is evidence a human found the query safe to hand
-to someone else: `EMERGENCY_ACCESS` (break-glass bypassed review entirely, AF-385), `RECURRING` and
+**The corpus.** `query_requests` in `APPROVED` or `EXECUTED` within
+`accessflow.workflow.query-suggestions.lookback` (default `P90D`) — the two states a request reaches
+by going *through* the organisation's approval path. That is wider than "a human looked at it", and
+deliberately so: a routing policy's `AUTO_APPROVE` (AF-379), a grant carrying `pre_approve_queries`
+(#582) and a review plan that does not require human approval all land in `APPROVED` too, and each
+of those is the organisation's own configured judgement that the shape is safe. What is excluded is
+what went *around* that path, or what no analyst authored: `EMERGENCY_ACCESS` (break-glass bypassed review entirely, AF-385), `RECURRING` and
 any row carrying a `recurring_parent_id` (machine-generated occurrences — one approved five-minute
 series would otherwise read as thousands of independent approvals, #627), and any row carrying a
 `recurrence_rule` (a series *parent* is a schedule definition, not a query an analyst wrote).
@@ -3143,8 +3146,8 @@ controller — see [docs/07-security.md](07-security.md) → "Automatic query su
 the ordered check and why each step answers where it does. Advisory only: nothing in this path
 touches routing policies, grant-covered auto-approval, or any other decision, and a suggestion that
 enters the pipeline is analysed and reviewed like any other query. Applying one stamps
-`submission_reason = HISTORY_SUGGESTION`, kept distinct from `AI_SUGGESTION` so AF-451/AF-498
-adoption stays measurable.
+`submission_reason = HISTORY_SUGGESTION`, kept distinct from `AI_SUGGESTION` so the
+`QUERY_SUBMITTED` audit row still says which of the two a draft came from.
 
 ## Audit Logging
 

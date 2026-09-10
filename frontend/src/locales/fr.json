@@ -581,7 +581,7 @@
       "empty": "Aucune suggestion pour l’instant. Elles apparaissent dès que cette source de données compte quelques requêtes approuvées auxquelles vous avez accès.",
       "load_error": "Impossible de charger les suggestions.",
       "apply": "Appliquer comme brouillon",
-      "evidence": "Approuvée {{times}} fois par {{people}} · dernière {{when}}"
+      "evidence": "Approuvée {{times}}× · auteurs : {{people}}"
     }
   },
   "dry_run_panel": {

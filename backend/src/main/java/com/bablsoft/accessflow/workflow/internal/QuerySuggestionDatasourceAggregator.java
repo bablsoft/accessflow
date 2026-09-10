@@ -81,20 +81,36 @@ class QuerySuggestionDatasourceAggregator {
         }
 
         var candidates = new ArrayList<Candidate>();
+        int poisoned = 0;
         for (var entry : byKey.entrySet()) {
             var accumulator = entry.getValue();
-            if (accumulator == POISONED || accumulator.count < properties.minApprovedCount()) {
+            if (accumulator == POISONED) {
+                poisoned++;
+                continue;
+            }
+            if (accumulator.count < properties.minApprovedCount()) {
                 continue;
             }
             candidates.add(accumulator.toCandidate(entry.getKey()));
+        }
+
+        // An engine plugin that will not resolve poisons every key at once. Sweeping on that pass
+        // would delete the datasource's whole rail over a transient failure and leave it empty
+        // until the next tick — so when nothing parsed, leave what is already there alone. A
+        // genuinely empty corpus produces no keys at all and still sweeps, which is the case the
+        // sweep exists for.
+        if (poisoned > 0 && poisoned == byKey.size()) {
+            log.warn("Query suggestions for datasource {}: all {} query shapes failed to parse; "
+                    + "keeping the existing rows rather than sweeping them", datasourceId, poisoned);
+            return;
         }
 
         for (var candidate : rank(candidates)) {
             upsert(organizationId, datasourceId, candidate, runStamp);
         }
         int swept = suggestionRepository.deleteStaleForDatasource(datasourceId, runStamp);
-        log.debug("Query suggestions for datasource {}: {} corpus rows, {} keys, {} kept, {} swept",
-                datasourceId, rows.size(), byKey.size(),
+        log.debug("Query suggestions for datasource {}: {} corpus rows, {} keys ({} unparseable), "
+                        + "{} kept, {} swept", datasourceId, rows.size(), byKey.size(), poisoned,
                 Math.min(candidates.size(), properties.maxSuggestionsPerDatasource()), swept);
     }
 

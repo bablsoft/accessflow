@@ -581,7 +581,7 @@
       "empty": "暂无建议。当此数据源有若干你有权访问的已批准查询后，建议就会出现。",
       "load_error": "无法加载建议。",
       "apply": "应用为草稿",
-      "evidence": "已批准 {{times}} 次，来自 {{people}} 人 · 最近 {{when}}"
+      "evidence": "已批准 {{times}} 次，来自 {{people}} 人"
     }
   },
   "dry_run_panel": {

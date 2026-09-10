@@ -361,17 +361,22 @@
             does, version by version since v1.0.
           </p>
           <p>
-            The two most recent themes: <strong>v2.4</strong> added deployment approval governance —
+            The two most recent shipped themes: <strong>v2.4</strong> added deployment approval governance —
             CI/CD pipelines ask AccessFlow for permission to release and block on a fail-closed gate,
             with per-environment policies, freeze windows, audited break-glass, and native GitHub
             Actions, GitLab CI and Azure Pipelines steps. <strong>v2.5</strong> carried that past the
             gate into what is actually running where: per-environment version tags and current-version
             state, rollbacks that restore the version an environment is really on, a version matrix
             with on-demand drift reporting, and an in-app hint telling every signed-in user when a
-            newer stable release is available. <strong>v2.6</strong> turns the history an
-            organisation has already built up into something an analyst can use: the query editor
-            offers draft queries mined from queries the organisation has already had approved,
-            filtered to what each person is allowed to run.
+            newer stable release is available.
+          </p>
+          <p>
+            <strong>v2.6 is in development</strong> and is not in the grid above yet. Among the
+            things it adds: the query editor turns the history an organisation has already built up
+            into something an analyst can use, offering draft queries taken from queries the
+            organisation has already had approved, filtered to what each person is allowed to run.
+            The full in-progress scope is on
+            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub</a>.
           </p>
           <p>
             What shipped when, release by release, is in

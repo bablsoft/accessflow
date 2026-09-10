@@ -233,6 +233,46 @@ class QuerySuggestionDatasourceAggregatorTest {
     }
 
     @Test
+    void aTotalParseFailureLeavesTheExistingRailAloneRatherThanWipingIt() {
+        // An engine plugin that will not resolve poisons every shape at once. Sweeping then would
+        // delete the datasource's whole rail over a transient failure.
+        givenCorpus(corpusRow("select id from orders", ALICE, NOW),
+                corpusRow("select id from refunds", BOB, NOW));
+        when(queryParser.parse(anyString(), any()))
+                .thenThrow(new InvalidSqlException("engine plugin unavailable"));
+
+        aggregator.aggregate(ORG, DATASOURCE, NOW);
+
+        verify(suggestionRepository, never()).save(any());
+        verify(suggestionRepository, never()).deleteStaleForDatasource(any(), any());
+    }
+
+    @Test
+    void aPartialParseFailureStillSweeps() {
+        givenCorpus(corpusRow("select id from orders", ALICE, NOW),
+                corpusRow("!! not sql !!", BOB, NOW));
+        when(queryParser.parse(eq("select id from orders"), any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("sql"),
+                        Set.of("orders")));
+        when(queryParser.parse(eq("!! not sql !!"), any()))
+                .thenThrow(new InvalidSqlException("unparseable"));
+
+        aggregator.aggregate(ORG, DATASOURCE, NOW);
+
+        assertThat(captureSaved()).hasSize(1);
+        verify(suggestionRepository).deleteStaleForDatasource(DATASOURCE, NOW);
+    }
+
+    @Test
+    void anEmptyCorpusStillSweepsSoAQuietDatasourceStopsServingStaleRows() {
+        givenCorpus();
+
+        aggregator.aggregate(ORG, DATASOURCE, NOW);
+
+        verify(suggestionRepository).deleteStaleForDatasource(DATASOURCE, NOW);
+    }
+
+    @Test
     void rowsThePassDidNotRewriteAreSweptForThisDatasourceOnly() {
         givenCorpus(corpusRow("select id from orders", ALICE, NOW));
         givenParse("orders");

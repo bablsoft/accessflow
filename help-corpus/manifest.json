@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "corpusVersion": "833aec5cb531",
-  "generatedAt": "2026-09-10T09:11:52.954Z",
-  "sourceCommit": "4ee73e7f659b7888433fb0e97453520ea542ee26",
+  "corpusVersion": "6a5b630680a7",
+  "generatedAt": "2026-09-10T09:32:29.189Z",
+  "sourceCommit": "c328eb0016fd1767365606ddf4df4e0d1322e6c8",
   "chunkCount": 532,
-  "sha256": "833aec5cb531d383e93060127aaeb9fe8f5c1c21bf50ee043a7b9fa5e598bde5",
+  "sha256": "6a5b630680a76952dc8615e61641921a4dc05b740b4a9ee5a40c924719727423",
   "quickReferenceSha256": "12a81438f82342ff3609d6973c869c8864e89970d1a1f414342d9e8511a26b2d",
   "sources": [
     {
@@ -341,7 +341,7 @@
       "url": "https://accessflow.io/docs/workflows/",
       "section": "Reference",
       "chunks": 13,
-      "sha256": "79464efee455b9d9763cf60a5796aec256d7e8724cdafa0fd5faf16603be927b"
+      "sha256": "215ad72a5c4c6803f01241076875250177bf5c760e50bb301efe9f78a6dc5f5e"
     },
     {
       "path": "website/features/api-access-governance/index.html",
@@ -405,7 +405,7 @@
       "url": "https://github.com/bablsoft/accessflow/blob/main/docs/09-deployment.md",
       "section": "Deployment",
       "chunks": 87,
-      "sha256": "dadd0096d91371cdc07e01da06be01277fe82324753bf6b4e8dbeff4507610c4"
+      "sha256": "debcd8e04ec53f61ddf1d4e854407fd19b92045a4e2fe61a7cba9b1aba353561"
     },
     {
       "path": "frontend/src/components/common/Sidebar.tsx",
@@ -413,7 +413,7 @@
       "url": "https://accessflow.io/docs/",
       "section": "Navigation",
       "chunks": 8,
-      "sha256": "f801533f1b06bb9de4088adebc29085cf11a4cbc928d73fb1e887c1ddb2b40dc"
+      "sha256": "71a9a1255e39271817b5375f700d2f7bb2aa3a7ee10ab13e342668e2289c71de"
     }
   ]
 }

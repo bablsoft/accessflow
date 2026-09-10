@@ -133,7 +133,7 @@ describe('useQueryAuthoring', () => {
     expect(onSqlChange).toHaveBeenCalledTimes(1);
     const [applied, source] = onSqlChange.mock.calls[0]!;
     expect(applied).toBe('select id from orders');
-    // Distinct from 'ai_suggestion' so #451/#498 adoption stays measurable separately (#776).
+    // Distinct from 'ai_suggestion' so the audit trail can tell the two provenances apart (#776).
     expect(source).toBe('history_suggestion');
   });
 

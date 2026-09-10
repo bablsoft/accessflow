@@ -526,9 +526,6 @@ export async function grantPermissionViaApi(
   return (await res.json()) as GrantedPermission;
 }
 
-// GET /api/v1/datasources/{id}/permissions — returns the live permission grants
-// on a datasource. Used by the attestation spec to assert a revoked grant is
-// gone after a reviewer revokes the corresponding item.
 // POST /api/v1/datasources/{id}/query-suggestions/recompute — #776. The scheduled
 // aggregation runs every six hours, so a spec that has just seeded approved history
 // has to ask for the rebuild rather than wait for it. 202 on accept, 409 when the
@@ -538,15 +535,24 @@ export async function recomputeQuerySuggestionsViaApi(
   accessToken: string,
   datasourceId: string,
 ): Promise<void> {
-  const res = await request.post(
-    `${apiBase()}/api/v1/datasources/${datasourceId}/query-suggestions/recompute`,
-    { headers: { Authorization: `Bearer ${accessToken}` } },
-  );
-  if (res.status() !== 202 && res.status() !== 409) {
-    throw new Error(
-      `Recompute query suggestions failed: ${res.status()} ${await res.text()}`,
+  const deadline = Date.now() + 30_000;
+  let last = '';
+  while (Date.now() < deadline) {
+    const res = await request.post(
+      `${apiBase()}/api/v1/datasources/${datasourceId}/query-suggestions/recompute`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
     );
+    if (res.status() === 202) return;
+    // 409 means the scheduled pass (or another replica) holds this datasource's lock, so the
+    // rebuild we asked for did NOT happen. Swallowing it would surface later as a confusing
+    // "saw 0 suggestions" timeout, so wait for the lock instead.
+    last = `${res.status()} ${await res.text()}`;
+    if (res.status() !== 409) {
+      throw new Error(`Recompute query suggestions failed: ${last}`);
+    }
+    await new Promise((r) => setTimeout(r, 500));
   }
+  throw new Error(`Timed out waiting for the recompute lock: ${last}`);
 }
 
 // GET /api/v1/datasources/{id}/query-suggestions — polls until the aggregation has
@@ -579,6 +585,9 @@ export async function waitForQuerySuggestions(
   );
 }
 
+// GET /api/v1/datasources/{id}/permissions — returns the live permission grants
+// on a datasource. Used by the attestation spec to assert a revoked grant is
+// gone after a reviewer revokes the corresponding item.
 export async function listPermissionsViaApi(
   request: APIRequestContext,
   adminAccessToken: string,

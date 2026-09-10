@@ -24,7 +24,8 @@ CREATE TABLE query_suggestions (
     canonical_hash           VARCHAR(64) NOT NULL,
     sql_text                 TEXT        NOT NULL,
     query_type               query_type  NOT NULL,
-    referenced_tables        TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[],
+    referenced_tables        TEXT[]      NOT NULL DEFAULT ARRAY[]::TEXT[]
+                                         CHECK (cardinality(referenced_tables) > 0),
     submitter_ids            UUID[]      NOT NULL DEFAULT ARRAY[]::UUID[],
     approved_count           INTEGER     NOT NULL DEFAULT 0,
     distinct_submitter_count INTEGER     NOT NULL DEFAULT 0,
@@ -40,10 +41,7 @@ CREATE UNIQUE INDEX uq_query_suggestions_ds_hash
     ON query_suggestions (datasource_id, canonical_hash);
 
 CREATE INDEX idx_query_suggestions_ds_rank
-    ON query_suggestions (datasource_id, last_submitted_at DESC);
+    ON query_suggestions (datasource_id, approved_count DESC, last_submitted_at DESC);
 
 CREATE INDEX idx_query_suggestions_org
     ON query_suggestions (organization_id);
-
-CREATE INDEX idx_query_suggestions_tables_gin
-    ON query_suggestions USING GIN (referenced_tables);

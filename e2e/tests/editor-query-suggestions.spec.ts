@@ -35,17 +35,15 @@ async function openEditorOnDatasource(page: Page): Promise<void> {
   await page.goto('/editor');
   const dsSelect = page.getByRole('combobox').first();
   await dsSelect.click();
-  // Register the schema wait BEFORE the option click — the fetch can complete before a
-  // later-registered listener attaches.
-  const schemaResponse = page.waitForResponse(
-    (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`),
-    { timeout: 20_000 },
-  );
   await page
     .locator('.ant-select-item-option')
     .filter({ hasText: datasource!.name })
     .click();
-  await schemaResponse;
+  // Wait on the UI, not on the schema response: this datasource may already be the editor's
+  // default selection, in which case the fetch fired during the initial load and a listener
+  // registered around the click would never see it.
+  await expect(page.locator('.ant-select-selection-item').first()).toHaveText(datasource!.name);
+  await expect(page.getByPlaceholder('Filter schemas, tables, columns')).toBeVisible();
 }
 
 async function openSuggestionsRail(page: Page): Promise<void> {
@@ -56,6 +54,8 @@ async function openSuggestionsRail(page: Page): Promise<void> {
     .filter({ hasText: 'Suggestions' })
     .click();
 }
+
+test.describe.configure({ timeout: 120_000 });
 
 test.describe.serial('automatic query suggestions in /editor (#776)', () => {
   test.beforeAll(async ({ request }) => {

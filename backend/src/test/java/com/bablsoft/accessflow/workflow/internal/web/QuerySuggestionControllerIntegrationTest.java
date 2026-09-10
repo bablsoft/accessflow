@@ -76,7 +76,6 @@ class QuerySuggestionControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mvc = MockMvcTester.from(context, builder -> builder.apply(springSecurity()).build());
-        cleanup();
 
         var suffix = UUID.randomUUID().toString().substring(0, 8);
         org = saveOrg("Suggestions " + suffix, "sugg-" + suffix);
@@ -87,12 +86,29 @@ class QuerySuggestionControllerIntegrationTest {
         analystToken = generateToken(analyst);
     }
 
+    /**
+     * Scoped to this test's own datasource. A blanket {@code deleteAll} on tables shared with every
+     * other integration class fails on an FK violation the moment another class has left a child
+     * row ({@code ai_analyses}, {@code review_decisions}, snapshots) pointing at its rows.
+     */
     @AfterEach
     void cleanup() {
-        suggestionRepository.deleteAll();
-        queryRequestRepository.deleteAll();
-        permissionRepository.deleteAll();
-        datasourceRepository.deleteAll();
+        if (datasource == null) {
+            return;
+        }
+        suggestionRepository.deleteAll(
+                suggestionRepository.findByDatasourceIdOrderByApprovedCountDescLastSubmittedAtDesc(
+                        datasource.getId()));
+        queryRequestRepository.deleteAll(
+                queryRequestRepository.findAll().stream()
+                        .filter(q -> datasource.getId().equals(q.getDatasource().getId()))
+                        .toList());
+        permissionRepository.deleteAll(
+                permissionRepository.findAll().stream()
+                        .filter(p -> datasource.getId().equals(p.getDatasource().getId()))
+                        .toList());
+        datasourceRepository.deleteById(datasource.getId());
+        datasource = null;
     }
 
     private String base() {

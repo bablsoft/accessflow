@@ -51,7 +51,7 @@ describe('SuggestionsPanel', () => {
 
     expect(await screen.findByText('SELECT id FROM orders')).toBeInTheDocument();
     expect(screen.getAllByText('public.orders').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Approved 14× by 3/)).toBeInTheDocument();
+    expect(screen.getByText(/Approved 14× · submitters: 3/)).toBeInTheDocument();
   });
 
   it('says drafts are still reviewed, so the rail never reads as pre-approval', async () => {
@@ -82,8 +82,24 @@ describe('SuggestionsPanel', () => {
     expect(await screen.findByText(/no suggestions yet/i)).toBeInTheDocument();
   });
 
-  it('surfaces a load failure', async () => {
-    fetchQuerySuggestions.mockRejectedValue(new Error('boom'));
+  it("surfaces the server's own reason rather than a generic failure string", async () => {
+    // A 404 ("not accessible") and a 500 must not read identically to the analyst.
+    fetchQuerySuggestions.mockRejectedValue(
+      Object.assign(new Error('Request failed'), {
+        isAxiosError: true,
+        response: { status: 404, data: { detail: 'Datasource not found' } },
+      }),
+    );
+
+    render(<SuggestionsPanel datasourceId="ds-1" onApply={vi.fn()} />, { wrapper });
+
+    await waitFor(() =>
+      expect(screen.getByText('Datasource not found')).toBeInTheDocument(),
+    );
+  });
+
+  it('falls back to the localized string when the failure carries no message', async () => {
+    fetchQuerySuggestions.mockRejectedValue({});
 
     render(<SuggestionsPanel datasourceId="ds-1" onApply={vi.fn()} />, { wrapper });
 

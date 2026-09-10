@@ -581,7 +581,7 @@
       "empty": "No suggestions yet. They appear once this datasource has a few approved queries you have access to.",
       "load_error": "Could not load suggestions.",
       "apply": "Apply as draft",
-      "evidence": "Approved {{times}}× by {{people}} · last {{when}}"
+      "evidence": "Approved {{times}}× · submitters: {{people}}"
     }
   },
   "dry_run_panel": {

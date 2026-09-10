@@ -156,6 +156,18 @@ class DefaultQuerySuggestionServiceTest {
     }
 
     @Test
+    void aRowWithNoResolvedTablesIsNeverServedToAnyone() {
+        // The aggregation should never persist one, but rejectedTables() reports "nothing rejected"
+        // for an empty set — so if one ever reached the table it would clear every viewer's
+        // allow-list. Belt for the whole feature's disclosure story.
+        givenRows(row("select 1", QueryType.SELECT, new String[]{}, 5));
+        givenPermission(true, false, false, List.of(), List.of("orders"));
+
+        assertThat(service.findForViewer(DATASOURCE, ORG, USER, false, 10)).isEmpty();
+        assertThat(service.findForViewer(DATASOURCE, ORG, USER, true, 10)).isEmpty();
+    }
+
+    @Test
     void queryAdminSkipsTheGrantAndTableFilters() {
         givenRows(row("drop table salaries", QueryType.DDL, new String[]{"salaries"}, 5));
 

@@ -1,10 +1,11 @@
-import { Button, Empty, Spin, Tooltip } from 'antd';
+import { Button, Empty, Tooltip } from 'antd';
 import { BulbOutlined, WarningOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { fetchQuerySuggestions, querySuggestionKeys } from '@/api/querySuggestions';
+import { apiErrorMessage } from '@/utils/apiErrors';
 import type { QuerySuggestion } from '@/types/api';
-import { timeAgo } from '@/utils/dateFormat';
+import { fmtDate, timeAgo } from '@/utils/dateFormat';
 import { queryTypeLabel } from '@/utils/enumLabels';
 
 interface SuggestionsPanelProps {
@@ -50,13 +51,14 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
         <span style={{ fontWeight: 600, fontSize: 13 }}>{t('editor.suggestions.title')}</span>
       </div>
       <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
+        <p style={{ margin: 0, fontSize: 11, color: 'var(--fg-muted)' }}>
           {t('editor.suggestions.subtitle')}
         </p>
         {suggestionsQuery.isPending && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
-            <Spin size="small" />
-          </div>
+          <>
+            <div className="skeleton" style={{ height: 96, borderRadius: 'var(--radius-md)' }} />
+            <div className="skeleton" style={{ height: 96, borderRadius: 'var(--radius-md)' }} />
+          </>
         )}
         {suggestionsQuery.isError && (
           <div
@@ -69,7 +71,7 @@ export function SuggestionsPanel({ datasourceId, onApply }: SuggestionsPanelProp
             }}
           >
             <WarningOutlined />
-            {t('editor.suggestions.load_error')}
+            {apiErrorMessage(suggestionsQuery.error, () => t('editor.suggestions.load_error'))}
           </div>
         )}
         {suggestionsQuery.isSuccess && suggestionsQuery.data.length === 0 && (
@@ -109,14 +111,15 @@ function SuggestionCard({
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+        <span className="mono" style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
           {queryTypeLabel(t, suggestion.query_type)}
         </span>
         <Tooltip title={suggestion.referenced_tables.join(', ')}>
           <span
             style={{
               fontSize: 10,
-              color: 'var(--text-muted)',
+              color: 'var(--fg-muted)',
+              minWidth: 0,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -135,21 +138,28 @@ function SuggestionCard({
           wordBreak: 'break-word',
           maxHeight: 140,
           overflow: 'auto',
-          color: 'var(--text)',
+          color: 'var(--fg)',
         }}
       >
         {suggestion.sql}
       </pre>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-          {/* `times`, not `count` — a `count` option would put i18next into plural resolution
-              and look for keys (evidence_one / evidence_other) that do not exist. */}
+        <span style={{ fontSize: 10, color: 'var(--fg-muted)' }}>
+          {/* `times`, not `count`: a `count` option puts i18next into plural resolution, so the
+              string would silently change meaning the day someone adds an `evidence_other` key —
+              and `count` is auto-interpolated, which this sentence does not want. */}
           {t('editor.suggestions.evidence', {
             times: suggestion.approved_count,
             people: suggestion.distinct_submitter_count,
-            when: timeAgo(suggestion.last_submitted_at),
           })}
         </span>
+        {/* Rendered outside the translated sentence: timeAgo() emits English ("3d ago"), which
+            would read as a bug spliced into the middle of a localized string. */}
+        <Tooltip title={fmtDate(suggestion.last_submitted_at)}>
+          <span style={{ fontSize: 10, color: 'var(--fg-faint)' }}>
+            {timeAgo(suggestion.last_submitted_at)}
+          </span>
+        </Tooltip>
         <Button
           size="small"
           type="primary"

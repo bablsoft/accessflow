@@ -24,8 +24,3 @@ export async function fetchQuerySuggestions(
   const { data } = await apiClient.get<QuerySuggestionList>(base(datasourceId), { params });
   return data.suggestions;
 }
-
-/** Admin-only: rebuild this datasource's suggestions now instead of waiting for the next pass. */
-export async function recomputeQuerySuggestions(datasourceId: string): Promise<void> {
-  await apiClient.post(`${base(datasourceId)}/recompute`);
-}
