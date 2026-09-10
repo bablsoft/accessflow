@@ -35,16 +35,12 @@ class DefaultQuerySuggestionRecomputeTrigger implements QuerySuggestionRecompute
     public void requestRecompute(UUID datasourceId, UUID organizationId) {
         // 404 before 409: an unknown datasource must not be distinguishable from a busy one.
         datasourceAdminService.getForAdmin(datasourceId, organizationId);
-        boolean started = distributedLockService.runLockedAsync(lockName(datasourceId),
+        boolean started = distributedLockService.runLockedAsync(
+                QuerySuggestionLocks.forDatasource(datasourceId),
                 properties.recomputeLockAtMostFor(), querySuggestionExecutor,
                 () -> aggregationService.aggregateDatasource(organizationId, datasourceId));
         if (!started) {
             throw new QuerySuggestionRecomputeInProgressException(datasourceId);
         }
-    }
-
-    /** Shares the ShedLock namespace with the scheduled job, so the two can never overlap. */
-    private static String lockName(UUID datasourceId) {
-        return "querySuggestionRecompute:" + datasourceId;
     }
 }

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.OrganizationView;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.QuerySuggestionCorpusLookupService;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import com.bablsoft.accessflow.workflow.internal.config.QuerySuggestionProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -35,19 +37,27 @@ class DefaultQuerySuggestionAggregationServiceTest {
     private OrganizationAdminService organizationAdminService;
     private QuerySuggestionCorpusLookupService corpusLookupService;
     private QuerySuggestionDatasourceAggregator aggregator;
+    private DistributedLockService distributedLockService;
 
     @BeforeEach
     void setUp() {
         organizationAdminService = mock(OrganizationAdminService.class);
         corpusLookupService = mock(QuerySuggestionCorpusLookupService.class);
         aggregator = mock(QuerySuggestionDatasourceAggregator.class);
+        distributedLockService = mock(DistributedLockService.class);
+        // Default: the lock is free, so the action runs on the calling thread.
+        when(distributedLockService.runLocked(anyString(), any(), any())).thenAnswer(inv -> {
+            inv.getArgument(2, Runnable.class).run();
+            return true;
+        });
     }
 
     private DefaultQuerySuggestionAggregationService newService(boolean enabled) {
         var properties = new QuerySuggestionProperties(enabled, null, Duration.ofDays(90), 0, 0, 0,
                 0, 0, null, 1, 1, 1, 10, 50, null);
         return new DefaultQuerySuggestionAggregationService(organizationAdminService,
-                corpusLookupService, aggregator, properties, Clock.fixed(NOW, ZoneOffset.UTC));
+                corpusLookupService, aggregator, distributedLockService, properties,
+                Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     @Test
@@ -120,6 +130,40 @@ class DefaultQuerySuggestionAggregationServiceTest {
 
         verify(corpusLookupService).findDatasourceIdsWithHistory(ORG_A,
                 NOW.minus(Duration.ofDays(90)));
+    }
+
+    @Test
+    void eachDatasourceIsRebuiltUnderTheSameLockTheOnDemandRecomputeTakes() {
+        givenOrganizations(org(ORG_A, false));
+        when(corpusLookupService.findDatasourceIdsWithHistory(eq(ORG_A), any()))
+                .thenReturn(List.of(DS_1));
+
+        newService(true).aggregateAll();
+
+        verify(distributedLockService).runLocked(eq("querySuggestionRebuild:" + DS_1), any(),
+                any());
+    }
+
+    @Test
+    void aDatasourceAlreadyBeingRebuiltElsewhereIsSkippedWithoutFailing() {
+        givenOrganizations(org(ORG_A, false));
+        when(corpusLookupService.findDatasourceIdsWithHistory(eq(ORG_A), any()))
+                .thenReturn(List.of(DS_1, DS_2));
+        when(distributedLockService.runLocked(eq("querySuggestionRebuild:" + DS_1), any(), any()))
+                .thenReturn(false);
+
+        newService(true).aggregateAll();
+
+        verify(aggregator, never()).aggregate(ORG_A, DS_1, NOW);
+        verify(aggregator).aggregate(ORG_A, DS_2, NOW);
+    }
+
+    @Test
+    void theOnDemandPathDoesNotReacquireTheLockItsCallerAlreadyHolds() {
+        newService(true).aggregateDatasource(ORG_A, DS_1);
+
+        verify(aggregator).aggregate(ORG_A, DS_1, NOW);
+        verify(distributedLockService, never()).runLocked(anyString(), any(), any());
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.OrganizationAdminService;
 import com.bablsoft.accessflow.core.api.QuerySuggestionCorpusLookupService;
 import com.bablsoft.accessflow.core.api.PageRequest;
 import com.bablsoft.accessflow.core.api.SortOrder;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
 import com.bablsoft.accessflow.workflow.api.QuerySuggestionAggregationService;
 import com.bablsoft.accessflow.workflow.internal.config.QuerySuggestionProperties;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
     private final OrganizationAdminService organizationAdminService;
     private final QuerySuggestionCorpusLookupService corpusLookupService;
     private final QuerySuggestionDatasourceAggregator aggregator;
+    private final DistributedLockService distributedLockService;
     private final QuerySuggestionProperties properties;
     private final Clock clock;
 
@@ -78,8 +80,31 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
             log.debug("Query suggestion recompute skipped: feature disabled");
             return false;
         }
+        // The caller already holds this datasource's lock (that is how the endpoint answers 202 vs
+        // 409), so re-acquiring here would deadlock against itself. The scheduled path takes it in
+        // aggregateLocked instead.
         aggregator.aggregate(organizationId, datasourceId, clock.instant());
         return true;
+    }
+
+    /**
+     * Runs one datasource under the <em>same</em> per-datasource lock the on-demand recompute uses.
+     *
+     * <p>The job's own {@code @SchedulerLock} stops N replicas all walking the organisation list,
+     * but it says nothing about a human-triggered recompute landing mid-pass. Without a shared lock
+     * the two would interleave over one datasource: each writes a complete set stamped with its own
+     * run time and then sweeps everything older, so the earlier run's rows are discarded and its
+     * writes lose the {@code @Version} race. The outcome would still be a coherent set — but it
+     * would be one run's work thrown away and an exception logged for no reason.
+     *
+     * @return {@code false} when a recompute already holds the lock; that datasource is simply
+     *         being rebuilt by someone else, which is not a failure.
+     */
+    private boolean aggregateLocked(UUID organizationId, UUID datasourceId, Instant runStamp) {
+        return distributedLockService.runLocked(
+                QuerySuggestionLocks.forDatasource(datasourceId),
+                properties.recomputeLockAtMostFor(),
+                () -> aggregator.aggregate(organizationId, datasourceId, runStamp));
     }
 
     /**
@@ -93,8 +118,9 @@ class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggrega
         for (var datasourceId : corpusLookupService.findDatasourceIdsWithHistory(organizationId,
                 since)) {
             try {
-                aggregator.aggregate(organizationId, datasourceId, runStamp);
-                aggregated++;
+                if (aggregateLocked(organizationId, datasourceId, runStamp)) {
+                    aggregated++;
+                }
             } catch (RuntimeException ex) {
                 log.error("Query suggestion aggregation failed for datasource {} in org {}",
                         datasourceId, organizationId, ex);

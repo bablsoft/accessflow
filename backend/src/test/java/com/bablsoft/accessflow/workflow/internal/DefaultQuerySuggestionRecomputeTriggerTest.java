@@ -68,7 +68,7 @@ class DefaultQuerySuggestionRecomputeTriggerTest {
 
         var captor = ArgumentCaptor.forClass(Runnable.class);
         verify(distributedLockService).runLockedAsync(
-                eq("querySuggestionRecompute:" + DATASOURCE), eq(Duration.ofMinutes(3)),
+                eq("querySuggestionRebuild:" + DATASOURCE), eq(Duration.ofMinutes(3)),
                 eq(executor), captor.capture());
         captor.getValue().run();
         verify(aggregationService).aggregateDatasource(ORG, DATASOURCE);
