@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.apigov.internal;
 
+import com.bablsoft.accessflow.apigov.api.ApiConnectorGovernanceView;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorLookupService;
 import com.bablsoft.accessflow.apigov.api.ApiConnectorRef;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -34,6 +35,15 @@ class DefaultApiConnectorLookupService implements ApiConnectorLookupService {
     @Override
     public boolean hasAnyConnector(UUID organizationId) {
         return connectorRepository.existsByOrganizationId(organizationId);
+    }
+
+    @Override
+    public Optional<ApiConnectorGovernanceView> findGovernanceView(UUID connectorId,
+                                                                   UUID organizationId) {
+        return connectorRepository.findByIdAndOrganizationId(connectorId, organizationId)
+                .map(e -> new ApiConnectorGovernanceView(e.getId(), e.getOrganizationId(),
+                        e.getName(), e.getProtocol(), e.isActive(), e.isAiAnalysisEnabled(),
+                        e.getReviewPlanId(), e.isRequireReviewReads(), e.isRequireReviewWrites()));
     }
 
     private static ApiConnectorRef toRef(ApiConnectorEntity entity) {

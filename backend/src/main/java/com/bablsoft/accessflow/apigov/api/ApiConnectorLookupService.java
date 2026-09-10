@@ -26,4 +26,11 @@ public interface ApiConnectorLookupService {
      * a connector the admin later deactivated still means the step was done.
      */
     boolean hasAnyConnector(UUID organizationId);
+
+    /**
+     * The governance-relevant fields of one connector, scoped to an organization (issue AF-967).
+     * Empty when the connector does not exist or belongs to another organization — the caller cannot
+     * tell the two apart, which is the intended 404-never-403 shape.
+     */
+    Optional<ApiConnectorGovernanceView> findGovernanceView(UUID connectorId, UUID organizationId);
 }
