@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
 import javax.crypto.Mac;
@@ -49,10 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>{@code audit_log} is INSERT-only, so isolation comes from a fresh organization UUID per
  * run, never from cleanup.
  */
-@SpringBootTest(properties = {
-        // Keep the background AuditSinkDrainJob out of the way: this test drives
-        // AuditSinkDrainService.drainAll(...) explicitly.
-        "accessflow.audit.sinks.drain-interval=PT1H"})
+@SpringBootTest
 @ImportTestcontainers(TestcontainersConfig.class)
 class AuditSinkDrainJobIntegrationTest {
 
@@ -66,17 +62,6 @@ class AuditSinkDrainJobIntegrationTest {
     @Autowired AuditSinkConfigCodec codec;
     @Autowired AuditExportEventWriter eventWriter;
     @Autowired List<AuditSinkDeliverer> deliverers;
-    @Autowired StringRedisTemplate redisTemplate;
-
-    /**
-     * The ShedLock key the background {@code AuditSinkDrainJob} takes before draining. This test
-     * drives {@code drainAll} directly, but the surefire run keeps earlier Spring contexts cached
-     * — each with its own live drain job on the shared database — and one of their ticks can
-     * drain this test's sink first. Holding the lock for the test's duration makes every
-     * background tick skip, exactly as a second cluster node would.
-     */
-    private static final String DRAIN_JOB_LOCK_KEY =
-            "job-lock:accessflow:shedlock:auditSinkDrainJob";
 
     private final JsonMapper mapper = JsonMapper.builder().build();
 
@@ -94,9 +79,6 @@ class AuditSinkDrainJobIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        redisTemplate.opsForValue().set(DRAIN_JOB_LOCK_KEY, "held-by-integration-test",
-                java.time.Duration.ofMinutes(10));
-
         var org = new OrganizationEntity();
         org.setId(UUID.randomUUID());
         org.setName("Sink Org");
@@ -138,7 +120,6 @@ class AuditSinkDrainJobIntegrationTest {
         server.stop(0);
         // Re-read before deleting: a pre-loaded @Version entity trips the optimistic lock.
         sinkRepository.findById(sinkId).ifPresent(sinkRepository::delete);
-        redisTemplate.delete(DRAIN_JOB_LOCK_KEY);
     }
 
     @Test

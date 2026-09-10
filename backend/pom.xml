@@ -585,9 +585,11 @@
               accessflow.scheduling.enabled, which src/test/resources/application.properties sets
               to false, so no @Scheduled method runs in the suite at all.
 
-              The request-group cadences below are kept as a backstop for the handful of tests that
-              re-enable scheduling inline: system properties reach every context in the fork, so a
-              re-enabled context still gets a harmless cadence rather than the production one.
+              Do not re-add per-cadence pins here. They were the interim fix for #765 and are dead
+              weight now that the gate stops every job. No test re-enables scheduling in a context
+              that has job beans — SchedulingConfigurationTest asserts the switch over a bare
+              ApplicationContextRunner, and SchedulingDisabledInSuiteIntegrationTest pins the
+              suite-wide setting in a real one.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -608,9 +610,6 @@
                           src/test/resources/application.properties.
                         -->
                         <spring.test.context.cache.maxSize>64</spring.test.context.cache.maxSize>
-                        <accessflow.requestgroups.run-poll-interval>PT24H</accessflow.requestgroups.run-poll-interval>
-                        <accessflow.requestgroups.escalation-poll-interval>PT24H</accessflow.requestgroups.escalation-poll-interval>
-                        <accessflow.requestgroups.timeout-poll-interval>PT24H</accessflow.requestgroups.timeout-poll-interval>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
