@@ -4766,7 +4766,8 @@
       "COLUMN_MATCH_BARE_NAME": "Los resultados almacenados registran el nombre de la columna pero no la tabla, así que las columnas se comparan solo por nombre y el recuento puede ser generoso.",
       "ENGINE_CLASSIFICATION_UNAVAILABLE": "Algunas consultas no se pudieron clasificar sin una conexión activa y se informan como no clasificables, no como no afectadas.",
       "COST_ESTIMATE_ABSENT": "La estimación de coste previa se calcula por consulta enviada, por lo que las condiciones sobre filas estimadas o tipo de escaneo no coinciden aquí.",
-      "CLIENT_CONTEXT_ABSENT": "Una solicitud hipotética no lleva IP de origen, agente de usuario ni origen CI/CD, por lo que las condiciones sobre ellos no coinciden aquí."
+      "CLIENT_CONTEXT_ABSENT": "Una solicitud hipotética no lleva IP de origen, agente de usuario ni origen CI/CD, por lo que las condiciones sobre ellos no coinciden aquí.",
+      "RESPONSE_SHAPE_ABSENT": "Una simulación de llamada API no tiene cuerpo de respuesta, por lo que el enmascaramiento se informa por regla en vez de por campo."
     }
   }
 }
