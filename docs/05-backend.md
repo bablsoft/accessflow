@@ -800,6 +800,12 @@ umbrella `simulate` endpoint and **no new permission** (a deliberate deviation f
 wording: an umbrella endpoint would have to be gated by the union of three permissions, and would
 hand a masking admin a routing preview they cannot otherwise obtain).
 
+`POST /admin/access-simulations` ([Access explainer](#access-explainer-af-859)) is **not** that
+umbrella. It simulates one *hypothetical request* through the submission-and-routing gate against the
+policy set as it stands — no draft, no A/B, no historical corpus — and is gated by
+`DATASOURCE_PERMISSION_MANAGE`, still adding no permission. The two answer different questions: this
+one is *what would this policy edit change*, that one is *why would this request be decided this way*.
+
 #### A/B semantics
 
 Every simulation evaluates the corpus **twice** — once against the organization's current policy
@@ -1323,7 +1329,7 @@ matching the existing `notifications → ai/workflow` direction — so no cycle.
 
 ### Implementation: AI-completion → review transition
 
-`workflow.internal.QueryReviewStateMachine` is a Spring Modulith `@ApplicationModuleListener` consuming `AiAnalysisCompletedEvent`, `AiAnalysisFailedEvent`, and `AiAnalysisSkippedEvent` from the `core` module's events. It runs `AFTER_COMMIT` of the AI module's persistence transaction, so the `ai_analyses` row and `query_requests.ai_analysis_id` link are already visible.
+`workflow.internal.QueryReviewStateMachine` is a Spring Modulith `@ApplicationModuleListener` consuming `AiAnalysisCompletedEvent`, `AiAnalysisFailedEvent`, and `AiAnalysisSkippedEvent` from the `core` module's events. It runs `AFTER_COMMIT` of the AI module's persistence transaction, so the `ai_analyses` row and `query_requests.ai_analysis_id` link are already visible. Since AF-859 it only *applies* the decision — the rules below are evaluated by `workflow.internal.QueryDecisionEvaluator`, which the access explainer replays for hypothetical requests (see [Access explainer](#access-explainer-af-859)).
 
 Decision rules:
 
@@ -1338,6 +1344,99 @@ Decision rules:
 `AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.
 
 `AiAnalysisSkippedEvent` (added in AF-307) covers the case where the datasource has `ai_analysis_enabled = false`. The state machine respects `plan.requires_human_approval`: when human review is not required the query transitions `PENDING_AI → APPROVED`; otherwise (plan requires human approval, or no plan is configured) it transitions to `PENDING_REVIEW`. The fast-path `auto_approve_reads` shortcut is **never** applied — without an AI risk signal, the SELECT/low-risk shortcut cannot be evaluated. No sentinel `ai_analyses` row is persisted, so the frontend renders the analysis step as bypassed rather than failed.
+
+### Access explainer (AF-859)
+
+Six independent evaluators decide a query's fate, and until AF-859 nothing could answer *why* without
+actually submitting one. Two read-only admin endpoints close that gap, and the thing that makes them
+worth having is that they run **the same evaluators production runs** rather than a model of them.
+Wire contract: [docs/04-api-spec.md → Access explainer](04-api-spec.md#access-explainer-af-859).
+Authorization and the read-only guarantee:
+[docs/07-security.md → Access explainer](07-security.md#access-explainer-af-859).
+
+#### The evaluator split
+
+`QueryReviewStateMachine` used to interleave deciding with applying: each listener resolved the plan,
+built the `ConditionContext`, evaluated routing, tried the grant fast path, and called
+`transitionTo(...)` inline. That is now two objects:
+
+| Class | Responsibility |
+|---|---|
+| `workflow.internal.QueryDecisionEvaluator` | **Pure.** Takes a query, an `AiOutcome`, a risk verdict and a `Clock`; returns a `QueryDecision` — the resulting status, the matched policy, the effective approval count, the covering grant, and a `DecisionTrace` of the stages it evaluated. Writes nothing, publishes nothing, transitions nothing. |
+| `workflow.internal.QueryReviewStateMachine` | The three `@ApplicationModuleListener`s, reduced to loading the query, guarding on `PENDING_AI`, calling the evaluator, and applying the result — one persistence call plus one event per branch. |
+
+The chain itself is unchanged, and that is the acceptance bar the refactor was held to:
+`QueryReviewStateMachineIntegrationTest` and `RoutingEngineIntegrationTest` drive the real listeners
+through published events and passed **unmodified**.
+
+`AiOutcome` (`COMPLETED` / `SKIPPED` / `FAILED`) is what turns the three listener branches into one
+parameter. `FAILED` short-circuits before any lookup, exactly as the live listener does — routing is
+not evaluated on a failed analysis, and neither is the grant fast path or the review plan. Only
+`COMPLETED` carries a risk signal; the evaluator normalizes the other two to none, so a caller-supplied
+verdict cannot resurrect a fast path that production would never reach on that branch.
+
+**Why the trace is not opt-in.** The evaluator always records its three stages, because they are
+computed from data the live path already fetches — three immutable records against three database
+round-trips and a transactional publish. The expensive stages are the other eight, and the live path
+never runs them: the first four already ran synchronously in the submission gate, and the last four
+belong to execution rather than to the decision. So the split is structural rather than a flag, and
+there is exactly one implementation of the decision chain. The one cost that would have leaked is
+string formatting, and trace steps carry a `MessageSource` key plus arguments rather than text — the
+evaluator runs on an asynchronous path with no request locale to resolve against, so rendering is
+deferred to the controller and happens in the caller's language.
+
+#### The simulation
+
+`workflow.internal.DefaultAccessSimulationService` reconstructs the whole journey of a hypothetical
+request as eleven ordered steps, delegating stages 5–7 to the evaluator wholesale and owning the rest.
+A stage that did not apply is reported as `SKIP`, never omitted, so a client renders a stable checklist
+and a missing stage is always a bug.
+
+Nothing about the simulator is new policy logic. Row security goes through the offline
+`RowSecurityClassificationService` the policy simulator already uses; masking through
+`MaskingPolicyResolutionService`; the effective permission through `core`'s merge; table matching
+through `DatasourcePermissionChecker`, the same static the submission gate calls. What it adds is the
+`QUERY_ADMIN` short-circuit made visible — a holder passes the permission stage with no permission row
+at all, and the trace says so rather than silently allowing.
+
+**Read-only by construction, not by discipline.** The service is wired to no persistence service, no
+state service, no event publisher, no AI analyzer and no notification dispatcher, and a test asserts
+that against its declared fields so the guarantee cannot be weakened by accident. It is also
+deliberately **not** `@Transactional`: it is an aggregation of independently transactional reads with
+no consistency requirement between them, and an enclosing transaction would let one handled
+`DatasourceNotFoundException` from an inner call mark the whole read rollback-only. For the same
+reason the "is this datasource visible to the simulated user" question goes through
+`DatasourceAdminService.isVisibleToUser` — the same predicate `getForUser` enforces, asked rather than
+thrown.
+
+A hypothetical request cannot carry every signal a submitted one does, and the response says which
+ones were missing rather than implying a precision it does not have: `CLIENT_CONTEXT_ABSENT` (no
+source IP, user agent or CI/CD origin, so every AF-446 condition evaluates to `false`),
+`COST_ESTIMATE_ABSENT` (the AF-624 estimate is per submitted query), plus the
+`COLUMN_MATCH_BARE_NAME` and `ENGINE_CLASSIFICATION_UNAVAILABLE` caveats AF-630 already defined.
+
+#### The reverse index
+
+`workflow.internal.DefaultEffectiveAccessService` inverts every other access surface. It reads every
+contribution on the datasource in a fixed number of queries — `findContributionsForDatasource` returns
+the direct rows plus each group row expanded across its members — and merges each user's own set
+through `core`'s `mergeContributions`, the same merge `findFor` applies. That matters more than it
+looks: the merge ORs booleans and **unions** allow-lists, so two grants that each fall short can
+together be enough, and any per-grant shortcut would quietly under-report.
+
+Two representations carry the interesting cases. An unrestricted grant is `ALL_TABLES` and is never
+expanded into a table list — enumerating would need a live schema read, which this feature never
+performs, and would go stale the moment a table is created. And `QUERY_ADMIN` is a *source*, not a
+flag, because the underlying rule is the negation of a check: a holder appears with `granted = true`
+and that single source even with no permission row anywhere. `can_break_glass` is reported alongside
+`granted` and never folded into it — "can write anyway, as a logged emergency" is a different answer
+from "can write".
+
+Paging is an in-memory slice, deliberately. The `granted` predicate is a Java computation over merged
+multi-row state plus membership in the `QUERY_ADMIN` holder list; no `Specification` expresses it, and
+paging in the database would filter after the fetch and report a total that is simply wrong. The
+candidate set is bounded by the users holding any permission on one datasource plus the organization's
+admins, both capped by its user quota, so there is nothing unbounded to truncate and no knob for it.
 
 ### Policy-as-code routing engine (AF-379)
 
