@@ -15,6 +15,8 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,16 +42,46 @@ public class DeploymentRoutingPolicyEngine {
 
     /** The first matching policy, or {@code null} when none matches. */
     public RoutingMatch evaluate(UUID organizationId, UUID pipelineId, RoutingContext context) {
-        for (var policy : repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(organizationId)) {
-            if (policy.getPipelineId() != null && !policy.getPipelineId().equals(pipelineId)) {
-                continue;
-            }
+        for (var policy : scopedTo(organizationId, pipelineId)) {
             if (matches(policy, context)) {
-                return new RoutingMatch(policy.getId(), policy.getAction(),
+                return new RoutingMatch(policy.getId(), policy.getName(), policy.getAction(),
                         policy.getRequiredApprovals());
             }
         }
         return null;
+    }
+
+    /**
+     * Every policy in scope with its match flag, in the same order and through the same
+     * {@link #matches} helper as {@link #evaluate} (issue AF-967). The decision trace shows the whole
+     * ordered list, because a policy that <em>nearly</em> matched is usually the most useful line in
+     * it — and on this kind that is especially true of the time-window leaf, which is invisible on
+     * every other screen.
+     *
+     * <p>Deliberately not used on the live path, which short-circuits at the first match.
+     */
+    public List<PolicyEvaluation> evaluateAll(UUID organizationId, UUID pipelineId,
+                                              RoutingContext context) {
+        var evaluations = new ArrayList<PolicyEvaluation>();
+        boolean decided = false;
+        for (var policy : scopedTo(organizationId, pipelineId)) {
+            boolean matched = matches(policy, context);
+            // "decided" marks the winner: later policies are still reported as matching so an admin
+            // can see the overlap, but only the first one actually routes.
+            evaluations.add(new PolicyEvaluation(policy.getId(), policy.getName(),
+                    policy.getPriority(), policy.getAction(), policy.getRequiredApprovals(),
+                    matched, matched && !decided));
+            decided |= matched;
+        }
+        return List.copyOf(evaluations);
+    }
+
+    /** The org's enabled policies that apply to this pipeline, in ascending priority order. */
+    private List<DeploymentRoutingPolicyEntity> scopedTo(UUID organizationId, UUID pipelineId) {
+        return repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(organizationId).stream()
+                .filter(policy -> policy.getPipelineId() == null
+                        || policy.getPipelineId().equals(pipelineId))
+                .toList();
     }
 
     private boolean matches(DeploymentRoutingPolicyEntity policy, RoutingContext context) {
@@ -170,7 +202,13 @@ public class DeploymentRoutingPolicyEngine {
     }
 
     /** The winning policy. {@code requiredApprovals} is null for the AUTO_* actions. */
-    public record RoutingMatch(UUID policyId, DeploymentRoutingAction action,
+    public record RoutingMatch(UUID policyId, String policyName, DeploymentRoutingAction action,
                                Integer requiredApprovals) {
+    }
+
+    /** One policy's verdict for the decision trace. {@code decisive} marks the first match. */
+    public record PolicyEvaluation(UUID policyId, String name, int priority,
+                                   DeploymentRoutingAction action, Integer requiredApprovals,
+                                   boolean matched, boolean decisive) {
     }
 }

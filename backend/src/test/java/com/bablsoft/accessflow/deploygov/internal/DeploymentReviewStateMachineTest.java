@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.deploygov.internal;
 
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
@@ -65,9 +66,13 @@ class DeploymentReviewStateMachineTest {
         stateService = mock(DeploymentRequestStateService.class);
         auditWriter = mock(DeploygovAuditWriter.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        // AF-967 wired the real evaluator in rather than a mock: the deciding rules moved out of
+        // the state machine, and these assertions are about the chain end to end, not about either
+        // half alone. DeploymentDecisionEvaluatorTest covers the trace the evaluator now produces.
         machine = new DeploymentReviewStateMachine(requestRepository, pipelineRepository,
-                environmentRepository, routingEngine, reviewPlanLookupService, stateService,
-                auditWriter,
+                environmentRepository,
+                new DeploymentDecisionEvaluator(routingEngine, reviewPlanLookupService),
+                stateService, auditWriter,
                 eventPublisher, Clock.fixed(Instant.parse("2026-08-21T17:30:00Z"), ZoneOffset.UTC));
 
         pipeline = pipeline();
@@ -83,7 +88,7 @@ class DeploymentReviewStateMachineTest {
     void requestNotInPendingAiIsIgnored() {
         var request = stubRequest(QueryStatus.APPROVED);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService, never()).apply(any(), any());
     }
@@ -93,8 +98,8 @@ class DeploymentReviewStateMachineTest {
         var id = UUID.randomUUID();
         when(requestRepository.findById(id)).thenReturn(Optional.empty());
 
-        machine.decide(id, RiskLevel.LOW);
-        machine.forceReview(id);
+        machine.decide(id, AiOutcome.COMPLETED, RiskLevel.LOW);
+        machine.decide(id, AiOutcome.FAILED, null);
 
         verify(stateService, never()).apply(any(), any());
     }
@@ -104,7 +109,7 @@ class DeploymentReviewStateMachineTest {
         var request = stubRequest(QueryStatus.PENDING_AI);
         when(pipelineRepository.findById(pipeline.getId())).thenReturn(Optional.empty());
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
         assertThat(request.getRequiredApprovals()).isEqualTo(1);
@@ -114,7 +119,7 @@ class DeploymentReviewStateMachineTest {
     void noRoutingMatchRoutesToReviewWhenTheEnvironmentRequiresIt() {
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
     }
@@ -124,7 +129,7 @@ class DeploymentReviewStateMachineTest {
         environment.setRequireReview(false);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService).apply(request, QueryStatus.APPROVED);
         verify(eventPublisher).publishEvent(any(DeploymentDecidedEvent.class));
@@ -137,7 +142,7 @@ class DeploymentReviewStateMachineTest {
         when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.of(plan(3, false)));
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService).apply(request, QueryStatus.APPROVED);
     }
@@ -182,7 +187,7 @@ class DeploymentReviewStateMachineTest {
         environment.setRequiredApprovals(4);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.forceReview(request.getId());
+        machine.decide(request.getId(), AiOutcome.FAILED, null);
 
         assertThat(request.getRequiredApprovals()).isEqualTo(4);
     }
@@ -193,7 +198,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(policyId, DeploymentRoutingAction.AUTO_APPROVE, null);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(stateService).apply(request, QueryStatus.APPROVED);
         var captor = ArgumentCaptor.forClass(DeploymentDecidedEvent.class);
@@ -221,7 +226,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(policyId, DeploymentRoutingAction.AUTO_REJECT, null);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.HIGH);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.HIGH);
 
         verify(stateService).apply(request, QueryStatus.REJECTED);
         var captor = ArgumentCaptor.forClass(DeploymentDecidedEvent.class);
@@ -243,7 +248,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(UUID.randomUUID(), DeploymentRoutingAction.REQUIRE_APPROVALS, 2);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.HIGH);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.HIGH);
 
         verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
         assertThat(request.getRequiredApprovals()).isEqualTo(2);
@@ -254,7 +259,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(UUID.randomUUID(), DeploymentRoutingAction.REQUIRE_APPROVALS, null);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.HIGH);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.HIGH);
 
         assertThat(request.getRequiredApprovals()).isEqualTo(1);
     }
@@ -265,7 +270,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(UUID.randomUUID(), DeploymentRoutingAction.ESCALATE, 3);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.CRITICAL);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.CRITICAL);
 
         verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
         assertThat(request.getRequiredApprovals()).isEqualTo(5);
@@ -279,7 +284,7 @@ class DeploymentReviewStateMachineTest {
         stubMatch(UUID.randomUUID(), DeploymentRoutingAction.ESCALATE, null);
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.CRITICAL);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.CRITICAL);
 
         assertThat(request.getRequiredApprovals()).isEqualTo(3);
     }
@@ -293,7 +298,7 @@ class DeploymentReviewStateMachineTest {
         when(reviewPlanLookupService.findById(environmentPlan)).thenReturn(Optional.of(plan(3, true)));
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         verify(reviewPlanLookupService).findById(environmentPlan);
         verify(reviewPlanLookupService, never()).findById(pipelinePlan);
@@ -308,14 +313,15 @@ class DeploymentReviewStateMachineTest {
         when(reviewPlanLookupService.findById(planId)).thenReturn(Optional.of(plan(2, true)));
         var request = stubRequest(QueryStatus.PENDING_AI);
 
-        machine.decide(request.getId(), RiskLevel.LOW);
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
 
         assertThat(request.getRequiredApprovals()).isEqualTo(5);
     }
 
     private void stubMatch(UUID policyId, DeploymentRoutingAction action, Integer requiredApprovals) {
         when(routingEngine.evaluate(any(), any(), any())).thenReturn(
-                new DeploymentRoutingPolicyEngine.RoutingMatch(policyId, action, requiredApprovals));
+                new DeploymentRoutingPolicyEngine.RoutingMatch(policyId, "policy " + policyId, action,
+                        requiredApprovals));
     }
 
     private DeploymentRequestEntity stubRequest(QueryStatus status) {

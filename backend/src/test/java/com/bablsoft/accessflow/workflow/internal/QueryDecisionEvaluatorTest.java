@@ -439,8 +439,8 @@ class QueryDecisionEvaluatorTest {
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private static com.bablsoft.accessflow.workflow.api.DecisionTraceStep step(
-            com.bablsoft.accessflow.workflow.api.DecisionTrace trace, QueryDecisionStepKind kind) {
+    private static com.bablsoft.accessflow.core.api.DecisionTraceStep step(
+            com.bablsoft.accessflow.core.api.DecisionTrace trace, QueryDecisionStepKind kind) {
         return trace.steps().stream().filter(s -> s.step() == kind).findFirst().orElseThrow();
     }
 
