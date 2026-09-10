@@ -49,5 +49,14 @@ public enum SimulationCaveat {
      * those reports as unmatched here and would still fire on the real submission — which is why
      * this is surfaced rather than smoothed over.
      */
-    CLIENT_CONTEXT_ABSENT
+    CLIENT_CONTEXT_ABSENT,
+
+    /**
+     * An API-call simulation (issue AF-967) has no response body, so response masking is reported at
+     * <em>policy</em> granularity: which masking policies and classification-derived masks resolve
+     * for the connector and the simulated caller, not which response fields would actually be
+     * rewritten. The live masker walks the real payload by dot-path, which only exists once the call
+     * has run.
+     */
+    RESPONSE_SHAPE_ABSENT
 }

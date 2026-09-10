@@ -38,14 +38,14 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.RowSecurityClassificationService;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEligibility;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEligibilityService;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTrace;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTrace;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -177,7 +177,7 @@ class DefaultAccessSimulationServiceTest {
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
         assertThat(result.steps()).extracting("step")
-                .containsExactly((Object[]) DecisionStepKind.values());
+                .containsExactly((Object[]) QueryDecisionStepKind.values());
         assertThat(result.resultingStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
     }
 
@@ -188,11 +188,11 @@ class DefaultAccessSimulationServiceTest {
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
         assertThat(result.steps()).extracting("step")
-                .containsExactly((Object[]) DecisionStepKind.values());
+                .containsExactly((Object[]) QueryDecisionStepKind.values());
         assertThat(result.resultingStatus()).isNull();
-        assertThat(step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION).outcome())
                 .isEqualTo(StepOutcome.DENY);
-        assertThat(step(result.steps(), DecisionStepKind.ROUTING_POLICIES).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.SKIP);
         verify(queryDecisionEvaluator, never()).evaluate(any(), any(), any(),
                 org.mockito.ArgumentMatchers.anyInt(), any());
@@ -227,7 +227,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var gate = step(result.steps(), DecisionStepKind.DATASOURCE_GATES);
+        var gate = step(result.steps(), QueryDecisionStepKind.DATASOURCE_GATES);
         assertThat(gate.outcome()).isEqualTo(StepOutcome.DENY);
         assertThat(gate.details()).containsEntry("visible_to_user", false);
         assertThat(result.resultingStatus()).isNull();
@@ -240,7 +240,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.DATASOURCE_GATES).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.DATASOURCE_GATES).outcome())
                 .isEqualTo(StepOutcome.DENY);
     }
 
@@ -253,7 +253,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var quota = step(result.steps(), DecisionStepKind.QUOTA);
+        var quota = step(result.steps(), QueryDecisionStepKind.QUOTA);
         assertThat(quota.outcome()).isEqualTo(StepOutcome.DENY);
         assertThat(quota.details()).containsEntry("limit", 100).containsEntry("current", 100L);
         assertThat(result.resultingStatus()).isNull();
@@ -265,7 +265,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.SQL_PARSE).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.SQL_PARSE).outcome())
                 .isEqualTo(StepOutcome.DENY);
     }
 
@@ -276,7 +276,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var parse = step(result.steps(), DecisionStepKind.SQL_PARSE);
+        var parse = step(result.steps(), QueryDecisionStepKind.SQL_PARSE);
         assertThat(parse.outcome()).isEqualTo(StepOutcome.DENY);
         assertThat(parse.details()).containsEntry("query_type", "OTHER");
     }
@@ -290,7 +290,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var permission = step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION);
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
         assertThat(permission.outcome()).isEqualTo(StepOutcome.ALLOW);
         assertThat(permission.details()).containsEntry("query_admin_short_circuit", true);
         assertThat(result.resultingStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
@@ -300,7 +300,7 @@ class DefaultAccessSimulationServiceTest {
     void thePermissionStepNamesEveryContributingGrant() {
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var permission = step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION);
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
         assertThat(permission.outcome()).isEqualTo(StepOutcome.ALLOW);
         @SuppressWarnings("unchecked")
         var grants = (List<Map<String, Object>>) permission.details().get("contributing_grants");
@@ -315,7 +315,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION).outcome())
                 .isEqualTo(StepOutcome.DENY);
     }
 
@@ -326,7 +326,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var permission = step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION);
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
         assertThat(permission.outcome()).isEqualTo(StepOutcome.DENY);
         assertThat(permission.details()).containsEntry("rejected_tables", List.of("public.payments"));
     }
@@ -341,9 +341,9 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.SQL_PARSE).details())
+        assertThat(step(result.steps(), QueryDecisionStepKind.SQL_PARSE).details())
                 .containsEntry("referenced_tables", List.of());
-        var permission = step(result.steps(), DecisionStepKind.EFFECTIVE_PERMISSION);
+        var permission = step(result.steps(), QueryDecisionStepKind.EFFECTIVE_PERMISSION);
         assertThat(permission.outcome()).isEqualTo(StepOutcome.ALLOW);
         assertThat(permission.reasonKey())
                 .isEqualTo("workflow.access_simulation.permission.allowed_no_tables");
@@ -358,7 +358,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var routing = step(result.steps(), DecisionStepKind.ROUTING_POLICIES);
+        var routing = step(result.steps(), QueryDecisionStepKind.ROUTING_POLICIES);
         @SuppressWarnings("unchecked")
         var policies = (List<Map<String, Object>>) routing.details().get("policies");
         assertThat(policies).hasSize(2);
@@ -376,7 +376,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.ELIGIBLE_REVIEWERS).outcome())
                 .isEqualTo(StepOutcome.SKIP);
     }
 
@@ -412,7 +412,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var step = step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS);
+        var step = step(result.steps(), QueryDecisionStepKind.ELIGIBLE_REVIEWERS);
         assertThat(step.details()).containsEntry("submitter_excluded", true);
         @SuppressWarnings("unchecked")
         var approvers = (List<Map<String, Object>>) step.details().get("plan_approvers");
@@ -427,7 +427,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.MASKING).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.MASKING).outcome())
                 .isEqualTo(StepOutcome.NO_MATCH);
     }
 
@@ -446,7 +446,7 @@ class DefaultAccessSimulationServiceTest {
 
         @SuppressWarnings("unchecked")
         var policies = (List<Map<String, Object>>) step(result.steps(),
-                DecisionStepKind.ROUTING_POLICIES).details().get("policies");
+                QueryDecisionStepKind.ROUTING_POLICIES).details().get("policies");
         assertThat(policies.get(0)).containsEntry("decisive", false);
         assertThat(policies.get(1)).containsEntry("decisive", true);
     }
@@ -460,7 +460,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var reviewers = step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS);
+        var reviewers = step(result.steps(), QueryDecisionStepKind.ELIGIBLE_REVIEWERS);
         assertThat(reviewers.outcome()).isEqualTo(StepOutcome.ALLOW);
         assertThat(reviewers.details()).containsEntry("submitter_excluded", true);
         @SuppressWarnings("unchecked")
@@ -477,7 +477,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.ELIGIBLE_REVIEWERS).outcome())
                 .isEqualTo(StepOutcome.DENY);
     }
 
@@ -491,7 +491,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var rowSecurity = step(result.steps(), DecisionStepKind.ROW_SECURITY);
+        var rowSecurity = step(result.steps(), QueryDecisionStepKind.ROW_SECURITY);
         assertThat(rowSecurity.outcome()).isEqualTo(StepOutcome.MATCH);
         assertThat(rowSecurity.details()).containsEntry("row_security_outcome", "APPLIED");
     }
@@ -507,7 +507,7 @@ class DefaultAccessSimulationServiceTest {
 
         assertThat(result.caveats())
                 .contains(SimulationCaveat.ENGINE_CLASSIFICATION_UNAVAILABLE);
-        assertThat(step(result.steps(), DecisionStepKind.ROW_SECURITY).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.ROW_SECURITY).outcome())
                 .isEqualTo(StepOutcome.SKIP);
     }
 
@@ -520,7 +520,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var masking = step(result.steps(), DecisionStepKind.MASKING);
+        var masking = step(result.steps(), QueryDecisionStepKind.MASKING);
         assertThat(masking.outcome()).isEqualTo(StepOutcome.MATCH);
         @SuppressWarnings("unchecked")
         var policies = (List<Map<String, Object>>) masking.details().get("policies");
@@ -537,7 +537,7 @@ class DefaultAccessSimulationServiceTest {
 
         assertThat(result.caveats()).contains(SimulationCaveat.COLUMN_MATCH_BARE_NAME);
         @SuppressWarnings("unchecked")
-        var policies = (List<Map<String, Object>>) step(result.steps(), DecisionStepKind.MASKING)
+        var policies = (List<Map<String, Object>>) step(result.steps(), QueryDecisionStepKind.MASKING)
                 .details().get("policies");
         assertThat(policies).hasSize(1);
         assertThat(policies.get(0)).containsEntry("bare_column_name", true);
@@ -550,7 +550,7 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        var breakGlass = step(result.steps(), DecisionStepKind.BREAK_GLASS);
+        var breakGlass = step(result.steps(), QueryDecisionStepKind.BREAK_GLASS);
         assertThat(breakGlass.outcome()).isEqualTo(StepOutcome.DENY);
         assertThat(breakGlass.details()).containsEntry("can_break_glass", false);
     }
@@ -562,13 +562,13 @@ class DefaultAccessSimulationServiceTest {
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
-        assertThat(step(result.steps(), DecisionStepKind.BREAK_GLASS).outcome())
+        assertThat(step(result.steps(), QueryDecisionStepKind.BREAK_GLASS).outcome())
                 .isEqualTo(StepOutcome.ALLOW);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private static DecisionTraceStep step(List<DecisionTraceStep> steps, DecisionStepKind kind) {
+    private static DecisionTraceStep step(List<DecisionTraceStep> steps, QueryDecisionStepKind kind) {
         return steps.stream().filter(s -> s.step() == kind).findFirst().orElseThrow();
     }
 
@@ -579,9 +579,9 @@ class DefaultAccessSimulationServiceTest {
 
     private QueryDecision planDecision(QueryStatus status) {
         var steps = List.of(
-                DecisionTraceStep.of(DecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH, "k"),
-                DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH, "k"),
-                DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.DENY, "k"));
+                DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.DENY, "k"));
         return new QueryDecision(QueryDecisionKind.PLAN_PENDING_REVIEW, status, null, null, null,
                 null, context(), new DecisionTrace(steps, status));
     }
@@ -597,9 +597,9 @@ class DefaultAccessSimulationServiceTest {
         var match = new com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch(policyId,
                 "P", com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE, 1, "matched");
         var steps = List.of(
-                DecisionTraceStep.of(DecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH, "k"),
-                DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP, "k"),
-                DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP, "k"));
+                DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP, "k"),
+                DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP, "k"));
         return new QueryDecision(QueryDecisionKind.ROUTING_ESCALATE, QueryStatus.PENDING_REVIEW,
                 match, 2, null, null, context(),
                 new DecisionTrace(steps, QueryStatus.PENDING_REVIEW));

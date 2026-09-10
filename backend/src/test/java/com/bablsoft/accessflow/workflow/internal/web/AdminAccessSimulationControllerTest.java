@@ -11,10 +11,10 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationResult;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationService;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.core.api.AiOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -147,7 +147,7 @@ class AdminAccessSimulationControllerTest {
 
     private AccessSimulationResult result(QueryStatus status) {
         return new AccessSimulationResult(
-                List.of(DecisionTraceStep.of(DecisionStepKind.QUOTA, StepOutcome.ALLOW, "k")),
+                List.of(DecisionTraceStep.of(QueryDecisionStepKind.QUOTA, StepOutcome.ALLOW, "k")),
                 status, null, List.of());
     }
 

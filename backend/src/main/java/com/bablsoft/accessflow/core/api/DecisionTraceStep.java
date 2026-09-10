@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.workflow.api;
+package com.bablsoft.accessflow.core.api;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -6,8 +6,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * One stage of a {@link DecisionTrace} (issue AF-859).
+ * One stage of a {@link DecisionTrace} (issues AF-859, AF-967).
  *
+ * @param step       which stage this is. Typed as {@link DecisionStepKind} so one trace type serves
+ *                   all three governed request kinds; a given trace only ever carries steps from its
+ *                   own module's enum
  * @param reasonKey  a {@code MessageSource} key, never rendered text. The evaluator runs inside an
  *                   asynchronous listener where there is no request locale to resolve against, so
  *                   deferring resolution to the controller is what lets a single trace serve both
