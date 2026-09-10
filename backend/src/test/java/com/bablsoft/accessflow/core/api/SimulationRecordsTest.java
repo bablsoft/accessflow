@@ -96,7 +96,11 @@ class SimulationRecordsTest {
                 SimulationCaveat.MEMBERSHIP_STATE_CURRENT,
                 SimulationCaveat.ANOMALY_STATE_CURRENT,
                 SimulationCaveat.COLUMN_MATCH_BARE_NAME,
-                SimulationCaveat.ENGINE_CLASSIFICATION_UNAVAILABLE);
+                SimulationCaveat.ENGINE_CLASSIFICATION_UNAVAILABLE,
+                // AF-859: a hypothetical request, unlike a replayed one, carries neither a persisted
+                // cost estimate nor any client context.
+                SimulationCaveat.COST_ESTIMATE_ABSENT,
+                SimulationCaveat.CLIENT_CONTEXT_ABSENT);
     }
 
     @Test

@@ -3,7 +3,6 @@ package com.bablsoft.accessflow.workflow.internal;
 import com.bablsoft.accessflow.core.api.ApproverRule;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
-import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionContribution;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionSourceKind;
 import com.bablsoft.accessflow.core.api.DatasourceUserPermissionLookupService;
@@ -115,8 +114,8 @@ class DefaultAccessSimulationServiceTest {
         when(userQueryService.findById(userId)).thenReturn(Optional.of(user()));
         when(datasourceAdminService.getForAdmin(datasourceId, organizationId))
                 .thenReturn(datasource(true));
-        when(datasourceAdminService.getForUser(datasourceId, organizationId, userId))
-                .thenReturn(datasource(true));
+        when(datasourceAdminService.isVisibleToUser(datasourceId, organizationId, userId))
+                .thenReturn(true);
         when(queryParser.parse(any(), any())).thenReturn(
                 new SqlParseResult(QueryType.SELECT, false, List.of("SELECT 1"),
                         Set.of("public.payments"), true, false));
@@ -221,8 +220,8 @@ class DefaultAccessSimulationServiceTest {
 
     @Test
     void aDatasourceInvisibleToTheSimulatedUserIsADenialNotAnError() {
-        when(datasourceAdminService.getForUser(datasourceId, organizationId, userId))
-                .thenThrow(new DatasourceNotFoundException(datasourceId));
+        when(datasourceAdminService.isVisibleToUser(datasourceId, organizationId, userId))
+                .thenReturn(false);
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
@@ -235,8 +234,6 @@ class DefaultAccessSimulationServiceTest {
     @Test
     void anInactiveDatasourceStopsTheRequest() {
         when(datasourceAdminService.getForAdmin(datasourceId, organizationId))
-                .thenReturn(datasource(false));
-        when(datasourceAdminService.getForUser(datasourceId, organizationId, userId))
                 .thenReturn(datasource(false));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
