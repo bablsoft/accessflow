@@ -1,0 +1,152 @@
+package com.bablsoft.accessflow.workflow.internal;
+
+import com.bablsoft.accessflow.core.api.OrganizationAdminService;
+import com.bablsoft.accessflow.core.api.QuerySuggestionCorpusLookupService;
+import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.SortOrder;
+import com.bablsoft.accessflow.scheduling.api.DistributedLockService;
+import com.bablsoft.accessflow.workflow.api.QuerySuggestionAggregationService;
+import com.bablsoft.accessflow.workflow.internal.config.QuerySuggestionProperties;
+import com.bablsoft.accessflow.workflow.internal.persistence.repo.QuerySuggestionRepository;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Organisation fan-out for the automatic query suggestion rebuild (#776).
+ *
+ * <p>Thin by design: the per-organisation transaction and all of the mining live one level down in
+ * {@link QuerySuggestionDatasourceAggregator}, reached across the Spring proxy so
+ * {@code @Transactional} actually applies. What lives here is the master switch, the paged
+ * organisation walk, and the per-organisation {@code RuntimeException} swallow — one organisation's
+ * unparseable history must not cost every other organisation its suggestions.
+ */
+@Service
+@RequiredArgsConstructor
+class DefaultQuerySuggestionAggregationService implements QuerySuggestionAggregationService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(DefaultQuerySuggestionAggregationService.class);
+
+    /** Organizations per page while fanning out; mirrors the approval-prediction retrain. */
+    private static final int ORGANIZATION_PAGE_SIZE = 200;
+
+    private final OrganizationAdminService organizationAdminService;
+    private final QuerySuggestionCorpusLookupService corpusLookupService;
+    private final QuerySuggestionDatasourceAggregator aggregator;
+    private final DistributedLockService distributedLockService;
+    private final QuerySuggestionRepository suggestionRepository;
+    private final QuerySuggestionProperties properties;
+    private final Clock clock;
+
+    @Override
+    public void aggregateAll() {
+        if (!properties.enabled()) {
+            log.debug("Query suggestion aggregation skipped: feature disabled");
+            return;
+        }
+        var runStamp = clock.instant();
+        int page = 0;
+        int aggregated = 0;
+        int totalPages;
+        do {
+            // Sorted explicitly: each page is its own transaction, so an unsorted LIMIT/OFFSET
+            // gives Postgres licence to reorder between pages and silently skip an organisation.
+            var organizations = organizationAdminService.list(
+                    PageRequest.of(page, ORGANIZATION_PAGE_SIZE, SortOrder.asc("id")));
+            totalPages = organizations.totalPages();
+            for (var organization : organizations.content()) {
+                if (organization.disabled()) {
+                    continue;
+                }
+                try {
+                    aggregated += aggregateOrganization(organization.id(), runStamp);
+                } catch (RuntimeException ex) {
+                    log.error("Query suggestion aggregation failed for org {}", organization.id(),
+                            ex);
+                }
+            }
+            page++;
+        } while (page < totalPages);
+        log.info("Query suggestion aggregation complete for {} datasources", aggregated);
+    }
+
+    @Override
+    public boolean aggregateDatasource(UUID organizationId, UUID datasourceId) {
+        if (!properties.enabled()) {
+            log.debug("Query suggestion recompute skipped: feature disabled");
+            return false;
+        }
+        // The caller already holds this datasource's lock (that is how the endpoint answers 202 vs
+        // 409). Re-acquiring here would not deadlock — the Redis provider would simply decline —
+        // but the rebuild would then silently no-op. The scheduled path takes the lock in
+        // aggregateLocked instead.
+        aggregator.aggregate(organizationId, datasourceId, clock.instant());
+        return true;
+    }
+
+    /**
+     * Runs one datasource under the <em>same</em> per-datasource lock the on-demand recompute uses.
+     *
+     * <p>The job's own {@code @SchedulerLock} stops N replicas all walking the organisation list,
+     * but it says nothing about a human-triggered recompute landing mid-pass. Without a shared lock
+     * the two would interleave over one datasource: each writes a complete set stamped with its own
+     * run time and then sweeps everything older, so the earlier run's rows are discarded and its
+     * writes lose the {@code @Version} race. The outcome would still be a coherent set — but it
+     * would be one run's work thrown away and an exception logged for no reason.
+     *
+     * @return {@code false} when a recompute already holds the lock; that datasource is simply
+     *         being rebuilt by someone else, which is not a failure.
+     */
+    private boolean aggregateLocked(UUID organizationId, UUID datasourceId, Instant runStamp) {
+        return distributedLockService.runLocked(
+                QuerySuggestionLocks.forDatasource(datasourceId),
+                properties.recomputeLockAtMostFor(),
+                () -> aggregator.aggregate(organizationId, datasourceId, runStamp));
+    }
+
+    /**
+     * Walks the organisation's datasources that have qualifying history. Each datasource is its own
+     * transaction and its own {@code RuntimeException} boundary: one datasource whose engine plugin
+     * will not resolve must not cost the organisation every other datasource's suggestions.
+     */
+    private int aggregateOrganization(UUID organizationId, Instant runStamp) {
+        var since = runStamp.minus(properties.lookback());
+        int aggregated = 0;
+        for (var datasourceId : datasourcesToVisit(organizationId, since)) {
+            try {
+                if (aggregateLocked(organizationId, datasourceId, runStamp)) {
+                    aggregated++;
+                }
+            } catch (RuntimeException ex) {
+                log.error("Query suggestion aggregation failed for datasource {} in org {}",
+                        datasourceId, organizationId, ex);
+            }
+        }
+        return aggregated;
+    }
+
+    /**
+     * Every datasource this pass must touch: those with qualifying history, <em>plus</em> those that
+     * merely still hold rows.
+     *
+     * <p>The second half is what makes the sweep reachable. A datasource whose last approved query
+     * ages out of the lookback window drops off the corpus query, so driving the walk from history
+     * alone would never visit it again — and its now-stale suggestions would be served indefinitely,
+     * which is exactly the case the sweep exists for. Visiting it costs one empty corpus read and
+     * one delete.
+     */
+    private Set<UUID> datasourcesToVisit(UUID organizationId, Instant since) {
+        var ids = new LinkedHashSet<>(
+                corpusLookupService.findDatasourceIdsWithHistory(organizationId, since));
+        ids.addAll(suggestionRepository.findDatasourceIdsWithSuggestions(organizationId));
+        return ids;
+    }
+}

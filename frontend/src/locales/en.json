@@ -459,6 +459,7 @@
     "panel_toggle_label": "Insight panel",
     "panel_ai": "AI analysis",
     "panel_plan": "Dry run",
+    "panel_suggestions": "Suggestions",
     "submit_disabled_needs_analysis_tooltip": "Run AI analysis before submitting.",
     "lines_count_one": "{{count}} line",
     "lines_count_other": "{{count}} lines",
@@ -573,7 +574,15 @@
     "break_glass_confirm": "Execute now",
     "break_glass_modal_warning_title": "This bypasses review",
     "break_glass_modal_warning_body": "The query executes immediately without approval. All administrators are notified, the action is prominently audited, and it must be reviewed afterwards.",
-    "break_glass_justification_placeholder": "Explain the emergency (required)"
+    "break_glass_justification_placeholder": "Explain the emergency (required)",
+    "suggestions": {
+      "title": "Suggested queries",
+      "subtitle": "Drafts from queries your organisation has already had approved on this datasource. Applying one only fills the editor — it is still analysed and reviewed like any other query.",
+      "empty": "No suggestions yet. They appear once this datasource has a few approved queries you have access to.",
+      "load_error": "Could not load suggestions.",
+      "apply": "Apply as draft",
+      "evidence": "Approved {{times}}× · submitters: {{people}}"
+    }
   },
   "dry_run_panel": {
     "title": "Execution plan",
@@ -2910,7 +2919,8 @@
       "USER_SUBMITTED": "User submitted",
       "AI_SUGGESTION": "AI suggestion",
       "EMERGENCY_ACCESS": "Emergency access",
-      "RECURRING": "Recurring occurrence"
+      "RECURRING": "Recurring occurrence",
+      "HISTORY_SUGGESTION": "History suggestion"
     },
     "comment_status": {
       "OPEN": "Open",

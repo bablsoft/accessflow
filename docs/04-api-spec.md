@@ -1195,6 +1195,88 @@ Admin-only.
 
 ---
 
+### Automatic query suggestions (#776)
+
+Draft queries mined from the organisation's own **approved** query history on a datasource, offered
+in the editor's right rail before the analyst has written anything. A suggestion is a draft and
+nothing more: applying one fills the editor, and submitting it goes through `POST /queries`
+unchanged — analysed, routed and reviewed like any other query. Being derived from an approved query
+grants it nothing, and the suggestion path never touches routing policies, grant-covered
+auto-approval or any other decision path.
+
+Rows are precomputed per datasource by `QuerySuggestionAggregationJob` (see
+[docs/05-backend.md](05-backend.md) → "Automatic query suggestions") and filtered per caller at read
+time against their own effective permission, so a suggestion can never disclose a table the caller
+is not allow-listed for.
+
+| Method | Path | Status |
+|--------|------|--------|
+| `GET` | `/datasources/{id}/query-suggestions` | Ranked suggestions the caller may run on this datasource |
+| `POST` | `/datasources/{id}/query-suggestions/recompute` | Rebuild this datasource's suggestions now (`QUERY_ADMIN`) |
+
+### GET /datasources/{id}/query-suggestions — Response 200
+
+Query parameter `limit` (optional, `0`–`50`; `0` or absent means the configured default of 10). A
+capped rail rather than a paginated collection — nobody pages through suggestions, and an offset
+into a ranking recomputed per caller would not be stable between requests.
+
+```json
+{
+  "suggestions": [
+    {
+      "id": "7f1c9e2a-5d3b-4a10-9c77-2e6b4a8f0d31",
+      "sql": "SELECT id, total FROM orders WHERE created_at > now() - interval '1 day'",
+      "query_type": "SELECT",
+      "referenced_tables": ["public.orders"],
+      "approved_count": 14,
+      "distinct_submitter_count": 3,
+      "first_submitted_at": "2026-06-01T08:12:04Z",
+      "last_submitted_at": "2026-09-09T17:41:22Z"
+    }
+  ]
+}
+```
+
+`sql` is the raw text of the most recent approved request in the group, not the normalised form the
+group was keyed by. `approved_count` and `distinct_submitter_count` are the evidence the rail shows;
+submitter identities are never returned. Ordering is by the server's ranking heuristic
+(frequency × recency × overlap with the caller's own recent tables) — the score itself is an internal
+sort key and is not part of the response.
+
+Authorization: any authenticated caller who can see the datasource. Results are filtered to the
+caller's effective permission — the capability the query type needs, and every referenced table
+inside their allow-list. A `QUERY_ADMIN` caller skips that filter, exactly as they skip the
+submission path's permission verify. An empty array is a normal answer: the datasource may have no
+qualifying history yet, or none the caller may reach.
+
+**Errors:**
+- `400` — `limit` outside `0`–`50`.
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `404 DATASOURCE_NOT_FOUND` — unknown datasource, or one the caller cannot see. Never `403`:
+  datasource visibility is itself grant-based, so a caller without a grant is told the datasource
+  does not exist rather than that it exists and is closed to them.
+
+### POST /datasources/{id}/query-suggestions/recompute — Response 202
+
+Rebuilds this datasource's suggestions immediately instead of waiting for the next scheduled pass —
+for an operator who has just imported history, widened the lookback, or onboarded a datasource. The
+rebuild runs asynchronously; the response carries no body.
+
+Requires `QUERY_ADMIN`. The cluster-wide lock is taken synchronously, so the status code is an
+accurate answer across every replica rather than a guess.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `403` — caller lacks `QUERY_ADMIN`.
+- `404 DATASOURCE_NOT_FOUND` — unknown datasource in the caller's organisation. Checked before the
+  lock, so an unknown datasource is never distinguishable from a busy one.
+- `409 QUERY_SUGGESTION_RECOMPUTE_IN_PROGRESS` — another replica, or the scheduled job, is already
+  rebuilding this datasource.
+- `500` — the cluster lock backing the recompute guard is unreachable (for example Redis is down).
+  Fail-closed: no rebuild is started.
+
+---
+
 ## Custom JDBC Driver Endpoints
 
 Admin-only. Storage budget: max **50 MB** per JAR (`spring.servlet.multipart.max-file-size`).
@@ -1397,7 +1479,7 @@ The `sql` field carries the query text for **every** engine. For a `MONGODB` dat
 
 `recurrence_rule` + `recurrence_until` (#627) turn the request into a **recurring series**: the query, cadence, and expiry are reviewed and approved **once**, then the backend's `RecurringQueryRunJob` (cluster-locked via ShedLock) executes each occurrence through the full proxy pipeline with the policy state current at that moment. `recurrence_rule` is either a **6-field Spring cron expression** evaluated in **UTC** (`"0 0 8 * * MON"` — every Monday 08:00 UTC) or an **ISO-8601 duration** (`"PT6H"` — every 6 hours from approval). `recurrence_until` is **mandatory** when `recurrence_rule` is present, must be strictly in the future, and hard-stops the series. `recurrence_rule` is mutually exclusive with `scheduled_for` (HTTP 400 when both are supplied). The gap between occurrences must be at least `ACCESSFLOW_WORKFLOW_RECURRENCE_MIN_INTERVAL` (default 5 minutes) — shorter rules produce HTTP 400. Every recurrence-validation failure produces a `400` ProblemDetail with `error: RECURRENCE_INVALID` and a localized `detail`. Each occurrence is recorded as its own child `query_requests` row (`recurring_parent_id` = the series parent, `submission_reason` = `RECURRING`) created directly in `APPROVED` and executed immediately with audit metadata `"trigger": "recurring"` — the parent row **stays `APPROVED`** for the lifetime of the series. Missed occurrences (e.g. during downtime) are not backfilled; the schedule advances from the current time. When an occurrence of a `SELECT` completes, the submitter is notified through the review plan's notification channels — email channels receive the results as a capped `results.csv` attachment, chat channels a summary with a link (see [docs/08-notifications.md](08-notifications.md)). The series **halts fail-closed** — `recurrence_next_run_at` cleared, `recurrence_halted_reason` recorded, `RECURRING_SERIES_HALTED` audit row — when the submitter's permission on the datasource disappears, expires, or loses the required capability/table coverage, when the SQL no longer re-parses, or when the datasource is deactivated. When `recurrence_until` passes, the series completes: the parent keeps status `APPROVED` with `recurrence_next_run_at = null` and clients derive "Series completed".
 
-`submission_reason` is optional (default `USER_SUBMITTED`; the only other client-suppliable value is `AI_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451). It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint. The system-only values `EMERGENCY_ACCESS` (stamped by the break-glass endpoint, AF-385) and `RECURRING` (stamped on occurrence rows by the recurring job, #627) are rejected here with `403 FORBIDDEN` so a client cannot pollute the audit trail with a system provenance.
+`submission_reason` is optional (default `USER_SUBMITTED`; the client-suppliable values are `AI_SUGGESTION` and `HISTORY_SUGGESTION`). The frontend sends `AI_SUGGESTION` when the submitted SQL came from applying an AI optimization suggestion in the editor (AF-451), and `HISTORY_SUGGESTION` when it came from applying an automatic suggestion mined from the organisation's approved history (#776) — the two are kept apart so the provenance of a draft stays legible in the audit trail. It is persisted on `query_requests.submission_reason` and recorded in the `QUERY_SUBMITTED` audit metadata (`"submission_reason"`). There is **no** separate "apply suggestion" endpoint — applying a suggestion just pre-fills the editor and reuses this endpoint. The system-only values `EMERGENCY_ACCESS` (stamped by the break-glass endpoint, AF-385) and `RECURRING` (stamped on occurrence rows by the recurring job, #627) are rejected here with `403 FORBIDDEN` so a client cannot pollute the audit trail with a system provenance.
 
 **Client-context capture (AF-446).** On submission the backend captures the source IP (`X-Forwarded-For` first hop, else remote address), the `User-Agent` header, and a CI/CD-origin flag, persisting them on `query_requests` for the context-aware routing conditions (`source_ip`, `user_agent`, `cicd_origin`). The CI/CD-origin flag is set when the request is authenticated via an API key **or** carries the optional **`X-AccessFlow-CI`** request header with a truthy value (`true` / `1` / `yes` / `ci` / `cicd`) — pipelines using a JWT instead of an API key set this header to opt into CI/CD-origin routing. See [docs/05-backend.md → "Policy-as-code routing engine"](05-backend.md#policy-as-code-routing-engine-af-379).
 
@@ -7093,6 +7175,7 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |
+| `QUERY_SUGGESTION_RECOMPUTE_IN_PROGRESS` | 409 | `QuerySuggestionRecomputeInProgressException` | Another replica, or the scheduled aggregation, already holds this datasource's suggestion-rebuild lock (#776). Body includes `datasourceId`. |
 | `INVALID_REPORT_PERIOD` | 400 | `InvalidReportPeriodException` | Compliance-report period is missing, inverted (`from` after `to`), or exceeds `accessflow.compliance.max-report-period`. |
 | `ANOMALY_NOT_FOUND` | 404 | `AnomalyNotFoundException` | Unknown behavioural-anomaly id, or the anomaly is in another organization (UBA, AF-383). |
 | `ANOMALY_INVALID_STATE` | 409 | `AnomalyInvalidStateException` | Tried to acknowledge / dismiss an anomaly that is not in the required state (already acknowledged or dismissed). |

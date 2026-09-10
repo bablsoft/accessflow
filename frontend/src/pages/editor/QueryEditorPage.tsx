@@ -29,7 +29,13 @@ import { getBreakGlassEligibility, meKeys } from '@/api/me';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import type { SubmissionReason } from '@/types/api';
+import type { SqlChangeSource } from '@/components/editor/useQueryAuthoring';
 import './editor.css';
+
+const SUBMISSION_REASON_BY_SOURCE: Partial<Record<SqlChangeSource, SubmissionReason>> = {
+  ai_suggestion: 'AI_SUGGESTION',
+  history_suggestion: 'HISTORY_SUGGESTION',
+};
 
 export function QueryEditorPage() {
   const { t } = useTranslation();
@@ -65,9 +71,11 @@ export function QueryEditorPage() {
     sql,
     onSqlChange: (next, source) => {
       setSql(next);
-      // A manual edit (or template/generated draft) clears the "came from an AI suggestion" flag;
-      // an applied suggestion sets it. The flag survives the required re-analysis.
-      setSubmissionReason(source === 'ai_suggestion' ? 'AI_SUGGESTION' : 'USER_SUBMITTED');
+      // Provenance follows the draft's origin and survives the required re-analysis. A manual edit,
+      // a template or a text-to-SQL draft is the analyst's own work; the two suggestion sources stay
+      // distinct so AI-suggestion adoption (#451/#498) and history-suggestion adoption (#776) can
+      // be told apart in the audit trail.
+      setSubmissionReason(SUBMISSION_REASON_BY_SOURCE[source] ?? 'USER_SUBMITTED');
     },
   });
 

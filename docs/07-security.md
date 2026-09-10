@@ -567,6 +567,55 @@ Are restricted_columns set?
   PROCEED to review plan
 ```
 
+### Automatic query suggestion visibility (#776)
+
+The editor's suggestion rail offers **other analysts' approved SQL**. That makes visibility the
+whole security question: showing someone a query against a table they are not allow-listed for would
+disclose that the table exists, which is precisely what the allow-list is for. The read service —
+not the controller — enforces the following, in this order, and each step answers a different
+question:
+
+1. **Can the caller see the datasource at all?** Resolved through `DatasourceAdminService`
+   (`getForAdmin` for a `QUERY_ADMIN` caller, `getForUser` otherwise), which answers **404, never
+   403**, so the endpoint cannot be used to probe for datasources. Because visibility is itself
+   grant-based, a caller with no unexpired grant stops here.
+2. **Do they hold an unexpired grant?** If not, an empty rail. In practice step 1 has already
+   answered 404 for such a caller; this is the fail-closed guard for the narrow race where a grant
+   lapses between the two reads.
+3. **Does the grant carry the capability the query type needs?** A read-only analyst is never shown
+   a DDL suggestion they could not submit.
+4. **Is every referenced table inside their allow-list?** `DatasourcePermissionChecker.rejectedTables`
+   must come back empty. This is safe **only** because the aggregation guarantees
+   `referenced_tables` is never empty — that method reports "nothing rejected" for an empty set, so
+   a row whose tables could not be resolved would clear this check for everyone. The aggregation
+   drops such rows rather than storing them; do not relax that guard.
+
+A `QUERY_ADMIN` caller skips steps 2–4, mirroring the submission path: that permission already means
+"submit against any datasource without a per-resource grant", so filtering their rail would hide
+queries they can run today.
+
+Two further properties are worth stating plainly.
+
+**A suggestion inherits the literals of the query it was mined from.** A mined `WHERE email =
+'…'` predicate carries a value someone typed. That is acceptable precisely because of step 4: the
+caller is allow-listed for the tables involved and could author the same query themselves, so the
+suggestion reveals nothing they could not already reach. It is not acceptable without that filter,
+which is why the filter is in the service and not the UI.
+
+**The corpus excludes what went around the approval path.** `EMERGENCY_ACCESS` (break-glass,
+AF-385) is excluded because it bypassed review entirely — break-glass SQL is exactly the SQL that
+must not be recommended onward. The corpus does *not* require a human decision: a routing policy's
+`AUTO_APPROVE`, a `pre_approve_queries` grant, and a plan needing no human approval all reach
+`APPROVED` and are all included, because each is the organisation's own configured judgement about
+that shape. The line drawn is "went through the approval path", not "a person read it". `RECURRING` occurrences and recurring-series parents are excluded as
+machine-generated. Rejected, timed-out, cancelled and still-pending queries never enter, because
+only `APPROVED` and `EXECUTED` are read.
+
+Suggestions are **advisory only**: nothing in the path touches routing policies, grant-covered
+auto-approval, or any decision. A suggestion that is submitted is analysed, routed and reviewed like
+any other query, and carries `submission_reason = HISTORY_SUGGESTION` in the audit trail. Submitter
+identities are never returned — the API exposes counts.
+
 ### Just-in-time (JIT) time-bound access requests (AF-378, AF-567)
 
 A user can self-request temporary, scoped access — to a datasource or an API connector (AF-567) — instead of an admin pre-granting it. The request flows through the **same reviewer-eligibility + multi-stage approval machinery** as query review, with these security invariants:

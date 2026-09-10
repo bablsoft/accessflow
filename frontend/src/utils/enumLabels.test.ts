@@ -106,6 +106,9 @@ describe('submissionReasonLabel', () => {
   it('maps each submission reason to its enum translation key', () => {
     expect(submissionReasonLabel(t, 'USER_SUBMITTED')).toBe('enums.submission_reason.USER_SUBMITTED');
     expect(submissionReasonLabel(t, 'AI_SUGGESTION')).toBe('enums.submission_reason.AI_SUGGESTION');
+    expect(submissionReasonLabel(t, 'HISTORY_SUGGESTION')).toBe(
+      'enums.submission_reason.HISTORY_SUGGESTION',
+    );
     expect(submissionReasonLabel(t, 'EMERGENCY_ACCESS')).toBe(
       'enums.submission_reason.EMERGENCY_ACCESS',
     );

@@ -805,6 +805,33 @@ Unique index `(organization_id, owner_id, LOWER(name))` — an owner may not hav
 
 ---
 
+## query_suggestions
+
+Precomputed automatic query suggestions (#776, Flyway `V166`) — one row per distinct approved query *shape* on a datasource, rebuilt each pass by `QuerySuggestionAggregationJob`. Derived state, not a record: nothing here is authored by a user, nothing is consulted by any decision path, and a pass that produces a different set simply replaces it.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE |
+| `datasource_id` | FK → `datasources` ON DELETE CASCADE — a suggestion has no meaning without its datasource |
+| `canonical_hash` | VARCHAR(64) NOT NULL — SHA-256 hex of the `SqlCanonicalizer` output; the group key. Hashed rather than stored as text because a btree key caps at ~2704 bytes |
+| `sql_text` | TEXT NOT NULL — the raw text of the most recent approved request in the group, which is what the editor loads. Never the canonical form, which is upper-cased and whitespace-collapsed |
+| `query_type` | ENUM `query_type` — reuses the type shared with `query_requests`; no second enum |
+| `referenced_tables` | TEXT[] NOT NULL — lower-cased `schema.table` / `table` from `SqlParseResult.referencedTables()`. **Never empty**: the aggregation drops a group whose tables it could not resolve, because the read-side allow-list check treats an empty set as "nothing to reject" |
+| `submitter_ids` | UUID[] NOT NULL — capped list of who ran the shape, read back only to build the viewer's own table affinity for the ranking. Never returned by the API |
+| `approved_count` | INTEGER NOT NULL DEFAULT 0 |
+| `distinct_submitter_count` | INTEGER NOT NULL DEFAULT 0 — counted over every submitter seen, not over the capped `submitter_ids` |
+| `first_submitted_at` / `last_submitted_at` | TIMESTAMPTZ NOT NULL — `query_requests.created_at` of the earliest / most recent request in the group. Submission times, not approval times: `query_requests` has no approved-at column (`updated_at` is the `@Version` field, which on an `EXECUTED` row holds the execution time) |
+| `computed_at` | TIMESTAMPTZ NOT NULL — stamp of the pass that wrote the row; rows older than the current pass are swept |
+| `version` | BIGINT NOT NULL DEFAULT 0 — JPA optimistic-locking version |
+| `created_at` / `updated_at` | TIMESTAMPTZ |
+
+Unique index `(datasource_id, canonical_hash)` is both the upsert key and the sweep's leading column. Ranking index on `(datasource_id, last_submitted_at DESC)`, a plain index on `organization_id`, and a GIN index on `referenced_tables`.
+
+The corpus is `query_requests` in `APPROVED` or `EXECUTED` — reached through the organisation's approval path, which includes its configured auto-approvals — excluding `EMERGENCY_ACCESS` (break-glass went around that path entirely), `RECURRING` and any row with a `recurring_parent_id` (machine-generated occurrences would inflate `approved_count`), and any row with a `recurrence_rule` (a series parent is a schedule definition, not an authored query). See [docs/05-backend.md](05-backend.md) → "Automatic query suggestions" and [docs/07-security.md](07-security.md) → "Automatic query suggestion visibility".
+
+---
+
 ## query_template_versions
 
 Immutable version history of saved query templates (AF-442). A snapshot is written on every content-changing save and on restore; rows are INSERT-only and never updated. `version_number` is contiguous per template starting at 1.
@@ -870,7 +897,7 @@ The central entity. Represents a single SQL submission through the platform.
 | `query_type` | ENUM: `SELECT` \| `INSERT` \| `UPDATE` \| `DELETE` \| `DDL` \| `OTHER`. For a transactional submission, holds the *representative* type — i.e. the first inner statement (INSERT/UPDATE/DELETE) — so permission checks (`can_write`) and state-machine fast-path logic continue to work unchanged. |
 | `transactional` | BOOLEAN NOT NULL DEFAULT FALSE — true when `sql_text` is a `BEGIN; … COMMIT;` envelope wrapping a homogeneous INSERT/UPDATE/DELETE batch. The executor re-parses `sql_text` at execute time to recover the individual statements and runs them inside a single JDBC transaction (`autoCommit=false` + sum of `executeLargeUpdate` + commit/rollback). `rows_affected` then holds the sum across inner statements. |
 | `status` | ENUM: `PENDING_AI` \| `PENDING_REVIEW` \| `APPROVED` \| `REJECTED` \| `TIMED_OUT` \| `EXECUTED` \| `FAILED` \| `CANCELLED` |
-| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93) \| `RECURRING` (#627, Flyway V133). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path; `RECURRING` marks a child occurrence row created by the `RecurringQueryRunJob` for an approved recurring series (never user-submitted). Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
+| `submission_reason` | ENUM `submission_reason`: `USER_SUBMITTED` (default) \| `AI_SUGGESTION` (AF-451) \| `EMERGENCY_ACCESS` (AF-385, Flyway V93) \| `RECURRING` (#627, Flyway V133) \| `HISTORY_SUGGESTION` (#776, Flyway V167). `AI_SUGGESTION` marks a draft created by applying an AI optimization suggestion in the editor; `HISTORY_SUGGESTION` marks one created by applying an automatic suggestion mined from the organisation's approved history — kept distinct from `AI_SUGGESTION` so the audit trail can still say which of the two a draft came from; `EMERGENCY_ACCESS` marks a query that bypassed pre-approval through the break-glass path; `RECURRING` marks a child occurrence row created by the `RecurringQueryRunJob` for an approved recurring series (never user-submitted). Both suggestion reasons are client-supplied provenance and, unlike `RECURRING` and `EMERGENCY_ACCESS`, are not rejected as reserved by the submission service. Recorded in the `QUERY_SUBMITTED` audit metadata. NOT NULL DEFAULT `'USER_SUBMITTED'`. |
 | `justification` | TEXT nullable — requester's stated reason for the query |
 | `ai_analysis_id` | FK → `ai_analyses` nullable |
 | `query_estimate_id` | FK → `query_estimates` nullable (AF-624, Flyway `V128`) — the query's persisted pre-flight cost estimate; bare-UUID back-pointer mirroring `ai_analysis_id` (the real NOT NULL FK lives on `query_estimates.query_request_id`) |

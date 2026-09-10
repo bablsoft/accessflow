@@ -1463,7 +1463,7 @@ Response shape: see [docs/04-api-spec.md → GET /queries/{id}/diff](04-api-spec
 
 ### Scheduled jobs and clustering
 
-`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 26 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
+`@EnableScheduling` and `@EnableSchedulerLock` are activated in the dedicated `scheduling` Spring Modulith module (`com.bablsoft.accessflow.scheduling`) — `SchedulingConfiguration` carries `@EnableScheduling`, `SchedulerLockConfiguration` carries `@EnableSchedulerLock`, and `RedisLockProviderConfiguration` defines the `LockProvider` bean. All three are package-private under `scheduling/internal/`. The split exists so scheduling can be switched off without unwiring ShedLock: `SchedulingConfiguration` is gated on `accessflow.scheduling.enabled` (default `true`; see [docs/09-deployment.md](09-deployment.md)), which the integration suite sets to `false` so its one long-lived shared Spring context does not have 27 jobs mutating the shared test database. `SchedulerLockConfiguration` is unconditional, so the `@SchedulerLock` advice stays wired and asserted either way. Every `@Scheduled` method **must** carry a `@SchedulerLock(name = …, lockAtMostFor = …, lockAtLeastFor = …)`. The lock provider is `RedisLockProvider`, which reuses the same `RedisConnectionFactory` as the JWT refresh-token store. Lock keys live under the `accessflow:shedlock:` Redis prefix.
 
 Scheduling infrastructure lives in its own module because it is cross-cutting: any business module can add a `@Scheduled` method without depending on another module's internals. The module exposes one public type, `scheduling.api.DistributedLockService` — a JDK-only wrapper for programmatic, one-shot cluster-wide locks (see [§ Startup bootstrap](#startup-bootstrap-env-driven-admin-config)). It offers two shapes: `runLocked` runs the critical section on the calling thread, and `runLockedAsync` acquires on the calling thread but runs the section on a caller-supplied `Executor`, releasing when it finishes — what lets a request-scoped caller answer "already running" synchronously without occupying its thread for the whole job (AF-660). ShedLock types stay confined to `scheduling.internal/`, and the provider is built with `safeUpdate(true)` so a holder that overruns its `lockAtMostFor` cannot delete a lock a second node has since taken.
 
@@ -1497,6 +1497,7 @@ This makes horizontal scaling safe: when the AccessFlow backend runs as multiple
 | `DeploymentTimeoutJob` | deploygov | `deploymentTimeoutJob` | `accessflow.deploygov.timeout-check` | `PT5M` |
 | `ScheduledDeploymentReleaseJob` | deploygov | `scheduledDeploymentReleaseJob` | `accessflow.deploygov.release-check` | `PT1M` |
 | `HelpChatRetentionJob` | ai | `helpChatRetentionJob` | `accessflow.help-agent.retention-poll-interval` | `PT6H` |
+| `QuerySuggestionAggregationJob` | workflow | `querySuggestionAggregationJob` | `accessflow.workflow.query-suggestions.aggregation-poll-interval` | `PT6H` |
 
 `WeeklyDigestJob` implements the opt-in weekly dashboard digest (AF-498): it scans `dashboard_digest_subscription` for `enabled = true` rows whose `last_sent_at` is null or older than `accessflow.dashboard.weekly-digest.period` (default `P7D`, a partial index backs the scan) and, per row, builds that user's weekly summary, publishes a `dashboard.events.WeeklyDigestReadyEvent`, and stamps `last_sent_at`. The per-row build+publish+stamp runs inside `WeeklyDigestDispatchService.publishDigest` (`@Transactional`) so the event is published within a committed transaction — otherwise the notifications module's AFTER_COMMIT `@ApplicationModuleListener` would silently drop it. Per-row `RuntimeException`s are swallowed (`log.error`) so one bad subscription cannot abort the batch. The `notifications` module consumes the event and fans the summary out over the user's email + chat channels (`WEEKLY_DIGEST`); PagerDuty treats it as not-applicable (never pages).
 
@@ -3077,6 +3078,76 @@ Nothing localizes `skipped_reason` on the way out — it stays the machine token
 wrote, and the client resolves it against the reader's locale.
 
 ---
+
+## Automatic query suggestions (#776)
+
+An analyst opening `/editor` starts from a blank buffer, while the organisation has already
+accumulated a corpus of queries a reviewer looked at and approved. This feature mines that corpus
+and offers whole draft queries in the editor's right rail, before anything has been typed.
+
+It is the opposite direction from the two adjacent AI features and must not be confused with them:
+the AI query-optimization pass (AF-451) is *reactive* — given a query you already wrote it returns
+index DDL and rewrites for **that** query — and the dashboard's AI-suggestion backlog (AF-498) is a
+worklist over AF-451's unapplied output. This one starts from no query at all, and reaches no AI
+provider: the ranking is a deterministic local heuristic, so the rail keeps working with AI switched
+off and the whole of it is exercised by unit tests rather than a recorded completion.
+
+**The corpus.** `query_requests` in `APPROVED` or `EXECUTED` within
+`accessflow.workflow.query-suggestions.lookback` (default `P90D`) — the two states a request reaches
+by going *through* the organisation's approval path. That is wider than "a human looked at it", and
+deliberately so: a routing policy's `AUTO_APPROVE` (AF-379), a grant carrying `pre_approve_queries`
+(#582) and a review plan that does not require human approval all land in `APPROVED` too, and each
+of those is the organisation's own configured judgement that the shape is safe. What is excluded is
+what went *around* that path, or what no analyst authored: `EMERGENCY_ACCESS` (break-glass bypassed review entirely, AF-385), `RECURRING` and
+any row carrying a `recurring_parent_id` (machine-generated occurrences — one approved five-minute
+series would otherwise read as thousands of independent approvals, #627), and any row carrying a
+`recurrence_rule` (a series *parent* is a schedule definition, not a query an analyst wrote).
+`HISTORY_SUGGESTION` rows deliberately stay in: a suggestion someone accepted and got approved is a
+real approval. The read lives in `core` — `QuerySuggestionCorpusLookupService` over a purpose-built
+projection on `QueryRequestRepository` — because `QueryRequestEntity` is `core.internal`; it is not
+the AF-630 simulator's corpus, whose `QueryListFilter` carries a single status and neither a
+submission reason nor a recurrence field, so not one of those exclusions could be expressed through
+it.
+
+**The aggregation.** `QuerySuggestionAggregationJob` walks every organisation, then every datasource
+with qualifying history — per datasource, not per organisation, because an org-wide row cap would be
+spent almost entirely on the busiest datasource and leave the quiet ones with nothing. Each
+datasource is its own transaction and its own `RuntimeException` boundary. Within one, rows are
+grouped by the SHA-256 of `SqlCanonicalizer`'s output — canonicalised on read, **not** taken from
+`query_requests.canonical_sql`, which is stamped only on execution and would silently drop every
+query that cleared review but was never run. The corpus arrives newest-first, so a group's first row
+is its representative: its raw text is what the editor will load, and its timestamp feeds the
+recency term. That representative is parsed **once per group**, never once per row, and a group
+whose parse fails is remembered as poisoned so it is not re-parsed for every row that carries it.
+
+A group with no detected tables is **dropped, not stored**. `SqlParseResult` defines an empty
+`referencedTables` as "no tables detected", never "allow everything", and
+`DatasourcePermissionChecker.rejectedTables` reports "nothing rejected" for an empty set — so an
+unresolved row would clear every viewer's allow-list unconditionally. Dropping it at aggregation
+time is what keeps the read-side check fail-closed.
+
+Each pass stamps `computed_at` and then deletes that datasource's rows from earlier passes, the
+upsert-then-sweep shape `GrantUsageAggregationJob` uses. Upserting rather than delete-and-reinsert
+preserves `first_submitted_at` and `created_at` across passes. `POST
+/datasources/{id}/query-suggestions/recompute` runs the same pass for one datasource on demand,
+behind `QUERY_ADMIN` and the same cluster-wide lock, so an operator who has just imported history
+need not wait out the poll interval.
+
+**The ranking** is `w_freq · ln(1 + approvedCount) + w_recency · 2^(-age / halfLife) + w_overlap ·
+jaccard(candidateTables, viewerTables)`. Logarithmic frequency so a query run hundreds of times
+cannot drown out everything else; smooth recency decay rather than a window edge; and a per-viewer
+overlap term that personalises an org-wide corpus without needing a per-user corpus. The viewer's
+tables come from `submitter_ids` on rows already loaded — no second query, and above all no
+`QueryParser` call, which for a NoSQL engine would mean a plugin dispatch on every rail open. The
+score is a sort key: it is never compared against a threshold and never reaches a decision path.
+
+**Governance.** Filtering is the point of the read service, so it lives there rather than in the
+controller — see [docs/07-security.md](07-security.md) → "Automatic query suggestion visibility" for
+the ordered check and why each step answers where it does. Advisory only: nothing in this path
+touches routing policies, grant-covered auto-approval, or any other decision, and a suggestion that
+enters the pipeline is analysed and reviewed like any other query. Applying one stamps
+`submission_reason = HISTORY_SUGGESTION`, kept distinct from `AI_SUGGESTION` so the
+`QUERY_SUBMITTED` audit row still says which of the two a draft came from.
 
 ## Audit Logging
 
