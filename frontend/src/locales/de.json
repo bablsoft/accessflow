@@ -459,6 +459,7 @@
     "panel_toggle_label": "Analysebereich",
     "panel_ai": "KI-Analyse",
     "panel_plan": "Probelauf",
+    "panel_suggestions": "Vorschläge",
     "submit_disabled_needs_analysis_tooltip": "Führe die KI-Analyse aus, bevor du einreichst.",
     "lines_count_one": "{{count}} Zeile",
     "lines_count_other": "{{count}} Zeilen",
@@ -573,7 +574,15 @@
     "break_glass_confirm": "Jetzt ausführen",
     "break_glass_modal_warning_title": "Dies umgeht die Prüfung",
     "break_glass_modal_warning_body": "Die Abfrage wird sofort ohne Genehmigung ausgeführt. Alle Administratoren werden benachrichtigt, die Aktion wird deutlich protokolliert und muss anschließend geprüft werden.",
-    "break_glass_justification_placeholder": "Begründen Sie den Notfall (erforderlich)"
+    "break_glass_justification_placeholder": "Begründen Sie den Notfall (erforderlich)",
+    "suggestions": {
+      "title": "Vorgeschlagene Abfragen",
+      "subtitle": "Entwürfe aus Abfragen, die Ihre Organisation für diese Datenquelle bereits genehmigt hat. Ein Vorschlag füllt nur den Editor — er wird wie jede andere Abfrage analysiert und geprüft.",
+      "empty": "Noch keine Vorschläge. Sie erscheinen, sobald diese Datenquelle einige genehmigte Abfragen hat, auf die Sie Zugriff haben.",
+      "load_error": "Vorschläge konnten nicht geladen werden.",
+      "apply": "Als Entwurf übernehmen",
+      "evidence": "{{times}}× genehmigt von {{people}} · zuletzt {{when}}"
+    }
   },
   "dry_run_panel": {
     "title": "Ausführungsplan",
@@ -2865,7 +2874,8 @@
       "USER_SUBMITTED": "Vom Benutzer eingereicht",
       "AI_SUGGESTION": "KI-Vorschlag",
       "EMERGENCY_ACCESS": "Notfallzugriff",
-      "RECURRING": "Wiederkehrende Ausführung"
+      "RECURRING": "Wiederkehrende Ausführung",
+      "HISTORY_SUGGESTION": "Verlaufsvorschlag"
     },
     "comment_status": {
       "OPEN": "Offen",

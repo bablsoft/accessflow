@@ -16,6 +16,14 @@ vi.mock('@/api/queries', () => ({
   dryRunQuery: dryRunQueryMock,
 }));
 
+vi.mock('@/api/querySuggestions', () => ({
+  fetchQuerySuggestions: () => Promise.resolve([]),
+  querySuggestionKeys: {
+    all: ['query-suggestions'],
+    list: (datasourceId: string) => ['query-suggestions', 'list', datasourceId, null],
+  },
+}));
+
 vi.mock('@/hooks/useSchemaIntrospect', () => ({
   useSchemaIntrospect: () => ({ data: { schemas: [] }, isLoading: false }),
 }));
@@ -126,5 +134,14 @@ describe('QueryAuthoringPanel', () => {
     fireEvent.click(within(rail).getByText('Dry run'));
     // Selecting the plan side keeps the panel mounted without errors.
     expect(screen.getByTestId('footer-slot')).toBeInTheDocument();
+  });
+
+  it('offers the suggestions rail as a third option and mounts it when chosen', async () => {
+    render(wrap(<Harness ds={pgDs} initialSql="select 1" />));
+
+    const rail = screen.getByLabelText('Insight panel');
+    fireEvent.click(within(rail).getByText('Suggestions'));
+
+    expect(await screen.findByText('Suggested queries')).toBeInTheDocument();
   });
 });

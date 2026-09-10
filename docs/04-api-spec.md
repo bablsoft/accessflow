@@ -1195,6 +1195,86 @@ Admin-only.
 
 ---
 
+### Automatic query suggestions (#776)
+
+Draft queries mined from the organisation's own **approved** query history on a datasource, offered
+in the editor's right rail before the analyst has written anything. A suggestion is a draft and
+nothing more: applying one fills the editor, and submitting it goes through `POST /queries`
+unchanged — analysed, routed and reviewed like any other query. Being derived from an approved query
+grants it nothing, and the suggestion path never touches routing policies, grant-covered
+auto-approval or any other decision path.
+
+Rows are precomputed per datasource by `QuerySuggestionAggregationJob` (see
+[docs/05-backend.md](05-backend.md) → "Automatic query suggestions") and filtered per caller at read
+time against their own effective permission, so a suggestion can never disclose a table the caller
+is not allow-listed for.
+
+| Method | Path | Status |
+|--------|------|--------|
+| `GET` | `/datasources/{id}/query-suggestions` | Ranked suggestions the caller may run on this datasource |
+| `POST` | `/datasources/{id}/query-suggestions/recompute` | Rebuild this datasource's suggestions now (`QUERY_ADMIN`) |
+
+### GET /datasources/{id}/query-suggestions — Response 200
+
+Query parameter `limit` (optional, `0`–`50`; `0` or absent means the configured default of 10). A
+capped rail rather than a paginated collection — nobody pages through suggestions, and an offset
+into a ranking recomputed per caller would not be stable between requests.
+
+```json
+{
+  "suggestions": [
+    {
+      "id": "7f1c9e2a-5d3b-4a10-9c77-2e6b4a8f0d31",
+      "sql": "SELECT id, total FROM orders WHERE created_at > now() - interval '1 day'",
+      "query_type": "SELECT",
+      "referenced_tables": ["public.orders"],
+      "approved_count": 14,
+      "distinct_submitter_count": 3,
+      "first_submitted_at": "2026-06-01T08:12:04Z",
+      "last_submitted_at": "2026-09-09T17:41:22Z"
+    }
+  ]
+}
+```
+
+`sql` is the raw text of the most recent approved request in the group, not the normalised form the
+group was keyed by. `approved_count` and `distinct_submitter_count` are the evidence the rail shows;
+submitter identities are never returned. Ordering is by the server's ranking heuristic
+(frequency × recency × overlap with the caller's own recent tables) — the score itself is an internal
+sort key and is not part of the response.
+
+Authorization: any authenticated caller who can see the datasource. Results are filtered to the
+caller's effective permission — the capability the query type needs, and every referenced table
+inside their allow-list. A `QUERY_ADMIN` caller skips that filter, exactly as they skip the
+submission path's permission verify. An empty array is a normal answer: the datasource may have no
+qualifying history yet, or none the caller may reach.
+
+**Errors:**
+- `400` — `limit` outside `0`–`50`.
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `404 DATASOURCE_NOT_FOUND` — unknown datasource, or one the caller cannot see. Never `403`:
+  datasource visibility is itself grant-based, so a caller without a grant is told the datasource
+  does not exist rather than that it exists and is closed to them.
+
+### POST /datasources/{id}/query-suggestions/recompute — Response 202
+
+Rebuilds this datasource's suggestions immediately instead of waiting for the next scheduled pass —
+for an operator who has just imported history, widened the lookback, or onboarded a datasource. The
+rebuild runs asynchronously; the response carries no body.
+
+Requires `QUERY_ADMIN`. The cluster-wide lock is taken synchronously, so the status code is an
+accurate answer across every replica rather than a guess.
+
+**Errors:**
+- `401 UNAUTHORIZED` — missing or invalid JWT.
+- `403` — caller lacks `QUERY_ADMIN`.
+- `404 DATASOURCE_NOT_FOUND` — unknown datasource in the caller's organisation. Checked before the
+  lock, so an unknown datasource is never distinguishable from a busy one.
+- `409 QUERY_SUGGESTION_RECOMPUTE_IN_PROGRESS` — another replica, or the scheduled job, is already
+  rebuilding this datasource.
+
+---
+
 ## Custom JDBC Driver Endpoints
 
 Admin-only. Storage budget: max **50 MB** per JAR (`spring.servlet.multipart.max-file-size`).

@@ -459,6 +459,7 @@
     "panel_toggle_label": "Panel de análisis",
     "panel_ai": "Análisis de IA",
     "panel_plan": "Simulación",
+    "panel_suggestions": "Sugerencias",
     "submit_disabled_needs_analysis_tooltip": "Ejecuta el análisis de IA antes de enviar.",
     "lines_count_one": "{{count}} línea",
     "lines_count_other": "{{count}} líneas",
@@ -573,7 +574,15 @@
     "break_glass_confirm": "Ejecutar ahora",
     "break_glass_modal_warning_title": "Esto omite la revisión",
     "break_glass_modal_warning_body": "La consulta se ejecuta de inmediato sin aprobación. Se notifica a todos los administradores, la acción se audita de forma destacada y debe revisarse posteriormente.",
-    "break_glass_justification_placeholder": "Explique la emergencia (obligatorio)"
+    "break_glass_justification_placeholder": "Explique la emergencia (obligatorio)",
+    "suggestions": {
+      "title": "Consultas sugeridas",
+      "subtitle": "Borradores de consultas que su organización ya aprobó en esta fuente de datos. Aplicar una solo rellena el editor: se analiza y revisa como cualquier otra consulta.",
+      "empty": "Todavía no hay sugerencias. Aparecerán cuando esta fuente de datos tenga algunas consultas aprobadas a las que usted tenga acceso.",
+      "load_error": "No se pudieron cargar las sugerencias.",
+      "apply": "Aplicar como borrador",
+      "evidence": "Aprobada {{times}} veces por {{people}} · última {{when}}"
+    }
   },
   "dry_run_panel": {
     "title": "Plan de ejecución",
@@ -2865,7 +2874,8 @@
       "USER_SUBMITTED": "Enviado por el usuario",
       "AI_SUGGESTION": "Sugerencia de IA",
       "EMERGENCY_ACCESS": "Acceso de emergencia",
-      "RECURRING": "Ocurrencia recurrente"
+      "RECURRING": "Ocurrencia recurrente",
+      "HISTORY_SUGGESTION": "Sugerencia del historial"
     },
     "comment_status": {
       "OPEN": "Abierto",

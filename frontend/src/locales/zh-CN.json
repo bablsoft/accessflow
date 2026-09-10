@@ -459,6 +459,7 @@
     "panel_toggle_label": "分析面板",
     "panel_ai": "AI 分析",
     "panel_plan": "试运行",
+    "panel_suggestions": "建议",
     "submit_disabled_needs_analysis_tooltip": "请先运行 AI 分析再提交。",
     "lines_count_one": "{{count}} 行",
     "lines_count_other": "{{count}} 行",
@@ -573,7 +574,15 @@
     "break_glass_confirm": "立即执行",
     "break_glass_modal_warning_title": "此操作将绕过审批",
     "break_glass_modal_warning_body": "查询将在未经审批的情况下立即执行。所有管理员都会收到通知，该操作会被显著记录到审计日志，并且必须事后复核。",
-    "break_glass_justification_placeholder": "请说明紧急情况（必填）"
+    "break_glass_justification_placeholder": "请说明紧急情况（必填）",
+    "suggestions": {
+      "title": "建议的查询",
+      "subtitle": "来自贵组织在此数据源上已获批准的查询草稿。应用后只会填充编辑器——它仍会像其他查询一样接受分析与审核。",
+      "empty": "暂无建议。当此数据源有若干你有权访问的已批准查询后，建议就会出现。",
+      "load_error": "无法加载建议。",
+      "apply": "应用为草稿",
+      "evidence": "已批准 {{times}} 次，来自 {{people}} 人 · 最近 {{when}}"
+    }
   },
   "dry_run_panel": {
     "title": "执行计划",
@@ -2865,7 +2874,8 @@
       "USER_SUBMITTED": "用户提交",
       "AI_SUGGESTION": "AI 建议",
       "EMERGENCY_ACCESS": "应急访问",
-      "RECURRING": "周期性执行"
+      "RECURRING": "周期性执行",
+      "HISTORY_SUGGESTION": "历史建议"
     },
     "comment_status": {
       "OPEN": "未解决",

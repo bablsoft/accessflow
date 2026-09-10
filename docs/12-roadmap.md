@@ -214,6 +214,14 @@
 
 ---
 
+## v2.6 🚧 in progress
+
+**Theme:** Making the org's own history useful.
+
+- **Automatic query suggestions** — an analyst opening the editor no longer starts from a blank buffer: a third right-rail tab offers whole draft queries mined from the organisation's own **approved** history on that datasource, each shown with the evidence behind it (how often it was approved, by how many people, how recently). Ranking is a deterministic local heuristic — frequency × recency × overlap with the analyst's own recent tables — so there is no provider call, no cost, and the rail keeps working with AI switched off. A scheduled per-datasource pass groups approved queries by canonical form, parses each shape once for its referenced tables, and sweeps whatever it no longer computes; break-glass, recurring occurrences and recurring-series parents never enter the corpus, because none of them cleared a human review. Every suggestion is filtered at read time against the viewer's own effective permission — capability plus table allow-list — so it can never hint at data they cannot reach, and a shape whose tables could not be resolved is dropped rather than stored. Strictly advisory: applying one only fills the editor, and the draft is then analysed, routed and reviewed like any other query, carrying `submission_reason=HISTORY_SUGGESTION` so its adoption stays distinguishable from the AI optimization suggestions of AF-451 (#776)
+
+---
+
 ## Backlog / Unscheduled
 
 **Theme:** Candidate features not yet scheduled into a milestone.
@@ -222,7 +230,6 @@
 
 - **Plugin API for custom AI analyzers** — allow teams to plug in their own analysis logic via a defined Java SPI or HTTP callback
 - **Granular column-level permissions** — mask or block specific columns from appearing in SELECT results
-- **Automatic query suggestions** — based on historical approved queries, suggest similar safe queries to analysts (#776)
 
 ---
 

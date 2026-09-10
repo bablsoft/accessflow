@@ -61,7 +61,7 @@
         "description": "What AccessFlow can do today, grouped by capability — and what the next milestone adds. The full roadmap, with links to the GitHub milestones.",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-04",
+        "dateModified": "2026-09-10",
         "url": "https://accessflow.io/roadmap/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -236,7 +236,7 @@
         <section class="docs-section scroll-pad" id="available">
           <h2>Available now</h2>
           <p>
-            Everything in this grid is generally available today in v2.4 — self-hosted with Docker
+            Everything in this grid is generally available today in v2.5 — self-hosted with Docker
             Compose or Helm, and governed by the same review pipeline and tamper-evident audit log
             throughout. The map itself is driven by community input and adapter contributions.
           </p>
@@ -368,7 +368,10 @@
             gate into what is actually running where: per-environment version tags and current-version
             state, rollbacks that restore the version an environment is really on, a version matrix
             with on-demand drift reporting, and an in-app hint telling every signed-in user when a
-            newer stable release is available.
+            newer stable release is available. <strong>v2.6</strong> turns the history an
+            organisation has already built up into something an analyst can use: the query editor
+            offers draft queries mined from queries the organisation has already had approved,
+            filtered to what each person is allowed to run.
           </p>
           <p>
             What shipped when, release by release, is in
@@ -393,7 +396,6 @@
             <li>Native wire-protocol gateway</li>
             <li>Column-level permissions</li>
             <li>Custom analyzer plugins (in-process or over HTTP)</li>
-            <li>Automatic query suggestions</li>
           </ul>
         </div>
         </section>

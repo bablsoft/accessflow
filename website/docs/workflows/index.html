@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Workflows",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-09",
+      "dateModified": "2026-09-10",
       "url": "https://accessflow.io/docs/workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -261,7 +261,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>End-user workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-10">10 September 2026</time></p>
         </header>
 
 <section id="end-user" class="docs-section">
@@ -321,6 +321,33 @@
             </picture>
             <figcaption><code>/editor</code> → <em>Describe your query</em>. AI drafts the query; the draft still goes through the normal review pipeline.</figcaption>
           </figure>
+
+          <h3 id="flow-suggestions">Suggested queries</h3>
+          <p>
+            The editor's right-hand panel has a third tab, <strong>Suggestions</strong>, beside
+            <em>AI analysis</em> and <em>Dry run</em>. It lists draft queries drawn from queries your
+            organisation has <em>already had approved</em> on the selected datasource, so a new
+            analyst does not have to start from an empty editor. Each suggestion shows the evidence
+            behind it: how many times that query was approved, how many different people ran it, and
+            how recently. <strong>Apply as draft</strong> copies it into the editor.
+          </p>
+          <p>
+            Two things it deliberately is not. It is <em>not</em> approval: an applied draft still
+            goes through the full analysis and review pipeline, exactly like a query you typed
+            yourself, and you will be asked to run the analysis again before you can submit. And it
+            is <em>not</em> a window into other people's data: the list is filtered to your own
+            access before it reaches you, so you only ever see suggestions whose tables you are
+            already permitted to query, with the operation your permission allows. Someone with
+            narrower access simply sees a shorter list.
+          </p>
+          <p>
+            Suggestions appear once a datasource has a handful of approved queries — the same query
+            has to have been approved more than once — and they are refreshed periodically rather
+            than instantly. Emergency (break-glass) queries and the automatic runs of a recurring
+            schedule are never used as suggestions, because neither is a query a reviewer approved
+            for someone else to reuse. An administrator can rebuild a datasource's suggestions
+            immediately instead of waiting for the next refresh.
+          </p>
 
           <h3 id="flow-templates">Query templates library</h3>
           <p>

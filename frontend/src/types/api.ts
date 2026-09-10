@@ -1127,7 +1127,28 @@ export type SubmissionReason =
   | 'USER_SUBMITTED'
   | 'AI_SUGGESTION'
   | 'EMERGENCY_ACCESS'
-  | 'RECURRING';
+  | 'RECURRING'
+  /** Drafted from an automatic suggestion mined from the org's approved history (#776). */
+  | 'HISTORY_SUGGESTION';
+
+/**
+ * One automatic query suggestion (#776) — a draft mined from the organisation's own approved
+ * history, already filtered to what the caller may run. Counts, never submitter identities.
+ */
+export interface QuerySuggestion {
+  id: string;
+  sql: string;
+  query_type: QueryType;
+  referenced_tables: string[];
+  approved_count: number;
+  distinct_submitter_count: number;
+  first_submitted_at: string;
+  last_submitted_at: string;
+}
+
+export interface QuerySuggestionList {
+  suggestions: QuerySuggestion[];
+}
 
 export interface AiAnalysis {
   risk_level: RiskLevel;

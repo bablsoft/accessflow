@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { App } from 'antd';
@@ -31,6 +31,28 @@ vi.mock('@/api/datasources', () => ({
   datasourceKeys: {
     all: ['datasources'] as const,
     list: (filters: unknown) => ['datasources', 'list', filters] as const,
+  },
+}));
+
+const HISTORY_SUGGESTION_SQL = 'SELECT id, total FROM orders WHERE created_at > now() - interval 1 day';
+
+vi.mock('@/api/querySuggestions', () => ({
+  fetchQuerySuggestions: () =>
+    Promise.resolve([
+      {
+        id: 'sugg-1',
+        sql: HISTORY_SUGGESTION_SQL,
+        query_type: 'SELECT',
+        referenced_tables: ['orders'],
+        approved_count: 9,
+        distinct_submitter_count: 2,
+        first_submitted_at: '2026-06-01T08:00:00Z',
+        last_submitted_at: '2026-09-09T08:00:00Z',
+      },
+    ]),
+  querySuggestionKeys: {
+    all: ['query-suggestions'],
+    list: (datasourceId: string) => ['query-suggestions', 'list', datasourceId, null],
   },
 }));
 
@@ -318,6 +340,48 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     await waitFor(() => expect(submitQueryMock).toHaveBeenCalled());
     expect(submitQueryMock).toHaveBeenCalledWith(
       expect.objectContaining({ sql: INDEX_DDL, submission_reason: 'AI_SUGGESTION' }),
+    );
+  });
+
+  it('submits a history suggestion as HISTORY_SUGGESTION, not AI_SUGGESTION', async () => {
+    listDatasourcesMock.mockResolvedValue(page([baseDatasource]));
+    analyzeOnlyMock.mockResolvedValue(analysisWithOptimization);
+    submitQueryMock.mockResolvedValue({
+      id: 'qr-776',
+      status: 'PENDING_AI',
+      ai_analysis: null,
+      review_plan: null,
+      estimated_review_completion: null,
+    });
+
+    render(wrap(<QueryEditorPage />));
+
+    await findAnalyzeButton();
+    const editor = screen.getByLabelText('sql-editor');
+
+    // Open the suggestions rail and apply the mined draft.
+    fireEvent.click(within(screen.getByLabelText('Insight panel')).getByText('Suggestions'));
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: /Apply as draft/i }));
+    });
+    expect((editor as HTMLTextAreaElement).value).toBe(HISTORY_SUGGESTION_SQL);
+
+    // Still gated on a fresh analysis — provenance grants a suggestion nothing.
+    await waitFor(() => expect(findSubmitButton()).toBeDisabled());
+    await act(async () => {
+      fireEvent.click(await findAnalyzeButton());
+    });
+    await waitFor(() => expect(findSubmitButton()).not.toBeDisabled());
+    await act(async () => {
+      fireEvent.click(findSubmitButton());
+    });
+
+    await waitFor(() => expect(submitQueryMock).toHaveBeenCalled());
+    expect(submitQueryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sql: HISTORY_SUGGESTION_SQL,
+        submission_reason: 'HISTORY_SUGGESTION',
+      }),
     );
   });
 

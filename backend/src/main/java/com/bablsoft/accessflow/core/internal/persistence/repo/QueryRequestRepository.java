@@ -302,4 +302,65 @@ public interface QueryRequestRepository
                 SubmissionReason.EMERGENCY_ACCESS, QueryStatus.TIMED_OUT,
                 APPROVAL_OUTCOME_HUMAN_DECIDED_STATUSES, APPROVAL_OUTCOME_APPROVED_STATUSES);
     }
+
+    // #776: the automatic-suggestion mining population — approved queries a human actually wrote.
+    // Break-glass submissions never cleared a review; RECURRING rows are machine-generated
+    // occurrences, so one approved five-minute series would otherwise read as thousands of
+    // approvals; recurringParentId catches those occurrences from the other side; and a row with a
+    // recurrenceRule is the series parent, a schedule definition rather than an authored query.
+    // HISTORY_SUGGESTION deliberately stays in: a suggestion someone accepted and got approved is
+    // a real approval. The enum values are bound as parameters by the default methods below —
+    // enum literals in JPQL render as casts to a nonexistent PG type.
+    String SUGGESTION_CORPUS_PREDICATE = """
+               and q.createdAt >= :since
+               and q.status in :statuses
+               and q.submissionReason not in :excludedReasons
+               and q.recurringParentId is null
+               and q.recurrenceRule is null
+            """;
+
+    List<QueryStatus> SUGGESTION_CORPUS_STATUSES =
+            List.of(QueryStatus.APPROVED, QueryStatus.EXECUTED);
+
+    List<SubmissionReason> SUGGESTION_CORPUS_EXCLUDED_REASONS =
+            List.of(SubmissionReason.EMERGENCY_ACCESS, SubmissionReason.RECURRING);
+
+    @Query("""
+            select distinct q.datasource.id
+              from QueryRequestEntity q
+             where q.datasource.organization.id = :orgId
+            """ + SUGGESTION_CORPUS_PREDICATE)
+    List<UUID> findSuggestionCorpusDatasourceIds(
+            @Param("orgId") UUID organizationId,
+            @Param("since") Instant since,
+            @Param("statuses") Collection<QueryStatus> statuses,
+            @Param("excludedReasons") Collection<SubmissionReason> excludedReasons);
+
+    default List<UUID> findSuggestionCorpusDatasourceIds(UUID organizationId, Instant since) {
+        return findSuggestionCorpusDatasourceIds(organizationId, since, SUGGESTION_CORPUS_STATUSES,
+                SUGGESTION_CORPUS_EXCLUDED_REASONS);
+    }
+
+    // Column order is mirrored by the mapper in DefaultQuerySuggestionCorpusLookupService — keep
+    // them in sync.
+    @Query("""
+            select q.datasource.id, q.datasource.dbType, q.sqlText, q.queryType,
+                   q.submittedBy.id, q.createdAt
+              from QueryRequestEntity q
+             where q.datasource.id = :datasourceId
+            """ + SUGGESTION_CORPUS_PREDICATE + """
+             order by q.createdAt desc
+            """)
+    List<Object[]> findSuggestionCorpusRows(
+            @Param("datasourceId") UUID datasourceId,
+            @Param("since") Instant since,
+            @Param("statuses") Collection<QueryStatus> statuses,
+            @Param("excludedReasons") Collection<SubmissionReason> excludedReasons,
+            Pageable pageable);
+
+    default List<Object[]> findSuggestionCorpusRows(UUID datasourceId, Instant since,
+                                                    Pageable pageable) {
+        return findSuggestionCorpusRows(datasourceId, since, SUGGESTION_CORPUS_STATUSES,
+                SUGGESTION_CORPUS_EXCLUDED_REASONS, pageable);
+    }
 }

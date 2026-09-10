@@ -125,6 +125,26 @@ describe('useQueryAuthoring', () => {
     expect(result.current.dryRunStale).toBe(true);
   });
 
+  it('applies a history suggestion with its own provenance source', () => {
+    const { result, onSqlChange } = setup(baseDs, 'select 1');
+
+    act(() => result.current.applyHistorySuggestion('select id from orders'));
+
+    expect(onSqlChange).toHaveBeenCalledTimes(1);
+    const [applied, source] = onSqlChange.mock.calls[0]!;
+    expect(applied).toBe('select id from orders');
+    // Distinct from 'ai_suggestion' so #451/#498 adoption stays measurable separately (#776).
+    expect(source).toBe('history_suggestion');
+  });
+
+  it('lets the rail switch to the suggestions panel', () => {
+    const { result } = setup(baseDs, 'select 1');
+
+    act(() => result.current.setRightPanel('suggestions'));
+
+    expect(result.current.rightPanel).toBe('suggestions');
+  });
+
   it('formats via the change funnel with the user source', () => {
     const { result, onSqlChange } = setup(baseDs, 'select id from users');
     act(() => result.current.format());

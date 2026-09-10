@@ -529,6 +529,56 @@ export async function grantPermissionViaApi(
 // GET /api/v1/datasources/{id}/permissions — returns the live permission grants
 // on a datasource. Used by the attestation spec to assert a revoked grant is
 // gone after a reviewer revokes the corresponding item.
+// POST /api/v1/datasources/{id}/query-suggestions/recompute — #776. The scheduled
+// aggregation runs every six hours, so a spec that has just seeded approved history
+// has to ask for the rebuild rather than wait for it. 202 on accept, 409 when the
+// job (or another replica) already holds the datasource lock.
+export async function recomputeQuerySuggestionsViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  datasourceId: string,
+): Promise<void> {
+  const res = await request.post(
+    `${apiBase()}/api/v1/datasources/${datasourceId}/query-suggestions/recompute`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (res.status() !== 202 && res.status() !== 409) {
+    throw new Error(
+      `Recompute query suggestions failed: ${res.status()} ${await res.text()}`,
+    );
+  }
+}
+
+// GET /api/v1/datasources/{id}/query-suggestions — polls until the aggregation has
+// produced at least `min` rows, so the UI assertions never race the async rebuild.
+export async function waitForQuerySuggestions(
+  request: APIRequestContext,
+  accessToken: string,
+  datasourceId: string,
+  min = 1,
+  timeoutMs = 20_000,
+): Promise<Array<{ id: string; sql: string; approved_count: number }>> {
+  const deadline = Date.now() + timeoutMs;
+  let last: Array<{ id: string; sql: string; approved_count: number }> = [];
+  while (Date.now() < deadline) {
+    const res = await request.get(
+      `${apiBase()}/api/v1/datasources/${datasourceId}/query-suggestions`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+    if (res.ok()) {
+      const body = (await res.json()) as {
+        suggestions: Array<{ id: string; sql: string; approved_count: number }>;
+      };
+      last = body.suggestions;
+      if (last.length >= min) return last;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  throw new Error(
+    `Timed out waiting for ${min} query suggestion(s); saw ${last.length}`,
+  );
+}
+
 export async function listPermissionsViaApi(
   request: APIRequestContext,
   adminAccessToken: string,

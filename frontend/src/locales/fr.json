@@ -459,6 +459,7 @@
     "panel_toggle_label": "Panneau d'analyse",
     "panel_ai": "Analyse IA",
     "panel_plan": "Simulation",
+    "panel_suggestions": "Suggestions",
     "submit_disabled_needs_analysis_tooltip": "Exécute l'analyse IA avant de soumettre.",
     "lines_count_one": "{{count}} ligne",
     "lines_count_other": "{{count}} lignes",
@@ -573,7 +574,15 @@
     "break_glass_confirm": "Exécuter maintenant",
     "break_glass_modal_warning_title": "Ceci contourne la revue",
     "break_glass_modal_warning_body": "La requête s'exécute immédiatement sans approbation. Tous les administrateurs sont notifiés, l'action est auditée de façon visible et doit être revue par la suite.",
-    "break_glass_justification_placeholder": "Expliquez l'urgence (obligatoire)"
+    "break_glass_justification_placeholder": "Expliquez l'urgence (obligatoire)",
+    "suggestions": {
+      "title": "Requêtes suggérées",
+      "subtitle": "Brouillons issus de requêtes que votre organisation a déjà fait approuver sur cette source de données. En appliquer une ne fait que remplir l’éditeur : elle est analysée et revue comme toute autre requête.",
+      "empty": "Aucune suggestion pour l’instant. Elles apparaissent dès que cette source de données compte quelques requêtes approuvées auxquelles vous avez accès.",
+      "load_error": "Impossible de charger les suggestions.",
+      "apply": "Appliquer comme brouillon",
+      "evidence": "Approuvée {{times}} fois par {{people}} · dernière {{when}}"
+    }
   },
   "dry_run_panel": {
     "title": "Plan d'exécution",
@@ -2865,7 +2874,8 @@
       "USER_SUBMITTED": "Soumis par l’utilisateur",
       "AI_SUGGESTION": "Suggestion de l’IA",
       "EMERGENCY_ACCESS": "Accès d'urgence",
-      "RECURRING": "Occurrence récurrente"
+      "RECURRING": "Occurrence récurrente",
+      "HISTORY_SUGGESTION": "Suggestion issue de l’historique"
     },
     "comment_status": {
       "OPEN": "Ouvert",

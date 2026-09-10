@@ -268,6 +268,7 @@
       'flow-request-groups': '/docs/workflows/',
       'flow-review': '/docs/workflows/',
       'flow-schedule': '/docs/workflows/',
+      'flow-suggestions': '/docs/workflows/',
       'flow-submit': '/docs/workflows/',
       'flow-templates': '/docs/workflows/',
       'flow-text-to-sql': '/docs/workflows/',

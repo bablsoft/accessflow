@@ -6,6 +6,7 @@ import { RiskPill } from '@/components/common/RiskPill';
 import { SqlEditor } from '@/components/editor/SqlEditor';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { DryRunPanel } from '@/components/editor/DryRunPanel';
+import { SuggestionsPanel } from '@/components/editor/SuggestionsPanel';
 import { TextToSqlBar } from '@/components/editor/TextToSqlBar';
 import { SchemaTree } from '@/components/editor/SchemaTree';
 import { QueryTemplatesDrawer } from '@/components/editor/QueryTemplatesDrawer';
@@ -13,7 +14,7 @@ import { SaveTemplateModal } from '@/components/editor/SaveTemplateModal';
 import { LoadTemplateModal } from '@/components/editor/LoadTemplateModal';
 import { useSchemaIntrospect } from '@/hooks/useSchemaIntrospect';
 import type { Datasource } from '@/types/api';
-import type { QueryAuthoring } from './useQueryAuthoring';
+import type { QueryAuthoring, RightPanel } from './useQueryAuthoring';
 import '@/pages/editor/editor.css';
 
 const EMPTY_SCHEMA = { schemas: [] };
@@ -128,7 +129,7 @@ export function QueryAuthoringPanel({
             background: 'var(--bg-sunken)',
           }}
         >
-          <Segmented<'ai' | 'plan'>
+          <Segmented<RightPanel>
             size="small"
             block
             value={authoring.rightPanel}
@@ -137,10 +138,11 @@ export function QueryAuthoringPanel({
             options={[
               { label: t('editor.panel_ai'), value: 'ai' },
               { label: t('editor.panel_plan'), value: 'plan' },
+              { label: t('editor.panel_suggestions'), value: 'suggestions' },
             ]}
           />
         </div>
-        {authoring.rightPanel === 'ai' ? (
+        {authoring.rightPanel === 'ai' && (
           <AiHintPanel
             analyzing={authoring.analyzing}
             analysis={authoring.analysis}
@@ -149,13 +151,17 @@ export function QueryAuthoringPanel({
             onApplySuggestion={authoring.applySuggestion}
             onReanalyze={authoring.canAnalyze ? authoring.analyze : undefined}
           />
-        ) : (
+        )}
+        {authoring.rightPanel === 'plan' && (
           <DryRunPanel
             running={authoring.dryRunning}
             result={authoring.dryRunResult}
             stale={authoring.dryRunStale}
             onRun={authoring.canDryRun ? authoring.dryRun : undefined}
           />
+        )}
+        {authoring.rightPanel === 'suggestions' && (
+          <SuggestionsPanel datasourceId={ds.id} onApply={authoring.applyHistorySuggestion} />
         )}
       </div>
       <QueryTemplatesDrawer
