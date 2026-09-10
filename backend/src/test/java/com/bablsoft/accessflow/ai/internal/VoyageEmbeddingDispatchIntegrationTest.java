@@ -1,8 +1,10 @@
 package com.bablsoft.accessflow.ai.internal;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.VectorStoreTestTable;
 import com.bablsoft.accessflow.core.api.RagStoreType;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
@@ -48,9 +50,14 @@ class VoyageEmbeddingDispatchIntegrationTest {
 
     private final List<String> inputTypes = new ArrayList<>();
 
+    @BeforeEach
+    void startFromAnEmptyTable() {
+        VectorStoreTestTable.clear(jdbcTemplate);
+    }
+
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM vector_store");
+        VectorStoreTestTable.clear(jdbcTemplate);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.ai.internal.help;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.VectorStoreTestTable;
 import com.bablsoft.accessflow.ai.internal.RagComponentsFactory;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.AiConfigEntity;
 import com.bablsoft.accessflow.ai.internal.persistence.entity.HelpAgentConfigEntity;
@@ -70,7 +71,7 @@ class HelpCorpusIndexerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.update("DELETE FROM vector_store");
+        VectorStoreTestTable.clear(jdbcTemplate);
         var org = new OrganizationEntity();
         org.setId(UUID.randomUUID());
         org.setName("Help Corpus Org " + UUID.randomUUID());
@@ -96,7 +97,7 @@ class HelpCorpusIndexerIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM vector_store");
+        VectorStoreTestTable.clear(jdbcTemplate);
         // By id, not by the entities held here: the indexer bumps @Version while stamping ingestion
         // state, so a delete of a pre-loaded instance would fail the optimistic-lock check.
         repository.deleteAllById(createdHelpConfigIds);
