@@ -88,6 +88,16 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
     }
 
     @Override
+    public Optional<DatasourceUserPermissionView> mergeContributions(
+            List<DatasourcePermissionContribution> contributions) {
+        if (contributions == null || contributions.isEmpty()) {
+            return Optional.empty();
+        }
+        var first = contributions.get(0);
+        return Optional.of(merge(first.userId(), first.datasourceId(), contributions));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<DatasourceUserPermissionView> findDirectFor(UUID userId, UUID datasourceId) {
         return permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId)

@@ -17,6 +17,19 @@ public interface DatasourceUserPermissionLookupService {
     Optional<DatasourceUserPermissionView> findFor(UUID userId, UUID datasourceId);
 
     /**
+     * The merge {@link #findFor} applies, over a list the caller already holds (AF-859).
+     *
+     * <p>Pure — no I/O. The reverse index reads every contribution on a datasource in three queries
+     * and then has to merge each user's own set; without this it would either issue a
+     * {@code findFor} per candidate or re-implement the merge, and a second implementation of these
+     * rules would eventually disagree with the one that authorizes queries.
+     *
+     * @return empty when {@code contributions} is empty
+     */
+    Optional<DatasourceUserPermissionView> mergeContributions(
+            List<DatasourcePermissionContribution> contributions);
+
+    /**
      * The user's <b>direct</b> per-user grant on a datasource, ignoring group grants and expiry.
      * Used by JIT-access materialisation, which manages the per-user
      * {@code datasource_user_permissions} row specifically and must not act on a group grant.

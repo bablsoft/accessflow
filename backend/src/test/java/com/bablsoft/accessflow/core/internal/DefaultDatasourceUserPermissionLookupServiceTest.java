@@ -342,6 +342,45 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(service.findContributionsForDatasource(datasourceId)).isEmpty();
     }
 
+    @Test
+    void mergeContributionsAppliesTheSameRulesFindForDoes() {
+        var userId = UUID.randomUUID();
+        var datasourceId = UUID.randomUUID();
+        var direct = newPermission(UUID.randomUUID(), userId, datasourceId);
+        direct.setCanRead(true);
+        direct.setAllowedTables(new String[] {"orders"});
+        direct.setRestrictedColumns(new String[] {"ssn", "email"});
+        direct.setExpiresAt(Instant.parse("2026-10-01T00:00:00Z"));
+        when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(Optional.of(direct));
+        var groupId = UUID.randomUUID();
+        var groupPermission = newGroupPermission(groupId, datasourceId);
+        groupPermission.setCanWrite(true);
+        groupPermission.setAllowedTables(new String[] {"payments"});
+        groupPermission.setRestrictedColumns(new String[] {"ssn"});
+        groupPermission.setExpiresAt(Instant.parse("2026-11-01T00:00:00Z"));
+        when(membershipRepository.findGroupIdsForUser(userId)).thenReturn(List.of(groupId));
+        when(groupPermissionRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(groupPermission));
+
+        var merged = service.mergeContributions(service.findContributions(userId, datasourceId))
+                .orElseThrow();
+        var viaFindFor = service.findFor(userId, datasourceId).orElseThrow();
+
+        assertThat(merged).isEqualTo(viaFindFor);
+        assertThat(merged.canRead()).isTrue();
+        assertThat(merged.canWrite()).isTrue();
+        assertThat(merged.allowedTables()).containsExactly("orders", "payments");
+        assertThat(merged.restrictedColumns()).containsExactly("ssn");
+        assertThat(merged.expiresAt()).isEqualTo(Instant.parse("2026-11-01T00:00:00Z"));
+    }
+
+    @Test
+    void mergeContributionsOfNothingIsEmpty() {
+        assertThat(service.mergeContributions(List.of())).isEmpty();
+        assertThat(service.mergeContributions(null)).isEmpty();
+    }
+
     private static UserGroupMembershipEntity membership(UUID userId) {
         var user = new UserEntity();
         user.setId(userId);
