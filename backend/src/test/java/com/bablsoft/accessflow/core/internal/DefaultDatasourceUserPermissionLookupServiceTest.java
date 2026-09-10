@@ -315,8 +315,8 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         groupPermission.setCanWrite(true);
         when(groupPermissionRepository.findAllByDatasource_Id(datasourceId))
                 .thenReturn(List.of(groupPermission));
-        when(membershipRepository.findAllByGroup_Id(groupId))
-                .thenReturn(List.of(membership(memberA), membership(memberB)));
+        when(membershipRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(membership(groupId, memberA), membership(groupId, memberB)));
 
         var contributions = service.findContributionsForDatasource(datasourceId);
 
@@ -381,11 +381,14 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(service.mergeContributions(null)).isEmpty();
     }
 
-    private static UserGroupMembershipEntity membership(UUID userId) {
+    private static UserGroupMembershipEntity membership(UUID groupId, UUID userId) {
         var user = new UserEntity();
         user.setId(userId);
+        var group = new UserGroupEntity();
+        group.setId(groupId);
         var membership = new UserGroupMembershipEntity();
         membership.setUser(user);
+        membership.setGroup(group);
         return membership;
     }
 

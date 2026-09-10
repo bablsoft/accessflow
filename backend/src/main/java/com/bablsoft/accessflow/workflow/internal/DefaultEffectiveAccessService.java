@@ -213,10 +213,9 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
     private static PageResponse<EffectiveAccessRow> slice(List<EffectiveAccessRow> rows,
                                                           PageRequest pageRequest) {
         int page = pageRequest == null ? 0 : pageRequest.page();
-        int size = pageRequest == null ? rows.size() : pageRequest.size();
-        if (size <= 0) {
-            return PageResponse.empty(page, size);
-        }
+        // PageRequest's own constructor rejects a non-positive size, so the only zero to guard
+        // against is the unpaged "everything" case over an empty result set.
+        int size = pageRequest == null ? Math.max(rows.size(), 1) : pageRequest.size();
         int from = Math.min((int) Math.min((long) page * size, Integer.MAX_VALUE), rows.size());
         int to = Math.min(from + size, rows.size());
         int totalPages = (int) Math.ceil(rows.size() / (double) size);

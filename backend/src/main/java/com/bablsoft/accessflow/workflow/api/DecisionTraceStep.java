@@ -13,8 +13,9 @@ import java.util.Map;
  *                   deferring resolution to the controller is what lets a single trace serve both
  *                   the live path and an HTTP response in the caller's language.
  * @param reasonArgs positional arguments for {@code reasonKey}
- * @param details    stage-specific structured data; keys are stable per {@link DecisionStepKind} and
- *                   documented in {@code docs/04-api-spec.md}
+ * @param details    stage-specific structured data. The key set varies by outcome within a stage,
+ *                   and a key whose value is null is omitted on the wire; both are documented per
+ *                   stage in {@code docs/04-api-spec.md}
  */
 public record DecisionTraceStep(DecisionStepKind step, StepOutcome outcome, String reasonKey,
                                 List<String> reasonArgs, Map<String, Object> details) {
@@ -22,7 +23,9 @@ public record DecisionTraceStep(DecisionStepKind step, StepOutcome outcome, Stri
     public DecisionTraceStep {
         reasonArgs = reasonArgs == null ? List.of() : List.copyOf(reasonArgs);
         // LinkedHashMap rather than Map.copyOf: detail keys render in a documented order, and a
-        // stage legitimately reports a null value (no matched policy, no expiry) that copyOf rejects.
+        // stage legitimately RECORDS a null (no matched policy, no expiry), which copyOf rejects
+        // outright. Serialization then omits those keys, so a client reads absent as "not
+        // applicable" — see docs/04-api-spec.md.
         details = details == null ? Map.of()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(details));
     }

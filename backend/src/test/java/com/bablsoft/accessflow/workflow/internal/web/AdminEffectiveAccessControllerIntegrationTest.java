@@ -245,6 +245,28 @@ class AdminEffectiveAccessControllerIntegrationTest {
                 .exchange()).hasStatus(400);
     }
 
+    @Test
+    void aMissingRequiredParameterIsAClientErrorNotAServerOne() {
+        // The endpoint advertises 400 for this; nothing maps it globally, so without the local
+        // handler the security module's Exception catch-all would answer 500.
+        for (var query : List.of(
+                "?table=public.payments&capability=READ",
+                "?datasource_id=" + datasource.getId() + "&capability=READ",
+                "?datasource_id=" + datasource.getId() + "&table=public.payments")) {
+            assertThat(mvc.get().uri(BASE + query)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                    .exchange()).hasStatus(400);
+        }
+    }
+
+    @Test
+    void aMalformedDatasourceIdIsAClientErrorNotAServerOne() {
+        assertThat(mvc.get()
+                .uri(BASE + "?datasource_id=not-a-uuid&table=public.payments&capability=READ")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange()).hasStatus(400);
+    }
+
     private void givenDirect(UserEntity user, boolean read, boolean write, String[] schemas,
                              String[] tables, boolean breakGlass) {
         var permission = new DatasourceUserPermissionEntity();

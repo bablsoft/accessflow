@@ -276,6 +276,47 @@ class AdminAccessSimulationControllerIntegrationTest {
                 .exchange()).hasStatus(400);
     }
 
+    @Test
+    void aDetailWithNoValueIsOmittedRatherThanSentAsNull() {
+        // spring.jackson.default-property-inclusion=non_null strips null map content as well as null
+        // POJO properties, so a stage that records "no review plan" simply has no review_plan_id
+        // key. Pinned here because the API spec documents the absence as meaningful.
+        var result = mvc.post().uri(BASE)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body(analyst.getId(), datasource.getId(), "SELECT id FROM orders"))
+                .exchange();
+
+        assertThat(result).bodyJson().extractingPath("$.steps[6].step").asString()
+                .isEqualTo("REVIEW_PLAN");
+        assertThat(result).bodyJson().doesNotHavePath("$.steps[6].details.review_plan_id");
+        assertThat(result).bodyJson().doesNotHavePath("$.steps[6].details.min_approvals_required");
+        assertThat(result).bodyJson().extractingPath("$.steps[6].details.requires_human_approval")
+                .asBoolean().isFalse();
+    }
+
+    @Test
+    void aMalformedAiOutcomeIsAClientErrorNotAServerOne() {
+        assertThat(mvc.post().uri(BASE)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","datasource_id":"%s","sql":"SELECT 1","ai_outcome":"NOPE"}
+                        """.formatted(analyst.getId(), datasource.getId()))
+                .exchange()).hasStatus(400);
+    }
+
+    @Test
+    void anOutOfRangeRiskScoreIsRejected() {
+        assertThat(mvc.post().uri(BASE)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"user_id":"%s","datasource_id":"%s","sql":"SELECT 1","risk_score":500}
+                        """.formatted(analyst.getId(), datasource.getId()))
+                .exchange()).hasStatus(400);
+    }
+
     private void givenGrant(UserEntity user, boolean read, boolean write, boolean ddl,
                             String[] allowedTables) {
         var permission = new DatasourceUserPermissionEntity();

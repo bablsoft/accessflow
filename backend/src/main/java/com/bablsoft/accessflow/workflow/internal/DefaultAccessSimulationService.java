@@ -82,7 +82,17 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final RowSecurityClassificationService rowSecurityClassificationService;
     private final MaskingPolicyResolutionService maskingPolicyResolutionService;
     private final BreakGlassEligibilityService breakGlassEligibilityService;
-    private final Clock clock;
+
+    // Time-of-day / day-of-week routing conditions evaluate in the server's local zone, so the
+    // simulator has to use the same zone the live listener does. Deliberately NOT the injected
+    // Clock bean, which is UTC: tracing those conditions against a different wall clock than
+    // production evaluates them on would report the wrong winner for exactly the class of policy
+    // this endpoint exists to debug.
+    private Clock clock = Clock.systemDefaultZone();
+
+    void setClock(Clock clock) {
+        this.clock = clock;
+    }
 
     // Deliberately not @Transactional: this is an aggregation of a dozen independently
     // transactional reads with no consistency requirement between them, and wrapping it would let a
@@ -287,6 +297,10 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         }
         var evaluations = routingPolicyEngine.evaluateAll(
                 routingPolicyEngine.enabledFor(organizationId, datasourceId), context);
+        // "decisive" comes from the decision itself, not from this second evaluation's own first
+        // match, so the presentational list can never name a different winner than the one that
+        // decided.
+        var decidedBy = decision.routingMatch() == null ? null : decision.routingMatch().policyId();
         var policies = evaluations.stream().map(e -> {
             var entry = new LinkedHashMap<String, Object>();
             entry.put("policy_id", e.policy().id());
@@ -295,7 +309,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             entry.put("action", e.policy().action().name());
             entry.put("required_approvals", e.policy().requiredApprovals());
             entry.put("matched", e.matched());
-            entry.put("decisive", e.decisive());
+            entry.put("decisive", e.policy().id() != null && e.policy().id().equals(decidedBy));
             return (Object) entry;
         }).toList();
         return decision.trace().steps().stream()
@@ -325,17 +339,22 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("submitter_excluded", true);
         if (eligible == null) {
             // No per-datasource assignment: the plan's approver rules decide, and those are role
-            // shapes rather than a resolvable user list.
+            // shapes rather than a resolvable user list. A rule naming the submitter is dropped
+            // here too, so the flag above is true on this branch as well.
             details.put("plan_approvers", reviewPlanLookupService
                     .findForDatasource(input.datasourceId())
                     .map(plan -> plan.approvers().stream()
+                            .filter(rule -> !input.userId().equals(rule.userId()))
                             .map(DefaultAccessSimulationService::describeApprover)
                             .toList())
                     .orElse(List.of()));
             return DecisionTraceStep.of(DecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.ALLOW,
                     "workflow.access_simulation.reviewers.plan_approvers", details);
         }
-        // Security rule: a user can never approve their own query, whatever else they hold.
+        // Security rule: a user can never approve their own query, whatever else they hold. Note
+        // this is the datasource's reviewer *assignment*, not the full live eligibility test — the
+        // decision path additionally requires QUERY_REVIEW and stage eligibility, and resolves
+        // delegation. The reason key says "assigned" rather than "eligible" for that reason.
         var reviewerIds = eligible.stream().filter(id -> !id.equals(input.userId())).toList();
         details.put("reviewers", userQueryService.findByIds(reviewerIds).stream()
                 .filter(UserView::active)
@@ -344,7 +363,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var outcome = reviewerIds.isEmpty() ? StepOutcome.DENY : StepOutcome.ALLOW;
         var reasonKey = reviewerIds.isEmpty()
                 ? "workflow.access_simulation.reviewers.none"
-                : "workflow.access_simulation.reviewers.eligible";
+                : "workflow.access_simulation.reviewers.assigned";
         return DecisionTraceStep.of(DecisionStepKind.ELIGIBLE_REVIEWERS, outcome, reasonKey,
                 details);
     }
@@ -458,11 +477,24 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                 details);
     }
 
-    /** A {@code column_ref} covers a query when its table half names one of the parsed tables. */
+    /**
+     * A {@code column_ref} covers a query when the table it names is one of the parsed tables.
+     *
+     * <p>A three-part ref carries its schema and is matched on the qualified name, mirroring the
+     * live resolver's most-specific match — dropping the schema would report
+     * {@code analytics.users.email} as covering a query against {@code public.users}.
+     */
     private static boolean referencesTable(SqlParseResult parsed, ColumnRefKeys keys) {
-        var table = keys.table().substring(0, keys.table().lastIndexOf('.'));
+        var qualified = keys.full() != null
+                ? keys.full().substring(0, keys.full().lastIndexOf('.'))
+                : null;
+        var bare = keys.table().substring(0, keys.table().lastIndexOf('.'));
         for (var referenced : parsed.referencedTables()) {
-            if (referenced.equals(table) || referenced.endsWith("." + table)) {
+            if (qualified != null) {
+                if (referenced.equals(qualified)) {
+                    return true;
+                }
+            } else if (referenced.equals(bare) || referenced.endsWith("." + bare)) {
                 return true;
             }
         }

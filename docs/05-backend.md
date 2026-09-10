@@ -803,8 +803,9 @@ hand a masking admin a routing preview they cannot otherwise obtain).
 `POST /admin/access-simulations` ([Access explainer](#access-explainer-af-859)) is **not** that
 umbrella. It simulates one *hypothetical request* through the submission-and-routing gate against the
 policy set as it stands — no draft, no A/B, no historical corpus — and is gated by
-`DATASOURCE_PERMISSION_MANAGE`, still adding no permission. The two answer different questions: this
-one is *what would this policy edit change*, that one is *why would this request be decided this way*.
+`DATASOURCE_PERMISSION_MANAGE`, still adding no permission. The two answer different questions: the
+policy simulator answers *what would this policy edit change*; the access explainer answers *why would
+this request be decided this way*.
 
 #### A/B semantics
 
@@ -1375,15 +1376,23 @@ not evaluated on a failed analysis, and neither is the grant fast path or the re
 `COMPLETED` carries a risk signal; the evaluator normalizes the other two to none, so a caller-supplied
 verdict cannot resurrect a fast path that production would never reach on that branch.
 
-**Why the trace is not opt-in.** The evaluator always records its three stages, because they are
-computed from data the live path already fetches — three immutable records against three database
-round-trips and a transactional publish. The expensive stages are the other eight, and the live path
-never runs them: the first four already ran synchronously in the submission gate, and the last four
-belong to execution rather than to the decision. So the split is structural rather than a flag, and
-there is exactly one implementation of the decision chain. The one cost that would have leaked is
-string formatting, and trace steps carry a `MessageSource` key plus arguments rather than text — the
-evaluator runs on an asynchronous path with no request locale to resolve against, so rendering is
-deferred to the controller and happens in the caller's language.
+**Why the trace is not opt-in.** Because the split is already structural: the evaluator records only
+the three stages it was going to compute anyway, and the eight expensive ones live in the simulator,
+which no listener touches.
+
+Those three cost three immutable records per query. Set against the three database round-trips and the
+transactional event publish the same listener already performs, that is not a measurable saving to
+reclaim — and a flag to reclaim it would mean two code paths through the decision chain, which is the
+drift the whole refactor exists to prevent.
+
+The other eight are the expensive ones, and the live path never runs them: the first four already ran
+synchronously in the submission gate, row security and masking belong to execution, reviewer resolution
+to notification fan-out, and break-glass to a separate submission mode.
+
+The one cost that *would* have leaked is string formatting. Trace steps carry a `MessageSource` key plus
+arguments rather than rendered text, so nothing is formatted until a controller with a request locale
+asks — which is also what lets the same trace serve an asynchronous listener and an HTTP response in the
+caller's language.
 
 #### The simulation
 
@@ -1418,8 +1427,9 @@ source IP, user agent or CI/CD origin, so every AF-446 condition evaluates to `f
 #### The reverse index
 
 `workflow.internal.DefaultEffectiveAccessService` inverts every other access surface. It reads every
-contribution on the datasource in a fixed number of queries — `findContributionsForDatasource` returns
-the direct rows plus each group row expanded across its members — and merges each user's own set
+contribution on the datasource in a fixed number of queries — `findContributionsForDatasource` reads the
+direct rows, the group rows and every relevant membership in one query each, then expands each group row
+across its members in memory — and merges each user's own set
 through `core`'s `mergeContributions`, the same merge `findFor` applies. That matters more than it
 looks: the merge ORs booleans and **unions** allow-lists, so two grants that each fall short can
 together be enough, and any per-grant shortcut would quietly under-report.
@@ -1436,7 +1446,8 @@ Paging is an in-memory slice, deliberately. The `granted` predicate is a Java co
 multi-row state plus membership in the `QUERY_ADMIN` holder list; no `Specification` expresses it, and
 paging in the database would filter after the fetch and report a total that is simply wrong. The
 candidate set is bounded by the users holding any permission on one datasource plus the organization's
-admins, both capped by its user quota, so there is nothing unbounded to truncate and no knob for it.
+`QUERY_ADMIN` holders — which since AF-522 can include a custom role, exactly the case this feature
+exists to surface — both capped by its user quota, so there is nothing unbounded to truncate and no knob for it.
 
 ### Policy-as-code routing engine (AF-379)
 

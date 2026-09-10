@@ -9,9 +9,11 @@ package com.bablsoft.accessflow.workflow.api;
  * missing stage is always a bug rather than a normal outcome.
  *
  * <p>Only {@link #ROUTING_POLICIES}, {@link #GRANT_FAST_PATH} and {@link #REVIEW_PLAN} are decided
- * on the live asynchronous path. The rest are evaluated elsewhere in production — the first four by
- * the synchronous submission gate, the last four at execution time — and are reconstructed by the
- * access simulator so one trace covers the whole journey.
+ * on the live asynchronous path. The rest happen elsewhere in production — the first four in the
+ * synchronous submission gate, {@link #ROW_SECURITY} and {@link #MASKING} at execution time,
+ * {@link #ELIGIBLE_REVIEWERS} in notification fan-out, and {@link #BREAK_GLASS} in a separate
+ * submission mode — and are reconstructed by the access simulator so one trace covers the whole
+ * journey.
  */
 public enum DecisionStepKind {
 

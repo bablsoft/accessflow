@@ -70,17 +70,27 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 .filter(p -> isActive(p.getExpiresAt(), now))
                 .map(DefaultDatasourceUserPermissionLookupService::toContribution)
                 .forEach(contributions::add);
-        for (var groupPermission : groupPermissionRepository.findAllByDatasource_Id(datasourceId)) {
-            if (!isActive(groupPermission.getExpiresAt(), now)) {
-                continue;
-            }
-            // One contribution per member: the merge is per-user, so a group grant has to be
-            // expanded before it can be merged with that member's own direct row.
-            var memberIds = membershipRepository.findAllByGroup_Id(groupPermission.getGroup().getId())
-                    .stream()
-                    .map(m -> m.getUser().getId())
-                    .toList();
-            for (var memberId : memberIds) {
+        var groupPermissions = groupPermissionRepository.findAllByDatasource_Id(datasourceId).stream()
+                .filter(p -> isActive(p.getExpiresAt(), now))
+                .toList();
+        if (groupPermissions.isEmpty()) {
+            return contributions;
+        }
+        // One membership query for all of them, not one per grant.
+        var membersByGroup = new LinkedHashMap<UUID, List<UUID>>();
+        var groupIds = groupPermissions.stream()
+                .map(p -> p.getGroup().getId())
+                .distinct()
+                .toList();
+        for (var membership : membershipRepository.findAllByGroup_IdIn(groupIds)) {
+            membersByGroup.computeIfAbsent(membership.getGroup().getId(), k -> new ArrayList<>())
+                    .add(membership.getUser().getId());
+        }
+        // One contribution per member: the merge is per-user, so a group grant has to be expanded
+        // before it can be merged with that member's own direct row.
+        for (var groupPermission : groupPermissions) {
+            for (var memberId : membersByGroup.getOrDefault(groupPermission.getGroup().getId(),
+                    List.of())) {
                 contributions.add(toContribution(groupPermission, memberId));
             }
         }

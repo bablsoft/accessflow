@@ -22,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -103,6 +104,21 @@ class AdminEffectiveAccessController {
         } catch (RuntimeException ex) {
             log.error("Audit write failed for ACCESS_SIMULATION_RUN", ex);
         }
+    }
+
+    /**
+     * All three query parameters are required, and the endpoint advertises 400 for a missing one.
+     * Nothing maps {@code MissingServletRequestParameterException} globally, so without this the
+     * security module's {@code Exception} catch-all would make that promise a 500.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ProblemDetail handleMissingParameter(MissingServletRequestParameterException ex) {
+        var detail = messageSource.getMessage("error.invalid_request_parameter",
+                new Object[]{ex.getParameterName()}, LocaleContextHolder.getLocale());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setProperty("error", "VALIDATION_ERROR");
+        problem.setProperty("timestamp", clock.instant().toString());
+        return problem;
     }
 
     /** A table that normalizes away to nothing is a client error, not an empty result. */

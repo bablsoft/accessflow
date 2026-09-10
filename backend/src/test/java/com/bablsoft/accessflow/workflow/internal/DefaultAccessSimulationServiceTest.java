@@ -58,6 +58,7 @@ import org.mockito.quality.Strictness;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -106,7 +107,8 @@ class DefaultAccessSimulationServiceTest {
                 rolePermissionHolderLookupService, queryDecisionEvaluator, routingPolicyEngine,
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
-                breakGlassEligibilityService, clock);
+                breakGlassEligibilityService);
+        service.setClock(clock);
     }
 
     @BeforeEach
@@ -362,7 +364,8 @@ class DefaultAccessSimulationServiceTest {
         assertThat(policies).hasSize(2);
         assertThat(policies.get(0)).containsEntry("name", "Block payroll deletes")
                 .containsEntry("matched", false);
-        assertThat(policies.get(1)).containsEntry("matched", true).containsEntry("decisive", true);
+        assertThat(policies.get(1)).containsEntry("matched", true);
+        // "decisive" is asserted separately: it comes from the decision, not from this list.
     }
 
     @Test
@@ -375,6 +378,77 @@ class DefaultAccessSimulationServiceTest {
 
         assertThat(step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS).outcome())
                 .isEqualTo(StepOutcome.SKIP);
+    }
+
+    @Test
+    void theSimulatorEvaluatesInTheSameZoneTheLiveListenerDoes() {
+        // Time-of-day and day-of-week routing conditions read ConditionContext.evaluatedAt, which is
+        // built from this clock. The live listener uses the server's local zone, not the injected
+        // UTC bean, so a default-constructed simulator must too or those conditions trace wrong.
+        var fresh = new DefaultAccessSimulationService(datasourceAdminService, userQueryService,
+                quotaService, queryParser, permissionLookupService,
+                rolePermissionHolderLookupService, queryDecisionEvaluator, routingPolicyEngine,
+                reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
+                rowSecurityClassificationService, maskingPolicyResolutionService,
+                breakGlassEligibilityService);
+
+        fresh.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var passed = org.mockito.ArgumentCaptor.forClass(Clock.class);
+        verify(queryDecisionEvaluator).evaluate(any(), any(), any(),
+                org.mockito.ArgumentMatchers.anyInt(), passed.capture());
+        assertThat(passed.getValue().getZone()).isEqualTo(ZoneId.systemDefault());
+    }
+
+    @Test
+    void thePlanApproverFallbackAlsoDropsTheSubmitter() {
+        when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
+                .thenReturn(Optional.empty());
+        when(reviewPlanLookupService.findForDatasource(datasourceId)).thenReturn(Optional.of(
+                new ReviewPlanSnapshot(UUID.randomUUID(), organizationId, true, true, 1, false, 1,
+                        List.of(new ApproverRule(userId, null, 1),
+                                new ApproverRule(null, "REVIEWER", 1)),
+                        List.of())));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        var step = step(result.steps(), DecisionStepKind.ELIGIBLE_REVIEWERS);
+        assertThat(step.details()).containsEntry("submitter_excluded", true);
+        @SuppressWarnings("unchecked")
+        var approvers = (List<Map<String, Object>>) step.details().get("plan_approvers");
+        assertThat(approvers).hasSize(1);
+        assertThat(approvers.get(0)).containsEntry("role", "REVIEWER");
+    }
+
+    @Test
+    void aMaskingPolicyOnASameNamedTableInAnotherSchemaDoesNotMatch() {
+        when(maskingPolicyResolutionService.resolveApplicable(organizationId, datasourceId, userId))
+                .thenReturn(List.of(mask("analytics.payments.card_number")));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        assertThat(step(result.steps(), DecisionStepKind.MASKING).outcome())
+                .isEqualTo(StepOutcome.NO_MATCH);
+    }
+
+    @Test
+    void theDecisivePolicyIsTheOneTheDecisionNamesNotASecondEvaluationsOwnFirstMatch() {
+        var decidedId = UUID.randomUUID();
+        var decided = policyWithId(decidedId, "Escalate payment writes", 10, true);
+        var alsoMatched = policyWithId(UUID.randomUUID(), "Catch-all", 5, true);
+        when(routingPolicyEngine.evaluateAll(any(), any()))
+                .thenReturn(List.of(alsoMatched, decided));
+        when(queryDecisionEvaluator.evaluate(any(), any(), any(),
+                org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn(routedDecision(decidedId));
+
+        var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        @SuppressWarnings("unchecked")
+        var policies = (List<Map<String, Object>>) step(result.steps(),
+                DecisionStepKind.ROUTING_POLICIES).details().get("policies");
+        assertThat(policies.get(0)).containsEntry("decisive", false);
+        assertThat(policies.get(1)).containsEntry("decisive", true);
     }
 
     @Test
@@ -517,6 +591,26 @@ class DefaultAccessSimulationServiceTest {
         return new ConditionContext(QueryType.SELECT, Set.of("public.payments"), RiskLevel.LOW, 5,
                 "ANALYST", Set.of(), LocalDateTime.now(clock), true, false, false, null, null,
                 false, null, false, null, null);
+    }
+
+    private QueryDecision routedDecision(UUID policyId) {
+        var match = new com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch(policyId,
+                "P", com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE, 1, "matched");
+        var steps = List.of(
+                DecisionTraceStep.of(DecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH, "k"),
+                DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP, "k"),
+                DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP, "k"));
+        return new QueryDecision(QueryDecisionKind.ROUTING_ESCALATE, QueryStatus.PENDING_REVIEW,
+                match, 2, null, null, context(),
+                new DecisionTrace(steps, QueryStatus.PENDING_REVIEW));
+    }
+
+    private RoutingPolicyEngine.PolicyEvaluation policyWithId(UUID id, String name, int priority,
+                                                              boolean matched) {
+        var evaluable = new com.bablsoft.accessflow.workflow.internal.routing.EvaluablePolicy(
+                id, name, priority, com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE, 1,
+                "reason", null, false);
+        return new RoutingPolicyEngine.PolicyEvaluation(evaluable, matched, false);
     }
 
     private RoutingPolicyEngine.PolicyEvaluation policy(String name, int priority, boolean matched,

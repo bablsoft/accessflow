@@ -18,6 +18,7 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -111,7 +112,22 @@ class AdminAccessSimulationController {
     }
 
     /**
-     * A misspelled {@code ai_outcome} / {@code risk_level} is a client error. Nothing maps
+     * A body that will not deserialize — most often a misspelled {@code ai_outcome} or
+     * {@code risk_level} — is a client error. Nothing maps the parse failure globally, so without
+     * this the security module's {@code Exception} catch-all turns it into a 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
+        var detail = messageSource.getMessage("error.access_simulation_body_unreadable", null,
+                LocaleContextHolder.getLocale());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setProperty("error", "VALIDATION_ERROR");
+        problem.setProperty("timestamp", clock.instant().toString());
+        return problem;
+    }
+
+    /**
+     * A misspelled path or query value is a client error. Nothing maps
      * {@code MethodArgumentTypeMismatchException} globally, so without this the security module's
      * {@code Exception} catch-all turns it into a 500.
      */

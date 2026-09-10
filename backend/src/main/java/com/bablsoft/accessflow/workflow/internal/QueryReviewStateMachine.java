@@ -115,12 +115,6 @@ class QueryReviewStateMachine {
      */
     private void apply(QueryRequestSnapshot query, QueryDecision decision) {
         var match = decision.routingMatch();
-        if (match != null) {
-            log.info("Query {} routed by policy {} -> {}", query.id(), match.policyId(),
-                    match.action());
-        } else if (decision.kind() == QueryDecisionKind.GRANT_FAST_PATH) {
-            log.info("Query {} auto-approved under access grant {}", query.id(), decision.grantId());
-        }
         switch (decision.kind()) {
             case ROUTING_AUTO_APPROVE -> {
                 routingDecisionService.applyDecision(query.id(), QueryStatus.APPROVED, match, null);
@@ -138,7 +132,6 @@ class QueryReviewStateMachine {
                 eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(),
                         match.policyId(), match.reason(), decision.effectiveApprovals()));
             }
-            // no default: every kind is handled, and the compiler enforces that on a new value
             case GRANT_FAST_PATH -> {
                 queryRequestStateService.approveByAccessGrant(query.id(), decision.grantId());
                 eventPublisher.publishEvent(new QueryAutoApprovedEvent(query.id(), null,
@@ -151,6 +144,23 @@ class QueryReviewStateMachine {
                         ? new QueryAutoApprovedEvent(query.id())
                         : new QueryReadyForReviewEvent(query.id()));
             }
+            // A switch STATEMENT over an enum is not exhaustiveness-checked, so a new kind would
+            // otherwise fall through silently and strand the query in PENDING_AI forever.
+            default -> throw new IllegalStateException("Unhandled decision kind " + decision.kind());
+        }
+        // Logged after the fact: a line claiming a query was auto-approved must not outlive a
+        // persistence call that then failed.
+        if (match != null) {
+            log.info("Query {} routed by policy {} -> {}", query.id(), match.policyId(),
+                    match.action());
+        } else if (decision.kind() == QueryDecisionKind.GRANT_FAST_PATH) {
+            log.info("Query {} auto-approved under access grant {}", query.id(), decision.grantId());
+        } else if (decision.kind() == QueryDecisionKind.PLAN_PENDING_REVIEW
+                && decision.trace().steps().stream().anyMatch(
+                        step -> "workflow.decision.plan.absent".equals(step.reasonKey()))) {
+            // The one operational breadcrumb for a misconfigured datasource; it used to be an INFO
+            // line inside the decision logic, which now also runs for simulations.
+            log.info("Query {} has no review plan; routed to PENDING_REVIEW", query.id());
         }
     }
 
