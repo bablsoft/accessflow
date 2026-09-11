@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Partial-update command: {@code null} means "leave unchanged" for every field. For
+ * Partial-update command: {@code null} means "leave unchanged" for every field. The
+ * {@code environment} (#861) follows the {@code clearAiConfig} shape: {@code clearEnvironment=true}
+ * unsets it, a non-null {@code environment} wins when both are sent. For
  * {@code readReplicas} (AF-457), {@code null} keeps the current endpoint list, an empty list
  * deletes all endpoints, and a non-empty list is a full replacement merged by endpoint id (items
  * with a known {@code id} update that row; items without create new rows; stored rows absent from
@@ -34,8 +36,30 @@ public record UpdateDatasourceCommand(
         String apiKey,
         Boolean resultCacheEnabled,
         Integer resultCacheTtlSeconds,
-        String privateKeyPassphrase
+        String privateKeyPassphrase,
+        DatasourceEnvironment environment,
+        Boolean clearEnvironment
 ) {
+    /**
+     * Backward-compatible constructor for the pre-#861 canonical shape (no {@code environment} /
+     * {@code clearEnvironment}); delegates with {@code null} — the environment stays unchanged.
+     */
+    public UpdateDatasourceCommand(
+            String name, String host, Integer port, String databaseName, String username,
+            String password, SslMode sslMode, Integer connectionPoolSize, Integer maxRowsPerQuery,
+            Boolean requireReviewReads, Boolean requireReviewWrites, UUID reviewPlanId,
+            Boolean aiAnalysisEnabled, UUID aiConfigId, Boolean textToSqlEnabled,
+            Boolean clearAiConfig, String jdbcUrlOverride,
+            List<ReplicaEndpointInput> readReplicas, Boolean active, String localDatacenter,
+            String apiKey, Boolean resultCacheEnabled, Integer resultCacheTtlSeconds,
+            String privateKeyPassphrase) {
+        this(name, host, port, databaseName, username, password, sslMode, connectionPoolSize,
+                maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
+                aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
+                readReplicas, active, localDatacenter, apiKey, resultCacheEnabled,
+                resultCacheTtlSeconds, privateKeyPassphrase, null, null);
+    }
+
     /**
      * Backward-compatible constructor for the pre-#632 canonical shape (no
      * {@code privateKeyPassphrase}); delegates with {@code null}.
@@ -52,7 +76,7 @@ public record UpdateDatasourceCommand(
                 maxRowsPerQuery, requireReviewReads, requireReviewWrites, reviewPlanId,
                 aiAnalysisEnabled, aiConfigId, textToSqlEnabled, clearAiConfig, jdbcUrlOverride,
                 readReplicas, active, localDatacenter, apiKey, resultCacheEnabled,
-                resultCacheTtlSeconds, null);
+                resultCacheTtlSeconds, (String) null);
     }
 
     /**

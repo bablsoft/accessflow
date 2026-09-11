@@ -3101,6 +3101,7 @@
       "DATA_CLASSIFICATION_MANAGE": "Manage data classifications",
       "REVIEW_PLAN_MANAGE": "Manage review plans",
       "ROUTING_POLICY_MANAGE": "Manage routing policies",
+      "SQL_REVIEW_MANAGE": "Manage SQL review rules",
       "BREAK_GLASS_VIEW": "View break-glass events",
       "BREAK_GLASS_REVIEW": "Review break-glass events",
       "RETENTION_POLICY_MANAGE": "Manage retention policies",

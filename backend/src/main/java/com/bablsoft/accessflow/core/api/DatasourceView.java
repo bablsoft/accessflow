@@ -30,7 +30,8 @@ public record DatasourceView(
         Instant createdAt,
         String localDatacenter,
         boolean resultCacheEnabled,
-        Integer resultCacheTtlSeconds
+        Integer resultCacheTtlSeconds,
+        DatasourceEnvironment environment
 ) {
     /** One read-replica endpoint as exposed to admins — never carries the password. */
     public record ReadReplicaView(UUID id, String jdbcUrl, String username) {
@@ -38,6 +39,25 @@ public record DatasourceView(
 
     public DatasourceView {
         readReplicas = readReplicas == null ? List.of() : List.copyOf(readReplicas);
+    }
+
+    /**
+     * Backward-compatible constructor for the pre-#861 canonical shape (no {@code environment});
+     * delegates with {@code null}.
+     */
+    public DatasourceView(
+            UUID id, UUID organizationId, String name, DbType dbType, String host, Integer port,
+            String databaseName, String username, SslMode sslMode, int connectionPoolSize,
+            int maxRowsPerQuery, boolean requireReviewReads, boolean requireReviewWrites,
+            UUID reviewPlanId, boolean aiAnalysisEnabled, UUID aiConfigId, boolean textToSqlEnabled,
+            UUID customDriverId, String connectorId, String jdbcUrlOverride,
+            List<ReadReplicaView> readReplicas, boolean active, Instant createdAt,
+            String localDatacenter, boolean resultCacheEnabled, Integer resultCacheTtlSeconds) {
+        this(id, organizationId, name, dbType, host, port, databaseName, username, sslMode,
+                connectionPoolSize, maxRowsPerQuery, requireReviewReads, requireReviewWrites,
+                reviewPlanId, aiAnalysisEnabled, aiConfigId, textToSqlEnabled, customDriverId,
+                connectorId, jdbcUrlOverride, readReplicas, active, createdAt, localDatacenter,
+                resultCacheEnabled, resultCacheTtlSeconds, null);
     }
 
     /**

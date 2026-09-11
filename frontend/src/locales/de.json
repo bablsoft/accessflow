@@ -3077,6 +3077,7 @@
       "DATA_CLASSIFICATION_MANAGE": "Datenklassifizierungen verwalten",
       "REVIEW_PLAN_MANAGE": "Prüfpläne verwalten",
       "ROUTING_POLICY_MANAGE": "Routing-Richtlinien verwalten",
+      "SQL_REVIEW_MANAGE": "SQL-Prüfregeln verwalten",
       "BREAK_GLASS_VIEW": "Break-Glass-Ereignisse anzeigen",
       "BREAK_GLASS_REVIEW": "Break-Glass-Ereignisse prüfen",
       "RETENTION_POLICY_MANAGE": "Aufbewahrungsrichtlinien verwalten",

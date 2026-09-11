@@ -3077,6 +3077,7 @@
       "DATA_CLASSIFICATION_MANAGE": "Gestionar clasificaciones de datos",
       "REVIEW_PLAN_MANAGE": "Gestionar planes de revisión",
       "ROUTING_POLICY_MANAGE": "Gestionar políticas de enrutamiento",
+      "SQL_REVIEW_MANAGE": "Gestionar reglas de revisión SQL",
       "BREAK_GLASS_VIEW": "Ver eventos de emergencia (break-glass)",
       "BREAK_GLASS_REVIEW": "Revisar eventos de emergencia (break-glass)",
       "RETENTION_POLICY_MANAGE": "Gestionar políticas de retención",

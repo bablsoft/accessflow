@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
@@ -767,6 +768,75 @@ class DatasourceAdminServiceImplTest {
                 null, null, null, null, null, null, null, null, null));
 
         verify(eventPublisher).publishEvent(new DatasourceConfigChangedEvent(datasourceId));
+    }
+
+    @Test
+    void createPersistsTheEnvironmentAndLeavesItUnsetWhenAbsent() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var withEnvironment = service.create(createCommand("Prod", DatasourceEnvironment.PRODUCTION));
+        var withoutEnvironment = service.create(createCommand("Dev", null));
+
+        assertThat(withEnvironment.environment()).isEqualTo(DatasourceEnvironment.PRODUCTION);
+        assertThat(withoutEnvironment.environment()).isNull();
+    }
+
+    @Test
+    void updateSetsTheEnvironmentWithoutPublishingAnEvent() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        var result = service.update(datasourceId, orgId,
+                environmentCommand(DatasourceEnvironment.STAGING, null));
+
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.STAGING);
+        assertThat(result.environment()).isEqualTo(DatasourceEnvironment.STAGING);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateWithNullEnvironmentLeavesItUnchanged() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setEnvironment(DatasourceEnvironment.TEST);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, environmentCommand(null, null));
+
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.TEST);
+    }
+
+    @Test
+    void updateClearEnvironmentUnsetsItAndAnExplicitValueWins() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setEnvironment(DatasourceEnvironment.TEST);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, environmentCommand(null, true));
+        assertThat(entity.getEnvironment()).isNull();
+
+        service.update(datasourceId, orgId, environmentCommand(DatasourceEnvironment.DEVELOPMENT, true));
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.DEVELOPMENT);
+
+        service.update(datasourceId, orgId, environmentCommand(null, false));
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.DEVELOPMENT);
+    }
+
+    private CreateDatasourceCommand createCommand(String name, DatasourceEnvironment environment) {
+        return new CreateDatasourceCommand(orgId, name, DbType.POSTGRESQL, "db", 5432, "appdb",
+                "svc", "pw", SslMode.DISABLE, null, null, null, null, null, false, null, null,
+                null, null, null, null, null, null, null, null, null, environment);
+    }
+
+    private static UpdateDatasourceCommand environmentCommand(DatasourceEnvironment environment,
+                                                              Boolean clearEnvironment) {
+        return new UpdateDatasourceCommand(null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, environment, clearEnvironment);
     }
 
     @Test

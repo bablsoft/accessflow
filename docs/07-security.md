@@ -273,7 +273,7 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 ## Authorization — Roles & the permission catalog (AF-522)
 
 Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
-permissions (`core.api.Permission`, 39 values grouped for display — see
+permissions (`core.api.Permission`, 44 values grouped for display — see
 `GET /api/v1/admin/permissions`) is composed into **roles**:
 
 - The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
@@ -388,6 +388,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
+| Manage SQL review rulesets (`SQL_REVIEW_MANAGE`, #861) | — | — | — | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |
@@ -482,6 +483,13 @@ group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V14
 `REVIEWER`). What each one gates, and why triggering a deployment deliberately has no functional
 permission at all, is in
 [Deployment governance security](#deployment-governance-security-epic-af-682) below.
+
+**Deterministic SQL review (#861, epic #860):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
+group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same
+`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). It will gate the ruleset CRUD and the
+read-only evaluation endpoint that #863 adds; #861 ships the catalog value, the seed and the
+storage only, so nothing is gated by it yet. A datasource's new `environment` attribute is written
+under the existing `DATASOURCE_MANAGE` permission — it is datasource configuration, not policy.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 

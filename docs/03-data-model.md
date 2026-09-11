@@ -95,6 +95,10 @@ roles these rows are display/catalog data only (runtime resolution answers from
 | `role_id` | FK → `roles` ON DELETE CASCADE (composite PK with `permission`) |
 | `permission` | VARCHAR(100) NOT NULL — a `Permission` enum name |
 
+Catalog values added after `V114` are seeded for the system roles that hold them by their own
+one-file migration (`V134`, `V146`, `V148`, `V151`, `V171` — the last seeds `SQL_REVIEW_MANAGE` for
+`ADMIN`, #861); `SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
+
 ---
 
 ## api_keys
@@ -160,6 +164,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `result_cache_ttl_seconds` | INTEGER NULL (AF-457, migration `V115`) — per-datasource cache TTL. NULL falls back to the deployment default (`ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL`). |
 | `api_key_encrypted` | TEXT NULL (AF-420, migration `V80`) — AES-256-GCM-encrypted API key for the search engines (`ELASTICSEARCH` / `OPENSEARCH`), sent as `Authorization: ApiKey`. `@JsonIgnore`, never returned in an API response. NULL for basic-auth search datasources and every other dialect; the service layer requires **either** `username`+`password` **or** `api_key` for a search datasource. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `private_key_passphrase_encrypted` | TEXT NULL (#632, migration `V163`) — AES-256-GCM-encrypted passphrase for a passphrase-protected (encrypted) PKCS#8 private key held in `password_encrypted`, used by `SNOWFLAKE` key-pair auth. `@JsonIgnore`, never returned in an API response. NULL for password credentials, unencrypted PEMs, and every other dialect; the service layer rejects it for any `db_type` other than `SNOWFLAKE`. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
+| `environment` | ENUM `datasource_environment` NULL (#861, migration `V170`): `DEVELOPMENT` \| `TEST` \| `STAGING` \| `PRODUCTION`. Optional — an unset environment is a legitimate state. It keys per-environment SQL review severity: a datasource resolves to the [`sql_review_rulesets`](#sql-review-sqlreview-861--epic-860) row bound to its environment, else the organization-wide default (`environment IS NULL`), else no rules. Existing rows stay NULL. Set on create, and on update via `environment` (null = unchanged) / `clear_environment` (unset). |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
@@ -2763,6 +2768,81 @@ unconstrained (`{}` matches everything):
 
 See [docs/05-backend.md → Deployment governance](05-backend.md) for evaluation order and the
 skip-on-malformed rule.
+
+---
+
+## SQL review (`sqlreview`, #861 / epic #860)
+
+Deterministic, named SQL review rules with per-environment severity. #861 lands only the storage
+and type foundation (migration `V170` + the `V171` permission seed): the rule catalog (#862),
+ruleset administration and the evaluation API (#863), submission enforcement (#864) and the editor
+lint (#865) follow. Two PG enums, created in `V170`:
+
+- `datasource_environment` — `DEVELOPMENT` | `TEST` | `STAGING` | `PRODUCTION` (also the type of
+  the new nullable [`datasources.environment`](#datasources) column).
+- `sql_review_severity` — `OFF` (not evaluated) | `WARN` (recorded and surfaced, no workflow
+  effect) | `BLOCK` (recorded **and** the query can never auto-approve — it is forced to human
+  review; `BLOCK` never rejects).
+
+Cross-module references are bare UUIDs in JPA (the `discovery` / `query_snapshots` convention —
+no `@ManyToOne` into `core.internal`) with the real foreign key in DDL.
+
+### sql_review_rulesets
+
+One ruleset per environment per organization, plus at most one organization-wide default.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL, FK → `organizations` ON DELETE CASCADE |
+| `name` | VARCHAR(255) NOT NULL |
+| `description` | TEXT NULL |
+| `environment` | `datasource_environment` NULL — the environment this ruleset is bound to; **NULL = the organization-wide default** that datasources with no environment (and environments with no ruleset of their own) resolve to |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> **Constraints:** two partial unique indexes — `uq_sql_review_rulesets_org_env` on
+> `(organization_id, environment) WHERE environment IS NOT NULL` and
+> `uq_sql_review_rulesets_org_default` on `(organization_id) WHERE environment IS NULL`. Two
+> indexes because NULLs never collide in a plain `UNIQUE`.
+
+### sql_review_rule_configs
+
+The severity (and parameters) a ruleset assigns to one rule. Rule ids are code-defined (the
+catalog is #862), so `rule_id` is `VARCHAR`, not a PG enum.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `ruleset_id` | UUID NOT NULL, FK → `sql_review_rulesets` ON DELETE CASCADE |
+| `rule_id` | VARCHAR(100) NOT NULL — e.g. `missing_where_on_delete` |
+| `severity` | `sql_review_severity` NOT NULL |
+| `params` | JSONB NULL — rule-specific parameters (a banned-function list, protected-table globs) |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+
+> **Constraint:** `UNIQUE (ruleset_id, rule_id)`. Index on `ruleset_id`.
+
+### query_sql_review_findings
+
+One row per rule violation on one statement of a submitted query. Rows are immutable once
+written (a re-evaluation replaces a query's findings wholesale) and never store a
+human-readable message — `rule_id` + `args` are rendered per reader through `MessageSource` in the
+reader's locale.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | UUID NOT NULL, FK → `query_requests` ON DELETE CASCADE |
+| `rule_id` | VARCHAR(100) NOT NULL |
+| `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
+| `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
+| `line_number` | INTEGER NULL — one-based line of the offending construct |
+| `args` | JSONB NULL — message arguments keyed by placeholder name |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> Index `idx_query_sql_review_findings_request` on `query_request_id`; reads order by
+> `(statement_index, line_number)`.
 
 ---
 

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.SslMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -48,5 +49,8 @@ public record UpdateDatasourceRequest(
         // Passphrase for an encrypted PKCS#8 private key (Snowflake key-pair auth); a blank
         // value clears it.
         @Size(max = 1024, message = "{validation.private_key_passphrase.max}")
-        String privateKeyPassphrase
+        String privateKeyPassphrase,
+        // #861: null leaves the environment unchanged; clearEnvironment=true unsets it.
+        DatasourceEnvironment environment,
+        Boolean clearEnvironment
 ) {}

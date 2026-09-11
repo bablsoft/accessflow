@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.MysqlDriverCacheTestcontainersConfig;
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.ResultColumn;
 import com.bablsoft.accessflow.core.api.SelectExecutionResult;
@@ -137,6 +138,36 @@ class DatasourceControllerIntegrationTest {
         assertThat(saved.getPasswordEncrypted()).isNotEqualTo("super-secret-pw");
         assertThat(encryptionService.decrypt(saved.getPasswordEncrypted()))
                 .isEqualTo("super-secret-pw");
+        // #861: environment is optional — absent stays unset (and null is omitted from the JSON).
+        assertThat(result).bodyJson().doesNotHavePath("$.environment");
+        assertThat(saved.getEnvironment()).isNull();
+    }
+
+    @Test
+    void createDatasourceWithEnvironmentRoundTripsIt() {
+        var result = mvc.post().uri("/api/v1/datasources")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "name": "Staging",
+                          "db_type": "POSTGRESQL",
+                          "host": "db.example.com",
+                          "port": 5432,
+                          "database_name": "appdb",
+                          "username": "svc",
+                          "password": "pw",
+                          "ssl_mode": "REQUIRE",
+                          "ai_analysis_enabled": false,
+                          "environment": "STAGING"
+                        }
+                        """)
+                .exchange();
+
+        assertThat(result).hasStatus(201);
+        assertThat(result).bodyJson().extractingPath("$.environment").asString().isEqualTo("STAGING");
+        var saved = datasourceRepository.findAllByOrganization_Id(primaryOrg.getId()).get(0);
+        assertThat(saved.getEnvironment()).isEqualTo(DatasourceEnvironment.STAGING);
     }
 
     @Test
@@ -448,6 +479,45 @@ class DatasourceControllerIntegrationTest {
                 .isEqualTo(42);
         var reloaded = datasourceRepository.findById(ds.getId()).orElseThrow();
         assertThat(reloaded.getPasswordEncrypted()).isEqualTo(oldEncrypted);
+    }
+
+    @Test
+    void updateDatasourceSetsKeepsAndClearsTheEnvironment() {
+        var ds = saveDatasource(primaryOrg, "DS");
+
+        var set = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"environment":"PRODUCTION"}
+                        """)
+                .exchange();
+        assertThat(set).hasStatus(200);
+        assertThat(set).bodyJson().extractingPath("$.environment").asString().isEqualTo("PRODUCTION");
+        assertThat(datasourceRepository.findById(ds.getId()).orElseThrow().getEnvironment())
+                .isEqualTo(DatasourceEnvironment.PRODUCTION);
+
+        // Omitting the field leaves it unchanged.
+        var keep = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"host":"other-host"}
+                        """)
+                .exchange();
+        assertThat(keep).hasStatus(200);
+        assertThat(keep).bodyJson().extractingPath("$.environment").asString().isEqualTo("PRODUCTION");
+
+        var clear = mvc.put().uri("/api/v1/datasources/" + ds.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"clear_environment":true}
+                        """)
+                .exchange();
+        assertThat(clear).hasStatus(200);
+        assertThat(clear).bodyJson().doesNotHavePath("$.environment");
+        assertThat(datasourceRepository.findById(ds.getId()).orElseThrow().getEnvironment()).isNull();
     }
 
     @Test

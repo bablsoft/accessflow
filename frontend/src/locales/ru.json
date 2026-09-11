@@ -3077,6 +3077,7 @@
       "DATA_CLASSIFICATION_MANAGE": "Управлять классификациями данных",
       "REVIEW_PLAN_MANAGE": "Управлять планами проверки",
       "ROUTING_POLICY_MANAGE": "Управлять политиками маршрутизации",
+      "SQL_REVIEW_MANAGE": "Управлять правилами проверки SQL",
       "BREAK_GLASS_VIEW": "Просматривать события экстренного доступа",
       "BREAK_GLASS_REVIEW": "Проверять события экстренного доступа",
       "RETENTION_POLICY_MANAGE": "Управлять политиками хранения",

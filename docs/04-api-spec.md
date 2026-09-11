@@ -354,6 +354,7 @@ missing.
       "require_review_writes": true,
       "review_plan_id": "uuid",
       "ai_analysis_enabled": true,
+      "environment": "PRODUCTION",
       "active": true,
       "created_at": "2026-05-04T10:15:00Z"
     }
@@ -392,9 +393,16 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "jdbc_url_override": null,
   "read_replicas": [],
   "result_cache_enabled": false,
-  "result_cache_ttl_seconds": null
+  "result_cache_ttl_seconds": null,
+  "environment": "PRODUCTION"
 }
 ```
+
+`environment` (#861, epic #860) is optional: one of `DEVELOPMENT` / `TEST` / `STAGING` /
+`PRODUCTION`, or omitted. It selects which SQL review ruleset the datasource's queries are
+evaluated against — the ruleset bound to that environment, else the organization-wide default. An
+unset environment is a legitimate state (it resolves straight to the default) and, like every other
+null field, is **omitted** from responses rather than serialised as `null`.
 
 `local_datacenter` is the Cassandra/ScyllaDB driver's load-balancing datacenter (the `withLocalDatacenter(...)` value). It is **required when `db_type` is `CASSANDRA` or `SCYLLADB`** and is null/unused for every other dialect.
 
@@ -460,9 +468,14 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   ],
   "result_cache_enabled": true,
   "result_cache_ttl_seconds": 120,
+  "environment": "STAGING",
+  "clear_environment": false,
   "active": true
 }
 ```
+
+`environment` follows the `clear_ai_config` shape (#861): omitted or `null` leaves it unchanged,
+`"clear_environment": true` unsets it, and a non-null `environment` wins when both are sent.
 
 `read_replicas` is a **full-list replacement merged by endpoint id**: omitting the field keeps the current endpoints, an empty array deletes them all, and a non-empty array replaces the list — items whose `id` matches a stored endpoint update it (a `null`/omitted `password` keeps the stored secret, an empty string clears it back to the primary-credential fallback, a non-blank value re-encrypts with a fresh IV), items without an `id` create new endpoints, and stored endpoints absent from the array are removed.
 
