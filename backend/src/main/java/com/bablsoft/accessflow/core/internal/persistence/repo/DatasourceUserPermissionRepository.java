@@ -17,5 +17,9 @@ public interface DatasourceUserPermissionRepository extends JpaRepository<Dataso
 
     List<DatasourceUserPermissionEntity> findAllByDatasource_Id(UUID datasourceId);
 
+    // #968: every direct break-glass row in an organization, expired or not — the lookup filters expiry.
+    List<DatasourceUserPermissionEntity> findAllByDatasource_Organization_IdAndCanBreakGlassTrue(
+            UUID organizationId);
+
     boolean existsByUser_IdAndDatasource_Id(UUID userId, UUID datasourceId);
 }

@@ -73,10 +73,39 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
         var groupPermissions = groupPermissionRepository.findAllByDatasource_Id(datasourceId).stream()
                 .filter(p -> isActive(p.getExpiresAt(), now))
                 .toList();
+        expandGroups(groupPermissions, contributions);
+        return contributions;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<DatasourcePermissionContribution> findBreakGlassContributionsForOrganization(
+            UUID organizationId) {
+        var now = Instant.now();
+        var contributions = new ArrayList<DatasourcePermissionContribution>();
+        permissionRepository.findAllByDatasource_Organization_IdAndCanBreakGlassTrue(organizationId)
+                .stream()
+                .filter(p -> isActive(p.getExpiresAt(), now))
+                .map(DefaultDatasourceUserPermissionLookupService::toContribution)
+                .forEach(contributions::add);
+        var groupPermissions = groupPermissionRepository
+                .findAllByOrganizationIdAndCanBreakGlassTrue(organizationId).stream()
+                .filter(p -> isActive(p.getExpiresAt(), now))
+                .toList();
+        expandGroups(groupPermissions, contributions);
+        return contributions;
+    }
+
+    /**
+     * Expand each group grant into one contribution per member. The merge is per-user, so a group
+     * grant has to be expanded before it can be merged with that member's own direct row. One
+     * membership query for all groups, not one per grant.
+     */
+    private void expandGroups(List<DatasourceGroupPermissionEntity> groupPermissions,
+                              List<DatasourcePermissionContribution> into) {
         if (groupPermissions.isEmpty()) {
-            return contributions;
+            return;
         }
-        // One membership query for all of them, not one per grant.
         var membersByGroup = new LinkedHashMap<UUID, List<UUID>>();
         var groupIds = groupPermissions.stream()
                 .map(p -> p.getGroup().getId())
@@ -86,15 +115,12 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
             membersByGroup.computeIfAbsent(membership.getGroup().getId(), k -> new ArrayList<>())
                     .add(membership.getUser().getId());
         }
-        // One contribution per member: the merge is per-user, so a group grant has to be expanded
-        // before it can be merged with that member's own direct row.
         for (var groupPermission : groupPermissions) {
             for (var memberId : membersByGroup.getOrDefault(groupPermission.getGroup().getId(),
                     List.of())) {
-                contributions.add(toContribution(groupPermission, memberId));
+                into.add(toContribution(groupPermission, memberId));
             }
         }
-        return contributions;
     }
 
     @Override
