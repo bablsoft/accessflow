@@ -13,15 +13,21 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -38,6 +44,7 @@ class SqlReviewController {
     private final SqlReviewService sqlReviewService;
     private final SqlReviewRuleCatalogService catalogService;
     private final SqlReviewFindingRenderer findingRenderer;
+    private final MessageSource messageSource;
 
     @GetMapping("/rules")
     @PreAuthorize("hasAuthority('PERM_SQL_REVIEW_MANAGE')")
@@ -56,7 +63,7 @@ class SqlReviewController {
                     + "nothing runs against the customer database. A datasource the caller cannot see is "
                     + "a 404, never a 403. Engine-plugin datasources return applicable=false.")
     @ApiResponse(responseCode = "200", description = "Findings with localized messages")
-    @ApiResponse(responseCode = "400", description = "Validation error")
+    @ApiResponse(responseCode = "400", description = "Validation error or unreadable body")
     @ApiResponse(responseCode = "404", description = "Datasource not found or not accessible")
     @ApiResponse(responseCode = "422", description = "SQL could not be parsed")
     SqlReviewEvaluationResponse evaluate(@Valid @RequestBody EvaluateSqlReviewRequest body,
@@ -66,5 +73,20 @@ class SqlReviewController {
         var result = sqlReviewService.evaluateForUser(caller.organizationId(), caller.userId(),
                 caller.has(Permission.QUERY_ADMIN), body.datasourceId(), body.sql());
         return SqlReviewEvaluationResponse.from(result, finding -> findingRenderer.message(finding, locale));
+    }
+
+    /**
+     * A body that will not deserialize — malformed JSON or a non-UUID {@code datasource_id} — is a
+     * client error; nothing maps the parse failure globally, and the editor calls this on a debounce
+     * so a 500 per keystroke would be both wrong and noisy.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
+        var detail = messageSource.getMessage("error.sql_review_evaluate_body_unreadable", null,
+                LocaleContextHolder.getLocale());
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
+        problem.setProperty("error", "VALIDATION_ERROR");
+        problem.setProperty("timestamp", Instant.now().toString());
+        return problem;
     }
 }

@@ -1688,7 +1688,12 @@ today, the query detail and reviewer queue in #864, the editor in #865. Six `err
   service is `readOnly`, the controller takes no `RequestAuditContext`, and
   `SqlReviewControllerIntegrationTest` proves `query_sql_review_findings` and `audit_log` are
   untouched by a call. Unparseable SQL is the parser's 422 `INVALID_SQL`, never an empty (clean-
-  looking) finding list; an engine-plugin datasource is 200 `applicable: false`.
+  looking) finding list; an engine-plugin datasource is 200 `applicable: false`. Like the admin
+  controller it maps an unreadable body to a local 400.
+
+  On the admin read path a stored `params` row that will not decode is shown with no params and
+  logged at WARN — the same degradation the evaluation path applies — so one hand-edited row can
+  never make the organization's ruleset list a 422.
 
 **Tests.** One `<Rule>Test` per rule (match, non-match, line number, args; the parameterised pair
 also cover configured / empty / absent params), the anti-defeat pair (`UPDATE … WHERE 1 = 1` is

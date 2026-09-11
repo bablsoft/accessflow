@@ -15,6 +15,10 @@ import com.bablsoft.accessflow.sqlreview.internal.web.model.EvaluateSqlReviewReq
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.context.support.StaticMessageSource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -37,7 +41,13 @@ class SqlReviewControllerTest {
     private final SqlReviewRuleCatalogService catalogService = mock(SqlReviewRuleCatalogService.class);
     private final SqlReviewFindingRenderer renderer = mock(SqlReviewFindingRenderer.class);
     private final SqlReviewController controller =
-            new SqlReviewController(sqlReviewService, catalogService, renderer);
+            new SqlReviewController(sqlReviewService, catalogService, renderer, messageSource());
+
+    private static StaticMessageSource messageSource() {
+        var ms = new StaticMessageSource();
+        ms.setUseCodeAsDefaultMessage(true);
+        return ms;
+    }
 
     private final UUID organizationId = UUID.randomUUID();
     private final UUID userId = UUID.randomUUID();
@@ -119,5 +129,16 @@ class SqlReviewControllerTest {
         assertThat(result.applicable()).isFalse();
         assertThat(result.findings()).isEmpty();
         verifyNoInteractions(renderer);
+    }
+
+    @Test
+    void unreadableBodyIsA400ValidationError() {
+        var ex = new HttpMessageNotReadableException("not a uuid", new MockHttpInputMessage(new byte[0]));
+
+        var pd = controller.handleUnreadableBody(ex);
+
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+        assertThat(pd.getDetail()).isEqualTo("error.sql_review_evaluate_body_unreadable");
+        assertThat(pd.getProperties()).containsEntry("error", "VALIDATION_ERROR").containsKey("timestamp");
     }
 }

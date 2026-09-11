@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.sqlreview.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.sqlreview.api.CreateSqlReviewRulesetCommand;
+import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRuleConfigView;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetConflictException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewRulesetNotFoundException;
@@ -12,11 +13,14 @@ import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRu
 import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRulesetEntity;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRuleConfigRepository;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.repo.SqlReviewRulesetRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +42,8 @@ import java.util.UUID;
 @Service
 @Transactional
 public class DefaultSqlReviewRulesetService implements SqlReviewRulesetService {
+
+    private static final Logger log = LoggerFactory.getLogger(DefaultSqlReviewRulesetService.class);
 
     private final SqlReviewRulesetRepository rulesetRepository;
     private final SqlReviewRuleConfigRepository ruleConfigRepository;
@@ -170,12 +176,26 @@ public class DefaultSqlReviewRulesetService implements SqlReviewRulesetService {
 
     private SqlReviewRulesetView toView(SqlReviewRulesetEntity entity) {
         var rules = ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(entity.getId()).stream()
-                .map(row -> new SqlReviewRuleConfigView(row.getRuleId(), row.getSeverity(),
-                        paramsCodec.decode(row.getParams())))
+                .map(row -> new SqlReviewRuleConfigView(row.getRuleId(), row.getSeverity(), decodeParams(entity, row)))
                 .toList();
         return new SqlReviewRulesetView(entity.getId(), entity.getOrganizationId(), entity.getName(),
                 entity.getDescription(), entity.getEnvironment(), entity.isEnabled(), rules,
                 entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+
+    /**
+     * The validator stops a malformed {@code params} row being written through the API; a row
+     * written any other way must not make the whole organization's ruleset list unreadable, so it
+     * is shown with no params (and logged), exactly as the evaluation path degrades it.
+     */
+    private Map<String, List<String>> decodeParams(SqlReviewRulesetEntity ruleset, SqlReviewRuleConfigEntity row) {
+        try {
+            return paramsCodec.decode(row.getParams());
+        } catch (IllegalSqlReviewRulesetException ex) {
+            log.warn("SQL review ruleset {} has undecodable params for rule {}; showing it without params",
+                    ruleset.getId(), row.getRuleId());
+            return Map.of();
+        }
     }
 
     private static String blankToNull(String value) {

@@ -2071,17 +2071,18 @@ Deterministic SQL review (epic #860): evaluates the SQL against the ruleset reso
 {
   "applicable": true,
   "findings": [
-    { "rule_id": "missing_where_on_delete", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "DELETE on payroll.salaries has no WHERE clause" },
-    { "rule_id": "protected_table", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "payroll.salaries is a protected table (matches payroll.*)" },
-    { "rule_id": "dml_without_transaction", "severity": "WARN", "statement_index": 0, "line_number": 1, "message": "Data modification outside a BEGIN … COMMIT transaction" }
+    { "rule_id": "dml_without_transaction", "severity": "WARN", "statement_index": 0, "line_number": 1, "message": "The data change is not wrapped in a BEGIN ... COMMIT transaction" },
+    { "rule_id": "missing_where_on_delete", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "DELETE on payroll.salaries has no WHERE clause and removes every row" },
+    { "rule_id": "protected_table", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "The statement touches protected table payroll.salaries (matches payroll.*)" }
   ]
 }
 ```
 
 - `applicable` is `false` — with an empty `findings` list — for a datasource whose engine the rule catalog does not cover (every engine plugin: MongoDB, Redis, Cassandra, Elasticsearch, DynamoDB, Neo4j, Snowflake, BigQuery, Databricks, Couchbase). Only the in-process relational dialects (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, `CUSTOM`) are evaluated; an unsupported engine never fails closed.
-- `findings` is ordered by `statement_index`, then `line_number` (unknown last), then `rule_id`. `severity` is `WARN` or `BLOCK` (`OFF` rules are never evaluated). `statement_index` is the zero-based statement inside a `BEGIN … COMMIT` envelope (`0` for a single statement). `line_number` is the one-based line of the offending construct and is **absent** for every member of a transaction envelope and for constructs JSqlParser gives no position for.
+- `findings` is ordered by `statement_index`, then `line_number` (unknown last), then `rule_id` — which is why `dml_without_transaction` leads the example above. `severity` is `WARN` or `BLOCK` (`OFF` rules are never evaluated). `statement_index` is the zero-based statement inside a `BEGIN … COMMIT` envelope (`0` for a single statement). `line_number` is the one-based line of the offending construct and is **absent** for every member of a transaction envelope and for constructs JSqlParser gives no position for.
 - `message` is rendered server-side from the rule's message key and the finding's arguments in the **request locale** (the caller's preferred language, else `Accept-Language`, else English) — clients never format rule messages themselves.
 
+**Response 400:** `VALIDATION_ERROR` — missing `datasource_id`, blank `sql`, `sql` over 100 000 characters, or a body that does not deserialize (a non-UUID `datasource_id`).
 **Response 404:** `DATASOURCE_NOT_FOUND` — the datasource is missing, in another organization, or not visible to the caller.
 **Response 422:** `INVALID_SQL` — the SQL did not parse, or is a multi-statement input outside a `BEGIN … COMMIT` envelope. An unparseable query is a 422, never an empty (clean-looking) finding list.
 
@@ -2096,7 +2097,7 @@ The built-in rule catalog in catalog order, localized in the request locale. Req
     "category": "PERFORMANCE",
     "default_severity": "WARN",
     "name": "SELECT *",
-    "description": "Flags SELECT * with no explicit column list.",
+    "description": "The select list is a bare * with no explicit column list; every column is fetched, including ones added later.",
     "params": []
   },
   {
@@ -2104,7 +2105,7 @@ The built-in rule catalog in catalog order, localized in the request locale. Req
     "category": "DATA_PROTECTION",
     "default_severity": "BLOCK",
     "name": "Protected table",
-    "description": "Flags any statement touching a table that matches a configured glob.",
+    "description": "The statement touches a table matching one of the organisation's protected-table patterns.",
     "params": [
       { "key": "globs", "required": true, "defaults": [], "value_pattern": "[A-Za-z0-9_$*.-]+" }
     ]

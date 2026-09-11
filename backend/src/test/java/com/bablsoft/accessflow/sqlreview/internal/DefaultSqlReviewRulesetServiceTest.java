@@ -324,4 +324,20 @@ class DefaultSqlReviewRulesetServiceTest {
         assertThatThrownBy(() -> service.delete(ORG, id)).isInstanceOf(SqlReviewRulesetNotFoundException.class);
         verify(rulesetRepository, never()).delete(any(SqlReviewRulesetEntity.class));
     }
+
+    @Test
+    void anUndecodableStoredParamsRowIsShownWithoutParamsRatherThanFailingTheRead() {
+        var entity = ruleset(DatasourceEnvironment.TEST);
+        when(rulesetRepository.findByIdAndOrganizationId(entity.getId(), ORG)).thenReturn(Optional.of(entity));
+        when(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(entity.getId())).thenReturn(List.of(
+                config(entity, "protected_table", "[\"not\", \"an\", \"object\"]"),
+                config(entity, "select_star", null)));
+
+        var view = service.get(ORG, entity.getId());
+
+        assertThat(view.rules()).extracting(SqlReviewRuleConfigView::ruleId)
+                .containsExactly("protected_table", "select_star");
+        assertThat(view.rules().get(0).params()).isEmpty();
+        assertThat(view.rules().get(0).severity()).isEqualTo(SqlReviewSeverity.BLOCK);
+    }
 }

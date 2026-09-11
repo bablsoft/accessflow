@@ -127,6 +127,13 @@ class SqlReviewControllerIntegrationTest extends SqlReviewIntegrationTestSupport
         assertThat(result).hasStatus(422);
         assertThat(result).bodyJson().extractingPath("$.error").asString().isEqualTo("INVALID_SQL");
         assertThat(evaluate(readerToken, production.getId(), " ", null)).hasStatus(400);
+
+        var unreadable = mvc.post().uri("/api/v1/sql-review/evaluate")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + readerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"datasource_id\":\"not-a-uuid\",\"sql\":\"SELECT 1\"}").exchange();
+        assertThat(unreadable).hasStatus(400);
+        assertThat(unreadable).bodyJson().extractingPath("$.error").asString().isEqualTo("VALIDATION_ERROR");
     }
 
     @Test

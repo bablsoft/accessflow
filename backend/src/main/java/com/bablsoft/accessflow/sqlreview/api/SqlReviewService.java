@@ -3,9 +3,10 @@ package com.bablsoft.accessflow.sqlreview.api;
 import java.util.UUID;
 
 /**
- * Deterministic SQL review evaluation (#861, epic #860; implemented in #862, user-scoped entry point in #863). Resolves the ruleset
- * for the datasource — its {@code environment}, else the organization-wide default, else no
- * rules — and evaluates every enabled rule against the parsed statements.
+ * Deterministic SQL review evaluation (#861, epic #860; implemented in #862, user-scoped entry
+ * point in #863). Resolves the ruleset for the datasource — its {@code environment}, else the
+ * organization-wide default, else no rules — and evaluates every enabled rule against the parsed
+ * statements.
  */
 public interface SqlReviewService {
 
