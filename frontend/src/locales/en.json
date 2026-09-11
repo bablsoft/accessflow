@@ -67,6 +67,7 @@
     "audit_sinks": "Audit sinks",
     "auditor": "Compliance reports",
     "over_provisioned_access": "Over-provisioned access",
+    "privileged_access": "Privileged access",
     "ai_configs": "AI configurations",
     "ai_analyses": "AI analyses",
     "notifications": "Notifications",
@@ -2953,6 +2954,14 @@
       "DATASOURCE": "Datasource",
       "API_CONNECTOR": "API connector"
     },
+    "standing_bypass_kind": {
+      "QUERY_ADMIN": "Query admin",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "permission_source_kind": {
+      "DIRECT": "Direct grant",
+      "GROUP": "Group grant"
+    },
     "grant_usage_recommendation": {
       "INSUFFICIENT_DATA": "Insufficient data",
       "NEVER_USED": "Never used",
@@ -3680,6 +3689,32 @@
     "empty_title": "No standing grants",
     "empty_description": "No grants match these filters. Usage is summarised on a schedule, so a new grant may not appear yet.",
     "load_error": "Could not load the over-provisioned access report"
+  },
+  "privileged_access": {
+    "title": "Privileged access",
+    "subtitle": "Identities that can reach data without a permission row — query admins skip the per-datasource gate, break-glass grants bypass review. Advisory only; nothing here revokes access.",
+    "col_identity": "Identity",
+    "col_role": "Role",
+    "col_bypass": "Bypass",
+    "col_break_glass": "Break-glass datasources",
+    "col_queries": "Queries submitted",
+    "col_break_glass_runs": "Break-glass runs",
+    "system_role": "System role",
+    "custom_role": "Custom role",
+    "via_group": "via {{group}}",
+    "never_expires": "never expires",
+    "expires_at": "expires {{date}}",
+    "none": "—",
+    "never": "Never",
+    "last_at": "last {{ago}}",
+    "filter_kind": "Bypass kind",
+    "filter_all_kinds": "All bypass kinds",
+    "filter_user_placeholder": "Filter by user id",
+    "count_label_one": "{{count}} identity",
+    "count_label_other": "{{count}} identities",
+    "empty_title": "No privileged access",
+    "empty_description": "No active user in this organization holds QUERY_ADMIN or an unexpired break-glass grant that matches these filters.",
+    "load_error": "Could not load the privileged-access report"
   },
   "apiGov": {
     "connectors": {

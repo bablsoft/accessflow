@@ -3900,6 +3900,63 @@ export interface OverProvisionedGrant {
 
 export type OverProvisionedGrantPage = PageEnvelope<OverProvisionedGrant>;
 
+// --- Privileged-access report: QUERY_ADMIN holders and break-glass grantees (#968) ---
+
+/** A path by which a user can reach data without appearing in any permission table. */
+export type StandingBypassKind = 'QUERY_ADMIN' | 'BREAK_GLASS';
+
+/** Where a permission contribution comes from: the user's own row, or a group row via membership. */
+export type DatasourcePermissionSourceKind = 'DIRECT' | 'GROUP';
+
+/** The role that carries a user's QUERY_ADMIN bypass — the system ADMIN role or a custom role. */
+export interface PrivilegedAccessQueryAdmin {
+  role_id: string | null;
+  role_name: string | null;
+  system_role: boolean;
+}
+
+/** One unexpired can_break_glass contribution on an active datasource. `expires_at` null = never. */
+export interface PrivilegedAccessBreakGlassGrant {
+  datasource_id: string;
+  datasource_name: string;
+  source_kind: DatasourcePermissionSourceKind;
+  source_id: string;
+  group_id: string | null;
+  group_name: string | null;
+  expires_at: string | null;
+}
+
+/**
+ * Every query the user submitted in the organization, plus the break-glass subset. The null
+ * timestamps mean "never" — rendering them as a date would invent an event.
+ */
+export interface PrivilegedAccessEvidence {
+  submitted_query_count: number;
+  last_submitted_at: string | null;
+  break_glass_execution_count: number;
+  last_break_glass_at: string | null;
+}
+
+/**
+ * One identity in the privileged-access report — never one row per grant. `bypass_kinds` is never
+ * empty; `query_admin` is non-null iff it contains QUERY_ADMIN, and `break_glass_grants` is
+ * non-empty iff it contains BREAK_GLASS.
+ */
+export interface PrivilegedAccessRow {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  role_id: string | null;
+  role_name: string | null;
+  system_role: boolean;
+  bypass_kinds: StandingBypassKind[];
+  query_admin: PrivilegedAccessQueryAdmin | null;
+  break_glass_grants: PrivilegedAccessBreakGlassGrant[];
+  evidence: PrivilegedAccessEvidence;
+}
+
+export type PrivilegedAccessPage = PageEnvelope<PrivilegedAccessRow>;
+
 // --- Reviewer delegation (#622) ---
 
 /** Resource kinds a delegation can be narrowed to. Null scope = every review queue. */

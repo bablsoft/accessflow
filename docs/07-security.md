@@ -378,6 +378,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | View / export the over-provisioned access report (`ACCESS_USAGE_REPORT_VIEW`, #625) | — | — | — | ✓ | ✓ |
 | Trace a hypothetical request through the live evaluators (`DATASOURCE_PERMISSION_MANAGE`, AF-859) | — | — | — | ✓ | — |
 | Read who can reach a table (`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`, AF-859) | — | — | — | ✓ | ✓ |
+| Read the privileged-access report — who can reach data with no permission row (`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`, #968) | — | — | — | ✓ | ✓ |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ | — |
 | Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ | — |
 | Create / edit datasources | — | — | — | ✓ | — |
@@ -435,6 +436,21 @@ which standing grant and when they last used it*, which is activity data about o
 why it is an admin/auditor surface and not something a grant holder can read about themselves or
 anyone else. The recommendation it carries is **advisory only** — no authorization decision anywhere
 reads it, and nothing is revoked on its strength.
+
+**Privileged access (#968):** the org-wide complement of that report — the identities that can reach
+data *without* any standing grant to report on. `GET /api/v1/admin/privileged-access` lists every
+active user whose effective role carries `QUERY_ADMIN` (the submission service skips the per-datasource
+gate for them outright, so no permission screen ever shows them) and every holder of an unexpired
+`can_break_glass` grant, direct or inherited through a group, one row per identity with the role that
+carries the bypass, the datasources and expiry of each break-glass grant, and the user's submission
+history read from `query_requests`. Gated exactly as the effective-access explainer is
+(`hasAnyAuthority('PERM_DATASOURCE_PERMISSION_MANAGE','PERM_ACCESS_USAGE_REPORT_VIEW')`) — no new
+`Permission` value — and audited on **every** read as `PRIVILEGED_ACCESS_REPORT_VIEWED` against the
+organization, with the row count and the filters applied but never an email or a role name. A custom
+role carrying `QUERY_ADMIN` resolves identically to the system `ADMIN` role, because the same
+`RolePermissionHolderLookupService` that the explainer uses inverts the catalog. **Advisory only:**
+nothing revokes on its strength; a bypass ends through a role change, an attestation campaign, or an
+explicit permission edit.
 
 **Result-export governance (#626):** `EXPORT_POLICY_MANAGE` gates the per-datasource export-policy
 CRUD (`/api/v1/datasources/{id}/export-policies`,
@@ -786,6 +802,10 @@ against a *draft policy*; this one replays *current policy* against a *hypotheti
   rows and their parity test, and the frontend union, for no capability those two do not already
   describe. Both are organization-scoped; a `datasource_id` or `user_id` outside the caller's
   organization is `DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND`, never `403`.
+- **The org-wide view of the same two bypasses** is the privileged-access report (#968):
+  `GET /admin/privileged-access` lists every identity whose row here would carry a
+  `QUERY_ADMIN_BYPASS` or `BREAK_GLASS` source, across every datasource at once, under the same
+  permission gate as `effective-access`.
 - **The same two guarantees now cover the other two request kinds** (AF-967).
   `POST /admin/api-call-simulations` (`API_CONNECTOR_MANAGE`) and
   `POST /admin/deployment-simulations` (`DEPLOYMENT_PIPELINE_MANAGE`) trace a hypothetical API call

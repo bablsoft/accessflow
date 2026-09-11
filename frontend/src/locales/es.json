@@ -85,6 +85,7 @@
     "connectors": "Conectores",
     "auditor": "Informes de cumplimiento",
     "over_provisioned_access": "Accesos sobreaprovisionados",
+    "privileged_access": "Accesos privilegiados",
     "anomalies": "Anomalías",
     "break_glass": "Registro break-glass",
     "dashboard": "Panel",
@@ -2918,6 +2919,14 @@
       "DATASOURCE": "Fuente de datos",
       "API_CONNECTOR": "Conector de API"
     },
+    "standing_bypass_kind": {
+      "QUERY_ADMIN": "Administrador de consultas",
+      "BREAK_GLASS": "Break-glass"
+    },
+    "permission_source_kind": {
+      "DIRECT": "Permiso directo",
+      "GROUP": "Permiso de grupo"
+    },
     "grant_usage_recommendation": {
       "INSUFFICIENT_DATA": "Datos insuficientes",
       "NEVER_USED": "Nunca usado",
@@ -3680,6 +3689,32 @@
     "empty_title": "Sin permisos permanentes",
     "empty_description": "Ningún permiso coincide con estos filtros. El uso se resume de forma programada, así que un permiso nuevo puede no aparecer todavía.",
     "load_error": "No se pudo cargar el informe de accesos sobreaprovisionados"
+  },
+  "privileged_access": {
+    "title": "Accesos privilegiados",
+    "subtitle": "Identidades que pueden llegar a los datos sin una fila de permisos: los administradores de consultas omiten la comprobación por fuente de datos y los permisos break-glass evitan la revisión. Solo informativo; aquí no se revoca ningún acceso.",
+    "col_identity": "Identidad",
+    "col_role": "Rol",
+    "col_bypass": "Omisión",
+    "col_break_glass": "Fuentes de datos break-glass",
+    "col_queries": "Consultas enviadas",
+    "col_break_glass_runs": "Ejecuciones break-glass",
+    "system_role": "Rol del sistema",
+    "custom_role": "Rol personalizado",
+    "via_group": "vía {{group}}",
+    "never_expires": "no caduca",
+    "expires_at": "caduca el {{date}}",
+    "none": "—",
+    "never": "Nunca",
+    "last_at": "última {{ago}}",
+    "filter_kind": "Tipo de omisión",
+    "filter_all_kinds": "Todos los tipos de omisión",
+    "filter_user_placeholder": "Filtrar por id de usuario",
+    "count_label_one": "{{count}} identidad",
+    "count_label_other": "{{count}} identidades",
+    "empty_title": "Sin accesos privilegiados",
+    "empty_description": "Ningún usuario activo de esta organización tiene QUERY_ADMIN ni un permiso break-glass vigente que coincida con estos filtros.",
+    "load_error": "No se pudo cargar el informe de accesos privilegiados"
   },
   "apiGov": {
     "connectors": {

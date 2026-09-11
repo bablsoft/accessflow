@@ -10,6 +10,7 @@ import {
   driftColor,
   deploymentRollbackReviewStatusColor,
   grantUsageRecommendationColor,
+  standingBypassKindColor,
   statusColor,
 } from './statusColors';
 import type {
@@ -17,6 +18,7 @@ import type {
   DeploymentOutcome,
   AttestationItemDecision,
   GrantUsageRecommendation,
+  StandingBypassKind,
   BehaviorAnomalyStatus,
   BreakGlassEventStatus,
 } from '@/types/api';
@@ -164,5 +166,24 @@ describe('driftColor (#743)', () => {
       expect(triple.bg).toMatch(/^var\(--/);
       expect(triple.border).toMatch(/^var\(--/);
     }
+  });
+});
+
+describe('standingBypassKindColor', () => {
+  const ALL: StandingBypassKind[] = ['QUERY_ADMIN', 'BREAK_GLASS'];
+
+  it('returns a distinct colour triple for each kind, and none is a raw hex', () => {
+    const triples = ALL.map((k) => standingBypassKindColor(k));
+    expect(new Set(triples.map((c) => JSON.stringify(c))).size).toBe(ALL.length);
+    for (const c of triples) {
+      expect(c.fg).toMatch(/^var\(--/);
+      expect(c.bg).toMatch(/^var\(--/);
+      expect(c.border).toMatch(/^var\(--/);
+    }
+  });
+
+  it('ranks QUERY_ADMIN above break-glass', () => {
+    expect(standingBypassKindColor('QUERY_ADMIN').fg).toBe('var(--risk-crit)');
+    expect(standingBypassKindColor('BREAK_GLASS').fg).toBe('var(--risk-high)');
   });
 });

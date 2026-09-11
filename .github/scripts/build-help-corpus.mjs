@@ -43,7 +43,9 @@ const MIN_QUICK_REF_TOKENS = 1500;
 // file. `HelpChatPromptRenderer` plain-truncates this block's tail to whatever the conversation
 // leaves of the character budget, so growth costs the *end* of the file first — which is why the
 // menu and the control labels are rendered above the off-menu route list rather than below it.
-const MAX_QUICK_REF_TOKENS = 6000;
+// Raised again from 6000 for the privileged-access menu entry (#968), whose any-of gate renders two
+// permission names on its line; the ceiling is a broken-selector guard, not the prompt budget.
+const MAX_QUICK_REF_TOKENS = 6200;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GITHUB_BLOB = 'https://github.com/bablsoft/accessflow/blob/main/';
@@ -550,6 +552,7 @@ const ROUTES = [
   ['/admin/audit-sinks', 'Where audit rows are streamed for long-term retention.'],
   ['/admin/auditor', 'Compliance reports and signed PDF / CSV exports.'],
   ['/admin/over-provisioned-access', 'Grants nobody has used, suggested for revocation.'],
+  ['/admin/privileged-access', 'Who can bypass the permission gate — query admins and break-glass holders — and how often they have.'],
   ['/admin/lifecycle/policies', 'Data retention and erasure policies.'],
 ];
 
