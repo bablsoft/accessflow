@@ -2773,8 +2773,9 @@ skip-on-malformed rule.
 
 ## SQL review (`sqlreview`, #861 / epic #860)
 
-Deterministic, named SQL review rules with per-environment severity. #861 lands only the storage
-and type foundation (migration `V170` + the `V171` permission seed): the rule catalog (#862),
+Deterministic, named SQL review rules with per-environment severity. #861 lands the storage and
+type foundation (migration `V170` + the `V171` permission seed); #862 the rule engine and the
+fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
 ruleset administration and the evaluation API (#863), submission enforcement (#864) and the editor
 lint (#865) follow. Two PG enums, created in `V170`:
 
@@ -2810,7 +2811,11 @@ One ruleset per environment per organization, plus at most one organization-wide
 ### sql_review_rule_configs
 
 The severity (and parameters) a ruleset assigns to one rule. Rule ids are code-defined (the
-catalog is #862), so `rule_id` is `VARCHAR`, not a PG enum.
+catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862), so `rule_id` is `VARCHAR`, not a PG
+enum. A catalog rule with **no** row in the resolved ruleset is still evaluated, at its built-in
+default severity; a row is only needed to change the severity (or turn the rule `OFF`) or to set
+params. A row naming a rule id the catalog does not know is ignored at evaluation time (logged)
+and rejected at write time by `SqlRuleParamsValidator`.
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -2818,7 +2823,7 @@ catalog is #862), so `rule_id` is `VARCHAR`, not a PG enum.
 | `ruleset_id` | UUID NOT NULL, FK → `sql_review_rulesets` ON DELETE CASCADE |
 | `rule_id` | VARCHAR(100) NOT NULL — e.g. `missing_where_on_delete` |
 | `severity` | `sql_review_severity` NOT NULL |
-| `params` | JSONB NULL — rule-specific parameters (a banned-function list, protected-table globs) |
+| `params` | JSONB NULL — rule-specific parameters as a JSON object of **string arrays**, keyed by the rule's declared param key: `{"names": ["pg_sleep", "sleep"]}` for `disallowed_function`, `{"globs": ["payroll.*", "*.audit_log"]}` for `protected_table`; NULL for the twelve parameterless rules. Encoded/decoded only through `sqlreview/internal/SqlRuleParamsCodec` (a scalar is read as a one-element list; anything else is a malformed ruleset) |
 | `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
 
 > **Constraint:** `UNIQUE (ruleset_id, rule_id)`. Index on `ruleset_id`.
@@ -2837,8 +2842,8 @@ reader's locale.
 | `rule_id` | VARCHAR(100) NOT NULL |
 | `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
 | `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
-| `line_number` | INTEGER NULL — one-based line of the offending construct |
-| `args` | JSONB NULL — message arguments keyed by placeholder name |
+| `line_number` | INTEGER NULL — one-based line of the offending construct; NULL for every member of a `BEGIN…COMMIT` envelope (the evaluator re-parses deparsed slices there) and for constructs JSqlParser gives no position for |
+| `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message` |
 | `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 
 > Index `idx_query_sql_review_findings_request` on `query_request_id`; reads order by

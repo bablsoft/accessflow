@@ -20,14 +20,23 @@ class SqlReviewRulesetViewsTest {
             new SqlReviewRuleConfigView("select_star", SqlReviewSeverity.WARN, Map.of());
 
     @Test
-    void ruleConfigViewCopiesParamsAndDefaultsNullToEmpty() {
-        var params = new HashMap<String, String>();
-        params.put("names", "pg_sleep,sleep");
+    void ruleConfigViewDeepCopiesParamsAndDefaultsNullToEmpty() {
+        var names = new ArrayList<String>();
+        names.add("pg_sleep");
+        var params = new HashMap<String, List<String>>();
+        params.put("names", names);
+        params.put("empty", null);
         var view = new SqlReviewRuleConfigView("disallowed_function", SqlReviewSeverity.BLOCK, params);
-        params.put("later", "x");
+        params.put("later", List.of("x"));
+        names.add("sleep");
 
-        assertThat(view.params()).containsOnlyKeys("names");
-        assertThatThrownBy(() -> view.params().put("k", "v")).isInstanceOf(UnsupportedOperationException.class);
+        assertThat(view.params()).containsOnlyKeys("names", "empty");
+        assertThat(view.params().get("names")).containsExactly("pg_sleep");
+        assertThat(view.params().get("empty")).isEmpty();
+        assertThatThrownBy(() -> view.params().put("k", List.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> view.params().get("names").add("x"))
+                .isInstanceOf(UnsupportedOperationException.class);
         assertThat(new SqlReviewRuleConfigView("r", SqlReviewSeverity.OFF, null).params()).isEmpty();
     }
 

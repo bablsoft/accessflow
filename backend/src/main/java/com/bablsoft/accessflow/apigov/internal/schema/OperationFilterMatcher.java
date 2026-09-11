@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.apigov.internal.schema;
 
 import com.bablsoft.accessflow.apigov.api.ApiOperation;
 import com.bablsoft.accessflow.apigov.api.OperationFilter;
+import com.bablsoft.accessflow.core.api.GlobMatcher;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

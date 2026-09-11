@@ -1,5 +1,7 @@
 package com.bablsoft.accessflow.sqlreview.api;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -7,11 +9,19 @@ import java.util.Map;
  *
  * @param ruleId   the code-defined rule identifier
  * @param severity the assigned severity
- * @param params   rule-specific parameters (e.g. a name list for {@code disallowed_function});
- *                 never {@code null}
+ * @param params   rule-specific list parameters keyed by the rule's declared param key — the JSONB
+ *                 shape is {@code {"names": ["pg_sleep"]}} for {@code disallowed_function} and
+ *                 {@code {"globs": ["payroll.*"]}} for {@code protected_table}; never {@code null},
+ *                 deep-copied, a {@code null} list reads as empty
  */
-public record SqlReviewRuleConfigView(String ruleId, SqlReviewSeverity severity, Map<String, String> params) {
+public record SqlReviewRuleConfigView(String ruleId, SqlReviewSeverity severity, Map<String, List<String>> params) {
     public SqlReviewRuleConfigView {
-        params = params == null ? Map.of() : Map.copyOf(params);
+        params = params == null ? Map.of() : deepCopy(params);
+    }
+
+    private static Map<String, List<String>> deepCopy(Map<String, List<String>> source) {
+        var copy = new HashMap<String, List<String>>(source.size());
+        source.forEach((key, values) -> copy.put(key, values == null ? List.of() : List.copyOf(values)));
+        return Map.copyOf(copy);
     }
 }
