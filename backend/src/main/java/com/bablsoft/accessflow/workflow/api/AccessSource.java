@@ -14,10 +14,10 @@ import java.util.UUID;
  * @param coveringAllowListEntry  the entry that covers the table — the schema or the qualified table
  *                                — or {@code null} under {@link TableScope#ALL_TABLES}
  * @param expiresAt               {@code null} means the source never expires
- * @param preApproveQueries       set only on {@link AccessSourceKind#JIT_GRANT}, and there only
- *                                while the originating grant is active and pre-approving (#582):
- *                                queries under it also skip review. {@code false} on a JIT row
- *                                whose grant has expired or was never opted in
+ * @param preApproveQueries       set only on {@link AccessSourceKind#JIT_GRANT}: the user's queries
+ *                                on this datasource currently skip review (#582), as the submission
+ *                                fast-path would decide it. {@code false} on a JIT row when no
+ *                                active pre-approving grant remains
  */
 public record AccessSource(AccessSourceKind kind, UUID sourceId, UUID groupId, String groupName,
                            boolean grantsCapability, TableScope tableScope,

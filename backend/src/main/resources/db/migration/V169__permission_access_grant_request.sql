@@ -2,7 +2,9 @@
 -- effective-access report (#859) labels JIT_GRANT from a foreign key instead of correlating on
 -- (requester, datasource, active APPROVED grant). Nullable: an admin-created row genuinely has no
 -- originating request. ON DELETE SET NULL because the permission row's lifecycle belongs to the
--- core module and must survive a hard-deleted access_grant_request row.
+-- core module and must survive a hard-deleted access_grant_request row. The schema-level
+-- dependency core → access is deliberate and one-directional: the JPA side stays a bare UUID
+-- (precedent: user_notifications.deployment_request_id, V155).
 ALTER TABLE datasource_user_permissions
     ADD COLUMN access_grant_request_id UUID REFERENCES access_grant_request(id) ON DELETE SET NULL;
 

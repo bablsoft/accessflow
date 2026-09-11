@@ -69,9 +69,12 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
         }
         var queryAdminIds = Set.copyOf(rolePermissionHolderLookupService
                 .findUserIdsWithPermission(organizationId, Permission.QUERY_ADMIN));
-        var preApprovingGrantIds = accessGrantLookupService
+        // Keyed by user, not by grant: the submission fast-path (#582) pre-approves on any active
+        // pre-approving grant the submitter holds for the datasource, so that is the set the flag
+        // must agree with — not the one grant a given row happens to have been materialised from.
+        var preApprovedUserIds = accessGrantLookupService
                 .findPreApprovingGrantsForDatasource(organizationId, query.datasourceId()).stream()
-                .map(AccessGrantView::id)
+                .map(AccessGrantView::requesterId)
                 .collect(Collectors.toUnmodifiableSet());
 
         var candidateIds = new LinkedHashSet<>(byUser.keySet());
@@ -80,8 +83,8 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                 .filter(UserView::active)
                 .filter(user -> organizationId.equals(user.organizationId()))
                 .map(user -> toRow(user, byUser.getOrDefault(user.id(), List.of()),
-                        queryAdminIds.contains(user.id()), preApprovingGrantIds, table,
-                        queryType))
+                        queryAdminIds.contains(user.id()),
+                        preApprovedUserIds.contains(user.id()), table, queryType))
                 .filter(EffectiveAccessRow::granted)
                 .sorted(Comparator.comparing(EffectiveAccessRow::email,
                         Comparator.nullsLast(String::compareTo)))
@@ -117,8 +120,8 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
 
     private EffectiveAccessRow toRow(UserView user,
                                      List<DatasourcePermissionContribution> contributions,
-                                     boolean queryAdmin, Set<UUID> preApprovingGrantIds,
-                                     String table, QueryType queryType) {
+                                     boolean queryAdmin, boolean preApproved, String table,
+                                     QueryType queryType) {
         var merged = permissionLookupService.mergeContributions(contributions).orElse(null);
         var sources = new ArrayList<AccessSource>(contributions.size() + 2);
         if (queryAdmin) {
@@ -126,7 +129,7 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                     true, TableScope.ALL_TABLES, null, null, false));
         }
         for (var contribution : contributions) {
-            sources.add(toSource(contribution, preApprovingGrantIds, table, queryType));
+            sources.add(toSource(contribution, preApproved, table, queryType));
         }
         // One per granting row rather than one derived from the merge: "who gave me this" is the
         // useful half of a break-glass answer, and the merge does not keep it.
@@ -150,15 +153,12 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
     }
 
     private static AccessSource toSource(DatasourcePermissionContribution contribution,
-                                         Set<UUID> preApprovingGrantIds, String table,
-                                         QueryType queryType) {
+                                         boolean preApproved, String table, QueryType queryType) {
         boolean direct = contribution.sourceKind() == DatasourcePermissionSourceKind.DIRECT;
-        // The originating request is a foreign key on the row (#969); whether that grant is still
-        // active and pre-approving is read from the access module's own active set, so an expired
-        // or never-opted-in grant keeps the label and loses only the pre-approval.
+        // The label is the foreign key on the row (#969) — a JIT row stays JIT_GRANT after its
+        // grant expires. The flag is what enforcement would do for this user right now.
         boolean jit = direct && contribution.accessGrantRequestId() != null;
-        boolean preApproveQueries = jit
-                && preApprovingGrantIds.contains(contribution.accessGrantRequestId());
+        boolean preApproveQueries = jit && preApproved;
         var kind = jit ? AccessSourceKind.JIT_GRANT
                 : direct ? AccessSourceKind.DIRECT_PERMISSION : AccessSourceKind.GROUP_PERMISSION;
         return new AccessSource(kind, contribution.sourceId(), contribution.groupId(),

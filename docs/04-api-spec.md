@@ -4093,7 +4093,7 @@ endpoint adds):
 |---|---|
 | `DIRECT_PERMISSION` | An unexpired `datasource_user_permissions` row |
 | `GROUP_PERMISSION` | An unexpired group permission inherited through membership (AF-530) |
-| `JIT_GRANT` | A direct row materialised from an approved JIT access request — read off `datasource_user_permissions.access_grant_request_id` (#969), never inferred. `pre_approve_queries` is `true` only while that grant is `APPROVED`, unexpired and opted into query pre-approval (#582), meaning queries under it also skip review; it is `false` on a JIT row whose grant has since expired or was never opted in |
+| `JIT_GRANT` | A direct row materialised from an approved JIT access request — read off `datasource_user_permissions.access_grant_request_id` (#969), never inferred. `pre_approve_queries` is `true` while the user holds an active pre-approving grant on this datasource — the same lookup the submission fast-path runs (#582) — meaning queries under it also skip review; it is `false` on a JIT row once no such grant remains (expired, revoked, or never opted in) |
 | `QUERY_ADMIN_BYPASS` | The user holds `QUERY_ADMIN`, which **skips the per-datasource gate entirely**. Such a user appears here with `granted: true` and this single source even when they have **no** permission row at all — the row no other screen shows |
 | `BREAK_GLASS` | The user holds `can_break_glass` on this datasource |
 

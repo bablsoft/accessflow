@@ -13,9 +13,10 @@ public enum AccessSourceKind {
      * A direct row materialised from an approved JIT access request — a foreign key
      * ({@code datasource_user_permissions.access_grant_request_id}, #969), not a correlation.
      *
-     * <p>{@link AccessSource#preApproveQueries()} says whether that grant is currently
-     * {@code APPROVED}, unexpired and opted into query pre-approval (#582); a JIT row whose grant
-     * has since expired, or was never opted in, keeps this label with the flag {@code false}.
+     * <p>{@link AccessSource#preApproveQueries()} says whether the user's queries on this datasource
+     * currently skip review (#582) — true while they hold any {@code APPROVED}, unexpired grant
+     * opted into pre-approval, the same lookup the submission fast-path runs. A JIT row whose grant
+     * has expired, or was never opted in, keeps this label with the flag {@code false}.
      */
     JIT_GRANT,
 

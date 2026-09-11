@@ -201,9 +201,24 @@ class DefaultEffectiveAccessServiceTest {
     }
 
     @Test
-    void aJitRowWhoseGrantIsNotCurrentlyPreApprovingKeepsTheLabelWithoutPreApproval() {
-        // The grant expired (or was never opted in), so it is absent from the active set — the row
-        // is still a JIT row by foreign key; only the pre-approval is gone.
+    void aJitRowWithNoActivePreApprovingGrantKeepsTheLabelWithoutPreApproval() {
+        // The grant expired (or was never opted in) and the user holds no other — the row is still
+        // a JIT row by foreign key; only the pre-approval is gone.
+        givenContributions(jit(analystId, Instant.now().plusSeconds(3600), UUID.randomUUID()));
+        givenUsers(user(analystId, "dana@example.com"));
+
+        var source = report(StatementCapability.READ, "public.payments").content().get(0)
+                .sources().get(0);
+
+        assertThat(source.kind()).isEqualTo(AccessSourceKind.JIT_GRANT);
+        assertThat(source.preApproveQueries()).isFalse();
+    }
+
+    @Test
+    void preApprovalFollowsTheUserNotTheRowsOwnGrant() {
+        // Grant stacking: a later non-pre-approving grant B replaced the row grant A materialised,
+        // but A is still APPROVED and unexpired — the submission fast-path keys on the user, so
+        // queries still skip review and the flag must say so.
         givenContributions(jit(analystId, Instant.now().plusSeconds(3600), UUID.randomUUID()));
         givenUsers(user(analystId, "dana@example.com"));
         when(accessGrantLookupService.findPreApprovingGrantsForDatasource(organizationId,
@@ -213,7 +228,7 @@ class DefaultEffectiveAccessServiceTest {
                 .sources().get(0);
 
         assertThat(source.kind()).isEqualTo(AccessSourceKind.JIT_GRANT);
-        assertThat(source.preApproveQueries()).isFalse();
+        assertThat(source.preApproveQueries()).isTrue();
     }
 
     @Test
