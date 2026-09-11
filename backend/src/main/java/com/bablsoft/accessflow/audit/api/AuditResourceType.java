@@ -33,6 +33,7 @@ public enum AuditResourceType {
     ACCESS_GRANT_REQUEST("access_grant_request"),
     MASKING_POLICY("masking_policy"),
     ROUTING_POLICY("routing_policy"),
+    SQL_REVIEW_RULESET("sql_review_ruleset"),
     ROW_SECURITY_POLICY("row_security_policy"),
     CONNECTOR("connector"),
     QUERY_COMMENT("query_comment"),

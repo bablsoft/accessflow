@@ -270,4 +270,43 @@ class DefaultSqlReviewServiceTest {
                 .isInstanceOf(InvalidSqlException.class);
         verifyNoInteractions(rulesetRepository);
     }
+
+    @Test
+    void evaluateForUserResolvesThroughUserVisibilityForNonAdmins() {
+        var user = UUID.randomUUID();
+        when(datasourceAdminService.getForUser(DATASOURCE, ORG, user))
+                .thenReturn(datasource(DbType.POSTGRESQL, null));
+        givenSingleStatement("DELETE FROM t");
+        when(rulesetRepository.findByOrganizationIdAndEnvironmentIsNull(ORG)).thenReturn(Optional.empty());
+
+        var result = service.evaluateForUser(ORG, user, false, DATASOURCE, "DELETE FROM t");
+
+        assertThat(result.applicable()).isTrue();
+        assertThat(result.findings()).isEmpty();
+        verify(datasourceAdminService, never()).getForAdmin(any(), any());
+    }
+
+    @Test
+    void evaluateForUserResolvesThroughOrganizationScopeForAdmins() {
+        var user = UUID.randomUUID();
+        when(datasourceAdminService.getForAdmin(DATASOURCE, ORG))
+                .thenReturn(datasource(DbType.MONGODB, DatasourceEnvironment.PRODUCTION));
+
+        var result = service.evaluateForUser(ORG, user, true, DATASOURCE, "{}");
+
+        assertThat(result.applicable()).isFalse();
+        verify(datasourceAdminService, never()).getForUser(any(), any(), any());
+        verifyNoInteractions(sqlParserService, rulesetRepository, ruleConfigRepository);
+    }
+
+    @Test
+    void evaluateForUserPropagatesInvisibleDatasourceAsNotFound() {
+        var user = UUID.randomUUID();
+        when(datasourceAdminService.getForUser(DATASOURCE, ORG, user))
+                .thenThrow(new DatasourceNotFoundException(DATASOURCE));
+
+        assertThatThrownBy(() -> service.evaluateForUser(ORG, user, false, DATASOURCE, "SELECT 1"))
+                .isInstanceOf(DatasourceNotFoundException.class);
+        verifyNoInteractions(sqlParserService, rulesetRepository, ruleConfigRepository);
+    }
 }

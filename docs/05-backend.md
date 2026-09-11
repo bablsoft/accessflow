@@ -1552,10 +1552,9 @@ For `REQUIRE_APPROVALS` / `ESCALATE`, the resolved absolute count is written to 
 The third way a query is judged, next to AI analysis and routing policies: a **named, deterministic
 rule catalog** evaluated over the JSqlParser AST, with a per-rule severity (`OFF` / `WARN` /
 `BLOCK`) that an admin sets per environment. #862 ships the engine and the fourteen built-in rules
-behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; ruleset
-administration and the evaluation endpoint are #863, enforcement at the submission chokepoint is
-#864 (`BLOCK` suppresses every auto-approve path and forces `PENDING_REVIEW` — it **never**
-rejects), the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; #863 the REST
+surface (below); enforcement at the submission chokepoint is #864 (`BLOCK` suppresses every
+auto-approve path and forces `PENDING_REVIEW` — it **never** rejects), the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
 
 **Applicability.** Every rule is a pure function of the parsed statement, so the catalog covers the
 in-process relational dialects only — `DefaultSqlReviewService.RELATIONAL_DIALECTS` =
@@ -1632,15 +1631,15 @@ proxy rejects it with 422 before any rule runs.
 (`{"names": [...]}`, `{"globs": [...]}`) — `sqlreview.api.SqlReviewRuleConfigView.params` is
 `Map<String, List<String>>`, `SqlRuleParamsCodec` is the only encoder/decoder. `SqlRuleParamsValidator`
 (the `RoutingConditionValidator` shape: `MessageSource`, message resolved at the throw site, throws
-`sqlreview.api.IllegalSqlReviewRulesetException` → 422 in #863) rejects an unknown rule id, params on
+`sqlreview.api.IllegalSqlReviewRulesetException` → 422 `SQL_REVIEW_RULESET_INVALID`) rejects an unknown rule id, params on
 a parameterless rule or an undeclared key, a required list that is *absent* (unless the param has
 built-in defaults, as `disallowed_function.names` does), a supplied list that is empty or contains a
 blank entry (`{"names": []}` is refused rather than silently re-defaulted, defaults or not), and an
 entry outside the param's own `valuePattern` — `[A-Za-z0-9_$*.-]` for globs, `[A-Za-z0-9_$.-]` for
 function names (ASCII only — a non-ASCII quoted identifier cannot be protected yet) — carried on `SqlRuleParam` together with its `error.*` key, so the validator knows
 no rule by name and a fifteenth parameterised rule cannot slip past it unchecked. A malformed
-ruleset is thus refused when saved, never discovered during evaluation; #863 wires it into ruleset
-create / update. Rows written any other way are still degraded, not fatal: a config row whose stored
+ruleset is thus refused when saved, never discovered during evaluation; `DefaultSqlReviewRulesetService`
+runs it on every create / update, and a rule id listed twice is refused the same way. Rows written any other way are still degraded, not fatal: a config row whose stored
 `params` will not decode keeps its severity and runs with no params (logged at WARN), exactly as an
 unknown rule id is logged and skipped — `evaluate()` throws only for a missing datasource or
 unparseable SQL.
@@ -1650,9 +1649,46 @@ text comes from three keys per rule in every `messages*.properties` —
 `sqlreview.rule.<id>.name`, `.description`, `.message` — 42 keys, parity-checked by
 `MessagesParityTest`. `.message` uses positional `MessageFormat` placeholders bound in
 `messageArgKeys()` order (e.g. `protected_table` → `{0}` = `table`, `{1}` = `glob`); `.name` and
-`.description` take no args. Rendering per reader — query detail, reviewer queue, the editor's
-`Accept-Language` — is #864 / #865. Six `error.sql_review_rule_*` keys back the validator (five) and
+`.description` take no args. Rendering per reader goes through `SqlReviewFindingRenderer` (#863) — the evaluation endpoint
+today, the query detail and reviewer queue in #864, the editor in #865. Six `error.sql_review_rule_*` keys back the validator (five) and
 `SqlRuleParamsCodec` (`error.sql_review_rule_params_invalid`, a malformed stored `params` JSONB).
+
+**The REST surface (#863).** Three endpoints, all in `sqlreview/internal/web/`, documented in
+[docs/04-api-spec.md](04-api-spec.md#sql-review-rulesets-adminsql-review-rulesets-sql_review_manage-863):
+
+- `/admin/sql-review-rulesets` (`SQL_REVIEW_MANAGE`) — `AdminSqlReviewRulesetController` over
+  `sqlreview.api.SqlReviewRulesetService` (`DefaultSqlReviewRulesetService`). Uniqueness (one ruleset
+  per environment, one org default) is pre-checked so the normal case is a clean 409
+  `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` / `SQL_REVIEW_RULESET_DEFAULT_CONFLICT`, and the
+  `saveAndFlush` is wrapped so a concurrent writer that slips past the pre-check surfaces as the same
+  exception rather than a raw constraint violation; on update the pre-check runs *before* the managed
+  entity is touched, because Hibernate auto-flushes a dirty entity ahead of the pre-check query. Rule
+  configs go through `SqlRuleParamsValidator` first (now also refusing a rule id listed twice) →
+  422 `SQL_REVIEW_RULESET_INVALID`; a non-null `rules` list replaces the config set wholesale (bulk
+  delete, then insert). `PUT` is total at the web layer (`UpdateSqlReviewRulesetRequest.toCommand()`
+  turns every absent field into a value) while the api command stays a partial update. Every
+  mutation is audited from the controller (`SQL_REVIEW_RULESET_CREATED` / `_UPDATED` / `_DELETED`,
+  resource `sql_review_ruleset`) so `ip_address` / `user_agent` come from the live request. An
+  unreadable body (unknown `severity` / `environment` literal) is a controller-local 400 rather than
+  the security catch-all's 500. Ruleset *resolution* is not part of this service — it stays in
+  `DefaultSqlReviewService`, whose semantics (a bound-but-disabled ruleset yields no rules) are the
+  only ones the engine honours; the `resolve(...)` declared by #861 was dropped as unused.
+- `GET /sql-review/rules` (`SQL_REVIEW_MANAGE`) — `sqlreview.api.SqlReviewRuleCatalogService`
+  (`DefaultSqlReviewRuleCatalogService`) projects `SqlRuleCatalog` onto `SqlReviewRuleView`s with
+  `.name` / `.description` resolved in the request locale and each `SqlRuleParam` as `key`,
+  `required`, `defaults`, `value_pattern` — the admin UI renders its severity table from this.
+- `POST /sql-review/evaluate` (any signed-in user) — `SqlReviewService.evaluateForUser(org, user,
+  isAdmin, datasource, sql)`, which resolves the datasource `isAdmin ? getForAdmin : getForUser`
+  exactly as `DefaultQueryDryRunService` does (`isAdmin` = `QUERY_ADMIN`), so an invisible datasource
+  is `DatasourceNotFoundException` → 404, never 403, and never reveals its ruleset. The rest of the
+  path is the system `evaluate`. `sqlreview.api.SqlReviewFindingRenderer`
+  (`DefaultSqlReviewFindingRenderer`) binds each finding's `args` onto
+  `sqlreview.rule.<id>.message` in `messageArgKeys()` order for the request locale — the same
+  renderer #864 / #865 use for the query detail and reviewer queue. Read-only by construction: the
+  service is `readOnly`, the controller takes no `RequestAuditContext`, and
+  `SqlReviewControllerIntegrationTest` proves `query_sql_review_findings` and `audit_log` are
+  untouched by a call. Unparseable SQL is the parser's 422 `INVALID_SQL`, never an empty (clean-
+  looking) finding list; an engine-plugin datasource is 200 `applicable: false`.
 
 **Tests.** One `<Rule>Test` per rule (match, non-match, line number, args; the parameterised pair
 also cover configured / empty / absent params), the anti-defeat pair (`UPDATE … WHERE 1 = 1` is
@@ -1660,7 +1696,13 @@ silent for `missing_where_on_update` and caught by `where_always_true`), `SqlRev
 (ordering, `OFF`, re-stamping, a throwing rule, envelope indices), `DefaultSqlReviewServiceTest`
 (the full resolution chain and the non-relational guard, which asserts the parser and repositories
 are never touched), `SqlRuleCatalogTest` (fourteen unique ids, every id has its three message keys,
-`messageArgKeys` equals the args each rule emits).
+`messageArgKeys` equals the args each rule emits). #863 adds `DefaultSqlReviewRulesetServiceTest`
+(create / update / delete, both conflicts, the raced unique violation, validation-before-mutation),
+`DefaultSqlReviewRuleCatalogServiceTest`, `DefaultSqlReviewFindingRendererTest`, the controller /
+handler / web-model unit tests, and two `@SpringBootTest`s — `AdminSqlReviewRulesetControllerIntegrationTest`
+(403 for `ANALYST` and for a custom role without the permission, both 409s, 422, 400, the audit row
+per mutation, cross-org 404) and `SqlReviewControllerIntegrationTest` (localized findings under
+`Accept-Language`, the visibility 404, 422, `applicable: false`, and the no-persistence proof).
 
 ### Implementation: review decisions
 

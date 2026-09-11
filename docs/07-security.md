@@ -388,7 +388,8 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
-| Manage SQL review rulesets (`SQL_REVIEW_MANAGE`, #861) | — | — | — | ✓ | — |
+| Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
+| Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |
@@ -486,10 +487,16 @@ permission at all, is in
 
 **Deterministic SQL review (#861, epic #860):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
 group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same
-`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). It will gate the ruleset CRUD and the
-read-only evaluation endpoint that #863 adds; #861 ships the catalog value, the seed and the
-storage only, so nothing is gated by it yet. A datasource's new `environment` attribute is written
-under the existing `DATASOURCE_MANAGE` permission — it is datasource configuration, not policy.
+`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). Since #863 it gates the ruleset CRUD
+(`/admin/sql-review-rulesets`, every mutation audited as `SQL_REVIEW_RULESET_*`) and the localized
+rule catalog (`GET /sql-review/rules`). The read-only evaluation endpoint
+(`POST /sql-review/evaluate`) is deliberately **not** behind it: any signed-in user may lint SQL
+against a datasource they can see, authorized exactly as `POST /queries/analyze` and
+`POST /queries/dry-run` — a direct or group permission row, or `QUERY_ADMIN` — and a datasource the
+caller cannot see is a **404**, never a 403, so the endpoint cannot be used to learn which ruleset
+(or which protected-table globs) a hidden datasource carries. It persists nothing and writes no audit
+row. A datasource's `environment` attribute is written under the existing `DATASOURCE_MANAGE`
+permission — it is datasource configuration, not policy.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
