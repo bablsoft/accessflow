@@ -1509,8 +1509,7 @@ by such a holder passed through the bypass, so "queries submitted" *is* the bypa
 the candidate ids — total rows and `max(created_at)`, plus the `submission_reason = 'EMERGENCY_ACCESS'`
 subset via Postgres `FILTER` — scoped through `datasources.organization_id` like the dashboard's
 self-scoped aggregates, and served by `idx_query_requests_submitter (submitted_by, created_at DESC)`,
-which `V168` finally creates (docs/03 had listed it since the start with no migration behind it).
-Counts cover every status: a rejected submission still exercised the bypass.
+created by `V168`. Counts cover every status: a rejected submission still exercised the bypass.
 
 Paging is an in-memory slice for the same reason the reverse index's is: a row is a Java merge of three
 lookups that no `Specification` expresses, and the candidate set — the organization's `QUERY_ADMIN`

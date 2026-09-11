@@ -172,10 +172,13 @@ describe('PrivilegedAccessPage', () => {
     await screen.findByText('root@example.com');
     expect(listMock.mock.calls[0]?.[0]).toEqual({ page: 0, size: 20 });
 
-    fireEvent.change(screen.getByLabelText('Filter by user id'), { target: { value: ' u-1 ' } });
+    const uuid = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+    fireEvent.change(screen.getByLabelText('Filter by user id'), {
+      target: { value: ` ${uuid} ` },
+    });
 
     await waitFor(() =>
-      expect(listMock.mock.calls.at(-1)?.[0]).toEqual({ page: 0, size: 20, user_id: 'u-1' }),
+      expect(listMock.mock.calls.at(-1)?.[0]).toEqual({ page: 0, size: 20, user_id: uuid }),
     );
 
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'Bypass kind' }));
@@ -186,9 +189,46 @@ describe('PrivilegedAccessPage', () => {
         page: 0,
         size: 20,
         kind: 'BREAK_GLASS',
-        user_id: 'u-1',
+        user_id: uuid,
       }),
     );
+  });
+
+  /** A half-typed id would be a guaranteed 400 server-side, so it must not reach the request. */
+  it('does not send a user id that is not yet a whole UUID', async () => {
+    listMock.mockResolvedValue(pageOf([row()]));
+
+    render(wrap(<PrivilegedAccessPage />));
+    await screen.findByText('root@example.com');
+
+    fireEvent.change(screen.getByLabelText('Filter by user id'), {
+      target: { value: '3f2504e0-4f89' },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText('Filter by user id')).toHaveValue('3f2504e0-4f89'),
+    );
+    expect(listMock.mock.calls.every((c) => c[0]?.user_id === undefined)).toBe(true);
+  });
+
+  it('renders a dash rather than a role caption when the identity holds no role', async () => {
+    listMock.mockResolvedValue(
+      pageOf([
+        row({
+          role_id: null,
+          role_name: null,
+          system_role: false,
+          bypass_kinds: ['BREAK_GLASS'],
+          query_admin: null,
+        }),
+      ]),
+    );
+
+    render(wrap(<PrivilegedAccessPage />));
+
+    await screen.findByText('root@example.com');
+    expect(screen.queryByText('Custom role')).not.toBeInTheDocument();
+    expect(screen.queryByText('System role')).not.toBeInTheDocument();
   });
 
   it('refetches on refresh', async () => {

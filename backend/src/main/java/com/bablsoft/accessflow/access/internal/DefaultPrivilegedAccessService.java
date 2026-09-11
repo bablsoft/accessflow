@@ -174,7 +174,7 @@ class DefaultPrivilegedAccessService implements PrivilegedAccessService {
         // against is the unpaged "everything" case over an empty result set.
         int size = pageRequest == null ? Math.max(rows.size(), 1) : pageRequest.size();
         int from = Math.min((int) Math.min((long) page * size, Integer.MAX_VALUE), rows.size());
-        int to = Math.min(from + size, rows.size());
+        int to = (int) Math.min((long) from + size, rows.size());
         int totalPages = (int) Math.ceil(rows.size() / (double) size);
         return new PageResponse<>(rows.subList(from, to), page, size, rows.size(), totalPages);
     }

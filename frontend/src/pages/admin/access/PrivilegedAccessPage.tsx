@@ -25,6 +25,11 @@ import type { PrivilegedAccessRow, StandingBypassKind } from '@/types/api';
 
 const PAGE_SIZE = 20;
 
+// `user_id` binds to a UUID server-side and a partial value is a guaranteed 400, so the filter only
+// reaches the request once the text is a whole id — typing (rather than pasting) one must not turn
+// the table into an error state on every keystroke.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * The standing privileged-access report (#968): every identity that can reach data without
  * appearing in any permission table — QUERY_ADMIN holders, who skip the per-datasource gate
@@ -45,7 +50,7 @@ export default function PrivilegedAccessPage() {
       page,
       size: PAGE_SIZE,
       kind: kind === 'all' ? undefined : kind,
-      user_id: userId.trim() || undefined,
+      user_id: UUID_RE.test(userId.trim()) ? userId.trim() : undefined,
     }),
     [page, kind, userId],
   );
@@ -78,16 +83,21 @@ export default function PrivilegedAccessPage() {
         title: t('privileged_access.col_role'),
         key: 'role',
         width: 200,
-        render: (_: unknown, row: PrivilegedAccessRow) => (
-          <div>
-            <div style={{ fontSize: 13 }}>{row.role_name}</div>
-            <div className="muted" style={{ fontSize: 11 }}>
-              {row.system_role
-                ? t('privileged_access.system_role')
-                : t('privileged_access.custom_role')}
+        render: (_: unknown, row: PrivilegedAccessRow) =>
+          // A break-glass grantee need not hold a role at all; asserting "Custom role" for a null
+          // one would put a role on a security report that does not exist.
+          row.role_name === null ? (
+            <span className="muted">{t('privileged_access.none')}</span>
+          ) : (
+            <div>
+              <div style={{ fontSize: 13 }}>{row.role_name}</div>
+              <div className="muted" style={{ fontSize: 11 }}>
+                {row.system_role
+                  ? t('privileged_access.system_role')
+                  : t('privileged_access.custom_role')}
+              </div>
             </div>
-          </div>
-        ),
+          ),
       },
       {
         title: t('privileged_access.col_bypass'),

@@ -4138,8 +4138,8 @@ The standing, org-wide answer to the question an auditor opens the product to as
 without appearing in any permission table?** Two paths qualify, and neither shows up on any permission
 screen:
 
-- **`QUERY_ADMIN`** — the submission service reads `if (!input.isAdmin()) permissionVerifier.verify(...)`,
-  so a holder submits any statement against any datasource in the organization with **zero**
+- **`QUERY_ADMIN`** — the submission service skips the per-datasource permission gate for a holder
+  entirely, so they submit any statement against any datasource in the organization with **zero**
   `datasource_user_permissions` rows. The permission arrives through the system `ADMIN` role or through
   any custom role that carries it (AF-522); both resolve identically here.
 - **Break-glass** — a `can_break_glass` grant (a direct row, or a group row inherited through membership,

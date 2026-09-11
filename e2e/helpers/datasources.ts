@@ -1291,7 +1291,8 @@ export async function listOverProvisionedGrantsViaApi(
 }
 
 // #968 — the privileged-access report: one row per identity that can reach data with no
-// permission row (QUERY_ADMIN holders, break-glass grantees). Requires ADMIN or AUDITOR.
+// permission row (QUERY_ADMIN holders, break-glass grantees). Gated on
+// DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — ADMIN and AUDITOR by default.
 export interface PrivilegedAccessRow {
   user_id: string;
   email: string;
