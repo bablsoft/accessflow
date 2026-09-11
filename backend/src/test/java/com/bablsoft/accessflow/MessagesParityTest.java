@@ -8,11 +8,12 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
+import java.text.NumberFormat;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,6 +23,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class MessagesParityTest {
 
     private static final String BASE = "/i18n/messages.properties";
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{(\\d)(?:,[^}]*)?}");
 
     private static Stream<SupportedLanguage> nonEnglishLocales() {
         return Arrays.stream(SupportedLanguage.values()).filter(l -> l != SupportedLanguage.EN);
@@ -52,7 +54,8 @@ class MessagesParityTest {
      * apostrophe is the <em>quote</em> character: an unpaired {@code '} swallows itself and turns
      * the rest of the pattern into a literal, so {@code l'action {1}} renders as {@code laction {1}}
      * — the argument silently never substituted. That is invisible to the parity check above, which
-     * only compares key sets, and it bit the French `routing.matched` keys during AF-967.
+     * only compares key sets; it bit the French {@code routing.matched} keys during AF-967 and, once
+     * guarded, surfaced 24 more pre-existing elisions across the catalogue.
      *
      * <p>Every locale is checked, not only French: the same trap exists in any language that elides
      * (Italian, Catalan) and in an English string that quotes a word.
@@ -64,23 +67,20 @@ class MessagesParityTest {
         var props = load(resource);
         var broken = new TreeSet<String>();
         for (var key : new TreeSet<>(props.stringPropertyNames())) {
-            if (!GUARDED_PREFIXES.stream().anyMatch(key::startsWith)) {
-                continue;
-            }
             var pattern = props.getProperty(key);
             var placeholders = countPlaceholders(pattern);
             if (placeholders == 0) {
                 continue;
             }
-            var args = new Object[placeholders];
-            Arrays.setAll(args, i -> "<arg" + i + ">");
-            String rendered;
+            MessageFormat format;
             try {
-                rendered = new MessageFormat(pattern).format(args);
+                format = new MessageFormat(pattern);
             } catch (IllegalArgumentException ex) {
                 broken.add(key + " — unparseable: " + ex.getMessage());
                 continue;
             }
+            var args = stubArguments(format, placeholders);
+            var rendered = format.format(args);
             for (var arg : args) {
                 if (!rendered.contains(String.valueOf(arg))) {
                     broken.add(key + " — " + arg + " was not substituted: " + rendered);
@@ -93,27 +93,28 @@ class MessagesParityTest {
                 .isEmpty();
     }
 
-    /**
-     * Scoped rather than catalogue-wide, deliberately. When this guard was written it found the
-     * same defect in <strong>24 pre-existing patterns</strong> — 23 French, one English — none of
-     * them AF-967's. Fixing those is a real user-facing bug fix, but it is unrelated to this
-     * feature, needs a judgement call per string (an intentional {@code '{0}'} that escapes a
-     * placeholder reads identically to an elision typo), and belongs in its own reviewed change.
-     * Widen this set to everything once that lands.
-     */
-    private static final List<String> GUARDED_PREFIXES =
-            List.of("apigov.decision.", "apigov.simulation.", "deploygov.decision.",
-                    "deploygov.simulation.", "workflow.decision.", "workflow.access_simulation.");
-
-    /** {@code {0}}…{@code {9}} only — enough for every pattern the app actually uses. */
+    /** {@code {0}}…{@code {9}}, typed or not ({@code {0,number,#}}) — enough for every pattern the app uses. */
     private static int countPlaceholders(String pattern) {
         int highest = -1;
-        for (int i = 0; i < 10; i++) {
-            if (pattern.contains("{" + i + "}")) {
-                highest = i;
-            }
+        var matcher = PLACEHOLDER.matcher(pattern);
+        while (matcher.find()) {
+            highest = Math.max(highest, Integer.parseInt(matcher.group(1)));
         }
         return highest + 1;
+    }
+
+    /**
+     * A distinctive string per slot, except where the pattern types the slot as a number — a
+     * {@link NumberFormat} refuses a string outright. {@code 700 + i} stays below every locale's
+     * grouping threshold, so it renders as the same digits everywhere.
+     */
+    private static Object[] stubArguments(MessageFormat format, int placeholders) {
+        var formats = format.getFormatsByArgumentIndex();
+        var args = new Object[placeholders];
+        Arrays.setAll(args, i -> i < formats.length && formats[i] instanceof NumberFormat
+                ? 700 + i
+                : "<arg" + i + ">");
+        return args;
     }
 
     private static Stream<SupportedLanguage> allLocales() {

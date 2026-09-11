@@ -51,6 +51,10 @@ A service that throws with a per-call-site message injects `MessageSource` and r
       `request.getLocale()`.
 - [ ] SLF4J log messages stay in English, in code. They are developer-facing and are deliberately
       not translated.
+- [ ] Every apostrophe in a pattern that carries `{n}` args is doubled — `l''action`, `table''s`
+      — and a placeholder rendered verbatim is written `''{0}''`. `MessageFormat` treats `'` as
+      its quote character; `MessagesParityTest#placeholdersSurviveMessageFormat` renders every
+      pattern in every locale with stub args and fails on any argument that does not come out.
 - [ ] `mvn -q -f backend/pom.xml test -Dtest=MessagesParityTest` green.
 
 ## Anti-patterns
@@ -64,6 +68,13 @@ A service that throws with a per-call-site message injects `MessageSource` and r
   becomes invisible to the parity test and to grep. Use one key with `{0}` args:
   `messageSource.getMessage("error.datasource_failed", new Object[]{type}, locale)`.
 - **`@NotBlank(message = "Name is required")`** → unlocalizable, and Checkstyle blocks it.
+- **An unpaired `'` in a pattern with args** (`…correspondu avec l'action {1}`) → Spring runs any
+  key resolved with a non-empty args array through `MessageFormat`, where the apostrophe opens a
+  quote that swallows itself and the rest of the pattern: the user sees `laction {1}` with the
+  argument never substituted. Nothing throws, and the key-set parity check cannot see it. French
+  elisions are the usual source, but English possessives (`table's`) trip it too. Double it
+  (`l''action`); a key resolved with **no** args skips `MessageFormat`, so never double an
+  apostrophe in a pattern without `{n}`.
 - **Translating log messages** → makes production logs unsearchable across deployments.
 - **Deleting a key from a locale file to "fix" a parity failure** → that inverts the fix; the
   baseline is the source of truth.
