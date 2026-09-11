@@ -33,7 +33,7 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 ```
 com.bablsoft.accessflow.deploygov/
 ├── api/         # PipelineProvider, FreezeBehavior, DeploymentOutcome, DeploymentRoutingAction,
-│                # DeploymentRollbackReviewStatus, eleven service interfaces, view + command records,
+│                # DeploymentRollbackReviewStatus, thirteen service interfaces, view + command records,
 │                # the exception hierarchy (JDK + project types only)
 ├── events/      # DeploymentSubmitted/AnalysisCompleted/AnalysisSkipped/AnalysisFailed/
 │                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent
@@ -50,7 +50,7 @@ com.bablsoft.accessflow.deploygov/
     │                                # the two grant entities + repos
     ├── routing/     # DeploymentRoutingPolicyEngine
     ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
-    └── web/         # eight controllers, request/response records,
+    └── web/         # nine controllers, request/response records,
                      # DeploygovExceptionHandler, SpringPageableAdapter
 ```
 
@@ -514,7 +514,8 @@ types, so a future change that wires in a repository, a state service or the aud
 build rather than quietly breaking it.
 
 Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#decision-traces-for-api-calls-and-deployments-af-967).
-The API-call sibling is [docs/17-api-governance.md](17-api-governance.md).
+The API-call sibling is [§7 of docs/17](17-api-governance.md#7-decision-trace-af-967); the query one
+is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
 
 ---
 

@@ -116,6 +116,31 @@ class DeploymentReviewStateMachineTest {
     }
 
     @Test
+    void aMissingPipelineStillHonoursTheEnvironmentsApprovalOverride() {
+        // Losing the pipeline row must not quietly drop a production release from four approvals
+        // to one — the environment is the half that carries the override.
+        environment.setRequiredApprovals(4);
+        var request = stubRequest(QueryStatus.PENDING_AI);
+        when(pipelineRepository.findById(pipeline.getId())).thenReturn(Optional.empty());
+
+        machine.decide(request.getId(), AiOutcome.FAILED, null);
+
+        verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
+        assertThat(request.getRequiredApprovals()).isEqualTo(4);
+    }
+
+    @Test
+    void aMissingEnvironmentFallsBackToOneApproval() {
+        var request = stubRequest(QueryStatus.PENDING_AI);
+        when(environmentRepository.findById(environment.getId())).thenReturn(Optional.empty());
+
+        machine.decide(request.getId(), AiOutcome.COMPLETED, RiskLevel.LOW);
+
+        verify(stateService).apply(request, QueryStatus.PENDING_REVIEW);
+        assertThat(request.getRequiredApprovals()).isEqualTo(1);
+    }
+
+    @Test
     void noRoutingMatchRoutesToReviewWhenTheEnvironmentRequiresIt() {
         var request = stubRequest(QueryStatus.PENDING_AI);
 

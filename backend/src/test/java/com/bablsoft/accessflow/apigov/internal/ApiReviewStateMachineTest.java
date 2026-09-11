@@ -3,6 +3,9 @@ package com.bablsoft.accessflow.apigov.internal;
 import com.bablsoft.accessflow.apigov.api.ApiDecisionStepKind;
 import com.bablsoft.accessflow.apigov.api.ApiProtocol;
 import com.bablsoft.accessflow.apigov.api.ApiRoutingAction;
+import com.bablsoft.accessflow.apigov.events.ApiAnalysisCompletedEvent;
+import com.bablsoft.accessflow.apigov.events.ApiAnalysisFailedEvent;
+import com.bablsoft.accessflow.apigov.events.ApiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestDecidedEvent;
 import com.bablsoft.accessflow.apigov.events.ApiRequestReadyForReviewEvent;
 import com.bablsoft.accessflow.apigov.internal.persistence.entity.ApiConnectorEntity;
@@ -32,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -201,6 +205,35 @@ class ApiReviewStateMachineTest {
         var event = ArgumentCaptor.forClass(ApiRequestReadyForReviewEvent.class);
         verify(eventPublisher).publishEvent(event.capture());
         assertThat(event.getValue().requiredApprovals()).isEqualTo(1);
+    }
+
+    // ── The listeners pick the branch ─────────────────────────────────────────
+
+    /**
+     * Before AF-967 "a failed analysis never reaches the routing engine" was structural — a
+     * separate {@code forceReview} method with no routing collaborator. It is now the value of an
+     * {@link AiOutcome} parameter, so passing the wrong one would let a provider outage auto-approve
+     * or auto-reject a call while every other test here still passed. These three pin it.
+     */
+    @Test
+    void eachListenerPassesItsOwnAnalysisOutcomeToTheEvaluator() {
+        loaded(true);
+        when(decisionEvaluator.evaluate(any())).thenReturn(
+                decision(ApiDecisionKind.CONNECTOR_PENDING_REVIEW, QueryStatus.PENDING_REVIEW,
+                        null, 1));
+
+        machine.onCompleted(new ApiAnalysisCompletedEvent(requestId, UUID.randomUUID(),
+                RiskLevel.CRITICAL, 91, "risky"));
+        machine.onSkipped(new ApiAnalysisSkippedEvent(requestId, "ai_disabled"));
+        machine.onFailed(new ApiAnalysisFailedEvent(requestId, "provider down"));
+
+        var captor = ArgumentCaptor.forClass(ApiDecisionInput.class);
+        verify(decisionEvaluator, times(3)).evaluate(captor.capture());
+        assertThat(captor.getAllValues()).extracting(ApiDecisionInput::aiOutcome)
+                .containsExactly(AiOutcome.COMPLETED, AiOutcome.SKIPPED, AiOutcome.FAILED);
+        assertThat(captor.getAllValues().get(0).riskLevel()).isEqualTo(RiskLevel.CRITICAL);
+        assertThat(captor.getAllValues().get(1).riskLevel()).isNull();
+        assertThat(captor.getAllValues().get(2).riskLevel()).isNull();
     }
 
     // ── Guards ────────────────────────────────────────────────────────────────

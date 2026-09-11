@@ -71,9 +71,12 @@ class DeploymentReviewStateMachine {
         var environment = environmentRepository.findById(request.getEnvironmentId()).orElse(null);
         if (pipeline == null || environment == null) {
             // A pipeline or environment deleted between the trigger and the analysis leaves no
-            // policy to consult, so the release falls back to a single human approval rather than
-            // being decided by default.
-            routeToReview(request, 1);
+            // policy to consult, so the release falls back to human review rather than being
+            // decided by default. The environment's own approval override still applies when the
+            // environment is the half that survived: losing the pipeline row must not quietly drop
+            // a production release from four approvals to one.
+            routeToReview(request, environment != null && environment.getRequiredApprovals() != null
+                    ? environment.getRequiredApprovals() : 1);
             return;
         }
         apply(request, environment,

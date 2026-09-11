@@ -11,7 +11,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -118,15 +117,6 @@ class DefaultDeploymentPipelineLookupServiceTest {
         when(environmentRepository.findById(environmentId)).thenReturn(Optional.empty());
 
         assertThat(service.findEnvironment(pipelineId, environmentId)).isEmpty();
-    }
-
-    @Test
-    void listEnvironmentsUsesThePromotionOrderQuery() {
-        when(environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId))
-                .thenReturn(List.of(environment(pipelineId)));
-
-        assertThat(service.listEnvironments(pipelineId)).singleElement()
-                .satisfies(view -> assertThat(view.name()).isEqualTo("production"));
     }
 
     @Test

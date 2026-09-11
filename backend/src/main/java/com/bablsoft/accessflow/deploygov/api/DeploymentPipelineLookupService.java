@@ -1,6 +1,5 @@
 package com.bablsoft.accessflow.deploygov.api;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,7 +26,4 @@ public interface DeploymentPipelineLookupService {
 
     /** One environment of a pipeline, or empty when it is not on that pipeline (issue AF-967). */
     Optional<DeploymentEnvironmentView> findEnvironment(UUID pipelineId, UUID environmentId);
-
-    /** A pipeline's environments in promotion order (issue AF-967). */
-    List<DeploymentEnvironmentView> listEnvironments(UUID pipelineId);
 }

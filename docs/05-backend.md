@@ -1382,8 +1382,8 @@ interface implemented by one enum per module (`workflow.api.QueryDecisionStepKin
 imports `apigov.events` and `deploygov.events` for the two break-glass retro-review listeners, so
 importing `workflow.api` back would close a Modulith cycle — and widening one shared enum with values
 that are `SKIP` for two kinds out of three would report "this did not happen" where the truth is
-"this does not exist here". See [docs/17-api-governance.md](17-api-governance.md) §7 and
-[docs/18-deployment-governance.md](18-deployment-governance.md) §10.
+"this does not exist here". See [docs/17 §7](17-api-governance.md#7-decision-trace-af-967) and
+[docs/18 §10](18-deployment-governance.md#10-decision-trace-af-967).
 
 `AiOutcome` (`COMPLETED` / `SKIPPED` / `FAILED`) is what turns the three listener branches into one
 parameter. `FAILED` short-circuits before any lookup, exactly as the live listener does — routing is

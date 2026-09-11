@@ -41,13 +41,6 @@ class DefaultDeploymentPipelineLookupService implements DeploymentPipelineLookup
                 .map(DefaultDeploymentPipelineLookupService::toView);
     }
 
-    @Override
-    public List<DeploymentEnvironmentView> listEnvironments(UUID pipelineId) {
-        return environmentRepository.findByPipelineIdOrderBySortOrderAscNameAsc(pipelineId).stream()
-                .map(DefaultDeploymentPipelineLookupService::toView)
-                .toList();
-    }
-
     private static DeploymentPipelineView toView(DeploymentPipelineEntity e) {
         return new DeploymentPipelineView(e.getId(), e.getOrganizationId(), e.getName(),
                 e.getProvider(), e.getRepositoryUrl(), e.getProjectRef(), e.getReviewPlanId(),

@@ -4251,34 +4251,44 @@ production sends a failed analysis straight to `PENDING_REVIEW`.
 ```
 
 **`steps` is always all nine, in this fixed order.** As on the query endpoint, `resulting_status` is
-**omitted** when the request would be refused before a status is assigned — an inactive or foreign
-connector, an operation not in the schema, a permission denial — and every later step is still present
-with `outcome: "SKIP"`.
+**omitted** when the call would be refused before a status is assigned — an inactive connector, an
+operation not in the connector's schema, or a permission denial — and every later step is still
+present with `outcome: "SKIP"`. A connector in *another* organization is not one of those cases:
+it yields no trace at all, only `404 API_CONNECTOR_NOT_FOUND`.
 
 | Step | Keys | Present when |
 |---|---|---|
 | `CONNECTOR_GATES` | `connector_name`, `protocol`, `active`, `ai_analysis_enabled` | always |
 | `CALL_CLASSIFICATION` | `write`, `classified_from` (`SCHEMA_OPERATION` / `REST_VERB` / `PROTOCOL_DEFAULT`), `operation_id`, `verb` | always |
 | `SCHEMA_VALIDATION` | `operation_id`, `operation_count` | whenever an `operation_id` was supplied; `SKIP` with `{}` for a free-form call |
-| `OPERATION_PERMISSION` | `query_admin_short_circuit`, `can_read`, `can_write`, `allowed_operations`, `expires_at` | always (`expires_at` omitted when standing or short-circuited) |
-| `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
+| `OPERATION_PERMISSION` | `query_admin_short_circuit` | always |
+| | `can_read`, `can_write`, `allowed_operations`, `expires_at` | only once a permission row is resolved — so **absent** on the `QUERY_ADMIN` short-circuit and on the no-permission denial. `expires_at` additionally omitted for a standing grant |
+| `ROUTING_POLICIES` | `policies[]` | whenever routing ran (`[]` when the org has none). **Absent on `ai_outcome=FAILED`**, where routing is `SKIP` and nothing was evaluated |
 | | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
-| `REVIEW_REQUIREMENT` | `require_review_reads`, `require_review_writes` | always |
-| | `review_plan_id`, `requires_human_approval`, `min_approvals_required` | only when the connector has a review plan |
+| `REVIEW_REQUIREMENT` | `require_review_reads`, `require_review_writes`, `review_plan_id`, `requires_human_approval`, `min_approvals_required` | always (the last three carry no value, and are therefore omitted, when the connector has no review plan) |
+| | `effective_min_approvals` | only when the call would go to review — the auto-approved and routing-decided paths resolve no count |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded`, `reviewers[]` (`user_id`, `email`, `display_name`) | when the request would reach review |
 | | `plan_approvers[]` (`user_id`, `role`, `stage`) | **instead of** `reviewers[]` when the resolved review plan names approvers |
 | `RESPONSE_MASKING` | `masks[]` (`policy_id`, `matcher_type`, `field_ref`, `strategy`, `operation_id`), `restricted_response_field_count` | always (`masks: []` when none resolve) |
 | `BREAK_GLASS` | `can_break_glass` | always |
 
+**A connector with no ingested schema validates nothing.** `SCHEMA_VALIDATION` reports `ALLOW` with
+the reason "no catalog" whenever the connector has no parsed operations, because that is what the
+submit path does. Do not read a passing `SCHEMA_VALIDATION` as proof that an operation allow-list was
+enforced — read `details.operation_count` first.
+
 **There is no connector-health stage**, because enforcement has none. The only reachability probe is
-the admin-triggered [`POST /api-connectors/{id}/test`](#post-apiv1api-connectorsidtest); the submit path
+the admin-triggered `POST /api/v1/api-connectors/{id}/test`; the submit path
 gates on `active` and nothing else. A health stage here would report something the pipeline never checks.
 
 **Masking is reported at rule granularity, not field granularity** — hence the mandatory
 `RESPONSE_SHAPE_ABSENT` caveat. The live masker walks the actual response body by dot-path, which does
 not exist until the call has run, so the step reports which masking policies and legacy
-`restricted_response_fields` entries *resolve* for this connector and caller. A `policy_id` of `null`
-marks a legacy restricted-field entry rather than an AF-518 policy.
+`restricted_response_fields` entries *resolve* for this connector and caller. An **absent** `policy_id`
+marks a legacy restricted-field entry rather than an AF-518 policy — absent, not `null`: as everywhere
+in `details`, a key with no value is omitted from the response rather than serialized as `null`, so a
+client must test for the key's presence and never for `policy_id === null`. The examples above spell
+nulls out for readability; the wire does not.
 
 **Audit.** One `ACCESS_SIMULATION_RUN` row against the **connector** (`resource_type=api_connector`),
 carrying `simulated_user_id`, `ai_outcome`, `step_count` and optional `risk_level` / `resulting_status`.
@@ -4299,6 +4309,10 @@ access to another user's call content.
   "at": "2026-09-11T18:30:00Z"
 }
 ```
+
+`user_id`, `pipeline_id`, `environment_id` and `version` are all **required** — a trace is evaluated
+against a concrete release, and routing's version globs have nothing to match without one.
+`ai_outcome`, `risk_level`, `scheduled_for` and `at` are optional.
 
 `at` is **the instant the whole trace is evaluated at**, defaulting to now. It is the one input the
 query endpoint has no equivalent for, and it exists because the two things a deployment admin most needs
@@ -4358,12 +4372,12 @@ rule as the other two endpoints.
 | Step | Keys | Present when |
 |---|---|---|
 | `PIPELINE_GATES` | `pipeline_name`, `provider`, `active`, `environment_name`, `ai_analysis_enabled` | always |
-| `TRIGGER_PERMISSION` | `can_trigger`, `admin_bypass`, `expires_at` | always (`expires_at` omitted for a standing grant or none) |
-| `FREEZE_WINDOW` | `freeze_window_id`, `behavior`, `reason_text`, `scope` (`ORGANIZATION` / `PIPELINE` / `ENVIRONMENT`) | `MATCH` only; `{}` when no window is active |
-| `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
+| `TRIGGER_PERMISSION` | `can_trigger`, `admin_bypass`, `expires_at` | always (`expires_at` omitted for a standing grant or none). **`admin_bypass` is always `false`** — the trigger endpoint's admin bypass belongs to the API key's caller, not to the simulated user, so a trace reports the grant rather than inventing a bypass the CI key would not have |
+| `FREEZE_WINDOW` | `freeze_window_id`, `behavior`, `reason_text`, `scope` (`ORGANIZATION` / `PIPELINE` / `ENVIRONMENT`) | whenever a window is active — on `MATCH` (a `HOLD`) **and** on `DENY` (a `REJECT`). `{}` only when none is |
+| `ROUTING_POLICIES` | `policies[]` | whenever routing ran (`[]` when the org has none). **Absent on `ai_outcome=FAILED`**, where routing is `SKIP` and nothing was evaluated |
 | | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
-| `ENVIRONMENT_POLICY` | `require_review`, `environment_required_approvals`, `effective_min_approvals` | always |
-| | `review_plan_id`, `requires_human_approval`, `min_approvals_required`, `plan_source` (`ENVIRONMENT` / `PIPELINE`) | only when a review plan resolves |
+| `ENVIRONMENT_POLICY` | `require_review`, `environment_required_approvals`, `review_plan_id`, `requires_human_approval`, `min_approvals_required` | always (all but the first carry no value, and are therefore omitted, when the environment has no override and no plan resolves) |
+| | `effective_min_approvals` | only when the deployment would go to review — the auto-approved and routing-decided paths resolve no count |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded`, `reviewers[]` or `plan_approvers[]` | when the request would reach review |
 | `SCHEDULED_RELEASE` | `scheduled_for`, `evaluated_at` | always (`scheduled_for` omitted when none was supplied) |
 | `GATE_RELEASABILITY` | `releasable`, `status`, `frozen`, `scheduled_for` | always |
@@ -4377,7 +4391,7 @@ fail-closed — and is reported as such rather than as "no freeze".
 
 **`GATE_RELEASABILITY` is the real gate function.** The step calls the same
 `releasable(status, frozen, scheduled_for, at)` that
-[`GET /deployment-gate`](#get-apiv1deployment-gate) blocks on — not a reimplementation — so the
+`GET /api/v1/deployment-gate` blocks on — not a reimplementation — so the
 top-level `releasable` in the response is what the pipeline would actually see at `at`. It is `false`
 for any request that has not reached `APPROVED`, which is the common case in a trace and is not an error.
 
@@ -4386,8 +4400,9 @@ holders, minus the submitter. Review delegation (#622) deliberately does not ext
 unlike the query endpoint there is nothing further to caveat here.
 
 **Audit.** One `ACCESS_SIMULATION_RUN` row against the **pipeline**
-(`resource_type=deployment_pipeline`), carrying `simulated_user_id`, `environment`, `ai_outcome`,
-`evaluated_at`, `step_count` and optional `risk_level` / `resulting_status`.
+(`resource_type=deployment_pipeline`), carrying `simulated_user_id`, `environment_id`,
+`ai_outcome`, `evaluated_at`, `releasable`, `step_count` and optional `risk_level` /
+`resulting_status`.
 
 #### Decision-trace Error Codes
 
