@@ -53,10 +53,13 @@ public enum SimulationCaveat {
 
     /**
      * An API-call simulation (issue AF-967) has no response body, so response masking is reported at
-     * <em>policy</em> granularity: which masking policies and classification-derived masks resolve
-     * for the connector and the simulated caller, not which response fields would actually be
-     * rewritten. The live masker walks the real payload by dot-path, which only exists once the call
-     * has run.
+     * <em>rule</em> granularity: which masking policies, classification-derived masks and legacy
+     * {@code restricted_response_fields} entries resolve for the connector and the simulated caller,
+     * not which response fields would actually be rewritten. The live masker walks the real payload
+     * by dot-path, which only exists once the call has run.
+     *
+     * <p>"Rule" rather than "policy" throughout: the reported list mixes AF-518 policies with legacy
+     * restricted-field entries, which carry no policy id and are not policies.
      */
     RESPONSE_SHAPE_ABSENT
 }

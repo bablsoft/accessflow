@@ -344,9 +344,11 @@ the admin-triggered `POST /api-connectors/{id}/test`, and submission gates on `a
 else. A health stage here would report something the pipeline never checks.
 
 **Masking is reported per rule, not per field.** The live masker walks the real response body by
-dot-path, which does not exist until the call has run, so the step lists the masking policies and
-legacy `restricted_response_fields` entries that *resolve* for this connector and caller — and says
-so, with the mandatory `RESPONSE_SHAPE_ABSENT` caveat.
+dot-path, which does not exist until the call has run, so the step lists the masking policies,
+classification-derived masks and legacy `restricted_response_fields` entries that *resolve* for this
+connector and caller — and says so, with the mandatory `RESPONSE_SHAPE_ABSENT` caveat. "Rule" rather
+than "policy" because the list mixes the three, and a legacy restricted-field entry carries no policy
+id.
 
 **Read-only, structurally.** No `api_requests` row, no event, no notification, no AI call, and — the
 one specific to this module — **no request to the governed API**. That is enforced by construction:
