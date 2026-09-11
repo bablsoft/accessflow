@@ -273,7 +273,7 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 ## Authorization — Roles & the permission catalog (AF-522)
 
 Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
-permissions (`core.api.Permission`, 39 values grouped for display — see
+permissions (`core.api.Permission`, 44 values grouped for display — see
 `GET /api/v1/admin/permissions`) is composed into **roles**:
 
 - The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
@@ -378,6 +378,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | View / export the over-provisioned access report (`ACCESS_USAGE_REPORT_VIEW`, #625) | — | — | — | ✓ | ✓ |
 | Trace a hypothetical request through the live evaluators (`DATASOURCE_PERMISSION_MANAGE`, AF-859) | — | — | — | ✓ | — |
 | Read who can reach a table (`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`, AF-859) | — | — | — | ✓ | ✓ |
+| Read the privileged-access report — who can reach data with no permission row (`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`, #968) | — | — | — | ✓ | ✓ |
 | View AI analysis results | ✓ | ✓ | ✓ | ✓ | — |
 | Re-run AI analysis on a failed query (`POST /queries/{id}/reanalyze`) | — | — | ✓ | ✓ | — |
 | Create / edit datasources | — | — | — | ✓ | — |
@@ -387,6 +388,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
+| Manage SQL review rulesets (`SQL_REVIEW_MANAGE`, #861) | — | — | — | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |
@@ -436,6 +438,21 @@ why it is an admin/auditor surface and not something a grant holder can read abo
 anyone else. The recommendation it carries is **advisory only** — no authorization decision anywhere
 reads it, and nothing is revoked on its strength.
 
+**Privileged access (#968):** the org-wide complement of that report — the identities that can reach
+data *without* any standing grant to report on. `GET /api/v1/admin/privileged-access` lists every
+active user whose effective role carries `QUERY_ADMIN` (the submission service skips the per-datasource
+gate for them outright, so no permission screen ever shows them) and every holder of an unexpired
+`can_break_glass` grant, direct or inherited through a group, one row per identity with the role that
+carries the bypass, the datasources and expiry of each break-glass grant, and the user's submission
+history read from `query_requests`. Gated exactly as the effective-access explainer is
+(`hasAnyAuthority('PERM_DATASOURCE_PERMISSION_MANAGE','PERM_ACCESS_USAGE_REPORT_VIEW')`) — no new
+`Permission` value — and audited on **every** read as `PRIVILEGED_ACCESS_REPORT_VIEWED` against the
+organization, with the row count and the filters applied but never an email or a role name. A custom
+role carrying `QUERY_ADMIN` resolves identically to the system `ADMIN` role, because the same
+`RolePermissionHolderLookupService` that the explainer uses inverts the catalog. **Advisory only:**
+nothing revokes on its strength; a bypass ends through a role change, an attestation campaign, or an
+explicit permission edit.
+
 **Result-export governance (#626):** `EXPORT_POLICY_MANAGE` gates the per-datasource export-policy
 CRUD (`/api/v1/datasources/{id}/export-policies`,
 `@PreAuthorize("hasAuthority('PERM_EXPORT_POLICY_MANAGE')")`); it sits in the `DATA_POLICIES` group
@@ -466,6 +483,13 @@ group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V14
 `REVIEWER`). What each one gates, and why triggering a deployment deliberately has no functional
 permission at all, is in
 [Deployment governance security](#deployment-governance-security-epic-af-682) below.
+
+**Deterministic SQL review (#861, epic #860):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
+group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same
+`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). It will gate the ruleset CRUD and the
+read-only evaluation endpoint that #863 adds; #861 ships the catalog value, the seed and the
+storage only, so nothing is gated by it yet. A datasource's new `environment` attribute is written
+under the existing `DATASOURCE_MANAGE` permission — it is datasource configuration, not policy.
 
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
@@ -786,6 +810,10 @@ against a *draft policy*; this one replays *current policy* against a *hypotheti
   rows and their parity test, and the frontend union, for no capability those two do not already
   describe. Both are organization-scoped; a `datasource_id` or `user_id` outside the caller's
   organization is `DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND`, never `403`.
+- **The org-wide view of the same two bypasses** is the privileged-access report (#968):
+  `GET /admin/privileged-access` lists every identity whose row here would carry a
+  `QUERY_ADMIN_BYPASS` or `BREAK_GLASS` source, across every datasource at once, under the same
+  permission gate as `effective-access`.
 - **The same two guarantees now cover the other two request kinds** (AF-967).
   `POST /admin/api-call-simulations` (`API_CONNECTOR_MANAGE`) and
   `POST /admin/deployment-simulations` (`DEPLOYMENT_PIPELINE_MANAGE`) trace a hypothetical API call

@@ -21,5 +21,8 @@ public interface DatasourceGroupPermissionRepository
     List<DatasourceGroupPermissionEntity> findAllByGroup_IdInAndCanBreakGlassTrue(
             Collection<UUID> groupIds);
 
+    // #968: every group break-glass row in an organization, expired or not — the lookup filters expiry.
+    List<DatasourceGroupPermissionEntity> findAllByOrganizationIdAndCanBreakGlassTrue(UUID organizationId);
+
     boolean existsByGroup_IdAndDatasource_Id(UUID groupId, UUID datasourceId);
 }

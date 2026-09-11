@@ -62,6 +62,8 @@ import type {
   SubmissionReason,
   VotingStrategy,
   Weekday,
+  StandingBypassKind,
+  DatasourcePermissionSourceKind,
 } from '@/types/api';
 
 export const ACCESS_GRANT_STATUSES: readonly AccessGrantStatus[] = [
@@ -436,6 +438,21 @@ export const GRANT_RESOURCE_KINDS: readonly GrantResourceKind[] = [
   'DATASOURCE',
   'API_CONNECTOR',
 ] as const;
+
+// --- Privileged-access report (#968) ---
+
+export const STANDING_BYPASS_KINDS: readonly StandingBypassKind[] = [
+  'QUERY_ADMIN',
+  'BREAK_GLASS',
+] as const;
+
+export const standingBypassKindLabel = (t: TFunction, v: StandingBypassKind): string =>
+  t(`enums.standing_bypass_kind.${v}` as const);
+
+export const permissionSourceKindLabel = (
+  t: TFunction,
+  v: DatasourcePermissionSourceKind,
+): string => t(`enums.permission_source_kind.${v}` as const);
 
 export const ATTESTATION_PENDING_DEFAULTS: readonly AttestationPendingDefault[] = [
   'KEEP',

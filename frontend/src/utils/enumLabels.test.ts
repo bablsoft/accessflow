@@ -17,6 +17,9 @@ import {
   GRANT_RESOURCE_KINDS,
   GRANT_USAGE_RECOMMENDATIONS,
   grantResourceKindLabel,
+  STANDING_BYPASS_KINDS,
+  standingBypassKindLabel,
+  permissionSourceKindLabel,
   grantUsageRecommendationLabel,
   ANOMALY_STATUSES,
   API_MASKING_MATCHER_TYPES,
@@ -208,6 +211,27 @@ describe('grant usage labels (#625)', () => {
     for (const kind of GRANT_RESOURCE_KINDS) {
       expect(grantResourceKindLabel(realT, kind)).not.toContain('enums.');
     }
+  });
+});
+
+describe('privileged-access labels (#968)', () => {
+  it('lists both bypass kinds, the one that skips more first, and maps them to enum keys', () => {
+    expect(STANDING_BYPASS_KINDS).toEqual(['QUERY_ADMIN', 'BREAK_GLASS']);
+    for (const kind of STANDING_BYPASS_KINDS) {
+      expect(standingBypassKindLabel(t, kind)).toBe(`enums.standing_bypass_kind.${kind}`);
+    }
+    expect(permissionSourceKindLabel(t, 'DIRECT')).toBe('enums.permission_source_kind.DIRECT');
+    expect(permissionSourceKindLabel(t, 'GROUP')).toBe('enums.permission_source_kind.GROUP');
+  });
+
+  it('resolves every label against the real bundle', async () => {
+    const i18n = (await import('@/i18n')).default;
+    const realT = i18n.t.bind(i18n);
+    for (const kind of STANDING_BYPASS_KINDS) {
+      expect(standingBypassKindLabel(realT, kind)).not.toContain('enums.');
+    }
+    expect(permissionSourceKindLabel(realT, 'DIRECT')).not.toContain('enums.');
+    expect(permissionSourceKindLabel(realT, 'GROUP')).not.toContain('enums.');
   });
 });
 

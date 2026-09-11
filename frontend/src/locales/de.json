@@ -85,6 +85,7 @@
     "connectors": "Konnektoren",
     "auditor": "Compliance-Berichte",
     "over_provisioned_access": "Überprivilegierte Zugriffe",
+    "privileged_access": "Privilegierte Zugriffe",
     "anomalies": "Anomalien",
     "break_glass": "Break-Glass-Protokoll",
     "dashboard": "Dashboard",
@@ -2918,6 +2919,14 @@
       "DATASOURCE": "Datenquelle",
       "API_CONNECTOR": "API-Connector"
     },
+    "standing_bypass_kind": {
+      "QUERY_ADMIN": "Query-Admin",
+      "BREAK_GLASS": "Break-Glass"
+    },
+    "permission_source_kind": {
+      "DIRECT": "Direkte Berechtigung",
+      "GROUP": "Gruppenberechtigung"
+    },
     "grant_usage_recommendation": {
       "INSUFFICIENT_DATA": "Unzureichende Daten",
       "NEVER_USED": "Nie genutzt",
@@ -3068,6 +3077,7 @@
       "DATA_CLASSIFICATION_MANAGE": "Datenklassifizierungen verwalten",
       "REVIEW_PLAN_MANAGE": "Prüfpläne verwalten",
       "ROUTING_POLICY_MANAGE": "Routing-Richtlinien verwalten",
+      "SQL_REVIEW_MANAGE": "SQL-Prüfregeln verwalten",
       "BREAK_GLASS_VIEW": "Break-Glass-Ereignisse anzeigen",
       "BREAK_GLASS_REVIEW": "Break-Glass-Ereignisse prüfen",
       "RETENTION_POLICY_MANAGE": "Aufbewahrungsrichtlinien verwalten",
@@ -3680,6 +3690,32 @@
     "empty_title": "Keine dauerhaften Berechtigungen",
     "empty_description": "Keine Berechtigung passt zu diesen Filtern. Die Nutzung wird periodisch ausgewertet, eine neue Berechtigung erscheint daher evtl. noch nicht.",
     "load_error": "Bericht über überprivilegierte Zugriffe konnte nicht geladen werden"
+  },
+  "privileged_access": {
+    "title": "Privilegierte Zugriffe",
+    "subtitle": "Identitäten, die Daten ohne Berechtigungszeile erreichen können — Query-Admins überspringen die Prüfung pro Datenquelle, Break-Glass-Berechtigungen umgehen das Review. Nur beratend; hier wird kein Zugriff entzogen.",
+    "col_identity": "Identität",
+    "col_role": "Rolle",
+    "col_bypass": "Umgehung",
+    "col_break_glass": "Break-Glass-Datenquellen",
+    "col_queries": "Eingereichte Abfragen",
+    "col_break_glass_runs": "Break-Glass-Ausführungen",
+    "system_role": "Systemrolle",
+    "custom_role": "Benutzerdefinierte Rolle",
+    "via_group": "über {{group}}",
+    "never_expires": "läuft nie ab",
+    "expires_at": "läuft ab am {{date}}",
+    "none": "—",
+    "never": "Nie",
+    "last_at": "zuletzt {{ago}}",
+    "filter_kind": "Art der Umgehung",
+    "filter_all_kinds": "Alle Umgehungsarten",
+    "filter_user_placeholder": "Nach Benutzer-ID filtern",
+    "count_label_one": "{{count}} Identität",
+    "count_label_other": "{{count}} Identitäten",
+    "empty_title": "Keine privilegierten Zugriffe",
+    "empty_description": "Kein aktiver Benutzer dieser Organisation hält QUERY_ADMIN oder eine gültige Break-Glass-Berechtigung, die zu diesen Filtern passt.",
+    "load_error": "Der Bericht über privilegierte Zugriffe konnte nicht geladen werden"
   },
   "apiGov": {
     "connectors": {

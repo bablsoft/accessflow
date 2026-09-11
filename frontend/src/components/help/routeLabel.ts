@@ -22,6 +22,7 @@ const ROUTE_LABEL_KEYS: ReadonlyArray<readonly [string, string]> = [
   ['/admin/deployment-pipelines', 'nav.deploymentPipelines'],
   ['/admin/data-classifications', 'nav.data_classifications'],
   ['/admin/over-provisioned-access', 'nav.over_provisioned_access'],
+  ['/admin/privileged-access', 'nav.privileged_access'],
   ['/admin/lifecycle/policies', 'nav.lifecycle'],
   ['/admin/access-requests', 'nav.access_requests'],
   ['/admin/datasource-health', 'nav.datasource_health'],

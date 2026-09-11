@@ -56,6 +56,18 @@ public interface DatasourceUserPermissionLookupService {
     List<DatasourcePermissionContribution> findContributionsForDatasource(UUID datasourceId);
 
     /**
+     * Every unexpired {@code can_break_glass} contribution in an organization, for every user who
+     * holds one (#968) — the direct rows plus each group row expanded across that group's members.
+     *
+     * <p>Backs the privileged-access report ("who can reach data without a grant"). Deliberately
+     * not paginated and deliberately not merged: the report is one row per identity and names each
+     * contributing grant with its own expiry, so it needs the inputs, not the effective view.
+     * Datasource liveness is not checked here — the caller decides what an inactive datasource
+     * means for its question.
+     */
+    List<DatasourcePermissionContribution> findBreakGlassContributionsForOrganization(UUID organizationId);
+
+    /**
      * The user's currently-effective break-glass grants — permissions with {@code can_break_glass}
      * set whose {@code expires_at} is null or in the future. Backs the break-glass eligibility check
      * (AF-385).

@@ -140,6 +140,12 @@ public enum AuditAction {
      * topology, so they are audited like the other sensitive reads.
      */
     ACCESS_SIMULATION_RUN,
+    /**
+     * An admin or auditor read the privileged-access report (#968) — who can reach data with no
+     * permission row. Read-only, but it discloses the organization's bypass topology, so it is
+     * audited like the other sensitive reads. Metadata: {@code row_count} and the filters applied.
+     */
+    PRIVILEGED_ACCESS_REPORT_VIEWED,
     API_CONNECTOR_CREATED,
     API_CONNECTOR_UPDATED,
     API_CONNECTOR_DELETED,

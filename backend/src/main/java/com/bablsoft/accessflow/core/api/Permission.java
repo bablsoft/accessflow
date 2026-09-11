@@ -68,6 +68,8 @@ public enum Permission {
     REVIEW_PLAN_MANAGE(PermissionGroup.WORKFLOW_ADMIN),
     /** Manage routing policies. */
     ROUTING_POLICY_MANAGE(PermissionGroup.WORKFLOW_ADMIN),
+    /** Manage deterministic SQL review rulesets and per-rule severities (#861, epic #860). */
+    SQL_REVIEW_MANAGE(PermissionGroup.WORKFLOW_ADMIN),
     /** View break-glass (emergency access) events. */
     BREAK_GLASS_VIEW(PermissionGroup.WORKFLOW_ADMIN),
     /** Acknowledge/retro-review break-glass events. */

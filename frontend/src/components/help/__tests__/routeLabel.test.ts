@@ -31,6 +31,10 @@ describe('routeLabel', () => {
     expect(routeLabelKey('/admin/lifecycle/policies')).toBe('nav.lifecycle');
   });
 
+  it('maps the privileged-access report to its sidebar label (#968)', () => {
+    expect(routeLabelKey('/admin/privileged-access')).toBe('nav.privileged_access');
+  });
+
   it('does not match a route that merely starts with the same characters', () => {
     expect(routeLabelKey('/queries-archive')).toBeNull();
   });

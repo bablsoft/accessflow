@@ -80,6 +80,7 @@ const AuditorDashboardPage = lazy(() => import('@/pages/admin/AuditorDashboardPa
 const OverProvisionedAccessPage = lazy(
   () => import('@/pages/admin/access/OverProvisionedAccessPage'),
 );
+const PrivilegedAccessPage = lazy(() => import('@/pages/admin/access/PrivilegedAccessPage'));
 const CampaignListPage = lazy(() => import('@/pages/admin/attestation/CampaignListPage'));
 const CampaignDetailPage = lazy(() => import('@/pages/admin/attestation/CampaignDetailPage'));
 const LifecyclePoliciesListPage = lazy(
@@ -541,6 +542,18 @@ export function App() {
               <AuthGuard requirePermission={'ACCESS_USAGE_REPORT_VIEW'}>
                 <Suspense fallback={null}>
                   <OverProvisionedAccessPage />
+                </Suspense>
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/privileged-access"
+            element={
+              <AuthGuard
+                requirePermission={['DATASOURCE_PERMISSION_MANAGE', 'ACCESS_USAGE_REPORT_VIEW']}
+              >
+                <Suspense fallback={null}>
+                  <PrivilegedAccessPage />
                 </Suspense>
               </AuthGuard>
             }

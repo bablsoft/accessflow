@@ -641,7 +641,7 @@ class DefaultAccessSimulationServiceTest {
     private DatasourcePermissionContribution contribution() {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), "payments-oncall",
-                true, false, false, false, List.of("public"), List.of(), List.of(), null);
+                true, false, false, false, List.of("public"), List.of(), List.of(), null, null);
     }
 
     private DatasourceUserPermissionView permission(boolean canRead, boolean canWrite,

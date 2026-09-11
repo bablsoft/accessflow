@@ -95,6 +95,7 @@ const ACTIONS = [
   'DEPLOYMENT_ROLLBACK_REVIEWED',
   'API_BREAK_GLASS_REVIEWED',
   'ACCESS_SIMULATION_RUN',
+  'PRIVILEGED_ACCESS_REPORT_VIEWED',
 ];
 
 const actionColor = (a: string): string => {

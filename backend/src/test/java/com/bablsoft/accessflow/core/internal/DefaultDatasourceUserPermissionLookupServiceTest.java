@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -243,10 +244,12 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         var datasourceId = UUID.randomUUID();
         var directId = UUID.randomUUID();
         var groupId = UUID.randomUUID();
+        var accessGrantRequestId = UUID.randomUUID();
 
         var direct = newPermission(directId, userId, datasourceId);
         direct.setCanRead(true);
         direct.setAllowedTables(new String[] {"orders"});
+        direct.setAccessGrantRequestId(accessGrantRequestId);
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(Optional.of(direct));
 
@@ -264,7 +267,9 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(contributions.get(0).sourceId()).isEqualTo(directId);
         assertThat(contributions.get(0).groupId()).isNull();
         assertThat(contributions.get(0).allowedTables()).containsExactly("orders");
+        assertThat(contributions.get(0).accessGrantRequestId()).isEqualTo(accessGrantRequestId);
         assertThat(contributions.get(1).sourceKind()).isEqualTo(DatasourcePermissionSourceKind.GROUP);
+        assertThat(contributions.get(1).accessGrantRequestId()).isNull();
         assertThat(contributions.get(1).groupId()).isEqualTo(groupId);
         assertThat(contributions.get(1).groupName()).isEqualTo("payments-oncall");
         assertThat(contributions.get(1).userId()).isEqualTo(userId);
@@ -340,6 +345,78 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
                 .thenReturn(List.of(expiredGroup));
 
         assertThat(service.findContributionsForDatasource(datasourceId)).isEmpty();
+    }
+
+    @Test
+    void findBreakGlassContributionsForOrganizationExpandsGroupsAndKeepsDirectRows() {
+        var orgId = UUID.randomUUID();
+        var datasourceA = UUID.randomUUID();
+        var datasourceB = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var directUser = UUID.randomUUID();
+        var memberA = UUID.randomUUID();
+        var memberB = UUID.randomUUID();
+
+        var direct = newPermission(UUID.randomUUID(), directUser, datasourceA);
+        direct.setCanBreakGlass(true);
+        direct.setExpiresAt(Instant.parse("2099-01-01T00:00:00Z"));
+        when(permissionRepository.findAllByDatasource_Organization_IdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of(direct));
+
+        var groupPermission = newGroupPermission(groupId, datasourceB);
+        groupPermission.getGroup().setName("oncall");
+        groupPermission.setCanBreakGlass(true);
+        when(groupPermissionRepository.findAllByOrganizationIdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of(groupPermission));
+        when(membershipRepository.findAllByGroup_IdIn(List.of(groupId)))
+                .thenReturn(List.of(membership(groupId, memberA), membership(groupId, memberB)));
+
+        var contributions = service.findBreakGlassContributionsForOrganization(orgId);
+
+        assertThat(contributions).hasSize(3);
+        assertThat(contributions.get(0).sourceKind()).isEqualTo(DatasourcePermissionSourceKind.DIRECT);
+        assertThat(contributions.get(0).userId()).isEqualTo(directUser);
+        assertThat(contributions.get(0).datasourceId()).isEqualTo(datasourceA);
+        assertThat(contributions.get(0).expiresAt()).isEqualTo(Instant.parse("2099-01-01T00:00:00Z"));
+        assertThat(contributions.get(0).canBreakGlass()).isTrue();
+        assertThat(contributions).extracting("userId").containsExactly(directUser, memberA, memberB);
+        assertThat(contributions.get(1).sourceKind()).isEqualTo(DatasourcePermissionSourceKind.GROUP);
+        assertThat(contributions.get(1).groupId()).isEqualTo(groupId);
+        assertThat(contributions.get(1).groupName()).isEqualTo("oncall");
+        assertThat(contributions.get(2).datasourceId()).isEqualTo(datasourceB);
+    }
+
+    @Test
+    void findBreakGlassContributionsForOrganizationDropsExpiredRowsAndSkipsMembershipQuery() {
+        var orgId = UUID.randomUUID();
+        var expiredDirect = newPermission(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        expiredDirect.setCanBreakGlass(true);
+        expiredDirect.setExpiresAt(Instant.now().minusSeconds(60));
+        var expiredGroup = newGroupPermission(UUID.randomUUID(), UUID.randomUUID());
+        expiredGroup.setCanBreakGlass(true);
+        expiredGroup.setExpiresAt(Instant.now().minusSeconds(60));
+        when(permissionRepository.findAllByDatasource_Organization_IdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of(expiredDirect));
+        when(groupPermissionRepository.findAllByOrganizationIdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of(expiredGroup));
+
+        assertThat(service.findBreakGlassContributionsForOrganization(orgId)).isEmpty();
+        verifyNoInteractions(membershipRepository);
+    }
+
+    @Test
+    void findBreakGlassContributionsForOrganizationYieldsNothingForAMemberlessGroup() {
+        var orgId = UUID.randomUUID();
+        var groupId = UUID.randomUUID();
+        var groupPermission = newGroupPermission(groupId, UUID.randomUUID());
+        groupPermission.setCanBreakGlass(true);
+        when(permissionRepository.findAllByDatasource_Organization_IdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of());
+        when(groupPermissionRepository.findAllByOrganizationIdAndCanBreakGlassTrue(orgId))
+                .thenReturn(List.of(groupPermission));
+        when(membershipRepository.findAllByGroup_IdIn(List.of(groupId))).thenReturn(List.of());
+
+        assertThat(service.findBreakGlassContributionsForOrganization(orgId)).isEmpty();
     }
 
     @Test

@@ -95,6 +95,10 @@ roles these rows are display/catalog data only (runtime resolution answers from
 | `role_id` | FK → `roles` ON DELETE CASCADE (composite PK with `permission`) |
 | `permission` | VARCHAR(100) NOT NULL — a `Permission` enum name |
 
+Catalog values added after `V114` are seeded for the system roles that hold them by their own
+one-file migration (`V134`, `V146`, `V148`, `V151`, `V171` — the last seeds `SQL_REVIEW_MANAGE` for
+`ADMIN`, #861); `SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
+
 ---
 
 ## api_keys
@@ -160,6 +164,7 @@ A customer database that AccessFlow proxies. Credentials are stored encrypted.
 | `result_cache_ttl_seconds` | INTEGER NULL (AF-457, migration `V115`) — per-datasource cache TTL. NULL falls back to the deployment default (`ACCESSFLOW_PROXY_CACHE_DEFAULT_TTL`). |
 | `api_key_encrypted` | TEXT NULL (AF-420, migration `V80`) — AES-256-GCM-encrypted API key for the search engines (`ELASTICSEARCH` / `OPENSEARCH`), sent as `Authorization: ApiKey`. `@JsonIgnore`, never returned in an API response. NULL for basic-auth search datasources and every other dialect; the service layer requires **either** `username`+`password` **or** `api_key` for a search datasource. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
 | `private_key_passphrase_encrypted` | TEXT NULL (#632, migration `V163`) — AES-256-GCM-encrypted passphrase for a passphrase-protected (encrypted) PKCS#8 private key held in `password_encrypted`, used by `SNOWFLAKE` key-pair auth. `@JsonIgnore`, never returned in an API response. NULL for password credentials, unencrypted PEMs, and every other dialect; the service layer rejects it for any `db_type` other than `SNOWFLAKE`. May also hold an external secret reference (AF-448), same semantics as `password_encrypted`. |
+| `environment` | ENUM `datasource_environment` NULL (#861, migration `V170`): `DEVELOPMENT` \| `TEST` \| `STAGING` \| `PRODUCTION`. Optional — an unset environment is a legitimate state. It keys per-environment SQL review severity: a datasource resolves to the [`sql_review_rulesets`](#sql-review-sqlreview-861--epic-860) row bound to its environment, else the organization-wide default (`environment IS NULL`), else no rules. Existing rows stay NULL. Set on create, and on update via `environment` (null = unchanged) / `clear_environment` (unset). |
 | `is_active` | BOOLEAN DEFAULT true |
 | `created_at` | TIMESTAMPTZ |
 
@@ -237,6 +242,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `allowed_tables` | TEXT[] — null means all tables permitted |
 | `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
+| `access_grant_request_id` | UUID nullable, FK → `access_grant_request` `ON DELETE SET NULL` (#969, Flyway V169) — the JIT request this row materialises; null on an admin-created row. Read by the effective-access report (#859) to label a source `JIT_GRANT`. Partial index on `(access_grant_request_id) WHERE access_grant_request_id IS NOT NULL`. Backfilled once by V169 from `access_grant_request.granted_permission_id` (datasource requests only) |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |
 
@@ -1518,7 +1524,7 @@ Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-r
 | `pre_approve_queries` | BOOLEAN NOT NULL DEFAULT false — opt-in query pre-approval (#582, Flyway V112): while the grant is `APPROVED` and unexpired, a query it covers (capability + table scope) is auto-approved by the workflow state machine instead of routing to human review. A partial index on `(requester_id, datasource_id) WHERE status = 'APPROVED' AND pre_approve_queries` backs the per-submission lookup |
 | `status` | ENUM `access_grant_status`: `PENDING` \| `APPROVED` \| `REJECTED` \| `EXPIRED` \| `REVOKED` \| `CANCELLED` |
 | `expires_at` | TIMESTAMPTZ nullable — set to `now + requested_duration` on grant |
-| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind, AF-567) row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |
+| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind, AF-567) row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention. Since V169 the datasource-kind permission row carries the reverse link as a real FK (`datasource_user_permissions.access_grant_request_id`, #969) |
 | `version` | BIGINT — optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
@@ -1609,6 +1615,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `OAUTH2_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies a per-provider OAuth2 config from `accessflow.bootstrap.oauth2[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `provider`, `config_type: "oauth2"`, optional `changed_fields`. |
 | `SAML_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies the SAML configuration from `accessflow.bootstrap.saml`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `config_type: "saml"`, optional `changed_fields`. |
 | `ACCESS_SIMULATION_RUN` | An admin traced a hypothetical request through the live evaluators, or read who can reach a table (AF-859, AF-967). Always read-only. **The resource names the kind asked about**: `datasource` for `POST /admin/access-simulations` and `GET /admin/effective-access`, `api_connector` for `POST /admin/api-call-simulations`, `deployment_pipeline` for `POST /admin/deployment-simulations`. Metadata differs by endpoint — every trace records `simulated_user_id`, `ai_outcome`, `step_count` and optional `risk_level` / `resulting_status`; the deployment trace adds `environment_id`, `evaluated_at` and `releasable`; the reverse index records `table`, `capability` and `row_count` (total matching users, not the page size). **None carries the governed content** — not the SQL, not the API request path, headers or body: the kind's manage permission does not otherwise grant read access to it. |
+| `PRIVILEGED_ACCESS_REPORT_VIEWED` | An admin or auditor read the privileged-access report — who can reach data with no permission row (#968). Read-only. Resource: `organization`, `resource_id` = the caller's organization. Metadata: `row_count` (total matching identities, not the page size), plus `kind` and `user_id` when the read was filtered. Never carries an email or a role name. |
 | `AUDIT_LOG_EXPORTED` | Admin called `GET /admin/audit-log/export.csv`. Resource: `audit_log`, no resource id. Metadata captures the export filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). |
 | `SLACK_APP_CONFIG_UPDATED` / `SLACK_APP_CONFIG_DELETED` | Admin creates/updates (`PUT`) or deletes (`DELETE`) the org's `slack_app_config` row. Resource: `slack_app_config`. Metadata on update: `app_id`, `active`. |
 | `ACCESS_REQUEST_SUBMITTED` | User submits a JIT access-grant request. Resource: `access_grant_request`. Metadata: `datasource_id`, `requested_duration`, `can_read`/`can_write`/`can_ddl`. |
@@ -2764,6 +2771,86 @@ skip-on-malformed rule.
 
 ---
 
+## SQL review (`sqlreview`, #861 / epic #860)
+
+Deterministic, named SQL review rules with per-environment severity. #861 lands the storage and
+type foundation (migration `V170` + the `V171` permission seed); #862 the rule engine and the
+fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
+ruleset administration and the evaluation API (#863), submission enforcement (#864) and the editor
+lint (#865) follow. Two PG enums, created in `V170`:
+
+- `datasource_environment` — `DEVELOPMENT` | `TEST` | `STAGING` | `PRODUCTION` (also the type of
+  the new nullable [`datasources.environment`](#datasources) column).
+- `sql_review_severity` — `OFF` (not evaluated) | `WARN` (recorded and surfaced, no workflow
+  effect) | `BLOCK` (recorded **and** the query can never auto-approve — it is forced to human
+  review; `BLOCK` never rejects).
+
+Cross-module references are bare UUIDs in JPA (the `discovery` / `query_snapshots` convention —
+no `@ManyToOne` into `core.internal`) with the real foreign key in DDL.
+
+### sql_review_rulesets
+
+One ruleset per environment per organization, plus at most one organization-wide default.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `organization_id` | UUID NOT NULL, FK → `organizations` ON DELETE CASCADE |
+| `name` | VARCHAR(255) NOT NULL |
+| `description` | TEXT NULL |
+| `environment` | `datasource_environment` NULL — the environment this ruleset is bound to; **NULL = the organization-wide default** that datasources with no environment (and environments with no ruleset of their own) resolve to |
+| `enabled` | BOOLEAN NOT NULL DEFAULT true |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> **Constraints:** two partial unique indexes — `uq_sql_review_rulesets_org_env` on
+> `(organization_id, environment) WHERE environment IS NOT NULL` and
+> `uq_sql_review_rulesets_org_default` on `(organization_id) WHERE environment IS NULL`. Two
+> indexes because NULLs never collide in a plain `UNIQUE`.
+
+### sql_review_rule_configs
+
+The severity (and parameters) a ruleset assigns to one rule. Rule ids are code-defined (the
+catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862), so `rule_id` is `VARCHAR`, not a PG
+enum. A catalog rule with **no** row in the resolved ruleset is still evaluated, at its built-in
+default severity; a row is only needed to change the severity (or turn the rule `OFF`) or to set
+params. A row naming a rule id the catalog does not know is ignored at evaluation time (logged)
+and rejected at write time by `SqlRuleParamsValidator` (wired into ruleset create / update by #863).
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `ruleset_id` | UUID NOT NULL, FK → `sql_review_rulesets` ON DELETE CASCADE |
+| `rule_id` | VARCHAR(100) NOT NULL — e.g. `missing_where_on_delete` |
+| `severity` | `sql_review_severity` NOT NULL |
+| `params` | JSONB NULL — rule-specific parameters as a JSON object of **string arrays**, keyed by the rule's declared param key: `{"names": ["pg_sleep", "sleep"]}` for `disallowed_function`, `{"globs": ["payroll.*", "*.audit_log"]}` for `protected_table`; NULL for the twelve parameterless rules. Encoded/decoded only through `sqlreview/internal/SqlRuleParamsCodec` (a scalar is read as a one-element list; anything else is a malformed ruleset) |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+
+> **Constraint:** `UNIQUE (ruleset_id, rule_id)`. Index on `ruleset_id`.
+
+### query_sql_review_findings
+
+One row per rule violation on one statement of a submitted query. Rows are immutable once
+written (a re-evaluation replaces a query's findings wholesale) and never store a
+human-readable message — `rule_id` + `args` are rendered per reader through `MessageSource` in the
+reader's locale.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `id` | UUID PK |
+| `query_request_id` | UUID NOT NULL, FK → `query_requests` ON DELETE CASCADE |
+| `rule_id` | VARCHAR(100) NOT NULL |
+| `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
+| `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
+| `line_number` | INTEGER NULL — one-based line of the offending construct; NULL for every member of a `BEGIN…COMMIT` envelope (`SqlStatementParser` re-parses deparsed slices there) and for constructs JSqlParser gives no position for |
+| `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message` |
+| `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
+
+> Index `idx_query_sql_review_findings_request` on `query_request_id`; reads order by
+> `(statement_index, line_number)`.
+
+---
+
 ## Data Lifecycle Manager (AF-499)
 
 The `lifecycle` module (migration **V103**) adds retention + right-to-erasure governance. New enums
@@ -2930,7 +3017,8 @@ unified across queries, API calls, and group items.
 -- Query requests: common filter patterns
 CREATE INDEX idx_query_requests_status ON query_requests(status);
 CREATE INDEX idx_query_requests_datasource ON query_requests(datasource_id);
-CREATE INDEX idx_query_requests_submitter ON query_requests(submitted_by);
+-- Per-submitter evidence for the privileged-access report and the self-scoped dashboard (V168, #968)
+CREATE INDEX idx_query_requests_submitter ON query_requests(submitted_by, created_at DESC);
 CREATE INDEX idx_query_requests_created ON query_requests(created_at DESC);
 -- Datasource health dashboard: per-datasource time-window aggregate (V52, AF-365)
 CREATE INDEX idx_query_requests_datasource_created_at ON query_requests(datasource_id, created_at);

@@ -354,6 +354,7 @@ missing.
       "require_review_writes": true,
       "review_plan_id": "uuid",
       "ai_analysis_enabled": true,
+      "environment": "PRODUCTION",
       "active": true,
       "created_at": "2026-05-04T10:15:00Z"
     }
@@ -392,9 +393,16 @@ Results are scoped to the caller's organization. ADMINs see all datasources in t
   "jdbc_url_override": null,
   "read_replicas": [],
   "result_cache_enabled": false,
-  "result_cache_ttl_seconds": null
+  "result_cache_ttl_seconds": null,
+  "environment": "PRODUCTION"
 }
 ```
+
+`environment` (#861, epic #860) is optional: one of `DEVELOPMENT` / `TEST` / `STAGING` /
+`PRODUCTION`, or omitted. It selects which SQL review ruleset the datasource's queries are
+evaluated against — the ruleset bound to that environment, else the organization-wide default. An
+unset environment is a legitimate state (it resolves straight to the default) and, like every other
+null field, is **omitted** from responses rather than serialised as `null`.
 
 `local_datacenter` is the Cassandra/ScyllaDB driver's load-balancing datacenter (the `withLocalDatacenter(...)` value). It is **required when `db_type` is `CASSANDRA` or `SCYLLADB`** and is null/unused for every other dialect.
 
@@ -460,9 +468,14 @@ All fields optional. Omitted fields are left unchanged. Providing `password` tri
   ],
   "result_cache_enabled": true,
   "result_cache_ttl_seconds": 120,
+  "environment": "STAGING",
+  "clear_environment": false,
   "active": true
 }
 ```
+
+`environment` follows the `clear_ai_config` shape (#861): omitted or `null` leaves it unchanged,
+`"clear_environment": true` unsets it, and a non-null `environment` wins when both are sent.
 
 `read_replicas` is a **full-list replacement merged by endpoint id**: omitting the field keeps the current endpoints, an empty array deletes them all, and a non-empty array replaces the list — items whose `id` matches a stored endpoint update it (a `null`/omitted `password` keeps the stored secret, an empty string clears it back to the primary-credential fallback, a non-blank value re-encrypts with a fresh IV), items without an `id` create new endpoints, and stored endpoints absent from the array are removed.
 
@@ -3103,6 +3116,7 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `POST` | `/admin/routing-policies/simulate` | Dry-run a draft routing policy against historical traffic (AF-630) *(ADMIN only)* |
 | `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
+| `GET` | `/admin/privileged-access` | Org-wide: every identity that can reach data with no permission row — `QUERY_ADMIN` holders and break-glass grantees — with query evidence (#968) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
 | `POST` | `/admin/api-call-simulations` | Trace one hypothetical API call through the live apigov evaluator (AF-967) *(`API_CONNECTOR_MANAGE`)* |
 | `POST` | `/admin/deployment-simulations` | Trace one hypothetical deployment through the live deploygov evaluator and release gate (AF-967) *(`DEPLOYMENT_PIPELINE_MANAGE`)* |
 | `GET` | `/admin/notification-channels` | List notification channels |
@@ -4092,7 +4106,7 @@ endpoint adds):
 |---|---|
 | `DIRECT_PERMISSION` | An unexpired `datasource_user_permissions` row |
 | `GROUP_PERMISSION` | An unexpired group permission inherited through membership (AF-530) |
-| `JIT_GRANT` | A time-boxed direct row correlated to an active `APPROVED` JIT grant. `pre_approve_queries` is always `true` on this kind — the label is applied only when such a grant exists — and means queries under it also skip review (#582) |
+| `JIT_GRANT` | A direct row materialised from an approved JIT access request — read off `datasource_user_permissions.access_grant_request_id` (#969), never inferred. `pre_approve_queries` is `true` while the user holds an active pre-approving grant on this datasource — the same lookup the submission fast-path runs (#582) — meaning queries under it also skip review; it is `false` on a JIT row once no such grant remains (expired, revoked, or never opted in) |
 | `QUERY_ADMIN_BYPASS` | The user holds `QUERY_ADMIN`, which **skips the per-datasource gate entirely**. Such a user appears here with `granted: true` and this single source even when they have **no** permission row at all — the row no other screen shows |
 | `BREAK_GLASS` | The user holds `can_break_glass` on this datasource |
 
@@ -4111,12 +4125,6 @@ capability on the ordinary path. Folding it into `granted` would tell an auditor
 statement normally when they can only run it as a logged emergency. It is reported as a row-level flag and
 as its own source.
 
-> **`JIT_GRANT` is a correlation, not a foreign key.** A JIT grant is materialized as an ordinary
-> `datasource_user_permissions` row with a non-null `expires_at`, and the originating
-> `access_grant_request` id is not recorded on it. A time-boxed row is labelled `JIT_GRANT` only when an
-> active pre-approving grant exists for the same `(user, datasource)`; otherwise it stays
-> `DIRECT_PERMISSION` with its `expires_at`. Treat the label as a strong hint, and `expires_at` as the fact.
-
 **Audit.** Every call writes one `ACCESS_SIMULATION_RUN` audit row against the datasource, carrying the
 table and capability queried and `row_count` — the total number of matching users, not the size of the
 page returned.
@@ -4129,6 +4137,121 @@ page returned.
 | 403 | `FORBIDDEN` | Caller holds neither required permission |
 | 404 | `DATASOURCE_NOT_FOUND` | Datasource missing or in another organization |
 | 404 | `USER_NOT_FOUND` | `user_id` missing or in another organization |
+
+
+### Privileged-access report (#968)
+
+The standing, org-wide answer to the question an auditor opens the product to ask: **who can reach data
+without appearing in any permission table?** Two paths qualify, and neither shows up on any permission
+screen:
+
+- **`QUERY_ADMIN`** — the submission service skips the per-datasource permission gate for a holder
+  entirely, so they submit any statement against any datasource in the organization with **zero**
+  `datasource_user_permissions` rows. The permission arrives through the system `ADMIN` role or through
+  any custom role that carries it (AF-522); both resolve identically here.
+- **Break-glass** — a `can_break_glass` grant (a direct row, or a group row inherited through membership,
+  AF-530) is a second path with its own compensating controls (AF-385), visible until now only as a
+  column on an individual grant.
+
+[`/admin/effective-access`](#get-admineffective-access--query-parameters) reports the same two origins
+**per table** (`QUERY_ADMIN_BYPASS` / `BREAK_GLASS` sources). This endpoint answers the whole
+organization at once, **one row per identity** — never per grant. The over-provisioned report (#625)
+cannot see either path by construction: it reports standing grants and their usage, and a bypass has no
+grant to report.
+
+| Method | Path | Permission |
+|--------|------|------------|
+| `GET` | `/admin/privileged-access` | `DATASOURCE_PERMISSION_MANAGE` **or** `ACCESS_USAGE_REPORT_VIEW` |
+
+No new `Permission` value: the gate is the one `effective-access` already uses, so auditors read it
+alongside the over-provisioned report. **Advisory only.** No field carries a recommendation, nothing
+revokes anything on the strength of this report, and no decision path reads it — the same posture #625
+takes. Revocation happens through an attestation campaign, a role change, or an explicit permission edit.
+
+#### GET /admin/privileged-access — Query Parameters
+
+| Parameter | Required | Description |
+|---|---|---|
+| `kind` | no | `QUERY_ADMIN` or `BREAK_GLASS`. Keeps only identities whose `bypass_kinds` contains it; a kept row still lists **all** of that identity's kinds — the filter selects rows, it does not trim fields |
+| `user_id` | no | Restrict to one identity. A user in another organization, an inactive user, or one holding no bypass yields an empty page — never 404, the report is a set, not a resource |
+| `page`, `size` | no | 0-indexed; `size` defaults to 20, max 100. Rows are sorted by `email` ascending |
+
+#### GET /admin/privileged-access — Response 200
+
+```json
+{
+  "content": [
+    {
+      "user_id": "c9d0…",
+      "email": "root@example.com",
+      "display_name": "Ops Root",
+      "role_id": "c0000000-0000-0000-0000-000000000001",
+      "role_name": "ADMIN",
+      "system_role": true,
+      "bypass_kinds": ["QUERY_ADMIN", "BREAK_GLASS"],
+      "query_admin": { "role_id": "c0000000-0000-0000-0000-000000000001", "role_name": "ADMIN", "system_role": true },
+      "break_glass_grants": [
+        { "datasource_id": "…", "datasource_name": "payments-prod", "source_kind": "DIRECT", "source_id": "1c9a…", "group_id": null, "group_name": null, "expires_at": null },
+        { "datasource_id": "…", "datasource_name": "analytics", "source_kind": "GROUP", "source_id": "77b2…", "group_id": "0a41…", "group_name": "payments-oncall", "expires_at": "2026-10-01T00:00:00Z" }
+      ],
+      "evidence": {
+        "submitted_query_count": 143,
+        "last_submitted_at": "2026-09-10T14:02:11Z",
+        "break_glass_execution_count": 2,
+        "last_break_glass_at": "2026-08-30T03:14:00Z"
+      }
+    },
+    {
+      "user_id": "8f14…",
+      "email": "dana@example.com",
+      "display_name": "Dana Okonkwo",
+      "role_id": "3a1f…",
+      "role_name": "Data steward",
+      "system_role": false,
+      "bypass_kinds": ["QUERY_ADMIN"],
+      "query_admin": { "role_id": "3a1f…", "role_name": "Data steward", "system_role": false },
+      "break_glass_grants": [],
+      "evidence": { "submitted_query_count": 0, "last_submitted_at": null, "break_glass_execution_count": 0, "last_break_glass_at": null }
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "total_elements": 2,
+  "total_pages": 1
+}
+```
+
+Only **active** users of the caller's organization appear, and a user appears **only** when at least one
+bypass applies — a user whose only access is an ordinary grant is never a row here, however broad that
+grant is. Nulls are serialized explicitly.
+
+| Field | Meaning |
+|---|---|
+| `role_id`, `role_name`, `system_role` | The user's effective role. `system_role` is `true` for one of the five immutable system roles, `false` for an org-scoped custom role (AF-522) |
+| `bypass_kinds` | The non-empty set of paths that apply — `QUERY_ADMIN` and/or `BREAK_GLASS`, in that order |
+| `query_admin` | Non-null iff the effective role grants `QUERY_ADMIN`. It repeats the role trio by design: it names the role that *carries* the bypass, so a client can label the row without re-deriving it. A custom role with the permission resolves exactly like the system `ADMIN` role |
+| `break_glass_grants[]` | Every **unexpired** `can_break_glass` contribution on an **active** datasource. `source_kind` `DIRECT` is a `datasource_user_permissions` row (`source_id` = that row); `GROUP` is a `datasource_group_permissions` row (`source_id` = that row) reached through the named group. `expires_at: null` means the grant never expires. Sorted by `datasource_name`, then `DIRECT` before `GROUP`. Grants on an inactive datasource are omitted because the datasource gate fails closed before the grant is consulted — reactivating the datasource re-arms them |
+| `evidence` | Every `query_requests` row the user submitted in this organization — `submitted_query_count` and `last_submitted_at` (`max(created_at)`) — plus the `submission_reason = EMERGENCY_ACCESS` subset as `break_glass_execution_count` / `last_break_glass_at`. Counts cover every status (a rejected submission still exercised the bypass) and recurring occurrence rows (attributed to the series submitter). Zero / `null` when the user has never submitted |
+
+**Why the evidence is not the #625 usage summary.** `grant_usage_summary` is keyed per *grant*, reconciled
+from live permission rows, and its fold drops any executed-query event that matches no live grant — which
+is precisely every query a `QUERY_ADMIN` holder submits with no permission row. Every submission by such a
+holder passes through the bypass, so "queries submitted" *is* the bypass usage, and it is read straight
+from `query_requests` at request time (one grouped aggregate over the candidate identities, served by
+`idx_query_requests_submitter`). A break-glass holder's ordinary grants, if any, still appear in the
+over-provisioned report with their own usage.
+
+**Audit.** Every 200 writes one `PRIVILEGED_ACCESS_REPORT_VIEWED` audit row against the organization,
+carrying `row_count` — the total number of matching identities, not the page size — and the `kind` /
+`user_id` filters when supplied. It never carries emails or role names. An audit-write failure is logged
+and does not deny the read.
+
+#### Privileged-access Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | `kind` outside the enum, or `user_id` not a UUID |
+| 403 | `FORBIDDEN` | Caller holds neither required permission |
 
 
 ### Decision traces for API calls and deployments (AF-967)

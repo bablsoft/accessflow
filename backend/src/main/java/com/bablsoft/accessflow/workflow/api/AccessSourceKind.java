@@ -10,12 +10,13 @@ public enum AccessSourceKind {
     GROUP_PERMISSION,
 
     /**
-     * A time-boxed direct row correlated to an active JIT grant that pre-approves queries (#582).
+     * A direct row materialised from an approved JIT access request — a foreign key
+     * ({@code datasource_user_permissions.access_grant_request_id}, #969), not a correlation.
      *
-     * <p>A correlation, not a foreign key: a JIT grant is materialised as an ordinary permission row
-     * and the originating request id is not recorded on it, so this label is inferred from an active
-     * pre-approving grant for the same user and datasource. The expiry is the fact; the label is the
-     * hint.
+     * <p>{@link AccessSource#preApproveQueries()} says whether the user's queries on this datasource
+     * currently skip review (#582) — true while they hold any {@code APPROVED}, unexpired grant
+     * opted into pre-approval, the same lookup the submission fast-path runs. A JIT row whose grant
+     * has expired, or was never opted in, keeps this label with the flag {@code false}.
      */
     JIT_GRANT,
 

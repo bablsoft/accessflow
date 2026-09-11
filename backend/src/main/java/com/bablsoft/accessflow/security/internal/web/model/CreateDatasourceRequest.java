@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import jakarta.validation.Valid;
@@ -56,5 +57,7 @@ public record CreateDatasourceRequest(
         // Passphrase for an encrypted PKCS#8 private key (Snowflake key-pair auth); encrypted
         // before persistence and never returned.
         @Size(max = 1024, message = "{validation.private_key_passphrase.max}")
-        String privateKeyPassphrase
+        String privateKeyPassphrase,
+        // #861: optional; an unset environment resolves to the org-wide default SQL review ruleset.
+        DatasourceEnvironment environment
 ) {}

@@ -111,6 +111,7 @@ export default defineConfig({
         'src/api/datasources.ts',
         'src/api/exportPolicies.ts',
         'src/api/grantUsage.ts',
+        'src/api/privilegedAccess.ts',
         'src/api/helpAgent.ts',
         'src/api/helpChat.ts',
         'src/api/maskingPolicies.ts',

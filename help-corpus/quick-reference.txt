@@ -90,6 +90,7 @@ Where things are in the app
     Review plans · /admin/review-plans · needs REVIEW_PLAN_MANAGE — Review plans: approval stages, approvers, timeouts, escalation.
     Routing policies · /admin/routing-policies · needs ROUTING_POLICY_MANAGE — Typed conditions that auto-approve, auto-reject or route a request.
     Over-provisioned access · /admin/over-provisioned-access · needs ACCESS_USAGE_REPORT_VIEW — Grants nobody has used, suggested for revocation.
+    Privileged access · /admin/privileged-access · needs DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — Who can bypass the permission gate — query admins and break-glass holders — and how often they have.
     Break-glass log · /admin/break-glass · needs BREAK_GLASS_VIEW — Break-glass grants and the mandatory retro-review of each use.
 
   Security & Access → Data governance

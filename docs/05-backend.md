@@ -1464,6 +1464,60 @@ candidate set is bounded by the users holding any permission on one datasource p
 `QUERY_ADMIN` holders — which since AF-522 can include a custom role, exactly the case this feature
 exists to surface — both capped by its user quota, so there is nothing unbounded to truncate and no knob for it.
 
+The org-wide counterpart — every identity whose row here would carry a `QUERY_ADMIN_BYPASS` or
+`BREAK_GLASS` source, across all datasources at once — is the
+[privileged-access report (#968)](#privileged-access-report-968) in the `access` module.
+
+### Privileged-access report (#968)
+
+The standing answer to *who can reach data without appearing in any permission table*. Owned by the
+`access` module (`access.api.PrivilegedAccessService`, `DefaultPrivilegedAccessService`) next to the
+over-provisioned report, because it is the same auditor's question about the access #625 by
+construction cannot see: a standing grant has usage to report, a bypass has no grant. Wire contract:
+[docs/04-api-spec.md → Privileged-access report](04-api-spec.md#privileged-access-report-968);
+authorization and audit: [docs/07-security.md](07-security.md#system-role-matrix).
+
+Two sources, both read through the lookups enforcement already uses rather than a second derivation:
+
+- **`QUERY_ADMIN` holders** — `core.api.RolePermissionHolderLookupService.findUserIdsWithPermission`
+  inverts the role catalog (system roles through `SystemRolePermissions`, custom roles through their
+  `role_permissions` rows, AF-522), so a custom role carrying the permission resolves exactly like the
+  system `ADMIN` role. These users skip the per-datasource gate in `DefaultQuerySubmissionService`
+  (`if (!input.isAdmin()) permissionVerifier.verify(...)`) and so hold zero
+  `datasource_user_permissions` rows.
+- **Break-glass grantees** — `core.api.DatasourceUserPermissionLookupService.findBreakGlassContributionsForOrganization`
+  (new): every unexpired `can_break_glass` row in the organization, direct rows via
+  `datasource.organization`, group rows via their own `organization_id`, each group row expanded across
+  its members in one membership query — the same expansion `findContributionsForDatasource` uses,
+  factored out. The service then keeps only grants on **active** datasources
+  (`DatasourceLookupService.findActiveRefsByOrganization`, which also supplies the names): the
+  datasource gate fails closed before a grant is consulted, and re-activating the datasource re-arms
+  it.
+
+The candidate set is the union; `user_id` narrows it before the user fetch; `UserQueryService.findByIds`
+then drops inactive and foreign users (the holder lookup is already active-only and org-scoped, the
+break-glass rows are not). One row per identity — a user holding both paths is one row with both
+kinds, and a user whose only access is an ordinary grant is never a candidate at all. `system_role`
+is derived from `UserView.role != null`: the legacy enum column is populated for the five system roles
+and NULL on a custom role, with `roleRef` the source of truth, kept in sync.
+
+**Evidence is read from `query_requests`, not from `grant_usage_summary`.** The #625 fold is keyed per
+grant, reconciled from live permission rows, and drops any executed-query event that matches no live
+grant — precisely every query a `QUERY_ADMIN` holder submits with no permission row. Every submission
+by such a holder passed through the bypass, so "queries submitted" *is* the bypass usage.
+`core.api.QuerySubmitterEvidenceLookupService.findBySubmitters` runs one grouped native aggregate over
+the candidate ids — total rows and `max(created_at)`, plus the `submission_reason = 'EMERGENCY_ACCESS'`
+subset via Postgres `FILTER` — scoped through `datasources.organization_id` like the dashboard's
+self-scoped aggregates, and served by `idx_query_requests_submitter (submitted_by, created_at DESC)`,
+created by `V168`. Counts cover every status: a rejected submission still exercised the bypass.
+
+Paging is an in-memory slice for the same reason the reverse index's is: a row is a Java merge of three
+lookups that no `Specification` expresses, and the candidate set — the organization's `QUERY_ADMIN`
+holders plus its break-glass grantees — is capped by its user quota. Every 200 writes one
+`PRIVILEGED_ACCESS_REPORT_VIEWED` audit row from the controller (swallowed on failure, like the
+explainer's — an audit outage must not deny an auditor the report). **Advisory only:** no field carries a
+recommendation, nothing consumes the report, and nothing revokes on its strength.
+
 ### Policy-as-code routing engine (AF-379)
 
 Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:
@@ -1487,11 +1541,126 @@ For `REQUIRE_APPROVALS` / `ESCALATE`, the resolved absolute count is written to 
 
 **Timezone.** `time_of_day` and `day_of_week` operands are evaluated in the **server's local timezone**; `time_of_day` supports overnight wrap-around (e.g. a 22:00–06:00 window).
 
-**Client context (AF-446).** The `source_ip`, `user_agent`, and `cicd_origin` signals are only available on the HTTP submission request, but routing runs asynchronously after AI completion — so they are captured at submission (`QuerySubmissionController`) and persisted on `query_requests` (`submitted_ip`, `submitted_user_agent`, `cicd_origin`), then read back by `QueryReviewStateMachine` when it builds the `ConditionContext`. `cicd_origin` is set when the request was authenticated via an API key (the `security.api.ApiKeyAuthentication` marker) **or** carried the `X-AccessFlow-CI` header. `time_since_last_approval` is computed at routing time as the minutes since the requester's most recent APPROVED/EXECUTED query on the same datasource (`QueryRequestLookupService.findLastApprovalInstant`). All four client-context operands **fail closed** — when the required signal is absent the leaf evaluates to `false` (the matcher in `CidrMatcher` / `GlobMatcher` returns false on a null IP / user-agent, and `time_since_last_approval` is false with no prior approval), so a permissive `AUTO_APPROVE` policy never fires on missing context; express escalation of unknown context as `not(source_ip(...))`. CIDR syntax is validated by `RoutingConditionValidator` at create / update (422 on a malformed block).
+**Client context (AF-446).** The `source_ip`, `user_agent`, and `cicd_origin` signals are only available on the HTTP submission request, but routing runs asynchronously after AI completion — so they are captured at submission (`QuerySubmissionController`) and persisted on `query_requests` (`submitted_ip`, `submitted_user_agent`, `cicd_origin`), then read back by `QueryReviewStateMachine` when it builds the `ConditionContext`. `cicd_origin` is set when the request was authenticated via an API key (the `security.api.ApiKeyAuthentication` marker) **or** carried the `X-AccessFlow-CI` header. `time_since_last_approval` is computed at routing time as the minutes since the requester's most recent APPROVED/EXECUTED query on the same datasource (`QueryRequestLookupService.findLastApprovalInstant`). All four client-context operands **fail closed** — when the required signal is absent the leaf evaluates to `false` (the matcher in `CidrMatcher` / `core.api.GlobMatcher` returns false on a null IP / user-agent, and `time_since_last_approval` is false with no prior approval), so a permissive `AUTO_APPROVE` policy never fires on missing context; express escalation of unknown context as `not(source_ip(...))`. CIDR syntax is validated by `RoutingConditionValidator` at create / update (422 on a malformed block).
 
 **Skip / failure paths.** On the AI-skipped path (`datasource.ai_analysis_enabled = false`) the risk-based operands (`risk_level`, `risk_score`) evaluate to **false** — there is no AI signal, so risk-gated policies simply don't match and the query continues to non-risk policies or the plan fall-through. Routing is **not** run on the AI-failure path (`AiAnalysisFailedEvent`) — a missing AI signal never feeds an automated routing decision; the query lands in `PENDING_REVIEW` for a human, consistent with the auto-approve asymmetry above.
 
 **Audit.** Automated decisions reuse the `QUERY_APPROVED` / `QUERY_REJECTED` audit actions with metadata `{ auto_approved | auto_rejected: true, source: "ROUTING_POLICY", routing_policy_id, reason }`. A `REQUIRE_APPROVALS` / `ESCALATE` match records the same matched-policy metadata (`source: "ROUTING_POLICY", routing_policy_id, effective_min_approvals, reason`) on the `QUERY_REVIEW_REQUESTED` action — the `QueryReadyForReviewEvent` carries the matched-policy fields for the routed-to-review path (AF-446). Policy CRUD writes the dedicated `ROUTING_POLICY_CREATED` / `_UPDATED` / `_DELETED` / `_REORDERED` actions against the `routing_policy` resource type. The engine reads / writes the new `routing_policy` and `routing_decision` tables (Flyway `V59__create_routing_policy.sql`).
+
+### Deterministic SQL review rules (`sqlreview`, #862)
+
+The third way a query is judged, next to AI analysis and routing policies: a **named, deterministic
+rule catalog** evaluated over the JSqlParser AST, with a per-rule severity (`OFF` / `WARN` /
+`BLOCK`) that an admin sets per environment. #862 ships the engine and the fourteen built-in rules
+behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; ruleset
+administration and the evaluation endpoint are #863, enforcement at the submission chokepoint is
+#864 (`BLOCK` suppresses every auto-approve path and forces `PENDING_REVIEW` — it **never**
+rejects), the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+
+**Applicability.** Every rule is a pure function of the parsed statement, so the catalog covers the
+in-process relational dialects only — `DefaultSqlReviewService.RELATIONAL_DIALECTS` =
+`POSTGRESQL, MYSQL, MARIADB, ORACLE, MSSQL, CUSTOM`. Any other `DbType` (every engine plugin,
+including one added later) returns `SqlReviewResult.notApplicable()` — `applicable: false`, zero
+findings — before the SQL is parsed or a ruleset is loaded. This is deliberately not fail-closed: an
+engine with no rule support must never make its queries harder to approve than they are today. The
+gate is an explicit allow-list rather than `QueryEngineCatalog.isEngineManaged()`, which reads the
+connector manifest and answers *false* for a type without one.
+
+**Ruleset resolution.** datasource → its `environment` → the ruleset bound to that environment →
+else the organization-wide default (`environment IS NULL`) → else no rules (an applicable, empty
+result). The bound ruleset is picked whether or not it is enabled; a **disabled** ruleset resolves
+to *no rules* and does not fall through to the default, so disabling the production ruleset never
+silently re-enables the org default on production. Every catalog rule is then evaluated: at the
+severity and params of its `sql_review_rule_configs` row when the ruleset has one, at its built-in
+default severity otherwise. `OFF` rules are never applied. A config row naming an unknown rule id is
+logged and ignored.
+
+**Parsing and line numbers.** `proxy.api.SqlParserService.parse()` returns strings only (its AST
+helpers are private to `proxy.internal`, and `core.api` cannot carry JSqlParser types), so
+`sqlreview/internal/SqlStatementParser` re-parses each statement slice with `CCJSqlParserUtil`.
+`InvalidSqlException` from the first parse propagates unchanged (already HTTP 422; submission
+parses before it evaluates anyway). A single statement is the verbatim submission, so findings carry
+real one-based line numbers from the construct's AST node (or the statement's target table). A
+`BEGIN…COMMIT` envelope yields deparsed slices whose lines would all read 1, so every finding on an
+envelope member carries `line_number = null` and is located by `statement_index` instead. A slice
+that fails to re-parse is skipped with a warning.
+
+**Evaluation contract.** `sqlreview/internal/SqlReviewEvaluator` is pure (no Spring, no
+repositories, no clock). A rule that throws on a statement is skipped for that statement and logged
+at WARN — a rule bug can never block or fail a query. Findings are re-stamped with the resolved
+severity and ordered by `statement_index`, then `line_number` (unknown last), then `rule_id`, so
+the output — and therefore the persisted rows and the editor diagnostics — is stable.
+
+**The SPI.** `sqlreview/internal/rules/SqlRule` — `ruleId()`, `category()`
+(`sqlreview.api.SqlRuleCategory`), `defaultSeverity()`, `params()` (declared `SqlRuleParam`s: key,
+required, defaults), `messageArgKeys()` (the finding `args` keys in the order they bind to `{0}`,
+`{1}`… of `sqlreview.rule.<id>.message`) and `apply(SqlRuleContext, params)`. It is internal, not
+`api`, because implementations import JSqlParser. Rules are plain classes; `SqlRuleCatalog` is the
+one bean that knows the fourteen, in catalog order. The expression-level rules share
+`StatementWalker`, a `TablesNamesFinder` subclass that records every `Function`, `LikeExpression`,
+`PlainSelect` and `Table` it traverses — select list, FROM/JOIN, WHERE, HAVING, UPDATE SET,
+INSERT…SELECT, every subquery — and additionally descends into GROUP BY, ORDER BY, LIMIT and OFFSET
+expressions, which the finder skips because they cannot name tables (`ORDER BY pg_sleep(10)` must
+not hide a banned function). `TableNames.normalize` mirrors the proxy's `normalizeIdentifier`
+(quotes and brackets stripped, lower-cased), `StatementKinds.isDdl` mirrors its package-prefix DDL
+heuristic; `protected_table` matches through the shared `core.api.GlobMatcher` (which #862 also made
+the single glob matcher behind routing-policy, API-governance and deployment version globs).
+
+**The catalog.** All fourteen are AST-only — no schema introspection, no datasource connection.
+
+| Rule id | Fires when | `args` (message order) | Default | Category |
+|---|---|---|---|---|
+| `select_star` | a top-level select body (the statement, each set-operation branch, each CTE body) has a `*` or `t.*` select item. FROM/WHERE subqueries are not inspected — `EXISTS (SELECT * …)` is idiomatic | — | WARN | PERFORMANCE |
+| `missing_where_on_update` | `UPDATE` with no `WHERE` | `table` | BLOCK | STATEMENT_SAFETY |
+| `missing_where_on_delete` | `DELETE` with no `WHERE` | `table` | BLOCK | STATEMENT_SAFETY |
+| `where_always_true` | a `SELECT` / `UPDATE` / `DELETE` whose `WHERE` is a tautology — `TRUE`, `NOT FALSE`, a literal compared to itself (`1 = 1`, `'a' = 'a'`), a numeric-literal comparison that holds (`1 <> 0`, `2 > 1`), a column compared to itself (`x = x`), parentheses unwrapped — or has one as a **top-level `OR` disjunct** (`id = 1 OR 1 = 1`). `AND`-ed tautologies are harmless and ignored. The rule that stops the two above being defeated | `predicate` | BLOCK | STATEMENT_SAFETY |
+| `missing_limit_on_select` | a `SELECT` reading from a table with no `LIMIT` / `TOP` / `FETCH FIRST` (`LIMIT ALL` and a bare `OFFSET` do not count; a set operation's trailing clause may sit on its last branch and is checked there). A table-less `SELECT 1` is skipped | — | WARN | PERFORMANCE |
+| `order_by_without_limit` | `ORDER BY` with no row limit — on a `SELECT`, or the MySQL-style `UPDATE … ORDER BY` / `DELETE … ORDER BY` without `LIMIT` | — | WARN | PERFORMANCE |
+| `cross_join` | in any select body (subqueries included): an explicit `CROSS JOIN`; a `JOIN` with neither `ON` nor `USING` (not `NATURAL`, not `APPLY` — `CROSS APPLY` is a correlated lateral join, not a product); or a comma join that no column-to-column comparison in the `WHERE` correlates, judged **per join**: a pair correlates a join when the columns are not both qualified with the same table and one side names that join's table or alias (unqualified columns get the benefit of the doubt; `t, u, v WHERE t.id = u.id` still flags `v`; an arithmetic side such as `a.id = b.id + 1` is not recognised) | `table` | WARN | PERFORMANCE |
+| `leading_wildcard_like` | `LIKE` / `ILIKE` (negated or not) whose pattern literal starts with `%`, anywhere in the statement | `pattern` | WARN | PERFORMANCE |
+| `drop_statement` | `DROP TABLE` / `DROP SCHEMA` / `DROP DATABASE`, or `ALTER TABLE … DROP COLUMN` (one finding per column). `DROP INDEX` / `DROP VIEW` are left to `ddl_statement` | `object_type`, `name` | BLOCK | SCHEMA_CHANGE |
+| `truncate_statement` | `TRUNCATE` — one finding per table | `table` | BLOCK | SCHEMA_CHANGE |
+| `ddl_statement` | any CREATE / ALTER / DROP / TRUNCATE (the proxy's DDL definition; `statement_type` is the JSqlParser statement class as SQL words — `DROP`, `CREATE TABLE`, `ALTER VIEW`). Broader than the two above, and all three are on by default — a bare `DROP TABLE` yields a `drop_statement` BLOCK **and** a `ddl_statement` WARN until an admin who wants one signal per DDL keeps this and turns those two `OFF` | `statement_type` | WARN | SCHEMA_CHANGE |
+| `disallowed_function` | a call to a banned function anywhere in the statement, matched on the unqualified, case-insensitive name (`pg_catalog.PG_SLEEP(5)` is caught by `pg_sleep`). Param `names`; absent or empty falls back to the built-in `pg_sleep`, `sleep`, `benchmark`, `load_file` | `function` | BLOCK | STATEMENT_SAFETY |
+| `protected_table` | a referenced table matches a configured glob (`payroll.*`, `*.audit_log`), tried against the normalised `schema.table` name **and** the bare table name, so `audit_log` also matches `public.audit_log`; one finding per table with the first matching glob. Param `globs`; absent or empty → no findings | `table`, `glob` | BLOCK | DATA_PROTECTION |
+| `dml_without_transaction` | `INSERT` / `UPDATE` / `DELETE` submitted outside a `BEGIN…COMMIT` envelope (the parser's `transactional` flag) | — | WARN | STATEMENT_SAFETY |
+
+`DROP DATABASE` is listed for the spec but unreachable: JSqlParser 5.3 does not parse it, so the
+proxy rejects it with 422 before any rule runs.
+
+**Params and write-time validation.** `params` is a JSON object of string arrays
+(`{"names": [...]}`, `{"globs": [...]}`) — `sqlreview.api.SqlReviewRuleConfigView.params` is
+`Map<String, List<String>>`, `SqlRuleParamsCodec` is the only encoder/decoder. `SqlRuleParamsValidator`
+(the `RoutingConditionValidator` shape: `MessageSource`, message resolved at the throw site, throws
+`sqlreview.api.IllegalSqlReviewRulesetException` → 422 in #863) rejects an unknown rule id, params on
+a parameterless rule or an undeclared key, a required list that is *absent* (unless the param has
+built-in defaults, as `disallowed_function.names` does), a supplied list that is empty or contains a
+blank entry (`{"names": []}` is refused rather than silently re-defaulted, defaults or not), and an
+entry outside the param's own `valuePattern` — `[A-Za-z0-9_$*.-]` for globs, `[A-Za-z0-9_$.-]` for
+function names (ASCII only — a non-ASCII quoted identifier cannot be protected yet) — carried on `SqlRuleParam` together with its `error.*` key, so the validator knows
+no rule by name and a fifteenth parameterised rule cannot slip past it unchecked. A malformed
+ruleset is thus refused when saved, never discovered during evaluation; #863 wires it into ruleset
+create / update. Rows written any other way are still degraded, not fatal: a config row whose stored
+`params` will not decode keeps its severity and runs with no params (logged at WARN), exactly as an
+unknown rule id is logged and skipped — `evaluate()` throws only for a missing datasource or
+unparseable SQL.
+
+**Messages are never stored in English.** A finding carries `rule_id` + `args`; the reader-locale
+text comes from three keys per rule in every `messages*.properties` —
+`sqlreview.rule.<id>.name`, `.description`, `.message` — 42 keys, parity-checked by
+`MessagesParityTest`. `.message` uses positional `MessageFormat` placeholders bound in
+`messageArgKeys()` order (e.g. `protected_table` → `{0}` = `table`, `{1}` = `glob`); `.name` and
+`.description` take no args. Rendering per reader — query detail, reviewer queue, the editor's
+`Accept-Language` — is #864 / #865. Six `error.sql_review_rule_*` keys back the validator (five) and
+`SqlRuleParamsCodec` (`error.sql_review_rule_params_invalid`, a malformed stored `params` JSONB).
+
+**Tests.** One `<Rule>Test` per rule (match, non-match, line number, args; the parameterised pair
+also cover configured / empty / absent params), the anti-defeat pair (`UPDATE … WHERE 1 = 1` is
+silent for `missing_where_on_update` and caught by `where_always_true`), `SqlReviewEvaluatorTest`
+(ordering, `OFF`, re-stamping, a throwing rule, envelope indices), `DefaultSqlReviewServiceTest`
+(the full resolution chain and the non-relational guard, which asserts the parser and repositories
+are never touched), `SqlRuleCatalogTest` (fourteen unique ids, every id has its three message keys,
+`messageArgKeys` equals the args each rule emits).
 
 ### Implementation: review decisions
 
@@ -1971,7 +2140,7 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 **Connector submission validation (AF-567).** A connector request must target an active connector in the caller's organization (`apigov.api.ApiConnectorLookupService.findActiveRefsByOrganization`, mirroring the datasource check — deliberately not permission-gated, JIT exists to obtain access you don't have) and its optional `allowed_operations` entries must exist in the connector's operation catalog (`apigov.api.ApiSchemaService.listOperations`; unknown ids → `InvalidAccessOperationsException`, HTTP 422). The requestable-connector list and per-connector operation catalog are served by `GET /access-requests/connectors{,/{id}/operations}`.
 
-**Grant materialisation.** On final-stage approval, `approve()` runs `AccessGrantMaterializer` inside the same transaction so approval + grant commit atomically. The materializer computes `expires_at = now + Duration.parse(requested_duration)` and branches on the resource kind: datasource requests call `core.api.DatasourceAdminService.grantPermission(...)`; connector requests call `apigov.api.ApiConnectorAdminService.grantPermission(...)` with `canRead`/`canWrite`, the request's `allowed_operations`, and **never** break-glass or response-field restrictions. The new permission id is stored on the request.
+**Grant materialisation.** On final-stage approval, `approve()` runs `AccessGrantMaterializer` inside the same transaction so approval + grant commit atomically. The materializer computes `expires_at = now + Duration.parse(requested_duration)` and branches on the resource kind: datasource requests call `core.api.DatasourceAdminService.grantPermission(...)`; connector requests call `apigov.api.ApiConnectorAdminService.grantPermission(...)` with `canRead`/`canWrite`, the request's `allowed_operations`, and **never** break-glass or response-field restrictions. The new permission id is stored on the request, and the datasource path also stamps the request id on the permission row (`datasource_user_permissions.access_grant_request_id`, V169 — FK `ON DELETE SET NULL`, backfilled once from `granted_permission_id`; #969), which is what the effective-access report (#859) reads to label a source `JIT_GRANT` instead of correlating on `(requester, datasource)`.
 
 **Pre-existing-permission policy.** If the requester already holds a **direct** permission on the resource (group grants are never considered or touched): a **standing** permission (`expires_at == null`, admin-granted) is never silently deleted — the materializer throws `AccessGrantAlreadyExistsException` (HTTP 409; the datasource path uses `core.api.DatasourceUserPermissionLookupService.findDirectFor`, the connector path `apigov.api.ApiConnectorPermissionLookupService.findDirectFor`). Another **time-boxed** (JIT) permission is replaced so the new grant's capabilities/expiry take effect (extend/widen) — revoke-then-grant on the datasource path, the `(connector_id, user_id)` upsert of `grantPermission` on the connector path. This keeps standing access safe while letting JIT grants stack predictably. (See [docs/07-security.md](07-security.md).)
 

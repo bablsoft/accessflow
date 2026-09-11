@@ -69,6 +69,9 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
         }
         var queryAdminIds = Set.copyOf(rolePermissionHolderLookupService
                 .findUserIdsWithPermission(organizationId, Permission.QUERY_ADMIN));
+        // Keyed by user, not by grant: the submission fast-path (#582) pre-approves on any active
+        // pre-approving grant the submitter holds for the datasource, so that is the set the flag
+        // must agree with — not the one grant a given row happens to have been materialised from.
         var preApprovedUserIds = accessGrantLookupService
                 .findPreApprovingGrantsForDatasource(organizationId, query.datasourceId()).stream()
                 .map(AccessGrantView::requesterId)
@@ -152,9 +155,10 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
     private static AccessSource toSource(DatasourcePermissionContribution contribution,
                                          boolean preApproved, String table, QueryType queryType) {
         boolean direct = contribution.sourceKind() == DatasourcePermissionSourceKind.DIRECT;
-        // A JIT grant is materialised as an ordinary time-boxed direct row with no back-reference to
-        // the request, so the label is a correlation on (user, datasource) — never a certainty.
-        boolean jit = direct && contribution.expiresAt() != null && preApproved;
+        // The label is the foreign key on the row (#969) — a JIT row stays JIT_GRANT after its
+        // grant expires. The flag is what enforcement would do for this user right now.
+        boolean jit = direct && contribution.accessGrantRequestId() != null;
+        boolean preApproveQueries = jit && preApproved;
         var kind = jit ? AccessSourceKind.JIT_GRANT
                 : direct ? AccessSourceKind.DIRECT_PERMISSION : AccessSourceKind.GROUP_PERMISSION;
         return new AccessSource(kind, contribution.sourceId(), contribution.groupId(),
@@ -163,7 +167,7 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                         contribution.canWrite(), contribution.canDdl(), queryType),
                 scopeOf(contribution.allowedSchemas(), contribution.allowedTables()),
                 coveringEntry(contribution.allowedSchemas(), contribution.allowedTables(), table),
-                contribution.expiresAt(), jit);
+                contribution.expiresAt(), preApproveQueries);
     }
 
     /** Both the capability and the table coverage are read off the merged permission, never a part. */

@@ -410,6 +410,21 @@ pages at the same time, and the worklist gained server-side paging (it previousl
 50-row slab, which would have silently truncated the new staleness-first ordering); changing page
 clears the bulk selection so a decision can never apply to rows that scrolled out of view.
 
+### Privileged access (#968)
+
+`/admin/privileged-access` (lazy, `DATASOURCE_PERMISSION_MANAGE` **or** `ACCESS_USAGE_REPORT_VIEW`
+— the `AuthGuard` array form is any-of, as is the sidebar's `permissions`) is the org-wide
+counterpart of the over-provisioned report: every identity that can reach data *without* a
+permission row — `QUERY_ADMIN` holders and break-glass grantees — one row each. `api/privilegedAccess.ts`
+with `privilegedAccessKeys.report(filters)`; server-side paging and two filters (bypass kind, user
+id) on the same shell as the over-provisioned page. Columns: identity, role (name plus a *System
+role* / *Custom role* line), one `Pill` per bypass kind (`standingBypassKindColor` — `QUERY_ADMIN`
+critical, `BREAK_GLASS` high), the break-glass datasources (each with *Direct grant* or *via
+<group>* and its expiry or *never expires*), and two evidence cells — queries submitted and
+break-glass runs, each a count with when it last happened. A null `last_*_at` renders as **Never**,
+never as a date, and an empty grant list as a dash. The subtitle states the advisory posture; there
+is no action on the page. `AuditLogPage`'s filter list gained `PRIVILEGED_ACCESS_REPORT_VIEWED`.
+
 Home routing is permission-driven since AF-522: `homePathForUser` (`utils/homePath.ts`) sends an auditor-shaped user (holds `COMPLIANCE_REPORT_VIEW`, lacks `QUERY_SUBMIT_SELECT`) to `/admin/auditor`; everyone else lands on `/dashboard` (AF-498), and `AuthGuard` bounces a permission-mismatch to that same home.
 
 ### DashboardPage *(any authenticated user)* — AF-498
@@ -1120,6 +1135,7 @@ for deployment recipes (Docker Compose, Helm).
 /admin/attestation                  → CampaignListPage (lazy; ADMIN — access-recertification campaign list + create, AF-384)
 /admin/attestation/:id              → CampaignDetailPage (lazy; ADMIN — campaign items + open/cancel + evidence CSV export, AF-384; usage-evidence column, #625)
 /admin/over-provisioned-access      → OverProvisionedAccessPage (lazy; ADMIN or AUDITOR — unused/over-scoped standing grants + CSV export, #625)
+/admin/privileged-access            → PrivilegedAccessPage (lazy; ADMIN or AUDITOR — QUERY_ADMIN holders and break-glass grantees with query evidence, #968)
 /admin/lifecycle/policies           → LifecyclePoliciesListPage (lazy; ADMIN — retention/erasure-rule list + create + delete + dry-run preview; create modal embeds the shared ErasureConfigForm (target/columns/conditions/raw-WHERE; schema-driven cascading table→column pickers with free-text fallback when introspection is unavailable, #548) + cron field, AF-499/AF-519)
 /lifecycle/erasure-reviews          → ErasureReviewQueuePage (lazy; REVIEWER/ADMIN — review-plan-based right-to-erasure review queue, optimistic approve/reject + scope snapshot, AF-519)
 /lifecycle/erasure                  → ErasureSubmitPage (lazy; any authenticated — self-service erasure request submit (shared ErasureConfigForm, schema-driven target pickers #548) + my-requests list with cancel, AF-499/AF-519)
@@ -1189,7 +1205,7 @@ still gates each entry.
 | | **API** *(domain `apis`)* | `/api-connectors` |
 | | **Deployments** *(domain `deployments`)* | `/admin/deployment-pipelines` |
 | `SECURITY` | **Identity** | `/admin/users`, `/admin/groups`, `/admin/roles`, `/admin/saml`, `/admin/oauth2`, `/admin/scim` |
-| | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/over-provisioned-access`, `/admin/break-glass` |
+| | **Access control** | `/admin/access-requests`, `/admin/review-plans`, `/admin/routing-policies`, `/admin/over-provisioned-access`, `/admin/privileged-access`, `/admin/break-glass` |
 | | **Data governance** | `/admin/data-classifications`, `/admin/lifecycle/policies`, `/admin/attestation` |
 | | **Audit & compliance** | `/admin/audit-log`, `/admin/audit-sinks`, `/admin/auditor` |
 | `SYSTEM` | *(none)* | `/admin/datasource-health`, `/admin/anomalies`, `/admin/notifications`, `/admin/slack`, `/admin/languages`, `/admin/governance-domains` |

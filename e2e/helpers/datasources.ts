@@ -1290,6 +1290,47 @@ export async function listOverProvisionedGrantsViaApi(
   return res.json();
 }
 
+// #968 — the privileged-access report: one row per identity that can reach data with no
+// permission row (QUERY_ADMIN holders, break-glass grantees). Gated on
+// DATASOURCE_PERMISSION_MANAGE or ACCESS_USAGE_REPORT_VIEW — ADMIN and AUDITOR by default.
+export interface PrivilegedAccessRow {
+  user_id: string;
+  email: string;
+  role_name: string | null;
+  system_role: boolean;
+  bypass_kinds: string[];
+  query_admin: { role_id: string | null; role_name: string | null; system_role: boolean } | null;
+  break_glass_grants: Array<{
+    datasource_id: string;
+    datasource_name: string;
+    source_kind: string;
+    group_name: string | null;
+    expires_at: string | null;
+  }>;
+  evidence: {
+    submitted_query_count: number;
+    last_submitted_at: string | null;
+    break_glass_execution_count: number;
+    last_break_glass_at: string | null;
+  };
+}
+
+export async function listPrivilegedAccessViaApi(
+  request: APIRequestContext,
+  accessToken: string,
+  params: Record<string, string> = {},
+): Promise<{ content: PrivilegedAccessRow[]; total_elements: number }> {
+  const query = new URLSearchParams(params).toString();
+  const res = await request.get(
+    `${apiBase()}/api/v1/admin/privileged-access${query ? `?${query}` : ''}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok()) {
+    throw new Error(`List privileged access failed: ${res.status()} ${await res.text()}`);
+  }
+  return res.json();
+}
+
 export async function exportOverProvisionedCsvViaApi(
   request: APIRequestContext,
   accessToken: string,

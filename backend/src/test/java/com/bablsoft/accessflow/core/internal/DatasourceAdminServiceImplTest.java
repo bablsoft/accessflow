@@ -3,6 +3,7 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.CreateDatasourceCommand;
 import com.bablsoft.accessflow.core.api.CreatePermissionCommand;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DatasourceNameAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.DatasourceNotFoundException;
 import com.bablsoft.accessflow.core.api.DatasourcePermissionAlreadyExistsException;
@@ -36,6 +37,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -769,6 +771,75 @@ class DatasourceAdminServiceImplTest {
     }
 
     @Test
+    void createPersistsTheEnvironmentAndLeavesItUnsetWhenAbsent() {
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        when(organizationRepository.getReferenceById(orgId)).thenReturn(org);
+        when(encryptionService.encrypt("pw")).thenReturn("ENC(pw)");
+        when(datasourceRepository.save(any(DatasourceEntity.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        var withEnvironment = service.create(createCommand("Prod", DatasourceEnvironment.PRODUCTION));
+        var withoutEnvironment = service.create(createCommand("Dev", null));
+
+        assertThat(withEnvironment.environment()).isEqualTo(DatasourceEnvironment.PRODUCTION);
+        assertThat(withoutEnvironment.environment()).isNull();
+    }
+
+    @Test
+    void updateSetsTheEnvironmentWithoutPublishingAnEvent() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        var result = service.update(datasourceId, orgId,
+                environmentCommand(DatasourceEnvironment.STAGING, null));
+
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.STAGING);
+        assertThat(result.environment()).isEqualTo(DatasourceEnvironment.STAGING);
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void updateWithNullEnvironmentLeavesItUnchanged() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setEnvironment(DatasourceEnvironment.TEST);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, environmentCommand(null, null));
+
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.TEST);
+    }
+
+    @Test
+    void updateClearEnvironmentUnsetsItAndAnExplicitValueWins() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        entity.setEnvironment(DatasourceEnvironment.TEST);
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+
+        service.update(datasourceId, orgId, environmentCommand(null, true));
+        assertThat(entity.getEnvironment()).isNull();
+
+        service.update(datasourceId, orgId, environmentCommand(DatasourceEnvironment.DEVELOPMENT, true));
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.DEVELOPMENT);
+
+        service.update(datasourceId, orgId, environmentCommand(null, false));
+        assertThat(entity.getEnvironment()).isEqualTo(DatasourceEnvironment.DEVELOPMENT);
+    }
+
+    private CreateDatasourceCommand createCommand(String name, DatasourceEnvironment environment) {
+        return new CreateDatasourceCommand(orgId, name, DbType.POSTGRESQL, "db", 5432, "appdb",
+                "svc", "pw", SslMode.DISABLE, null, null, null, null, null, false, null, null,
+                null, null, null, null, null, null, null, null, null, environment);
+    }
+
+    private static UpdateDatasourceCommand environmentCommand(DatasourceEnvironment environment,
+                                                              Boolean clearEnvironment) {
+        return new UpdateDatasourceCommand(null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+                null, environment, clearEnvironment);
+    }
+
+    @Test
     void updateDoesNotPublishWhenOnlyNonPoolFieldsChange() {
         var entity = buildDatasource(datasourceId, orgId, "Prod");
         when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
@@ -1002,7 +1073,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null);
+                null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1014,7 +1085,7 @@ class DatasourceAdminServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null);
+                null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(IllegalDatasourcePermissionException.class);
     }
@@ -1033,7 +1104,7 @@ class DatasourceAdminServiceImplTest {
                 .thenReturn(true);
 
         var command = new CreatePermissionCommand(userId, true, false, false, false, null, null,
-                null, null, null);
+                null, null, null, null);
         assertThatThrownBy(() -> service.grantPermission(datasourceId, orgId, adminId, command))
                 .isInstanceOf(DatasourcePermissionAlreadyExistsException.class);
     }
@@ -1055,13 +1126,16 @@ class DatasourceAdminServiceImplTest {
         var grantedBy = new UserEntity();
         grantedBy.setId(adminId);
         when(userRepository.getReferenceById(adminId)).thenReturn(grantedBy);
-        when(permissionRepository.save(any(DatasourceUserPermissionEntity.class)))
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture()))
                 .thenAnswer(inv -> inv.getArgument(0));
 
         var command = new CreatePermissionCommand(userId, true, true, false, true, 500,
-                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null);
+                List.of("public"), List.of("orders"), List.of("public.orders.ssn"), null, null);
         var view = service.grantPermission(datasourceId, orgId, adminId, command);
 
+        // An admin-created row has no originating JIT request (#969).
+        assertThat(saved.getValue().getAccessGrantRequestId()).isNull();
         assertThat(view.userId()).isEqualTo(userId);
         assertThat(view.userEmail()).isEqualTo("alice@example.com");
         assertThat(view.canRead()).isTrue();
@@ -1073,6 +1147,33 @@ class DatasourceAdminServiceImplTest {
         assertThat(view.restrictedColumns()).containsExactly("public.orders.ssn");
         assertThat(view.rowLimitOverride()).isEqualTo(500);
         assertThat(view.createdBy()).isEqualTo(adminId);
+    }
+
+    @Test
+    void grantPermissionStampsTheOriginatingAccessRequest() {
+        var entity = buildDatasource(datasourceId, orgId, "Prod");
+        when(datasourceRepository.findById(datasourceId)).thenReturn(Optional.of(entity));
+        var org = new OrganizationEntity();
+        org.setId(orgId);
+        var user = new UserEntity();
+        user.setId(userId);
+        user.setOrganization(org);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(permissionRepository.existsByUser_IdAndDatasource_Id(userId, datasourceId))
+                .thenReturn(false);
+        var grantedBy = new UserEntity();
+        grantedBy.setId(adminId);
+        when(userRepository.getReferenceById(adminId)).thenReturn(grantedBy);
+        var saved = ArgumentCaptor.forClass(DatasourceUserPermissionEntity.class);
+        when(permissionRepository.save(saved.capture()))
+                .thenAnswer(inv -> inv.getArgument(0));
+        var accessGrantRequestId = UUID.randomUUID();
+
+        service.grantPermission(datasourceId, orgId, adminId, new CreatePermissionCommand(userId,
+                true, false, false, false, null, null, null, null,
+                Instant.now().plusSeconds(3600), accessGrantRequestId));
+
+        assertThat(saved.getValue().getAccessGrantRequestId()).isEqualTo(accessGrantRequestId);
     }
 
     @Test

@@ -95,6 +95,7 @@ class AccessGrantMaterializerTest {
         assertThat(captor.getValue().userId()).isEqualTo(requesterId);
         assertThat(captor.getValue().canRead()).isTrue();
         assertThat(captor.getValue().expiresAt()).isNotNull();
+        assertThat(captor.getValue().accessGrantRequestId()).isEqualTo(requestId);
         verify(stateService).attachGrant(eq(requestId), eq(newPermissionId), any(Instant.class));
     }
 

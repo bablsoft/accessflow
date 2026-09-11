@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
 import jakarta.persistence.CascadeType;
@@ -116,6 +117,12 @@ public class DatasourceEntity {
 
     @Column(name = "local_datacenter", length = 255)
     private String localDatacenter;
+
+    /** Optional (#861): null resolves to the organization-wide default SQL review ruleset. */
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "environment", columnDefinition = "datasource_environment")
+    private DatasourceEnvironment environment;
 
     @JsonIgnore
     @Column(name = "api_key_encrypted", columnDefinition = "TEXT")
