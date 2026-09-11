@@ -760,7 +760,7 @@ export interface UpdateDatasourceInput {
   active?: boolean;
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;
-  // undefined leaves the environment unchanged; clear_environment unsets it (#861).
+  // Omitted or null leaves the environment unchanged; clear_environment unsets it (#861).
   environment?: DatasourceEnvironment | null;
   clear_environment?: boolean;
 }

@@ -2825,7 +2825,8 @@ catalog is #862), so `rule_id` is `VARCHAR`, not a PG enum.
 
 ### query_sql_review_findings
 
-One row per rule violation on one statement of a submitted query. Insert-only, and never stores a
+One row per rule violation on one statement of a submitted query. Rows are immutable once
+written (a re-evaluation replaces a query's findings wholesale) and never store a
 human-readable message — `rule_id` + `args` are rendered per reader through `MessageSource` in the
 reader's locale.
 

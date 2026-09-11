@@ -388,6 +388,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage external audit sinks (`AUDIT_SINK_MANAGE`, #628) | — | — | — | ✓ | — |
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
+| Manage SQL review rulesets (`SQL_REVIEW_MANAGE`, #861) | — | — | — | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
 | Manage users (create/deactivate) | — | — | — | ✓ | — |

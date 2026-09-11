@@ -15,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
 
@@ -34,6 +36,7 @@ class SqlReviewRulesetRepositoryIntegrationTest {
     @Autowired SqlReviewRuleConfigRepository ruleConfigRepository;
     @Autowired OrganizationRepository organizationRepository;
     @Autowired JdbcTemplate jdbcTemplate;
+    @Autowired PlatformTransactionManager transactionManager;
 
     private OrganizationEntity organization;
 
@@ -124,6 +127,20 @@ class SqlReviewRulesetRepositoryIntegrationTest {
 
         assertThat(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(ruleset.getId())).isEmpty();
         assertThat(rulesetRepository.findById(ruleset.getId())).isEmpty();
+    }
+
+    @Test
+    void deleteAllByRulesetIdRemovesOnlyThatRulesetsConfigs() {
+        var ruleset = rulesetRepository.saveAndFlush(newRuleset(DatasourceEnvironment.STAGING));
+        var other = rulesetRepository.saveAndFlush(newRuleset(DatasourceEnvironment.PRODUCTION));
+        ruleConfigRepository.saveAndFlush(newConfig(ruleset, "select_star", null));
+        ruleConfigRepository.saveAndFlush(newConfig(other, "select_star", null));
+
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                ruleConfigRepository.deleteAllByRulesetId(ruleset.getId()));
+
+        assertThat(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(ruleset.getId())).isEmpty();
+        assertThat(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(other.getId())).hasSize(1);
     }
 
     private SqlReviewRulesetEntity newRuleset(DatasourceEnvironment environment) {
