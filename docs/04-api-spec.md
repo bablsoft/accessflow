@@ -4093,7 +4093,7 @@ endpoint adds):
 |---|---|
 | `DIRECT_PERMISSION` | An unexpired `datasource_user_permissions` row |
 | `GROUP_PERMISSION` | An unexpired group permission inherited through membership (AF-530) |
-| `JIT_GRANT` | A time-boxed direct row correlated to an active `APPROVED` JIT grant. `pre_approve_queries` is always `true` on this kind — the label is applied only when such a grant exists — and means queries under it also skip review (#582) |
+| `JIT_GRANT` | A direct row materialised from an approved JIT access request — read off `datasource_user_permissions.access_grant_request_id` (#969), never inferred. `pre_approve_queries` is `true` while the user holds an active pre-approving grant on this datasource — the same lookup the submission fast-path runs (#582) — meaning queries under it also skip review; it is `false` on a JIT row once no such grant remains (expired, revoked, or never opted in) |
 | `QUERY_ADMIN_BYPASS` | The user holds `QUERY_ADMIN`, which **skips the per-datasource gate entirely**. Such a user appears here with `granted: true` and this single source even when they have **no** permission row at all — the row no other screen shows |
 | `BREAK_GLASS` | The user holds `can_break_glass` on this datasource |
 
@@ -4111,12 +4111,6 @@ compensating controls (instant admin fanout, a prominent audit row, a mandatory 
 capability on the ordinary path. Folding it into `granted` would tell an auditor a user can run the
 statement normally when they can only run it as a logged emergency. It is reported as a row-level flag and
 as its own source.
-
-> **`JIT_GRANT` is a correlation, not a foreign key.** A JIT grant is materialized as an ordinary
-> `datasource_user_permissions` row with a non-null `expires_at`, and the originating
-> `access_grant_request` id is not recorded on it. A time-boxed row is labelled `JIT_GRANT` only when an
-> active pre-approving grant exists for the same `(user, datasource)`; otherwise it stays
-> `DIRECT_PERMISSION` with its `expires_at`. Treat the label as a strong hint, and `expires_at` as the fact.
 
 **Audit.** Every call writes one `ACCESS_SIMULATION_RUN` audit row against the datasource, carrying the
 table and capability queried and `row_count` — the total number of matching users, not the size of the

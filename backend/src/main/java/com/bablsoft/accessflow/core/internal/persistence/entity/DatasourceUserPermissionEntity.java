@@ -64,6 +64,11 @@ public class DatasourceUserPermissionEntity {
     @Column(name = "expires_at")
     private Instant expiresAt;
 
+    // The JIT request this row materialises, null on an admin-created row (#969). Bare UUID, no
+    // JPA relation: core must not depend on the access module.
+    @Column(name = "access_grant_request_id")
+    private UUID accessGrantRequestId;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "created_by", nullable = false)
     private UserEntity createdBy;

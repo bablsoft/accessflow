@@ -264,7 +264,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.getId(), e.getUser().getId(), e.getDatasource().getId(), null, null,
                 e.isCanRead(), e.isCanWrite(), e.isCanDdl(), e.isCanBreakGlass(),
                 toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
-                toList(e.getRestrictedColumns()), e.getExpiresAt());
+                toList(e.getRestrictedColumns()), e.getExpiresAt(), e.getAccessGrantRequestId());
     }
 
     private static DatasourcePermissionContribution toContribution(
@@ -273,7 +273,7 @@ class DefaultDatasourceUserPermissionLookupService implements DatasourceUserPerm
                 e.getId(), userId, e.getDatasource().getId(), e.getGroup().getId(),
                 e.getGroup().getName(), e.isCanRead(), e.isCanWrite(), e.isCanDdl(),
                 e.isCanBreakGlass(), toList(e.getAllowedSchemas()), toList(e.getAllowedTables()),
-                toList(e.getRestrictedColumns()), e.getExpiresAt());
+                toList(e.getRestrictedColumns()), e.getExpiresAt(), null);
     }
 
     private static List<String> toList(String[] array) {

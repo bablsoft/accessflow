@@ -1,6 +1,9 @@
 package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
+import com.bablsoft.accessflow.access.api.AccessGrantStatus;
+import com.bablsoft.accessflow.access.internal.persistence.entity.AccessGrantRequestEntity;
+import com.bablsoft.accessflow.access.internal.persistence.repo.AccessGrantRequestRepository;
 import com.bablsoft.accessflow.audit.api.AuditAction;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CredentialEncryptionService;
@@ -34,6 +37,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,6 +59,7 @@ class AdminEffectiveAccessControllerIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired DatasourceRepository datasourceRepository;
     @Autowired DatasourceUserPermissionRepository permissionRepository;
+    @Autowired AccessGrantRequestRepository accessGrantRequestRepository;
     @Autowired DatasourceGroupPermissionRepository groupPermissionRepository;
     @Autowired UserGroupRepository userGroupRepository;
     @Autowired UserGroupMembershipRepository membershipRepository;
@@ -103,6 +108,8 @@ class AdminEffectiveAccessControllerIntegrationTest {
                 .findAllByDatasource_Id(datasource.getId()));
         permissionRepository.deleteAll(permissionRepository
                 .findAllByDatasource_Id(datasource.getId()));
+        jdbcTemplate.update("delete from access_grant_request where datasource_id = ?",
+                datasource.getId());
         membershipRepository.deleteAll(membershipRepository.findAllByGroup_Id(group.getId()));
         userGroupRepository.deleteById(group.getId());
         datasourceRepository.deleteById(datasource.getId());
@@ -182,6 +189,57 @@ class AdminEffectiveAccessControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
                         + analyst.getEmail() + "')].sources[1].kind")
                 .asArray().containsExactly("BREAK_GLASS");
+    }
+
+    @Test
+    void aJitMaterialisedRowIsLabelledFromTheForeignKey() {
+        var grantId = givenApprovedGrant(analyst, true);
+        givenJitRow(analyst, grantId);
+
+        var result = mvc.get().uri(uri("public.payments", "READ"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
+                + analyst.getEmail() + "')].sources[0].kind").asArray().containsExactly("JIT_GRANT");
+        assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
+                        + analyst.getEmail() + "')].sources[0].pre_approve_queries")
+                .asArray().containsExactly(true);
+    }
+
+    @Test
+    void aJitRowWhoseGrantDoesNotPreApproveIsStillJitButDoesNotPreApprove() {
+        var grantId = givenApprovedGrant(analyst, false);
+        givenJitRow(analyst, grantId);
+
+        var result = mvc.get().uri(uri("public.payments", "READ"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
+                + analyst.getEmail() + "')].sources[0].kind").asArray().containsExactly("JIT_GRANT");
+        assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
+                        + analyst.getEmail() + "')].sources[0].pre_approve_queries")
+                .asArray().containsExactly(false);
+    }
+
+    @Test
+    void aTimeBoxedAdminRowNextToAnUnrelatedActiveGrantStaysADirectPermission() {
+        // Same user, same datasource, an active pre-approving grant — but the row was not
+        // materialised from it, so the pre-#969 correlation would have mislabelled it.
+        givenApprovedGrant(analyst, true);
+        givenDirect(analyst, true, false, new String[] {"public"}, null, false);
+
+        var result = mvc.get().uri(uri("public.payments", "READ"))
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.content[?(@.email == '"
+                        + analyst.getEmail() + "')].sources[0].kind")
+                .asArray().containsExactly("DIRECT_PERMISSION");
     }
 
     @Test
@@ -281,6 +339,39 @@ class AdminEffectiveAccessControllerIntegrationTest {
         permission.setAllowedTables(tables);
         permission.setCreatedBy(admin);
         permissionRepository.save(permission);
+    }
+
+    /** A time-boxed direct row stamped with the JIT request it materialises (#969). */
+    private void givenJitRow(UserEntity user, UUID accessGrantRequestId) {
+        var permission = new DatasourceUserPermissionEntity();
+        permission.setId(UUID.randomUUID());
+        permission.setDatasource(datasource);
+        permission.setUser(user);
+        permission.setCanRead(true);
+        permission.setCanWrite(false);
+        permission.setCanDdl(false);
+        permission.setCanBreakGlass(false);
+        permission.setAllowedSchemas(new String[] {"public"});
+        permission.setExpiresAt(Instant.now().plusSeconds(3600));
+        permission.setAccessGrantRequestId(accessGrantRequestId);
+        permission.setCreatedBy(admin);
+        permissionRepository.save(permission);
+    }
+
+    private UUID givenApprovedGrant(UserEntity requester, boolean preApproveQueries) {
+        var request = new AccessGrantRequestEntity();
+        request.setId(UUID.randomUUID());
+        request.setOrganizationId(org.getId());
+        request.setRequesterId(requester.getId());
+        request.setDatasourceId(datasource.getId());
+        request.setCanRead(true);
+        request.setAllowedSchemas(new String[] {"public"});
+        request.setPreApproveQueries(preApproveQueries);
+        request.setRequestedDuration("PT4H");
+        request.setJustification("effective-access JIT case");
+        request.setStatus(AccessGrantStatus.APPROVED);
+        request.setExpiresAt(Instant.now().plusSeconds(3600));
+        return accessGrantRequestRepository.save(request).getId();
     }
 
     private void givenGroupPermission(boolean read, boolean write, String[] schemas,

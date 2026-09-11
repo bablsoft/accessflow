@@ -244,10 +244,12 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         var datasourceId = UUID.randomUUID();
         var directId = UUID.randomUUID();
         var groupId = UUID.randomUUID();
+        var accessGrantRequestId = UUID.randomUUID();
 
         var direct = newPermission(directId, userId, datasourceId);
         direct.setCanRead(true);
         direct.setAllowedTables(new String[] {"orders"});
+        direct.setAccessGrantRequestId(accessGrantRequestId);
         when(permissionRepository.findByUser_IdAndDatasource_Id(userId, datasourceId))
                 .thenReturn(Optional.of(direct));
 
@@ -265,7 +267,9 @@ class DefaultDatasourceUserPermissionLookupServiceTest {
         assertThat(contributions.get(0).sourceId()).isEqualTo(directId);
         assertThat(contributions.get(0).groupId()).isNull();
         assertThat(contributions.get(0).allowedTables()).containsExactly("orders");
+        assertThat(contributions.get(0).accessGrantRequestId()).isEqualTo(accessGrantRequestId);
         assertThat(contributions.get(1).sourceKind()).isEqualTo(DatasourcePermissionSourceKind.GROUP);
+        assertThat(contributions.get(1).accessGrantRequestId()).isNull();
         assertThat(contributions.get(1).groupId()).isEqualTo(groupId);
         assertThat(contributions.get(1).groupName()).isEqualTo("payments-oncall");
         assertThat(contributions.get(1).userId()).isEqualTo(userId);
