@@ -46,6 +46,8 @@ const RESOURCE_TYPES = [
   'review_plan',
   'notification_channel',
   'audit_sink',
+  'api_connector',
+  'deployment_pipeline',
   'deployment_request',
   'break_glass_event',
 ];

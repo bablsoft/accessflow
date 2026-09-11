@@ -1,7 +1,7 @@
-package com.bablsoft.accessflow.workflow.api;
+package com.bablsoft.accessflow.core.api;
 
 /**
- * What one {@link DecisionStepKind} concluded (issue AF-859).
+ * What one {@link DecisionStepKind} concluded (issues AF-859, AF-967).
  *
  * <p>The gate-shaped stages report {@link #ALLOW} / {@link #DENY}; the policy-shaped ones report
  * {@link #MATCH} / {@link #NO_MATCH}. Keeping the two vocabularies distinct rather than collapsing

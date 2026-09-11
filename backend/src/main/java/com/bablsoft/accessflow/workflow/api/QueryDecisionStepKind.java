@@ -1,5 +1,8 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.DecisionStepKind;
+import com.bablsoft.accessflow.core.api.StepOutcome;
+
 /**
  * The ordered stages a query passes through on its way to a status (issue AF-859), in the order
  * they are evaluated.
@@ -15,7 +18,7 @@ package com.bablsoft.accessflow.workflow.api;
  * submission mode — and are reconstructed by the access simulator so one trace covers the whole
  * journey.
  */
-public enum DecisionStepKind {
+public enum QueryDecisionStepKind implements DecisionStepKind {
 
     /** Datasource exists, is visible to the submitter, is active, and its AI-analysis setting. */
     DATASOURCE_GATES,

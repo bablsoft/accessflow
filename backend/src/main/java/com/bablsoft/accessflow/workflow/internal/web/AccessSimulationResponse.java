@@ -5,9 +5,9 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SimulationCaveat;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationResult;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,12 +39,21 @@ record AccessSimulationResponse(List<Step> steps, QueryStatus resultingStatus,
                 result.caveats());
     }
 
-    record Step(DecisionStepKind step, StepOutcome outcome, String reason,
+    record Step(QueryDecisionStepKind step, StepOutcome outcome, String reason,
                 Map<String, Object> details) {
 
+        /**
+         * Narrows the trace's cross-kind {@code DecisionStepKind} back to this module's own enum, so
+         * the OpenAPI schema keeps its enum constraint. Unreachable in practice — a query trace only
+         * ever carries query stages — but a silent widening to a bare string would be worse.
+         */
         static Step from(DecisionTraceStep step,
                          BiFunction<String, List<String>, String> reasonResolver) {
-            return new Step(step.step(), step.outcome(),
+            if (!(step.step() instanceof QueryDecisionStepKind kind)) {
+                throw new IllegalStateException(
+                        "Query decision trace carried a foreign step kind: " + step.step().name());
+            }
+            return new Step(kind, step.outcome(),
                     reasonResolver.apply(step.reasonKey(), step.reasonArgs()), step.details());
         }
     }

@@ -17,10 +17,10 @@ import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
+import com.bablsoft.accessflow.core.api.AiOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
 import com.bablsoft.accessflow.workflow.api.RoutingAction;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.ConditionContextFactory;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
@@ -110,11 +110,11 @@ class QueryDecisionEvaluatorTest {
 
         assertThat(trace.resultingStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
         assertThat(trace.steps()).extracting("step", "outcome").containsExactly(
-                org.assertj.core.groups.Tuple.tuple(DecisionStepKind.ROUTING_POLICIES,
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.ROUTING_POLICIES,
                         StepOutcome.SKIP),
-                org.assertj.core.groups.Tuple.tuple(DecisionStepKind.GRANT_FAST_PATH,
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.GRANT_FAST_PATH,
                         StepOutcome.SKIP),
-                org.assertj.core.groups.Tuple.tuple(DecisionStepKind.REVIEW_PLAN,
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.REVIEW_PLAN,
                         StepOutcome.SKIP));
     }
 
@@ -202,15 +202,15 @@ class QueryDecisionEvaluatorTest {
         var trace = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED, RiskLevel.LOW,
                 5, clock).trace();
 
-        assertThat(step(trace, DecisionStepKind.ROUTING_POLICIES).outcome())
+        assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.MATCH);
-        assertThat(step(trace, DecisionStepKind.ROUTING_POLICIES).details())
+        assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).details())
                 .containsEntry("matched_policy_id", policyId)
                 .containsEntry("action", "ESCALATE")
                 .containsEntry("effective_min_approvals", 2);
-        assertThat(step(trace, DecisionStepKind.GRANT_FAST_PATH).outcome())
+        assertThat(step(trace, QueryDecisionStepKind.GRANT_FAST_PATH).outcome())
                 .isEqualTo(StepOutcome.SKIP);
-        assertThat(step(trace, DecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.SKIP);
+        assertThat(step(trace, QueryDecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.SKIP);
         verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
     }
 
@@ -255,7 +255,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.HIGH, 80, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
-        assertThat(step(decision.trace(), DecisionStepKind.GRANT_FAST_PATH).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.suppressed_risk");
         verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
     }
@@ -270,7 +270,7 @@ class QueryDecisionEvaluatorTest {
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
                 RiskLevel.LOW, 5, clock);
 
-        assertThat(step(decision.trace(), DecisionStepKind.GRANT_FAST_PATH).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.suppressed_anomaly");
         verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
     }
@@ -286,7 +286,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.LOW, 5, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
-        assertThat(step(decision.trace(), DecisionStepKind.GRANT_FAST_PATH).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.none_active");
     }
 
@@ -300,7 +300,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.LOW, 5, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
-        assertThat(step(decision.trace(), DecisionStepKind.GRANT_FAST_PATH).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.no_covering_grant");
     }
 
@@ -332,7 +332,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.LOW, 5, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
-        assertThat(step(decision.trace(), DecisionStepKind.GRANT_FAST_PATH).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.parse_failed");
     }
 
@@ -347,7 +347,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.HIGH, 80, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
-        assertThat(step(decision.trace(), DecisionStepKind.REVIEW_PLAN).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
                 .isEqualTo("workflow.decision.plan.no_human_approval");
     }
 
@@ -361,7 +361,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.LOW, 5, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
-        assertThat(step(decision.trace(), DecisionStepKind.REVIEW_PLAN).reasonKey())
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
                 .isEqualTo("workflow.decision.plan.auto_approve_reads");
     }
 
@@ -415,7 +415,7 @@ class QueryDecisionEvaluatorTest {
                 RiskLevel.LOW, 5, clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
-        var planStep = step(decision.trace(), DecisionStepKind.REVIEW_PLAN);
+        var planStep = step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN);
         assertThat(planStep.reasonKey()).isEqualTo("workflow.decision.plan.absent");
         assertThat(planStep.details()).containsEntry("review_plan_id", null);
     }
@@ -430,17 +430,17 @@ class QueryDecisionEvaluatorTest {
                 5, clock).trace();
 
         assertThat(trace.steps()).extracting("step").containsExactly(
-                DecisionStepKind.ROUTING_POLICIES, DecisionStepKind.GRANT_FAST_PATH,
-                DecisionStepKind.REVIEW_PLAN);
-        assertThat(step(trace, DecisionStepKind.ROUTING_POLICIES).outcome())
+                QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.GRANT_FAST_PATH,
+                QueryDecisionStepKind.REVIEW_PLAN);
+        assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.NO_MATCH);
-        assertThat(step(trace, DecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(step(trace, QueryDecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.DENY);
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
-    private static com.bablsoft.accessflow.workflow.api.DecisionTraceStep step(
-            com.bablsoft.accessflow.workflow.api.DecisionTrace trace, DecisionStepKind kind) {
+    private static com.bablsoft.accessflow.core.api.DecisionTraceStep step(
+            com.bablsoft.accessflow.core.api.DecisionTrace trace, QueryDecisionStepKind kind) {
         return trace.steps().stream().filter(s -> s.step() == kind).findFirst().orElseThrow();
     }
 

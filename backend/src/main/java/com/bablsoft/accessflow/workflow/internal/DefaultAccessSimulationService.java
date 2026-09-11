@@ -32,15 +32,14 @@ import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationResult;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEligibilityService;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
-import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -49,6 +48,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Traces a hypothetical request through the real evaluators (issue AF-859).
@@ -107,7 +107,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         // separate question, answered below against the production predicate rather than a copy.
         var datasource = datasourceAdminService.getForAdmin(input.datasourceId(), organizationId);
 
-        var steps = new ArrayList<DecisionTraceStep>(DecisionStepKind.values().length);
+        var steps = new ArrayList<DecisionTraceStep>(QueryDecisionStepKind.values().length);
         var caveats = EnumSet.noneOf(SimulationCaveat.class);
         caveats.add(SimulationCaveat.CLIENT_CONTEXT_ABSENT);
         caveats.add(SimulationCaveat.COST_ESTIMATE_ABSENT);
@@ -158,7 +158,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             outcome = StepOutcome.ALLOW;
             reasonKey = "workflow.access_simulation.datasource.allowed";
         }
-        return DecisionTraceStep.of(DecisionStepKind.DATASOURCE_GATES, outcome, reasonKey, details);
+        return DecisionTraceStep.of(QueryDecisionStepKind.DATASOURCE_GATES, outcome, reasonKey, details);
     }
 
     // ── 2. Quota ──────────────────────────────────────────────────────────────
@@ -166,20 +166,20 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private DecisionTraceStep quotaStep(UUID organizationId) {
         try {
             quotaService.checkQueryQuota(organizationId);
-            return DecisionTraceStep.of(DecisionStepKind.QUOTA, StepOutcome.ALLOW,
+            return DecisionTraceStep.of(QueryDecisionStepKind.QUOTA, StepOutcome.ALLOW,
                     "workflow.access_simulation.quota.within_limit");
         } catch (QuotaExceededException ex) {
             var details = new LinkedHashMap<String, Object>();
             details.put("quota_type", ex.quotaType().name());
             details.put("limit", ex.limit());
             details.put("current", ex.current());
-            return DecisionTraceStep.of(DecisionStepKind.QUOTA, StepOutcome.DENY,
+            return DecisionTraceStep.of(QueryDecisionStepKind.QUOTA, StepOutcome.DENY,
                     "workflow.access_simulation.quota.exceeded", details);
         }
     }
 
     private static boolean quotaExceeded(List<DecisionTraceStep> steps) {
-        return steps.stream().anyMatch(s -> s.step() == DecisionStepKind.QUOTA
+        return steps.stream().anyMatch(s -> s.step() == QueryDecisionStepKind.QUOTA
                 && s.outcome() == StepOutcome.DENY);
     }
 
@@ -192,7 +192,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         try {
             parsed = queryParser.parse(sql, datasource.dbType());
         } catch (InvalidSqlException ex) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.SQL_PARSE, StepOutcome.DENY,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.SQL_PARSE, StepOutcome.DENY,
                     "workflow.access_simulation.parse.unparseable"));
             return null;
         }
@@ -203,11 +203,11 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         details.put("has_where_clause", parsed.hasWhereClause());
         details.put("has_limit_clause", parsed.hasLimitClause());
         if (parsed.type() == QueryType.OTHER) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.SQL_PARSE, StepOutcome.DENY,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.SQL_PARSE, StepOutcome.DENY,
                     "workflow.access_simulation.parse.unsupported_type", details));
             return null;
         }
-        steps.add(DecisionTraceStep.of(DecisionStepKind.SQL_PARSE, StepOutcome.ALLOW,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.SQL_PARSE, StepOutcome.ALLOW,
                 "workflow.access_simulation.parse.ok", details));
         return parsed;
     }
@@ -233,7 +233,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             // permission row at all. Saying so is the point: it is invisible on every other screen.
             details.put("rejected_tables", List.of());
             details.put("expires_at", null);
-            steps.add(DecisionTraceStep.of(DecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
                     "workflow.access_simulation.permission.query_admin_bypass", details));
             return true;
         }
@@ -243,7 +243,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         if (permission == null) {
             details.put("rejected_tables", List.of());
             details.put("expires_at", null);
-            steps.add(DecisionTraceStep.of(DecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.none", details));
             return false;
         }
@@ -253,12 +253,12 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                 parsed.referencedTables());
         details.put("rejected_tables", List.copyOf(rejected));
         if (!capable) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.capability_missing", details));
             return false;
         }
         if (!rejected.isEmpty()) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.DENY,
                     "workflow.access_simulation.permission.table_not_allowed", details));
             return false;
         }
@@ -267,7 +267,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var reasonKey = parsed.referencedTables().isEmpty()
                 ? "workflow.access_simulation.permission.allowed_no_tables"
                 : "workflow.access_simulation.permission.allowed";
-        steps.add(DecisionTraceStep.of(DecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.EFFECTIVE_PERMISSION, StepOutcome.ALLOW,
                 reasonKey, details));
         return true;
     }
@@ -313,7 +313,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             return (Object) entry;
         }).toList();
         return decision.trace().steps().stream()
-                .map(step -> step.step() == DecisionStepKind.ROUTING_POLICIES
+                .map(step -> step.step() == QueryDecisionStepKind.ROUTING_POLICIES
                         ? withPolicies(step, policies)
                         : step)
                 .toList();
@@ -330,7 +330,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
 
     private DecisionTraceStep reviewerStep(AccessSimulationInput input, QueryStatus resultingStatus) {
         if (resultingStatus != QueryStatus.PENDING_REVIEW) {
-            return DecisionTraceStep.of(DecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.SKIP,
+            return DecisionTraceStep.of(QueryDecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.SKIP,
                     "workflow.access_simulation.reviewers.not_pending_review");
         }
         var eligible = reviewerEligibilityService.findEligibleReviewerIds(input.datasourceId())
@@ -348,7 +348,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
                             .map(DefaultAccessSimulationService::describeApprover)
                             .toList())
                     .orElse(List.of()));
-            return DecisionTraceStep.of(DecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.ALLOW,
+            return DecisionTraceStep.of(QueryDecisionStepKind.ELIGIBLE_REVIEWERS, StepOutcome.ALLOW,
                     "workflow.access_simulation.reviewers.plan_approvers", details);
         }
         // Security rule: a user can never approve their own query, whatever else they hold. Note
@@ -364,7 +364,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var reasonKey = reviewerIds.isEmpty()
                 ? "workflow.access_simulation.reviewers.none"
                 : "workflow.access_simulation.reviewers.assigned";
-        return DecisionTraceStep.of(DecisionStepKind.ELIGIBLE_REVIEWERS, outcome, reasonKey,
+        return DecisionTraceStep.of(QueryDecisionStepKind.ELIGIBLE_REVIEWERS, outcome, reasonKey,
                 details);
     }
 
@@ -392,7 +392,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var predicates = rowSecurityResolutionService.resolveApplicable(organizationId,
                 input.datasourceId(), input.userId());
         if (predicates.isEmpty()) {
-            return DecisionTraceStep.of(DecisionStepKind.ROW_SECURITY, StepOutcome.NO_MATCH,
+            return DecisionTraceStep.of(QueryDecisionStepKind.ROW_SECURITY, StepOutcome.NO_MATCH,
                     "workflow.access_simulation.row_security.none");
         }
         var classification = rowSecurityClassificationService.classify(input.datasourceId(),
@@ -413,7 +413,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             case NOT_APPLICABLE -> StepOutcome.NO_MATCH;
             case UNKNOWN -> StepOutcome.SKIP;
         };
-        return DecisionTraceStep.of(DecisionStepKind.ROW_SECURITY, outcome,
+        return DecisionTraceStep.of(QueryDecisionStepKind.ROW_SECURITY, outcome,
                 "workflow.access_simulation.row_security."
                         + classification.outcome().name().toLowerCase(Locale.ROOT),
                 details);
@@ -469,7 +469,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         }
         var details = new LinkedHashMap<String, Object>();
         details.put("policies", matching);
-        return DecisionTraceStep.of(DecisionStepKind.MASKING,
+        return DecisionTraceStep.of(QueryDecisionStepKind.MASKING,
                 matching.isEmpty() ? StepOutcome.NO_MATCH : StepOutcome.MATCH,
                 matching.isEmpty()
                         ? "workflow.access_simulation.masking.none"
@@ -512,7 +512,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
         var details = new LinkedHashMap<String, Object>();
         details.put("can_break_glass", eligibility != null);
         details.put("expires_at", eligibility == null ? null : eligibility.expiresAt());
-        return DecisionTraceStep.of(DecisionStepKind.BREAK_GLASS,
+        return DecisionTraceStep.of(QueryDecisionStepKind.BREAK_GLASS,
                 eligibility == null ? StepOutcome.DENY : StepOutcome.ALLOW,
                 eligibility == null
                         ? "workflow.access_simulation.break_glass.not_eligible"
@@ -528,15 +528,17 @@ class DefaultAccessSimulationService implements AccessSimulationService {
      */
     private static AccessSimulationResult blocked(List<DecisionTraceStep> steps,
                                                   Set<SimulationCaveat> caveats) {
-        var reached = steps.stream().map(DecisionTraceStep::step).toList();
-        var full = new ArrayList<>(steps);
-        for (var kind : DecisionStepKind.values()) {
-            if (!reached.contains(kind)) {
-                full.add(DecisionTraceStep.of(kind, StepOutcome.SKIP,
-                        "workflow.access_simulation.not_reached"));
-            }
+        // Built in enum order rather than sorted afterwards: DecisionTraceStep.step() is typed as
+        // the cross-kind DecisionStepKind interface, which is deliberately not Comparable.
+        var reached = steps.stream()
+                .collect(Collectors.toMap(DecisionTraceStep::step, step -> step, (a, b) -> a,
+                        LinkedHashMap::new));
+        var full = new ArrayList<DecisionTraceStep>(QueryDecisionStepKind.values().length);
+        for (var kind : QueryDecisionStepKind.values()) {
+            var step = reached.get(kind);
+            full.add(step != null ? step : DecisionTraceStep.of(kind, StepOutcome.SKIP,
+                    "workflow.access_simulation.not_reached"));
         }
-        full.sort(Comparator.comparing(DecisionTraceStep::step));
         return new AccessSimulationResult(full, null, null, List.copyOf(caveats));
     }
 

@@ -1466,7 +1466,9 @@ export type SimulationCaveat =
   // PolicySimulationDrawer never can. Mirrored here anyway so the union stays a complete mirror of
   // the backend enum rather than a partial one the next widening silently misreads.
   | 'COST_ESTIMATE_ABSENT'
-  | 'CLIENT_CONTEXT_ABSENT';
+  | 'CLIENT_CONTEXT_ABSENT'
+  // AF-967. Emitted only by the API-call decision trace, for the same reason.
+  | 'RESPONSE_SHAPE_ABSENT';
 
 /** The four routing effects plus NO_MATCH (falls through to the grant path and the review plan). */
 export type RoutingSimulationOutcome = RoutingAction | 'NO_MATCH';

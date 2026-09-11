@@ -7,7 +7,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.text.MessageFormat;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
@@ -45,16 +47,93 @@ class MessagesParityTest {
                 .isEmpty();
     }
 
-    private static String resourceFor(SupportedLanguage language) {
-        return "/i18n/messages_" + language.locale().toString() + ".properties";
+    /**
+     * A key that carries positional arguments is run through {@link MessageFormat}, where a single
+     * apostrophe is the <em>quote</em> character: an unpaired {@code '} swallows itself and turns
+     * the rest of the pattern into a literal, so {@code l'action {1}} renders as {@code laction {1}}
+     * — the argument silently never substituted. That is invisible to the parity check above, which
+     * only compares key sets, and it bit the French `routing.matched` keys during AF-967.
+     *
+     * <p>Every locale is checked, not only French: the same trap exists in any language that elides
+     * (Italian, Catalan) and in an English string that quotes a word.
+     */
+    @ParameterizedTest(name = "{0} keeps every placeholder through MessageFormat")
+    @MethodSource("allLocales")
+    void placeholdersSurviveMessageFormat(SupportedLanguage language) throws IOException {
+        var resource = language == SupportedLanguage.EN ? BASE : resourceFor(language);
+        var props = load(resource);
+        var broken = new TreeSet<String>();
+        for (var key : new TreeSet<>(props.stringPropertyNames())) {
+            if (!GUARDED_PREFIXES.stream().anyMatch(key::startsWith)) {
+                continue;
+            }
+            var pattern = props.getProperty(key);
+            var placeholders = countPlaceholders(pattern);
+            if (placeholders == 0) {
+                continue;
+            }
+            var args = new Object[placeholders];
+            Arrays.setAll(args, i -> "<arg" + i + ">");
+            String rendered;
+            try {
+                rendered = new MessageFormat(pattern).format(args);
+            } catch (IllegalArgumentException ex) {
+                broken.add(key + " — unparseable: " + ex.getMessage());
+                continue;
+            }
+            for (var arg : args) {
+                if (!rendered.contains(String.valueOf(arg))) {
+                    broken.add(key + " — " + arg + " was not substituted: " + rendered);
+                }
+            }
+        }
+        assertThat(broken)
+                .as("%s has MessageFormat patterns that drop an argument; double the apostrophes "
+                        + "(l''action, not l'action)", resource)
+                .isEmpty();
     }
 
-    private static Set<String> loadKeys(String resource) throws IOException {
+    /**
+     * Scoped rather than catalogue-wide, deliberately. When this guard was written it found the
+     * same defect in <strong>24 pre-existing patterns</strong> — 23 French, one English — none of
+     * them AF-967's. Fixing those is a real user-facing bug fix, but it is unrelated to this
+     * feature, needs a judgement call per string (an intentional {@code '{0}'} that escapes a
+     * placeholder reads identically to an elision typo), and belongs in its own reviewed change.
+     * Widen this set to everything once that lands.
+     */
+    private static final List<String> GUARDED_PREFIXES =
+            List.of("apigov.decision.", "apigov.simulation.", "deploygov.decision.",
+                    "deploygov.simulation.", "workflow.decision.", "workflow.access_simulation.");
+
+    /** {@code {0}}…{@code {9}} only — enough for every pattern the app actually uses. */
+    private static int countPlaceholders(String pattern) {
+        int highest = -1;
+        for (int i = 0; i < 10; i++) {
+            if (pattern.contains("{" + i + "}")) {
+                highest = i;
+            }
+        }
+        return highest + 1;
+    }
+
+    private static Stream<SupportedLanguage> allLocales() {
+        return Arrays.stream(SupportedLanguage.values());
+    }
+
+    private static Properties load(String resource) throws IOException {
         Properties props = new Properties();
         try (InputStream in = MessagesParityTest.class.getResourceAsStream(resource)) {
             assertThat(in).as("missing classpath resource %s", resource).isNotNull();
             props.load(new InputStreamReader(in, StandardCharsets.UTF_8));
         }
-        return new TreeSet<>(props.stringPropertyNames());
+        return props;
+    }
+
+    private static String resourceFor(SupportedLanguage language) {
+        return "/i18n/messages_" + language.locale().toString() + ".properties";
+    }
+
+    private static Set<String> loadKeys(String resource) throws IOException {
+        return new TreeSet<>(load(resource).stringPropertyNames());
     }
 }

@@ -786,6 +786,16 @@ against a *draft policy*; this one replays *current policy* against a *hypotheti
   rows and their parity test, and the frontend union, for no capability those two do not already
   describe. Both are organization-scoped; a `datasource_id` or `user_id` outside the caller's
   organization is `DATASOURCE_NOT_FOUND` / `USER_NOT_FOUND`, never `403`.
+- **The same two guarantees now cover the other two request kinds** (AF-967).
+  `POST /admin/api-call-simulations` (`API_CONNECTOR_MANAGE`) and
+  `POST /admin/deployment-simulations` (`DEPLOYMENT_PIPELINE_MANAGE`) trace a hypothetical API call
+  and a hypothetical deployment through their own evaluators, under the permission that already
+  governs each kind — again no new `Permission` value. Both are read-only by construction and assert
+  it against their declared field types, and the API-call one additionally **never contacts the
+  governed third-party API**: a simulator wired to an HTTP client would turn an explainer into an
+  unaudited outbound request. Both write an `ACCESS_SIMULATION_RUN` row — against the connector and
+  the pipeline respectively — and the API-call row deliberately carries no request path, headers or
+  body, for the same reason the query row carries no SQL.
 - **Simulating *as* another user reads their access and grants nothing.** The endpoints return no data
   from the customer database and confer no capability on the caller or the simulated user. What they
   do disclose is the organization's access topology — allow-lists, group provenance, row-security

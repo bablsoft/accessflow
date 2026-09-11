@@ -306,6 +306,63 @@ no expression language, no `eval`, no user-supplied code — mirroring the engin
 server-side scripting. See [docs/07-security.md](07-security.md) for the full secret-handling,
 redaction and CRLF rules.
 
+
+---
+
+## 7. Decision trace (AF-967)
+
+An admin debugging *why was this call escalated?* used to read several admin pages and re-run the
+routing logic in their head. `POST /api/v1/admin/api-call-simulations`
+(`API_CONNECTOR_MANAGE`, returns **200** — nothing is created) answers it directly, by driving the
+same evaluator the live listener drives.
+
+**The split.** `ApiReviewStateMachine` used to decide and apply in one method. Since AF-967 the
+deciding half lives in `apigov.internal.ApiDecisionEvaluator` — pure, returning an `ApiDecision`
+that carries the resulting status, the matched policy, the effective approval count and a
+`core.api.DecisionTrace`. The state machine only *applies* it: the transition, the approval count,
+the event. A simulator with its own copy of these rules would disagree with enforcement the first
+time either side changed, which would make it worse than useless.
+
+`DefaultApiCallSimulationService` delegates routing and the review requirement to that evaluator and
+reconstructs the other seven stages, because production evaluates them in the synchronous submission
+gate, at execution time, or in a separate submission mode. One trace covers the whole journey:
+
+| Stage | What it reports |
+|---|---|
+| `CONNECTOR_GATES` | the connector exists in the org and is `active` |
+| `CALL_CLASSIFICATION` | read vs write, and whether the schema operation, the REST verb or the protocol default decided it |
+| `SCHEMA_VALIDATION` | the operation is in the catalog; a free-form call is `SKIP`, not a denial |
+| `OPERATION_PERMISSION` | the effective connector permission (direct ∪ group), capability, `allowed_operations`, and the `QUERY_ADMIN` short-circuit |
+| `ROUTING_POLICIES` | **every** enabled policy in priority order with its `matched` flag — a policy that nearly matched is usually the most useful line in a trace |
+| `REVIEW_REQUIREMENT` | the connector's require-review flags folded with its review plan |
+| `ELIGIBLE_REVIEWERS` | the plan's approver rules, else the `API_REQUEST_REVIEW` holders, minus the submitter |
+| `RESPONSE_MASKING` | which masking rules resolve — see below |
+| `BREAK_GLASS` | whether the submitter could bypass everything above. Informational |
+
+**There is no connector-health stage**, because enforcement has none: the only reachability probe is
+the admin-triggered `POST /api-connectors/{id}/test`, and submission gates on `active` and nothing
+else. A health stage here would report something the pipeline never checks.
+
+**Masking is reported per rule, not per field.** The live masker walks the real response body by
+dot-path, which does not exist until the call has run, so the step lists the masking policies,
+classification-derived masks and legacy `restricted_response_fields` entries that *resolve* for this
+connector and caller — and says so, with the mandatory `RESPONSE_SHAPE_ABSENT` caveat. "Rule" rather
+than "policy" because the list mixes the three, and a legacy restricted-field entry carries no policy
+id.
+
+**Read-only, structurally.** No `api_requests` row, no event, no notification, no AI call, and — the
+one specific to this module — **no request to the governed API**. That is enforced by construction:
+the service is wired only to lookup interfaces and pure evaluators, and
+`DefaultApiCallSimulationServiceTest` asserts it against the service's declared field types, so a
+future change that wires in a repository or an HTTP client fails the build rather than quietly
+breaking the guarantee. Every call writes one `ACCESS_SIMULATION_RUN` audit row against the
+connector, carrying the simulated user, the AI outcome, the risk level and the step count — and
+deliberately no request path, headers or body.
+
+Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#decision-traces-for-api-calls-and-deployments-af-967).
+The deployment sibling is [§10 of docs/18](18-deployment-governance.md#10-decision-trace-af-967);
+the query one is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
+
 ---
 
 ## Audit & notifications

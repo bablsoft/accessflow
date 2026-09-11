@@ -4766,7 +4766,8 @@
       "COLUMN_MATCH_BARE_NAME": "Les résultats stockés conservent le nom de colonne mais pas la table ; les colonnes sont donc comparées par nom seul et le total peut être surévalué.",
       "ENGINE_CLASSIFICATION_UNAVAILABLE": "Certaines requêtes n'ont pas pu être classées sans connexion active et sont signalées comme non classifiables, et non comme non affectées.",
       "COST_ESTIMATE_ABSENT": "L’estimation de coût préalable est calculée par requête soumise ; les conditions sur les lignes estimées ou le type de balayage ne correspondent donc pas ici.",
-      "CLIENT_CONTEXT_ABSENT": "Une demande hypothétique ne porte ni IP source, ni agent utilisateur, ni origine CI/CD ; les conditions portant dessus ne correspondent donc pas ici."
+      "CLIENT_CONTEXT_ABSENT": "Une demande hypothétique ne porte ni IP source, ni agent utilisateur, ni origine CI/CD ; les conditions portant dessus ne correspondent donc pas ici.",
+      "RESPONSE_SHAPE_ABSENT": "Une simulation d'appel API n'a pas de corps de réponse : le masquage est donc rapporté par règle et non par champ."
     }
   }
 }

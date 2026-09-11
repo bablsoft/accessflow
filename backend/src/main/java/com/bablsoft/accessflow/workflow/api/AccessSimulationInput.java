@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.api;
 
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 
 import java.util.UUID;

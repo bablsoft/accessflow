@@ -10,7 +10,7 @@ import com.bablsoft.accessflow.core.events.AiAnalysisSkippedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;

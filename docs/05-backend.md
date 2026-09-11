@@ -1370,6 +1370,21 @@ The chain itself is unchanged, and that is the acceptance bar the refactor was h
 `QueryReviewStateMachineIntegrationTest` and `RoutingEngineIntegrationTest` drive the real listeners
 through published events and passed **unmodified**.
 
+**The same split now exists on the other two governed request kinds** (issue AF-967):
+`apigov.internal.ApiDecisionEvaluator` and `deploygov.internal.DeploymentDecisionEvaluator`, each
+with a review state machine reduced to applying what it decided, and each with a read-only trace
+endpoint on top — `POST /admin/api-call-simulations` and `POST /admin/deployment-simulations`. Their
+stages are per-kind and their evaluators are independent; what all three share is the trace
+*vocabulary*, which moved from `workflow.api` to **`core.api`** for the move:
+`DecisionTrace`, `DecisionTraceStep`, `StepOutcome` and `AiOutcome`, plus a `DecisionStepKind`
+interface implemented by one enum per module (`workflow.api.QueryDecisionStepKind`,
+`apigov.api.ApiDecisionStepKind`, `deploygov.api.DeploymentDecisionStepKind`). `workflow` already
+imports `apigov.events` and `deploygov.events` for the two break-glass retro-review listeners, so
+importing `workflow.api` back would close a Modulith cycle — and widening one shared enum with values
+that are `SKIP` for two kinds out of three would report "this did not happen" where the truth is
+"this does not exist here". See [docs/17 §7](17-api-governance.md#7-decision-trace-af-967) and
+[docs/18 §10](18-deployment-governance.md#10-decision-trace-af-967).
+
 `AiOutcome` (`COMPLETED` / `SKIPPED` / `FAILED`) is what turns the three listener branches into one
 parameter. `FAILED` short-circuits before any lookup, exactly as the live listener does — routing is
 not evaluated on a failed analysis, and neither is the grant fast path or the review plan. Only

@@ -90,4 +90,70 @@ class ApiRoutingPolicyEngineTest {
         assertThat(engine.evaluate(orgId, connectorId,
                 new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, null))).isNull();
     }
+    // ── evaluateAll: the presentational read behind the decision trace (AF-967) ──
+
+    @Test
+    void evaluateAllReportsEveryPolicyInPriorityOrderWithOnlyTheFirstMatchDecisive() {
+        var first = policy("{\"write\":true}", ApiRoutingAction.AUTO_REJECT, null);
+        first.setName("block writes");
+        first.setPriority(5);
+        var second = policy("{}", ApiRoutingAction.ESCALATE, null);
+        second.setName("escalate everything");
+        second.setPriority(10);
+        second.setRequiredApprovals(2);
+        when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId))
+                .thenReturn(List.of(first, second));
+
+        var evaluations = engine.evaluateAll(orgId, connectorId,
+                new ApiRoutingPolicyEngine.RoutingContext("POST", true, "createPet", RiskLevel.LOW));
+
+        assertThat(evaluations).hasSize(2);
+        assertThat(evaluations.get(0).name()).isEqualTo("block writes");
+        assertThat(evaluations.get(0).priority()).isEqualTo(5);
+        assertThat(evaluations.get(0).matched()).isTrue();
+        assertThat(evaluations.get(0).decisive()).isTrue();
+        // The second policy also matches — an admin needs to see the overlap — but only the first
+        // one routes.
+        assertThat(evaluations.get(1).matched()).isTrue();
+        assertThat(evaluations.get(1).decisive()).isFalse();
+        assertThat(evaluations.get(1).requiredApprovals()).isEqualTo(2);
+    }
+
+    @Test
+    void evaluateAllReportsUnmatchedPoliciesRatherThanOmittingThem() {
+        when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId))
+                .thenReturn(List.of(policy("{\"write\":true}", ApiRoutingAction.AUTO_REJECT, null)));
+
+        var evaluations = engine.evaluateAll(orgId, connectorId,
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW));
+
+        assertThat(evaluations).singleElement().satisfies(e -> {
+            assertThat(e.matched()).isFalse();
+            assertThat(e.decisive()).isFalse();
+        });
+    }
+
+    @Test
+    void evaluateAllAppliesTheSameConnectorScopingAsEvaluate() {
+        when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId))
+                .thenReturn(List.of(policy("{}", ApiRoutingAction.AUTO_APPROVE, UUID.randomUUID())));
+
+        assertThat(engine.evaluateAll(orgId, connectorId,
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW)))
+                .isEmpty();
+    }
+
+    @Test
+    void theMatchCarriesThePolicyNameForTheTrace() {
+        var entity = policy("{}", ApiRoutingAction.AUTO_APPROVE, null);
+        entity.setName("auto-approve everything");
+        when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(orgId))
+                .thenReturn(List.of(entity));
+
+        var match = engine.evaluate(orgId, connectorId,
+                new ApiRoutingPolicyEngine.RoutingContext("GET", false, null, RiskLevel.LOW));
+
+        assertThat(match.policyName()).isEqualTo("auto-approve everything");
+    }
+
 }
