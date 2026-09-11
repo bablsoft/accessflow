@@ -10,6 +10,7 @@ import type {
   QueryStatus,
   RequestGroupItemStatus,
   RequestGroupStatus,
+  StandingBypassKind,
 } from '@/types/api';
 import type { ColorTriple } from './riskColors';
 
@@ -82,6 +83,19 @@ export const grantUsageRecommendationColor = (
       return { fg: 'var(--risk-low)', bg: 'var(--risk-low-bg)', border: 'var(--risk-low-border)' };
     case 'INSUFFICIENT_DATA':
       return { fg: 'var(--fg-muted)', bg: 'var(--status-neutral-bg)', border: 'var(--status-neutral-border)' };
+  }
+};
+
+/**
+ * The two standing-bypass paths (#968), ranked by how much they skip: QUERY_ADMIN bypasses the
+ * whole permission gate, break-glass only bypasses review and is compensated by a retro-review.
+ */
+export const standingBypassKindColor = (kind: StandingBypassKind): ColorTriple => {
+  switch (kind) {
+    case 'QUERY_ADMIN':
+      return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
+    case 'BREAK_GLASS':
+      return { fg: 'var(--risk-high)', bg: 'var(--risk-high-bg)', border: 'var(--risk-high-border)' };
   }
 };
 

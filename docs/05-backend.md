@@ -1464,6 +1464,60 @@ candidate set is bounded by the users holding any permission on one datasource p
 `QUERY_ADMIN` holders — which since AF-522 can include a custom role, exactly the case this feature
 exists to surface — both capped by its user quota, so there is nothing unbounded to truncate and no knob for it.
 
+The org-wide counterpart — every identity whose row here would carry a `QUERY_ADMIN_BYPASS` or
+`BREAK_GLASS` source, across all datasources at once — is the
+[privileged-access report (#968)](#privileged-access-report-968) in the `access` module.
+
+### Privileged-access report (#968)
+
+The standing answer to *who can reach data without appearing in any permission table*. Owned by the
+`access` module (`access.api.PrivilegedAccessService`, `DefaultPrivilegedAccessService`) next to the
+over-provisioned report, because it is the same auditor's question about the access #625 by
+construction cannot see: a standing grant has usage to report, a bypass has no grant. Wire contract:
+[docs/04-api-spec.md → Privileged-access report](04-api-spec.md#privileged-access-report-968);
+authorization and audit: [docs/07-security.md](07-security.md#system-role-matrix).
+
+Two sources, both read through the lookups enforcement already uses rather than a second derivation:
+
+- **`QUERY_ADMIN` holders** — `core.api.RolePermissionHolderLookupService.findUserIdsWithPermission`
+  inverts the role catalog (system roles through `SystemRolePermissions`, custom roles through their
+  `role_permissions` rows, AF-522), so a custom role carrying the permission resolves exactly like the
+  system `ADMIN` role. These users skip the per-datasource gate in `DefaultQuerySubmissionService`
+  (`if (!input.isAdmin()) permissionVerifier.verify(...)`) and so hold zero
+  `datasource_user_permissions` rows.
+- **Break-glass grantees** — `core.api.DatasourceUserPermissionLookupService.findBreakGlassContributionsForOrganization`
+  (new): every unexpired `can_break_glass` row in the organization, direct rows via
+  `datasource.organization`, group rows via their own `organization_id`, each group row expanded across
+  its members in one membership query — the same expansion `findContributionsForDatasource` uses,
+  factored out. The service then keeps only grants on **active** datasources
+  (`DatasourceLookupService.findActiveRefsByOrganization`, which also supplies the names): the
+  datasource gate fails closed before a grant is consulted, and re-activating the datasource re-arms
+  it.
+
+The candidate set is the union; `user_id` narrows it before the user fetch; `UserQueryService.findByIds`
+then drops inactive and foreign users (the holder lookup is already active-only and org-scoped, the
+break-glass rows are not). One row per identity — a user holding both paths is one row with both
+kinds, and a user whose only access is an ordinary grant is never a candidate at all. `system_role`
+is derived from `UserView.role != null`: the legacy enum column is populated for the five system roles
+and NULL on a custom role, with `roleRef` the source of truth, kept in sync.
+
+**Evidence is read from `query_requests`, not from `grant_usage_summary`.** The #625 fold is keyed per
+grant, reconciled from live permission rows, and drops any executed-query event that matches no live
+grant — precisely every query a `QUERY_ADMIN` holder submits with no permission row. Every submission
+by such a holder passed through the bypass, so "queries submitted" *is* the bypass usage.
+`core.api.QuerySubmitterEvidenceLookupService.findBySubmitters` runs one grouped native aggregate over
+the candidate ids — total rows and `max(created_at)`, plus the `submission_reason = 'EMERGENCY_ACCESS'`
+subset via Postgres `FILTER` — scoped through `datasources.organization_id` like the dashboard's
+self-scoped aggregates, and served by `idx_query_requests_submitter (submitted_by, created_at DESC)`,
+created by `V168`. Counts cover every status: a rejected submission still exercised the bypass.
+
+Paging is an in-memory slice for the same reason the reverse index's is: a row is a Java merge of three
+lookups that no `Specification` expresses, and the candidate set — the organization's `QUERY_ADMIN`
+holders plus its break-glass grantees — is capped by its user quota. Every 200 writes one
+`PRIVILEGED_ACCESS_REPORT_VIEWED` audit row from the controller (swallowed on failure, like the
+explainer's — an audit outage must not deny an auditor the report). **Advisory only:** no field carries a
+recommendation, nothing consumes the report, and nothing revokes on its strength.
+
 ### Policy-as-code routing engine (AF-379)
 
 Routing policies are ordered, attribute-based rules that decide how a submitted query is routed **before** the default review-plan logic runs. The engine is owned by the `workflow` module and evaluated inside the same `QueryReviewStateMachine` listener, **after** AI analysis (or the skip event) and **before** reviewer fan-out:

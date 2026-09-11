@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-09",
+      "dateModified": "2026-09-11",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -264,7 +264,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-09">9 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-11">11 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -657,6 +657,19 @@ APPROVED → FAILED (execution error)</pre>
               <code>ACCESSFLOW_ACCESS_USAGE_NUDGE_COOLDOWN</code> (<code>P30D</code> — minimum time
               between nudges for the same grant).</li>
           </ul>
+          <p>
+            <strong>Privileged access.</strong> The unused-grant report can only see access that has
+            a grant to report on. Its counterpart at <code>/admin/privileged-access</code> lists the
+            access that never appears in a permission table at all: every user whose role carries
+            <code>QUERY_ADMIN</code> — the built-in <code>ADMIN</code> role or a custom role that
+            includes it — who can therefore submit against any datasource with no permission row,
+            and every holder of an unexpired break-glass grant, direct or inherited through a group.
+            One row per person, with the role that carries the bypass, each break-glass datasource
+            and when it expires, and how many queries — and how many break-glass runs — that person
+            has actually submitted and when last. Readable by <code>ADMIN</code> and
+            <code>AUDITOR</code>, recorded in the audit log on every read, and advisory in exactly
+            the same way: nothing here revokes anything.
+          </p>
         </section>
 
 <section class="docs-section">

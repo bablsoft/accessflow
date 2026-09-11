@@ -85,6 +85,7 @@
     "connectors": "连接器",
     "auditor": "合规报告",
     "over_provisioned_access": "权限过度分配",
+    "privileged_access": "特权访问",
     "anomalies": "异常",
     "break_glass": "Break-glass 日志",
     "dashboard": "仪表板",
@@ -2918,6 +2919,14 @@
       "DATASOURCE": "数据源",
       "API_CONNECTOR": "API 连接器"
     },
+    "standing_bypass_kind": {
+      "QUERY_ADMIN": "查询管理员",
+      "BREAK_GLASS": "紧急访问"
+    },
+    "permission_source_kind": {
+      "DIRECT": "直接授权",
+      "GROUP": "组授权"
+    },
     "grant_usage_recommendation": {
       "INSUFFICIENT_DATA": "数据不足",
       "NEVER_USED": "从未使用",
@@ -3680,6 +3689,32 @@
     "empty_title": "没有长期授权",
     "empty_description": "没有授权符合这些筛选条件。使用情况按计划汇总，新授权可能尚未出现。",
     "load_error": "无法加载权限过度分配报告"
+  },
+  "privileged_access": {
+    "title": "特权访问",
+    "subtitle": "无需权限记录即可访问数据的身份——查询管理员跳过按数据源的检查，紧急访问授权绕过审核。仅供参考；此处不会撤销任何访问。",
+    "col_identity": "身份",
+    "col_role": "角色",
+    "col_bypass": "绕过方式",
+    "col_break_glass": "紧急访问数据源",
+    "col_queries": "已提交查询",
+    "col_break_glass_runs": "紧急访问执行",
+    "system_role": "系统角色",
+    "custom_role": "自定义角色",
+    "via_group": "通过 {{group}}",
+    "never_expires": "永不过期",
+    "expires_at": "于 {{date}} 过期",
+    "none": "—",
+    "never": "从未",
+    "last_at": "最近 {{ago}}",
+    "filter_kind": "绕过类型",
+    "filter_all_kinds": "所有绕过类型",
+    "filter_user_placeholder": "按用户 ID 筛选",
+    "count_label_one": "{{count}} 个身份",
+    "count_label_other": "{{count}} 个身份",
+    "empty_title": "没有特权访问",
+    "empty_description": "此组织中没有活跃用户持有 QUERY_ADMIN 或与这些筛选条件匹配的有效紧急访问授权。",
+    "load_error": "无法加载特权访问报告"
   },
   "apiGov": {
     "connectors": {

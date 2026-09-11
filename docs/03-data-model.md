@@ -1609,6 +1609,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `OAUTH2_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies a per-provider OAuth2 config from `accessflow.bootstrap.oauth2[*]`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `provider`, `config_type: "oauth2"`, optional `changed_fields`. |
 | `SAML_CONFIG_UPDATED` | Emitted by the bootstrap reconciler when it applies the SAML configuration from `accessflow.bootstrap.saml`. Metadata: `source: "BOOTSTRAP"`, `change_kind: "UPDATE"`, `config_type: "saml"`, optional `changed_fields`. |
 | `ACCESS_SIMULATION_RUN` | An admin traced a hypothetical request through the live evaluators, or read who can reach a table (AF-859, AF-967). Always read-only. **The resource names the kind asked about**: `datasource` for `POST /admin/access-simulations` and `GET /admin/effective-access`, `api_connector` for `POST /admin/api-call-simulations`, `deployment_pipeline` for `POST /admin/deployment-simulations`. Metadata differs by endpoint — every trace records `simulated_user_id`, `ai_outcome`, `step_count` and optional `risk_level` / `resulting_status`; the deployment trace adds `environment_id`, `evaluated_at` and `releasable`; the reverse index records `table`, `capability` and `row_count` (total matching users, not the page size). **None carries the governed content** — not the SQL, not the API request path, headers or body: the kind's manage permission does not otherwise grant read access to it. |
+| `PRIVILEGED_ACCESS_REPORT_VIEWED` | An admin or auditor read the privileged-access report — who can reach data with no permission row (#968). Read-only. Resource: `organization`, `resource_id` = the caller's organization. Metadata: `row_count` (total matching identities, not the page size), plus `kind` and `user_id` when the read was filtered. Never carries an email or a role name. |
 | `AUDIT_LOG_EXPORTED` | Admin called `GET /admin/audit-log/export.csv`. Resource: `audit_log`, no resource id. Metadata captures the export filter (`action`, `resource_type`, `actor_id`, `resource_id`, `from`, `to`) and the row counts (`matched_rows`, `truncated`). |
 | `SLACK_APP_CONFIG_UPDATED` / `SLACK_APP_CONFIG_DELETED` | Admin creates/updates (`PUT`) or deletes (`DELETE`) the org's `slack_app_config` row. Resource: `slack_app_config`. Metadata on update: `app_id`, `active`. |
 | `ACCESS_REQUEST_SUBMITTED` | User submits a JIT access-grant request. Resource: `access_grant_request`. Metadata: `datasource_id`, `requested_duration`, `can_read`/`can_write`/`can_ddl`. |
@@ -2930,7 +2931,8 @@ unified across queries, API calls, and group items.
 -- Query requests: common filter patterns
 CREATE INDEX idx_query_requests_status ON query_requests(status);
 CREATE INDEX idx_query_requests_datasource ON query_requests(datasource_id);
-CREATE INDEX idx_query_requests_submitter ON query_requests(submitted_by);
+-- Per-submitter evidence for the privileged-access report and the self-scoped dashboard (V168, #968)
+CREATE INDEX idx_query_requests_submitter ON query_requests(submitted_by, created_at DESC);
 CREATE INDEX idx_query_requests_created ON query_requests(created_at DESC);
 -- Datasource health dashboard: per-datasource time-window aggregate (V52, AF-365)
 CREATE INDEX idx_query_requests_datasource_created_at ON query_requests(datasource_id, created_at);
