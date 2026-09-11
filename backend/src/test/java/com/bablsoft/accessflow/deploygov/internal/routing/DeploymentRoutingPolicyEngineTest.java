@@ -227,6 +227,70 @@ class DeploymentRoutingPolicyEngineTest {
         assertThat(engine.evaluate(ORG, PIPELINE, context(RiskLevel.LOW))).isNull();
     }
 
+    // ── evaluateAll: the presentational read behind the decision trace (AF-967) ──
+
+    @Test
+    void evaluateAllReportsEveryPolicyInPriorityOrderWithOnlyTheFirstMatchDecisive() {
+        stub(policy("{\"environments\":[\"production\"]}", DeploymentRoutingAction.AUTO_REJECT, null, 5,
+                        null),
+                policy("{}", DeploymentRoutingAction.ESCALATE, 2, 10, null));
+
+        var evaluations = engine.evaluateAll(ORG, PIPELINE, context(RiskLevel.LOW));
+
+        assertThat(evaluations).hasSize(2);
+        assertThat(evaluations.get(0).name()).isEqualTo("policy-5");
+        assertThat(evaluations.get(0).priority()).isEqualTo(5);
+        assertThat(evaluations.get(0).matched()).isTrue();
+        assertThat(evaluations.get(0).decisive()).isTrue();
+        // The second policy also matches — an admin needs to see the overlap — but only the first
+        // one routes.
+        assertThat(evaluations.get(1).matched()).isTrue();
+        assertThat(evaluations.get(1).decisive()).isFalse();
+        assertThat(evaluations.get(1).requiredApprovals()).isEqualTo(2);
+    }
+
+    @Test
+    void evaluateAllReportsUnmatchedPoliciesRatherThanOmittingThem() {
+        stub(policy("{\"environments\":[\"staging\"]}", DeploymentRoutingAction.AUTO_APPROVE, null, 5,
+                null));
+
+        var evaluations = engine.evaluateAll(ORG, PIPELINE, context(RiskLevel.LOW));
+
+        assertThat(evaluations).singleElement().satisfies(e -> {
+            assertThat(e.matched()).isFalse();
+            assertThat(e.decisive()).isFalse();
+        });
+    }
+
+    @Test
+    void evaluateAllAppliesTheSamePipelineScopingAsEvaluate() {
+        stub(policy("{}", DeploymentRoutingAction.AUTO_APPROVE, null, 5, UUID.randomUUID()));
+
+        assertThat(engine.evaluateAll(ORG, PIPELINE, context(RiskLevel.LOW))).isEmpty();
+    }
+
+    @Test
+    void evaluateAllSkipsAnUnreadablePolicyJustAsEvaluateDoes() {
+        stub(policy("{ not json", DeploymentRoutingAction.AUTO_APPROVE, null, 5, null),
+                policy("{}", DeploymentRoutingAction.ESCALATE, 1, 10, null));
+
+        var evaluations = engine.evaluateAll(ORG, PIPELINE, context(RiskLevel.LOW));
+
+        // Reported, but never matched: a broken policy must be visible in a trace without ever
+        // being credited with a decision.
+        assertThat(evaluations).hasSize(2);
+        assertThat(evaluations.get(0).matched()).isFalse();
+        assertThat(evaluations.get(1).decisive()).isTrue();
+    }
+
+    @Test
+    void theMatchCarriesThePolicyNameForTheTrace() {
+        stub(policy("{}", DeploymentRoutingAction.AUTO_APPROVE, null, 5, null));
+
+        assertThat(engine.evaluate(ORG, PIPELINE, context(RiskLevel.LOW)).policyName())
+                .isEqualTo("policy-5");
+    }
+
     private void stub(DeploymentRoutingPolicyEntity... policies) {
         when(repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(ORG))
                 .thenReturn(List.of(policies));

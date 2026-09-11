@@ -2,7 +2,7 @@ package com.bablsoft.accessflow.workflow.internal.web;
 
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;

@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -29,15 +31,45 @@ public class ApiRoutingPolicyEngine {
     private final ObjectMapper objectMapper;
 
     public RoutingMatch evaluate(UUID organizationId, UUID connectorId, RoutingContext context) {
-        for (var policy : repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(organizationId)) {
-            if (policy.getConnectorId() != null && !policy.getConnectorId().equals(connectorId)) {
-                continue;
-            }
+        for (var policy : scopedTo(organizationId, connectorId)) {
             if (matches(policy, context)) {
-                return new RoutingMatch(policy.getId(), policy.getAction(), policy.getRequiredApprovals());
+                return new RoutingMatch(policy.getId(), policy.getName(), policy.getAction(),
+                        policy.getRequiredApprovals());
             }
         }
         return null;
+    }
+
+    /**
+     * Every policy in scope with its match flag, in the same order and through the same
+     * {@link #matches} helper as {@link #evaluate} (issue AF-967). The decision trace shows the whole
+     * ordered list, because a policy that <em>nearly</em> matched is usually the most useful line in
+     * it, and sharing the helper is what stops that view from disagreeing with the one that routes.
+     *
+     * <p>Deliberately not used on the live path, which short-circuits at the first match.
+     */
+    public List<PolicyEvaluation> evaluateAll(UUID organizationId, UUID connectorId,
+                                              RoutingContext context) {
+        var evaluations = new ArrayList<PolicyEvaluation>();
+        boolean decided = false;
+        for (var policy : scopedTo(organizationId, connectorId)) {
+            boolean matched = matches(policy, context);
+            // "decided" marks the winner: later policies are still reported as matching so an admin
+            // can see the overlap, but only the first one actually routes.
+            evaluations.add(new PolicyEvaluation(policy.getId(), policy.getName(),
+                    policy.getPriority(), policy.getAction(), policy.getRequiredApprovals(),
+                    matched, matched && !decided));
+            decided |= matched;
+        }
+        return List.copyOf(evaluations);
+    }
+
+    /** The org's enabled policies that apply to this connector, in ascending priority order. */
+    private List<ApiRoutingPolicyEntity> scopedTo(UUID organizationId, UUID connectorId) {
+        return repository.findByOrganizationIdAndEnabledTrueOrderByPriorityAsc(organizationId).stream()
+                .filter(policy -> policy.getConnectorId() == null
+                        || policy.getConnectorId().equals(connectorId))
+                .toList();
     }
 
     private boolean matches(ApiRoutingPolicyEntity policy, RoutingContext context) {
@@ -89,6 +121,12 @@ public class ApiRoutingPolicyEngine {
     public record RoutingContext(String verb, boolean write, String operationId, RiskLevel riskLevel) {
     }
 
-    public record RoutingMatch(UUID policyId, ApiRoutingAction action, Integer requiredApprovals) {
+    public record RoutingMatch(UUID policyId, String policyName, ApiRoutingAction action,
+                               Integer requiredApprovals) {
+    }
+
+    /** One policy's verdict for the decision trace. {@code decisive} marks the first match. */
+    public record PolicyEvaluation(UUID policyId, String name, int priority, ApiRoutingAction action,
+                                   Integer requiredApprovals, boolean matched, boolean decisive) {
     }
 }

@@ -55,6 +55,7 @@ public enum AuditResourceType {
     SCIM_TOKEN("scim_token"),
     EXPORT_POLICY("export_policy"),
     AUDIT_SINK("audit_sink"),
+    DEPLOYMENT_PIPELINE("deployment_pipeline"),
     DEPLOYMENT_REQUEST("deployment_request"),
     DEPLOYMENT_ROLLBACK_REVIEW("deployment_rollback_review");
 

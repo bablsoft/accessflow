@@ -100,7 +100,10 @@ class SimulationRecordsTest {
                 // AF-859: a hypothetical request, unlike a replayed one, carries neither a persisted
                 // cost estimate nor any client context.
                 SimulationCaveat.COST_ESTIMATE_ABSENT,
-                SimulationCaveat.CLIENT_CONTEXT_ABSENT);
+                SimulationCaveat.CLIENT_CONTEXT_ABSENT,
+                // AF-967: an API-call simulation has no response body, so masking is reported per
+                // rule rather than per field.
+                SimulationCaveat.RESPONSE_SHAPE_ABSENT);
     }
 
     @Test

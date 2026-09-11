@@ -6,9 +6,9 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.SimulationCaveat;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationResult;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -24,7 +24,7 @@ class AccessSimulationResponseTest {
     @Test
     void resolvesEachStepsMessageKeyWithItsArguments() {
         var result = new AccessSimulationResult(
-                List.of(new DecisionTraceStep(DecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
+                List.of(new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
                         "routing.matched", List.of("Escalate writes", "ESCALATE"),
                         Map.of("matched_policy_id", "p1"))),
                 QueryStatus.PENDING_REVIEW, null, List.of(SimulationCaveat.CLIENT_CONTEXT_ABSENT));

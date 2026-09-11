@@ -9,12 +9,12 @@ import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
-import com.bablsoft.accessflow.workflow.api.AiOutcome;
+import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
-import com.bablsoft.accessflow.workflow.api.DecisionStepKind;
-import com.bablsoft.accessflow.workflow.api.DecisionTrace;
-import com.bablsoft.accessflow.workflow.api.DecisionTraceStep;
-import com.bablsoft.accessflow.workflow.api.StepOutcome;
+import com.bablsoft.accessflow.workflow.api.QueryDecisionStepKind;
+import com.bablsoft.accessflow.core.api.DecisionTrace;
+import com.bablsoft.accessflow.core.api.DecisionTraceStep;
+import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.ConditionContextFactory;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
@@ -84,12 +84,12 @@ class QueryDecisionEvaluator {
         if (match != null) {
             return routed(query, match, plan, context, steps);
         }
-        steps.add(DecisionTraceStep.of(DecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH,
                 "workflow.decision.routing.no_match"));
 
         var grant = findCoveringGrant(query, context, steps);
         if (grant != null) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                     "workflow.decision.plan.skipped_grant_covered", planDetails(plan)));
             return new QueryDecision(QueryDecisionKind.GRANT_FAST_PATH, QueryStatus.APPROVED, null,
                     null, grant.id(), grant.approverEmail(), context,
@@ -107,11 +107,11 @@ class QueryDecisionEvaluator {
      */
     private static QueryDecision aiFailed() {
         var steps = List.of(
-                DecisionTraceStep.of(DecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
+                DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_ai_failed"),
-                DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
+                DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                         "workflow.decision.grant.skipped_ai_failed"),
-                DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+                DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                         "workflow.decision.plan.skipped_ai_failed"));
         return new QueryDecision(QueryDecisionKind.AI_FAILED_PENDING_REVIEW,
                 QueryStatus.PENDING_REVIEW, null, null, null, null, null,
@@ -139,12 +139,12 @@ class QueryDecisionEvaluator {
         details.put("matched_policy_name", match.policyName());
         details.put("action", match.action().name());
         details.put("effective_min_approvals", effective);
-        steps.add(new DecisionTraceStep(DecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
+        steps.add(new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
                 "workflow.decision.routing.matched",
                 List.of(String.valueOf(match.policyName()), match.action().name()), details));
-        steps.add(DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                 "workflow.decision.grant.skipped_routing_decided"));
-        steps.add(DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                 "workflow.decision.plan.skipped_routing_decided", planDetails(plan)));
         return new QueryDecision(kind, nextStatus, match, effective, null, null, context,
                 new DecisionTrace(steps, nextStatus));
@@ -163,7 +163,7 @@ class QueryDecisionEvaluator {
     private AccessGrantView findCoveringGrant(QueryRequestSnapshot query, ConditionContext context,
                                               List<DecisionTraceStep> steps) {
         if (context.anomalyActive()) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                     "workflow.decision.grant.suppressed_anomaly"));
             return null;
         }
@@ -172,7 +172,7 @@ class QueryDecisionEvaluator {
         if (context.riskLevel() != null
                 && context.riskLevel() != RiskLevel.LOW
                 && context.riskLevel() != RiskLevel.MEDIUM) {
-            steps.add(new DecisionTraceStep(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
+            steps.add(new DecisionTraceStep(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                     "workflow.decision.grant.suppressed_risk",
                     List.of(context.riskLevel().name()), Map.of()));
             return null;
@@ -180,7 +180,7 @@ class QueryDecisionEvaluator {
         var grants = accessGrantLookupService.findActivePreApprovedGrants(
                 query.organizationId(), query.submittedByUserId(), query.datasourceId());
         if (grants.isEmpty()) {
-            steps.add(DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                     "workflow.decision.grant.none_active"));
             return null;
         }
@@ -190,7 +190,7 @@ class QueryDecisionEvaluator {
         } catch (RuntimeException ex) {
             log.warn("Grant fast-path: failed to re-parse SQL for query {}; failing closed",
                     query.id());
-            steps.add(DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
+            steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                     "workflow.decision.grant.parse_failed", consideredGrants(grants)));
             return null;
         }
@@ -199,13 +199,13 @@ class QueryDecisionEvaluator {
                 var details = consideredGrants(grants);
                 details.put("grant_id", grant.id());
                 details.put("approver_email", grant.approverEmail());
-                steps.add(new DecisionTraceStep(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.MATCH,
+                steps.add(new DecisionTraceStep(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.MATCH,
                         "workflow.decision.grant.covered", List.of(String.valueOf(grant.id())),
                         details));
                 return grant;
             }
         }
-        steps.add(DecisionTraceStep.of(DecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                 "workflow.decision.grant.no_covering_grant", consideredGrants(grants)));
         return null;
     }
@@ -235,7 +235,7 @@ class QueryDecisionEvaluator {
             nextStatus = QueryStatus.PENDING_REVIEW;
             reasonKey = "workflow.decision.plan.requires_review";
         }
-        steps.add(DecisionTraceStep.of(DecisionStepKind.REVIEW_PLAN,
+        steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN,
                 nextStatus == QueryStatus.APPROVED ? StepOutcome.ALLOW : StepOutcome.DENY,
                 reasonKey, details));
         var kind = nextStatus == QueryStatus.APPROVED

@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.deploygov.api;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -15,4 +16,14 @@ public interface DeploymentPipelineLookupService {
      * later deactivated still means the onboarding step was done.
      */
     boolean hasAnyPipeline(UUID organizationId);
+
+    /**
+     * One pipeline, scoped to an organization (issue AF-967). Empty when it does not exist or belongs
+     * to another organization — the caller cannot tell the two apart, which is the intended
+     * 404-never-403 shape the whole module uses.
+     */
+    Optional<DeploymentPipelineView> findPipeline(UUID pipelineId, UUID organizationId);
+
+    /** One environment of a pipeline, or empty when it is not on that pipeline (issue AF-967). */
+    Optional<DeploymentEnvironmentView> findEnvironment(UUID pipelineId, UUID environmentId);
 }

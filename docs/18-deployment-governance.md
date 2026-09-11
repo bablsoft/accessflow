@@ -33,7 +33,7 @@ concepts are the **pipeline / environment** hierarchy, **freeze windows**, and t
 ```
 com.bablsoft.accessflow.deploygov/
 ├── api/         # PipelineProvider, FreezeBehavior, DeploymentOutcome, DeploymentRoutingAction,
-│                # DeploymentRollbackReviewStatus, eleven service interfaces, view + command records,
+│                # DeploymentRollbackReviewStatus, thirteen service interfaces, view + command records,
 │                # the exception hierarchy (JDK + project types only)
 ├── events/      # DeploymentSubmitted/AnalysisCompleted/AnalysisSkipped/AnalysisFailed/
 │                # StatusChanged/Decided/BreakGlassExecuted/OutcomeReported/ReleasableEvent
@@ -50,7 +50,7 @@ com.bablsoft.accessflow.deploygov/
     │                                # the two grant entities + repos
     ├── routing/     # DeploymentRoutingPolicyEngine
     ├── scheduled/   # DeploymentTimeoutJob, ScheduledDeploymentReleaseJob
-    └── web/         # eight controllers, request/response records,
+    └── web/         # nine controllers, request/response records,
                      # DeploygovExceptionHandler, SpringPageableAdapter
 ```
 
@@ -454,6 +454,68 @@ same comment modal as the queue. This is the surface a queue row click lands on,
 opens a deployment to read its metadata decides there rather than navigating back. Where the flag
 is false there is no control at all — no disabled button, no server-side surprise; the submitter,
 who can never decide their own deployment, is told so in place of the buttons.
+
+
+---
+
+## 10. Decision trace (AF-967)
+
+The sharpest of the three explainers, because a deployment is blocked by the **gate** rather than by
+the decision, and the freeze-window / plan-approver / break-glass interaction is not visible on any
+single screen. `POST /api/v1/admin/deployment-simulations` (`DEPLOYMENT_PIPELINE_MANAGE`, returns
+**200** — nothing is created) traces one hypothetical release from the CI trigger to the gate.
+
+**The split.** `DeploymentReviewStateMachine` used to decide and apply in one method. Since AF-967
+the deciding half lives in `deploygov.internal.DeploymentDecisionEvaluator` — pure, returning a
+`DeploymentDecision` carrying the resulting status, the matched policy, the effective approval count
+and a `core.api.DecisionTrace`. The state machine only *applies* it: the transition, the approval
+count, the system audit row, the event.
+
+`DefaultDeploymentSimulationService` delegates routing and the environment policy to that evaluator
+and reconstructs the rest from the same collaborators production uses —
+`EffectiveDeploymentPermissionResolver` for the trigger grant, `FreezeWindowEvaluator` for the
+freeze, and `DefaultDeploymentGateService.releasable` for the gate:
+
+| Stage | What it reports |
+|---|---|
+| `PIPELINE_GATES` | the pipeline is in the org and active, and the environment belongs to it |
+| `TRIGGER_PERMISSION` | the effective `can_trigger` grant (direct ∪ unexpired group grants) |
+| `FREEZE_WINDOW` | the window active at the evaluated instant, its behavior and its scope |
+| `ROUTING_POLICIES` | **every** enabled policy in priority order with its `matched` flag |
+| `ENVIRONMENT_POLICY` | `require_review`, the environment's approval override, the resolved plan |
+| `ELIGIBLE_REVIEWERS` | the plan's approver rules, else the `DEPLOYMENT_REVIEW` holders, minus the submitter. **No delegation** — #622 does not extend to deployments |
+| `SCHEDULED_RELEASE` | whether a deferred release moment has passed |
+| `GATE_RELEASABILITY` | the gate's own verdict — see below |
+| `BREAK_GLASS` | the `can_break_glass` grant **and** the environment's opt-in, with no admin bypass |
+
+**`at` is the input the other two explainers do not have.** The two questions a deployment admin most
+needs to ask are time-shaped — *is Friday evening inside a freeze window*, and *would this policy's
+maintenance hour match* — and both the freeze evaluator and the routing engine already take an
+explicit instant. So the endpoint accepts an optional `at` (defaulting to now) and hands it to the
+real ones rather than modelling them. `evaluated_at` echoes what was used.
+
+**`FREEZE_WINDOW` and `GATE_RELEASABILITY` answer different questions**, and a deployment can fail
+either. A `REJECT` window auto-rejects at the trigger and denies the first; a `HOLD` window lets the
+trigger through and withholds releasability at the second. An unevaluable window definition counts as
+an active `HOLD` — fail-closed — and is reported as such rather than as "no freeze".
+
+**The gate stage calls the real function.** `releasable(status, frozen, scheduled_for, at)` is the
+same package-private static that [`GET /deployment-gate`](#5-the-deployment-gate) blocks on, not a
+reimplementation, so the response's top-level `releasable` is what the CI job would actually see. It
+is `false` for anything short of an approved, unfrozen, due release — the common case in a trace, and
+not an error.
+
+**Read-only, structurally.** No `deployment_requests` row, no event, no notification, no AI call, and
+no audit row of its own beyond the `ACCESS_SIMULATION_RUN` one the endpoint writes against the
+**pipeline** (`resource_type=deployment_pipeline`), carrying the simulated user, the environment, the
+AI outcome, the evaluated instant, the releasability verdict and the step count.
+`DefaultDeploymentSimulationServiceTest` asserts the guarantee against the service's declared field
+types, so a future change that wires in a repository, a state service or the audit writer fails the
+build rather than quietly breaking it.
+
+Full request/response contract: [docs/04-api-spec.md](04-api-spec.md#decision-traces-for-api-calls-and-deployments-af-967).
+The API-call sibling is [§7 of docs/17](17-api-governance.md#7-decision-trace-af-967); the query one
+is the [AF-859 access explainer](05-backend.md#access-explainer-af-859).
 
 ---
 

@@ -2,7 +2,7 @@ package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
-import com.bablsoft.accessflow.workflow.api.DecisionTrace;
+import com.bablsoft.accessflow.core.api.DecisionTrace;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
 
 import java.util.UUID;
