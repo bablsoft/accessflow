@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Setup and configuration guides — AccessFlow docs</title>
-  <meta name="description" content="Step-by-step manuals for setting up AccessFlow: your first governed query, datasources, notifications, users, SSO, AI analysis, API and deployment governance." />
+  <title>Integrations &amp; boundaries — AccessFlow docs</title>
+  <meta name="description" content="Every way into AccessFlow — web UI, REST API, MCP, Terraform, CI — and what it is not: no ODBC/JDBC/ADO.NET driver, no database wire protocol, no SaaS." />
 
-  <link rel="canonical" href="https://accessflow.io/docs/guides/" />
+  <link rel="canonical" href="https://accessflow.io/docs/integrations/" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="bablsoft" />
   <meta name="theme-color" content="#0A0D11" />
@@ -27,9 +27,9 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="Setup and configuration guides — AccessFlow docs" />
-  <meta property="og:description" content="Step-by-step manuals for setting up AccessFlow: your first governed query, datasources, notifications, users, SSO, AI analysis, API and deployment governance." />
-  <meta property="og:url" content="https://accessflow.io/docs/guides/" />
+  <meta property="og:title" content="Integrations &amp; boundaries — AccessFlow docs" />
+  <meta property="og:description" content="Every way into AccessFlow — web UI, REST API, MCP, Terraform, CI — and what it is not: no ODBC/JDBC/ADO.NET driver, no database wire protocol, no SaaS." />
+  <meta property="og:url" content="https://accessflow.io/docs/integrations/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
@@ -37,8 +37,8 @@
   <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Setup and configuration guides — AccessFlow docs" />
-  <meta name="twitter:description" content="Step-by-step manuals for setting up AccessFlow: your first governed query, datasources, notifications, users, SSO, AI analysis, API and deployment governance." />
+  <meta name="twitter:title" content="Integrations &amp; boundaries — AccessFlow docs" />
+  <meta name="twitter:description" content="Every way into AccessFlow — web UI, REST API, MCP, Terraform, CI — and what it is not: no ODBC/JDBC/ADO.NET driver, no database wire protocol, no SaaS." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
   <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
@@ -55,17 +55,17 @@
   "@graph": [
     {
       "@type": "TechArticle",
-      "@id": "https://accessflow.io/docs/guides/#article",
-      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/#breadcrumb" },
-      "headline": "Guides",
-      "name": "Setup and configuration guides — AccessFlow docs",
-      "description": "Step-by-step manuals for setting up AccessFlow: your first governed query, datasources, notifications, users, SSO, AI analysis, API and deployment governance.",
+      "@id": "https://accessflow.io/docs/integrations/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/integrations/#breadcrumb" },
+      "headline": "Integrations & boundaries",
+      "name": "Integrations & boundaries \u2014 AccessFlow docs",
+      "description": "Every way into AccessFlow — web UI, REST API, MCP, Terraform, CI — and what it is not: no ODBC/JDBC/ADO.NET driver, no database wire protocol, no SaaS.",
       "inLanguage": "en",
-      "articleSection": "Guides",
-      "datePublished": "2026-09-01",
+      "articleSection": "Integrations & boundaries",
+      "datePublished": "2026-09-11",
       "dateModified": "2026-09-11",
-      "url": "https://accessflow.io/docs/guides/",
-      "mainEntityOfPage": "https://accessflow.io/docs/guides/",
+      "url": "https://accessflow.io/docs/integrations/",
+      "mainEntityOfPage": "https://accessflow.io/docs/integrations/",
       "image": "https://accessflow.io/og-image.png",
       "isPartOf": {
         "@id": "https://accessflow.io/#website"
@@ -82,7 +82,7 @@
     },
     {
       "@type": "BreadcrumbList",
-      "@id": "https://accessflow.io/docs/guides/#breadcrumb",
+      "@id": "https://accessflow.io/docs/integrations/#breadcrumb",
       "itemListElement": [
         {
           "@type": "ListItem",
@@ -99,8 +99,8 @@
         {
           "@type": "ListItem",
           "position": 3,
-          "name": "Guides",
-          "item": "https://accessflow.io/docs/guides/"
+          "name": "Integrations & boundaries",
+          "item": "https://accessflow.io/docs/integrations/"
         }
       ]
     },
@@ -218,14 +218,19 @@
         <details class="docs-sidebar-mobile" open>
           <summary>On this page</summary>
           <nav class="docs-toc">
-            <p class="docs-toc-label">All guides</p>
-            <a href="#guides">Step-by-step setup guides</a>
-            <a href="#guides-all">Every guide</a>
+            <p class="docs-toc-label">Integrations & boundaries</p>
+            <a href="#fit">Where AccessFlow sits</a>
+            <a href="#ways-in">Every way in</a>
+            <a href="#not-a-driver">What AccessFlow is not</a>
+            <a href="#supported">Supported engines, sign-in methods and AI providers</a>
+            <a href="#deployment-shape">Deployment shape</a>
+            <a href="#data">What AccessFlow stores</a>
+            <a href="#governs">Three governance surfaces</a>
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
             <p class="docs-toc-label">Guides</p>
-            <a href="/docs/guides/" class="docs-toc-current" aria-current="page">All guides</a>
+            <a href="/docs/guides/">All guides</a>
             <a href="/docs/guides/first-query/">Run your first query</a>
             <a href="/docs/guides/datasource/">Add a datasource</a>
             <a href="/docs/guides/notifications/">Send notifications</a>
@@ -246,103 +251,218 @@
             <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
             <a href="/docs/workflows/">End-user workflows</a>
             <a href="/docs/iac/">Infrastructure as Code</a>
-            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+            <a href="/docs/integrations/" class="docs-toc-current" aria-current="page">Integrations & boundaries</a>
           </nav>
         </details>
       </aside>
 
       <article class="docs-content">
+
         <header class="docs-hero">
           <nav class="breadcrumb" aria-label="Breadcrumb">
             <ol>
               <li><a href="/">AccessFlow</a></li>
               <li><a href="/docs/">Documentation</a></li>
-              <li><span aria-current="page">Guides</span></li>
+              <li><span aria-current="page">Integrations &amp; boundaries</span></li>
             </ol>
           </nav>
-          <span class="eyebrow">Guides</span>
-          <h1>Guides.</h1>
+          <span class="eyebrow">Documentation</span>
+          <h1>Integrations &amp; boundaries.</h1>
           <p class="docs-updated">Last updated <time datetime="2026-09-11">11 September 2026</time></p>
         </header>
 
-<section class="docs-section">
-          <h2 id="guides">Step-by-step setup guides</h2>
+        <section id="fit" class="docs-section">
+          <h2>Where AccessFlow sits</h2>
           <p>
-            The <a href="/docs/configuration/users-roles/">reference chapters</a> describe what
-            every part of AccessFlow <em>is</em>. These guides describe what you <em>do</em> — each
-            one a short, ordered walkthrough of a single setup task, written in the sequence an
-            operator actually performs it, with the traps that cost real time called out where you
-            would hit them.
+            AccessFlow is an <strong>application-layer</strong> governance proxy. A person or a tool
+            submits a request <em>to AccessFlow</em> — a query, an outbound API call, or a deployment.
+            AccessFlow parses it, optionally has a model analyse it, routes it through the review
+            workflow, and once it is approved <strong>executes it itself</strong> against the
+            datasource, with the credential AccessFlow holds for that datasource. The result comes
+            back the same way the request went in — through the web UI or the REST API — masked
+            before the result snapshot is stored.
           </p>
-
-          <h3>Where should I start?</h3>
           <p>
-            If AccessFlow is new to you, read
-            <a href="/docs/guides/first-query/">Run your first governed query</a> first. It takes a
-            fresh install all the way to a query that is reviewed, approved and executed, and every
-            other guide assumes you have been through it. After that, pick whichever task you need
-            next — the rest stand alone.
+            Nobody receives the database password. Datasource credentials are AES-256-GCM encrypted
+            at rest, decrypted only to open the connection pool, and never returned by any endpoint.
+            "Your team connects to AccessFlow instead of the database" therefore means people submit
+            work to AccessFlow and AccessFlow talks to the database — not that AccessFlow speaks the
+            database's protocol on their behalf.
           </p>
-
-          <div class="docs-callout info">
-            <strong>Not sure whether you want a guide or a reference?</strong> A guide answers
-            <em>"how do I set this up?"</em> and gets you to a working result. A reference chapter
-            answers <em>"what does this setting do?"</em> and covers every option. Each guide links
-            to the chapter that covers its subject in full.
-          </div>
         </section>
 
-<section class="docs-section">
-          <h2 id="guides-all">Every guide</h2>
-          <p>Roughly in the order a new deployment needs them.</p>
-          <div class="docs-grid">
-            <a href="/docs/guides/first-query/" class="doc-card">
-              <span class="doc-num">01</span>
-              <h3>Run your first query</h3>
-              <p>From a fresh install to a query that is reviewed, approved and executed. Start here.</p>
-            </a>
-            <a href="/docs/guides/datasource/" class="doc-card">
-              <span class="doc-num">02</span>
-              <h3>Add a datasource</h3>
-              <p>Install the engine connector, connect a database, read its schema, then limit what can be queried and mask what should not be read.</p>
-            </a>
-            <a href="/docs/guides/notifications/" class="doc-card">
-              <span class="doc-num">03</span>
-              <h3>Send notifications</h3>
-              <p>Configure system email so invitations work, then route review events to Slack, Teams, PagerDuty or a signed webhook.</p>
-            </a>
-            <a href="/docs/guides/team/" class="doc-card">
-              <span class="doc-num">04</span>
-              <h3>Invite your team</h3>
-              <p>Create accounts, choose roles that match what people actually do, group them, and grant access that expires on its own.</p>
-            </a>
-            <a href="/docs/guides/sso/" class="doc-card">
-              <span class="doc-num">05</span>
-              <h3>Connect SSO</h3>
-              <p>Sign in through your identity provider with OAuth 2.0 / OIDC or SAML 2.0, and provision users automatically over SCIM.</p>
-            </a>
-            <a href="/docs/guides/ai-analysis/" class="doc-card">
-              <span class="doc-num">06</span>
-              <h3>Turn on AI analysis</h3>
-              <p>Give reviewers a risk level and a plain-language explanation on every query before they decide.</p>
-            </a>
-            <a href="/docs/guides/api-governance/" class="doc-card">
-              <span class="doc-num">07</span>
-              <h3>Govern an API call</h3>
-              <p>Put the same review and approval flow in front of outbound REST, SOAP, GraphQL and gRPC calls.</p>
-            </a>
-            <a href="/docs/guides/deployment-approval/" class="doc-card">
-              <span class="doc-num">08</span>
-              <h3>Gate a CI/CD pipeline</h3>
-              <p>Make a deploy job wait for a human before it releases, and record who approved it.</p>
-            </a>
-            <a href="/docs/guides/terraform/" class="doc-card">
-              <span class="doc-num">09</span>
-              <h3>Automate with Terraform</h3>
-              <p>Stop clicking. Declare datasources, review plans and policies as code and apply them from CI.</p>
-            </a>
-          </div>
+        <section id="ways-in" class="docs-section">
+          <h2>Every way in</h2>
+          <p>
+            <strong>This list is complete.</strong> These are the only interfaces AccessFlow exposes.
+            If a client, protocol or driver is not on it, AccessFlow does not offer it.
+          </p>
+          <ul>
+            <li>
+              <strong>Web UI</strong> — the browser application: query editor, review queue, audit
+              log, administration. Also installable as a mobile PWA with push approvals.
+            </li>
+            <li>
+              <strong>REST API</strong> — everything the UI does, under <code>/api/v1</code>. A browser
+              session authenticates with a JWT; a program authenticates with an
+              <strong>API key</strong> (<code>Authorization: ApiKey af_…</code> or
+              <code>X-API-Key</code>). Personal keys are minted under
+              <strong>Profile → API keys</strong> and carry exactly their owner's role and datasource
+              permissions; <a href="/docs/iac/#iac-service-account">service-account keys</a> are
+              API-key-only users for automation. The full endpoint reference is
+              <a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">docs/04-api-spec.md</a>.
+            </li>
+            <li>
+              <strong>MCP server</strong> — a Model Context Protocol tool surface for
+              <a href="/ai-agents/">AI agents</a>, authenticated with the same API keys. An agent
+              can discover, validate, sample and submit; submitting enters the same review pipeline
+              as a human submission, never a fast path.
+            </li>
+            <li>
+              <strong>Terraform / OpenTofu provider</strong> — declarative management of datasources,
+              review plans, routing, row-security and masking policies, AI configs and notification
+              channels over the REST API. See <a href="/docs/iac/">Infrastructure as Code</a>.
+            </li>
+            <li>
+              <strong>CI templates</strong> — reusable GitHub Actions, GitLab CI and Azure Pipelines
+              steps that provision a datasource, run a governed query, or block a release on the
+              <a href="/docs/iac/#iac-deployment-gate">deployment gate</a>.
+            </li>
+            <li>
+              <strong>SCIM 2.0</strong> — inbound user and group provisioning from your identity
+              provider (<a href="/docs/configuration/auth/">Auth &amp; SSO</a>).
+            </li>
+            <li>
+              <strong>SSO</strong> — sign-in delegated to an identity provider over SAML 2.0 or
+              OAuth 2.0 / OIDC.
+            </li>
+          </ul>
+          <p>
+            Outbound, AccessFlow notifies and integrates rather than being called: email, Slack,
+            Discord, Telegram, Microsoft Teams, PagerDuty, ServiceNow and Jira tickets, and
+            HMAC-signed webhooks (<a href="/docs/configuration/notifications/">Notifications</a>).
+          </p>
         </section>
+
+        <section id="not-a-driver" class="docs-section">
+          <h2>What AccessFlow is not</h2>
+
+          <h3 id="no-driver">Not a driver, and not a database endpoint</h3>
+          <p>
+            AccessFlow exposes <strong>no database wire protocol</strong>. There is no ODBC, JDBC,
+            ADO.NET or other client driver, no connection string, and no host and port that
+            <code>psql</code>, <code>mysql</code>, DBeaver, DataGrip, Tableau, Metabase, Power BI or
+            application code in C#, Java, Python, Go or any other language can point at as if
+            AccessFlow were the database. The JDBC drivers and native SDKs the documentation talks
+            about are what AccessFlow uses <em>outbound</em>, to reach your datasources — they are
+            not something it offers inbound.
+          </p>
+
+          <h3 id="odbc">Can my C# (or Java, Python, …) application connect through AccessFlow with ODBC or ADO.NET?</h3>
+          <p>
+            <strong>No.</strong> An application cannot open a database connection to AccessFlow. The
+            way for an application to run a governed query is the <strong>REST API</strong>: submit
+            with <code>POST /api/v1/queries</code> using an API key, watch the request's status
+            (<code>GET /api/v1/queries/{id}</code>, or a webhook on the decision), and read the result
+            with <code>GET /api/v1/queries/{id}/results</code> once it has executed. An AI agent does
+            the same through the <a href="/ai-agents/">MCP server</a>. Both paths go through the full
+            review workflow — an application never gets a shortcut around approval.
+          </p>
+
+          <h3 id="not-a-database">Not a database, and not a replacement for database-native grants</h3>
+          <p>
+            AccessFlow holds no copy of your database and does not manage the roles and grants inside
+            it. It needs its own credential for every datasource and enforces its policies —
+            allow-lists, masking, row-level security, row caps, approval — <em>on top of</em>
+            whatever that credential is already allowed to do. Tighten the database side as you
+            normally would; AccessFlow governs what reaches it.
+          </p>
+
+          <h3 id="not-hosted">Not a hosted service</h3>
+          <p>
+            There is no SaaS edition. AccessFlow is self-hosted, in your own infrastructure — and with
+            a local Ollama analyser, air-gap friendly.
+          </p>
+        </section>
+
+        <section id="supported" class="docs-section">
+          <h2>Supported engines, sign-in methods and AI providers</h2>
+          <p>
+            <strong>Each list below is complete.</strong> Something not on it is not supported today.
+          </p>
+
+          <h3 id="supported-engines">Databases and warehouses</h3>
+          <p>The complete list of engines AccessFlow governs — an engine not named here is not supported today:</p>
+          <ul>
+            <li><strong>Relational</strong> — PostgreSQL, MySQL, MariaDB, Oracle Database, Microsoft SQL Server, and any other JDBC-compatible engine (ClickHouse, for example) via an admin-uploaded driver JAR.</li>
+            <li><strong>Document</strong> — MongoDB, Couchbase.</li>
+            <li><strong>Key-value</strong> — Redis, Amazon DynamoDB.</li>
+            <li><strong>Wide-column</strong> — Apache Cassandra, ScyllaDB.</li>
+            <li><strong>Search</strong> — Elasticsearch, OpenSearch.</li>
+            <li><strong>Graph</strong> — Neo4j.</li>
+            <li><strong>Warehouse</strong> — Snowflake, Google BigQuery, Databricks SQL.</li>
+          </ul>
+          <p>
+            Beyond databases, the same pipeline governs outbound REST, SOAP, GraphQL and gRPC
+            <a href="/docs/configuration/connectors/#cfg-api-connectors">API calls</a>. Per-engine
+            detail is in <a href="/docs/configuration/connectors/">Connectors</a>.
+          </p>
+
+          <h3 id="supported-sign-in">Sign-in methods</h3>
+          <p>The complete list of ways a person or a program can authenticate:</p>
+          <ul>
+            <li>Email and password issued in AccessFlow, optionally with TOTP two-factor.</li>
+            <li>OAuth 2.0 / OIDC — Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, self-managed GitLab, and any other OIDC provider (Keycloak, Auth0, Okta, Authentik, Zitadel, …).</li>
+            <li>SAML 2.0.</li>
+            <li>API keys, for programs and agents (see <a href="#ways-in">Every way in</a>).</li>
+          </ul>
+
+          <h3 id="supported-ai">AI providers</h3>
+          <p>The complete list of providers AccessFlow can call — a provider not named here is not supported today:</p>
+          <ul>
+            <li><strong>Analysis and help</strong> — Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint (vLLM, LM Studio, Together, Groq, OpenRouter, …), Hugging Face.</li>
+            <li><strong>Embeddings</strong> (knowledge base and help index) — OpenAI, Ollama, any OpenAI-compatible endpoint, Hugging Face, Voyage AI. Anthropic publishes no embeddings API, so it is not offered here.</li>
+          </ul>
+          <p>
+            AI analysis is optional per datasource; see <a href="/docs/configuration/ai/">AI</a>.
+          </p>
+        </section>
+
+        <section id="deployment-shape" class="docs-section">
+          <h2>Deployment shape</h2>
+          <p>
+            One backend service (Java / Spring Boot) and one static frontend, run with
+            <strong>Docker Compose</strong> or the <strong>Helm chart</strong>. It needs a
+            <strong>PostgreSQL</strong> database of its own (with the pgvector extension for the
+            knowledge base and the help index) and <strong>Redis</strong> for token revocation and
+            scheduler locks. Open source under the Apache 2.0 licence. Details in
+            <a href="/docs/install/">Install &amp; first run</a>.
+          </p>
+        </section>
+
+        <section id="data" class="docs-section">
+          <h2>What AccessFlow stores</h2>
+          <p>
+            Its own PostgreSQL holds the governance record, not a copy of your data: the query or
+            call text, the AI analysis, every review decision, the tamper-evident audit log, result
+            snapshots (masked before they are written, and governed on export), and the encrypted
+            datasource credentials. Retention of results and audit rows is configurable per
+            organization (<a href="/docs/configuration/audit-compliance/">Audit &amp; compliance</a>).
+          </p>
+        </section>
+
+        <section id="governs" class="docs-section">
+          <h2>Three governance surfaces</h2>
+          <ul>
+            <li><strong>Database queries</strong> — the original surface: <a href="/docs/workflows/">End-user workflows</a>.</li>
+            <li><strong>Outbound API calls</strong> — REST, SOAP, GraphQL, gRPC: <a href="/docs/guides/api-governance/">Govern an API call</a>.</li>
+            <li><strong>CI/CD deployments</strong> — a pipeline blocks on approval: <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>.</li>
+          </ul>
+          <p>
+            One approval pipeline and one audit trail sit behind all three.
+          </p>
+        </section>
+
       </article>
     </div>
   </main>

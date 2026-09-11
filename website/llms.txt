@@ -71,6 +71,7 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [Audit & compliance](https://accessflow.io/docs/configuration/audit-compliance/): Read the tamper-evident audit log, generate signed compliance exports, run retention and right-to-erasure policies, and use the personalized dashboard
 - [End-user workflows](https://accessflow.io/docs/workflows/): How analysts submit queries and API calls, draft SQL from natural language, schedule runs, and how reviewers approve or reject them
 - [Infrastructure as Code](https://accessflow.io/docs/iac/): Manage AccessFlow declaratively with the Terraform / OpenTofu provider, service-account API keys, and the reusable GitHub Actions and GitLab CI templates
+- [Integrations & boundaries](https://accessflow.io/docs/integrations/): Every way into AccessFlow (web UI, REST API, MCP, Terraform, CI, SCIM, SSO) and what it is not — no ODBC/JDBC/ADO.NET driver, no database wire protocol, no hosted edition; complete engine, sign-in and AI-provider lists
 
 ## Engineering reference
 

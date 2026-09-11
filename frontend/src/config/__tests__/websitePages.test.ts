@@ -94,7 +94,7 @@ const SPOKE_URLS = [
  * The tiers: the landing page alone at 1.0; the three hubs a visitor starts from
  * (/features/, /ai-agents/, /docs/) at 0.9; the six topic pages plus /docs/install/
  * and /docs/workflows/, the two chapters every reader opens, at 0.8; the remaining
- * nine chapters — the eight under /docs/configuration/ and /docs/iac/ — at 0.7,
+ * ten chapters — the eight under /docs/configuration/, /docs/iac/ and /docs/integrations/ — at 0.7,
  * each answering a question only some deployments ask; /roadmap/ at 0.6, since it
  * reports status rather than competing for a query.
  *
@@ -135,6 +135,7 @@ const SITEMAP_PRIORITY = {
   '/docs/configuration/notifications/': '0.7',
   '/docs/configuration/audit-compliance/': '0.7',
   '/docs/iac/': '0.7',
+  '/docs/integrations/': '0.7',
   '/roadmap/': '0.6',
   '/changelog/': '0.6',
   '/connectors/postgresql/': '0.7',
