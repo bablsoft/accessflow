@@ -77,6 +77,9 @@ jobs:
               - 'frontend/src/locales/en.json'
               - 'frontend/src/components/common/Sidebar.tsx'
               - 'frontend/src/utils/reviewHubTabs.ts'
+              # The quick reference's engine list is derived from the connector catalog, and the
+              # generator fails when the integrations chapter does not name every connector.
+              - 'connectors/*/connector.json'
               - '.github/workflows/ci.yml'
             # backend/** is included because the plugins compile against the backend's core.api —
             # an SPI change can break a plugin or shift its reproducible-build sha pin.

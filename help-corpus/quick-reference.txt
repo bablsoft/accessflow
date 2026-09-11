@@ -19,6 +19,17 @@ Rules that never bend
   - Datasource credentials are AES-256-GCM encrypted at rest and are never returned by any endpoint.
   - The help agent reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.
 
+What AccessFlow is, and what it is not
+  - AccessFlow is an application-layer proxy: a person or a tool submits a request to AccessFlow, and after approval AccessFlow runs it against the datasource with the credential it holds. Nobody receives the database password.
+  - Every way in (complete list): the web UI; the REST API under /api/v1 with a JWT session or an API key (personal keys under Profile → API keys, service-account keys for automation); the MCP server for AI agents; the Terraform / OpenTofu provider; the GitHub Actions, GitLab CI and Azure Pipelines templates; SCIM 2.0 provisioning; SSO over SAML 2.0 or OAuth 2.0 / OIDC.
+  - It is not a driver or a database endpoint: no database wire protocol, no ODBC, JDBC or ADO.NET driver, no connection string, no host and port for psql, DBeaver, Tableau or C#, Java or Python code to point at. An application runs a governed query through the REST API (POST /api/v1/queries, then GET /api/v1/queries/{id}/results once executed); an AI agent through the MCP server.
+  - It is not a database, does not manage the grants inside one, and is not a hosted service: self-hosted only, with Docker Compose or Helm, on its own PostgreSQL (pgvector) and Redis, under Apache 2.0.
+  - Sign-in methods (complete list): email and password, optionally with TOTP; OAuth 2.0 / OIDC (Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, any other OIDC provider); SAML 2.0; API keys for programs and agents.
+  - AI providers (complete list): Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint and Hugging Face for analysis and help; for embeddings the same minus Anthropic, plus Voyage AI.
+  - It stores the query or call text, AI analyses, decisions, the audit log, masked result snapshots and encrypted credentials — never a copy of your database.
+  - Three governance surfaces share one approval pipeline and one audit trail: database queries, outbound REST / SOAP / GraphQL / gRPC calls, and CI/CD deployments.
+  - Supported engines (complete list): Google BigQuery, Apache Cassandra, ClickHouse, Couchbase, Databricks SQL, Amazon DynamoDB, Elasticsearch, MariaDB, MongoDB, Microsoft SQL Server, MySQL, Neo4j, OpenSearch, Oracle Database, PostgreSQL, Redis, ScyllaDB, Snowflake; and any other JDBC-compatible engine via an admin-uploaded driver JAR. Outbound REST, SOAP, GraphQL and gRPC APIs are governed too.
+
 Where things are in the app
   Screens are reached from the left sidebar, a two-level menu: a group heading, an optional
   collapsible sub-section, then the destination. Name a screen by the label below and give its
@@ -196,7 +207,7 @@ Screens with no menu entry
 What the documentation covers
   AI agents: Your agent doesn't need your database. It needs an answer
   Connectors: BigQuery access governance; Cassandra access governance; ClickHouse access governance; Couchbase access governance; Databricks SQL access governance; DynamoDB access governance; Elasticsearch access governance; Database connectors; MariaDB access governance; MongoDB access governance; Microsoft SQL Server access governance; MySQL access governance; Neo4j access governance; OpenSearch access governance; Oracle Database access governance; PostgreSQL access governance; Redis access governance; ScyllaDB access governance; Snowflake access governance
-  Reference: AI configuration; Audit & compliance; Authentication & SSO; Connectors; Datasources; Notifications; Review workflows; Users, roles & organizations; Infrastructure as Code; End-user workflows
+  Reference: AI configuration; Audit & compliance; Authentication & SSO; Connectors; Datasources; Notifications; Review workflows; Users, roles & organizations; Infrastructure as Code; Integrations & boundaries; End-user workflows
   Guides: Turn on AI risk analysis; Govern an outbound API call; Add your first datasource; Gate a deployment pipeline; Run your first governed query; Guides; Set up email and chat notifications; Connect single sign-on; Invite your team and assign roles; Manage AccessFlow with Terraform
   Documentation: Run and configure AccessFlow; Install AccessFlow
   Features: API access governance for REST, SOAP, GraphQL and gRPC; Database access governance; Deployment approval governance; Database access control, feature by feature

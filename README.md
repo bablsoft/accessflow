@@ -310,6 +310,7 @@ accessflow/
 | [`docs/16-iac.md`](https://github.com/bablsoft/accessflow/blob/main/docs/16-iac.md) | Infrastructure as Code — Terraform/OpenTofu provider, CI Actions, service-account API keys, registry publishing |
 | [`docs/17-api-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/17-api-governance.md) | API Access Governance — govern outbound REST/SOAP/GraphQL/gRPC calls (connectors, schema ingestion, permissions; review/AI pipeline planned) |
 | [`docs/18-deployment-governance.md`](https://github.com/bablsoft/accessflow/blob/main/docs/18-deployment-governance.md) | Deployment Approval Governance — gate CI/CD deployments: pipelines, environments, trigger grants, the fail-closed gate, freeze windows, break-glass, outcome reporting |
+| [Integrations &amp; boundaries](https://accessflow.io/docs/integrations/) | Every way into AccessFlow (web UI, REST API, MCP, Terraform, CI, SCIM, SSO) and what it is not — no ODBC/JDBC/ADO.NET driver, no database wire protocol, no hosted edition |
 | [Changelog](https://accessflow.io/changelog/) | Every stable release, newest first, one permanent link per version — what a self-hosted install's update hint opens |
 
 ---

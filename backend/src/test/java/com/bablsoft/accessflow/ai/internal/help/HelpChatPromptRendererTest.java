@@ -57,6 +57,33 @@ class HelpChatPromptRendererTest {
     }
 
     /**
+     * The ODBC question: asked whether a C# application could connect through AccessFlow, the model
+     * answered "I don't know" from excerpts about outbound JDBC drivers, because nothing let it say
+     * no. Two things fix that, and both must survive in every mode — the boundary lives in the
+     * identity sentence, so it holds whatever retrieval returned, and the "not offered" clause is
+     * anchored on a list an excerpt calls complete, never on mere absence from the excerpts shown.
+     */
+    @Test
+    void statesTheProductBoundaryAndAnswersNoOnlyFromAListMarkedComplete() {
+        var cited = render(config(c -> { }), request("q"), "q",
+                List.of(chunk("c1", "Every way in", "Reference", "This list is complete.")), null);
+        var orientation = render(config(c -> { }), request("q"), "q", List.of(), "Orientation.");
+
+        for (var prompt : List.of(cited, orientation)) {
+            // Asserted across the text block's `\` continuations, not within its lines.
+            assertThat(prompt.systemPreamble())
+                    .contains("people and tools reach it through its web UI, REST API and MCP "
+                            + "server, and it exposes no database wire protocol or driver.")
+                    .contains("When an excerpt calls a list complete — engines, sign-in methods, "
+                            + "AI providers, ways in — and what is asked for is not on it, say "
+                            + "plainly that AccessFlow does not offer it and name the nearest "
+                            + "thing it does.")
+                    .contains("If the excerpts do not address the question, say plainly that you "
+                            + "do not know and name the closest documentation section.");
+        }
+    }
+
+    /**
      * The answer shape #925 is about: the corpus now carries the interface's own menu paths and
      * control labels, and these two rules are what makes the model spend them instead of falling
      * back to a URL or softening a label it quoted.
@@ -97,8 +124,7 @@ class HelpChatPromptRendererTest {
                 .contains("Use a fenced code block for a command or a configuration snippet, and "
                         + "inline code for an environment variable, permission or setting name.")
                 .contains("Never emit an image, a table, or raw HTML — the application renders "
-                        + "none of them, so they reach the reader as nothing or as literal "
-                        + "characters.");
+                        + "none of them.");
     }
 
     @Test

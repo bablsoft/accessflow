@@ -31,7 +31,7 @@ re-runs the generator and fails the build when the committed bundle has drifted 
 |---|---|
 | `corpus.jsonl` | One JSON chunk per line: `{id, path, url, anchor, title, section, order, tokens, text}`. Each `text` opens with a breadcrumb line (`AccessFlow Docs > Guides > Run your first governed query > 5. Submit a query`) before the section body — a cheap recall win when the chunk is embedded. |
 | `manifest.json` | `{schemaVersion, corpusVersion, generatedAt, sourceCommit, chunkCount, sha256, quickReferenceSha256, sources[]}`. |
-| `quick-reference.txt` | A ~5,400-token orientation block — the query lifecycle, the rules that never bend, the sidebar menu with each destination's label, menu path and permissions, the screens that have no menu entry, the exact control labels on the main task flows, and what the documentation covers. Substituted for retrieved context whenever retrieval is unavailable (no pgvector, no embedding provider, or an Anthropic-only install), so the agent still answers correctly; it just cannot cite a section. |
+| `quick-reference.txt` | A ~6,700-token orientation block — the query lifecycle, the rules that never bend, what AccessFlow is and is not (every way in, no driver or wire protocol, the complete engine / sign-in / AI-provider lists), the sidebar menu with each destination's label, menu path and permissions, the screens that have no menu entry, the exact control labels on the main task flows, and what the documentation covers. Substituted for retrieved context whenever retrieval is unavailable (no pgvector, no embedding provider, or an Anthropic-only install), so the agent still answers correctly; it just cannot cite a section. |
 
 The artifact is chunked **text**, never precomputed embeddings. Vector dimensions and the embedding
 model are the operator's choice — OpenAI `text-embedding-3-small` is 1536, Ollama
@@ -52,6 +52,10 @@ be given a `SECTION_RULES` section label or an explicit exclusion, and cannot be
 
 Included as well, and derived rather than written: the app's **UI vocabulary** (#925) — see
 [below](#the-ui-vocabulary-and-why-it-is-derived).
+
+Included in `quick-reference.txt` only, hand-written like the lifecycle and the rules: a
+**product-facts block** ("What AccessFlow is, and what it is not") — see
+[below](#what-accessflow-is-not-and-why-the-corpus-has-to-say-so).
 
 Excluded on purpose:
 
@@ -139,6 +143,32 @@ The generator fails, loudly, when these stop agreeing:
 
 Because CI's `help-corpus` paths filter watches all three files, renaming a menu entry or moving it
 between groups fails the drift guard until the bundle is regenerated.
+
+## What AccessFlow is not, and why the corpus has to say so
+
+Asked whether a C# application could reach AccessFlow over ODBC or ADO.NET, the agent answered "I
+don't know": every retrieved excerpt described how AccessFlow's own engines connect *outbound*
+(JDBC drivers, native SDKs), and nothing anywhere said that AccessFlow exposes no database wire
+protocol inbound. The documentation described what the product does, page by page, and never once
+what it is not — and a prompt that forbids guessing cannot infer a negative from silence.
+
+Two things fixed that, and they move together:
+
+- The **Integrations & boundaries** chapter (`website/docs/integrations/`) is the one page that
+  states every way in, what AccessFlow is not (no ODBC/JDBC/ADO.NET driver, no connection string,
+  no SaaS edition), and the supported engines, sign-in methods and AI providers — each list marked
+  **complete**. It is ingested like any other page, so the agent cites it with a link.
+- `HelpChatPromptRenderer` lets the model say "AccessFlow does not offer it" **only** from a list an
+  excerpt marks complete. With `top_k` excerpts in view, "absent from what I was shown" must never
+  become "not supported" — a Neo4j question answered from MongoDB chunks would otherwise get a
+  confident wrong no.
+
+The quick reference carries the same facts in `PRODUCT_FACTS`, placed above the navigation block
+because the renderer truncates the tail first. Its engine line is **derived** from
+`connectors/*/connector.json` (`name`), and the generator fails when the chapter does not name a
+connector the catalog ships — a list that claims to be complete and is not would turn the prompt
+rule into a confident falsehood. Adding a connector therefore means adding it under
+`#supported-engines` on the chapter and regenerating.
 
 ## Determinism
 

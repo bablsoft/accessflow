@@ -43,7 +43,9 @@ const MIN_QUICK_REF_TOKENS = 1500;
 // file. `HelpChatPromptRenderer` plain-truncates this block's tail to whatever the conversation
 // leaves of the character budget, so growth costs the *end* of the file first — which is why the
 // menu and the control labels are rendered above the off-menu route list rather than below it.
-const MAX_QUICK_REF_TOKENS = 6000;
+// Raised again from 6000 with the product-facts block, which sits above the menu for the same
+// reason: what the product is not is the one thing no retrieved page says.
+const MAX_QUICK_REF_TOKENS = 7000;
 
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GITHUB_BLOB = 'https://github.com/bablsoft/accessflow/blob/main/';
@@ -64,6 +66,7 @@ const SECTION_RULES = [
   ['website/docs/configuration/', 'Reference'],
   ['website/docs/workflows/', 'Reference'],
   ['website/docs/iac/', 'Reference'],
+  ['website/docs/integrations/', 'Reference'],
   ['website/docs/', 'Documentation'],
   ['website/features/', 'Features'],
   ['website/connectors/', 'Connectors'],
@@ -98,6 +101,13 @@ const MARKDOWN_FILES = [
 const SIDEBAR_FILE = 'frontend/src/components/common/Sidebar.tsx';
 const LOCALES_FILE = 'frontend/src/locales/en.json';
 const REVIEW_HUB_FILE = 'frontend/src/utils/reviewHubTabs.ts';
+
+// The product-boundary chapter and the connector catalog it must agree with. The chapter marks
+// its engine list as complete — wording the help prompt keys on to answer "not supported" rather
+// than "I don't know" — so a connector the catalog knows and the chapter omits would turn that
+// rule into a confident falsehood. The generator reads the catalog and fails on the gap.
+const INTEGRATIONS_PAGE = 'website/docs/integrations/index.html';
+const CONNECTORS_DIR = 'connectors';
 
 const UI_VOCABULARY_SECTION = 'Navigation';
 const UI_VOCABULARY_URL = 'https://accessflow.io/docs/';
@@ -575,6 +585,58 @@ const RULES = [
   'The help agent reads documentation only. It cannot see queries, results, audit rows, schemas or datasources, and it cannot act on your behalf.',
 ];
 
+// What the product is, and — the half the documentation otherwise never states — what it is not.
+// Hand-written like LIFECYCLE and RULES, and kept short: it lands near the top of the quick
+// reference, ahead of the navigation block, because the renderer truncates the tail first.
+// "Complete" is load-bearing: `HelpChatPromptRenderer` lets the model say "AccessFlow does not
+// offer it" only from a list the documentation marks complete. The engine line is derived from
+// the connector catalog, not retyped — see connectorNames() below.
+const PRODUCT_FACTS_HEADING = 'What AccessFlow is, and what it is not';
+const PRODUCT_FACTS = [
+  'AccessFlow is an application-layer proxy: a person or a tool submits a request to AccessFlow, and after approval AccessFlow runs it against the datasource with the credential it holds. Nobody receives the database password.',
+  'Every way in (complete list): the web UI; the REST API under /api/v1 with a JWT session or an API key (personal keys under Profile → API keys, service-account keys for automation); the MCP server for AI agents; the Terraform / OpenTofu provider; the GitHub Actions, GitLab CI and Azure Pipelines templates; SCIM 2.0 provisioning; SSO over SAML 2.0 or OAuth 2.0 / OIDC.',
+  'It is not a driver or a database endpoint: no database wire protocol, no ODBC, JDBC or ADO.NET driver, no connection string, no host and port for psql, DBeaver, Tableau or C#, Java or Python code to point at. An application runs a governed query through the REST API (POST /api/v1/queries, then GET /api/v1/queries/{id}/results once executed); an AI agent through the MCP server.',
+  'It is not a database, does not manage the grants inside one, and is not a hosted service: self-hosted only, with Docker Compose or Helm, on its own PostgreSQL (pgvector) and Redis, under Apache 2.0.',
+  'Sign-in methods (complete list): email and password, optionally with TOTP; OAuth 2.0 / OIDC (Google, GitHub, GitHub Enterprise Server, Microsoft, GitLab, any other OIDC provider); SAML 2.0; API keys for programs and agents.',
+  'AI providers (complete list): Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint and Hugging Face for analysis and help; for embeddings the same minus Anthropic, plus Voyage AI.',
+  'It stores the query or call text, AI analyses, decisions, the audit log, masked result snapshots and encrypted credentials — never a copy of your database.',
+  'Three governance surfaces share one approval pipeline and one audit trail: database queries, outbound REST / SOAP / GraphQL / gRPC calls, and CI/CD deployments.',
+];
+
+/**
+ * Every engine the connector catalog ships, by display name, plus the open JDBC slot. The quick
+ * reference quotes this as the complete engine list, and the integrations chapter must name each
+ * one too — a catalog entry the chapter omits fails the build rather than making the chapter lie.
+ */
+function connectorNames() {
+  const dir = path.join(ROOT, CONNECTORS_DIR);
+  const names = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const manifest = path.join(dir, entry.name, 'connector.json');
+    if (!entry.isDirectory() || !existsSync(manifest)) continue;
+    const { name } = JSON.parse(readFileSync(manifest, 'utf8'));
+    if (typeof name !== 'string' || name.trim() === '') {
+      fail(`${CONNECTORS_DIR}/${entry.name}/connector.json has no "name"`);
+      continue;
+    }
+    names.push(name);
+  }
+  if (names.length === 0) fail(`${CONNECTORS_DIR}/ has no connector.json manifests`);
+  return names;
+}
+
+const engineNames = connectorNames();
+{
+  const page = readFileSync(path.join(ROOT, INTEGRATIONS_PAGE), 'utf8').replace(/&amp;/g, '&');
+  for (const name of engineNames) {
+    if (!page.includes(name)) {
+      fail(`${INTEGRATIONS_PAGE} does not name "${name}" — its engine list claims to be complete,`
+        + ` and ${CONNECTORS_DIR}/ ships that connector. Add it under #supported-engines`);
+    }
+  }
+}
+const ENGINE_LINE = `Supported engines (complete list): ${engineNames.join(', ')}; and any other JDBC-compatible engine via an admin-uploaded driver JAR. Outbound REST, SOAP, GraphQL and gRPC APIs are governed too.`;
+
 // The route table above is hand-written prose, but it must not drift from the router. Cross-check
 // it against App.tsx and fail both ways: a route the application serves but nobody described, and
 // a description of a route that no longer exists. Without this the quick reference rots silently —
@@ -980,6 +1042,9 @@ const quickReference = [
   '',
   'Rules that never bend',
   ...RULES.map((line) => `  - ${line}`),
+  '',
+  PRODUCT_FACTS_HEADING,
+  ...[...PRODUCT_FACTS, ENGINE_LINE].map((line) => `  - ${line}`),
   '',
   'Where things are in the app',
   ...NAV_PREAMBLE.split('\n').map((line) => (line ? `  ${line}` : '')),
