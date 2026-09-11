@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.workflow.internal.routing;
 
+import com.bablsoft.accessflow.core.api.GlobMatcher;
 import com.bablsoft.accessflow.workflow.api.ConditionContext;
 import com.bablsoft.accessflow.workflow.api.ConditionNode;
 import org.springframework.stereotype.Component;

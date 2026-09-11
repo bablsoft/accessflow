@@ -1,4 +1,4 @@
-package com.bablsoft.accessflow.workflow.internal.routing;
+package com.bablsoft.accessflow.core.api;
 
 import org.junit.jupiter.api.Test;
 
@@ -27,13 +27,24 @@ class GlobMatcherTest {
     }
 
     @Test
-    void bareWildcardMatchesEverything() {
+    void starMatchesAnyRunIncludingDotsAndSeparators() {
+        assertThat(GlobMatcher.matches("2.*", "2.4.1")).isTrue();
+        assertThat(GlobMatcher.matches("*-rc*", "3.0.0-rc2")).isTrue();
+        assertThat(GlobMatcher.matches("/v1/*", "/v1/users/42")).isTrue();
         assertThat(GlobMatcher.matches("*", "anything.at.all")).isTrue();
     }
 
     @Test
-    void matchingIsCaseInsensitive() {
+    void literalCharactersMustMatchExactly() {
+        assertThat(GlobMatcher.matches("2.*", "12.4.1")).isFalse();
+        assertThat(GlobMatcher.matches("2.4.1", "2.4.1")).isTrue();
+        assertThat(GlobMatcher.matches("2.4.1", "2X4X1")).isFalse();
+    }
+
+    @Test
+    void matchingIsCaseInsensitiveAndTrimmed() {
         assertThat(GlobMatcher.matches("Payroll.*", "PAYROLL.SALARIES")).isTrue();
+        assertThat(GlobMatcher.matches("  V2.*  ", "v2.0.0")).isTrue();
     }
 
     @Test
@@ -41,10 +52,19 @@ class GlobMatcherTest {
         // A dot in the glob is literal, not "any character".
         assertThat(GlobMatcher.matches("a.b", "axb")).isFalse();
         assertThat(GlobMatcher.matches("a.b", "a.b")).isTrue();
+        assertThat(GlobMatcher.matches("a+b", "aab")).isFalse();
     }
 
     @Test
-    void nullCandidateNeverMatches() {
+    void nullGlobOrCandidateNeverMatches() {
+        assertThat(GlobMatcher.matches(null, "2.4.1")).isFalse();
         assertThat(GlobMatcher.matches("*", null)).isFalse();
+    }
+
+    @Test
+    void compileProducesAnchoredCaseInsensitivePattern() {
+        assertThat(GlobMatcher.compile("payroll.*").matcher("payroll.x").matches()).isTrue();
+        assertThat(GlobMatcher.compile("payroll.*").matcher("xpayroll.x").matches()).isFalse();
+        assertThat(GlobMatcher.compile(null).matcher("").matches()).isTrue();
     }
 }
