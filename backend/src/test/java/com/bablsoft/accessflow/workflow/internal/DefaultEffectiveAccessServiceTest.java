@@ -184,13 +184,13 @@ class DefaultEffectiveAccessServiceTest {
     }
 
     @Test
-    void aTimeBoxedRowIsLabelledJitOnlyWhenAPreApprovingGrantExists() {
+    void aRowStampedWithAnActivePreApprovingGrantIsJitAndPreApproves() {
         var expiry = Instant.now().plusSeconds(3600);
-        givenContributions(direct(analystId, true, false, List.of("public"), List.of(), expiry,
-                false));
+        var grantId = UUID.randomUUID();
+        givenContributions(jit(analystId, expiry, grantId));
         givenUsers(user(analystId, "dana@example.com"));
         when(accessGrantLookupService.findPreApprovingGrantsForDatasource(organizationId,
-                datasourceId)).thenReturn(List.of(grant(analystId)));
+                datasourceId)).thenReturn(List.of(grant(grantId, analystId)));
 
         var source = report(StatementCapability.READ, "public.payments").content().get(0)
                 .sources().get(0);
@@ -201,7 +201,39 @@ class DefaultEffectiveAccessServiceTest {
     }
 
     @Test
-    void aTimeBoxedRowWithoutAPreApprovingGrantStaysADirectPermission() {
+    void aJitRowWhoseGrantIsNotCurrentlyPreApprovingKeepsTheLabelWithoutPreApproval() {
+        // The grant expired (or was never opted in), so it is absent from the active set — the row
+        // is still a JIT row by foreign key; only the pre-approval is gone.
+        givenContributions(jit(analystId, Instant.now().plusSeconds(3600), UUID.randomUUID()));
+        givenUsers(user(analystId, "dana@example.com"));
+        when(accessGrantLookupService.findPreApprovingGrantsForDatasource(organizationId,
+                datasourceId)).thenReturn(List.of(grant(UUID.randomUUID(), analystId)));
+
+        var source = report(StatementCapability.READ, "public.payments").content().get(0)
+                .sources().get(0);
+
+        assertThat(source.kind()).isEqualTo(AccessSourceKind.JIT_GRANT);
+        assertThat(source.preApproveQueries()).isFalse();
+    }
+
+    @Test
+    void aStandingRowNextToAnUnrelatedActiveGrantIsNotMislabelled() {
+        // The pre-#969 correlation on (user, datasource) would have called this row JIT_GRANT.
+        givenContributions(direct(analystId, true, false, List.of("public"), List.of(),
+                Instant.now().plusSeconds(3600), false));
+        givenUsers(user(analystId, "dana@example.com"));
+        when(accessGrantLookupService.findPreApprovingGrantsForDatasource(organizationId,
+                datasourceId)).thenReturn(List.of(grant(UUID.randomUUID(), analystId)));
+
+        var source = report(StatementCapability.READ, "public.payments").content().get(0)
+                .sources().get(0);
+
+        assertThat(source.kind()).isEqualTo(AccessSourceKind.DIRECT_PERMISSION);
+        assertThat(source.preApproveQueries()).isFalse();
+    }
+
+    @Test
+    void aTimeBoxedRowWithNoOriginatingRequestIsADirectPermission() {
         givenContributions(direct(analystId, true, false, List.of("public"), List.of(),
                 Instant.now().plusSeconds(3600), false));
         givenUsers(user(analystId, "dana@example.com"));
@@ -339,13 +371,21 @@ class DefaultEffectiveAccessServiceTest {
                                                     Instant expiresAt, boolean breakGlass) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, canRead, canWrite, false,
-                breakGlass, schemas, tables, List.of(), expiresAt);
+                breakGlass, schemas, tables, List.of(), expiresAt, null);
+    }
+
+    /** A time-boxed direct row materialised from the given JIT request (#969). */
+    private DatasourcePermissionContribution jit(UUID userId, Instant expiresAt,
+                                                 UUID accessGrantRequestId) {
+        return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
+                UUID.randomUUID(), userId, datasourceId, null, null, true, false, false, false,
+                List.of("public"), List.of(), List.of(), expiresAt, accessGrantRequestId);
     }
 
     private DatasourcePermissionContribution ddlGrant(UUID userId) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT,
                 UUID.randomUUID(), userId, datasourceId, null, null, false, false, true, false,
-                List.of(), List.of(), List.of(), null);
+                List.of(), List.of(), List.of(), null, null);
     }
 
     private DatasourcePermissionContribution group(UUID userId, boolean canRead, boolean canWrite,
@@ -353,11 +393,11 @@ class DefaultEffectiveAccessServiceTest {
                                                    String groupName) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP,
                 UUID.randomUUID(), userId, datasourceId, UUID.randomUUID(), groupName, canRead,
-                canWrite, false, false, schemas, tables, List.of(), null);
+                canWrite, false, false, schemas, tables, List.of(), null, null);
     }
 
-    private AccessGrantView grant(UUID requesterId) {
-        return new AccessGrantView(UUID.randomUUID(), organizationId, requesterId, datasourceId,
+    private AccessGrantView grant(UUID grantId, UUID requesterId) {
+        return new AccessGrantView(grantId, organizationId, requesterId, datasourceId,
                 true, false, false, List.of(), List.of(), AccessGrantStatus.APPROVED,
                 Instant.now().plusSeconds(3600), UUID.randomUUID(), "approver@x.io", Instant.now());
     }

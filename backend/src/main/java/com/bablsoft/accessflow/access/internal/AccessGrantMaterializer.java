@@ -63,7 +63,8 @@ class AccessGrantMaterializer {
                 toList(entity.getAllowedSchemas()),
                 toList(entity.getAllowedTables()),
                 null,
-                expiresAt);
+                expiresAt,
+                entity.getId());
         var granted = datasourceAdminService.grantPermission(entity.getDatasourceId(),
                 entity.getOrganizationId(), approvedByUserId, command);
         stateService.attachGrant(accessRequestId, granted.id(), expiresAt);

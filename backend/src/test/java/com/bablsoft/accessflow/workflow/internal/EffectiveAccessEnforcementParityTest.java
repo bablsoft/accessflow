@@ -114,7 +114,7 @@ class EffectiveAccessEnforcementParityTest {
                 .thenReturn(List.of(new DatasourcePermissionContribution(
                         DatasourcePermissionSourceKind.DIRECT, permission.id(), userId,
                         datasourceId, null, null, true, false, false, false, schemas, tables,
-                        List.of(), null)));
+                        List.of(), null, null)));
         when(permissionLookupService.mergeContributions(any()))
                 .thenReturn(Optional.of(permission));
 

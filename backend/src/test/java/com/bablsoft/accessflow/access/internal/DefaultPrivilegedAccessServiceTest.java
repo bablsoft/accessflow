@@ -352,7 +352,7 @@ class DefaultPrivilegedAccessServiceTest {
                                                            UUID rowId, Instant expiresAt) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.DIRECT, rowId,
                 userId, datasourceId, null, null, true, false, false, true, List.of(), List.of(),
-                List.of(), expiresAt);
+                List.of(), expiresAt, null);
     }
 
     private static DatasourcePermissionContribution group(UUID userId, UUID datasourceId,
@@ -360,6 +360,6 @@ class DefaultPrivilegedAccessServiceTest {
                                                           Instant expiresAt) {
         return new DatasourcePermissionContribution(DatasourcePermissionSourceKind.GROUP, rowId,
                 userId, datasourceId, groupId, groupName, true, false, false, true, List.of(),
-                List.of(), List.of(), expiresAt);
+                List.of(), List.of(), expiresAt, null);
     }
 }

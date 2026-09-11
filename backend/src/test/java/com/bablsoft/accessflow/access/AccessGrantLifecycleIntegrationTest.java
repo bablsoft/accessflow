@@ -174,6 +174,8 @@ class AccessGrantLifecycleIntegrationTest {
         var stored = requestRepository.findById(view.id()).orElseThrow();
         assertThat(stored.getStatus()).isEqualTo(AccessGrantStatus.APPROVED);
         assertThat(stored.getGrantedPermissionId()).isEqualTo(permission.getId());
+        // ...and the reverse link is a real column on the permission row (#969).
+        assertThat(permission.getAccessGrantRequestId()).isEqualTo(view.id());
 
         // Force expiry: backdate expires_at, then run the expiry service
         jdbcTemplate.update("UPDATE access_grant_request SET expires_at = now() - interval '1 hour' "

@@ -237,6 +237,7 @@ Grants a specific user access to a specific datasource with granular controls.
 | `allowed_tables` | TEXT[] — null means all tables permitted |
 | `restricted_columns` | TEXT[] nullable — fully-qualified `schema.table.column` entries whose values are masked in SELECT results before persistence and surfaced to the AI analyzer; null/empty means no column restrictions. A column listed here with no matching `masking_policy` row uses the static `FULL` mask (`***`); a `masking_policy` for the same column overrides it with the configured strategy. |
 | `expires_at` | TIMESTAMPTZ nullable — time-limited access grants |
+| `access_grant_request_id` | UUID nullable, FK → `access_grant_request` `ON DELETE SET NULL` (#969, Flyway V169) — the JIT request this row materialises; null on an admin-created row. Read by the effective-access report (#859) to label a source `JIT_GRANT`. Partial index on `(access_grant_request_id) WHERE access_grant_request_id IS NOT NULL`. Backfilled once by V169 from `access_grant_request.granted_permission_id` (datasource requests only) |
 | `created_by` | FK → `users` |
 | `created_at` | TIMESTAMPTZ |
 
@@ -1518,7 +1519,7 @@ Just-in-time (JIT) time-bound access request (AF-378, Flyway V56). A user self-r
 | `pre_approve_queries` | BOOLEAN NOT NULL DEFAULT false — opt-in query pre-approval (#582, Flyway V112): while the grant is `APPROVED` and unexpired, a query it covers (capability + table scope) is auto-approved by the workflow state machine instead of routing to human review. A partial index on `(requester_id, datasource_id) WHERE status = 'APPROVED' AND pre_approve_queries` backs the per-submission lookup |
 | `status` | ENUM `access_grant_status`: `PENDING` \| `APPROVED` \| `REJECTED` \| `EXPIRED` \| `REVOKED` \| `CANCELLED` |
 | `expires_at` | TIMESTAMPTZ nullable — set to `now + requested_duration` on grant |
-| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind, AF-567) row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention |
+| `granted_permission_id` | UUID nullable — id of the materialised `datasource_user_permissions` (datasource kind) or `api_connector_user_permissions` (connector kind, AF-567) row. Bare UUID (no FK; the permission is hard-deleted on revoke), mirroring the `ai_analysis_id` convention. Since V169 the datasource-kind permission row carries the reverse link as a real FK (`datasource_user_permissions.access_grant_request_id`, #969) |
 | `version` | BIGINT — optimistic lock |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 

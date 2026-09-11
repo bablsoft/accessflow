@@ -130,7 +130,7 @@ class AttestationLifecycleIntegrationTest {
     private void grant(UserEntity subject) {
         datasourceAdminService.grantPermission(datasource.getId(), organization.getId(),
                 admin.getId(), new CreatePermissionCommand(subject.getId(), true, false, false,
-                        false, null, List.of("public"), null, null, null));
+                        false, null, List.of("public"), null, null, null, null));
     }
 
     @Test

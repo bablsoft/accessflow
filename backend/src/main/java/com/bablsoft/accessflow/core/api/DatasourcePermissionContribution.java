@@ -17,6 +17,9 @@ import java.util.UUID;
  *                  row id
  * @param groupId   the granting group, or {@code null} for a direct grant
  * @param expiresAt {@code null} means this contribution never expires
+ * @param accessGrantRequestId the JIT {@code access_grant_request} a direct row materialises
+ *                             (#969); {@code null} on an admin-created row and always on a
+ *                             {@code GROUP} contribution
  */
 public record DatasourcePermissionContribution(
         DatasourcePermissionSourceKind sourceKind,
@@ -32,7 +35,8 @@ public record DatasourcePermissionContribution(
         List<String> allowedSchemas,
         List<String> allowedTables,
         List<String> restrictedColumns,
-        Instant expiresAt) {
+        Instant expiresAt,
+        UUID accessGrantRequestId) {
 
     public DatasourcePermissionContribution {
         allowedSchemas = allowedSchemas == null ? List.of() : List.copyOf(allowedSchemas);

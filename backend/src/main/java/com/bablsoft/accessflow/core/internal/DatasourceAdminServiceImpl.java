@@ -636,6 +636,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         entity.setAllowedTables(toArray(command.allowedTables()));
         entity.setRestrictedColumns(toArray(command.restrictedColumns()));
         entity.setExpiresAt(command.expiresAt());
+        entity.setAccessGrantRequestId(command.accessGrantRequestId());
         entity.setCreatedBy(grantedBy);
         return toPermissionView(permissionRepository.save(entity));
     }

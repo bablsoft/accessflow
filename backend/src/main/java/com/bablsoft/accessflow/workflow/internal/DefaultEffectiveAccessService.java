@@ -69,9 +69,9 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
         }
         var queryAdminIds = Set.copyOf(rolePermissionHolderLookupService
                 .findUserIdsWithPermission(organizationId, Permission.QUERY_ADMIN));
-        var preApprovedUserIds = accessGrantLookupService
+        var preApprovingGrantIds = accessGrantLookupService
                 .findPreApprovingGrantsForDatasource(organizationId, query.datasourceId()).stream()
-                .map(AccessGrantView::requesterId)
+                .map(AccessGrantView::id)
                 .collect(Collectors.toUnmodifiableSet());
 
         var candidateIds = new LinkedHashSet<>(byUser.keySet());
@@ -80,8 +80,8 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                 .filter(UserView::active)
                 .filter(user -> organizationId.equals(user.organizationId()))
                 .map(user -> toRow(user, byUser.getOrDefault(user.id(), List.of()),
-                        queryAdminIds.contains(user.id()),
-                        preApprovedUserIds.contains(user.id()), table, queryType))
+                        queryAdminIds.contains(user.id()), preApprovingGrantIds, table,
+                        queryType))
                 .filter(EffectiveAccessRow::granted)
                 .sorted(Comparator.comparing(EffectiveAccessRow::email,
                         Comparator.nullsLast(String::compareTo)))
@@ -117,8 +117,8 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
 
     private EffectiveAccessRow toRow(UserView user,
                                      List<DatasourcePermissionContribution> contributions,
-                                     boolean queryAdmin, boolean preApproved, String table,
-                                     QueryType queryType) {
+                                     boolean queryAdmin, Set<UUID> preApprovingGrantIds,
+                                     String table, QueryType queryType) {
         var merged = permissionLookupService.mergeContributions(contributions).orElse(null);
         var sources = new ArrayList<AccessSource>(contributions.size() + 2);
         if (queryAdmin) {
@@ -126,7 +126,7 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                     true, TableScope.ALL_TABLES, null, null, false));
         }
         for (var contribution : contributions) {
-            sources.add(toSource(contribution, preApproved, table, queryType));
+            sources.add(toSource(contribution, preApprovingGrantIds, table, queryType));
         }
         // One per granting row rather than one derived from the merge: "who gave me this" is the
         // useful half of a break-glass answer, and the merge does not keep it.
@@ -150,11 +150,15 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
     }
 
     private static AccessSource toSource(DatasourcePermissionContribution contribution,
-                                         boolean preApproved, String table, QueryType queryType) {
+                                         Set<UUID> preApprovingGrantIds, String table,
+                                         QueryType queryType) {
         boolean direct = contribution.sourceKind() == DatasourcePermissionSourceKind.DIRECT;
-        // A JIT grant is materialised as an ordinary time-boxed direct row with no back-reference to
-        // the request, so the label is a correlation on (user, datasource) — never a certainty.
-        boolean jit = direct && contribution.expiresAt() != null && preApproved;
+        // The originating request is a foreign key on the row (#969); whether that grant is still
+        // active and pre-approving is read from the access module's own active set, so an expired
+        // or never-opted-in grant keeps the label and loses only the pre-approval.
+        boolean jit = direct && contribution.accessGrantRequestId() != null;
+        boolean preApproveQueries = jit
+                && preApprovingGrantIds.contains(contribution.accessGrantRequestId());
         var kind = jit ? AccessSourceKind.JIT_GRANT
                 : direct ? AccessSourceKind.DIRECT_PERMISSION : AccessSourceKind.GROUP_PERMISSION;
         return new AccessSource(kind, contribution.sourceId(), contribution.groupId(),
@@ -163,7 +167,7 @@ class DefaultEffectiveAccessService implements EffectiveAccessService {
                         contribution.canWrite(), contribution.canDdl(), queryType),
                 scopeOf(contribution.allowedSchemas(), contribution.allowedTables()),
                 coveringEntry(contribution.allowedSchemas(), contribution.allowedTables(), table),
-                contribution.expiresAt(), jit);
+                contribution.expiresAt(), preApproveQueries);
     }
 
     /** Both the capability and the table coverage are read off the merged permission, never a part. */

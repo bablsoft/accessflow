@@ -339,7 +339,9 @@ class DatasourceController {
                 request.allowedSchemas(),
                 request.allowedTables(),
                 request.restrictedColumns(),
-                request.expiresAt());
+                request.expiresAt(),
+                // Admin-created: no originating JIT request (#969).
+                null);
         var view = datasourceAdminService.grantPermission(id, caller.organizationId(),
                 caller.userId(), command);
         var metadata = new HashMap<String, Object>();
