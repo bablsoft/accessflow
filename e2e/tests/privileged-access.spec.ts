@@ -152,7 +152,8 @@ test.describe.serial('privileged-access report (#968)', () => {
         page.getByLabel('Filter by user id').fill(breakGlassId),
       ]);
       expect(byUser.ok()).toBe(true);
-      await expect(page.getByText(breakGlassEmail)).toBeVisible();
+      // The identity cell renders the email twice when no display name was set (name + mono line).
+      await expect(page.getByText(breakGlassEmail).first()).toBeVisible();
       await expect(page.getByText(datasourceName, { exact: true })).toBeVisible();
       await expect(page.getByText('Break-glass', { exact: true })).toBeVisible();
 
