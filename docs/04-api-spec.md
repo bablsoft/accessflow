@@ -1421,6 +1421,8 @@ Synchronous.
 | `GET` | `/queries/{id}/diff` | Compare this run's outcome to the linked previous run (rows affected, execution duration, result row count) |
 | `POST` | `/queries/analyze` | Submit SQL for AI analysis only — no execution, no review created |
 | `POST` | `/queries/dry-run` | Return a non-committing execution plan + estimated row impact for the SQL without executing or mutating data (AF-445); no review created. Engines without a plan concept degrade gracefully |
+| `POST` | `/sql-review/evaluate` | Evaluate SQL against the datasource's deterministic SQL review ruleset — read-only editor lint, nothing persisted or audited (#863) |
+| `GET` | `/sql-review/rules` | The localized built-in SQL review rule catalog (#863) *(`SQL_REVIEW_MANAGE`)* |
 | `POST` | `/queries/generate-sql` | Translate a natural-language prompt into a draft query in the datasource engine's native language (text-to-query; SQL, MongoDB shell/JSON, Cypher, CQL, Elasticsearch Query DSL, redis-cli, SQL++, PartiQL). No execution, no review created — the draft is returned to the editor and submitted through `POST /queries` like any hand-written query |
 | `GET` | `/queries/{id}/comments` | List the inline collaboration comment threads on a query (AF-441) |
 | `POST` | `/queries/{id}/comments` | Open a new comment thread anchored to a line range of the query's SQL |
@@ -2047,6 +2049,73 @@ Redis, Cassandra/ScyllaDB, DynamoDB, and custom JDBC drivers degrade gracefully 
 **Response 403:** Caller lacks the capability or allow-list entry for a referenced table. `error: FORBIDDEN`.
 **Response 404:** Datasource not found or not accessible. `error: DATASOURCE_NOT_FOUND`.
 **Response 422:** SQL could not be parsed (`error: INVALID_SQL`), or the dry-run failed against the customer database.
+
+### POST /sql-review/evaluate — Request Body (#863)
+
+Deterministic SQL review (epic #860): evaluates the SQL against the ruleset resolved for the datasource — the ruleset bound to the datasource's `environment`, else the organization-wide default, else no rules — and returns one finding per rule violation per statement. This is the editor's live-lint endpoint: it is called on a debounce as the author types, so it is **read-only** (no `query_sql_review_findings` row, no `audit_log` row, no event, no AI call) and cheap (no schema introspection, no customer-database connection). See [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862) for the rule catalog and resolution semantics.
+
+```json
+{
+  "datasource_id": "uuid",
+  "sql": "DELETE FROM payroll.salaries"
+}
+```
+
+`datasource_id` is required; `sql` is required and at most 100 000 characters.
+
+**Authorization.** Exactly as `POST /queries/analyze` and `POST /queries/dry-run`: the caller must be able to see the datasource (a direct or group permission, or `QUERY_ADMIN`). A datasource the caller cannot see is reported as **404** `DATASOURCE_NOT_FOUND`, never 403 — the endpoint must not reveal a datasource's ruleset to a user who cannot reach the datasource.
+
+**Response 200:**
+
+```json
+{
+  "applicable": true,
+  "findings": [
+    { "rule_id": "dml_without_transaction", "severity": "WARN", "statement_index": 0, "line_number": 1, "message": "The data change is not wrapped in a BEGIN ... COMMIT transaction" },
+    { "rule_id": "missing_where_on_delete", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "DELETE on payroll.salaries has no WHERE clause and removes every row" },
+    { "rule_id": "protected_table", "severity": "BLOCK", "statement_index": 0, "line_number": 1, "message": "The statement touches protected table payroll.salaries (matches payroll.*)" }
+  ]
+}
+```
+
+- `applicable` is `false` — with an empty `findings` list — for a datasource whose engine the rule catalog does not cover (every engine plugin: MongoDB, Redis, Cassandra, Elasticsearch, DynamoDB, Neo4j, Snowflake, BigQuery, Databricks, Couchbase). Only the in-process relational dialects (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server, `CUSTOM`) are evaluated; an unsupported engine never fails closed.
+- `findings` is ordered by `statement_index`, then `line_number` (unknown last), then `rule_id` — which is why `dml_without_transaction` leads the example above. `severity` is `WARN` or `BLOCK` (`OFF` rules are never evaluated). `statement_index` is the zero-based statement inside a `BEGIN … COMMIT` envelope (`0` for a single statement). `line_number` is the one-based line of the offending construct and is **absent** for every member of a transaction envelope and for constructs JSqlParser gives no position for.
+- `message` is rendered server-side from the rule's message key and the finding's arguments in the **request locale** (the caller's preferred language, else `Accept-Language`, else English) — clients never format rule messages themselves.
+
+**Response 400:** `VALIDATION_ERROR` — missing `datasource_id`, blank `sql`, `sql` over 100 000 characters, or a body that does not deserialize (a non-UUID `datasource_id`).
+**Response 404:** `DATASOURCE_NOT_FOUND` — the datasource is missing, in another organization, or not visible to the caller.
+**Response 422:** `INVALID_SQL` — the SQL did not parse, or is a multi-statement input outside a `BEGIN … COMMIT` envelope. An unparseable query is a 422, never an empty (clean-looking) finding list.
+
+### GET /sql-review/rules — Response 200 (#863)
+
+The built-in rule catalog in catalog order, localized in the request locale. Requires `SQL_REVIEW_MANAGE`; the admin ruleset editor renders its severity table from it. `default_severity` is the severity a rule runs at when the resolved ruleset has no config row for it.
+
+```json
+[
+  {
+    "rule_id": "select_star",
+    "category": "PERFORMANCE",
+    "default_severity": "WARN",
+    "name": "SELECT *",
+    "description": "The select list is a bare * with no explicit column list; every column is fetched, including ones added later.",
+    "params": []
+  },
+  {
+    "rule_id": "protected_table",
+    "category": "DATA_PROTECTION",
+    "default_severity": "BLOCK",
+    "name": "Protected table",
+    "description": "The statement touches a table matching one of the organisation's protected-table patterns.",
+    "params": [
+      { "key": "globs", "required": true, "defaults": [], "value_pattern": "[A-Za-z0-9_$*.-]+" }
+    ]
+  }
+]
+```
+
+`category` is one of `STATEMENT_SAFETY`, `PERFORMANCE`, `SCHEMA_CHANGE`, `DATA_PROTECTION`. `params` describes the rule's list-valued parameters: `key` is the JSON key inside a rule config's `params` object, `required` whether a config that supplies the rule must supply a non-empty list (a required param with non-empty `defaults` may still be omitted — `disallowed_function.names` defaults to `pg_sleep`, `sleep`, `benchmark`, `load_file`), and `value_pattern` the whole-string regular expression every entry must match. Twelve of the fourteen rules take no params.
+
+**Response 403:** `FORBIDDEN` — caller lacks `SQL_REVIEW_MANAGE`.
 
 ### POST /queries/generate-sql — Request Body
 
@@ -3114,6 +3183,11 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `DELETE` | `/admin/routing-policies/{id}` | Delete a routing policy *(ADMIN only)* |
 | `PUT` | `/admin/routing-policies/reorder` | Reorder routing policies by priority *(ADMIN only)* |
 | `POST` | `/admin/routing-policies/simulate` | Dry-run a draft routing policy against historical traffic (AF-630) *(ADMIN only)* |
+| `GET` | `/admin/sql-review-rulesets` | List the organization's SQL review rulesets (#863) *(`SQL_REVIEW_MANAGE`)* |
+| `POST` | `/admin/sql-review-rulesets` | Create a SQL review ruleset (`201`, `Location` header). `409 SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` / `SQL_REVIEW_RULESET_DEFAULT_CONFLICT`, `422 SQL_REVIEW_RULESET_INVALID` *(`SQL_REVIEW_MANAGE`)* |
+| `GET` | `/admin/sql-review-rulesets/{id}` | Get a SQL review ruleset with its per-rule severities and params *(`SQL_REVIEW_MANAGE`)* |
+| `PUT` | `/admin/sql-review-rulesets/{id}` | Replace a SQL review ruleset (name, description, environment, enabled and the full rule-config set) *(`SQL_REVIEW_MANAGE`)* |
+| `DELETE` | `/admin/sql-review-rulesets/{id}` | Delete a SQL review ruleset (`204`) *(`SQL_REVIEW_MANAGE`)* |
 | `POST` | `/admin/access-simulations` | Trace one hypothetical request through the live submission-and-routing evaluators (AF-859) *(`DATASOURCE_PERMISSION_MANAGE`)* |
 | `GET` | `/admin/effective-access` | Who could submit a statement class against one table, and from which grant (AF-859) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
 | `GET` | `/admin/privileged-access` | Org-wide: every identity that can reach data with no permission row — `QUERY_ADMIN` holders and break-glass grantees — with query evidence (#968) *(`DATASOURCE_PERMISSION_MANAGE` or `ACCESS_USAGE_REPORT_VIEW`)* |
@@ -3515,6 +3589,86 @@ Rewrites the priority order of the org's policies atomically.
 | 404 | `ROUTING_POLICY_NOT_FOUND` | Policy does not exist or is in another organization |
 | 409 | `ROUTING_POLICY_PRIORITY_CONFLICT` | Another policy in the organization already uses that priority |
 | 422 | `ROUTING_POLICY_INVALID` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies |
+
+### SQL Review Rulesets (`/admin/sql-review-rulesets`) *(`SQL_REVIEW_MANAGE`)* (#863)
+
+Administration of the deterministic SQL review rulesets (epic #860): one ruleset per `environment` per organization (`DEVELOPMENT` / `TEST` / `STAGING` / `PRODUCTION`) plus at most one organization-wide default (`environment` absent). A datasource resolves to the ruleset bound to its `environment`, else the default, else no rules. A ruleset assigns each built-in rule a severity — `OFF` (not evaluated), `WARN` (reported, no workflow effect), `BLOCK` (reported and, once #864 lands, the query can never auto-approve; `BLOCK` never rejects) — and, for the two parameterised rules, its params. Every catalog rule not named in a ruleset runs at its built-in default severity (see [GET /sql-review/rules](#get-sql-reviewrules--response-200-863)). Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+
+All endpoints require the `SQL_REVIEW_MANAGE` permission (`WORKFLOW_ADMIN` group, held by the system `ADMIN` role) and operate within the caller's organization. Every mutation writes an audit row — `SQL_REVIEW_RULESET_CREATED` / `SQL_REVIEW_RULESET_UPDATED` / `SQL_REVIEW_RULESET_DELETED` against resource type `sql_review_ruleset`.
+
+#### POST /admin/sql-review-rulesets — Request Body
+
+```json
+{
+  "name": "Production",
+  "description": "Payroll is off limits; every unbounded write goes to a human",
+  "environment": "PRODUCTION",
+  "enabled": true,
+  "rules": [
+    { "rule_id": "select_star", "severity": "OFF" },
+    { "rule_id": "missing_limit_on_select", "severity": "BLOCK" },
+    { "rule_id": "protected_table", "severity": "BLOCK", "params": { "globs": ["payroll.*", "*.audit_log"] } },
+    { "rule_id": "disallowed_function", "severity": "BLOCK", "params": { "names": ["pg_sleep", "dblink"] } }
+  ]
+}
+```
+
+`name` is **required** (≤ 255 characters). `description` is optional (≤ 2000). `environment` is optional — omit it (or send `null`) to create the organization-wide default. `enabled` defaults to `true`; a disabled ruleset that is bound to a datasource's environment resolves to *no rules* and does **not** fall through to the default. `rules` is optional (default: no rows — every rule at its built-in severity); each entry needs `rule_id` (a catalog id, ≤ 100 characters) and `severity`, and `params` is a JSON object of **string arrays** keyed by the rule's declared param key. A rule id may appear at most once.
+
+**Response 201:** Full ruleset object (see the list shape below). `Location` header points to `/api/v1/admin/sql-review-rulesets/{id}`.
+**Response 400:** Bean Validation failure on the request body, or a body that does not deserialize (an unknown `severity` / `environment` literal). `error: VALIDATION_ERROR`.
+**Response 409:** Another ruleset in the organization is already bound to that `environment` — `error: SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` (the `ProblemDetail` carries `environment`) — or the organization already has a default ruleset — `error: SQL_REVIEW_RULESET_DEFAULT_CONFLICT`.
+**Response 422:** Malformed rule configuration — a `rule_id` the catalog does not know, a duplicate `rule_id`, `params` on a parameterless rule or under an undeclared key, a required list that is absent (with no built-in defaults), an empty list or a blank entry, or an entry that does not match the param's `value_pattern`. `error: SQL_REVIEW_RULESET_INVALID`; `detail` names the offending rule / value.
+
+#### GET /admin/sql-review-rulesets — Response 200
+
+Returns every ruleset in the caller's organization, ordered by `name` (no pagination — at most five per organization).
+
+```json
+[
+  {
+    "id": "uuid",
+    "organization_id": "uuid",
+    "name": "Production",
+    "description": "Payroll is off limits; every unbounded write goes to a human",
+    "environment": "PRODUCTION",
+    "enabled": true,
+    "rules": [
+      { "rule_id": "disallowed_function", "severity": "BLOCK", "params": { "names": ["pg_sleep", "dblink"] } },
+      { "rule_id": "missing_limit_on_select", "severity": "BLOCK", "params": {} },
+      { "rule_id": "protected_table", "severity": "BLOCK", "params": { "globs": ["payroll.*", "*.audit_log"] } },
+      { "rule_id": "select_star", "severity": "OFF", "params": {} }
+    ],
+    "created_at": "2026-09-11T10:00:00Z",
+    "updated_at": "2026-09-11T10:00:00Z"
+  }
+]
+```
+
+`rules` is ordered by `rule_id` and lists only the rules the ruleset configures explicitly. `environment` and `description` are **absent** (not `null`) on the organization-wide default / when unset — a client must test for presence, not for `null`.
+
+#### GET /admin/sql-review-rulesets/{id} — Response 200
+
+Single ruleset object (same shape as a list element). **Response 404:** `SQL_REVIEW_RULESET_NOT_FOUND` when the ruleset is missing or in another organization.
+
+#### PUT /admin/sql-review-rulesets/{id}
+
+Full replace — same body as `POST`, every field taken as sent: an omitted `description` clears it, an omitted `environment` turns the ruleset into the organization-wide default, an omitted `enabled` means `true`, and `rules` is the **complete** new rule-config set (an omitted or empty list removes every configured row). **Response 200:** updated ruleset object. **Response 400:** `VALIDATION_ERROR`. **Response 404:** `SQL_REVIEW_RULESET_NOT_FOUND`. **Response 409:** `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` / `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` when the new binding is already taken by *another* ruleset. **Response 422:** `SQL_REVIEW_RULESET_INVALID`.
+
+#### DELETE /admin/sql-review-rulesets/{id}
+
+Deletes the ruleset and its rule configs. Findings already recorded on queries are untouched. **Response 204:** No content. **Response 404:** `SQL_REVIEW_RULESET_NOT_FOUND`.
+
+#### SQL-review-rulesets Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure, or an unreadable body (unknown `severity` / `environment` literal) |
+| 403 | `FORBIDDEN` | Caller lacks `SQL_REVIEW_MANAGE` |
+| 404 | `SQL_REVIEW_RULESET_NOT_FOUND` | Ruleset does not exist or is in another organization |
+| 409 | `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` | Another ruleset in the organization is already bound to that environment (`environment` property) |
+| 409 | `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` | The organization already has a default ruleset |
+| 422 | `SQL_REVIEW_RULESET_INVALID` | Unknown or duplicate `rule_id`, or malformed `params` |
 
 ### Policy simulator (AF-630)
 
@@ -7923,6 +8077,10 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |
+| `SQL_REVIEW_RULESET_NOT_FOUND` | 404 | `SqlReviewRulesetNotFoundException` | Unknown SQL review ruleset id, or the ruleset is in another organization (#863). Body includes `rulesetId`. |
+| `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` | 409 | `SqlReviewRulesetConflictException` | Another SQL review ruleset in the organization is already bound to that environment (#863). Body includes `environment`. |
+| `SQL_REVIEW_RULESET_DEFAULT_CONFLICT` | 409 | `SqlReviewRulesetConflictException` | The organization already has an organization-wide default SQL review ruleset (#863). |
+| `SQL_REVIEW_RULESET_INVALID` | 422 | `IllegalSqlReviewRulesetException` | Unknown or duplicate `rule_id`, or malformed rule `params` (#863). `detail` is localized and names the offending rule / value. |
 | `QUERY_SUGGESTION_RECOMPUTE_IN_PROGRESS` | 409 | `QuerySuggestionRecomputeInProgressException` | Another replica, or the scheduled aggregation, already holds this datasource's suggestion-rebuild lock (#776). Body includes `datasourceId`. |
 | `INVALID_REPORT_PERIOD` | 400 | `InvalidReportPeriodException` | Compliance-report period is missing, inverted (`from` after `to`), or exceeds `accessflow.compliance.max-report-period`. |
 | `ANOMALY_NOT_FOUND` | 404 | `AnomalyNotFoundException` | Unknown behavioural-anomaly id, or the anomaly is in another organization (UBA, AF-383). |

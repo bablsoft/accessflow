@@ -9,17 +9,20 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Validates a ruleset's rule configs at save time (#862), so a malformed glob or an empty
- * function list is rejected with 422 when written rather than discovered during evaluation. A
+ * Validates a ruleset's rule configs at save time (#862), so a malformed glob, an empty
+ * function list or a rule listed twice is rejected with 422 when written rather than discovered
+ * during evaluation. A
  * required param may be <em>omitted</em> when the rule has built-in defaults, but a list that is
  * supplied must be non-empty and blank-free — {@code {"names": []}} is refused, not silently
  * re-defaulted. Value syntax comes from each {@link SqlRuleParam}, so the validator knows no rule
  * by name. Mirrors {@code workflow.internal.routing.RoutingConditionValidator}: the message is
- * resolved in the caller's locale at the throw site. Wired into ruleset create / update by #863.
+ * resolved in the caller's locale at the throw site. Wired into ruleset create / update by
+ * {@code DefaultSqlReviewRulesetService} (#863).
  */
 @Component
 public class SqlRuleParamsValidator {
@@ -36,9 +39,15 @@ public class SqlRuleParamsValidator {
         if (rules == null) {
             return;
         }
+        var seen = new HashSet<String>();
         for (SqlReviewRuleConfigView config : rules) {
             var rule = catalog.byId(config.ruleId())
                     .orElseThrow(() -> fail("error.sql_review_rule_unknown", config.ruleId()));
+            // (ruleset_id, rule_id) is unique in the schema; catch the duplicate here so it is a
+            // 422 naming the rule rather than a constraint violation.
+            if (!seen.add(rule.ruleId())) {
+                throw fail("error.sql_review_rule_duplicate", rule.ruleId());
+            }
             validateParams(rule, config.params());
         }
     }

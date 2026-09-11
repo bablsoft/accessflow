@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.sqlreview.internal;
 
 import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
+import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
 import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
@@ -44,6 +45,11 @@ import java.util.UUID;
  * skipped by the evaluator. Nothing here throws for a rule or ruleset defect: unknown rule ids and
  * undecodable params are logged and degraded, so a data problem never makes a query harder to
  * approve; only a missing datasource and unparseable SQL propagate.
+ *
+ * <p><b>Two entry points.</b> {@link #evaluate} is the system path (organization scope only — the
+ * submission chokepoint has already checked the submitter's access); {@link #evaluateForUser} is
+ * the editor's live-lint path (#863) and resolves the datasource through the caller's visibility.
+ * Both are read-only.
  */
 @Service
 @Transactional(readOnly = true)
@@ -80,7 +86,22 @@ public class DefaultSqlReviewService implements SqlReviewService {
 
     @Override
     public SqlReviewResult evaluate(UUID organizationId, UUID datasourceId, String sql) {
-        var datasource = datasourceAdminService.getForAdmin(datasourceId, organizationId);
+        return evaluate(datasourceAdminService.getForAdmin(datasourceId, organizationId), organizationId, sql);
+    }
+
+    @Override
+    public SqlReviewResult evaluateForUser(UUID organizationId, UUID userId, boolean isAdmin, UUID datasourceId,
+                                           String sql) {
+        // The dry-run visibility rule: getForUser fails with DatasourceNotFoundException (404) for a
+        // datasource the caller has no permission row on, so an invisible datasource never leaks its
+        // ruleset; QUERY_ADMIN sees every datasource in the organization.
+        var datasource = isAdmin
+                ? datasourceAdminService.getForAdmin(datasourceId, organizationId)
+                : datasourceAdminService.getForUser(datasourceId, organizationId, userId);
+        return evaluate(datasource, organizationId, sql);
+    }
+
+    private SqlReviewResult evaluate(DatasourceView datasource, UUID organizationId, String sql) {
         if (!RELATIONAL_DIALECTS.contains(datasource.dbType())) {
             return SqlReviewResult.notApplicable();
         }

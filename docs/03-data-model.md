@@ -1625,6 +1625,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ACCESS_GRANT_REVOKED` | Admin early-revokes an active grant via `POST /admin/access-requests/{id}/revoke`. Metadata: optional `comment`. |
 | `ROUTING_POLICY_CREATED` / `ROUTING_POLICY_UPDATED` / `ROUTING_POLICY_DELETED` | Admin creates / updates / deletes a routing policy via the `/admin/routing-policies` CRUD endpoints. Resource: `routing_policy`. |
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
+| `SQL_REVIEW_RULESET_CREATED` / `SQL_REVIEW_RULESET_UPDATED` / `SQL_REVIEW_RULESET_DELETED` | Admin creates / updates / deletes a SQL review ruleset via the `/admin/sql-review-rulesets` CRUD endpoints (#863). Resource: `sql_review_ruleset`. Metadata on create / update: `name`, `environment` (`DEFAULT` for the organization-wide default), `enabled`, `rule_count`. The read-only `POST /sql-review/evaluate` writes no audit row. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
@@ -1654,7 +1655,7 @@ Bootstrap reuses the existing `*_CREATED` / `*_UPDATED` actions for `DATASOURCE`
 
 ### Audit Resource Types
 
-`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `row_security_policy`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`.
+`resource_type` is the snake_case form of one of the values in `AuditResourceType`: `query_request`, `datasource`, `user`, `api_key`, `permission`, `review_plan`, `review_delegation`, `notification_channel`, `ai_config`, `knowledge_document`, `custom_jdbc_driver`, `system_smtp`, `user_invitation`, `organization`, `oauth2_config`, `saml_config`, `langfuse_config`, `help_agent_config`, `audit_log`, `user_group`, `role`, `datasource_reviewer`, `query_template`, `slack_app_config`, `access_grant_request`, `masking_policy`, `routing_policy`, `sql_review_ruleset`, `row_security_policy`, `connector`, `query_comment`, `data_classification_tag`, `compliance_report`, `behavior_anomaly`, `break_glass_event`, `dashboard_summary`, `attestation_campaign`, `attestation_item`, `grant_usage_summary`, `api_connector`, `api_request`, `retention_policy`, `deletion_request`, `request_group`, `query_ticket`, `discovery_finding`, `scim_config`, `scim_token`, `export_policy`, `audit_sink`, `deployment_pipeline`, `deployment_request`, `deployment_rollback_review`.
 
 SCIM-driven mutations (#621) audit as `SCIM_USER_PROVISIONED` / `SCIM_USER_UPDATED` / `SCIM_USER_DEACTIVATED` / `SCIM_GROUP_SYNCED` / `SCIM_GROUP_DELETED` with `actor_id = NULL` (the actor is the IdP's provisioning engine) and `metadata.scim_token_id` / `metadata.scim_token_name` carrying the token identity; admin-side changes audit as `SCIM_CONFIG_UPDATED` / `SCIM_TOKEN_CREATED` / `SCIM_TOKEN_REVOKED` with the caller as actor.
 
@@ -2776,8 +2777,9 @@ skip-on-malformed rule.
 Deterministic, named SQL review rules with per-environment severity. #861 lands the storage and
 type foundation (migration `V170` + the `V171` permission seed); #862 the rule engine and the
 fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
-ruleset administration and the evaluation API (#863), submission enforcement (#864) and the editor
-lint (#865) follow. Two PG enums, created in `V170`:
+#863 the ruleset administration, rule catalog and read-only evaluation endpoints (see
+[docs/04-api-spec.md → SQL Review Rulesets](04-api-spec.md#sql-review-rulesets-adminsql-review-rulesets-sql_review_manage-863));
+submission enforcement (#864) and the editor lint (#865) follow. Two PG enums, created in `V170`:
 
 - `datasource_environment` — `DEVELOPMENT` | `TEST` | `STAGING` | `PRODUCTION` (also the type of
   the new nullable [`datasources.environment`](#datasources) column).
@@ -2815,7 +2817,9 @@ catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862), so `rule_id` is `VA
 enum. A catalog rule with **no** row in the resolved ruleset is still evaluated, at its built-in
 default severity; a row is only needed to change the severity (or turn the rule `OFF`) or to set
 params. A row naming a rule id the catalog does not know is ignored at evaluation time (logged)
-and rejected at write time by `SqlRuleParamsValidator` (wired into ruleset create / update by #863).
+and rejected at write time by `SqlRuleParamsValidator` — a 422 `SQL_REVIEW_RULESET_INVALID` from the
+`/admin/sql-review-rulesets` endpoints, which also refuse a rule id listed twice (#863). No row is
+ever written through any other path.
 
 | Column | Type / Notes |
 |--------|-------------|

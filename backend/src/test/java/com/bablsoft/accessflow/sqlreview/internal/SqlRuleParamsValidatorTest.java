@@ -28,6 +28,7 @@ class SqlRuleParamsValidatorTest {
         messages.addMessage("error.sql_review_rule_params_unexpected", locale, "unexpected {0}");
         messages.addMessage("error.sql_review_rule_glob_invalid", locale, "glob {0}");
         messages.addMessage("error.sql_review_rule_function_invalid", locale, "function {0}");
+        messages.addMessage("error.sql_review_rule_duplicate", locale, "duplicate {0}");
         validator = new SqlRuleParamsValidator(new SqlRuleCatalog(), messages);
     }
 
@@ -41,8 +42,10 @@ class SqlRuleParamsValidatorTest {
         assertThatCode(() -> validator.validate(List.of(
                 config("select_star", Map.of()),
                 config("disallowed_function", Map.of()),
-                config("disallowed_function", Map.of("names", List.of("pg_sleep", "dbms_lock.sleep"))),
                 config("protected_table", Map.of("globs", List.of("payroll.*", "*.audit_log", "hr.$tmp", "my-table"))))))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate(List.of(
+                config("disallowed_function", Map.of("names", List.of("pg_sleep", "dbms_lock.sleep"))))))
                 .doesNotThrowAnyException();
     }
 
@@ -98,5 +101,15 @@ class SqlRuleParamsValidatorTest {
                 .isThrownBy(() -> validator.validate(List.of(config("disallowed_function",
                         Map.of("names", List.of("pg_sleep", "sleep()"))))))
                 .withMessage("function sleep()");
+    }
+
+    @Test
+    void rejectsARuleListedTwice() {
+        assertThatExceptionOfType(IllegalSqlReviewRulesetException.class)
+                .isThrownBy(() -> validator.validate(List.of(
+                        config("select_star", Map.of()),
+                        config("missing_limit_on_select", Map.of()),
+                        config("select_star", Map.of()))))
+                .withMessage("duplicate select_star");
     }
 }
