@@ -150,6 +150,9 @@ com.bablsoft.accessflow/
 ├── discovery/      # Automated sensitive-data discovery (AF-623): DiscoveryScanJob samples column data via the engine sampling path, regex+checksum detectors (email, PAN+Luhn, SSN, IBAN, phone) + optional fail-safe AI pass propose classification tags an admin confirms (AF-447 derivation) or dismisses; a post-scan sweep retires findings the scan stops proposing as STALE, only for tables it actually sampled (#659)
 │   ├── api/
 │   └── internal/   # config, persistence, detect (pure detectors), scheduled, web
+├── sqlreview/      # Deterministic SQL review rules with per-environment severity (epic #860). #861 lands the persistence foundation only — PG enums datasource_environment + sql_review_severity (OFF/WARN/BLOCK), the nullable datasources.environment column, sql_review_rulesets (one per environment per org + at most one org default, two partial unique indexes) / sql_review_rule_configs / query_sql_review_findings, the api contracts (SqlReviewService, SqlReviewRulesetService — unimplemented until #862/#863) and the SQL_REVIEW_MANAGE permission (WORKFLOW_ADMIN, ADMIN-only, seeded by V171). Cross-module refs are bare UUIDs. BLOCK never rejects — it only suppresses auto-approval (#864)
+│   ├── api/
+│   └── internal/   # persistence only so far
 ├── scim/           # SCIM 2.0 provisioning server (#621): /scim/v2 Users+Groups behind a per-org bearer-token filter chain (@Order(0), SCIM error envelope), attribute-mapping config, show-once tokens; deactivation fans out via core.events.UserDeactivatedEvent (security revokes sessions, access revokes JIT grants)
 │   ├── api/
 │   └── internal/   # config (own SecurityFilterChain), persistence, protocol (wire records, filter/patch parsing), web (scim + admin controllers)

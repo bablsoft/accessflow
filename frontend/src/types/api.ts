@@ -41,6 +41,9 @@ export type ConnectorCategory =
   | 'SEARCH'
   | 'GRAPH';
 export type SslMode = 'DISABLE' | 'REQUIRE' | 'VERIFY_CA' | 'VERIFY_FULL';
+
+// Optional per-datasource environment (#861); null resolves to the org-wide SQL review ruleset.
+export type DatasourceEnvironment = 'DEVELOPMENT' | 'TEST' | 'STAGING' | 'PRODUCTION';
 export type MaskingStrategy = 'FULL' | 'PARTIAL' | 'HASH' | 'EMAIL' | 'FORMAT_PRESERVING';
 export type QueryStatus =
   | 'PENDING_AI'
@@ -672,6 +675,8 @@ export interface Datasource {
   created_at: string;
   result_cache_enabled: boolean;
   result_cache_ttl_seconds: number | null;
+  // Omitted by the API when unset (null values are not serialised).
+  environment?: DatasourceEnvironment | null;
 }
 
 // One read-replica endpoint of a datasource (AF-457); the password never round-trips.
@@ -724,6 +729,7 @@ export interface CreateDatasourceInput {
   private_key_passphrase?: string | null;
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;
+  environment?: DatasourceEnvironment | null;
 }
 
 export interface UpdateDatasourceInput {
@@ -754,6 +760,9 @@ export interface UpdateDatasourceInput {
   active?: boolean;
   result_cache_enabled?: boolean;
   result_cache_ttl_seconds?: number | null;
+  // undefined leaves the environment unchanged; clear_environment unsets it (#861).
+  environment?: DatasourceEnvironment | null;
+  clear_environment?: boolean;
 }
 
 export interface CreatePermissionInput {

@@ -239,6 +239,7 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         if (command.resultCacheTtlSeconds() != null) {
             entity.setResultCacheTtlSeconds(command.resultCacheTtlSeconds());
         }
+        entity.setEnvironment(command.environment());
         entity.setActive(true);
         return toView(datasourceRepository.save(entity));
     }
@@ -342,6 +343,13 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
         }
         if (command.resultCacheTtlSeconds() != null) {
             entity.setResultCacheTtlSeconds(command.resultCacheTtlSeconds());
+        }
+        // #861: null leaves the environment unchanged; clearEnvironment unsets it; a value wins.
+        if (Boolean.TRUE.equals(command.clearEnvironment())) {
+            entity.setEnvironment(null);
+        }
+        if (command.environment() != null) {
+            entity.setEnvironment(command.environment());
         }
         if (command.active() != null) {
             entity.setActive(command.active());
@@ -745,7 +753,8 @@ class DatasourceAdminServiceImpl implements DatasourceAdminService {
                 entity.getCreatedAt(),
                 entity.getLocalDatacenter(),
                 entity.isResultCacheEnabled(),
-                entity.getResultCacheTtlSeconds());
+                entity.getResultCacheTtlSeconds(),
+                entity.getEnvironment());
     }
 
     private CustomJdbcDriverEntity resolveCustomDriverForCreate(CreateDatasourceCommand command) {

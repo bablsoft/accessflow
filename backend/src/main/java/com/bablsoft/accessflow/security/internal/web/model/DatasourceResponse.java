@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web.model;
 
+import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DatasourceView;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.core.api.SslMode;
@@ -34,7 +35,8 @@ public record DatasourceResponse(
         Instant createdAt,
         String localDatacenter,
         boolean resultCacheEnabled,
-        Integer resultCacheTtlSeconds
+        Integer resultCacheTtlSeconds,
+        DatasourceEnvironment environment
 ) {
     /** One read-replica endpoint — never carries the password. */
     public record ReadReplicaResponse(UUID id, String jdbcUrl, String username) {
@@ -70,6 +72,7 @@ public record DatasourceResponse(
                 view.createdAt(),
                 view.localDatacenter(),
                 view.resultCacheEnabled(),
-                view.resultCacheTtlSeconds());
+                view.resultCacheTtlSeconds(),
+                view.environment());
     }
 }
