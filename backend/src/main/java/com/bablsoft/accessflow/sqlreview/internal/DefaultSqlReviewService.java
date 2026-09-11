@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.DatasourceAdminService;
 import com.bablsoft.accessflow.core.api.DatasourceEnvironment;
 import com.bablsoft.accessflow.core.api.DbType;
 import com.bablsoft.accessflow.proxy.api.SqlParserService;
+import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
 import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.sqlreview.internal.persistence.entity.SqlReviewRuleConfigEntity;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -39,7 +41,9 @@ import java.util.UUID;
  * fall through to the default, so disabling the production ruleset never silently re-enables the
  * default on production. Every catalog rule is evaluated: at its config row's severity and params
  * when the ruleset has one, at its built-in default severity otherwise. {@code OFF} rules are
- * skipped by the evaluator.
+ * skipped by the evaluator. Nothing here throws for a rule or ruleset defect: unknown rule ids and
+ * undecodable params are logged and degraded, so a data problem never makes a query harder to
+ * approve; only a missing datasource and unparseable SQL propagate.
  */
 @Service
 @Transactional(readOnly = true)
@@ -114,8 +118,23 @@ public class DefaultSqlReviewService implements SqlReviewService {
             var config = configured.get(rule.ruleId());
             resolved.add(config == null
                     ? ResolvedRule.defaults(rule)
-                    : new ResolvedRule(rule, config.getSeverity(), paramsCodec.decode(config.getParams())));
+                    : new ResolvedRule(rule, config.getSeverity(), decodeParams(ruleset, config)));
         }
         return resolved;
+    }
+
+    /**
+     * A row whose stored params cannot be decoded keeps its severity but runs with no params — the
+     * rule's own defaults — rather than failing every evaluation against the ruleset. The validator
+     * stops such a row being written through the API; this guards rows written any other way.
+     */
+    private Map<String, List<String>> decodeParams(SqlReviewRulesetEntity ruleset, SqlReviewRuleConfigEntity config) {
+        try {
+            return paramsCodec.decode(config.getParams());
+        } catch (IllegalSqlReviewRulesetException ex) {
+            log.warn("SQL review ruleset {} has undecodable params for rule {}; evaluating it without params",
+                    ruleset.getId(), config.getRuleId());
+            return Map.of();
+        }
     }
 }

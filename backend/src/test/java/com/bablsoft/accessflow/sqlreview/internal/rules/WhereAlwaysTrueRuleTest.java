@@ -37,6 +37,9 @@ class WhereAlwaysTrueRuleTest {
         assertThat(apply(rule, "DELETE FROM t WHERE x = x")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE t.x = t.x")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE 'a' = 'a'")).hasSize(1);
+        assertThat(apply(rule, "DELETE FROM t WHERE 1 <> 0")).hasSize(1);
+        assertThat(apply(rule, "DELETE FROM t WHERE 1 > 0")).hasSize(1);
+        assertThat(apply(rule, "DELETE FROM t WHERE NOT FALSE")).hasSize(1);
         assertThat(apply(rule, "SELECT a FROM t WHERE 1 = 1")).hasSize(1);
         assertThat(apply(rule, "SELECT a FROM t WHERE 1 = 1 UNION SELECT b FROM u WHERE b = 2")).hasSize(1);
     }
@@ -46,6 +49,18 @@ class WhereAlwaysTrueRuleTest {
         assertThat(apply(rule, "DELETE FROM t WHERE id = 1 OR 1 = 1")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE id = 1 OR (1 = 1)")).hasSize(1);
         assertThat(apply(rule, "DELETE FROM t WHERE id = 1 OR b = 2 OR TRUE")).hasSize(1);
+    }
+
+    @Test
+    void elidesAnOverlongPredicate() {
+        var chain = new StringBuilder("DELETE FROM t WHERE 1 = 1");
+        for (int i = 0; i < 60; i++) {
+            chain.append(" OR col").append(i).append(" = ").append(i);
+        }
+        var findings = apply(rule, chain.toString());
+        assertThat(findings).hasSize(1);
+        assertThat(findings.get(0).args().get("predicate"))
+                .hasSize(WhereAlwaysTrueRule.PREDICATE_MAX_LENGTH).endsWith("…");
     }
 
     @Test

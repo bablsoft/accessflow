@@ -24,6 +24,14 @@ class SqlStatementParserTest {
     }
 
     @Test
+    void trailingSemicolonsAndCommentsReparseLikeTheProxyAccepted() {
+        for (String sql : List.of("SELECT * FROM t;", "SELECT * FROM t ;  ", "-- c\nSELECT * FROM t",
+                "/* c */ SELECT * FROM t; -- trailing", "SELECT * FROM t;\n")) {
+            assertThat(SqlStatementParser.parse(new SqlParseResult(QueryType.SELECT, sql))).as(sql).hasSize(1);
+        }
+    }
+
+    @Test
     void envelopeSlicesAreIndexedTransactionalAndLineless() {
         var contexts = SqlStatementParser.parse(new SqlParseResult(QueryType.INSERT, true,
                 List.of("INSERT INTO t VALUES (1)", "UPDATE t SET a = 2"), Set.of("t")));

@@ -13,16 +13,21 @@ import net.sf.jsqlparser.statement.select.Join;
 import net.sf.jsqlparser.statement.select.PlainSelect;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A Cartesian product: an explicit {@code CROSS JOIN}, a {@code JOIN} with neither {@code ON} nor
- * {@code USING} (and not {@code NATURAL} / {@code APPLY}), or a comma join whose {@code WHERE}
- * carries no column-to-column comparison between two differently qualified tables. Unqualified
- * columns are given the benefit of the doubt — without the schema the rule cannot tell which
- * table they belong to, and a false positive here would be noise on every legacy query.
- * Every select body is inspected, subqueries included.
+ * {@code USING} (and not {@code NATURAL} / {@code APPLY} — {@code CROSS APPLY} is a correlated
+ * lateral join, not a product), or a comma join that no column-to-column comparison in the
+ * {@code WHERE} correlates: a pair is correlating for a join when the two columns are not both
+ * qualified with the same table and at least one side names the joined table or its alias.
+ * Unqualified columns are given the benefit of the doubt — without the schema the rule cannot tell
+ * which table they belong to, and a false positive here would be noise on every legacy query. A
+ * column compared to an arithmetic expression ({@code a.id = b.id + 1}) is not recognised as a
+ * correlation. Every select body is inspected, subqueries included.
  */
 public final class CrossJoinRule implements SqlRule {
 
@@ -55,9 +60,9 @@ public final class CrossJoinRule implements SqlRule {
             if (body.getJoins() == null) {
                 continue;
             }
-            boolean correlated = hasColumnCorrelation(body.getWhere());
+            var pairs = columnPairs(body.getWhere());
             for (Join join : body.getJoins()) {
-                if (isCartesian(join, correlated)) {
+                if (isCartesian(join, pairs)) {
                     findings.add(context.finding(this, join, Map.of("table", describe(join.getFromItem()))));
                 }
             }
@@ -65,45 +70,76 @@ public final class CrossJoinRule implements SqlRule {
         return findings;
     }
 
-    private static boolean isCartesian(Join join, boolean whereCorrelated) {
+    private static boolean isCartesian(Join join, List<ColumnPair> pairs) {
+        if (join.isApply() || join.isNatural()) {
+            return false;
+        }
         if (join.isCross()) {
             return true;
         }
         if (join.isSimple()) {
-            return !whereCorrelated;
-        }
-        if (join.isNatural() || join.isApply()) {
-            return false;
+            return !correlates(join, pairs);
         }
         boolean hasOn = join.getOnExpressions() != null && !join.getOnExpressions().isEmpty();
         boolean hasUsing = join.getUsingColumns() != null && !join.getUsingColumns().isEmpty();
         return !hasOn && !hasUsing;
     }
 
-    /**
-     * True when {@code where} compares two columns that are not both qualified with the same
-     * table — {@code t.id = u.id}, or {@code id = uid} where the owners are unknown.
-     */
-    static boolean hasColumnCorrelation(Expression where) {
+    /** The two qualifiers of a column-to-column comparison; {@code null} = unqualified. */
+    record ColumnPair(String left, String right) {
+
+        boolean sameTable() {
+            return left != null && left.equals(right);
+        }
+
+        boolean mentions(Set<String> names) {
+            return left == null || right == null || names.contains(left) || names.contains(right);
+        }
+    }
+
+    /** Every column-to-column comparison in {@code where}, at any nesting depth. */
+    static List<ColumnPair> columnPairs(Expression where) {
+        var pairs = new ArrayList<ColumnPair>();
+        collectPairs(where, pairs);
+        return pairs;
+    }
+
+    private static void collectPairs(Expression where, List<ColumnPair> pairs) {
         var expression = Tautologies.unwrap(where);
         if (expression instanceof ComparisonOperator comparison) {
-            return qualifiedPair(Tautologies.unwrap(comparison.getLeftExpression()),
-                    Tautologies.unwrap(comparison.getRightExpression()));
+            if (Tautologies.unwrap(comparison.getLeftExpression()) instanceof Column a
+                    && Tautologies.unwrap(comparison.getRightExpression()) instanceof Column b) {
+                pairs.add(new ColumnPair(qualifier(a), qualifier(b)));
+            }
+            return;
         }
         if (expression instanceof BinaryExpression binary) {
-            return hasColumnCorrelation(binary.getLeftExpression())
-                    || hasColumnCorrelation(binary.getRightExpression());
+            collectPairs(binary.getLeftExpression(), pairs);
+            collectPairs(binary.getRightExpression(), pairs);
+        }
+    }
+
+    /** A comma join is correlated when some pair crosses tables and touches this join's table. */
+    private static boolean correlates(Join join, List<ColumnPair> pairs) {
+        var names = namesOf(join.getFromItem());
+        for (ColumnPair pair : pairs) {
+            if (!pair.sameTable() && pair.mentions(names)) {
+                return true;
+            }
         }
         return false;
     }
 
-    private static boolean qualifiedPair(Expression left, Expression right) {
-        if (!(left instanceof Column a) || !(right instanceof Column b)) {
-            return false;
+    private static Set<String> namesOf(FromItem item) {
+        var names = new HashSet<String>();
+        if (item instanceof Table table) {
+            names.add(TableNames.normalize(table));
+            names.add(TableNames.bareName(TableNames.normalize(table)));
         }
-        String qa = qualifier(a);
-        String qb = qualifier(b);
-        return qa == null || qb == null || !qa.equals(qb);
+        if (item != null && item.getAlias() != null && item.getAlias().getName() != null) {
+            names.add(TableNames.normalize(item.getAlias().getName()));
+        }
+        return names;
     }
 
     private static String qualifier(Column column) {

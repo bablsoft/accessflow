@@ -23,6 +23,7 @@ class SqlReviewRulesetViewsTest {
     void ruleConfigViewDeepCopiesParamsAndDefaultsNullToEmpty() {
         var names = new ArrayList<String>();
         names.add("pg_sleep");
+        names.add(null);
         var params = new HashMap<String, List<String>>();
         params.put("names", names);
         params.put("empty", null);
@@ -31,7 +32,7 @@ class SqlReviewRulesetViewsTest {
         names.add("sleep");
 
         assertThat(view.params()).containsOnlyKeys("names", "empty");
-        assertThat(view.params().get("names")).containsExactly("pg_sleep");
+        assertThat(view.params().get("names")).containsExactly("pg_sleep", null);
         assertThat(view.params().get("empty")).isEmpty();
         assertThatThrownBy(() -> view.params().put("k", List.of()))
                 .isInstanceOf(UnsupportedOperationException.class);

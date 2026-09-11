@@ -28,7 +28,7 @@ class DdlStatementRuleTest {
         assertThat(apply(rule, "ALTER TABLE t ADD COLUMN c INT").get(0).args())
                 .isEqualTo(Map.of("statement_type", "ALTER"));
         var create = apply(rule, "CREATE TABLE t (id INT)");
-        assertThat(create.get(0).args()).isEqualTo(Map.of("statement_type", "CREATETABLE"));
+        assertThat(create.get(0).args()).isEqualTo(Map.of("statement_type", "CREATE TABLE"));
         assertThat(create.get(0).lineNumber()).isEqualTo(1);
         var index = apply(rule, "CREATE INDEX ix ON t (id)");
         assertThat(index).hasSize(1);

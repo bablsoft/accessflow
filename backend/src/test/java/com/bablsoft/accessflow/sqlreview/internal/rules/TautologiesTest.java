@@ -21,6 +21,25 @@ class TautologiesTest {
     }
 
     @Test
+    void evaluatesNumericLiteralComparisonsAndNotFalse() {
+        assertThat(Tautologies.isTautology(expression("1 <> 0"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 != 0"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("2 > 1"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 >= 1.0"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 < 2"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 <= 1"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 = 1.0"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("NOT FALSE"))).isTrue();
+        assertThat(Tautologies.isTautology(expression("1 > 2"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("1 <> 1"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("x > 1"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("'a' <> 'b'"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("NOT TRUE"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("NOT x"))).isFalse();
+        assertThat(Tautologies.isTautology(expression("1 LIKE 1"))).isFalse();
+    }
+
+    @Test
     void rejectsRealPredicates() {
         assertThat(Tautologies.isTautology(expression("1 = 2"))).isFalse();
         assertThat(Tautologies.isTautology(expression("1 = '1'"))).isFalse();

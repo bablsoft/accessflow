@@ -38,6 +38,7 @@ class DisallowedFunctionRuleTest {
         assertThat(rule.apply(context("SELECT sleep(1)"), Map.of("names", List.of()))).hasSize(1);
         assertThat(apply(rule, "SELECT benchmark(1000, md5('x'))")).hasSize(1);
         assertThat(apply(rule, "UPDATE t SET a = load_file('/etc/passwd')")).hasSize(1);
+        assertThat(apply(rule, "SELECT id FROM t ORDER BY pg_sleep(10)")).hasSize(1);
     }
 
     @Test

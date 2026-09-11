@@ -9,6 +9,7 @@ import net.sf.jsqlparser.schema.Table;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Any statement touching a table that matches a configured glob. Param {@code globs} — the
@@ -22,7 +23,8 @@ public final class ProtectedTableRule implements SqlRule {
 
     public static final String PARAM_GLOBS = "globs";
 
-    private static final SqlRuleParam GLOBS = new SqlRuleParam(PARAM_GLOBS, true, List.of());
+    private static final SqlRuleParam GLOBS = new SqlRuleParam(PARAM_GLOBS, true, List.of(),
+            Pattern.compile("[A-Za-z0-9_$*.\\-]+"), "error.sql_review_rule_glob_invalid");
 
     @Override
     public String ruleId() {

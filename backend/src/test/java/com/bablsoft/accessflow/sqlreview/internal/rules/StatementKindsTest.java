@@ -28,8 +28,10 @@ class StatementKindsTest {
     }
 
     @Test
-    void typeNameIsTheUpperCasedClassName() {
+    void typeNameSplitsTheClassNameIntoSqlWords() {
         assertThat(StatementKinds.typeName(parse("DROP TABLE t"))).isEqualTo("DROP");
-        assertThat(StatementKinds.typeName(parse("CREATE TABLE t (id INT)"))).isEqualTo("CREATETABLE");
+        assertThat(StatementKinds.typeName(parse("CREATE TABLE t (id INT)"))).isEqualTo("CREATE TABLE");
+        assertThat(StatementKinds.typeName(parse("CREATE INDEX ix ON t (id)"))).isEqualTo("CREATE INDEX");
+        assertThat(StatementKinds.typeName(parse("ALTER VIEW v AS SELECT 1"))).isEqualTo("ALTER VIEW");
     }
 }

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.sqlreview.api.IllegalSqlReviewRulesetException;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,7 +37,7 @@ public class SqlRuleParamsCodec {
         JsonNode root;
         try {
             root = mapper.readTree(json);
-        } catch (RuntimeException ex) {
+        } catch (JacksonException ex) {
             throw invalid(ex);
         }
         if (root == null || root.isNull()) {
@@ -59,7 +60,7 @@ public class SqlRuleParamsCodec {
         }
         try {
             return mapper.writeValueAsString(params);
-        } catch (RuntimeException ex) {
+        } catch (JacksonException ex) {
             throw invalid(ex);
         }
     }

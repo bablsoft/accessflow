@@ -22,8 +22,26 @@ class StatementWalkerTest {
                 .containsExactly("upper", "benchmark", "sleep", "count");
         assertThat(walker.likes()).hasSize(2);
         assertThat(walker.plainSelects()).hasSize(2);
-        // Qualified columns (u.n) contribute their table too, so u is seen twice.
+        // TablesNamesFinder visits a join's from-item and right-item, which are the same object, so
+        // a joined table is recorded twice; anchoring only needs the first occurrence.
         assertThat(walker.tables()).extracting(Table::getName).containsExactly("t", "u", "u", "v");
+    }
+
+    @Test
+    void reachesOrderByGroupByLimitAndOffsetExpressions() {
+        // JSqlParser 5.3 only takes a literal or parameter as the LIMIT row count; OFFSET accepts an
+        // expression, and the walker covers both slots the same way.
+        var select = StatementWalker.walk(parse(
+                "SELECT id FROM t GROUP BY lower(k) ORDER BY pg_sleep(10) LIMIT 5 OFFSET sleep(1)"));
+        assertThat(select.functions()).extracting(Function::getName)
+                .containsExactly("lower", "pg_sleep", "sleep");
+        var ordered = StatementWalker.walk(parse("SELECT id FROM t ORDER BY CASE WHEN k LIKE '%x' THEN 1 END"));
+        assertThat(ordered.likes()).hasSize(1);
+        assertThat(StatementWalker.walk(parse("UPDATE t SET a = 1 ORDER BY sleep(1) LIMIT 1")).functions())
+                .extracting(Function::getName).containsExactly("sleep");
+        assertThat(StatementWalker.walk(parse("DELETE FROM t ORDER BY sleep(1) LIMIT 1")).functions())
+                .extracting(Function::getName).containsExactly("sleep");
+        assertThat(StatementWalker.walk(parse("SELECT id FROM t LIMIT 5 OFFSET 2")).functions()).isEmpty();
     }
 
     @Test

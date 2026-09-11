@@ -2815,7 +2815,7 @@ catalog in `sqlreview/internal/rules/SqlRuleCatalog`, #862), so `rule_id` is `VA
 enum. A catalog rule with **no** row in the resolved ruleset is still evaluated, at its built-in
 default severity; a row is only needed to change the severity (or turn the rule `OFF`) or to set
 params. A row naming a rule id the catalog does not know is ignored at evaluation time (logged)
-and rejected at write time by `SqlRuleParamsValidator`.
+and rejected at write time by `SqlRuleParamsValidator` (wired into ruleset create / update by #863).
 
 | Column | Type / Notes |
 |--------|-------------|
@@ -2842,7 +2842,7 @@ reader's locale.
 | `rule_id` | VARCHAR(100) NOT NULL |
 | `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
 | `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
-| `line_number` | INTEGER NULL — one-based line of the offending construct; NULL for every member of a `BEGIN…COMMIT` envelope (the evaluator re-parses deparsed slices there) and for constructs JSqlParser gives no position for |
+| `line_number` | INTEGER NULL — one-based line of the offending construct; NULL for every member of a `BEGIN…COMMIT` envelope (`SqlStatementParser` re-parses deparsed slices there) and for constructs JSqlParser gives no position for |
 | `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message` |
 | `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 

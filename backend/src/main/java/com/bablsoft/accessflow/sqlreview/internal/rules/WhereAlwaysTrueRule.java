@@ -22,6 +22,9 @@ public final class WhereAlwaysTrueRule implements SqlRule {
 
     public static final String ID = "where_always_true";
 
+    /** Longest predicate text stored in a finding's args; a long OR chain is elided beyond it. */
+    static final int PREDICATE_MAX_LENGTH = 200;
+
     @Override
     public String ruleId() {
         return ID;
@@ -58,7 +61,13 @@ public final class WhereAlwaysTrueRule implements SqlRule {
     private void check(SqlRuleContext context, Expression where, List<SqlReviewFinding> findings) {
         if (where != null && Tautologies.isAlwaysTrue(where)) {
             var anchor = where instanceof ASTNodeAccess node ? node : null;
-            findings.add(context.finding(this, anchor, Map.of("predicate", where.toString())));
+            findings.add(context.finding(this, anchor, Map.of("predicate", elide(where.toString()))));
         }
+    }
+
+    private static String elide(String predicate) {
+        return predicate.length() <= PREDICATE_MAX_LENGTH
+                ? predicate
+                : predicate.substring(0, PREDICATE_MAX_LENGTH - 1) + "…";
     }
 }

@@ -6,6 +6,7 @@ import net.sf.jsqlparser.statement.insert.Insert;
 import net.sf.jsqlparser.statement.update.Update;
 
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Statement classification for the rules (#862). {@link #isDdl} mirrors the package-prefix
@@ -40,8 +41,17 @@ final class StatementKinds {
         return statement instanceof Insert || statement instanceof Update || statement instanceof Delete;
     }
 
-    /** The upper-case JSqlParser class name — {@code DROP}, {@code CREATETABLE}, {@code ALTER}. */
+    /** The JSqlParser class name as SQL words — {@code DROP}, {@code CREATE TABLE}, {@code ALTER VIEW}. */
     static String typeName(Statement statement) {
-        return statement.getClass().getSimpleName().toUpperCase(java.util.Locale.ROOT);
+        var simple = statement.getClass().getSimpleName();
+        var words = new StringBuilder(simple.length() + 4);
+        for (int i = 0; i < simple.length(); i++) {
+            char c = simple.charAt(i);
+            if (i > 0 && Character.isUpperCase(c) && !Character.isUpperCase(simple.charAt(i - 1))) {
+                words.append(' ');
+            }
+            words.append(c);
+        }
+        return words.toString().toUpperCase(Locale.ROOT);
     }
 }

@@ -215,6 +215,25 @@ class DefaultSqlReviewServiceTest {
     }
 
     @Test
+    void undecodableParamsRowKeepsItsSeverityAndRunsWithoutParams() {
+        when(datasourceAdminService.getForAdmin(DATASOURCE, ORG)).thenReturn(datasource(DbType.POSTGRESQL, null));
+        var sql = "SELECT a FROM payroll.salaries WHERE sleep(1) IS NULL LIMIT 1";
+        when(sqlParserService.parse(sql)).thenReturn(new SqlParseResult(QueryType.SELECT, sql));
+        var fallback = ruleset(null, true);
+        when(rulesetRepository.findByOrganizationIdAndEnvironmentIsNull(ORG)).thenReturn(Optional.of(fallback));
+        when(ruleConfigRepository.findAllByRuleset_IdOrderByRuleIdAsc(fallback.getId())).thenReturn(List.of(
+                config(fallback, "disallowed_function", SqlReviewSeverity.WARN, "{not json"),
+                config(fallback, "protected_table", SqlReviewSeverity.BLOCK, "[\"payroll.*\"]")));
+
+        var result = service.evaluate(ORG, DATASOURCE, sql);
+
+        // disallowed_function falls back to its built-in names at the row's WARN; protected_table
+        // has no defaults, so without globs it is silent. Nothing throws.
+        assertThat(result.findings()).extracting(SqlReviewFinding::ruleId, SqlReviewFinding::severity)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("disallowed_function", SqlReviewSeverity.WARN));
+    }
+
+    @Test
     void envelopeStatementsAreEvaluatedIndividually() {
         when(datasourceAdminService.getForAdmin(DATASOURCE, ORG)).thenReturn(datasource(DbType.POSTGRESQL, null));
         var sql = "BEGIN; DELETE FROM a; DELETE FROM b WHERE id = 1; COMMIT;";

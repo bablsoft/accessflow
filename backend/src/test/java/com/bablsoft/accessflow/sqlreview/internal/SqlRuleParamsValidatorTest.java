@@ -42,7 +42,7 @@ class SqlRuleParamsValidatorTest {
                 config("select_star", Map.of()),
                 config("disallowed_function", Map.of()),
                 config("disallowed_function", Map.of("names", List.of("pg_sleep", "dbms_lock.sleep"))),
-                config("protected_table", Map.of("globs", List.of("payroll.*", "*.audit_log", "hr.$tmp"))))))
+                config("protected_table", Map.of("globs", List.of("payroll.*", "*.audit_log", "hr.$tmp", "my-table"))))))
                 .doesNotThrowAnyException();
     }
 
@@ -62,6 +62,15 @@ class SqlRuleParamsValidatorTest {
                 .isThrownBy(() -> validator.validate(List.of(config("protected_table",
                         Map.of("globs", List.of("a"), "extra", List.of("b"))))))
                 .withMessage("unexpected protected_table");
+    }
+
+    @Test
+    void anExplicitlyEmptyListIsRejectedEvenWhenTheParamHasDefaults() {
+        // Absent "names" falls back to the built-in list; an empty list would silently do the same,
+        // which is never what an admin who typed one meant (issue #862, step 6).
+        assertThatExceptionOfType(IllegalSqlReviewRulesetException.class)
+                .isThrownBy(() -> validator.validate(List.of(config("disallowed_function", Map.of("names", List.of())))))
+                .withMessage("list names of disallowed_function");
     }
 
     @Test

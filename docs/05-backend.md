@@ -1599,7 +1599,9 @@ required, defaults), `messageArgKeys()` (the finding `args` keys in the order th
 one bean that knows the fourteen, in catalog order. The expression-level rules share
 `StatementWalker`, a `TablesNamesFinder` subclass that records every `Function`, `LikeExpression`,
 `PlainSelect` and `Table` it traverses — select list, FROM/JOIN, WHERE, HAVING, UPDATE SET,
-INSERT…SELECT, every subquery. `TableNames.normalize` mirrors the proxy's `normalizeIdentifier`
+INSERT…SELECT, every subquery — and additionally descends into GROUP BY, ORDER BY, LIMIT and OFFSET
+expressions, which the finder skips because they cannot name tables (`ORDER BY pg_sleep(10)` must
+not hide a banned function). `TableNames.normalize` mirrors the proxy's `normalizeIdentifier`
 (quotes and brackets stripped, lower-cased), `StatementKinds.isDdl` mirrors its package-prefix DDL
 heuristic; `protected_table` matches through the shared `core.api.GlobMatcher` (which #862 also made
 the single glob matcher behind routing-policy, API-governance and deployment version globs).
@@ -1611,14 +1613,14 @@ the single glob matcher behind routing-policy, API-governance and deployment ver
 | `select_star` | a top-level select body (the statement, each set-operation branch, each CTE body) has a `*` or `t.*` select item. FROM/WHERE subqueries are not inspected — `EXISTS (SELECT * …)` is idiomatic | — | WARN | PERFORMANCE |
 | `missing_where_on_update` | `UPDATE` with no `WHERE` | `table` | BLOCK | STATEMENT_SAFETY |
 | `missing_where_on_delete` | `DELETE` with no `WHERE` | `table` | BLOCK | STATEMENT_SAFETY |
-| `where_always_true` | a `SELECT` / `UPDATE` / `DELETE` whose `WHERE` is a tautology — `TRUE`, a literal compared to itself (`1 = 1`, `'a' = 'a'`), a column compared to itself (`x = x`), parentheses unwrapped — or has one as a **top-level `OR` disjunct** (`id = 1 OR 1 = 1`). `AND`-ed tautologies are harmless and ignored. The rule that stops the two above being defeated | `predicate` | BLOCK | STATEMENT_SAFETY |
+| `where_always_true` | a `SELECT` / `UPDATE` / `DELETE` whose `WHERE` is a tautology — `TRUE`, `NOT FALSE`, a literal compared to itself (`1 = 1`, `'a' = 'a'`), a numeric-literal comparison that holds (`1 <> 0`, `2 > 1`), a column compared to itself (`x = x`), parentheses unwrapped — or has one as a **top-level `OR` disjunct** (`id = 1 OR 1 = 1`). `AND`-ed tautologies are harmless and ignored. The rule that stops the two above being defeated | `predicate` | BLOCK | STATEMENT_SAFETY |
 | `missing_limit_on_select` | a `SELECT` reading from a table with no `LIMIT` / `TOP` / `FETCH FIRST` (`LIMIT ALL` and a bare `OFFSET` do not count; a set operation's trailing clause may sit on its last branch and is checked there). A table-less `SELECT 1` is skipped | — | WARN | PERFORMANCE |
 | `order_by_without_limit` | `ORDER BY` with no row limit — on a `SELECT`, or the MySQL-style `UPDATE … ORDER BY` / `DELETE … ORDER BY` without `LIMIT` | — | WARN | PERFORMANCE |
-| `cross_join` | in any select body (subqueries included): an explicit `CROSS JOIN`; a `JOIN` with neither `ON` nor `USING` (not `NATURAL`, not `APPLY`); or a comma join whose `WHERE` contains no comparison between two columns that are not both qualified with the same table (unqualified columns get the benefit of the doubt) | `table` | WARN | PERFORMANCE |
+| `cross_join` | in any select body (subqueries included): an explicit `CROSS JOIN`; a `JOIN` with neither `ON` nor `USING` (not `NATURAL`, not `APPLY` — `CROSS APPLY` is a correlated lateral join, not a product); or a comma join that no column-to-column comparison in the `WHERE` correlates, judged **per join**: a pair correlates a join when the columns are not both qualified with the same table and one side names that join's table or alias (unqualified columns get the benefit of the doubt; `t, u, v WHERE t.id = u.id` still flags `v`; an arithmetic side such as `a.id = b.id + 1` is not recognised) | `table` | WARN | PERFORMANCE |
 | `leading_wildcard_like` | `LIKE` / `ILIKE` (negated or not) whose pattern literal starts with `%`, anywhere in the statement | `pattern` | WARN | PERFORMANCE |
 | `drop_statement` | `DROP TABLE` / `DROP SCHEMA` / `DROP DATABASE`, or `ALTER TABLE … DROP COLUMN` (one finding per column). `DROP INDEX` / `DROP VIEW` are left to `ddl_statement` | `object_type`, `name` | BLOCK | SCHEMA_CHANGE |
 | `truncate_statement` | `TRUNCATE` — one finding per table | `table` | BLOCK | SCHEMA_CHANGE |
-| `ddl_statement` | any CREATE / ALTER / DROP / TRUNCATE (the proxy's DDL definition). Broader than the two above; an admin who enables it turns those off | `statement_type` | WARN | SCHEMA_CHANGE |
+| `ddl_statement` | any CREATE / ALTER / DROP / TRUNCATE (the proxy's DDL definition; `statement_type` is the JSqlParser statement class as SQL words — `DROP`, `CREATE TABLE`, `ALTER VIEW`). Broader than the two above, and all three are on by default — a bare `DROP TABLE` yields a `drop_statement` BLOCK **and** a `ddl_statement` WARN until an admin who wants one signal per DDL keeps this and turns those two `OFF` | `statement_type` | WARN | SCHEMA_CHANGE |
 | `disallowed_function` | a call to a banned function anywhere in the statement, matched on the unqualified, case-insensitive name (`pg_catalog.PG_SLEEP(5)` is caught by `pg_sleep`). Param `names`; absent or empty falls back to the built-in `pg_sleep`, `sleep`, `benchmark`, `load_file` | `function` | BLOCK | STATEMENT_SAFETY |
 | `protected_table` | a referenced table matches a configured glob (`payroll.*`, `*.audit_log`), tried against the normalised `schema.table` name **and** the bare table name, so `audit_log` also matches `public.audit_log`; one finding per table with the first matching glob. Param `globs`; absent or empty → no findings | `table`, `glob` | BLOCK | DATA_PROTECTION |
 | `dml_without_transaction` | `INSERT` / `UPDATE` / `DELETE` submitted outside a `BEGIN…COMMIT` envelope (the parser's `transactional` flag) | — | WARN | STATEMENT_SAFETY |
@@ -1631,10 +1633,17 @@ proxy rejects it with 422 before any rule runs.
 `Map<String, List<String>>`, `SqlRuleParamsCodec` is the only encoder/decoder. `SqlRuleParamsValidator`
 (the `RoutingConditionValidator` shape: `MessageSource`, message resolved at the throw site, throws
 `sqlreview.api.IllegalSqlReviewRulesetException` → 422 in #863) rejects an unknown rule id, params on
-a parameterless rule or an undeclared key, a required list that is missing / empty / contains a blank
-entry (unless the param has built-in defaults, as `disallowed_function.names` does), a glob outside
-`[A-Za-z0-9_$*.]`, and a function name outside `[A-Za-z0-9_$.]` — so a malformed ruleset is refused
-when saved, never discovered during evaluation. #863 wires it into ruleset create / update.
+a parameterless rule or an undeclared key, a required list that is *absent* (unless the param has
+built-in defaults, as `disallowed_function.names` does), a supplied list that is empty or contains a
+blank entry (`{"names": []}` is refused rather than silently re-defaulted, defaults or not), and an
+entry outside the param's own `valuePattern` — `[A-Za-z0-9_$*.-]` for globs, `[A-Za-z0-9_$.-]` for
+function names (ASCII only — a non-ASCII quoted identifier cannot be protected yet) — carried on `SqlRuleParam` together with its `error.*` key, so the validator knows
+no rule by name and a fifteenth parameterised rule cannot slip past it unchecked. A malformed
+ruleset is thus refused when saved, never discovered during evaluation; #863 wires it into ruleset
+create / update. Rows written any other way are still degraded, not fatal: a config row whose stored
+`params` will not decode keeps its severity and runs with no params (logged at WARN), exactly as an
+unknown rule id is logged and skipped — `evaluate()` throws only for a missing datasource or
+unparseable SQL.
 
 **Messages are never stored in English.** A finding carries `rule_id` + `args`; the reader-locale
 text comes from three keys per rule in every `messages*.properties` —
@@ -1642,7 +1651,8 @@ text comes from three keys per rule in every `messages*.properties` —
 `MessagesParityTest`. `.message` uses positional `MessageFormat` placeholders bound in
 `messageArgKeys()` order (e.g. `protected_table` → `{0}` = `table`, `{1}` = `glob`); `.name` and
 `.description` take no args. Rendering per reader — query detail, reviewer queue, the editor's
-`Accept-Language` — is #864 / #865. The five `error.sql_review_rule_*` keys back the validator.
+`Accept-Language` — is #864 / #865. Six `error.sql_review_rule_*` keys back the validator (five) and
+`SqlRuleParamsCodec` (`error.sql_review_rule_params_invalid`, a malformed stored `params` JSONB).
 
 **Tests.** One `<Rule>Test` per rule (match, non-match, line number, args; the parameterised pair
 also cover configured / empty / absent params), the anti-defeat pair (`UPDATE … WHERE 1 = 1` is

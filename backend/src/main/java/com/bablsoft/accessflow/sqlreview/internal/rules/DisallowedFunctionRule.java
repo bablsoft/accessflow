@@ -8,9 +8,9 @@ import net.sf.jsqlparser.expression.Function;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * A call to a banned function anywhere in the statement. Param {@code names} — matched on the
@@ -25,7 +25,8 @@ public final class DisallowedFunctionRule implements SqlRule {
 
     public static final List<String> DEFAULT_NAMES = List.of("pg_sleep", "sleep", "benchmark", "load_file");
 
-    private static final SqlRuleParam NAMES = new SqlRuleParam(PARAM_NAMES, true, DEFAULT_NAMES);
+    private static final SqlRuleParam NAMES = new SqlRuleParam(PARAM_NAMES, true, DEFAULT_NAMES,
+            Pattern.compile("[A-Za-z0-9_$.\\-]+"), "error.sql_review_rule_function_invalid");
 
     @Override
     public String ruleId() {
@@ -80,6 +81,6 @@ public final class DisallowedFunctionRule implements SqlRule {
     private static String bareName(Function function) {
         var parts = function.getMultipartName();
         var raw = parts == null || parts.isEmpty() ? function.getName() : parts.get(parts.size() - 1);
-        return TableNames.normalize(raw == null ? "" : raw).toLowerCase(Locale.ROOT);
+        return TableNames.normalize(raw == null ? "" : raw);
     }
 }

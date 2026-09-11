@@ -85,6 +85,13 @@ migration only if a row-security *policy* can store it.
 `NotificationEventType` has the same shape and a wider surface — see
 [notification-fanout.md](notification-fanout.md).
 
+**`DbType` has two hand-copied "in-process relational" allow-lists** that a new value must be added
+to only if it is a JDBC dialect the host parses with JSqlParser (plugin engines are correctly
+absent, and both sites fail *safe* for an unlisted value — the erasure validator rejects, the SQL
+review returns `applicable:false`): `lifecycle/internal/ErasureConditionValidator.java:34` and
+`sqlreview/internal/DefaultSqlReviewService.java` (`RELATIONAL_DIALECTS`). Neither is a switch,
+so the compiler will not find them; grep `DbType.MARIADB, DbType.ORACLE`.
+
 This is the textbook job for the `parallel-agents` skill: the 9 engine appliers are disjoint files
 with no shared state. The files that **must not** be edited concurrently are the shared ones —
 `types/api.ts`, `enumLabels.ts`, the seven locale JSONs, `messages.properties`, and

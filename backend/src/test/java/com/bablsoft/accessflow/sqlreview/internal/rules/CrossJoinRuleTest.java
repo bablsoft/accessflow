@@ -37,6 +37,12 @@ class CrossJoinRuleTest {
         assertThat(apply(rule, "SELECT a FROM t, u WHERE t.id = 5")).hasSize(1);
         assertThat(apply(rule, "SELECT a FROM t, u WHERE t.id = t.parent_id")).hasSize(1);
         assertThat(apply(rule, "SELECT a FROM t, u, v WHERE t.id = 5")).hasSize(2);
+        // Correlation is judged per join: t–u are correlated, v is still a product.
+        var threeWay = apply(rule, "SELECT a FROM t, u, v WHERE t.id = u.id");
+        assertThat(threeWay).hasSize(1);
+        assertThat(threeWay.get(0).args()).isEqualTo(Map.of("table", "v"));
+        // Known limitation: an arithmetic side is not recognised as a correlation.
+        assertThat(apply(rule, "SELECT a FROM t, u WHERE t.id = u.id + 1")).hasSize(1);
     }
 
     @Test
@@ -53,6 +59,9 @@ class CrossJoinRuleTest {
         assertThat(apply(rule, "SELECT a FROM t, u WHERE id = uid")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t, u WHERE t.id = uid")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t OUTER APPLY fn(t.id) f")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM t CROSS APPLY fn(t.id) f")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM t t1, u WHERE u.id = t1.id")).isEmpty();
+        assertThat(apply(rule, "SELECT a FROM public.t, u WHERE public.t.id = u.id")).isEmpty();
         assertThat(apply(rule, "SELECT a FROM t")).isEmpty();
         assertThat(apply(rule, "DELETE FROM t")).isEmpty();
     }
@@ -66,9 +75,12 @@ class CrossJoinRuleTest {
     }
 
     @Test
-    void correlationHelperHandlesNullAndNonComparisons() {
-        assertThat(CrossJoinRule.hasColumnCorrelation(null)).isFalse();
-        assertThat(CrossJoinRule.hasColumnCorrelation(RuleTestSupportExpressions.expression("t.id = 5"))).isFalse();
-        assertThat(CrossJoinRule.hasColumnCorrelation(RuleTestSupportExpressions.expression("NOT t.id = u.id"))).isFalse();
+    void columnPairsHandleNullNonComparisonsAndNesting() {
+        assertThat(CrossJoinRule.columnPairs(null)).isEmpty();
+        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("t.id = 5"))).isEmpty();
+        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("NOT t.id = u.id"))).isEmpty();
+        assertThat(CrossJoinRule.columnPairs(RuleTestSupportExpressions.expression("(t.id = u.id OR a = b) AND t.x = t.y")))
+                .containsExactly(new CrossJoinRule.ColumnPair("t", "u"), new CrossJoinRule.ColumnPair(null, null),
+                        new CrossJoinRule.ColumnPair("t", "t"));
     }
 }
