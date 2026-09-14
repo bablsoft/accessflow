@@ -15,6 +15,14 @@ vi.mock('@/api/queries', () => ({
   dryRunQuery: vi.fn(),
 }));
 
+vi.mock('@/api/sqlReview', async () => {
+  const actual = await vi.importActual<typeof import('@/api/sqlReview')>('@/api/sqlReview');
+  return {
+    ...actual,
+    evaluateSqlReview: vi.fn().mockResolvedValue({ applicable: true, findings: [] }),
+  };
+});
+
 vi.mock('@/api/apiConnectors', () => ({
   listApiOperations: listApiOperationsMock,
   apiConnectorKeys: {

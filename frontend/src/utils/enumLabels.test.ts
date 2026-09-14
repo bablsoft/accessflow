@@ -38,6 +38,12 @@ import {
   reviewDecisionTypeLabel,
   roleLabel,
   submissionReasonLabel,
+  SQL_REVIEW_SEVERITIES,
+  sqlReviewSeverityLabel,
+  SQL_REVIEW_RULE_CATEGORIES,
+  sqlReviewRuleCategoryLabel,
+  DATASOURCE_ENVIRONMENTS,
+  datasourceEnvironmentLabel,
 } from './enumLabels';
 
 const t = ((key: string) => key) as unknown as TFunction;
@@ -267,5 +273,33 @@ describe('deployment governance labels (#696)', () => {
     expect(isoWeekdayLabel(realT, 7)).toBe('Sunday');
     expect(isoWeekdayLabel(realT, 0)).toBe('0');
     expect(isoWeekdayLabel(realT, 8)).toBe('8');
+  });
+});
+
+describe('SQL review labels (#865)', () => {
+  it('exposes every severity and maps it to its enum key', () => {
+    expect(SQL_REVIEW_SEVERITIES).toEqual(['OFF', 'WARN', 'BLOCK']);
+    for (const v of SQL_REVIEW_SEVERITIES) {
+      expect(sqlReviewSeverityLabel(t, v)).toBe(`enums.sql_review_severity.${v}`);
+    }
+  });
+
+  it('exposes every rule category and maps it to its enum key', () => {
+    expect(SQL_REVIEW_RULE_CATEGORIES).toEqual([
+      'STATEMENT_SAFETY',
+      'PERFORMANCE',
+      'SCHEMA_CHANGE',
+      'DATA_PROTECTION',
+    ]);
+    for (const v of SQL_REVIEW_RULE_CATEGORIES) {
+      expect(sqlReviewRuleCategoryLabel(t, v)).toBe(`enums.sql_review_rule_category.${v}`);
+    }
+  });
+
+  it('exposes every datasource environment and maps it to its enum key', () => {
+    expect(DATASOURCE_ENVIRONMENTS).toEqual(['DEVELOPMENT', 'TEST', 'STAGING', 'PRODUCTION']);
+    for (const v of DATASOURCE_ENVIRONMENTS) {
+      expect(datasourceEnvironmentLabel(t, v)).toBe(`enums.datasource_environment.${v}`);
+    }
   });
 });

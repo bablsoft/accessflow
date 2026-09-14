@@ -17,6 +17,12 @@ import { aiConfigKeys, listAiConfigs, setupProgressKeys } from '@/api/admin';
 import { listReviewPlans, reviewPlanKeys } from '@/api/reviewPlans';
 import { datasourceCreateErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, enumOptions, sslModeLabel } from '@/utils/enumLabels';
+import {
+  datasourceEnvironmentOptions,
+  toEnvironmentCreate,
+  toEnvironmentFormValue,
+  type DatasourceEnvironmentFormValue,
+} from '@/utils/datasourceEnvironment';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
 import { useSecretProviders } from '@/hooks/useSecretProviders';
 import { showApiError } from '@/utils/showApiError';
@@ -63,6 +69,7 @@ interface SettingsFormValues {
   connection_pool_size: number;
   max_rows_per_query: number;
   review_plan_id: string | null;
+  environment: DatasourceEnvironmentFormValue;
   require_review_reads: boolean;
   require_review_writes: boolean;
   ai_analysis_enabled: boolean;
@@ -307,6 +314,11 @@ export default function DatasourceCreateWizardPage() {
         ai_config_id:
           values.ai_analysis_enabled || values.text_to_sql_enabled ? values.ai_config_id : null,
       };
+      // A freshly created row has no environment yet, so "not set" needs no clear flag (#865).
+      const environment = toEnvironmentCreate(values.environment);
+      if (environment) {
+        input.environment = environment;
+      }
       if (!values.ai_analysis_enabled && !values.text_to_sql_enabled) {
         input.clear_ai_config = true;
       }
@@ -782,6 +794,7 @@ export default function DatasourceCreateWizardPage() {
             connection_pool_size: createdDatasource.connection_pool_size,
             max_rows_per_query: createdDatasource.max_rows_per_query,
             review_plan_id: createdDatasource.review_plan_id ?? null,
+            environment: toEnvironmentFormValue(createdDatasource.environment),
             require_review_reads: createdDatasource.require_review_reads,
             require_review_writes: createdDatasource.require_review_writes,
             ai_analysis_enabled: createdDatasource.ai_analysis_enabled,
@@ -833,7 +846,15 @@ export default function DatasourceCreateWizardPage() {
                 }))}
               />
             </Form.Item>
-            <div />
+            <Form.Item
+              label={t('datasources.create.label_environment')}
+              name="environment"
+              extra={t('datasources.create.environment_help')}
+            >
+              <Select
+                options={datasourceEnvironmentOptions(t, t('datasources.create.environment_not_set'))}
+              />
+            </Form.Item>
             <Form.Item
               label={t('datasources.create.label_require_writes')}
               name="require_review_writes"

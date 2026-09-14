@@ -6,15 +6,21 @@ import { useState, type ReactNode } from 'react';
 import type { Datasource } from '@/types/api';
 import '@/i18n';
 
-const { analyzeOnlyMock, dryRunQueryMock } = vi.hoisted(() => ({
+const { analyzeOnlyMock, dryRunQueryMock, evaluateSqlReviewMock } = vi.hoisted(() => ({
   analyzeOnlyMock: vi.fn(),
   dryRunQueryMock: vi.fn(),
+  evaluateSqlReviewMock: vi.fn(),
 }));
 
 vi.mock('@/api/queries', () => ({
   analyzeOnly: analyzeOnlyMock,
   dryRunQuery: dryRunQueryMock,
 }));
+
+vi.mock('@/api/sqlReview', async () => {
+  const actual = await vi.importActual<typeof import('@/api/sqlReview')>('@/api/sqlReview');
+  return { ...actual, evaluateSqlReview: evaluateSqlReviewMock };
+});
 
 vi.mock('@/api/querySuggestions', () => ({
   fetchQuerySuggestions: () => Promise.resolve([]),
@@ -37,10 +43,12 @@ vi.mock('@/components/editor/SqlEditor', () => ({
     value,
     onChange,
     syntax,
+    findings,
   }: {
     value: string;
     onChange: (next: string) => void;
     syntax?: string;
+    findings?: readonly { rule_id: string }[];
   }) => (
     <>
       <textarea
@@ -49,6 +57,7 @@ vi.mock('@/components/editor/SqlEditor', () => ({
         onChange={(e) => onChange(e.target.value)}
       />
       <span data-testid="editor-syntax">{syntax}</span>
+      <span data-testid="editor-findings">{(findings ?? []).map((f) => f.rule_id).join(',')}</span>
     </>
   ),
 }));
@@ -102,6 +111,30 @@ describe('QueryAuthoringPanel', () => {
   beforeEach(() => {
     analyzeOnlyMock.mockReset();
     dryRunQueryMock.mockReset();
+    evaluateSqlReviewMock.mockReset();
+    evaluateSqlReviewMock.mockResolvedValue({ applicable: true, findings: [] });
+  });
+
+  it('feeds live SQL review findings to the editor diagnostics and the strip (#865)', async () => {
+    evaluateSqlReviewMock.mockResolvedValue({
+      applicable: true,
+      findings: [
+        { rule_id: 'select_star', severity: 'BLOCK', statement_index: 0, line_number: 1, message: 'Star' },
+      ],
+    });
+    render(wrap(<Harness ds={pgDs} initialSql="select * from users" />));
+
+    // The strip fills in after the 400 ms typing pause plus the (mocked) round trip.
+    const count = await screen.findByTestId('sql-review-blocking-count', {}, { timeout: 3_000 });
+    expect(count).toHaveTextContent('1 blocking');
+    expect(within(screen.getByTestId('sql-review-strip')).getByText('Star')).toBeInTheDocument();
+    expect(screen.getByTestId('editor-findings')).toHaveTextContent('select_star');
+  });
+
+  it('never renders the strip for an engine the rule catalog does not cover', () => {
+    render(wrap(<Harness ds={mongoDs} initialSql="db.users.find()" />));
+    expect(screen.queryByTestId('sql-review-strip')).not.toBeInTheDocument();
+    expect(evaluateSqlReviewMock).not.toHaveBeenCalled();
   });
 
   it('renders the toolbar counters, footer slot, and Format for SQL engines', () => {

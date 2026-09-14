@@ -1192,3 +1192,39 @@ describe('QueryDetailPage — escalation banner (#622)', () => {
     expect(screen.queryByTestId('escalation-banner')).toBeNull();
   });
 });
+
+describe('QueryDetailPage — SQL review findings (#865)', () => {
+  beforeEach(() => {
+    getQueryMock.mockReset();
+    useAuthStore.setState({ user: null, accessToken: null });
+  });
+
+  it('renders the findings card with the escalation note when a BLOCK rule fired', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({
+      ...failedQuery(),
+      sql_review_findings: [
+        { rule_id: 'select_star', severity: 'BLOCK', statement_index: 0, line_number: 1, message: 'Star' },
+        { rule_id: 'missing_limit_on_select', severity: 'WARN', statement_index: 0, message: 'Limit' },
+      ],
+    });
+
+    render(wrap(<QueryDetailPage />));
+
+    const card = await screen.findByTestId('sql-review-findings-card');
+    expect(card).toHaveTextContent('1 blocking rule fired at submission');
+    expect(screen.getAllByTestId('sql-review-finding')).toHaveLength(2);
+    expect(card).toHaveTextContent('Star');
+    expect(card).toHaveTextContent('Statement 1');
+  });
+
+  it('omits the card entirely for a clean query', async () => {
+    setUser('REVIEWER');
+    getQueryMock.mockResolvedValue({ ...failedQuery(), sql_review_findings: [] });
+
+    render(wrap(<QueryDetailPage />));
+
+    await screen.findAllByText('AI analysis failed');
+    expect(screen.queryByTestId('sql-review-findings-card')).not.toBeInTheDocument();
+  });
+});

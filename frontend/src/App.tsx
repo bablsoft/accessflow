@@ -58,6 +58,7 @@ const OAuth2ConfigPage = lazy(() => import('@/pages/admin/OAuth2ConfigPage'));
 const SlackConfigPage = lazy(() => import('@/pages/admin/SlackConfigPage'));
 const LangfuseConfigPage = lazy(() => import('@/pages/admin/LangfuseConfigPage'));
 const HelpAgentConfigPage = lazy(() => import('@/pages/admin/HelpAgentConfigPage'));
+const SqlReviewRulesetsPage = lazy(() => import('@/pages/admin/SqlReviewRulesetsPage'));
 const GroupsListPage = lazy(() =>
   import('@/pages/admin/groups/GroupsListPage').then((m) => ({ default: m.GroupsListPage })),
 );
@@ -477,6 +478,16 @@ export function App() {
             element={
               <AuthGuard requirePermission={'ROUTING_POLICY_MANAGE'}>
                 <RoutingPoliciesPage />
+              </AuthGuard>
+            }
+          />
+          <Route
+            path="/admin/sql-review"
+            element={
+              <AuthGuard requirePermission={'SQL_REVIEW_MANAGE'}>
+                <Suspense fallback={null}>
+                  <SqlReviewRulesetsPage />
+                </Suspense>
               </AuthGuard>
             }
           />

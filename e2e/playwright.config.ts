@@ -46,6 +46,9 @@ const SERIAL_SPECS = [
   '**/profile-totp.spec.ts',
   // Leans on purge-the-whole-mailbox semantics for its resend lifecycle.
   '**/admin-users-invitations.spec.ts',
+  // Binds the org-singleton STAGING SQL review ruleset (one per environment per org, #865);
+  // a concurrent spec creating the same binding would 409.
+  '**/sql-review.spec.ts',
   // Creates a second organization (orgs are never hard-deleted, only
   // disabled), which flips singleOrganization() into "multi-org" and blanks
   // unauthenticated SSO-provider discovery (AF-456) for the rest of the

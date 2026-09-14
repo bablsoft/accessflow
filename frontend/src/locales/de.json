@@ -104,7 +104,8 @@
     "deploymentVersions": "Versionsmatrix",
     "deploymentPipelines": "Deployment-Pipelines",
     "help_agent": "Hilfe-Assistent",
-    "governance_domains": "Governance-Bereiche"
+    "governance_domains": "Governance-Bereiche",
+    "sql_review": "SQL-Prüfung"
   },
   "auth": {
     "session_expired": "Sitzung abgelaufen",
@@ -420,7 +421,12 @@
     "role_system_immutable": "Systemrollen sind integriert und können nicht geändert oder gelöscht werden.",
     "role_name_already_exists": "Eine Rolle mit diesem Namen existiert bereits.",
     "role_not_found": "Diese Rolle existiert nicht mehr.",
-    "roles_generic": "Rollenvorgang fehlgeschlagen. Bitte versuchen Sie es erneut."
+    "roles_generic": "Rollenvorgang fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "sql_review_ruleset_not_found": "SQL-Prüfregelsatz nicht gefunden.",
+    "sql_review_ruleset_environment_conflict": "Diesem Umfeld ist bereits ein anderer Regelsatz zugeordnet.",
+    "sql_review_ruleset_default_conflict": "Die Organisation hat bereits einen Standard-Regelsatz.",
+    "sql_review_ruleset_invalid": "Die Regelsatz-Konfiguration ist ungültig.",
+    "sql_review_ruleset_generic": "Der SQL-Prüfregelsatz konnte nicht gespeichert werden."
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "Vorschläge konnten nicht geladen werden.",
       "apply": "Als Entwurf übernehmen",
       "evidence": "{{times}}× genehmigt · Einreichende: {{people}}"
-    }
+    },
+    "sql_review_diagnostic_source": "SQL-Prüfung",
+    "ai_diagnostic_source": "KI-Analyse",
+    "sql_review_title": "Regelbefunde",
+    "sql_review_evaluating": "Wird geprüft…",
+    "sql_review_unparseable": "Noch nicht parsebar — die Regelprüfung läuft weiter, sobald das SQL vollständig ist.",
+    "sql_review_count_blocking_one": "{{count}} blockierend",
+    "sql_review_count_blocking_other": "{{count}} blockierend",
+    "sql_review_count_warning_one": "{{count}} Warnung",
+    "sql_review_count_warning_other": "{{count}} Warnungen",
+    "sql_review_line": "Z{{line}}",
+    "sql_review_statement": "Anweisung {{index}}",
+    "sql_review_blocking_note_one": "Ein blockierender Befund verhindert das Einreichen nicht — die Abfrage benötigt eine menschliche Freigabe.",
+    "sql_review_blocking_note_other": "Blockierende Befunde verhindern das Einreichen nicht — die Abfrage benötigt eine menschliche Freigabe.",
+    "submit_blocking_findings_tooltip_one": "{{count}} blockierender Regelbefund — diese Abfrage benötigt eine menschliche Freigabe.",
+    "submit_blocking_findings_tooltip_other": "{{count}} blockierende Regelbefunde — diese Abfrage benötigt eine menschliche Freigabe."
   },
   "dry_run_panel": {
     "title": "Ausführungsplan",
@@ -805,7 +826,10 @@
       "export_failed": "Ergebnisse konnten nicht exportiert werden",
       "export_truncated": "Der Export wurde am konfigurierten Zeilenlimit abgeschnitten",
       "export_denied_tooltip": "Der Export dieser Ergebnisse wird durch die Exportrichtlinie Ihrer Organisation verweigert",
-      "export_denied_classified_tooltip": "Export verweigert: dieses Ergebnis enthält Spalten mit der Klassifizierung {{classifications}}"
+      "export_denied_classified_tooltip": "Export verweigert: dieses Ergebnis enthält Spalten mit der Klassifizierung {{classifications}}",
+      "card_sql_review": "SQL-Prüfbefunde",
+      "sql_review_blocked_note_one": "{{count}} blockierende Regel hat beim Einreichen ausgelöst; die Abfrage konnte nicht automatisch freigegeben werden und ging in die manuelle Prüfung.",
+      "sql_review_blocked_note_other": "{{count}} blockierende Regeln haben beim Einreichen ausgelöst; die Abfrage konnte nicht automatisch freigegeben werden und ging in die manuelle Prüfung."
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "Delegiert",
     "delegated": "Delegiert",
-    "delegated_tooltip": "Sie können dies prüfen, weil eine Kollegin oder ein Kollege Ihnen die Prüfungspflicht delegiert hat."
+    "delegated_tooltip": "Sie können dies prüfen, weil eine Kollegin oder ein Kollege Ihnen die Prüfungspflicht delegiert hat.",
+    "sql_review_blocking_tag": "{{count}} Block",
+    "sql_review_blocking_tooltip_one": "{{count}} blockierender SQL-Prüfbefund — diese Abfrage konnte nicht automatisch freigegeben werden.",
+    "sql_review_blocking_tooltip_other": "{{count}} blockierende SQL-Prüfbefunde — diese Abfrage konnte nicht automatisch freigegeben werden."
   },
   "timeline": {
     "title": "Genehmigungs-Zeitleiste"
@@ -1022,7 +1049,10 @@
       "types_error_title": "Datenbanktypen konnten nicht geladen werden",
       "types_error_body": "Der /datasources/types-Endpoint hat nicht geantwortet. Lade die Seite neu oder prüfe die Backend-Logs.",
       "source_connector": "Konnektoren",
-      "source_connector_help": "Vorkonfigurierte Treiber, die aus dem Konnektorkatalog installiert werden."
+      "source_connector_help": "Vorkonfigurierte Treiber, die aus dem Konnektorkatalog installiert werden.",
+      "label_environment": "Umgebung",
+      "environment_not_set": "Nicht gesetzt (Standardregeln der Organisation)",
+      "environment_help": "Legt fest, welcher SQL-Prüfregelsatz für Abfragen an dieser Datenquelle gilt."
     },
     "secret_ref": {
       "help_intro": "Statt eines Klartextwerts kann auch eine externe Secret-Referenz eingegeben werden.",
@@ -1431,7 +1461,10 @@
         "applies_groups": "{{count}} Gruppen",
         "applies_users": "{{count}} Benutzer",
         "applies_everyone": "Alle"
-      }
+      },
+      "label_environment": "Umgebung",
+      "environment_not_set": "Nicht gesetzt (Standardregeln der Organisation)",
+      "environment_help": "Legt fest, welcher SQL-Prüfregelsatz für Abfragen an dieser Datenquelle gilt."
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "Speichern",
       "save_success": "Governance-Bereiche aktualisiert",
       "load_error": "Die Governance-Bereiche konnten nicht geladen werden"
+    },
+    "sql_review": {
+      "title": "SQL-Prüfregelsätze",
+      "subtitle": "Deterministische Regelschweregrade pro Umgebung. Eine blockierende Regel schickt die Abfrage an einen Menschen — sie lehnt nie ab.",
+      "add_button": "Regelsatz hinzufügen",
+      "load_error": "SQL-Prüfregelsätze konnten nicht geladen werden.",
+      "rules_load_error": "Der Regelkatalog konnte nicht geladen werden.",
+      "empty": "Noch keine Regelsätze. Abfragen laufen ohne deterministische Regelprüfung, bis ein Regelsatz einer Umgebung zugeordnet oder als Organisationsstandard gesetzt wird.",
+      "create_modal_title": "Regelsatz hinzufügen",
+      "edit_modal_title": "Regelsatz bearbeiten · {{name}}",
+      "save_create": "Regelsatz erstellen",
+      "save_update": "Änderungen speichern",
+      "create_success": "Regelsatz erstellt.",
+      "update_success": "Regelsatz aktualisiert.",
+      "delete_success": "Regelsatz gelöscht.",
+      "delete_confirm_title": "Regelsatz löschen?",
+      "delete_confirm_body": "„{{name}}“ löschen? Datenquellen in dieser Umgebung fallen auf den Organisationsstandard zurück — oder auf keine Regeln.",
+      "col_name": "Name",
+      "col_environment": "Umgebung",
+      "col_rules": "Regeln",
+      "col_enabled": "Aktiv",
+      "col_actions": "Aktionen",
+      "environment_org_default": "Organisationsstandard",
+      "rules_summary": "{{block}} blockieren · {{warn}} warnen · {{off}} aus",
+      "label_name": "Name",
+      "label_description": "Beschreibung",
+      "label_environment": "Umgebung",
+      "label_enabled": "Aktiv",
+      "environment_help": "Ein Regelsatz pro Umgebung; der Organisationsstandard gilt für Datenquellen ohne Umgebung.",
+      "enabled_help": "Ein deaktivierter, einer Umgebung zugeordneter Regelsatz prüft keine Regeln und fällt nicht auf den Standard zurück.",
+      "rules_heading": "Regeln",
+      "rules_hint": "Regeln auf ihrem eingebauten Standard werden nicht gespeichert; nur geänderte Schweregrade und Parameter.",
+      "rules_col_rule": "Regel",
+      "rules_col_category": "Kategorie",
+      "rules_col_severity": "Schweregrad",
+      "rules_col_params": "Parameter",
+      "severity_for_rule": "Schweregrad für {{name}}",
+      "default_severity": "Standard: {{severity}}",
+      "default_severity_hint": "Der Schweregrad, mit dem diese Regel läuft, wenn der Regelsatz ihn nicht ändert.",
+      "params_none": "—",
+      "param_for_rule": "{{key}} für {{name}}",
+      "param_placeholder": "{{key}} hinzufügen",
+      "param_placeholder_defaults": "Standard: {{values}}",
+      "param_required": "Mindestens ein Wert ist erforderlich, wenn diese Regel gespeichert wird.",
+      "param_invalid": "„{{value}}“ ist kein zulässiger Wert."
     }
   },
   "notifications": {
@@ -3175,6 +3253,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "Prüfung ausstehend",
       "REVIEWED": "Geprüft"
+    },
+    "sql_review_severity": {
+      "OFF": "Aus",
+      "WARN": "Warnen",
+      "BLOCK": "Blockieren"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "Anweisungssicherheit",
+      "PERFORMANCE": "Leistung",
+      "SCHEMA_CHANGE": "Schemaänderung",
+      "DATA_PROTECTION": "Datenschutz"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "Entwicklung",
+      "TEST": "Test",
+      "STAGING": "Staging",
+      "PRODUCTION": "Produktion"
     }
   },
   "access": {

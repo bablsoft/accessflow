@@ -7,6 +7,7 @@ import { formatSql } from '@/utils/sqlFormat';
 import { apiErrorMessage } from '@/utils/apiErrors';
 import { showApiError } from '@/utils/showApiError';
 import { activeSyntax, engineMode, syntaxForQuery, type EngineMode } from '@/utils/engineModes';
+import { useSqlReviewLint, type SqlReviewLintState } from '@/hooks/useSqlReviewLint';
 import type { AiAnalysis, Datasource, QueryDryRunResult, QueryTemplate } from '@/types/api';
 
 /** Which panel the editor's right rail is showing. */
@@ -56,6 +57,8 @@ export interface QueryAuthoring {
   dryRunStale: boolean;
   canDryRun: boolean;
   dryRun: () => void;
+  // live deterministic SQL review (#865) — debounced, read-only, never gates submission
+  sqlReview: SqlReviewLintState;
   // right rail
   rightPanel: RightPanel;
   setRightPanel: (panel: RightPanel) => void;
@@ -90,6 +93,7 @@ export function useQueryAuthoring({ ds, sql, onSqlChange }: UseQueryAuthoringArg
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<QueryTemplate | null>(null);
+  const sqlReview = useSqlReviewLint({ datasourceId: ds?.id, dbType: ds?.db_type, sql });
 
   const analyzeMutation = useMutation({
     mutationFn: (sqlToAnalyze: string) => analyzeOnly({ datasource_id: ds!.id, sql: sqlToAnalyze }),
@@ -160,6 +164,7 @@ export function useQueryAuthoring({ ds, sql, onSqlChange }: UseQueryAuthoringArg
     dryRunResult,
     dryRunStale,
     canDryRun,
+    sqlReview,
     dryRun: () => {
       setRightPanel('plan');
       dryRunMutation.mutate(sql.trim());

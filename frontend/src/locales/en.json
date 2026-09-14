@@ -104,7 +104,8 @@
     "deploymentVersions": "Version Matrix",
     "deploymentPipelines": "Deployment Pipelines",
     "help_agent": "Help assistant",
-    "governance_domains": "Governance domains"
+    "governance_domains": "Governance domains",
+    "sql_review": "SQL review"
   },
   "auth": {
     "session_expired": "Session expired",
@@ -420,7 +421,12 @@
     "role_system_immutable": "System roles are built in and cannot be modified or deleted.",
     "role_name_already_exists": "A role with this name already exists.",
     "role_not_found": "This role no longer exists.",
-    "roles_generic": "Role operation failed. Please try again."
+    "roles_generic": "Role operation failed. Please try again.",
+    "sql_review_ruleset_not_found": "SQL review ruleset not found.",
+    "sql_review_ruleset_environment_conflict": "Another ruleset is already bound to that environment.",
+    "sql_review_ruleset_default_conflict": "The organization already has a default ruleset.",
+    "sql_review_ruleset_invalid": "The ruleset configuration is invalid.",
+    "sql_review_ruleset_generic": "Could not save the SQL review ruleset."
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "Could not load suggestions.",
       "apply": "Apply as draft",
       "evidence": "Approved {{times}}× · submitters: {{people}}"
-    }
+    },
+    "sql_review_diagnostic_source": "SQL review",
+    "ai_diagnostic_source": "AI analysis",
+    "sql_review_title": "Rule findings",
+    "sql_review_evaluating": "Checking…",
+    "sql_review_unparseable": "Can't parse this yet — rule checks resume once the SQL is complete.",
+    "sql_review_count_blocking_one": "{{count}} blocking",
+    "sql_review_count_blocking_other": "{{count}} blocking",
+    "sql_review_count_warning_one": "{{count}} warning",
+    "sql_review_count_warning_other": "{{count}} warnings",
+    "sql_review_line": "L{{line}}",
+    "sql_review_statement": "Statement {{index}}",
+    "sql_review_blocking_note_one": "A blocking finding does not stop submission — the query will require human approval.",
+    "sql_review_blocking_note_other": "Blocking findings do not stop submission — the query will require human approval.",
+    "submit_blocking_findings_tooltip_one": "{{count}} blocking rule finding — this query will require human approval.",
+    "submit_blocking_findings_tooltip_other": "{{count}} blocking rule findings — this query will require human approval."
   },
   "dry_run_panel": {
     "title": "Execution plan",
@@ -805,7 +826,10 @@
       "export_failed": "Failed to export results",
       "export_truncated": "The export was truncated at the configured row cap",
       "export_denied_tooltip": "Exporting these results is denied by your organization's export policy",
-      "export_denied_classified_tooltip": "Export denied: this result contains columns classified as {{classifications}}"
+      "export_denied_classified_tooltip": "Export denied: this result contains columns classified as {{classifications}}",
+      "card_sql_review": "SQL review findings",
+      "sql_review_blocked_note_one": "{{count}} blocking rule fired at submission, so this query could not auto-approve and was sent to human review.",
+      "sql_review_blocked_note_other": "{{count}} blocking rules fired at submission, so this query could not auto-approve and was sent to human review."
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "Delegated",
     "delegated": "Delegated",
-    "delegated_tooltip": "You can review this because a colleague delegated their review duty to you."
+    "delegated_tooltip": "You can review this because a colleague delegated their review duty to you.",
+    "sql_review_blocking_tag": "{{count}} block",
+    "sql_review_blocking_tooltip_one": "{{count}} blocking SQL review finding — this query could not auto-approve.",
+    "sql_review_blocking_tooltip_other": "{{count}} blocking SQL review findings — this query could not auto-approve."
   },
   "timeline": {
     "title": "Approval timeline"
@@ -1022,7 +1049,10 @@
       "types_error_title": "Could not load database types",
       "types_error_body": "The /datasources/types endpoint did not respond. Refresh the page or check your backend logs.",
       "source_connector": "Connectors",
-      "source_connector_help": "Pre-packaged drivers installed from the connector catalog."
+      "source_connector_help": "Pre-packaged drivers installed from the connector catalog.",
+      "label_environment": "Environment",
+      "environment_not_set": "Not set (organization default rules)",
+      "environment_help": "Picks which SQL review ruleset applies to queries on this datasource."
     },
     "secret_ref": {
       "help_intro": "You can also enter an external secret reference instead of a raw value.",
@@ -1431,7 +1461,10 @@
         "applies_groups": "{{count}} groups",
         "applies_users": "{{count}} users",
         "applies_everyone": "Everyone"
-      }
+      },
+      "label_environment": "Environment",
+      "environment_not_set": "Not set (organization default rules)",
+      "environment_help": "Picks which SQL review ruleset applies to queries on this datasource."
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "Save",
       "save_success": "Governance domains updated",
       "load_error": "Could not load the governance domains"
+    },
+    "sql_review": {
+      "title": "SQL review rulesets",
+      "subtitle": "Deterministic rule severities per environment. A blocking rule sends the query to a human — it never rejects.",
+      "add_button": "Add ruleset",
+      "load_error": "Could not load SQL review rulesets.",
+      "rules_load_error": "Could not load the rule catalog.",
+      "empty": "No rulesets yet. Queries run without deterministic rule checks until a ruleset is bound to an environment or set as the organization default.",
+      "create_modal_title": "Add ruleset",
+      "edit_modal_title": "Edit ruleset · {{name}}",
+      "save_create": "Create ruleset",
+      "save_update": "Save changes",
+      "create_success": "Ruleset created.",
+      "update_success": "Ruleset updated.",
+      "delete_success": "Ruleset deleted.",
+      "delete_confirm_title": "Delete ruleset?",
+      "delete_confirm_body": "Delete \"{{name}}\"? Datasources in its environment fall back to the organization default, or to no rules at all.",
+      "col_name": "Name",
+      "col_environment": "Environment",
+      "col_rules": "Rules",
+      "col_enabled": "Enabled",
+      "col_actions": "Actions",
+      "environment_org_default": "Organization default",
+      "rules_summary": "{{block}} block · {{warn}} warn · {{off}} off",
+      "label_name": "Name",
+      "label_description": "Description",
+      "label_environment": "Environment",
+      "label_enabled": "Enabled",
+      "environment_help": "One ruleset per environment; the organization default applies to datasources with no environment set.",
+      "enabled_help": "A disabled ruleset bound to an environment evaluates no rules and does not fall back to the default.",
+      "rules_heading": "Rules",
+      "rules_hint": "Rules left at their built-in default are not stored; only changed severities and parameters are saved.",
+      "rules_col_rule": "Rule",
+      "rules_col_category": "Category",
+      "rules_col_severity": "Severity",
+      "rules_col_params": "Parameters",
+      "severity_for_rule": "Severity for {{name}}",
+      "default_severity": "Default: {{severity}}",
+      "default_severity_hint": "The severity this rule runs at when the ruleset does not change it.",
+      "params_none": "—",
+      "param_for_rule": "{{key}} for {{name}}",
+      "param_placeholder": "Add {{key}}",
+      "param_placeholder_defaults": "Default: {{values}}",
+      "param_required": "At least one value is required when this rule is stored.",
+      "param_invalid": "\"{{value}}\" is not an allowed value."
     }
   },
   "notifications": {
@@ -3199,6 +3277,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "Pending review",
       "REVIEWED": "Reviewed"
+    },
+    "sql_review_severity": {
+      "OFF": "Off",
+      "WARN": "Warn",
+      "BLOCK": "Block"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "Statement safety",
+      "PERFORMANCE": "Performance",
+      "SCHEMA_CHANGE": "Schema change",
+      "DATA_PROTECTION": "Data protection"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "Development",
+      "TEST": "Test",
+      "STAGING": "Staging",
+      "PRODUCTION": "Production"
     }
   },
   "access": {

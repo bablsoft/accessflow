@@ -104,7 +104,8 @@
     "deploymentVersions": "Matriz de versiones",
     "deploymentPipelines": "Pipelines de despliegue",
     "help_agent": "Asistente de ayuda",
-    "governance_domains": "Dominios de gobernanza"
+    "governance_domains": "Dominios de gobernanza",
+    "sql_review": "Revisión SQL"
   },
   "auth": {
     "session_expired": "Sesión caducada",
@@ -420,7 +421,12 @@
     "role_system_immutable": "Los roles del sistema están integrados y no se pueden modificar ni eliminar.",
     "role_name_already_exists": "Ya existe un rol con este nombre.",
     "role_not_found": "Este rol ya no existe.",
-    "roles_generic": "La operación del rol falló. Inténtelo de nuevo."
+    "roles_generic": "La operación del rol falló. Inténtelo de nuevo.",
+    "sql_review_ruleset_not_found": "Conjunto de reglas de revisión SQL no encontrado.",
+    "sql_review_ruleset_environment_conflict": "Otro conjunto de reglas ya está vinculado a ese entorno.",
+    "sql_review_ruleset_default_conflict": "La organización ya tiene un conjunto de reglas predeterminado.",
+    "sql_review_ruleset_invalid": "La configuración del conjunto de reglas no es válida.",
+    "sql_review_ruleset_generic": "No se pudo guardar el conjunto de reglas de revisión SQL."
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "No se pudieron cargar las sugerencias.",
       "apply": "Aplicar como borrador",
       "evidence": "Aprobada {{times}}× · autores: {{people}}"
-    }
+    },
+    "sql_review_diagnostic_source": "Revisión SQL",
+    "ai_diagnostic_source": "Análisis de IA",
+    "sql_review_title": "Hallazgos de reglas",
+    "sql_review_evaluating": "Comprobando…",
+    "sql_review_unparseable": "Aún no se puede analizar — las comprobaciones de reglas continúan cuando el SQL esté completo.",
+    "sql_review_count_blocking_one": "{{count}} bloqueante",
+    "sql_review_count_blocking_other": "{{count}} bloqueantes",
+    "sql_review_count_warning_one": "{{count}} advertencia",
+    "sql_review_count_warning_other": "{{count}} advertencias",
+    "sql_review_line": "L{{line}}",
+    "sql_review_statement": "Sentencia {{index}}",
+    "sql_review_blocking_note_one": "Un hallazgo bloqueante no impide el envío — la consulta requerirá aprobación humana.",
+    "sql_review_blocking_note_other": "Los hallazgos bloqueantes no impiden el envío — la consulta requerirá aprobación humana.",
+    "submit_blocking_findings_tooltip_one": "{{count}} hallazgo de regla bloqueante — esta consulta requerirá aprobación humana.",
+    "submit_blocking_findings_tooltip_other": "{{count}} hallazgos de regla bloqueantes — esta consulta requerirá aprobación humana."
   },
   "dry_run_panel": {
     "title": "Plan de ejecución",
@@ -805,7 +826,10 @@
       "export_failed": "No se pudieron exportar los resultados",
       "export_truncated": "La exportación se truncó en el límite de filas configurado",
       "export_denied_tooltip": "La política de exportación de tu organización deniega exportar estos resultados",
-      "export_denied_classified_tooltip": "Exportación denegada: este resultado contiene columnas clasificadas como {{classifications}}"
+      "export_denied_classified_tooltip": "Exportación denegada: este resultado contiene columnas clasificadas como {{classifications}}",
+      "card_sql_review": "Hallazgos de revisión SQL",
+      "sql_review_blocked_note_one": "{{count}} regla bloqueante se activó al enviar, por lo que la consulta no pudo aprobarse automáticamente y pasó a revisión humana.",
+      "sql_review_blocked_note_other": "{{count}} reglas bloqueantes se activaron al enviar, por lo que la consulta no pudo aprobarse automáticamente y pasó a revisión humana."
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "Delegado",
     "delegated": "Delegado",
-    "delegated_tooltip": "Puedes revisarlo porque un compañero te delegó su deber de revisión."
+    "delegated_tooltip": "Puedes revisarlo porque un compañero te delegó su deber de revisión.",
+    "sql_review_blocking_tag": "{{count}} bloq.",
+    "sql_review_blocking_tooltip_one": "{{count}} hallazgo bloqueante de revisión SQL — esta consulta no pudo aprobarse automáticamente.",
+    "sql_review_blocking_tooltip_other": "{{count}} hallazgos bloqueantes de revisión SQL — esta consulta no pudo aprobarse automáticamente."
   },
   "timeline": {
     "title": "Cronología de aprobación"
@@ -1022,7 +1049,10 @@
       "types_error_title": "No se pudieron cargar los tipos de base de datos",
       "types_error_body": "El endpoint /datasources/types no respondió. Recarga la página o revisa los registros del backend.",
       "source_connector": "Conectores",
-      "source_connector_help": "Controladores preconfigurados instalados desde el catálogo de conectores."
+      "source_connector_help": "Controladores preconfigurados instalados desde el catálogo de conectores.",
+      "label_environment": "Entorno",
+      "environment_not_set": "Sin definir (reglas predeterminadas de la organización)",
+      "environment_help": "Determina qué conjunto de reglas de revisión SQL se aplica a las consultas de esta fuente de datos."
     },
     "secret_ref": {
       "help_intro": "También puede introducir una referencia de secreto externa en lugar de un valor directo.",
@@ -1431,7 +1461,10 @@
         "applies_groups": "{{count}} grupos",
         "applies_users": "{{count}} usuarios",
         "applies_everyone": "Todos"
-      }
+      },
+      "label_environment": "Entorno",
+      "environment_not_set": "Sin definir (reglas predeterminadas de la organización)",
+      "environment_help": "Determina qué conjunto de reglas de revisión SQL se aplica a las consultas de esta fuente de datos."
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "Guardar",
       "save_success": "Dominios de gobernanza actualizados",
       "load_error": "No se pudieron cargar los dominios de gobernanza"
+    },
+    "sql_review": {
+      "title": "Conjuntos de reglas de revisión SQL",
+      "subtitle": "Severidades de reglas deterministas por entorno. Una regla bloqueante envía la consulta a una persona — nunca la rechaza.",
+      "add_button": "Añadir conjunto de reglas",
+      "load_error": "No se pudieron cargar los conjuntos de reglas de revisión SQL.",
+      "rules_load_error": "No se pudo cargar el catálogo de reglas.",
+      "empty": "Aún no hay conjuntos de reglas. Las consultas se ejecutan sin comprobaciones de reglas deterministas hasta que un conjunto se vincule a un entorno o se establezca como predeterminado de la organización.",
+      "create_modal_title": "Añadir conjunto de reglas",
+      "edit_modal_title": "Editar conjunto de reglas · {{name}}",
+      "save_create": "Crear conjunto de reglas",
+      "save_update": "Guardar cambios",
+      "create_success": "Conjunto de reglas creado.",
+      "update_success": "Conjunto de reglas actualizado.",
+      "delete_success": "Conjunto de reglas eliminado.",
+      "delete_confirm_title": "¿Eliminar el conjunto de reglas?",
+      "delete_confirm_body": "¿Eliminar \"{{name}}\"? Las fuentes de datos de su entorno pasarán al predeterminado de la organización, o a ninguna regla.",
+      "col_name": "Nombre",
+      "col_environment": "Entorno",
+      "col_rules": "Reglas",
+      "col_enabled": "Activado",
+      "col_actions": "Acciones",
+      "environment_org_default": "Predeterminado de la organización",
+      "rules_summary": "{{block}} bloquear · {{warn}} advertir · {{off}} desactivadas",
+      "label_name": "Nombre",
+      "label_description": "Descripción",
+      "label_environment": "Entorno",
+      "label_enabled": "Activado",
+      "environment_help": "Un conjunto de reglas por entorno; el predeterminado de la organización se aplica a las fuentes de datos sin entorno.",
+      "enabled_help": "Un conjunto desactivado vinculado a un entorno no evalúa reglas y no recurre al predeterminado.",
+      "rules_heading": "Reglas",
+      "rules_hint": "Las reglas que se dejan en su valor predeterminado no se almacenan; solo se guardan las severidades y parámetros cambiados.",
+      "rules_col_rule": "Regla",
+      "rules_col_category": "Categoría",
+      "rules_col_severity": "Severidad",
+      "rules_col_params": "Parámetros",
+      "severity_for_rule": "Severidad de {{name}}",
+      "default_severity": "Predeterminado: {{severity}}",
+      "default_severity_hint": "La severidad con la que se ejecuta esta regla cuando el conjunto no la cambia.",
+      "params_none": "—",
+      "param_for_rule": "{{key}} de {{name}}",
+      "param_placeholder": "Añadir {{key}}",
+      "param_placeholder_defaults": "Predeterminado: {{values}}",
+      "param_required": "Se requiere al menos un valor cuando se almacena esta regla.",
+      "param_invalid": "\"{{value}}\" no es un valor permitido."
     }
   },
   "notifications": {
@@ -3175,6 +3253,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "Pendiente de revisión",
       "REVIEWED": "Revisado"
+    },
+    "sql_review_severity": {
+      "OFF": "Desactivada",
+      "WARN": "Advertir",
+      "BLOCK": "Bloquear"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "Seguridad de la sentencia",
+      "PERFORMANCE": "Rendimiento",
+      "SCHEMA_CHANGE": "Cambio de esquema",
+      "DATA_PROTECTION": "Protección de datos"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "Desarrollo",
+      "TEST": "Pruebas",
+      "STAGING": "Preproducción",
+      "PRODUCTION": "Producción"
     }
   },
   "access": {

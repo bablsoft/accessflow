@@ -145,6 +145,7 @@ export function QueryEditorPage() {
 
   const sqlNonEmpty = sql.trim().length > 0;
   const submitGatedByAnalysis = authoring.aiSupported && !authoring.hasFreshAnalysis;
+  const blockingFindings = authoring.sqlReview.blockingCount;
   const scheduleInPast = !!scheduledFor && !scheduledFor.isAfter(dayjs());
   // #627: a recurring submission needs a rule and a future end time; mirror the backend rules.
   const recurring = recurrenceMode !== 'none';
@@ -212,7 +213,10 @@ export function QueryEditorPage() {
               title={
                 submitGatedByAnalysis && sqlNonEmpty
                   ? t('editor.submit_disabled_needs_analysis_tooltip')
-                  : ''
+                  : // A BLOCK finding never disables Submit — it escalates to a human (#865).
+                    blockingFindings > 0
+                    ? t('editor.submit_blocking_findings_tooltip', { count: blockingFindings })
+                    : ''
               }
             >
               <Button

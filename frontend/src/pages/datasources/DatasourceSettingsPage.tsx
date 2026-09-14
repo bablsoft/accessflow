@@ -41,6 +41,12 @@ import { fmtDate, fmtNum, timeAgo } from '@/utils/dateFormat';
 import { formatDurationCompact, remainingTtlMs } from '@/utils/accessTtl';
 import { apiErrorMessage, datasourceGrantErrorMessage } from '@/utils/apiErrors';
 import { aiProviderLabel, dbTypeLabel } from '@/utils/enumLabels';
+import {
+  datasourceEnvironmentOptions,
+  toEnvironmentFormValue,
+  toEnvironmentUpdate,
+  type DatasourceEnvironmentFormValue,
+} from '@/utils/datasourceEnvironment';
 import { showApiError } from '@/utils/showApiError';
 import { secretReferenceHelp, secretReferenceRule } from '@/utils/secretReference';
 import { SEARCH_ENGINES } from '@/utils/dbTypeGroups';
@@ -319,8 +325,9 @@ interface ReplicaFormRow {
   password?: string;
 }
 
-type SettingsFormValues = Omit<UpdateDatasourceInput, 'read_replicas'> & {
+type SettingsFormValues = Omit<UpdateDatasourceInput, 'read_replicas' | 'environment'> & {
   read_replicas: ReplicaFormRow[];
+  environment: DatasourceEnvironmentFormValue;
 };
 
 function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
@@ -384,6 +391,7 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
     })),
     result_cache_enabled: ds.result_cache_enabled,
     result_cache_ttl_seconds: ds.result_cache_ttl_seconds ?? undefined,
+    environment: toEnvironmentFormValue(ds.environment),
     active: ds.active,
   };
 
@@ -449,8 +457,9 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
   });
 
   const onFinish = (values: SettingsFormValues) => {
-    const { read_replicas: replicaRows, ...rest } = values;
-    const body: UpdateDatasourceInput = { ...rest };
+    const { read_replicas: replicaRows, environment, ...rest } = values;
+    // "Not set" must clear explicitly: a null environment means "unchanged" to the API (#861).
+    const body: UpdateDatasourceInput = { ...rest, ...toEnvironmentUpdate(environment) };
     if (!body.password || body.password.trim().length === 0) {
       delete body.password;
     }
@@ -752,7 +761,19 @@ function ConfigTab({ ds, onDelete, deletePending }: ConfigTabProps) {
                 }))}
               />
             </Form.Item>
-            <div />
+            {/* Optional; no backend Bean Validation on the enum, so no client rule either (#865). */}
+            <Form.Item
+              label={t('datasources.settings.label_environment')}
+              name="environment"
+              extra={t('datasources.settings.environment_help')}
+            >
+              <Select
+                options={datasourceEnvironmentOptions(
+                  t,
+                  t('datasources.settings.environment_not_set'),
+                )}
+              />
+            </Form.Item>
             <Form.Item
               label={t('datasources.settings.label_require_writes')}
               name="require_review_writes"

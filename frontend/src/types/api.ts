@@ -959,6 +959,11 @@ export interface PendingReviewItem {
    * reviewer is eligible in their own right — even if a delegation would also have covered it.
    */
   delegated_for?: { id: string } | null;
+  /**
+   * How many SQL review findings fired at BLOCK for this row (#864) — why it could not
+   * auto-approve. Always present on the wire; optional so fixtures stay valid.
+   */
+  sql_review_blocking_count?: number;
   current_stage: number;
   created_at: string;
 }
@@ -1330,6 +1335,11 @@ export interface QueryDetail {
   ai_analysis: AiAnalysisDetail | null;
   cost_estimate: CostEstimateDetail | null;
   approval_prediction?: ApprovalPredictionDetail | null;
+  /**
+   * Deterministic SQL review findings recorded at submission (#864). Always present on the wire
+   * (an empty array when clean or not applicable); optional here so hand-built fixtures stay valid.
+   */
+  sql_review_findings?: SqlReviewFinding[];
   rows_affected: number | null;
   duration_ms: number | null;
   error_message: string | null;
@@ -1456,6 +1466,98 @@ export interface RoutingPolicyWriteRequest {
   action: RoutingAction;
   required_approvals?: number | null;
   reason?: string | null;
+}
+
+/* ---- Deterministic SQL review (#865, epic #860) ----------------------------------------------
+ * Rule severities: OFF is never evaluated, WARN is reported only, BLOCK is reported and suppresses
+ * every auto-approve path — it never rejects. Findings carry a `line_number` only when JSqlParser
+ * gives the construct a position (absent for BEGIN … COMMIT envelope members). Messages arrive
+ * localized from the backend; the client never formats a rule message itself.
+ * -------------------------------------------------------------------------------------------- */
+
+export type SqlReviewSeverity = 'OFF' | 'WARN' | 'BLOCK';
+/** A recorded finding is never OFF — OFF rules are not evaluated. */
+export type SqlReviewFindingSeverity = Exclude<SqlReviewSeverity, 'OFF'>;
+export type SqlReviewRuleCategory =
+  | 'STATEMENT_SAFETY'
+  | 'PERFORMANCE'
+  | 'SCHEMA_CHANGE'
+  | 'DATA_PROTECTION';
+
+export interface SqlReviewFinding {
+  rule_id: string;
+  severity: SqlReviewFindingSeverity;
+  /** Zero-based statement inside a BEGIN … COMMIT envelope; 0 for a single statement. */
+  statement_index: number;
+  /** One-based line of the offending construct; absent when the parser gives no position. */
+  line_number?: number;
+  message: string;
+}
+
+/** `POST /sql-review/evaluate` — `applicable` is false for engines the rule catalog does not cover. */
+export interface SqlReviewEvaluation {
+  applicable: boolean;
+  findings: SqlReviewFinding[];
+}
+
+export interface SqlReviewEvaluateInput {
+  datasource_id: string;
+  sql: string;
+}
+
+export interface SqlReviewRuleParam {
+  key: string;
+  required: boolean;
+  defaults: string[];
+  /** Whole-string regular expression every entry must match. */
+  value_pattern: string;
+}
+
+/** One built-in rule from `GET /sql-review/rules`; `name` / `description` arrive localized. */
+export interface SqlReviewRule {
+  rule_id: string;
+  category: SqlReviewRuleCategory;
+  default_severity: SqlReviewSeverity;
+  name: string;
+  description: string;
+  params: SqlReviewRuleParam[];
+}
+
+export interface SqlReviewRuleConfig {
+  rule_id: string;
+  severity: SqlReviewSeverity;
+  /** Object of string arrays keyed by the rule's declared param keys; `{}` when none. */
+  params: Record<string, string[]>;
+}
+
+export interface SqlReviewRuleset {
+  id: string;
+  organization_id: string;
+  name: string;
+  /** Absent (not null) when unset. */
+  description?: string;
+  /** Absent (not null) on the organization-wide default ruleset. */
+  environment?: DatasourceEnvironment;
+  enabled: boolean;
+  /** Only the explicitly configured rules, ordered by rule_id; unlisted rules run at their default. */
+  rules: SqlReviewRuleConfig[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SqlReviewRuleConfigWriteRequest {
+  rule_id: string;
+  severity: SqlReviewSeverity;
+  params?: Record<string, string[]>;
+}
+
+/** POST / PUT body — PUT is a full replace: an omitted `environment` makes the org-wide default. */
+export interface SqlReviewRulesetWriteRequest {
+  name: string;
+  description?: string;
+  environment?: DatasourceEnvironment;
+  enabled: boolean;
+  rules: SqlReviewRuleConfigWriteRequest[];
 }
 
 /* ---- Policy simulator (AF-630) ---------------------------------------------------------------
@@ -2517,6 +2619,8 @@ export interface BreakGlassEvent {
   reviewed_by_display_name: string | null;
   review_comment: string | null;
   reviewed_at: string | null;
+  /** SQL review findings recorded for the emergency query (#864); empty for non-query targets. */
+  sql_review_findings?: SqlReviewFinding[];
   created_at: string;
 }
 
@@ -3671,6 +3775,8 @@ export interface RequestGroupItem {
   ai_risk_score: number | null;
   /** Full embedded analysis — present on the group detail response only (AF-531). */
   ai_analysis: AiAnalysisDetail | null;
+  /** SQL review findings recorded for a QUERY member at group submission (#864). */
+  sql_review_findings?: SqlReviewFinding[];
   status: RequestGroupItemStatus;
   response_status_code: number | null;
   rows_affected: number | null;
