@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { EmptyState } from '@/components/common/EmptyState';
 import { QueryTypePill } from '@/components/common/QueryTypePill';
 import { RiskPill } from '@/components/common/RiskPill';
+import { Pill } from '@/components/common/Pill';
 import { Avatar } from '@/components/common/Avatar';
 import { ApprovalPredictionBadge } from '@/components/review/ApprovalPredictionBadge';
 import { RejectModal } from '@/components/review/RejectModal';
@@ -24,6 +25,7 @@ import {
   type PendingReviewsFilters,
 } from '@/api/reviews';
 import { reviewErrorMessage } from '@/utils/apiErrors';
+import { sqlReviewSeverityColor } from '@/utils/riskColors';
 import { showApiError } from '@/utils/showApiError';
 import type {
   BulkReviewRowStatus,
@@ -159,7 +161,30 @@ export function QueryReviewsTab() {
         width: 120,
         render: (_: unknown, item: PendingReviewItem) => {
           const ai = item.ai_analysis;
-          return ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—';
+          const blocking = item.sql_review_blocking_count ?? 0;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {ai ? <RiskPill level={ai.risk_level} score={ai.risk_score} size="sm" /> : '—'}
+              {/* #865: a BLOCK rule fired — the reason this row could not auto-approve. */}
+              {blocking > 0 && (
+                <Tooltip title={t('reviews.sql_review_blocking_tooltip', { count: blocking })}>
+                  <span>
+                    <Pill
+                      fg={sqlReviewSeverityColor('BLOCK').fg}
+                      bg={sqlReviewSeverityColor('BLOCK').bg}
+                      border={sqlReviewSeverityColor('BLOCK').border}
+                      size="sm"
+                      style={{ cursor: 'default' }}
+                    >
+                      <span data-testid="sql-review-blocking">
+                        {t('reviews.sql_review_blocking_tag', { count: blocking })}
+                      </span>
+                    </Pill>
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          );
         },
       },
       {

@@ -288,6 +288,25 @@ describe('QueryReviewsTab — reject modal flow (AF-269)', () => {
     ).toBeInTheDocument();
   });
 
+  it('flags a row whose BLOCK rule findings stopped auto-approval (#865)', async () => {
+    const page = pendingPage();
+    page.content[0]!.sql_review_blocking_count = 2;
+    listPendingReviewsMock.mockResolvedValue(page);
+
+    render(wrap(<QueryReviewsTab />));
+
+    expect(await screen.findByTestId('sql-review-blocking')).toHaveTextContent('2 block');
+  });
+
+  it('shows no blocking tag when no rule blocked the row (#865)', async () => {
+    listPendingReviewsMock.mockResolvedValue(pendingPage());
+
+    render(wrap(<QueryReviewsTab />));
+
+    await screen.findByRole('columnheader', { name: 'Approval likelihood' });
+    expect(screen.queryByTestId('sql-review-blocking')).toBeNull();
+  });
+
   it('renders a dash in the approval-likelihood column for an unscored row (AF-645)', async () => {
     listPendingReviewsMock.mockResolvedValue(pendingPage());
 

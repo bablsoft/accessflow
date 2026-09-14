@@ -1,4 +1,4 @@
-import type { RiskLevel } from '@/types/api';
+import type { RiskLevel, SqlReviewFindingSeverity } from '@/types/api';
 
 export interface ColorTriple {
   fg: string;
@@ -18,3 +18,7 @@ export const riskColor = (level: RiskLevel): ColorTriple => {
       return { fg: 'var(--risk-crit)', bg: 'var(--risk-crit-bg)', border: 'var(--risk-crit-border)' };
   }
 };
+
+/** SQL review findings (#865): BLOCK forces a human and reads as high risk, WARN as medium. */
+export const sqlReviewSeverityColor = (severity: SqlReviewFindingSeverity): ColorTriple =>
+  riskColor(severity === 'BLOCK' ? 'HIGH' : 'MEDIUM');

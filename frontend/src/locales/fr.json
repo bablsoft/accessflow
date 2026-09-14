@@ -104,7 +104,8 @@
     "deploymentVersions": "Matrice des versions",
     "deploymentPipelines": "Pipelines de déploiement",
     "help_agent": "Assistant d’aide",
-    "governance_domains": "Domaines de gouvernance"
+    "governance_domains": "Domaines de gouvernance",
+    "sql_review": "Revue SQL"
   },
   "auth": {
     "session_expired": "Session expirée",
@@ -420,7 +421,12 @@
     "role_system_immutable": "Les rôles système sont intégrés et ne peuvent pas être modifiés ni supprimés.",
     "role_name_already_exists": "Un rôle portant ce nom existe déjà.",
     "role_not_found": "Ce rôle n'existe plus.",
-    "roles_generic": "L'opération sur le rôle a échoué. Veuillez réessayer."
+    "roles_generic": "L'opération sur le rôle a échoué. Veuillez réessayer.",
+    "sql_review_ruleset_not_found": "Jeu de règles de revue SQL introuvable.",
+    "sql_review_ruleset_environment_conflict": "Un autre jeu de règles est déjà lié à cet environnement.",
+    "sql_review_ruleset_default_conflict": "L'organisation a déjà un jeu de règles par défaut.",
+    "sql_review_ruleset_invalid": "La configuration du jeu de règles est invalide.",
+    "sql_review_ruleset_generic": "Impossible d'enregistrer le jeu de règles de revue SQL."
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "Impossible de charger les suggestions.",
       "apply": "Appliquer comme brouillon",
       "evidence": "Approuvée {{times}}× · auteurs : {{people}}"
-    }
+    },
+    "sql_review_diagnostic_source": "Revue SQL",
+    "ai_diagnostic_source": "Analyse IA",
+    "sql_review_title": "Constats de règles",
+    "sql_review_evaluating": "Vérification…",
+    "sql_review_unparseable": "Impossible d'analyser pour l'instant — les vérifications reprennent une fois le SQL complet.",
+    "sql_review_count_blocking_one": "{{count}} bloquant",
+    "sql_review_count_blocking_other": "{{count}} bloquants",
+    "sql_review_count_warning_one": "{{count}} avertissement",
+    "sql_review_count_warning_other": "{{count}} avertissements",
+    "sql_review_line": "L{{line}}",
+    "sql_review_statement": "Instruction {{index}}",
+    "sql_review_blocking_note_one": "Un constat bloquant n'empêche pas la soumission — la requête nécessitera une approbation humaine.",
+    "sql_review_blocking_note_other": "Les constats bloquants n'empêchent pas la soumission — la requête nécessitera une approbation humaine.",
+    "submit_blocking_findings_tooltip_one": "{{count}} constat de règle bloquant — cette requête nécessitera une approbation humaine.",
+    "submit_blocking_findings_tooltip_other": "{{count}} constats de règle bloquants — cette requête nécessitera une approbation humaine."
   },
   "dry_run_panel": {
     "title": "Plan d'exécution",
@@ -805,7 +826,10 @@
       "export_failed": "Impossible d'exporter les résultats",
       "export_truncated": "L'export a été tronqué au plafond de lignes configuré",
       "export_denied_tooltip": "L'export de ces résultats est refusé par la politique d'export de votre organisation",
-      "export_denied_classified_tooltip": "Export refusé : ce résultat contient des colonnes classifiées {{classifications}}"
+      "export_denied_classified_tooltip": "Export refusé : ce résultat contient des colonnes classifiées {{classifications}}",
+      "card_sql_review": "Constats de revue SQL",
+      "sql_review_blocked_note_one": "{{count}} règle bloquante s'est déclenchée à la soumission ; la requête n'a pas pu être approuvée automatiquement et a été envoyée en revue humaine.",
+      "sql_review_blocked_note_other": "{{count}} règles bloquantes se sont déclenchées à la soumission ; la requête n'a pas pu être approuvée automatiquement et a été envoyée en revue humaine."
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "Délégué",
     "delegated": "Délégué",
-    "delegated_tooltip": "Vous pouvez la revoir car un collègue vous a délégué ses revues."
+    "delegated_tooltip": "Vous pouvez la revoir car un collègue vous a délégué ses revues.",
+    "sql_review_blocking_tag": "{{count}} bloq.",
+    "sql_review_blocking_tooltip_one": "{{count}} constat de revue SQL bloquant — cette requête n'a pas pu être approuvée automatiquement.",
+    "sql_review_blocking_tooltip_other": "{{count}} constats de revue SQL bloquants — cette requête n'a pas pu être approuvée automatiquement."
   },
   "timeline": {
     "title": "Chronologie d'approbation"
@@ -1022,7 +1049,10 @@
       "types_error_title": "Impossible de charger les types de base",
       "types_error_body": "Le endpoint /datasources/types n'a pas répondu. Recharge la page ou vérifie les logs du backend.",
       "source_connector": "Connecteurs",
-      "source_connector_help": "Pilotes préconfigurés installés depuis le catalogue de connecteurs."
+      "source_connector_help": "Pilotes préconfigurés installés depuis le catalogue de connecteurs.",
+      "label_environment": "Environnement",
+      "environment_not_set": "Non défini (règles par défaut de l'organisation)",
+      "environment_help": "Détermine quel jeu de règles de revue SQL s’applique aux requêtes sur cette source de données."
     },
     "secret_ref": {
       "help_intro": "Vous pouvez aussi saisir une référence de secret externe au lieu d’une valeur en clair.",
@@ -1431,7 +1461,10 @@
         "applies_groups": "{{count}} groupes",
         "applies_users": "{{count}} utilisateurs",
         "applies_everyone": "Tout le monde"
-      }
+      },
+      "label_environment": "Environnement",
+      "environment_not_set": "Non défini (règles par défaut de l'organisation)",
+      "environment_help": "Détermine quel jeu de règles de revue SQL s’applique aux requêtes sur cette source de données."
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "Enregistrer",
       "save_success": "Domaines de gouvernance mis à jour",
       "load_error": "Impossible de charger les domaines de gouvernance"
+    },
+    "sql_review": {
+      "title": "Jeux de règles de revue SQL",
+      "subtitle": "Sévérités de règles déterministes par environnement. Une règle bloquante envoie la requête à un humain — elle ne rejette jamais.",
+      "add_button": "Ajouter un jeu de règles",
+      "load_error": "Impossible de charger les jeux de règles de revue SQL.",
+      "rules_load_error": "Impossible de charger le catalogue de règles.",
+      "empty": "Aucun jeu de règles pour l'instant. Les requêtes s'exécutent sans vérification de règles déterministes tant qu'un jeu n'est pas lié à un environnement ou défini par défaut pour l'organisation.",
+      "create_modal_title": "Ajouter un jeu de règles",
+      "edit_modal_title": "Modifier le jeu de règles · {{name}}",
+      "save_create": "Créer le jeu de règles",
+      "save_update": "Enregistrer les modifications",
+      "create_success": "Jeu de règles créé.",
+      "update_success": "Jeu de règles mis à jour.",
+      "delete_success": "Jeu de règles supprimé.",
+      "delete_confirm_title": "Supprimer le jeu de règles ?",
+      "delete_confirm_body": "Supprimer « {{name}} » ? Les sources de données de son environnement reviendront au jeu par défaut de l’organisation, ou à aucune règle.",
+      "col_name": "Nom",
+      "col_environment": "Environnement",
+      "col_rules": "Règles",
+      "col_enabled": "Activé",
+      "col_actions": "Actions",
+      "environment_org_default": "Défaut de l'organisation",
+      "rules_summary": "{{block}} bloquer · {{warn}} avertir · {{off}} désactivées",
+      "label_name": "Nom",
+      "label_description": "Description",
+      "label_environment": "Environnement",
+      "label_enabled": "Activé",
+      "environment_help": "Un jeu de règles par environnement ; le défaut de l'organisation s'applique aux sources de données sans environnement.",
+      "enabled_help": "Un jeu désactivé lié à un environnement n'évalue aucune règle et ne revient pas au défaut.",
+      "rules_heading": "Règles",
+      "rules_hint": "Les règles laissées à leur valeur par défaut ne sont pas stockées ; seules les sévérités et paramètres modifiés sont enregistrés.",
+      "rules_col_rule": "Règle",
+      "rules_col_category": "Catégorie",
+      "rules_col_severity": "Sévérité",
+      "rules_col_params": "Paramètres",
+      "severity_for_rule": "Sévérité pour {{name}}",
+      "default_severity": "Par défaut : {{severity}}",
+      "default_severity_hint": "La sévérité appliquée à cette règle lorsque le jeu ne la modifie pas.",
+      "params_none": "—",
+      "param_for_rule": "{{key}} pour {{name}}",
+      "param_placeholder": "Ajouter {{key}}",
+      "param_placeholder_defaults": "Par défaut : {{values}}",
+      "param_required": "Au moins une valeur est requise lorsque cette règle est stockée.",
+      "param_invalid": "« {{value}} » n’est pas une valeur autorisée."
     }
   },
   "notifications": {
@@ -3175,6 +3253,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "En attente de revue",
       "REVIEWED": "Revu"
+    },
+    "sql_review_severity": {
+      "OFF": "Désactivée",
+      "WARN": "Avertir",
+      "BLOCK": "Bloquer"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "Sûreté de l'instruction",
+      "PERFORMANCE": "Performance",
+      "SCHEMA_CHANGE": "Changement de schéma",
+      "DATA_PROTECTION": "Protection des données"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "Développement",
+      "TEST": "Test",
+      "STAGING": "Préproduction",
+      "PRODUCTION": "Production"
     }
   },
   "access": {

@@ -6,15 +6,21 @@ import type { ReactNode } from 'react';
 import type { Datasource, QueryTemplate } from '@/types/api';
 import '@/i18n';
 
-const { analyzeOnlyMock, dryRunQueryMock } = vi.hoisted(() => ({
+const { analyzeOnlyMock, dryRunQueryMock, evaluateSqlReviewMock } = vi.hoisted(() => ({
   analyzeOnlyMock: vi.fn(),
   dryRunQueryMock: vi.fn(),
+  evaluateSqlReviewMock: vi.fn(),
 }));
 
 vi.mock('@/api/queries', () => ({
   analyzeOnly: analyzeOnlyMock,
   dryRunQuery: dryRunQueryMock,
 }));
+
+vi.mock('@/api/sqlReview', async () => {
+  const actual = await vi.importActual<typeof import('@/api/sqlReview')>('@/api/sqlReview');
+  return { ...actual, evaluateSqlReview: evaluateSqlReviewMock };
+});
 
 const { useQueryAuthoring } = await import('./useQueryAuthoring');
 type SqlChangeSource = import('./useQueryAuthoring').SqlChangeSource;
@@ -77,6 +83,28 @@ describe('useQueryAuthoring', () => {
   beforeEach(() => {
     analyzeOnlyMock.mockReset();
     dryRunQueryMock.mockReset();
+    evaluateSqlReviewMock.mockReset();
+    evaluateSqlReviewMock.mockResolvedValue({ applicable: true, findings: [] });
+  });
+
+  it('exposes the live SQL review state and evaluates the draft on a pause (#865)', async () => {
+    evaluateSqlReviewMock.mockResolvedValue({
+      applicable: true,
+      findings: [
+        { rule_id: 'select_star', severity: 'BLOCK', statement_index: 0, line_number: 1, message: 'Star' },
+      ],
+    });
+    const { result } = setup(baseDs, 'select *');
+    expect(result.current.sqlReview.supported).toBe(true);
+    await waitFor(() => expect(result.current.sqlReview.findings).toHaveLength(1));
+    expect(result.current.sqlReview.blockingCount).toBe(1);
+    expect(evaluateSqlReviewMock).toHaveBeenCalledWith({ datasource_id: 'ds-1', sql: 'select *' });
+  });
+
+  it('keeps the SQL review surface off for engines the catalog does not cover', () => {
+    const { result } = setup(mongoDs, 'db.users.find()');
+    expect(result.current.sqlReview.supported).toBe(false);
+    expect(evaluateSqlReviewMock).not.toHaveBeenCalled();
   });
 
   it('derives capability flags from the datasource', () => {

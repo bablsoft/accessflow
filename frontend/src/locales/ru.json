@@ -104,7 +104,8 @@
     "deploymentVersions": "Матрица версий",
     "deploymentPipelines": "Пайплайны развертываний",
     "help_agent": "Помощник",
-    "governance_domains": "Области управления"
+    "governance_domains": "Области управления",
+    "sql_review": "Проверка SQL"
   },
   "auth": {
     "session_expired": "Сессия истекла",
@@ -420,7 +421,12 @@
     "role_system_immutable": "Системные роли встроены и не могут быть изменены или удалены.",
     "role_name_already_exists": "Роль с таким именем уже существует.",
     "role_not_found": "Эта роль больше не существует.",
-    "roles_generic": "Операция с ролью не удалась. Пожалуйста, попробуйте ещё раз."
+    "roles_generic": "Операция с ролью не удалась. Пожалуйста, попробуйте ещё раз.",
+    "sql_review_ruleset_not_found": "Набор правил проверки SQL не найден.",
+    "sql_review_ruleset_environment_conflict": "К этой среде уже привязан другой набор правил.",
+    "sql_review_ruleset_default_conflict": "У организации уже есть набор правил по умолчанию.",
+    "sql_review_ruleset_invalid": "Конфигурация набора правил недопустима.",
+    "sql_review_ruleset_generic": "Не удалось сохранить набор правил проверки SQL."
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "Не удалось загрузить предложения.",
       "apply": "Применить как черновик",
       "evidence": "Утверждён {{times}} раз(а), участников: {{people}}"
-    }
+    },
+    "sql_review_diagnostic_source": "Проверка SQL",
+    "ai_diagnostic_source": "ИИ-анализ",
+    "sql_review_title": "Срабатывания правил",
+    "sql_review_evaluating": "Проверка…",
+    "sql_review_unparseable": "Пока не удаётся разобрать — проверка правил продолжится, когда SQL будет полным.",
+    "sql_review_count_blocking_one": "{{count}} блокирующее",
+    "sql_review_count_blocking_other": "{{count}} блокирующих",
+    "sql_review_count_warning_one": "{{count}} предупреждение",
+    "sql_review_count_warning_other": "{{count}} предупреждений",
+    "sql_review_line": "Стр. {{line}}",
+    "sql_review_statement": "Оператор {{index}}",
+    "sql_review_blocking_note_one": "Блокирующее срабатывание не мешает отправке — запрос потребует одобрения человеком.",
+    "sql_review_blocking_note_other": "Блокирующие срабатывания не мешают отправке — запрос потребует одобрения человеком.",
+    "submit_blocking_findings_tooltip_one": "{{count}} блокирующее срабатывание правила — запрос потребует одобрения человеком.",
+    "submit_blocking_findings_tooltip_other": "{{count}} блокирующих срабатываний правил — запрос потребует одобрения человеком."
   },
   "dry_run_panel": {
     "title": "План выполнения",
@@ -805,7 +826,10 @@
       "export_failed": "Не удалось экспортировать результаты",
       "export_truncated": "Экспорт обрезан по настроенному лимиту строк",
       "export_denied_tooltip": "Экспорт этих результатов запрещён политикой экспорта вашей организации",
-      "export_denied_classified_tooltip": "Экспорт запрещён: результат содержит колонки с классификацией {{classifications}}"
+      "export_denied_classified_tooltip": "Экспорт запрещён: результат содержит колонки с классификацией {{classifications}}",
+      "card_sql_review": "Срабатывания проверки SQL",
+      "sql_review_blocked_note_one": "При отправке сработало {{count}} блокирующее правило, поэтому запрос не был одобрен автоматически и направлен на проверку человеком.",
+      "sql_review_blocked_note_other": "При отправке сработало {{count}} блокирующих правил, поэтому запрос не был одобрен автоматически и направлен на проверку человеком."
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "Делегировано",
     "delegated": "Делегировано",
-    "delegated_tooltip": "Вы можете проверить это, потому что коллега делегировал вам свои проверки."
+    "delegated_tooltip": "Вы можете проверить это, потому что коллега делегировал вам свои проверки.",
+    "sql_review_blocking_tag": "{{count}} блок.",
+    "sql_review_blocking_tooltip_one": "{{count}} блокирующее срабатывание проверки SQL — запрос не мог быть одобрен автоматически.",
+    "sql_review_blocking_tooltip_other": "{{count}} блокирующих срабатываний проверки SQL — запрос не мог быть одобрен автоматически."
   },
   "timeline": {
     "title": "Хронология утверждения"
@@ -1022,7 +1049,10 @@
       "types_error_title": "Не удалось загрузить типы баз",
       "types_error_body": "Эндпоинт /datasources/types не отвечает. Перезагрузите страницу или проверьте логи бэкенда.",
       "source_connector": "Коннекторы",
-      "source_connector_help": "Готовые драйверы, устанавливаемые из каталога коннекторов."
+      "source_connector_help": "Готовые драйверы, устанавливаемые из каталога коннекторов.",
+      "label_environment": "Среда",
+      "environment_not_set": "Не задано (правила организации по умолчанию)",
+      "environment_help": "Определяет, какой набор правил проверки SQL применяется к запросам к этому источнику данных."
     },
     "secret_ref": {
       "help_intro": "Вместо значения в открытом виде можно указать ссылку на внешний секрет.",
@@ -1431,7 +1461,10 @@
         "applies_groups": "Групп: {{count}}",
         "applies_users": "Пользователей: {{count}}",
         "applies_everyone": "Все"
-      }
+      },
+      "label_environment": "Среда",
+      "environment_not_set": "Не задано (правила организации по умолчанию)",
+      "environment_help": "Определяет, какой набор правил проверки SQL применяется к запросам к этому источнику данных."
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "Сохранить",
       "save_success": "Области управления обновлены",
       "load_error": "Не удалось загрузить области управления"
+    },
+    "sql_review": {
+      "title": "Наборы правил проверки SQL",
+      "subtitle": "Детерминированные уровни правил для каждой среды. Блокирующее правило направляет запрос человеку — оно никогда не отклоняет.",
+      "add_button": "Добавить набор правил",
+      "load_error": "Не удалось загрузить наборы правил проверки SQL.",
+      "rules_load_error": "Не удалось загрузить каталог правил.",
+      "empty": "Наборов правил пока нет. Запросы выполняются без детерминированных проверок, пока набор не будет привязан к среде или назначен по умолчанию для организации.",
+      "create_modal_title": "Добавить набор правил",
+      "edit_modal_title": "Изменить набор правил · {{name}}",
+      "save_create": "Создать набор правил",
+      "save_update": "Сохранить изменения",
+      "create_success": "Набор правил создан.",
+      "update_success": "Набор правил обновлён.",
+      "delete_success": "Набор правил удалён.",
+      "delete_confirm_title": "Удалить набор правил?",
+      "delete_confirm_body": "Удалить «{{name}}»? Источники данных этой среды перейдут на набор по умолчанию организации или останутся без правил.",
+      "col_name": "Название",
+      "col_environment": "Среда",
+      "col_rules": "Правила",
+      "col_enabled": "Включён",
+      "col_actions": "Действия",
+      "environment_org_default": "По умолчанию для организации",
+      "rules_summary": "{{block}} блок. · {{warn}} предупр. · {{off}} выкл.",
+      "label_name": "Название",
+      "label_description": "Описание",
+      "label_environment": "Среда",
+      "label_enabled": "Включён",
+      "environment_help": "Один набор правил на среду; набор по умолчанию применяется к источникам без заданной среды.",
+      "enabled_help": "Отключённый набор, привязанный к среде, не проверяет правила и не переходит на набор по умолчанию.",
+      "rules_heading": "Правила",
+      "rules_hint": "Правила, оставленные со встроенным значением по умолчанию, не сохраняются; сохраняются только изменённые уровни и параметры.",
+      "rules_col_rule": "Правило",
+      "rules_col_category": "Категория",
+      "rules_col_severity": "Уровень",
+      "rules_col_params": "Параметры",
+      "severity_for_rule": "Уровень для {{name}}",
+      "default_severity": "По умолчанию: {{severity}}",
+      "default_severity_hint": "Уровень, с которым работает правило, если набор его не меняет.",
+      "params_none": "—",
+      "param_for_rule": "{{key}} для {{name}}",
+      "param_placeholder": "Добавить {{key}}",
+      "param_placeholder_defaults": "По умолчанию: {{values}}",
+      "param_required": "При сохранении этого правила требуется хотя бы одно значение.",
+      "param_invalid": "«{{value}}» — недопустимое значение."
     }
   },
   "notifications": {
@@ -3175,6 +3253,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "Ожидает проверки",
       "REVIEWED": "Проверено"
+    },
+    "sql_review_severity": {
+      "OFF": "Выкл.",
+      "WARN": "Предупреждать",
+      "BLOCK": "Блокировать"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "Безопасность оператора",
+      "PERFORMANCE": "Производительность",
+      "SCHEMA_CHANGE": "Изменение схемы",
+      "DATA_PROTECTION": "Защита данных"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "Разработка",
+      "TEST": "Тестирование",
+      "STAGING": "Предпродакшен",
+      "PRODUCTION": "Продакшен"
     }
   },
   "access": {

@@ -7,11 +7,19 @@ import type { ReactNode } from 'react';
 import type { AiAnalysis, Datasource, PaginatedResponse } from '@/types/api';
 import '@/i18n';
 
-const { listDatasourcesMock, analyzeOnlyMock, submitQueryMock } = vi.hoisted(() => ({
-  listDatasourcesMock: vi.fn(),
-  analyzeOnlyMock: vi.fn(),
-  submitQueryMock: vi.fn(),
-}));
+const { listDatasourcesMock, analyzeOnlyMock, submitQueryMock, evaluateSqlReviewMock } = vi.hoisted(
+  () => ({
+    listDatasourcesMock: vi.fn(),
+    analyzeOnlyMock: vi.fn(),
+    submitQueryMock: vi.fn(),
+    evaluateSqlReviewMock: vi.fn(),
+  }),
+);
+
+vi.mock('@/api/sqlReview', async () => {
+  const actual = await vi.importActual<typeof import('@/api/sqlReview')>('@/api/sqlReview');
+  return { ...actual, evaluateSqlReview: evaluateSqlReviewMock };
+});
 
 vi.mock('@/api/queries', () => ({
   analyzeOnly: analyzeOnlyMock,
@@ -184,6 +192,8 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
     analyzeOnlyMock.mockReset();
     submitQueryMock.mockReset();
     navigateMock.mockReset();
+    evaluateSqlReviewMock.mockReset();
+    evaluateSqlReviewMock.mockResolvedValue({ applicable: true, findings: [] });
   });
 
   it('renders Analyze button and gates Submit until analysis runs for AI-enabled datasources', async () => {
@@ -445,5 +455,40 @@ describe('QueryEditorPage — AI analyze as explicit step (AF-164)', () => {
       target: { value: 'select 1' },
     });
     expect(findSubmitButton()).not.toBeDisabled();
+  });
+
+  it('keeps Submit enabled on a blocking SQL review finding and explains it in the tooltip (#865)', async () => {
+    const aiOffDs: Datasource = {
+      ...baseDatasource,
+      id: 'ds-ai-off',
+      ai_analysis_enabled: false,
+      ai_config_id: null,
+    };
+    listDatasourcesMock.mockResolvedValue(page([aiOffDs]));
+    evaluateSqlReviewMock.mockResolvedValue({
+      applicable: true,
+      findings: [
+        { rule_id: 'select_star', severity: 'BLOCK', statement_index: 0, line_number: 1, message: 'Star' },
+        { rule_id: 'missing_limit_on_select', severity: 'WARN', statement_index: 0, line_number: 1, message: 'Limit' },
+      ],
+    });
+
+    render(wrap(<QueryEditorPage />));
+    await screen.findByRole('button', { name: /Submit for review/i });
+
+    fireEvent.change(screen.getByLabelText('sql-editor'), {
+      target: { value: 'select * from users' },
+    });
+
+    // The finding appears without pressing any button (after the 400 ms typing pause) …
+    const count = await screen.findByTestId('sql-review-blocking-count', {}, { timeout: 3_000 });
+    expect(count).toHaveTextContent('1 blocking');
+    // … and blocking never disables submission — it escalates to a human.
+    const submit = findSubmitButton();
+    expect(submit).not.toBeDisabled();
+    fireEvent.mouseOver(submit);
+    expect(
+      await screen.findByText('1 blocking rule finding — this query will require human approval.'),
+    ).toBeInTheDocument();
   });
 });

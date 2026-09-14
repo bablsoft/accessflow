@@ -73,6 +73,12 @@ export interface CreatePostgresDatasourceOptions {
    * present. Used by the screenshot seed to showcase the feature.
    */
   textToSqlEnabled?: boolean;
+  /**
+   * Optional datasource environment (#861) — DEVELOPMENT | TEST | STAGING | PRODUCTION.
+   * Selects which SQL review ruleset applies to the datasource's queries (#865); omitted
+   * resolves to the organization default ruleset, or to no rules.
+   */
+  environment?: string;
 }
 
 // POST /api/v1/auth/login → returns the access token. Mirrors the inline
@@ -262,6 +268,7 @@ export async function createPostgresDatasource(
     text_to_sql_enabled: opts.textToSqlEnabled ?? false,
     custom_driver_id: null,
     review_plan_id: opts.reviewPlanId ?? null,
+    ...(opts.environment === undefined ? {} : { environment: opts.environment }),
   };
   const res = await request.post(`${apiBase()}/api/v1/datasources`, {
     headers: { Authorization: `Bearer ${accessToken}` },

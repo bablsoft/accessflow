@@ -104,7 +104,8 @@
     "deploymentVersions": "版本矩阵",
     "deploymentPipelines": "部署流水线",
     "help_agent": "帮助助手",
-    "governance_domains": "治理域"
+    "governance_domains": "治理域",
+    "sql_review": "SQL 审查"
   },
   "auth": {
     "session_expired": "会话已过期",
@@ -420,7 +421,12 @@
     "role_system_immutable": "系统角色为内置角色，无法修改或删除。",
     "role_name_already_exists": "已存在同名角色。",
     "role_not_found": "该角色已不存在。",
-    "roles_generic": "角色操作失败，请重试。"
+    "roles_generic": "角色操作失败，请重试。",
+    "sql_review_ruleset_not_found": "未找到 SQL 审查规则集。",
+    "sql_review_ruleset_environment_conflict": "该环境已绑定了另一个规则集。",
+    "sql_review_ruleset_default_conflict": "该组织已有默认规则集。",
+    "sql_review_ruleset_invalid": "规则集配置无效。",
+    "sql_review_ruleset_generic": "无法保存 SQL 审查规则集。"
   },
   "editor": {
     "text_to_sql": {
@@ -583,7 +589,22 @@
       "load_error": "无法加载建议。",
       "apply": "应用为草稿",
       "evidence": "已批准 {{times}} 次，来自 {{people}} 人"
-    }
+    },
+    "sql_review_diagnostic_source": "SQL 审查",
+    "ai_diagnostic_source": "AI 分析",
+    "sql_review_title": "规则发现",
+    "sql_review_evaluating": "检查中…",
+    "sql_review_unparseable": "暂时无法解析——SQL 完整后将恢复规则检查。",
+    "sql_review_count_blocking_one": "{{count}} 项阻断",
+    "sql_review_count_blocking_other": "{{count}} 项阻断",
+    "sql_review_count_warning_one": "{{count}} 项警告",
+    "sql_review_count_warning_other": "{{count}} 项警告",
+    "sql_review_line": "第 {{line}} 行",
+    "sql_review_statement": "语句 {{index}}",
+    "sql_review_blocking_note_one": "阻断性发现不会阻止提交——该查询将需要人工审批。",
+    "sql_review_blocking_note_other": "阻断性发现不会阻止提交——该查询将需要人工审批。",
+    "submit_blocking_findings_tooltip_one": "{{count}} 项阻断性规则发现——该查询将需要人工审批。",
+    "submit_blocking_findings_tooltip_other": "{{count}} 项阻断性规则发现——该查询将需要人工审批。"
   },
   "dry_run_panel": {
     "title": "执行计划",
@@ -805,7 +826,10 @@
       "export_failed": "导出结果失败",
       "export_truncated": "导出已在配置的行数上限处截断",
       "export_denied_tooltip": "组织的导出策略拒绝导出这些结果",
-      "export_denied_classified_tooltip": "导出被拒绝：此结果包含分类为 {{classifications}} 的列"
+      "export_denied_classified_tooltip": "导出被拒绝：此结果包含分类为 {{classifications}} 的列",
+      "card_sql_review": "SQL 审查发现",
+      "sql_review_blocked_note_one": "提交时触发了 {{count}} 条阻断性规则，因此该查询无法自动批准，已转交人工审查。",
+      "sql_review_blocked_note_other": "提交时触发了 {{count}} 条阻断性规则，因此该查询无法自动批准，已转交人工审查。"
     }
   },
   "reviews": {
@@ -874,7 +898,10 @@
     },
     "col_delegated": "受托",
     "delegated": "受托",
-    "delegated_tooltip": "您可以审核此项，因为有同事将审核职责委派给了您。"
+    "delegated_tooltip": "您可以审核此项，因为有同事将审核职责委派给了您。",
+    "sql_review_blocking_tag": "{{count}} 阻断",
+    "sql_review_blocking_tooltip_one": "{{count}} 项阻断性 SQL 审查发现——该查询无法自动批准。",
+    "sql_review_blocking_tooltip_other": "{{count}} 项阻断性 SQL 审查发现——该查询无法自动批准。"
   },
   "timeline": {
     "title": "审批时间线"
@@ -1022,7 +1049,10 @@
       "types_error_title": "无法加载数据库类型",
       "types_error_body": "/datasources/types 端点未响应。请刷新页面或检查后端日志。",
       "source_connector": "连接器",
-      "source_connector_help": "从连接器目录安装的预置驱动。"
+      "source_connector_help": "从连接器目录安装的预置驱动。",
+      "label_environment": "环境",
+      "environment_not_set": "未设置（使用组织默认规则）",
+      "environment_help": "决定对此数据源的查询应用哪个 SQL 审查规则集。"
     },
     "secret_ref": {
       "help_intro": "也可以输入外部密钥引用来代替明文值。",
@@ -1431,7 +1461,10 @@
         "applies_groups": "{{count}} 个组",
         "applies_users": "{{count}} 个用户",
         "applies_everyone": "所有人"
-      }
+      },
+      "label_environment": "环境",
+      "environment_not_set": "未设置（使用组织默认规则）",
+      "environment_help": "决定对此数据源的查询应用哪个 SQL 审查规则集。"
     }
   },
   "admin": {
@@ -2424,6 +2457,51 @@
       "save_button": "保存",
       "save_success": "治理域已更新",
       "load_error": "无法加载治理域"
+    },
+    "sql_review": {
+      "title": "SQL 审查规则集",
+      "subtitle": "按环境设置确定性规则严重级别。阻断性规则会将查询交给人工——它绝不会拒绝。",
+      "add_button": "添加规则集",
+      "load_error": "无法加载 SQL 审查规则集。",
+      "rules_load_error": "无法加载规则目录。",
+      "empty": "尚无规则集。在规则集绑定到环境或设为组织默认之前，查询不会进行确定性规则检查。",
+      "create_modal_title": "添加规则集",
+      "edit_modal_title": "编辑规则集 · {{name}}",
+      "save_create": "创建规则集",
+      "save_update": "保存更改",
+      "create_success": "规则集已创建。",
+      "update_success": "规则集已更新。",
+      "delete_success": "规则集已删除。",
+      "delete_confirm_title": "删除规则集？",
+      "delete_confirm_body": "删除“{{name}}”？其环境中的数据源将回退到组织默认规则集，或不再应用任何规则。",
+      "col_name": "名称",
+      "col_environment": "环境",
+      "col_rules": "规则",
+      "col_enabled": "启用",
+      "col_actions": "操作",
+      "environment_org_default": "组织默认",
+      "rules_summary": "{{block}} 阻断 · {{warn}} 警告 · {{off}} 关闭",
+      "label_name": "名称",
+      "label_description": "描述",
+      "label_environment": "环境",
+      "label_enabled": "启用",
+      "environment_help": "每个环境一个规则集；组织默认规则集适用于未设置环境的数据源。",
+      "enabled_help": "已禁用但绑定到环境的规则集不会评估任何规则，也不会回退到默认规则集。",
+      "rules_heading": "规则",
+      "rules_hint": "保持内置默认值的规则不会被存储；仅保存已更改的严重级别和参数。",
+      "rules_col_rule": "规则",
+      "rules_col_category": "类别",
+      "rules_col_severity": "严重级别",
+      "rules_col_params": "参数",
+      "severity_for_rule": "{{name}} 的严重级别",
+      "default_severity": "默认：{{severity}}",
+      "default_severity_hint": "规则集未更改时该规则运行的严重级别。",
+      "params_none": "—",
+      "param_for_rule": "{{name}} 的 {{key}}",
+      "param_placeholder": "添加 {{key}}",
+      "param_placeholder_defaults": "默认：{{values}}",
+      "param_required": "存储此规则时至少需要一个值。",
+      "param_invalid": "“{{value}}”不是允许的值。"
     }
   },
   "notifications": {
@@ -3175,6 +3253,23 @@
     "deployment_rollback_review_status": {
       "PENDING_REVIEW": "待审核",
       "REVIEWED": "已审核"
+    },
+    "sql_review_severity": {
+      "OFF": "关闭",
+      "WARN": "警告",
+      "BLOCK": "阻断"
+    },
+    "sql_review_rule_category": {
+      "STATEMENT_SAFETY": "语句安全",
+      "PERFORMANCE": "性能",
+      "SCHEMA_CHANGE": "模式变更",
+      "DATA_PROTECTION": "数据保护"
+    },
+    "datasource_environment": {
+      "DEVELOPMENT": "开发",
+      "TEST": "测试",
+      "STAGING": "预发布",
+      "PRODUCTION": "生产"
     }
   },
   "access": {

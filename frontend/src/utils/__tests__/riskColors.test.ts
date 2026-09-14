@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { riskColor } from '../riskColors';
+import { riskColor, sqlReviewSeverityColor } from '../riskColors';
 
 describe('riskColor', () => {
   it('maps LOW to green tokens', () => {
@@ -30,5 +30,12 @@ describe('riskColor', () => {
       expect(c.bg).toMatch(/var\(--/);
       expect(c.border).toMatch(/var\(--/);
     }
+  });
+});
+
+describe('sqlReviewSeverityColor (#865)', () => {
+  it('reads BLOCK as high risk and WARN as medium', () => {
+    expect(sqlReviewSeverityColor('BLOCK')).toEqual(riskColor('HIGH'));
+    expect(sqlReviewSeverityColor('WARN')).toEqual(riskColor('MEDIUM'));
   });
 });

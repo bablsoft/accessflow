@@ -10,6 +10,8 @@ import type {
   ApiProtocol,
   DelegationScopeKind,
   ReviewDelegationStatus,
+  SqlReviewRuleCategory,
+  SqlReviewSeverity,
   ApiSchemaType,
   ErasureConditionOperator,
   ErasureStatus,
@@ -32,6 +34,7 @@ import type {
   ChannelType,
   ComparisonOperator,
   DataClassification,
+  DatasourceEnvironment,
   DbType,
   InvitationStatus,
   ExportPolicyMode,
@@ -723,3 +726,30 @@ export const isoWeekdayLabel = (t: TFunction, iso: number): string => {
   const name = ISO_WEEKDAYS[iso - 1];
   return name ? weekdayLabel(t, name) : String(iso);
 };
+
+// ── Deterministic SQL review (#865, epic #860) ─────────────────────────────────
+
+export const SQL_REVIEW_SEVERITIES: readonly SqlReviewSeverity[] = ['OFF', 'WARN', 'BLOCK'] as const;
+
+export const sqlReviewSeverityLabel = (t: TFunction, v: SqlReviewSeverity): string =>
+  t(`enums.sql_review_severity.${v}` as const);
+
+export const SQL_REVIEW_RULE_CATEGORIES: readonly SqlReviewRuleCategory[] = [
+  'STATEMENT_SAFETY',
+  'PERFORMANCE',
+  'SCHEMA_CHANGE',
+  'DATA_PROTECTION',
+] as const;
+
+export const sqlReviewRuleCategoryLabel = (t: TFunction, v: SqlReviewRuleCategory): string =>
+  t(`enums.sql_review_rule_category.${v}` as const);
+
+export const DATASOURCE_ENVIRONMENTS: readonly DatasourceEnvironment[] = [
+  'DEVELOPMENT',
+  'TEST',
+  'STAGING',
+  'PRODUCTION',
+] as const;
+
+export const datasourceEnvironmentLabel = (t: TFunction, v: DatasourceEnvironment): string =>
+  t(`enums.datasource_environment.${v}` as const);

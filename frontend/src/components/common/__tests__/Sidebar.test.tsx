@@ -532,3 +532,23 @@ describe('Sidebar — unified review queue (#772)', () => {
     });
   });
 });
+
+describe('Sidebar — SQL review rulesets (#865)', () => {
+  it('shows the SQL review entry under Access control to an admin', () => {
+    expandAll();
+    renderSidebar(adminUser);
+    const entry = link(screen, 'SQL review');
+    expect(entry).toBeInTheDocument();
+    expect(entry).toHaveAttribute('href', '/admin/sql-review');
+  });
+
+  it('hides the entry from a REVIEWER, who lacks SQL_REVIEW_MANAGE', () => {
+    expandAll();
+    renderSidebar({
+      ...readonlyUser,
+      role: 'REVIEWER',
+      permissions: SYSTEM_ROLE_PERMISSIONS.REVIEWER,
+    });
+    expect(screen.queryByRole('link', { name: /SQL review/ })).not.toBeInTheDocument();
+  });
+});

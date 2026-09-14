@@ -4,6 +4,7 @@ import { ThunderboltOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { RiskPill } from '@/components/common/RiskPill';
 import { SqlEditor } from '@/components/editor/SqlEditor';
+import { SqlReviewFindingsStrip } from '@/components/editor/SqlReviewFindingsStrip';
 import { AiHintPanel } from '@/components/editor/AiHintPanel';
 import { DryRunPanel } from '@/components/editor/DryRunPanel';
 import { SuggestionsPanel } from '@/components/editor/SuggestionsPanel';
@@ -36,8 +37,9 @@ interface QueryAuthoringPanelProps {
 
 /**
  * The shared query-authoring surface (#559): schema tree + selector, toolbar (syntax toggle,
- * format), text-to-SQL, the CodeMirror editor with schema autocomplete + AI gutter markers, the
- * AI/plan right rail, and the query-template drawer/modals. Rendered by both the standalone
+ * format), text-to-SQL, the CodeMirror editor with schema autocomplete + lint diagnostics (AI issues
+ * and live SQL review findings, #865), the findings strip, the AI/plan right rail, and the
+ * query-template drawer/modals. Rendered by both the standalone
  * Query Editor page and the group-builder member drawer so the two never drift.
  */
 export function QueryAuthoringPanel({
@@ -109,8 +111,10 @@ export function QueryAuthoringPanel({
             dbType={ds.db_type}
             syntax={authoring.effectiveSyntax}
             issues={authoring.hasFreshAnalysis ? authoring.analysis?.issues : undefined}
+            findings={authoring.sqlReview.findings}
             height={editorHeight}
           />
+          <SqlReviewFindingsStrip state={authoring.sqlReview} hasSql={sql.trim().length > 0} />
           {footer}
         </div>
       </div>

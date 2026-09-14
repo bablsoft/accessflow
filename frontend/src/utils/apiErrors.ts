@@ -510,6 +510,43 @@ export function routingPolicyErrorMessage(err: unknown): string {
   return i18n.t('errors.routing_policy_generic');
 }
 
+/**
+ * Whether the response is the proxy's 422 `INVALID_SQL` — the SQL did not parse. For the editor's
+ * live lint (#865) that is an expected state mid-keystroke, rendered as a quiet hint, never a toast.
+ */
+export function isInvalidSqlError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return false;
+  const ax = err as AxiosError<ProblemDetail>;
+  return ax.response?.status === 422 && ax.response.data?.error === 'INVALID_SQL';
+}
+
+export function sqlReviewRulesetErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const ax = err as AxiosError<ProblemDetail>;
+    const body = ax.response?.data;
+    const code = body?.error;
+    if (code === 'SQL_REVIEW_RULESET_NOT_FOUND') {
+      return i18n.t('errors.sql_review_ruleset_not_found');
+    }
+    if (code === 'SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT') {
+      return i18n.t('errors.sql_review_ruleset_environment_conflict');
+    }
+    if (code === 'SQL_REVIEW_RULESET_DEFAULT_CONFLICT') {
+      return i18n.t('errors.sql_review_ruleset_default_conflict');
+    }
+    if (code === 'SQL_REVIEW_RULESET_INVALID') {
+      // The detail names the offending rule / value, localized by the backend.
+      if (body?.detail) return body.detail;
+      return i18n.t('errors.sql_review_ruleset_invalid');
+    }
+    if (body?.detail) return body.detail;
+    if (body?.title) return body.title;
+    if (ax.message) return ax.message;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return i18n.t('errors.sql_review_ruleset_generic');
+}
+
 // Dashboard self-service errors (AF-498): suggestion dismissal + own-anomaly acknowledge/dismiss.
 // Anomaly transition/not-found details come straight from the backend's localized ProblemDetail.
 export function dashboardErrorMessage(err: unknown): string {

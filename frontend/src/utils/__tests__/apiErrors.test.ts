@@ -10,6 +10,7 @@ import {
   customDriverErrorMessage,
   datasourceCreateErrorMessage,
   datasourceGrantErrorMessage,
+  isInvalidSqlError,
   isTotpInvalidError,
   isTotpRequiredError,
   profileErrorMessage,
@@ -19,6 +20,7 @@ import {
   reviewPlanErrorMessage,
   organizationErrorMessage,
   setupErrorMessage,
+  sqlReviewRulesetErrorMessage,
   textToSqlErrorMessage,
 } from '../apiErrors';
 
@@ -680,5 +682,50 @@ describe('apiErrorMessage', () => {
   it('returns the fallback for non-axios values without a message', () => {
     expect(apiErrorMessage(undefined, fallback)).toBe('generic fallback');
     expect(apiErrorMessage(new Error(''), fallback)).toBe('generic fallback');
+  });
+});
+
+describe('isInvalidSqlError (#865)', () => {
+  it('recognises the 422 INVALID_SQL envelope', () => {
+    expect(isInvalidSqlError(buildAxiosError(422, { error: 'INVALID_SQL' }))).toBe(true);
+  });
+
+  it('rejects other 422s, other statuses and non-axios errors', () => {
+    expect(isInvalidSqlError(buildAxiosError(422, { error: 'SQL_REVIEW_RULESET_INVALID' }))).toBe(false);
+    expect(isInvalidSqlError(buildAxiosError(404, { error: 'INVALID_SQL' }))).toBe(false);
+    expect(isInvalidSqlError(new Error('boom'))).toBe(false);
+  });
+});
+
+describe('sqlReviewRulesetErrorMessage (#865)', () => {
+  it('maps the ruleset error codes', () => {
+    expect(sqlReviewRulesetErrorMessage(buildAxiosError(404, { error: 'SQL_REVIEW_RULESET_NOT_FOUND' })))
+      .toBe('SQL review ruleset not found.');
+    expect(
+      sqlReviewRulesetErrorMessage(
+        buildAxiosError(409, { error: 'SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT' }),
+      ),
+    ).toBe('Another ruleset is already bound to that environment.');
+    expect(
+      sqlReviewRulesetErrorMessage(buildAxiosError(409, { error: 'SQL_REVIEW_RULESET_DEFAULT_CONFLICT' })),
+    ).toBe('The organization already has a default ruleset.');
+  });
+
+  it('prefers the backend detail for SQL_REVIEW_RULESET_INVALID and falls back otherwise', () => {
+    expect(
+      sqlReviewRulesetErrorMessage(
+        buildAxiosError(422, { error: 'SQL_REVIEW_RULESET_INVALID', detail: 'unknown rule x' }),
+      ),
+    ).toBe('unknown rule x');
+    expect(sqlReviewRulesetErrorMessage(buildAxiosError(422, { error: 'SQL_REVIEW_RULESET_INVALID' })))
+      .toBe('The ruleset configuration is invalid.');
+  });
+
+  it('falls through detail, title, axios message and generic', () => {
+    expect(sqlReviewRulesetErrorMessage(buildAxiosError(500, { detail: 'd' }))).toBe('d');
+    expect(sqlReviewRulesetErrorMessage(buildAxiosError(500, { title: 'T' }))).toBe('T');
+    expect(sqlReviewRulesetErrorMessage(buildAxiosError(500, {}))).toBe('Request failed');
+    expect(sqlReviewRulesetErrorMessage(new Error('plain'))).toBe('plain');
+    expect(sqlReviewRulesetErrorMessage('nope')).toBe('Could not save the SQL review ruleset.');
   });
 });

@@ -320,6 +320,57 @@ describe('DatasourceSettingsPage — performance card', () => {
     expect(body.result_cache_enabled).toBe(true);
     expect(body.result_cache_ttl_seconds).toBe(120);
   });
+
+  it('clears the environment explicitly when the form is saved as "not set" (#865)', async () => {
+    getDatasource.mockResolvedValue({ ...baseDs, environment: 'STAGING' });
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    const select = await screen.findByRole('combobox', { name: 'Environment' });
+    // The stored environment round-trips into the select.
+    expect(screen.getByText('Staging')).toBeInTheDocument();
+
+    fireEvent.mouseDown(select);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('.ant-select-item-option-content')].length).toBeGreaterThan(0),
+    );
+    const notSet = [...document.querySelectorAll('.ant-select-item-option-content')].find((o) =>
+      o.textContent?.startsWith('Not set'),
+    );
+    fireEvent.click(notSet!);
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.environment).toBeNull();
+    expect(body.clear_environment).toBe(true);
+  });
+
+  it('sends the chosen environment on save (#865)', async () => {
+    getDatasource.mockResolvedValue(baseDs);
+    updateDatasource.mockResolvedValue(baseDs);
+
+    render(wrap(<DatasourceSettingsPage />));
+
+    const select = await screen.findByRole('combobox', { name: 'Environment' });
+    fireEvent.mouseDown(select);
+    await waitFor(() =>
+      expect([...document.querySelectorAll('.ant-select-item-option-content')].length).toBeGreaterThan(0),
+    );
+    const production = [...document.querySelectorAll('.ant-select-item-option-content')].find(
+      (o) => o.textContent === 'Production',
+    );
+    fireEvent.click(production!);
+
+    fireEvent.click(screen.getByRole('button', { name: /Save changes/i }));
+
+    await waitFor(() => expect(updateDatasource).toHaveBeenCalled());
+    const body = updateDatasource.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.environment).toBe('PRODUCTION');
+    expect(body).not.toHaveProperty('clear_environment');
+  });
 });
 
 describe('DatasourceSettingsPage — Snowflake credential rotation', () => {

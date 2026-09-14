@@ -22,6 +22,7 @@ import {
   EditOutlined,
   ExclamationCircleOutlined,
   ExperimentOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
   InfoCircleOutlined,
   PlayCircleOutlined,
@@ -41,6 +42,8 @@ import { DetailCard } from '@/components/common/DetailCard';
 import { ApprovalTimeline, type TimelineStage } from '@/components/review/ApprovalTimeline';
 import { CostEstimatePanel } from '@/components/review/CostEstimatePanel';
 import { ApprovalPredictionPanel } from '@/components/review/ApprovalPredictionPanel';
+import { SqlReviewFindingList } from '@/components/review/SqlReviewFindingList';
+import { countBlockingFindings } from '@/utils/sqlReview';
 import { IssueCard } from '@/components/editor/IssueCard';
 import { OptimizationCard } from '@/components/editor/OptimizationCard';
 import { QueryCollaboration } from '@/components/editor/QueryCollaboration';
@@ -266,6 +269,8 @@ export function QueryDetailPage() {
   );
   const aiFailed = query.ai_analysis?.failed === true;
   const aiFailureReason = query.ai_analysis?.error_message ?? '';
+  const sqlReviewFindings = query.sql_review_findings ?? [];
+  const sqlReviewBlocking = countBlockingFindings(sqlReviewFindings);
   const canReanalyze = isReviewer && aiFailed && query.status === 'PENDING_REVIEW';
   // Live co-authoring is offered while the query is in review to the submitter and any
   // reviewer/admin; the backend confirms assigned-reviewer eligibility on join.
@@ -699,6 +704,25 @@ export function QueryDetailPage() {
           >
             <CostEstimatePanel estimate={query.cost_estimate} status={query.status} />
           </DetailCard>
+
+          {/* Deterministic SQL review findings recorded at submission (#864/#865): shown only when
+              a rule fired, so a clean query keeps its page short. A BLOCK is why the query could
+              not auto-approve — it escalated to this reviewer, it never rejected. */}
+          {sqlReviewFindings.length > 0 && (
+            <DetailCard
+              title={t('queries.detail.card_sql_review')}
+              icon={<FileSearchOutlined style={{ color: 'var(--accent)' }} />}
+            >
+              <div data-testid="sql-review-findings-card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {sqlReviewBlocking > 0 && (
+                  <div className="muted" style={{ fontSize: 12 }}>
+                    {t('queries.detail.sql_review_blocked_note', { count: sqlReviewBlocking })}
+                  </div>
+                )}
+                <SqlReviewFindingList findings={sqlReviewFindings} />
+              </div>
+            </DetailCard>
+          )}
 
           {/* Reviewers deciding someone else's query only: the prediction is a triage aid for
               whoever decides, and showing a submitter how their peers are likely to vote on their
