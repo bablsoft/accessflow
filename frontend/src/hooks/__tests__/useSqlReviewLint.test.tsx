@@ -33,14 +33,16 @@ function invalidSql(): AxiosError {
   return new AxiosError('Unprocessable', undefined, undefined, undefined, response);
 }
 
+// One client per test (see beforeEach), not per render — a rerender must keep the same cache.
+let client: QueryClient;
 function wrapper({ children }: { children: ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 describe('useSqlReviewLint (#865)', () => {
   beforeEach(() => {
     evaluateSqlReviewMock.mockReset();
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   });
 
   describe('debounce gate (fake timers)', () => {

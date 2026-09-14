@@ -135,6 +135,7 @@ export default defineConfig({
         'src/components/datasources/policySimulationSummaries.ts',
         'src/components/editor/useQueryAuthoring.ts',
         'src/components/editor/sqlReviewDiagnostics.ts',
+        'src/components/editor/SqlEditor.tsx',
         'src/hooks/useDebouncedValue.ts',
         'src/hooks/useSqlReviewLint.ts',
         'src/hooks/useSchemaIntrospect.ts',

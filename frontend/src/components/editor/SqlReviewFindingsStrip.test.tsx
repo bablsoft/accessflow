@@ -32,6 +32,9 @@ describe('SqlReviewFindingsStrip (#865)', () => {
     expect(screen.queryByTestId('sql-review-strip')).not.toBeInTheDocument();
     rerender(<SqlReviewFindingsStrip state={clean} hasSql />);
     expect(screen.queryByTestId('sql-review-strip')).not.toBeInTheDocument();
+    // A clean draft being re-evaluated must not flash a box on every typing pause.
+    rerender(<SqlReviewFindingsStrip state={{ ...clean, evaluating: true }} hasSql />);
+    expect(screen.queryByTestId('sql-review-strip')).not.toBeInTheDocument();
   });
 
   it('lists the findings with blocking and warning counts and the escalation note', () => {

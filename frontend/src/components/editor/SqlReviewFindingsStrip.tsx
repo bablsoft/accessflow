@@ -12,8 +12,9 @@ interface SqlReviewFindingsStripProps {
 
 /**
  * Live rule feedback under the editor (#865). Renders nothing for an engine the catalog does not
- * cover or an empty draft; a quiet hint while the draft does not parse; otherwise the counts and
- * the findings. A BLOCK never disables submission — it only tells the author a human will review.
+ * cover, an empty draft, or a clean one; a quiet hint while the draft does not parse; otherwise
+ * the counts and the findings. A BLOCK never disables submission — it only tells the author a
+ * human will review.
  */
 export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStripProps) {
   const { t } = useTranslation();
@@ -21,7 +22,10 @@ export function SqlReviewFindingsStrip({ state, hasSql }: SqlReviewFindingsStrip
 
   const warningCount = countWarningFindings(state.findings);
   const hasFindings = state.findings.length > 0;
-  if (!hasFindings && !state.unparseable && !state.evaluating) return null;
+  // Mount only when there is something to show — a clean draft must not flash a "Checking…"
+  // box on every typing pause and shove the footer around. The indicator renders inside an
+  // already-visible strip while the previous findings await replacement.
+  if (!hasFindings && !state.unparseable) return null;
 
   return (
     <div

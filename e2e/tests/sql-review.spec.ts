@@ -151,14 +151,16 @@ test.describe.serial('SQL review — editor lint and ruleset admin (#865)', () =
 
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/editor');
+    // Don't wait on the schema response: when this is the only active datasource /editor
+    // auto-selects it on load and re-clicking the option is a no-op (query-execute.spec.ts).
     const dsSelect = page.getByRole('combobox').first();
     await dsSelect.click();
-    const schemaResponse = page.waitForResponse(
-      (r) => r.url().includes(`/api/v1/datasources/${datasource!.id}/schema`) && r.ok(),
-      { timeout: 15_000 },
-    );
     await page.locator('.ant-select-item-option').filter({ hasText: datasource.name }).click();
-    await schemaResponse;
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.cm-content')).toBeVisible({ timeout: 15_000 });
+    // The onboarding banner re-renders after its setup-state fetch and blurs CodeMirror
+    // mid-type; let the network settle before focusing the editor.
+    await page.waitForLoadState('networkidle');
 
     const evaluation = page.waitForResponse(
       (r) => r.request().method() === 'POST' && /\/api\/v1\/sql-review\/evaluate$/.test(r.url()) && r.ok(),

@@ -63,6 +63,8 @@ export function useSqlReviewLint({
     // Overrides the global retry: a 422 is the author's draft not parsing yet, and the request
     // fires on every pause, so retrying only adds load.
     retry: false,
+    // Above the global 30 s: a ruleset edit is an admin action, and re-typing a draft the author
+    // already paused on within a minute should not cost another round trip.
     staleTime: 60_000,
   });
 

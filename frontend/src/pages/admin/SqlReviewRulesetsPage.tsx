@@ -218,7 +218,7 @@ export function SqlReviewRulesetsPage() {
                 width: 180,
                 render: (_v, ruleset) => (
                   <Pill
-                    fg="var(--fg-default)"
+                    fg="var(--fg)"
                     bg="var(--status-neutral-bg)"
                     border="var(--status-neutral-border)"
                     size="sm"
