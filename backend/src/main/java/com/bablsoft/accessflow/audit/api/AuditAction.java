@@ -109,6 +109,13 @@ public enum AuditAction {
     SQL_REVIEW_RULESET_CREATED,
     SQL_REVIEW_RULESET_UPDATED,
     SQL_REVIEW_RULESET_DELETED,
+
+    /**
+     * A {@code BLOCK} SQL review finding suppressed an auto-approve path and forced the request to
+     * human review (#864). System-attributed — null actor, {@code trigger=sql_review}. Written only
+     * when the guard changed the outcome; never for {@code WARN}, never on a rejection.
+     */
+    SQL_REVIEW_BLOCKED,
     ROW_SECURITY_POLICY_CREATED,
     ROW_SECURITY_POLICY_UPDATED,
     ROW_SECURITY_POLICY_DELETED,

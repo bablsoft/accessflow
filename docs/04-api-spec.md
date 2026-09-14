@@ -1578,6 +1578,12 @@ per row. Query params: `status` (`PENDING_REVIEW` / `REVIEWED`), `datasourceId`,
 `to`, `page`, `size` (max 200) — `datasourceId` naturally matches only query rows. Each item
 carries the target ids (plus `connectorId` / `pipelineId` for the non-query kinds and the executed
 query's SQL + status for query rows), submitter, datasource, justification, and review fields.
+Query rows also carry `sql_review_findings` (#864) — the deterministic SQL review findings recorded
+when the emergency query was submitted, in the same rendered per-finding shape as
+[`GET /queries/{id}`](#get-queriesid--response); an empty array for the non-query kinds and for a
+clean or not-applicable evaluation. Break-glass bypasses the decision chain the `BLOCK` guard lives
+in by design, so these findings never gated the execution — they are here for the retro-review, and
+`GET /admin/break-glass/{id}` returns the same object.
 `POST /admin/break-glass/{id}/acknowledge` (ADMIN, optional `{ "comment": "…" }`)
 transitions `PENDING_REVIEW → REVIEWED`, audits `BREAK_GLASS_REVIEWED`, and rejects self-acknowledge
 (403 `SELF_ACKNOWLEDGE_NOT_ALLOWED`) and already-reviewed (409 `BREAK_GLASS_ALREADY_REVIEWED`).
@@ -1714,6 +1720,15 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
       "updated_at": "2025-01-15T11:20:00Z"
     }
   ],
+  "sql_review_findings": [
+    {
+      "rule_id": "missing_where_on_update",
+      "severity": "BLOCK",
+      "statement_index": 0,
+      "line_number": 1,
+      "message": "UPDATE on orders has no WHERE clause and rewrites every row"
+    }
+  ],
   "scheduled_for": "2026-06-01T03:00:00Z",
   "recurrence_rule": null,
   "recurrence_until": null,
@@ -1734,6 +1749,8 @@ Each subsequent row contains the same fields as `QueryListItemView`. `ai_risk_le
 `approved_by_grant` is the provenance of a grant-covered auto-approval (#582); `null` for every query that was not auto-approved by a pre-approving JIT access grant. `grant_id` always reflects the query's persisted `approved_by_grant_id`; the approver fields (`approver_id`, `approver_email`, `approved_at` — the grant's final-stage approval) and `expires_at` are resolved from the grant row at read time and are `null` when the grant row or its approver is no longer resolvable. The frontend renders an "auto-approved under an access grant" alert on the detail page when this object is present. See [docs/05-backend.md → "Grant-covered query auto-approval"](05-backend.md#grant-covered-query-auto-approval-582).
 
 `linked_tickets` lists the tickets auto-created in an external ticketing system (ServiceNow / Jira, AF-453) for this query's workflow events, oldest first — empty array when none. `system` is `SERVICENOW` | `JIRA`; `status` / `resolution` reflect the external system's labels as last synced by the [ticketing inbound webhook](08-notifications.md#ticketing-inbound-webhooks--bi-directional-sync-af-453).
+
+`sql_review_findings` are the deterministic SQL review findings recorded for this query at submission (#864, epic #860) — the same per-finding shape as [`POST /sql-review/evaluate`](#post-sql-reviewevaluate--request-body-863), ordered statement → line, with `message` rendered into the caller's `Accept-Language` at read time from the stored `rule_id` + `args` (never from stored text). Always present: an empty array for a datasource the rule catalog does not cover, for an organization with no ruleset bound, and for a clean evaluation. `line_number` is omitted when unknown. A `BLOCK` finding here explains why the query could not auto-approve: it suppressed routing `AUTO_APPROVE`, the grant fast path and the plan's own approvals and forced `PENDING_REVIEW` — it never rejects, and a routing `AUTO_REJECT` still rejects. Findings are evaluated once, at submission, so they are present even when AI analysis was skipped or failed, and are **not** re-evaluated on reanalysis or for recurring occurrences. See the "Submission enforcement (#864)" paragraph of [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862).
 
 `scheduled_for` echoes back the optional ISO-8601 instant supplied at submission; `null` for queries that are submitted for immediate review.
 
@@ -2225,7 +2242,8 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
       },
       "approval_probability": 0.78,
       "current_stage": 1,
-      "created_at": "2025-01-15T10:00:00Z"
+      "created_at": "2025-01-15T10:00:00Z",
+      "sql_review_blocking_count": 1
     }
   ],
   "page": 0,
@@ -2234,6 +2252,12 @@ Standard pagination (`page`, `size`). Result is filtered to queries the caller c
   "total_pages": 1
 }
 ```
+
+`sql_review_blocking_count` (#864) is how many deterministic SQL review findings fired at `BLOCK`
+severity for the row — the signal that the query could not auto-approve and is in front of a human
+because of a rule the organization wrote down; `0` when none. Resolved for the whole page in one
+grouped count, not one query per row. The findings themselves, with localized messages, are on
+[GET /queries/{id}](#get-queriesid--response) as `sql_review_findings`.
 
 `approval_probability` is the advisory approval-outcome prediction (AF-645) for the row, in `[0,1]` —
 the same triage signal as `approval_prediction.probability` on [GET /queries/{id}](#get-queriesid--response),
@@ -3592,7 +3616,7 @@ Rewrites the priority order of the org's policies atomically.
 
 ### SQL Review Rulesets (`/admin/sql-review-rulesets`) *(`SQL_REVIEW_MANAGE`)* (#863)
 
-Administration of the deterministic SQL review rulesets (epic #860): one ruleset per `environment` per organization (`DEVELOPMENT` / `TEST` / `STAGING` / `PRODUCTION`) plus at most one organization-wide default (`environment` absent). A datasource resolves to the ruleset bound to its `environment`, else the default, else no rules. A ruleset assigns each built-in rule a severity — `OFF` (not evaluated), `WARN` (reported, no workflow effect), `BLOCK` (reported and, once #864 lands, the query can never auto-approve; `BLOCK` never rejects) — and, for the two parameterised rules, its params. Every catalog rule not named in a ruleset runs at its built-in default severity (see [GET /sql-review/rules](#get-sql-reviewrules--response-200-863)). Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+Administration of the deterministic SQL review rulesets (epic #860): one ruleset per `environment` per organization (`DEVELOPMENT` / `TEST` / `STAGING` / `PRODUCTION`) plus at most one organization-wide default (`environment` absent). A datasource resolves to the ruleset bound to its `environment`, else the default, else no rules. A ruleset assigns each built-in rule a severity — `OFF` (not evaluated), `WARN` (reported, no workflow effect), `BLOCK` (reported and, since #864, the query can never auto-approve — every auto-approve path is suppressed and it lands in `PENDING_REVIEW`; `BLOCK` never rejects) — and, for the two parameterised rules, its params. Every catalog rule not named in a ruleset runs at its built-in default severity (see [GET /sql-review/rules](#get-sql-reviewrules--response-200-863)). Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
 
 All endpoints require the `SQL_REVIEW_MANAGE` permission (`WORKFLOW_ADMIN` group, held by the system `ADMIN` role) and operate within the caller's organization. Every mutation writes an audit row — `SQL_REVIEW_RULESET_CREATED` / `SQL_REVIEW_RULESET_UPDATED` / `SQL_REVIEW_RULESET_DELETED` against resource type `sql_review_ruleset`.
 
@@ -4062,6 +4086,12 @@ follow up with one simulation per user of interest. It is deliberately not an N-
       }
     },
     {
+      "step": "SQL_REVIEW",
+      "outcome": "NO_MATCH",
+      "reason": "No blocking SQL review finding",
+      "details": {}
+    },
+    {
       "step": "ROUTING_POLICIES",
       "outcome": "MATCH",
       "reason": "Policy \"Escalate prod payment writes\" matched at priority 10",
@@ -4132,7 +4162,7 @@ it. Every later step is still present with `outcome: "SKIP"`.
 all. Those are exactly the traces worth reading closely, so treat its absence as information — it means
 no routing condition was evaluated, not that the signals were empty.
 
-**`steps` is always all eleven, in this fixed order**, so a client can render a stable checklist: a step
+**`steps` is always all twelve, in this fixed order**, so a client can render a stable checklist: a step
 that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outcome` is one of `ALLOW`,
 `DENY`, `MATCH`, `NO_MATCH`, `SKIP`. `reason` is localized to the request's `Accept-Language`.
 
@@ -4145,11 +4175,12 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `QUOTA` | `quota_type`, `limit`, `current` | `DENY` only; `{}` on `ALLOW` |
 | `SQL_PARSE` | `query_type`, `referenced_tables`, `transactional`, `has_where_clause`, `has_limit_clause` | whenever the statement parsed; `{}` when it did not |
 | `EFFECTIVE_PERMISSION` | `query_admin_short_circuit`, `contributing_grants[]`, `rejected_tables`, `expires_at` | always (`expires_at` omitted when the permission is standing or the caller is a `QUERY_ADMIN` holder) |
+| `SQL_REVIEW` | `blocking_rule_ids[]`, `blocking_count` | `MATCH` only — a deterministic SQL review rule fired at `BLOCK` (#864); `{}` on `NO_MATCH` |
 | `ROUTING_POLICIES` | `policies[]` | always (`[]` when the org has none) |
-| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals` | `MATCH` only |
+| | `matched_policy_id`, `matched_policy_name`, `action`, `effective_min_approvals`, `sql_review_suppressed` | `MATCH` only |
 | `GRANT_FAST_PATH` | `considered_grant_ids` | whenever grants were looked up |
-| | `grant_id`, `approver_email` | `MATCH` only |
-| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads` | always |
+| | `grant_id`, `approver_email` | `MATCH`, and `NO_MATCH` when a covering grant was suppressed by a `BLOCK` finding |
+| `REVIEW_PLAN` | `requires_human_approval`, `auto_approve_reads`, `sql_review_suppressed` | always (`sql_review_suppressed` absent on `SKIP`) |
 | | `review_plan_id`, `min_approvals_required` | only when the datasource has a review plan |
 | `ELIGIBLE_REVIEWERS` | `submitter_excluded` | always |
 | | `reviewers[]` (`user_id`, `email`, `display_name`) | when the datasource has its own reviewer assignment |
@@ -4157,6 +4188,18 @@ that did not apply is reported with `outcome: "SKIP"` rather than omitted. `outc
 | `ROW_SECURITY` | `engine_id`, `row_security_outcome`, `applied_policy_ids`, `predicates[]` | when at least one policy applies; `{}` otherwise |
 | `MASKING` | `policies[]` (`policy_id`, `column_ref`, `strategy`, `bare_column_name`) | always (`[]` when none resolve) |
 | `BREAK_GLASS` | `can_break_glass`, `expires_at` | always (`expires_at` omitted for a standing grant or none) |
+
+`SQL_REVIEW` (#864) is the deterministic rule engine's verdict on the hypothetical SQL, evaluated
+live against the datasource's resolved ruleset exactly as submission would evaluate it — nothing is
+persisted. `MATCH` means at least one rule fired at `BLOCK`, and every auto-approve stage below then
+reports the suppression rather than the approval: `ROUTING_POLICIES` stays `MATCH` on an
+`AUTO_APPROVE` policy but with `sql_review_suppressed: true` and a reason saying so, `GRANT_FAST_PATH`
+reports `NO_MATCH` with the covering `grant_id` it declined, and `REVIEW_PLAN` reports `DENY` with
+`sql_review_suppressed: true`. An `AUTO_REJECT` policy is unaffected — the trace still ends
+`REJECTED`. `NO_MATCH` covers no ruleset, a clean evaluation, `WARN`-only findings, and an engine the
+catalog does not cover. On `ai_outcome=FAILED` the step is still evaluated and reported (the live
+listener reads the findings before deciding) even though `ROUTING_POLICIES`, `GRANT_FAST_PATH` and
+`REVIEW_PLAN` are `SKIP` on that path, per the `ai_outcome` table above.
 
 `ELIGIBLE_REVIEWERS` is the one to read carefully. It reports the datasource's **reviewer assignment**
 minus the submitter, not the full live eligibility test — a decision additionally requires
@@ -7523,10 +7566,10 @@ do not create `query_requests` / `api_requests` rows.
 |--------|------|-------------|
 | `POST` | `/request-groups` | Create a `DRAFT` group (`201`): `name` (3–255, required), `description?`, `continueOnError?` (default false), `items[]` (ordered members, ≥1). Each item: `targetKind` (`QUERY`/`API_CALL`); for `QUERY` → `datasourceId`, `sqlText`, `transactional?`; for `API_CALL` → `connectorId`, `operationId?`, `verb`, `requestPath`, `requestHeaders?`, `queryParams?`, `bodyType?`, `requestContentType?`, `requestBody?`, `formFields?`, `binaryFilename?`. A grouped member does **not** accept `variableOverrides` — the connector's dynamic variables (AF-613) still resolve normally at execution, but per-request overrides are out of scope for grouped requests. `formFields` items use the same shape as the `/api-requests` submit body (#559): `key`, `type` (`TEXT`/`FILE`), `value` (literal or base64 for `FILE`), `filename?`, `contentType?`. Each member is validated against the submitter's permission for its target — `403` when the submitter can't use a referenced datasource/connector. |
 | `GET` | `/request-groups` | List the caller's groups (admins see all org groups). Paginated (`page`, `size`). Optional filter: `status`. |
-| `GET` | `/request-groups/{id}` | Get a group with its ordered items (per-member status, risk, and result snapshot) + group review decisions. Each item embeds its full **`aiAnalysis`** object (AF-531) when one was persisted — same shape as the query-detail `aiAnalysis`: `summary`, raw `issues`/`optimizations` JSON arrays, `missingIndexesDetected`, `affectsRowEstimate`, `aiProvider`/`aiModel`, token counts, `failed`/`errorMessage`. Both `QUERY` and `API_CALL` members are analyzed and persisted at submission. Each `API_CALL` item also embeds its full saved **request composition** (#559) — `requestHeaders`, `queryParams`, `bodyType`, `requestContentType`, `requestBody`, `formFields` (same `key`/`type` shape as create), `binaryFilename` — so a `DRAFT` can be re-opened for editing without losing the composed request. Note that `FILE`/`BINARY` payloads ride back as the originally uploaded base64. The **list** endpoint does *not* embed `aiAnalysis` or the composition (risk scalars + call shape only). |
+| `GET` | `/request-groups/{id}` | Get a group with its ordered items (per-member status, risk, and result snapshot) + group review decisions. Each item embeds its full **`aiAnalysis`** object (AF-531) when one was persisted — same shape as the query-detail `aiAnalysis`: `summary`, raw `issues`/`optimizations` JSON arrays, `missingIndexesDetected`, `affectsRowEstimate`, `aiProvider`/`aiModel`, token counts, `failed`/`errorMessage`. Both `QUERY` and `API_CALL` members are analyzed and persisted at submission. Each `API_CALL` item also embeds its full saved **request composition** (#559) — `requestHeaders`, `queryParams`, `bodyType`, `requestContentType`, `requestBody`, `formFields` (same `key`/`type` shape as create), `binaryFilename` — so a `DRAFT` can be re-opened for editing without losing the composed request. Note that `FILE`/`BINARY` payloads ride back as the originally uploaded base64. Each `QUERY` item also carries **`sql_review_findings`** (#864) — the deterministic SQL review findings recorded for that member when the group was submitted, in the rendered per-finding shape of [`GET /queries/{id}`](#get-queriesid--response); empty for `API_CALL` members and for a clean / not-applicable evaluation. A `BLOCK` on any member forced the whole group to `PENDING_REVIEW` (audited once as `SQL_REVIEW_BLOCKED` against the group when it changed the outcome). The **list** endpoint does *not* embed `aiAnalysis`, the composition, or the findings (risk scalars + call shape only). |
 | `PUT` | `/request-groups/{id}` | **Submitter only.** Replace a `DRAFT` group's editable fields + items (same body as create). `409` when the group is no longer `DRAFT`. |
 | `DELETE` | `/request-groups/{id}` | **Submitter only.** Delete a `DRAFT` group (`204`). |
-| `POST` | `/request-groups/{id}/submit` | Submit the bundle for governance (`202`): `{breakGlass?, scheduledFor?}`. Transitions `DRAFT → PENDING_AI`; per-member AI runs async + rate-limited + fail-safe; the aggregate group risk = **max** of members. A break-glass group requires `can_break_glass` on **every** member target. `scheduledFor` defers the ordered run until after approval. |
+| `POST` | `/request-groups/{id}/submit` | Submit the bundle for governance (`202`): `{breakGlass?, scheduledFor?}`. Transitions `DRAFT → PENDING_AI`; per-member AI runs async + rate-limited + fail-safe; the aggregate group risk = **max** of members. Every `QUERY` member is also evaluated by the deterministic SQL review engine synchronously at submit (#864) and its findings persisted; a member `BLOCK` forces the group to human review even when no member plan requires it (never rejects). A break-glass group requires `can_break_glass` on **every** member target and records the findings without being gated by them. `scheduledFor` defers the ordered run until after approval. |
 | `POST` | `/request-groups/{id}/execute` | **Submitter only.** Run an `APPROVED` group's ordered sequence (`202`). On the first member failure with `continueOnError=false`, the run stops, remaining members are `SKIPPED`, and the group becomes `PARTIALLY_EXECUTED` (or `FAILED` if the first member fails); with `continueOnError=true` all members run and the group becomes `EXECUTED` with mixed item statuses. |
 | `POST` | `/request-groups/{id}/cancel` | **Submitter only.** Cancel a `PENDING_REVIEW` group, or an `APPROVED` group whose deferred (`scheduledFor`) run has not yet fired (`204`). |
 

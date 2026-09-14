@@ -77,7 +77,12 @@ public interface ReviewService {
             UUID delegatedForUserId,
             /** The delegator's email, for rendering the queue badge without a second round trip. */
             String delegatedForEmail,
-            String delegatedForDisplayName) {
+            String delegatedForDisplayName,
+            /**
+             * How many deterministic SQL review findings fired at {@code BLOCK} for this query
+             * (#864) — the signal that it could not auto-approve; {@code 0} when none.
+             */
+            int sqlReviewBlockingCount) {
 
         /** Convenience constructor for callers that predate reviewer delegation. */
         public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,
@@ -87,7 +92,21 @@ public interface ReviewService {
                              Double approvalProbability, int currentStage, Instant createdAt) {
             this(queryRequestId, datasourceId, datasourceName, submittedByUserId, submittedByEmail,
                     sqlText, queryType, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
-                    aiSummary, approvalProbability, currentStage, createdAt, null, null, null);
+                    aiSummary, approvalProbability, currentStage, createdAt, null, null, null, 0);
+        }
+
+        /** Convenience constructor for callers that predate SQL review (#864). */
+        public PendingReview(UUID queryRequestId, UUID datasourceId, String datasourceName,
+                             UUID submittedByUserId, String submittedByEmail, String sqlText,
+                             QueryType queryType, String justification, UUID aiAnalysisId,
+                             RiskLevel aiRiskLevel, Integer aiRiskScore, String aiSummary,
+                             Double approvalProbability, int currentStage, Instant createdAt,
+                             UUID delegatedForUserId, String delegatedForEmail,
+                             String delegatedForDisplayName) {
+            this(queryRequestId, datasourceId, datasourceName, submittedByUserId, submittedByEmail,
+                    sqlText, queryType, justification, aiAnalysisId, aiRiskLevel, aiRiskScore,
+                    aiSummary, approvalProbability, currentStage, createdAt, delegatedForUserId,
+                    delegatedForEmail, delegatedForDisplayName, 0);
         }
     }
 

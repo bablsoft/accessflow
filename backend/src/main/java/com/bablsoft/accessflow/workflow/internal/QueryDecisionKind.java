@@ -10,6 +10,12 @@ package com.bablsoft.accessflow.workflow.internal;
 enum QueryDecisionKind {
 
     ROUTING_AUTO_APPROVE,
+
+    /**
+     * A routing {@code AUTO_APPROVE} matched but a {@code BLOCK} SQL review finding suppressed it
+     * (#864): the policy is still recorded on {@code routing_decision}, the query goes to review.
+     */
+    ROUTING_AUTO_APPROVE_SUPPRESSED,
     ROUTING_AUTO_REJECT,
     ROUTING_REQUIRE_APPROVALS,
     ROUTING_ESCALATE,

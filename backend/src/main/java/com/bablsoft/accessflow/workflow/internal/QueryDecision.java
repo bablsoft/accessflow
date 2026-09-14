@@ -21,8 +21,21 @@ import java.util.UUID;
  * @param grantApproverEmail  who approved that grant, for the auto-approval event's provenance
  * @param context             the signals routing was evaluated against, or {@code null} on the
  *                            AI-failure path, which decides before any context is built
+ * @param sqlReviewSuppression which auto-approve paths a {@code BLOCK} SQL review finding turned
+ *                            into human review (#864), or {@code null} when the finding changed
+ *                            nothing — no block, {@code WARN} only, or the request was headed to
+ *                            review regardless
  */
 record QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
                      Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
-                     ConditionContext context, DecisionTrace trace) {
+                     ConditionContext context, DecisionTrace trace,
+                     SqlReviewSuppression sqlReviewSuppression) {
+
+    /** A decision no SQL review finding interfered with. */
+    QueryDecision(QueryDecisionKind kind, QueryStatus nextStatus, RoutingMatch routingMatch,
+                  Integer effectiveApprovals, UUID grantId, String grantApproverEmail,
+                  ConditionContext context, DecisionTrace trace) {
+        this(kind, nextStatus, routingMatch, effectiveApprovals, grantId, grantApproverEmail, context,
+                trace, null);
+    }
 }

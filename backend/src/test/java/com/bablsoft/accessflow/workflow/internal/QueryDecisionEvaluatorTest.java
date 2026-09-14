@@ -93,7 +93,7 @@ class QueryDecisionEvaluatorTest {
 
     @Test
     void aiFailureGoesStraightToReviewWithoutConsultingAnything() {
-        var decision = evaluator.evaluate(query(QueryType.DELETE), AiOutcome.FAILED, null, -1, clock);
+        var decision = evaluator.evaluate(query(QueryType.DELETE), AiOutcome.FAILED, null, -1, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.AI_FAILED_PENDING_REVIEW);
         assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
@@ -105,11 +105,13 @@ class QueryDecisionEvaluatorTest {
 
     @Test
     void aiFailureTraceSkipsEveryDecisionStage() {
-        var trace = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1, clock)
+        var trace = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1, List.of(), clock)
                 .trace();
 
         assertThat(trace.resultingStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
         assertThat(trace.steps()).extracting("step", "outcome").containsExactly(
+                org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.SQL_REVIEW,
+                        StepOutcome.NO_MATCH),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.ROUTING_POLICIES,
                         StepOutcome.SKIP),
                 org.assertj.core.groups.Tuple.tuple(QueryDecisionStepKind.GRANT_FAST_PATH,
@@ -126,7 +128,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 10, clock);
+                RiskLevel.LOW, 10, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_APPROVE);
         assertThat(decision.nextStatus()).isEqualTo(QueryStatus.APPROVED);
@@ -140,7 +142,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
 
         var decision = evaluator.evaluate(query(QueryType.DELETE), AiOutcome.COMPLETED,
-                RiskLevel.CRITICAL, 95, clock);
+                RiskLevel.CRITICAL, 95, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_REJECT);
         assertThat(decision.nextStatus()).isEqualTo(QueryStatus.REJECTED);
@@ -152,7 +154,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.REQUIRE_APPROVALS, 3);
 
         var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
-                RiskLevel.MEDIUM, 40, clock);
+                RiskLevel.MEDIUM, 40, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_REQUIRE_APPROVALS);
         assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
@@ -165,7 +167,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.REQUIRE_APPROVALS, null);
 
         var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
-                RiskLevel.MEDIUM, 40, clock);
+                RiskLevel.MEDIUM, 40, List.of(), clock);
 
         assertThat(decision.effectiveApprovals()).isEqualTo(1);
     }
@@ -176,7 +178,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.ESCALATE, 2);
 
         var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
-                RiskLevel.HIGH, 80, clock);
+                RiskLevel.HIGH, 80, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_ESCALATE);
         assertThat(decision.effectiveApprovals()).isEqualTo(3);
@@ -189,7 +191,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.ESCALATE, 2);
 
         var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
-                RiskLevel.HIGH, 80, clock);
+                RiskLevel.HIGH, 80, List.of(), clock);
 
         assertThat(decision.effectiveApprovals()).isEqualTo(3);
     }
@@ -200,7 +202,7 @@ class QueryDecisionEvaluatorTest {
         givenPolicyMatch(RoutingAction.ESCALATE, 1);
 
         var trace = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED, RiskLevel.LOW,
-                5, clock).trace();
+                5, List.of(), clock).trace();
 
         assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.MATCH);
@@ -226,7 +228,7 @@ class QueryDecisionEvaluatorTest {
                         Set.of("orders"), true, false));
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.GRANT_FAST_PATH);
         assertThat(decision.nextStatus()).isEqualTo(QueryStatus.APPROVED);
@@ -240,8 +242,7 @@ class QueryDecisionEvaluatorTest {
         givenNoPolicyMatch();
         givenActiveGrant(grant(true, false, false, List.of(), List.of()));
 
-        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
-                clock);
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.GRANT_FAST_PATH);
     }
@@ -252,7 +253,7 @@ class QueryDecisionEvaluatorTest {
         givenNoPolicyMatch();
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.HIGH, 80, clock);
+                RiskLevel.HIGH, 80, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
@@ -268,7 +269,7 @@ class QueryDecisionEvaluatorTest {
                 datasourceId)).thenReturn(true);
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
                 .isEqualTo("workflow.decision.grant.suppressed_anomaly");
@@ -283,7 +284,7 @@ class QueryDecisionEvaluatorTest {
                 datasourceId)).thenReturn(List.of());
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
@@ -297,7 +298,7 @@ class QueryDecisionEvaluatorTest {
         givenActiveGrant(grant(true, false, false, List.of(), List.of()));
 
         var decision = evaluator.evaluate(query(QueryType.DELETE), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
@@ -314,7 +315,7 @@ class QueryDecisionEvaluatorTest {
                         Set.of("payments"), true, false));
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
     }
@@ -329,7 +330,7 @@ class QueryDecisionEvaluatorTest {
         when(sqlParserService.parse(any())).thenThrow(new IllegalStateException("unparseable"));
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
@@ -344,7 +345,7 @@ class QueryDecisionEvaluatorTest {
         givenNoPolicyMatch();
 
         var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
-                RiskLevel.HIGH, 80, clock);
+                RiskLevel.HIGH, 80, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
         assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
@@ -358,7 +359,7 @@ class QueryDecisionEvaluatorTest {
         givenNoGrants();
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
         assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
@@ -371,7 +372,7 @@ class QueryDecisionEvaluatorTest {
         givenNoPolicyMatch();
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.HIGH, 80, clock);
+                RiskLevel.HIGH, 80, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
     }
@@ -382,8 +383,7 @@ class QueryDecisionEvaluatorTest {
         givenNoPolicyMatch();
         givenNoGrants();
 
-        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
-                clock);
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
     }
@@ -397,7 +397,7 @@ class QueryDecisionEvaluatorTest {
         // SKIPPED means the datasource has AI analysis off; production never sees a verdict there,
         // so a caller-supplied one must not resurrect the auto-approve-reads fast path.
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, RiskLevel.LOW,
-                5, clock);
+                5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         assertThat(decision.context().riskLevel()).isNull();
@@ -412,7 +412,7 @@ class QueryDecisionEvaluatorTest {
         givenNoGrants();
 
         var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
-                RiskLevel.LOW, 5, clock);
+                RiskLevel.LOW, 5, List.of(), clock);
 
         assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
         var planStep = step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN);
@@ -427,14 +427,207 @@ class QueryDecisionEvaluatorTest {
         givenNoGrants();
 
         var trace = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED, RiskLevel.LOW,
-                5, clock).trace();
+                5, List.of(), clock).trace();
 
         assertThat(trace.steps()).extracting("step").containsExactly(
-                QueryDecisionStepKind.ROUTING_POLICIES, QueryDecisionStepKind.GRANT_FAST_PATH,
-                QueryDecisionStepKind.REVIEW_PLAN);
+                QueryDecisionStepKind.SQL_REVIEW, QueryDecisionStepKind.ROUTING_POLICIES,
+                QueryDecisionStepKind.GRANT_FAST_PATH, QueryDecisionStepKind.REVIEW_PLAN);
         assertThat(step(trace, QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.NO_MATCH);
         assertThat(step(trace, QueryDecisionStepKind.REVIEW_PLAN).outcome()).isEqualTo(StepOutcome.DENY);
+    }
+
+    // ── SQL review BLOCK guard (#864) ─────────────────────────────────────────
+
+    @Test
+    void aBlockSuppressesRoutingAutoApproveButKeepsThePolicy() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("select_star"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.routingMatch().policyId()).isEqualTo(policyId);
+        assertThat(decision.effectiveApprovals()).isNull();
+        assertThat(decision.sqlReviewSuppression()).isNotNull();
+        assertThat(decision.sqlReviewSuppression().blockingRuleIds()).containsExactly("select_star");
+        assertThat(decision.sqlReviewSuppression().paths())
+                .containsExactly(SqlReviewSuppression.SuppressedAutoApproval.ROUTING_AUTO_APPROVE);
+        var routing = step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES);
+        assertThat(routing.outcome()).isEqualTo(StepOutcome.MATCH);
+        assertThat(routing.reasonKey())
+                .isEqualTo("workflow.decision.routing.matched_auto_approve_suppressed");
+        assertThat(routing.details()).containsEntry("sql_review_suppressed", true);
+        var sqlReview = step(decision.trace(), QueryDecisionStepKind.SQL_REVIEW);
+        assertThat(sqlReview.outcome()).isEqualTo(StepOutcome.MATCH);
+        assertThat(sqlReview.details()).containsEntry("blocking_count", 1);
+        verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+    }
+
+    @Test
+    void aBlockNeverSoftensRoutingAutoRejectIntoReview() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+
+        var decision = evaluator.evaluate(query(QueryType.DELETE), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("missing_where_on_delete"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_AUTO_REJECT);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.REJECTED);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.ROUTING_POLICIES).reasonKey())
+                .isEqualTo("workflow.decision.routing.matched");
+    }
+
+    @Test
+    void aBlockLeavesRequireApprovalsArithmeticUntouched() {
+        givenPlan(false, true);
+        givenPolicyMatch(RoutingAction.REQUIRE_APPROVALS, 3);
+
+        var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("missing_where_on_update"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.ROUTING_REQUIRE_APPROVALS);
+        assertThat(decision.effectiveApprovals()).isEqualTo(3);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+    }
+
+    @Test
+    void aBlockSuppressesACoveringGrantAndFallsThroughToThePlan() {
+        givenPlan(false, true);
+        givenNoPolicyMatch();
+        givenActiveGrant(grant(true, false, false, List.of(), List.of("orders")));
+        when(sqlParserService.parse(any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT 1"),
+                        Set.of("orders"), true, false));
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("select_star"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.grantId()).isNull();
+        var grantStep = step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH);
+        assertThat(grantStep.outcome()).isEqualTo(StepOutcome.NO_MATCH);
+        assertThat(grantStep.reasonKey()).isEqualTo("workflow.decision.grant.suppressed_sql_review");
+        assertThat(grantStep.details()).containsEntry("grant_id", grantId);
+        // The plan required review on its own, so only the grant counts as suppressed.
+        assertThat(decision.sqlReviewSuppression().paths())
+                .containsExactly(SqlReviewSuppression.SuppressedAutoApproval.GRANT_FAST_PATH);
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).reasonKey())
+                .isEqualTo("workflow.decision.plan.requires_review");
+    }
+
+    @Test
+    void aBlockRecordsBothPathsWhenTheGrantAndThePlanWouldEachHaveApproved() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenActiveGrant(grant(true, false, false, List.of(), List.of()));
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of("select_star"), clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression().paths()).containsExactly(
+                SqlReviewSuppression.SuppressedAutoApproval.GRANT_FAST_PATH,
+                SqlReviewSuppression.SuppressedAutoApproval.REVIEW_PLAN);
+    }
+
+    @Test
+    void aGrantThatDoesNotCoverIsNotASuppressedPath() {
+        givenPlan(false, true);
+        givenNoPolicyMatch();
+        givenActiveGrant(grant(true, false, false, List.of(), List.of("other")));
+        when(sqlParserService.parse(any()))
+                .thenReturn(new SqlParseResult(QueryType.SELECT, false, List.of("SELECT 1"),
+                        Set.of("orders"), true, false));
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("select_star"), clock);
+
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.GRANT_FAST_PATH).reasonKey())
+                .isEqualTo("workflow.decision.grant.no_covering_grant");
+    }
+
+    @Test
+    void aBlockSuppressesThePlansNoHumanApprovalFastPath() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                List.of("protected_table"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_PENDING_REVIEW);
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        var plan = step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN);
+        assertThat(plan.outcome()).isEqualTo(StepOutcome.DENY);
+        assertThat(plan.reasonKey()).isEqualTo("workflow.decision.plan.suppressed_sql_review");
+        assertThat(plan.details()).containsEntry("sql_review_suppressed", true);
+        assertThat(decision.sqlReviewSuppression().paths())
+                .containsExactly(SqlReviewSuppression.SuppressedAutoApproval.REVIEW_PLAN);
+    }
+
+    @Test
+    void aBlockSuppressesThePlansAutoApproveReadsFastPath() {
+        givenPlan(true, true);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("select_star"), clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression().paths())
+                .containsExactly(SqlReviewSuppression.SuppressedAutoApproval.REVIEW_PLAN);
+    }
+
+    @Test
+    void aBlockOnARequestAlreadyHeadedToReviewIsNotASuppression() {
+        givenPlan(false, true);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.UPDATE), AiOutcome.COMPLETED,
+                RiskLevel.LOW, 5, List.of("missing_where_on_update"), clock);
+
+        assertThat(decision.nextStatus()).isEqualTo(QueryStatus.PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        assertThat(step(decision.trace(), QueryDecisionStepKind.SQL_REVIEW).outcome())
+                .isEqualTo(StepOutcome.MATCH);
+        assertThat(step(decision.trace(), QueryDecisionStepKind.REVIEW_PLAN).details())
+                .containsEntry("sql_review_suppressed", false);
+    }
+
+    @Test
+    void noBlockChangesNothingAndTracesAClearSqlReviewStep() {
+        givenPlan(false, false);
+        givenNoPolicyMatch();
+        givenNoGrants();
+
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.SKIPPED, null, -1,
+                null, clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.PLAN_APPROVED);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        var sqlReview = step(decision.trace(), QueryDecisionStepKind.SQL_REVIEW);
+        assertThat(sqlReview.outcome()).isEqualTo(StepOutcome.NO_MATCH);
+        assertThat(sqlReview.reasonKey()).isEqualTo("workflow.decision.sql_review.clear");
+    }
+
+    @Test
+    void theAiFailedPathStillRecordsTheBlockOnTheTrace() {
+        var decision = evaluator.evaluate(query(QueryType.SELECT), AiOutcome.FAILED, null, -1,
+                List.of("select_star"), clock);
+
+        assertThat(decision.kind()).isEqualTo(QueryDecisionKind.AI_FAILED_PENDING_REVIEW);
+        assertThat(decision.sqlReviewSuppression()).isNull();
+        var sqlReview = step(decision.trace(), QueryDecisionStepKind.SQL_REVIEW);
+        assertThat(sqlReview.outcome()).isEqualTo(StepOutcome.MATCH);
+        assertThat(sqlReview.details()).containsEntry("blocking_rule_ids", List.of("select_star"));
     }
 
     // ── Fixtures ──────────────────────────────────────────────────────────────

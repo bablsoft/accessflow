@@ -7,6 +7,8 @@ import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.UserQueryService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassAdminService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassAlreadyReviewedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventFilter;
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -35,6 +39,7 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
     private final QueryRequestLookupService queryRequestLookupService;
     private final DatasourceLookupService datasourceLookupService;
     private final UserQueryService userQueryService;
+    private final SqlReviewFindingService sqlReviewFindingService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -43,9 +48,18 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
                                                   PageRequest pageRequest) {
         var spec = BreakGlassEventSpecifications.forQuery(organizationId,
                 filter == null ? BreakGlassEventFilter.empty() : filter);
-        var page = breakGlassEventRepository.findAll(spec, toSpringPageable(pageRequest))
-                .map(this::toView);
-        return new PageResponse<>(page.getContent(), page.getNumber(), page.getSize(),
+        var page = breakGlassEventRepository.findAll(spec, toSpringPageable(pageRequest));
+        // One batch for the page's findings (#864) rather than one lookup per row.
+        var findingsByQuery = sqlReviewFindingService.findByQueryRequests(page.getContent().stream()
+                .map(BreakGlassEventEntity::getQueryRequestId)
+                .filter(Objects::nonNull)
+                .toList());
+        var views = page.getContent().stream()
+                .map(entity -> toView(entity, entity.getQueryRequestId() == null
+                        ? List.<SqlReviewFinding>of()
+                        : findingsByQuery.getOrDefault(entity.getQueryRequestId(), List.of())))
+                .toList();
+        return new PageResponse<>(views, page.getNumber(), page.getSize(),
                 page.getTotalElements(), page.getTotalPages());
     }
 
@@ -82,6 +96,13 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
     }
 
     private BreakGlassEventView toView(BreakGlassEventEntity entity) {
+        return toView(entity, entity.getQueryRequestId() == null
+                ? List.of()
+                : sqlReviewFindingService.findByQueryRequest(entity.getQueryRequestId()));
+    }
+
+    private BreakGlassEventView toView(BreakGlassEventEntity entity,
+                                       List<SqlReviewFinding> findings) {
         // API and deployment break-glass rows carry no query_request_id; Spring Data's findById
         // rejects a null id outright, so guard before looking up.
         var query = entity.getQueryRequestId() == null
@@ -114,7 +135,8 @@ class DefaultBreakGlassAdminService implements BreakGlassAdminService {
                 reviewer != null ? reviewer.displayName() : null,
                 entity.getReviewComment(),
                 entity.getReviewedAt(),
-                entity.getCreatedAt());
+                entity.getCreatedAt(),
+                findings);
     }
 
     private static Pageable toSpringPageable(PageRequest request) {

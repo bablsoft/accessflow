@@ -37,6 +37,9 @@ import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.Request
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGroupItemRepository;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGroupRepository;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +75,8 @@ public class DefaultRequestGroupService implements RequestGroupService {
     private final ApiConnectorPermissionLookupService apiConnectorPermissionLookupService;
     private final com.bablsoft.accessflow.apigov.api.ApiConnectorAdminService apiConnectorAdminService;
     private final UserQueryService userQueryService;
+    private final SqlReviewService sqlReviewService;
+    private final SqlReviewFindingService sqlReviewFindingService;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
@@ -127,6 +132,15 @@ public class DefaultRequestGroupService implements RequestGroupService {
         // every target — for everyone, including admins).
         for (RequestGroupItemEntity item : items) {
             validatePermission(item, group.getSubmittedBy(), command.admin(), command.breakGlass());
+        }
+        // Deterministic SQL review per QUERY member, on both branches (#864): a member's BLOCK forces
+        // the whole group to human review in GroupAiAnalysisListener; break-glass records the
+        // findings for the retro-review but is never gated by them.
+        for (RequestGroupItemEntity item : items) {
+            if (item.getTargetKind() == RequestGroupTargetKind.QUERY) {
+                sqlReviewFindingService.recordForGroupItem(item.getId(), sqlReviewService.evaluate(
+                        group.getOrganizationId(), item.getDatasourceId(), item.getSqlText()));
+            }
         }
         group.setScheduledFor(command.scheduledFor());
         group.setSubmittedIp(command.submittedIp());
@@ -349,6 +363,12 @@ public class DefaultRequestGroupService implements RequestGroupService {
         Map<UUID, DatasourceRef> datasources = new HashMap<>();
         Map<UUID, ApiConnectorView> connectors = new HashMap<>();
         Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId = new HashMap<>();
+        // The detail view is the reviewer's surface for #864 findings; list rows stay lean, like
+        // the embedded analyses.
+        Map<UUID, List<SqlReviewFinding>> findingsByItemId = includeAnalyses
+                ? sqlReviewFindingService.findByGroupItems(items.stream()
+                        .map(RequestGroupItemEntity::getId).toList())
+                : Map.of();
         for (RequestGroupItemEntity item : items) {
             if (item.getDatasourceId() != null && !datasources.containsKey(item.getDatasourceId())) {
                 datasourceLookupService.findRef(item.getDatasourceId())
@@ -369,7 +389,7 @@ public class DefaultRequestGroupService implements RequestGroupService {
             }
         }
         return RequestGroupMapper.toView(group, items, submitter, datasources, connectors,
-                analysesByItemId, objectMapper, includeAnalyses);
+                analysesByItemId, findingsByItemId, objectMapper, includeAnalyses);
     }
 
     private void audit(AuditAction action, RequestGroupEntity group, UUID actorId,

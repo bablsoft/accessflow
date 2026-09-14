@@ -11,6 +11,7 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupView;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,10 +29,11 @@ final class RequestGroupMapper {
                                    UserView submitter, Map<UUID, DatasourceRef> datasources,
                                    Map<UUID, ApiConnectorView> connectors,
                                    Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId,
+                                   Map<UUID, List<SqlReviewFinding>> findingsByItemId,
                                    ObjectMapper objectMapper, boolean includeComposition) {
         var itemViews = items.stream()
-                .map(i -> toItemView(i, datasources, connectors, analysesByItemId, objectMapper,
-                        includeComposition))
+                .map(i -> toItemView(i, datasources, connectors, analysesByItemId, findingsByItemId,
+                        objectMapper, includeComposition))
                 .toList();
         return new RequestGroupView(
                 group.getId(),
@@ -59,6 +61,7 @@ final class RequestGroupMapper {
                                            Map<UUID, DatasourceRef> datasources,
                                            Map<UUID, ApiConnectorView> connectors,
                                            Map<UUID, QueryDetailView.AiAnalysisDetail> analysesByItemId,
+                                           Map<UUID, List<SqlReviewFinding>> findingsByItemId,
                                            ObjectMapper objectMapper, boolean includeComposition) {
         var dsName = i.getDatasourceId() == null ? null
                 : datasources.getOrDefault(i.getDatasourceId(), new DatasourceRef(i.getDatasourceId(), null)).name();
@@ -96,7 +99,15 @@ final class RequestGroupMapper {
                 i.getRowsAffected(),
                 i.getErrorMessage(),
                 i.getDurationMs(),
-                i.getExecutedAt());
+                i.getExecutedAt(),
+                findingsFor(findingsByItemId, i.getId()));
+    }
+
+    // Map.of() rejects a null key outright, and a not-yet-persisted member has no id.
+    private static List<SqlReviewFinding> findingsFor(Map<UUID, List<SqlReviewFinding>> byItemId,
+                                                     UUID itemId) {
+        return itemId == null || byItemId.isEmpty() ? List.of()
+                : byItemId.getOrDefault(itemId, List.of());
     }
 
     /** Fail-soft mirror of the service's {@code writeJson}: unreadable stored JSON yields empty. */

@@ -23,6 +23,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.ReviewStages;
 import com.bablsoft.accessflow.core.api.ReviewerEligibilityService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService;
 import com.bablsoft.accessflow.workflow.api.ReviewerNotEligibleException;
@@ -62,6 +63,7 @@ class DefaultReviewService implements ReviewService {
     private final ReviewDelegationLookupService reviewDelegationLookupService;
     private final RoutingDecisionService routingDecisionService;
     private final ApprovalPredictionLookupService approvalPredictionLookupService;
+    private final SqlReviewFindingService sqlReviewFindingService;
     private final com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
@@ -102,10 +104,12 @@ class DefaultReviewService implements ReviewService {
         }
         var probabilities = approvalProbabilities(actionable);
         var delegators = delegatorRefs(matchedIdentity.values());
+        var blockingCounts = sqlReviewBlockingCounts(actionable);
         var visible = actionable.stream()
                 .map(view -> toPendingReview(view, context,
                         probabilities.get(view.queryRequestId()),
-                        matchedIdentity.get(view.queryRequestId()), delegators))
+                        matchedIdentity.get(view.queryRequestId()), delegators,
+                        blockingCounts.getOrDefault(view.queryRequestId(), 0)))
                 .toList();
         return new PageResponse<>(visible, page.page(), page.size(), page.totalElements(),
                 page.totalPages());
@@ -402,6 +406,15 @@ class DefaultReviewService implements ReviewService {
                         ApprovalPredictionSnapshot::probability));
     }
 
+    /** One batch count for the page (#864) — the same N+1 argument as approvalProbabilities. */
+    private Map<UUID, Integer> sqlReviewBlockingCounts(List<PendingReviewView> views) {
+        if (views.isEmpty()) {
+            return Map.of();
+        }
+        return sqlReviewFindingService.countBlockingByQueryRequests(
+                views.stream().map(PendingReviewView::queryRequestId).toList());
+    }
+
     /** One batch lookup for the delegators named across the page — not one per row. */
     private Map<UUID, com.bablsoft.accessflow.core.api.UserView> delegatorRefs(
             Collection<ReviewCandidate> matched) {
@@ -420,7 +433,8 @@ class DefaultReviewService implements ReviewService {
 
     private PendingReview toPendingReview(PendingReviewView view, ReviewerContext context,
                                           Double approvalProbability, ReviewCandidate matched,
-                                          Map<UUID, com.bablsoft.accessflow.core.api.UserView> delegators) {
+                                          Map<UUID, com.bablsoft.accessflow.core.api.UserView> delegators,
+                                          int sqlReviewBlockingCount) {
         var plan = reviewPlanLookupService.findForDatasource(view.datasourceId()).orElseThrow();
         var decisions = queryRequestStateService.listDecisions(view.queryRequestId());
         var stage = currentStage(plan, decisions,
@@ -445,7 +459,8 @@ class DefaultReviewService implements ReviewService {
                 view.createdAt(),
                 matched.onBehalfOfUserId(),
                 delegator == null ? null : delegator.email(),
-                delegator == null ? null : delegator.displayName());
+                delegator == null ? null : delegator.displayName(),
+                sqlReviewBlockingCount);
     }
 
     private static <T> T mapTransitionFailure(UUID queryRequestId,

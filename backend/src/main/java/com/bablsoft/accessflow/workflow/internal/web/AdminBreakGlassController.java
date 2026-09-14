@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.PageResponse;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import com.bablsoft.accessflow.workflow.api.BreakGlassAdminService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventFilter;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventView;
@@ -17,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -34,6 +37,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Admin "Break-glass log" (AF-385). Reads the retro-review events (ADMIN/AUDITOR) and acknowledges
@@ -51,6 +55,7 @@ class AdminBreakGlassController {
     private static final int MAX_PAGE_SIZE = 200;
 
     private final BreakGlassAdminService breakGlassAdminService;
+    private final SqlReviewFindingRenderer sqlReviewFindingRenderer;
     private final AuditLogService auditLogService;
 
     @GetMapping
@@ -77,7 +82,8 @@ class AdminBreakGlassController {
         var filter = new BreakGlassEventFilter(status, datasourceId, userId, from, to);
         PageResponse<BreakGlassEventView> page = breakGlassAdminService.list(organizationId, filter,
                 SpringPageableAdapter.toPageRequest(pageable));
-        return BreakGlassEventPageResponse.from(page.map(BreakGlassEventResponse::from));
+        var render = renderer();
+        return BreakGlassEventPageResponse.from(page.map(view -> BreakGlassEventResponse.from(view, render)));
     }
 
     @GetMapping("/{id}")
@@ -87,7 +93,7 @@ class AdminBreakGlassController {
     @ApiResponse(responseCode = "404", description = "Not found in this organization")
     BreakGlassEventResponse get(@PathVariable UUID id,
                                 @AuthenticationPrincipal(expression = "organizationId") UUID organizationId) {
-        return BreakGlassEventResponse.from(breakGlassAdminService.get(organizationId, id));
+        return BreakGlassEventResponse.from(breakGlassAdminService.get(organizationId, id), renderer());
     }
 
     @PostMapping("/{id}/acknowledge")
@@ -105,7 +111,13 @@ class AdminBreakGlassController {
         var comment = body == null ? null : body.comment();
         var view = breakGlassAdminService.acknowledge(organizationId, id, actorUserId, comment);
         recordAudit(id, organizationId, actorUserId, auditContext, view);
-        return BreakGlassEventResponse.from(view);
+        return BreakGlassEventResponse.from(view, renderer());
+    }
+
+    /** Findings are stored as rule id + args; the message is rendered in the caller's locale (#864). */
+    private Function<SqlReviewFinding, String> renderer() {
+        var locale = LocaleContextHolder.getLocale();
+        return finding -> sqlReviewFindingRenderer.message(finding, locale);
     }
 
     /**

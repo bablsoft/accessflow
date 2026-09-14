@@ -43,6 +43,19 @@ class QuerySqlReviewFindingEntityTest {
         assertThat(entity.getStatementIndex()).isZero();
         assertThat(entity.getLineNumber()).isNull();
         assertThat(entity.getArgs()).isNull();
+        assertThat(entity.getRequestGroupItemId()).isNull();
         assertThat(entity.getCreatedAt()).isNotNull();
+    }
+
+    /** #864: a request-group member's finding keys off the item, never a query row. */
+    @Test
+    void canBelongToARequestGroupItemInstead() {
+        var entity = new QuerySqlReviewFindingEntity();
+        var itemId = UUID.randomUUID();
+
+        entity.setRequestGroupItemId(itemId);
+
+        assertThat(entity.getRequestGroupItemId()).isEqualTo(itemId);
+        assertThat(entity.getQueryRequestId()).isNull();
     }
 }

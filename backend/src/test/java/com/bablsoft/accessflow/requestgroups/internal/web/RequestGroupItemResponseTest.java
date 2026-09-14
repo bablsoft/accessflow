@@ -9,6 +9,8 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -24,7 +26,7 @@ class RequestGroupItemResponseTest {
                 UUID.randomUUID(), "prod-db", "SELECT 1", QueryType.SELECT, false, null, null, null,
                 null, null, Map.of(), Map.of(), null, null, null, List.of(), null,
                 analysis == null ? null : analysis.id(), RiskLevel.MEDIUM, 40, analysis,
-                RequestGroupItemStatus.PENDING, null, null, null, null, null);
+                RequestGroupItemStatus.PENDING, null, null, null, null, null, List.of());
     }
 
     @Test
@@ -34,7 +36,7 @@ class RequestGroupItemResponseTest {
                 "Reads one row", "[{\"severity\":\"LOW\"}]", null, true, 5L, AiProviderType.OPENAI,
                 "gpt-4o", 12, 7, false, null);
 
-        var response = RequestGroupItemResponse.from(view(detail));
+        var response = RequestGroupItemResponse.from(view(detail), f -> f.ruleId());
 
         var analysis = response.aiAnalysis();
         assertThat(analysis).isNotNull();
@@ -53,11 +55,36 @@ class RequestGroupItemResponseTest {
         assertThat(analysis.failed()).isFalse();
     }
 
+    /** #864: findings ride on the member, rendered into the caller's locale by the controller. */
+    @Test
+    void rendersSqlReviewFindingsInOrder() {
+        var base = view(null);
+        var blocked = new SqlReviewFinding("select_star", SqlReviewSeverity.BLOCK, 0, 1, Map.of());
+        var warned = new SqlReviewFinding("missing_limit_on_select", SqlReviewSeverity.WARN, 0, null,
+                Map.of());
+        var withFindings = new RequestGroupItemView(base.id(), base.sequenceOrder(), base.targetKind(),
+                base.datasourceId(), base.datasourceName(), base.sqlText(), base.queryType(),
+                base.transactional(), null, null, null, null, null, Map.of(), Map.of(), null, null,
+                null, List.of(), null, null, RiskLevel.MEDIUM, 40, null,
+                RequestGroupItemStatus.PENDING, null, null, null, null, null,
+                List.of(blocked, warned));
+
+        var response = RequestGroupItemResponse.from(withFindings, f -> "msg:" + f.ruleId());
+
+        assertThat(response.sqlReviewFindings()).hasSize(2);
+        assertThat(response.sqlReviewFindings().get(0).ruleId()).isEqualTo("select_star");
+        assertThat(response.sqlReviewFindings().get(0).severity()).isEqualTo(SqlReviewSeverity.BLOCK);
+        assertThat(response.sqlReviewFindings().get(0).lineNumber()).isEqualTo(1);
+        assertThat(response.sqlReviewFindings().get(0).message()).isEqualTo("msg:select_star");
+        assertThat(response.sqlReviewFindings().get(1).lineNumber()).isNull();
+    }
+
     @Test
     void mapsNullAnalysisToNull() {
-        var response = RequestGroupItemResponse.from(view(null));
+        var response = RequestGroupItemResponse.from(view(null), f -> f.ruleId());
 
         assertThat(response.aiAnalysis()).isNull();
+        assertThat(response.sqlReviewFindings()).isEmpty();
         assertThat(response.sqlText()).isEqualTo("SELECT 1");
         assertThat(response.aiRiskLevel()).isEqualTo(RiskLevel.MEDIUM);
     }
@@ -72,9 +99,9 @@ class RequestGroupItemResponseTest {
                         new ApiFormField("doc", ApiFormField.ApiFormFieldType.FILE, "aGk=", "a.txt",
                                 "text/plain")),
                 null, null, null, null, null, RequestGroupItemStatus.PENDING, null, null, null, null,
-                null);
+                null, List.of());
 
-        var response = RequestGroupItemResponse.from(view);
+        var response = RequestGroupItemResponse.from(view, f -> f.ruleId());
 
         assertThat(response.requestHeaders()).containsEntry("X-Trace", "1");
         assertThat(response.queryParams()).containsEntry("dryRun", "true");
@@ -90,7 +117,7 @@ class RequestGroupItemResponseTest {
                 "AI analysis failed", null, null, false, null, AiProviderType.ANTHROPIC, "claude",
                 0, 0, true, "provider unavailable");
 
-        var analysis = RequestGroupItemResponse.from(view(detail)).aiAnalysis();
+        var analysis = RequestGroupItemResponse.from(view(detail), f -> f.ruleId()).aiAnalysis();
 
         assertThat(analysis.failed()).isTrue();
         assertThat(analysis.errorMessage()).isEqualTo("provider unavailable");

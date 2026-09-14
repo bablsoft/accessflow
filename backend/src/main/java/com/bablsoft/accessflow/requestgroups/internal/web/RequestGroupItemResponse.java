@@ -9,12 +9,14 @@ import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 record RequestGroupItemResponse(
         UUID id,
@@ -46,9 +48,12 @@ record RequestGroupItemResponse(
         Long rowsAffected,
         String errorMessage,
         Integer durationMs,
-        Instant executedAt) {
+        Instant executedAt,
+        /** SQL review findings recorded at submission (#864), rendered into the caller's locale. */
+        List<SqlReviewFindingDetail> sqlReviewFindings) {
 
-    static RequestGroupItemResponse from(RequestGroupItemView v) {
+    static RequestGroupItemResponse from(RequestGroupItemView v,
+                                         Function<SqlReviewFinding, String> renderFinding) {
         return new RequestGroupItemResponse(v.id(), v.sequenceOrder(), v.targetKind(), v.datasourceId(),
                 v.datasourceName(), v.sqlText(), v.queryType(), v.transactional(), v.apiConnectorId(),
                 v.apiConnectorName(), v.operationId(), v.verb(), v.requestPath(), v.requestHeaders(),
@@ -56,7 +61,9 @@ record RequestGroupItemResponse(
                 v.binaryFilename(), v.aiAnalysisId(),
                 v.aiRiskLevel(), v.aiRiskScore(), AiAnalysisDetail.from(v.aiAnalysis()), v.status(),
                 v.responseStatusCode(), v.rowsAffected(), v.errorMessage(), v.durationMs(),
-                v.executedAt());
+                v.executedAt(),
+                v.sqlReviewFindings().stream()
+                        .map(f -> SqlReviewFindingDetail.from(f, renderFinding)).toList());
     }
 
     /** Full embedded member analysis — same shape as the query-detail {@code aiAnalysis} (AF-531). */

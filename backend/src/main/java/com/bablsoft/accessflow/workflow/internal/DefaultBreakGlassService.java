@@ -13,6 +13,8 @@ import com.bablsoft.accessflow.core.api.SubmissionReason;
 import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassNotPermittedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassStatus;
@@ -47,6 +49,8 @@ class DefaultBreakGlassService implements BreakGlassService {
     private final QueryRequestStateService queryRequestStateService;
     private final QueryLifecycleService queryLifecycleService;
     private final BreakGlassEventRepository breakGlassEventRepository;
+    private final SqlReviewService sqlReviewService;
+    private final SqlReviewFindingService sqlReviewFindingService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
 
@@ -84,6 +88,10 @@ class DefaultBreakGlassService implements BreakGlassService {
                 input.submittedIp(),
                 input.submittedUserAgent(),
                 false));
+        // SQL review findings are recorded for the retro-review but never gate an emergency (#864):
+        // break-glass bypasses the decision chain the BLOCK guard lives in, by design.
+        sqlReviewFindingService.recordForQuery(queryId,
+                sqlReviewService.evaluate(input.organizationId(), datasource.id(), input.sql()));
         queryRequestStateService.transitionTo(queryId, QueryStatus.PENDING_AI, QueryStatus.APPROVED);
 
         var event = new BreakGlassEventEntity();

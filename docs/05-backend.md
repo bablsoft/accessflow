@@ -1341,6 +1341,7 @@ Decision rules:
 | `auto_approve_reads=true` AND `query_type=SELECT` AND AI risk ∈ {LOW, MEDIUM} | `APPROVED` (fast path) |
 | (default) | `PENDING_REVIEW` |
 | Datasource has no review plan | `PENDING_REVIEW` (safe default) |
+| **Any `BLOCK` SQL review finding recorded at submission (#864)** — checked at every entry point, before all three rows above can approve | `PENDING_REVIEW` — each of the three `APPROVED` rows is suppressed (a routing `AUTO_APPROVE` too; `AUTO_REJECT` is untouched). Audited once as `SQL_REVIEW_BLOCKED` when it changed the outcome. See the "Submission enforcement (#864)" paragraph of [Deterministic SQL review rules](#deterministic-sql-review-rules-sqlreview-862) |
 
 `AiAnalysisFailedEvent` **always** transitions to `PENDING_REVIEW`, regardless of plan flags. Auto-approve is a positive-signal shortcut; failure is a missing signal — they aren't symmetric, so an AI provider error never short-circuits human review. The AI module persists a sentinel `CRITICAL` analysis row on failure with `failed=true` and `error_message=<reason>` (added in AF-249) so the reviewer can render an "AI analysis failed" surface on `QueryDetailPage` instead of seeing a fake CRITICAL verdict. Reviewers and admins can call [`POST /queries/{id}/reanalyze`](04-api-spec.md#post-queriesidreanalyze--response-202) to re-run analysis on the failed row — the workflow service deletes the sentinel and publishes `AiReanalysisRequestedEvent`, which the AI module's listener consumes by invoking the normal `analyzeSubmittedQuery` pipeline. A `QUERY_AI_REANALYZE_REQUESTED` audit row is written from the controller on each call.
 
@@ -1412,7 +1413,8 @@ caller's language.
 #### The simulation
 
 `workflow.internal.DefaultAccessSimulationService` reconstructs the whole journey of a hypothetical
-request as eleven ordered steps, delegating stages 5–7 to the evaluator wholesale and owning the rest.
+request as twelve ordered steps, delegating stages 5–8 (`SQL_REVIEW` through `REVIEW_PLAN`) to the
+evaluator wholesale and owning the rest.
 A stage that did not apply is reported as `SKIP`, never omitted, so a client renders a stable checklist
 and a missing stage is always a bug.
 
@@ -1438,6 +1440,12 @@ ones were missing rather than implying a precision it does not have: `CLIENT_CON
 source IP, user agent or CI/CD origin, so every AF-446 condition evaluates to `false`),
 `COST_ESTIMATE_ABSENT` (the AF-624 estimate is per submitted query), plus the
 `COLUMN_MATCH_BARE_NAME` and `ENGINE_CLASSIFICATION_UNAVAILABLE` caveats AF-630 already defined.
+
+The deterministic SQL review verdict (#864) is not one of those gaps: the simulator asks
+`SqlReviewService.evaluate` for the hypothetical SQL — read-only, nothing persisted — and hands the
+evaluator the same distinct, sorted `BLOCK` rule ids the live listener reads back from
+`query_sql_review_findings`, so a `SQL_REVIEW: MATCH` in a simulation is exactly the block submission
+would enforce.
 
 #### The reverse index
 
@@ -1553,8 +1561,9 @@ The third way a query is judged, next to AI analysis and routing policies: a **n
 rule catalog** evaluated over the JSqlParser AST, with a per-rule severity (`OFF` / `WARN` /
 `BLOCK`) that an admin sets per environment. #862 ships the engine and the fourteen built-in rules
 behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sql)`; #863 the REST
-surface (below); enforcement at the submission chokepoint is #864 (`BLOCK` suppresses every
-auto-approve path and forces `PENDING_REVIEW` — it **never** rejects), the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+surface (below); #864 the enforcement at the submission chokepoint (`BLOCK` suppresses every
+auto-approve path and forces `PENDING_REVIEW` — it **never** rejects; see "Submission enforcement"
+below); the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
 
 **Applicability.** Every rule is a pure function of the parsed statement, so the catalog covers the
 in-process relational dialects only — `DefaultSqlReviewService.RELATIONAL_DIALECTS` =
@@ -1649,8 +1658,8 @@ text comes from three keys per rule in every `messages*.properties` —
 `sqlreview.rule.<id>.name`, `.description`, `.message` — 42 keys, parity-checked by
 `MessagesParityTest`. `.message` uses positional `MessageFormat` placeholders bound in
 `messageArgKeys()` order (e.g. `protected_table` → `{0}` = `table`, `{1}` = `glob`); `.name` and
-`.description` take no args. Rendering per reader goes through `SqlReviewFindingRenderer` (#863) — the evaluation endpoint
-today, the query detail and reviewer queue in #864, the editor in #865. Six `error.sql_review_rule_*` keys back the validator (five) and
+`.description` take no args. Rendering per reader goes through `SqlReviewFindingRenderer` (#863) — the evaluation endpoint,
+the query detail, the break-glass retro-review and the request-group detail (#864), the editor (#865). Six `error.sql_review_rule_*` keys back the validator (five) and
 `SqlRuleParamsCodec` (`error.sql_review_rule_params_invalid`, a malformed stored `params` JSONB).
 
 **The REST surface (#863).** Three endpoints, all in `sqlreview/internal/web/`, documented in
@@ -1684,7 +1693,7 @@ today, the query detail and reviewer queue in #864, the editor in #865. Six `err
   path is the system `evaluate`. `sqlreview.api.SqlReviewFindingRenderer`
   (`DefaultSqlReviewFindingRenderer`) binds each finding's `args` onto
   `sqlreview.rule.<id>.message` in `messageArgKeys()` order for the request locale — the same
-  renderer #864 / #865 use for the query detail and reviewer queue. Read-only by construction: the
+  renderer the #864 reviewer surfaces and the #865 editor use. Read-only by construction: the
   service is `readOnly`, the controller takes no `RequestAuditContext`, and
   `SqlReviewControllerIntegrationTest` proves `query_sql_review_findings` and `audit_log` are
   untouched by a call. Unparseable SQL is the parser's 422 `INVALID_SQL`, never an empty (clean-
@@ -1708,6 +1717,76 @@ handler / web-model unit tests, and two `@SpringBootTest`s — `AdminSqlReviewRu
 (403 for `ANALYST` and for a custom role without the permission, both 409s, 422, 400, the audit row
 per mutation, cross-org 404) and `SqlReviewControllerIntegrationTest` (localized findings under
 `Accept-Language`, the visibility 404, 422, `applicable: false`, and the no-persistence proof).
+
+**Submission enforcement (#864).** Evaluation is synchronous and happens **at submission**, before
+the AI is asked, so the findings exist for the review decision even when AI analysis is skipped
+(`ai_analysis_enabled=false`) or fails — exactly the cases where a deterministic rule is the only
+signal there is. Three chokepoints call `SqlReviewService.evaluate` and hand the result to the new
+`sqlreview.api.SqlReviewFindingService` (`DefaultSqlReviewFindingService`, read-write, separate from
+the read-only `DefaultSqlReviewService`), which replaces the owner's `query_sql_review_findings`
+rows wholesale in the caller's transaction and writes nothing for a not-applicable engine or a clean
+result:
+
+- `DefaultQuerySubmissionService.submit()` — right after `query_requests` is written and before
+  `QuerySubmittedEvent`. Replay, MCP submission, scheduled queries and recurring-series **parents**
+  all go through it. Recurring **occurrences** are inserted directly in `APPROVED` by
+  `createRecurringOccurrence` and are deliberately not re-evaluated; neither is a reanalysis.
+- `DefaultBreakGlassService.breakGlassExecute()` — records, never gates. Break-glass bypasses the
+  decision chain the guard lives in by design; the findings ride on the `break_glass_events`
+  retro-review (`BreakGlassEventView.sqlReviewFindings`) for the admin who must acknowledge it.
+- `DefaultRequestGroupService.submit()` — every `QUERY` member of a request group (AF-501), on both
+  the normal and the break-glass branch, keyed by `request_group_item_id` (migration `V172`, the
+  `ai_analyses` V106 widening). Groups never go through the query submission service, so the
+  parity is explicit rather than inherited.
+
+The guard itself lives in `workflow.internal.QueryDecisionEvaluator` — the pure decision function the
+state machine applies and the access simulator replays — and takes the verdict as an **input**,
+`List<String> blockingRuleIds`: `QueryReviewStateMachine` reads it from the persisted findings
+(`SqlReviewFindingService.blockingRuleIds`) at all three entry points (`onAiCompleted`, `onAiSkipped`,
+`onAiFailed`), while `DefaultAccessSimulationService` evaluates its hypothetical SQL read-only and
+shapes the result the same way. A lookup keyed by query id inside the evaluator would have made the
+simulator lie, since its synthetic request has a random id. With a non-empty block:
+
+| Path | Without a block | With a `BLOCK` finding |
+|---|---|---|
+| Routing `AUTO_APPROVE` | `APPROVED`, `routing_decision` written | **`PENDING_REVIEW`** at the plan's default threshold; the policy still wins and is still written to `routing_decision` (`QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED`) |
+| Routing `AUTO_REJECT` | `REJECTED` | `REJECTED` — untouched; a block never softens a rejection |
+| Routing `REQUIRE_APPROVALS` / `ESCALATE` | `PENDING_REVIEW` | unchanged, same approval arithmetic |
+| Grant fast path (#582) | `APPROVED` under the grant | the covering grant is declined (`workflow.decision.grant.suppressed_sql_review`) and the request falls through to the plan |
+| Plan `requires_human_approval=false` / `auto_approve_reads` | `APPROVED` | **`PENDING_REVIEW`** (`workflow.decision.plan.suppressed_sql_review`) |
+| Plan requires review / no plan / AI failed | `PENDING_REVIEW` | `PENDING_REVIEW` — nothing to suppress |
+
+The trace gains a `SQL_REVIEW` step (`QueryDecisionStepKind`, between `EFFECTIVE_PERMISSION` and
+`ROUTING_POLICIES`): `MATCH` with `blocking_rule_ids` / `blocking_count`, else `NO_MATCH`; the
+suppressed stages report it in their reason keys and a `sql_review_suppressed` detail. When — and
+only when — the block actually changed the outcome, the decision carries a
+`SqlReviewSuppression` (rule ids + the suppressed paths, in evaluation order) and the state machine
+writes one **`SQL_REVIEW_BLOCKED`** audit row after the transition: `actor_id` null,
+`trigger=sql_review`, `blocking_rule_ids`, `suppressed_paths`, `matched_policy_id` when routing was
+the path. A `WARN`, a rejection, an AI failure, or a plan that already required review writes no
+row; the findings are still on the detail. Request groups apply the same rule in
+`GroupAiAnalysisListener.route()`: a member `BLOCK` forces `PENDING_REVIEW` when no member plan
+required a human, audited once against the group with `suppressed_paths: ["GROUP_REVIEW_PLAN"]` and
+`blocking_item_ids`.
+
+Reviewer surfaces, all rendered through `SqlReviewFindingRenderer` in the caller's locale: the query
+detail (`sql_review_findings`), the reviewer queue (`sql_review_blocking_count`, one grouped count
+per page), the break-glass log and detail (`sql_review_findings`), and the request-group detail
+(per `QUERY` member). No `NotificationEventType` was added — deliberately, per the epic.
+
+**Tests (#864).** `QueryDecisionEvaluatorTest` (each path with and without a block, `AUTO_REJECT`
+and `REQUIRE_APPROVALS` untouched, a non-covering grant is not a suppression, the AI-failed step),
+`QueryReviewStateMachineTest` (the suppressed routing kind's persistence and event, the audit row's
+exact metadata, no row without a suppression, an audit failure never undoing the transition),
+`SqlReviewSuppressionTest`, `DefaultSqlReviewFindingServiceTest`, `SqlReviewFindingArgsCodecTest`,
+`GroupAiAnalysisListenerTest`, plus the surfacing mappers. `SqlReviewEnforcementIntegrationTest` is
+one `@SpringBootTest` per acceptance bullet — `BLOCK` beats routing `AUTO_APPROVE` with the policy
+recorded, beats the grant fast path, beats `requires_human_approval=false` and `auto_approve_reads`;
+`AUTO_REJECT` still rejects; `WARN` changes nothing; `OFF` yields no findings; the real skipped and
+failed AI events both evaluate; a `MONGODB` datasource is untouched; exactly one audit row; and the
+access simulator agrees with the live path. `BreakGlassLifecycleIntegrationTest` proves the
+emergency still executes with the findings on the retro-review, and
+`GroupSqlReviewEnforcementIntegrationTest` the group path.
 
 ### Implementation: review decisions
 
@@ -2199,12 +2278,13 @@ The `access` module (`com.bablsoft.accessflow.access`) lets users self-request t
 
 A grant that only conveys *submission* rights still forces every query through human review — the same access reviewed twice. The requester can therefore opt a request into **query pre-approval** via the `pre_approve_queries` flag (default `false`; a checkbox on the Request Access form, echoed as a highlighted tag on the reviewer's queue so the approver sees exactly what they authorize).
 
-While such a grant is `APPROVED` and unexpired, `QueryReviewStateMachine.tryGrantFastPath` runs on the AI-completed and AI-skipped paths — **after** routing-policy evaluation returned no match (any matching policy, including `AUTO_REJECT` and anomaly-driven `ESCALATE`, wins) and **before** the plan fall-through. The fast-path transitions `PENDING_AI → APPROVED` when **all** of the following hold:
+While such a grant is `APPROVED` and unexpired, the grant fast path in `QueryDecisionEvaluator` runs on the AI-completed and AI-skipped paths — **after** routing-policy evaluation returned no match (any matching policy, including `AUTO_REJECT` and anomaly-driven `ESCALATE`, wins) and **before** the plan fall-through. The fast-path transitions `PENDING_AI → APPROVED` when **all** of the following hold:
 
 - no open behavioural anomaly for the requester on the datasource (`ConditionContext.anomalyActive` — UBA, AF-383);
 - the AI risk level is LOW/MEDIUM, or absent because the datasource has `ai_analysis_enabled=false` (HIGH/CRITICAL falls through to normal review; the AI-*failed* path never runs the fast-path, consistent with routing);
 - the requester holds an `APPROVED`, unexpired grant on the datasource with `pre_approve_queries=true` (`access.api.AccessGrantLookupService.findActivePreApprovedGrants` — expiry/revocation flip the grant status, so the fast-path shuts off immediately);
-- the grant **covers** the query: its capability matches the query type (SELECT→`can_read`, DML→`can_write`, DDL→`can_ddl`) and every referenced table is inside its `allowed_schemas`/`allowed_tables` (the same `DatasourcePermissionChecker` semantics as the submission gate). The SQL is **re-parsed inside the fast-path and a parse failure fails closed** — the routing context's `referencedTables` is empty on parse failure, which would pass an allow-list check vacuously.
+- the grant **covers** the query: its capability matches the query type (SELECT→`can_read`, DML→`can_write`, DDL→`can_ddl`) and every referenced table is inside its `allowed_schemas`/`allowed_tables` (the same `DatasourcePermissionChecker` semantics as the submission gate). The SQL is **re-parsed inside the fast-path and a parse failure fails closed** — the routing context's `referencedTables` is empty on parse failure, which would pass an allow-list check vacuously;
+- no deterministic SQL review finding fired at `BLOCK` for the query (#864). Checked last, once a grant would actually have approved, so the trace names the covering grant it declined (`workflow.decision.grant.suppressed_sql_review`) and the `SQL_REVIEW_BLOCKED` audit row lists `GRANT_FAST_PATH` among its suppressed paths; the request then falls through to the plan rules, which the same block also holds to review.
 
 On a match, `core.api.QueryRequestStateService.approveByAccessGrant` stamps `query_requests.approved_by_grant_id` atomically with the transition, and the published `QueryAutoApprovedEvent` carries the grant id + the grant's final-stage approver email — audited as `QUERY_APPROVED` with metadata `{ auto_approved: true, source: "ACCESS_GRANT", access_grant_id, grant_approver, reason }`, so the approval chain stays traceable to the human who approved the grant. `GET /queries/{id}` surfaces the provenance as `approved_by_grant` (resolved at read time from the grant row, which is never deleted), rendered as an alert on `QueryDetailPage`.
 

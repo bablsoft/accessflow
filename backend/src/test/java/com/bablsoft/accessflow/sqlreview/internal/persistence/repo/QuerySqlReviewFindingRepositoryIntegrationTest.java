@@ -25,13 +25,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.context.ImportTestcontainers;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Proves the V170 shape of {@code query_sql_review_findings}: the enum/JSONB mappings, the
@@ -49,6 +53,7 @@ class QuerySqlReviewFindingRepositoryIntegrationTest {
     @Autowired OrganizationRepository organizationRepository;
     @Autowired CredentialEncryptionService encryptionService;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     private OrganizationEntity organization;
     private UserEntity submitter;
@@ -133,6 +138,66 @@ class QuerySqlReviewFindingRepositoryIntegrationTest {
                 .isEmpty();
         assertThat(findingRepository.findAllByQueryRequestIdOrderByStatementIndexAscLineNumberAsc(otherQuery.getId()))
                 .hasSize(1);
+    }
+
+    // ── #864: request-group members ───────────────────────────────────────────
+
+    @Test
+    void aFindingMayBelongToARequestGroupItemInsteadOfAQuery() {
+        var groupId = UUID.randomUUID();
+        var itemId = UUID.randomUUID();
+        jdbcTemplate.update("INSERT INTO request_groups (id, organization_id, submitted_by, name, status) "
+                + "VALUES (?, ?, ?, 'bundle', 'DRAFT'::request_group_status)",
+                groupId, organization.getId(), submitter.getId());
+        jdbcTemplate.update("INSERT INTO request_group_items (id, group_id, sequence_order, target_kind, "
+                + "datasource_id, sql_text, status) VALUES (?, ?, 0, 'QUERY'::request_group_target_kind, "
+                + "?, 'SELECT 1', 'PENDING'::request_group_item_status)",
+                itemId, groupId, datasource.getId());
+        try {
+            var finding = newFinding("select_star", 0, 1, null);
+            finding.setQueryRequestId(null);
+            finding.setRequestGroupItemId(itemId);
+            findingRepository.saveAndFlush(finding);
+
+            assertThat(findingRepository
+                    .findAllByRequestGroupItemIdInOrderByStatementIndexAscLineNumberAsc(List.of(itemId)))
+                    .singleElement()
+                    .extracting(QuerySqlReviewFindingEntity::getRequestGroupItemId).isEqualTo(itemId);
+
+            new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                    findingRepository.deleteAllByRequestGroupItemId(itemId));
+            assertThat(findingRepository
+                    .findAllByRequestGroupItemIdInOrderByStatementIndexAscLineNumberAsc(List.of(itemId)))
+                    .isEmpty();
+        } finally {
+            jdbcTemplate.update("DELETE FROM request_groups WHERE id = ?", groupId);
+        }
+    }
+
+    @Test
+    void theCheckConstraintRequiresExactlyOneOwner() {
+        var neither = newFinding("select_star", 0, 1, null);
+        neither.setQueryRequestId(null);
+        assertThatThrownBy(() -> findingRepository.saveAndFlush(neither))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void blockingCountsAreAggregatedPerQuery() {
+        var blocked = newFinding("select_star", 0, 1, null);
+        blocked.setSeverity(SqlReviewSeverity.BLOCK);
+        findingRepository.saveAndFlush(blocked);
+        var alsoBlocked = newFinding("cross_join", 0, 2, null);
+        alsoBlocked.setSeverity(SqlReviewSeverity.BLOCK);
+        findingRepository.saveAndFlush(alsoBlocked);
+        findingRepository.saveAndFlush(newFinding("missing_limit_on_select", 0, 1, null));
+
+        var rows = findingRepository.countByQueryRequestIdsAndSeverity(List.of(query.getId()),
+                SqlReviewSeverity.BLOCK);
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0)[0]).isEqualTo(query.getId());
+        assertThat(((Number) rows.get(0)[1]).longValue()).isEqualTo(2L);
     }
 
     private QuerySqlReviewFindingEntity newFinding(String ruleId, int statementIndex, Integer line, String args) {

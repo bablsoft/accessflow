@@ -11,6 +11,8 @@ import com.bablsoft.accessflow.core.api.SqlParseResult;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.requestgroups.api.CreateRequestGroupCommand;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemInput;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupPermissionException;
@@ -50,6 +52,8 @@ class DefaultRequestGroupServiceTest {
     @Mock private ApiConnectorAdminService apiConnectorAdminService;
     @Mock private UserQueryService userQueryService;
     @Mock private AuditLogService auditLogService;
+    @Mock private SqlReviewService sqlReviewService;
+    @Mock private SqlReviewFindingService sqlReviewFindingService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -63,8 +67,8 @@ class DefaultRequestGroupServiceTest {
         return new DefaultRequestGroupService(groupRepository, itemRepository, stateService,
                 executionService, queryParser, datasourceLookupService, aiAnalysisLookupService,
                 datasourcePermissionLookupService, apiConnectorPermissionLookupService,
-                apiConnectorAdminService, userQueryService, auditLogService, eventPublisher,
-                objectMapper);
+                apiConnectorAdminService, userQueryService, sqlReviewService,
+                sqlReviewFindingService, auditLogService, eventPublisher, objectMapper);
     }
 
     private RequestGroupItemInput queryInput() {

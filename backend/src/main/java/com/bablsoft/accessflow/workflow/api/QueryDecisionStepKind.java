@@ -12,7 +12,8 @@ import com.bablsoft.accessflow.core.api.StepOutcome;
  * missing stage is always a bug rather than a normal outcome.
  *
  * <p>Only {@link #ROUTING_POLICIES}, {@link #GRANT_FAST_PATH} and {@link #REVIEW_PLAN} are decided
- * on the live asynchronous path. The rest happen elsewhere in production — the first four in the
+ * on the live asynchronous path; {@link #SQL_REVIEW} is evaluated synchronously at submission and
+ * read back there. The rest happen elsewhere in production — the first four in the
  * synchronous submission gate, {@link #ROW_SECURITY} and {@link #MASKING} at execution time,
  * {@link #ELIGIBLE_REVIEWERS} in notification fan-out, and {@link #BREAK_GLASS} in a separate
  * submission mode — and are reconstructed by the access simulator so one trace covers the whole
@@ -31,6 +32,13 @@ public enum QueryDecisionStepKind implements DecisionStepKind {
 
     /** The most-permissive union of the direct grant and every unexpired group grant. */
     EFFECTIVE_PERMISSION,
+
+    /**
+     * The deterministic SQL review findings recorded at submission (#864): {@code MATCH} when a
+     * {@code BLOCK} rule fired — every auto-approve stage below is then suppressed — else
+     * {@code NO_MATCH}.
+     */
+    SQL_REVIEW,
 
     /** Every enabled routing policy in ascending priority order, matched and unmatched. */
     ROUTING_POLICIES,

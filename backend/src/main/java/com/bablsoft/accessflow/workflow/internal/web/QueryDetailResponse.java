@@ -42,6 +42,7 @@ public record QueryDetailResponse(
         ApprovedByGrantDetail approvedByGrant,
         List<ReviewDecisionDetail> reviewDecisions,
         List<LinkedTicketDetail> linkedTickets,
+        List<SqlReviewFindingDetail> sqlReviewFindings,
         Instant scheduledFor,
         String recurrenceRule,
         Instant recurrenceUntil,
@@ -84,6 +85,17 @@ public record QueryDetailResponse(
     public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
                                            AccessGrantView grant, List<QueryTicketView> tickets,
                                            boolean includeApprovalPrediction) {
+        return from(view, matched, grant, tickets, includeApprovalPrediction, List.of());
+    }
+
+    /**
+     * @param sqlReviewFindings the deterministic SQL review findings recorded at submission (#864),
+     *                          already rendered into the caller's locale; empty when none
+     */
+    public static QueryDetailResponse from(QueryDetailView view, MatchedRoutingPolicyView matched,
+                                           AccessGrantView grant, List<QueryTicketView> tickets,
+                                           boolean includeApprovalPrediction,
+                                           List<SqlReviewFindingDetail> sqlReviewFindings) {
         return new QueryDetailResponse(
                 view.id(),
                 new QueryListItem.DatasourceRef(view.datasourceId(), view.datasourceName()),
@@ -113,6 +125,7 @@ public record QueryDetailResponse(
                 tickets == null
                         ? List.of()
                         : tickets.stream().map(LinkedTicketDetail::from).toList(),
+                sqlReviewFindings == null ? List.of() : List.copyOf(sqlReviewFindings),
                 view.scheduledFor(),
                 view.recurrenceRule(),
                 view.recurrenceUntil(),

@@ -21,6 +21,7 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupView;
 import com.bablsoft.accessflow.requestgroups.api.SubmitRequestGroupCommand;
 import com.bablsoft.accessflow.requestgroups.api.UpdateRequestGroupCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.when;
 class RequestGroupControllerTest {
 
     private RequestGroupService service;
+    private SqlReviewFindingRenderer sqlReviewFindingRenderer;
     private RequestGroupController controller;
 
     private final UUID orgId = UUID.randomUUID();
@@ -51,7 +53,8 @@ class RequestGroupControllerTest {
     @BeforeEach
     void setUp() {
         service = mock(RequestGroupService.class);
-        controller = new RequestGroupController(service);
+        sqlReviewFindingRenderer = mock(SqlReviewFindingRenderer.class);
+        controller = new RequestGroupController(service, sqlReviewFindingRenderer);
     }
 
     private Authentication auth(UserRoleType role) {
@@ -65,7 +68,7 @@ class RequestGroupControllerTest {
                 UUID.randomUUID(), "db", "SELECT 1", QueryType.SELECT, false, null, null, null, null,
                 null, Map.of(), Map.of(), null, null, null, List.of(), null,
                 null, RiskLevel.LOW, 10, analysisDetail(), RequestGroupItemStatus.PENDING, null,
-                null, null, null, null);
+                null, null, null, null, List.of());
     }
 
     private QueryDetailView.AiAnalysisDetail analysisDetail() {

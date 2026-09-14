@@ -75,5 +75,23 @@ class PendingReviewItemTest {
 
         assertThat(item.approvalProbability()).isNull();
         assertThat(item.aiAnalysis()).isNotNull();
+        assertThat(item.sqlReviewBlockingCount()).isZero();
+    }
+
+    /** #864: the queue row says how many BLOCK findings kept the query from auto-approving. */
+    @Test
+    void fromCarriesTheSqlReviewBlockingCount() {
+        var pending = new PendingReview(
+                UUID.randomUUID(), UUID.randomUUID(), "Staging",
+                UUID.randomUUID(), "bob@example.com",
+                "SELECT * FROM t", QueryType.SELECT, null,
+                null, null, null, null,
+                null, 1, Instant.parse("2025-01-15T10:00:00Z"),
+                null, null, null, 3);
+
+        var item = PendingReviewItem.from(pending);
+
+        assertThat(item.sqlReviewBlockingCount()).isEqualTo(3);
+        assertThat(item.delegatedFor()).isNull();
     }
 }

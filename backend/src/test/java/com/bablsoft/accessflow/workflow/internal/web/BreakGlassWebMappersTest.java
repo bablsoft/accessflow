@@ -44,17 +44,38 @@ class BreakGlassWebMappersTest {
     @Test
     void eventResponseMapsView() {
         var view = sampleView();
-        var response = BreakGlassEventResponse.from(view);
+        var response = BreakGlassEventResponse.from(view, f -> f.ruleId());
         assertThat(response.id()).isEqualTo(view.id());
         assertThat(response.datasourceName()).isEqualTo("prod-db");
         assertThat(response.submittedByEmail()).isEqualTo("a@x.io");
         assertThat(response.executionStatus()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(response.status()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+        assertThat(response.sqlReviewFindings()).isEmpty();
+    }
+
+    @Test
+    void eventResponseRendersTheSqlReviewFindings() {
+        var base = sampleView();
+        var finding = new com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding("select_star",
+                com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity.BLOCK, 0, 2,
+                java.util.Map.of());
+        var view = new BreakGlassEventView(base.id(), base.queryRequestId(), null, null,
+                base.organizationId(), base.datasourceId(), base.datasourceName(), null, null,
+                base.submittedByUserId(), base.submittedByDisplayName(), base.submittedByEmail(),
+                base.sqlText(), base.executionStatus(), base.justification(), base.status(),
+                null, null, null, null, base.createdAt(), List.of(finding));
+
+        var response = BreakGlassEventResponse.from(view, f -> "rendered:" + f.ruleId());
+
+        assertThat(response.sqlReviewFindings()).hasSize(1);
+        assertThat(response.sqlReviewFindings().get(0).ruleId()).isEqualTo("select_star");
+        assertThat(response.sqlReviewFindings().get(0).lineNumber()).isEqualTo(2);
+        assertThat(response.sqlReviewFindings().get(0).message()).isEqualTo("rendered:select_star");
     }
 
     @Test
     void pageResponseMapsPage() {
-        var page = new PageResponse<>(List.of(BreakGlassEventResponse.from(sampleView())),
+        var page = new PageResponse<>(List.of(BreakGlassEventResponse.from(sampleView(), f -> f.ruleId())),
                 0, 20, 1L, 1);
         var response = BreakGlassEventPageResponse.from(page);
         assertThat(response.content()).hasSize(1);
@@ -69,6 +90,6 @@ class BreakGlassWebMappersTest {
                 UUID.randomUUID(), UUID.randomUUID(), null, null, UUID.randomUUID(),
                 UUID.randomUUID(), "prod-db", null, null, UUID.randomUUID(), "Alice", "a@x.io",
                 "SELECT 1", QueryStatus.EXECUTED, "prod is down", BreakGlassStatus.PENDING_REVIEW,
-                null, null, null, null, Instant.now());
+                null, null, null, null, Instant.now(), List.of());
     }
 }

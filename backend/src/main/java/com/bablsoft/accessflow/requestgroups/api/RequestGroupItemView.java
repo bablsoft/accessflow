@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.apigov.api.ApiFormField;
 import com.bablsoft.accessflow.core.api.QueryDetailView;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 
 import java.time.Instant;
 import java.util.List;
@@ -49,5 +50,15 @@ public record RequestGroupItemView(
         Long rowsAffected,
         String errorMessage,
         Integer durationMs,
-        Instant executedAt) {
+        Instant executedAt,
+        /**
+         * Deterministic SQL review findings recorded for a QUERY member when the group was submitted
+         * (#864) — populated on the group detail view only; empty for API_CALL members and on list
+         * views.
+         */
+        List<SqlReviewFinding> sqlReviewFindings) {
+
+    public RequestGroupItemView {
+        sqlReviewFindings = sqlReviewFindings == null ? List.of() : List.copyOf(sqlReviewFindings);
+    }
 }

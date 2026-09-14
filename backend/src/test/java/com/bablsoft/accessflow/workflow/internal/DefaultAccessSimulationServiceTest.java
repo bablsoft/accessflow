@@ -37,6 +37,10 @@ import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.RowSecurityClassificationService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
 import com.bablsoft.accessflow.core.api.AiOutcome;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEligibility;
@@ -85,6 +89,7 @@ class DefaultAccessSimulationServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock RolePermissionHolderLookupService rolePermissionHolderLookupService;
     @Mock QueryDecisionEvaluator queryDecisionEvaluator;
+    @Mock SqlReviewService sqlReviewService;
     @Mock RoutingPolicyEngine routingPolicyEngine;
     @Mock ReviewPlanLookupService reviewPlanLookupService;
     @Mock ReviewerEligibilityService reviewerEligibilityService;
@@ -104,7 +109,8 @@ class DefaultAccessSimulationServiceTest {
     void buildService() {
         service = new DefaultAccessSimulationService(datasourceAdminService, userQueryService,
                 quotaService, queryParser, permissionLookupService,
-                rolePermissionHolderLookupService, queryDecisionEvaluator, routingPolicyEngine,
+                rolePermissionHolderLookupService, queryDecisionEvaluator, sqlReviewService,
+                routingPolicyEngine,
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
                 breakGlassEligibilityService);
@@ -128,7 +134,9 @@ class DefaultAccessSimulationServiceTest {
         when(permissionLookupService.findFor(userId, datasourceId))
                 .thenReturn(Optional.of(permission(true, false, false, List.of("public"))));
         when(queryDecisionEvaluator.evaluate(any(), any(), any(), org.mockito.ArgumentMatchers.anyInt(),
-                any())).thenReturn(planDecision(QueryStatus.PENDING_REVIEW));
+                any(), any())).thenReturn(planDecision(QueryStatus.PENDING_REVIEW));
+        when(sqlReviewService.evaluate(eq(organizationId), eq(datasourceId), any()))
+                .thenReturn(SqlReviewResult.clean());
         when(routingPolicyEngine.enabledFor(organizationId, datasourceId)).thenReturn(List.of());
         when(routingPolicyEngine.evaluateAll(any(), any())).thenReturn(List.of());
         when(reviewerEligibilityService.findEligibleReviewerIds(datasourceId))
@@ -166,8 +174,40 @@ class DefaultAccessSimulationServiceTest {
         service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
 
         verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.COMPLETED), eq(RiskLevel.LOW),
-                eq(5), eq(clock));
+                eq(5), eq(List.of()), eq(clock));
         verify(datasourceAdminService, never()).update(any(), any(), any());
+    }
+
+    @Test
+    void theSimulatorHandsTheEvaluatorTheSameBlockingRuleIdsTheLivePathWouldRead() {
+        // Live, the listener reads distinct sorted BLOCK rule ids from what submission persisted; the
+        // simulator has nothing persisted, so it evaluates the SQL itself and shapes the result the
+        // same way — WARN findings excluded, duplicates collapsed, sorted (#864).
+        when(sqlReviewService.evaluate(eq(organizationId), eq(datasourceId), any()))
+                .thenReturn(new SqlReviewResult(true, List.of(
+                        new SqlReviewFinding("select_star", SqlReviewSeverity.BLOCK, 1, null, Map.of()),
+                        new SqlReviewFinding("cross_join", SqlReviewSeverity.BLOCK, 0, 1, Map.of()),
+                        new SqlReviewFinding("select_star", SqlReviewSeverity.BLOCK, 0, 1, Map.of()),
+                        new SqlReviewFinding("missing_limit_on_select", SqlReviewSeverity.WARN, 0,
+                                1, Map.of()))));
+
+        service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
+
+        verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.COMPLETED), eq(RiskLevel.LOW),
+                eq(5), eq(List.of("cross_join", "select_star")), eq(clock));
+        verify(sqlReviewService).evaluate(organizationId, datasourceId,
+                "SELECT card_number FROM public.payments");
+    }
+
+    @Test
+    void aNonRelationalDatasourceContributesNoBlockingRuleIds() {
+        when(sqlReviewService.evaluate(eq(organizationId), eq(datasourceId), any()))
+                .thenReturn(SqlReviewResult.notApplicable());
+
+        service.simulate(organizationId, input(AiOutcome.SKIPPED, null, null));
+
+        verify(queryDecisionEvaluator).evaluate(any(), eq(AiOutcome.SKIPPED), eq(null), eq(-1),
+                eq(List.of()), eq(clock));
     }
 
     // ── Shape ─────────────────────────────────────────────────────────────────
@@ -195,7 +235,7 @@ class DefaultAccessSimulationServiceTest {
         assertThat(step(result.steps(), QueryDecisionStepKind.ROUTING_POLICIES).outcome())
                 .isEqualTo(StepOutcome.SKIP);
         verify(queryDecisionEvaluator, never()).evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any());
+                org.mockito.ArgumentMatchers.anyInt(), any(), any());
     }
 
     @Test
@@ -371,7 +411,7 @@ class DefaultAccessSimulationServiceTest {
     @Test
     void reviewersAreSkippedWhenTheRequestWouldNotReachReview() {
         when(queryDecisionEvaluator.evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any()))
+                org.mockito.ArgumentMatchers.anyInt(), any(), any()))
                 .thenReturn(planDecision(QueryStatus.APPROVED));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
@@ -387,7 +427,8 @@ class DefaultAccessSimulationServiceTest {
         // UTC bean, so a default-constructed simulator must too or those conditions trace wrong.
         var fresh = new DefaultAccessSimulationService(datasourceAdminService, userQueryService,
                 quotaService, queryParser, permissionLookupService,
-                rolePermissionHolderLookupService, queryDecisionEvaluator, routingPolicyEngine,
+                rolePermissionHolderLookupService, queryDecisionEvaluator, sqlReviewService,
+                routingPolicyEngine,
                 reviewPlanLookupService, reviewerEligibilityService, rowSecurityResolutionService,
                 rowSecurityClassificationService, maskingPolicyResolutionService,
                 breakGlassEligibilityService);
@@ -396,7 +437,7 @@ class DefaultAccessSimulationServiceTest {
 
         var passed = org.mockito.ArgumentCaptor.forClass(Clock.class);
         verify(queryDecisionEvaluator).evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), passed.capture());
+                org.mockito.ArgumentMatchers.anyInt(), any(), passed.capture());
         assertThat(passed.getValue().getZone()).isEqualTo(ZoneId.systemDefault());
     }
 
@@ -439,7 +480,7 @@ class DefaultAccessSimulationServiceTest {
         when(routingPolicyEngine.evaluateAll(any(), any()))
                 .thenReturn(List.of(alsoMatched, decided));
         when(queryDecisionEvaluator.evaluate(any(), any(), any(),
-                org.mockito.ArgumentMatchers.anyInt(), any()))
+                org.mockito.ArgumentMatchers.anyInt(), any(), any()))
                 .thenReturn(routedDecision(decidedId));
 
         var result = service.simulate(organizationId, input(AiOutcome.COMPLETED, RiskLevel.LOW, 5));
@@ -579,6 +620,7 @@ class DefaultAccessSimulationServiceTest {
 
     private QueryDecision planDecision(QueryStatus status) {
         var steps = List.of(
+                DecisionTraceStep.of(QueryDecisionStepKind.SQL_REVIEW, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.DENY, "k"));
@@ -597,6 +639,7 @@ class DefaultAccessSimulationServiceTest {
         var match = new com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch(policyId,
                 "P", com.bablsoft.accessflow.workflow.api.RoutingAction.ESCALATE, 1, "matched");
         var steps = List.of(
+                DecisionTraceStep.of(QueryDecisionStepKind.SQL_REVIEW, StepOutcome.NO_MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP, "k"),
                 DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP, "k"));

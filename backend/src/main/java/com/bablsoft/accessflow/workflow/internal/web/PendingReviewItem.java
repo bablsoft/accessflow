@@ -22,7 +22,9 @@ public record PendingReviewItem(
          * The delegator whose out-of-office delegation made this row visible (#622), or null when
          * the reviewer is eligible in their own right — even if a delegation would also cover it.
          */
-        DelegatorSummary delegatedFor) {
+        DelegatorSummary delegatedFor,
+        /** Number of {@code BLOCK} SQL review findings — why this row could not auto-approve (#864). */
+        int sqlReviewBlockingCount) {
 
     public static PendingReviewItem from(PendingReview pending) {
         return new PendingReviewItem(
@@ -43,7 +45,8 @@ public record PendingReviewItem(
                 pending.delegatedForUserId() == null ? null : new DelegatorSummary(
                         pending.delegatedForUserId(),
                         pending.delegatedForEmail(),
-                        pending.delegatedForDisplayName()));
+                        pending.delegatedForDisplayName()),
+                pending.sqlReviewBlockingCount());
     }
 
     public record DatasourceSummary(UUID id, String name) {

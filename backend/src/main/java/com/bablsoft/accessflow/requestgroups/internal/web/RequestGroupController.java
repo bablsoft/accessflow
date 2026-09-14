@@ -7,11 +7,14 @@ import com.bablsoft.accessflow.requestgroups.api.RequestGroupService;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.api.SubmitRequestGroupCommand;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
@@ -27,6 +30,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api/v1/request-groups")
@@ -35,6 +39,7 @@ import java.util.UUID;
 class RequestGroupController {
 
     private final RequestGroupService requestGroupService;
+    private final SqlReviewFindingRenderer sqlReviewFindingRenderer;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -45,7 +50,7 @@ class RequestGroupController {
                                 Authentication authentication) {
         var caller = claims(authentication);
         return RequestGroupResponse.from(requestGroupService.createDraft(
-                body.toCommand(caller.organizationId(), caller.userId(), isAdmin(caller))));
+                body.toCommand(caller.organizationId(), caller.userId(), isAdmin(caller))), renderer());
     }
 
     @GetMapping
@@ -58,7 +63,7 @@ class RequestGroupController {
         var submittedBy = isAdmin(caller) ? submittedByParam : caller.userId();
         var filter = new RequestGroupListFilter(caller.organizationId(), submittedBy, status);
         return RequestGroupPageResponse.from(requestGroupService.list(filter,
-                SpringPageableAdapter.toPageRequest(pageable)));
+                SpringPageableAdapter.toPageRequest(pageable)), renderer());
     }
 
     @GetMapping("/{id}")
@@ -68,7 +73,7 @@ class RequestGroupController {
     RequestGroupResponse get(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return RequestGroupResponse.from(requestGroupService.get(id, caller.organizationId(),
-                caller.userId(), isAdmin(caller)));
+                caller.userId(), isAdmin(caller)), renderer());
     }
 
     @PutMapping("/{id}")
@@ -79,7 +84,7 @@ class RequestGroupController {
                                 Authentication authentication) {
         var caller = claims(authentication);
         return RequestGroupResponse.from(requestGroupService.updateDraft(
-                body.toCommand(id, caller.organizationId(), caller.userId(), isAdmin(caller))));
+                body.toCommand(id, caller.organizationId(), caller.userId(), isAdmin(caller))), renderer());
     }
 
     @DeleteMapping("/{id}")
@@ -103,7 +108,7 @@ class RequestGroupController {
                 caller.userId(), isAdmin(caller), body.breakGlass(), body.scheduledFor(),
                 auditContext.ipAddress(), auditContext.userAgent()));
         return RequestGroupResponse.from(requestGroupService.get(id, caller.organizationId(),
-                caller.userId(), isAdmin(caller)));
+                caller.userId(), isAdmin(caller)), renderer());
     }
 
     @PostMapping("/{id}/execute")
@@ -113,7 +118,7 @@ class RequestGroupController {
     RequestGroupResponse execute(@PathVariable UUID id, Authentication authentication) {
         var caller = claims(authentication);
         return RequestGroupResponse.from(requestGroupService.execute(id, caller.organizationId(),
-                caller.userId(), isAdmin(caller)));
+                caller.userId(), isAdmin(caller)), renderer());
     }
 
     @PostMapping("/{id}/cancel")
@@ -123,7 +128,13 @@ class RequestGroupController {
         var caller = claims(authentication);
         requestGroupService.cancel(id, caller.organizationId(), caller.userId());
         return RequestGroupResponse.from(requestGroupService.get(id, caller.organizationId(),
-                caller.userId(), isAdmin(caller)));
+                caller.userId(), isAdmin(caller)), renderer());
+    }
+
+    /** Findings are stored as rule id + args; the message is rendered in the caller's locale (#864). */
+    private Function<SqlReviewFinding, String> renderer() {
+        var locale = LocaleContextHolder.getLocale();
+        return finding -> sqlReviewFindingRenderer.message(finding, locale);
     }
 
     private static JwtClaims claims(Authentication authentication) {

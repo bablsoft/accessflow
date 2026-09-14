@@ -11,6 +11,9 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.workflow.api.BreakGlassAlreadyReviewedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventFilter;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventNotFoundException;
@@ -33,6 +36,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -51,6 +56,7 @@ class DefaultBreakGlassAdminServiceTest {
     @Mock QueryRequestLookupService queryRequestLookupService;
     @Mock DatasourceLookupService datasourceLookupService;
     @Mock UserQueryService userQueryService;
+    @Mock SqlReviewFindingService sqlReviewFindingService;
     @Mock ApplicationEventPublisher eventPublisher;
 
     DefaultBreakGlassAdminService service;
@@ -65,7 +71,7 @@ class DefaultBreakGlassAdminServiceTest {
     @BeforeEach
     void setUp() {
         service = new DefaultBreakGlassAdminService(repository, queryRequestLookupService,
-                datasourceLookupService, userQueryService, eventPublisher);
+                datasourceLookupService, userQueryService, sqlReviewFindingService, eventPublisher);
         when(repository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
@@ -89,6 +95,20 @@ class DefaultBreakGlassAdminServiceTest {
         assertThat(view.executionStatus()).isEqualTo(QueryStatus.EXECUTED);
         assertThat(view.sqlText()).isEqualTo("SELECT 1");
         assertThat(view.status()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+        assertThat(view.sqlReviewFindings()).isEmpty();
+    }
+
+    @Test
+    void viewsCarryTheSqlReviewFindingsRecordedForTheEmergencyQuery() {
+        when(repository.findByIdAndOrganizationId(eventId, organizationId))
+                .thenReturn(Optional.of(pendingEntity()));
+        when(queryRequestLookupService.findById(queryId)).thenReturn(Optional.of(snapshot()));
+        var finding = new SqlReviewFinding("select_star", SqlReviewSeverity.BLOCK, 0, 1, Map.of());
+        when(sqlReviewFindingService.findByQueryRequest(queryId)).thenReturn(List.of(finding));
+
+        var view = service.get(organizationId, eventId);
+
+        assertThat(view.sqlReviewFindings()).containsExactly(finding);
     }
 
     @Test
