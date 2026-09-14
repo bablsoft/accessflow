@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.audit.api.RequestAuditContext;
 import com.bablsoft.accessflow.core.api.QueryStatus;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
 import com.bablsoft.accessflow.workflow.api.BreakGlassAdminService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassEventView;
 import com.bablsoft.accessflow.workflow.api.BreakGlassStatus;
@@ -17,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.when;
 class AdminBreakGlassControllerTest {
 
     @Mock private BreakGlassAdminService breakGlassAdminService;
+    @Mock private SqlReviewFindingRenderer sqlReviewFindingRenderer;
     @Mock private AuditLogService auditLogService;
 
     private AdminBreakGlassController controller;
@@ -47,7 +50,8 @@ class AdminBreakGlassControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new AdminBreakGlassController(breakGlassAdminService, auditLogService);
+        controller = new AdminBreakGlassController(breakGlassAdminService, sqlReviewFindingRenderer,
+                auditLogService);
     }
 
     @Test
@@ -126,6 +130,7 @@ class AdminBreakGlassControllerTest {
         return new BreakGlassEventView(eventId, queryRequestId, apiRequestId, deploymentRequestId,
                 orgId, datasourceId, null, connectorId, pipelineId, submitterId, "Dev",
                 "dev@example.com", null, QueryStatus.EXECUTED, "incident 42",
-                BreakGlassStatus.REVIEWED, actorId, "Admin", "ok", Instant.now(), Instant.now());
+                BreakGlassStatus.REVIEWED, actorId, "Admin", "ok", Instant.now(), Instant.now(),
+                List.of());
     }
 }

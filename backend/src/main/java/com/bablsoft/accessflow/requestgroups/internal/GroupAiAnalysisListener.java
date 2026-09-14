@@ -3,6 +3,10 @@ package com.bablsoft.accessflow.requestgroups.internal;
 import com.bablsoft.accessflow.ai.api.AiAnalysisResult;
 import com.bablsoft.accessflow.ai.api.AiAnalyzerService;
 import com.bablsoft.accessflow.apigov.api.ApiAssistService;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.AiAnalysisPersistenceService;
 import com.bablsoft.accessflow.core.api.PersistAiAnalysisCommand;
 import com.bablsoft.accessflow.core.api.RiskLevel;
@@ -14,6 +18,8 @@ import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.Request
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGroupItemRepository;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.repo.RequestGroupRepository;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +28,9 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Drives async, fail-safe per-member AI risk scoring of a submitted group, then routes the group to
@@ -46,6 +54,8 @@ class GroupAiAnalysisListener {
     private final AiAnalysisPersistenceService aiAnalysisPersistenceService;
     private final GroupReviewPlanResolver reviewPlanResolver;
     private final RequestGroupStateService stateService;
+    private final SqlReviewFindingService sqlReviewFindingService;
+    private final AuditLogService auditLogService;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
@@ -119,12 +129,58 @@ class GroupAiAnalysisListener {
             requiresReview = true;
             requiredApprovals = 1;
         }
+        // A BLOCK SQL review finding on any query member forces the whole group to a human (#864).
+        // Read from what submit() persisted, never re-evaluated here. Audited only when it changed
+        // the outcome — a group the plans already sent to review owes no SQL_REVIEW_BLOCKED row.
+        var blocking = blockingFindings(items);
+        boolean suppressedGroupApproval = !requiresReview && !blocking.isEmpty();
+        if (suppressedGroupApproval) {
+            requiresReview = true;
+        }
         if (requiresReview) {
             group.setRequiredApprovals(requiredApprovals);
             groupRepository.save(group);
             stateService.apply(group, RequestGroupStatus.PENDING_REVIEW);
+            if (suppressedGroupApproval) {
+                auditSqlReviewBlocked(group, blocking);
+            }
         } else {
             stateService.apply(group, RequestGroupStatus.APPROVED);
+        }
+    }
+
+    /** BLOCK findings keyed by member id, in member order; members without one are absent. */
+    private LinkedHashMap<UUID, List<String>> blockingFindings(List<RequestGroupItemEntity> items) {
+        var byItem = sqlReviewFindingService.findByGroupItems(
+                items.stream().map(RequestGroupItemEntity::getId).toList());
+        var blocking = new LinkedHashMap<UUID, List<String>>();
+        for (var item : items) {
+            var ruleIds = byItem.getOrDefault(item.getId(), List.of()).stream()
+                    .filter(SqlReviewFinding::isBlocking)
+                    .map(SqlReviewFinding::ruleId)
+                    .distinct()
+                    .sorted()
+                    .toList();
+            if (!ruleIds.isEmpty()) {
+                blocking.put(item.getId(), ruleIds);
+            }
+        }
+        return blocking;
+    }
+
+    private void auditSqlReviewBlocked(RequestGroupEntity group, LinkedHashMap<UUID, List<String>> blocking) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "sql_review");
+        metadata.put("blocking_rule_ids",
+                blocking.values().stream().flatMap(List::stream).distinct().sorted().toList());
+        metadata.put("blocking_item_ids", List.copyOf(blocking.keySet()));
+        metadata.put("suppressed_paths", List.of("GROUP_REVIEW_PLAN"));
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.SQL_REVIEW_BLOCKED,
+                    AuditResourceType.REQUEST_GROUP, group.getId(), group.getOrganizationId(), null,
+                    metadata, null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for SQL_REVIEW_BLOCKED on group {}", group.getId(), ex);
         }
     }
 

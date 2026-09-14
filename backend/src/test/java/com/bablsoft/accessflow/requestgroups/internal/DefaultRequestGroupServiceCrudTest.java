@@ -17,6 +17,11 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.requestgroups.api.CreateRequestGroupCommand;
 import com.bablsoft.accessflow.requestgroups.api.IllegalRequestGroupStateException;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemInput;
@@ -41,6 +46,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,6 +72,8 @@ class DefaultRequestGroupServiceCrudTest {
     @Mock private ApiConnectorAdminService apiConnectorAdminService;
     @Mock private UserQueryService userQueryService;
     @Mock private AuditLogService auditLogService;
+    @Mock private SqlReviewService sqlReviewService;
+    @Mock private SqlReviewFindingService sqlReviewFindingService;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -81,8 +89,8 @@ class DefaultRequestGroupServiceCrudTest {
         service = new DefaultRequestGroupService(groupRepository, itemRepository, stateService,
                 executionService, queryParser, datasourceLookupService, aiAnalysisLookupService,
                 datasourcePermissionLookupService, apiConnectorPermissionLookupService,
-                apiConnectorAdminService, userQueryService, auditLogService, eventPublisher,
-                objectMapper);
+                apiConnectorAdminService, userQueryService, sqlReviewService,
+                sqlReviewFindingService, auditLogService, eventPublisher, objectMapper);
         lenient().when(groupRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(itemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(userQueryService.findById(any())).thenReturn(Optional.of(new UserView(userId,
@@ -210,6 +218,63 @@ class DefaultRequestGroupServiceCrudTest {
         assertThat(result.id()).isEqualTo(group.getId());
         verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
         verify(eventPublisher).publishEvent(any(RequestGroupSubmittedEvent.class));
+    }
+
+    @Test
+    void submitRecordsSqlReviewFindingsForEveryQueryMemberAndSkipsApiMembers() {
+        var group = draftGroup();
+        var query = new RequestGroupItemEntity();
+        query.setId(UUID.randomUUID());
+        query.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        query.setDatasourceId(datasourceId);
+        query.setSqlText("SELECT * FROM t");
+        query.setQueryType(QueryType.SELECT);
+        var api = persistedApiItem();
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId()))
+                .thenReturn(List.of(query, api));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(dsPerm(true, false, false)));
+        when(apiConnectorPermissionLookupService.findFor(connectorId, userId))
+                .thenReturn(Optional.of(apiPerm(true, true, false)));
+        var review = new SqlReviewResult(true, List.of(new SqlReviewFinding("select_star",
+                SqlReviewSeverity.BLOCK, 0, 1, Map.of())));
+        when(sqlReviewService.evaluate(orgId, datasourceId, "SELECT * FROM t")).thenReturn(review);
+
+        service.submit(new SubmitRequestGroupCommand(group.getId(), orgId, userId, false,
+                false, null, "1.2.3.4", "ua"));
+
+        // The verdict is persisted, not acted on: routing happens in GroupAiAnalysisListener.
+        verify(sqlReviewFindingService).recordForGroupItem(query.getId(), review);
+        verify(sqlReviewFindingService, org.mockito.Mockito.never())
+                .recordForGroupItem(org.mockito.ArgumentMatchers.eq(api.getId()), any());
+        verify(stateService).apply(group, RequestGroupStatus.PENDING_AI);
+    }
+
+    @Test
+    void breakGlassSubmitStillRecordsSqlReviewFindings() {
+        var group = draftGroup();
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setTargetKind(com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(datasourceId);
+        item.setSqlText("DELETE FROM t");
+        item.setQueryType(QueryType.DELETE);
+        when(groupRepository.findByIdAndOrganizationId(group.getId(), orgId)).thenReturn(Optional.of(group));
+        when(groupRepository.findById(group.getId())).thenReturn(Optional.of(group));
+        when(itemRepository.findByGroupIdOrderBySequenceOrderAsc(group.getId())).thenReturn(List.of(item));
+        when(datasourcePermissionLookupService.findFor(userId, datasourceId))
+                .thenReturn(Optional.of(dsPerm(true, true, true)));
+        var review = new SqlReviewResult(true, List.of(new SqlReviewFinding("missing_where_on_delete",
+                SqlReviewSeverity.BLOCK, 0, 1, Map.of())));
+        when(sqlReviewService.evaluate(orgId, datasourceId, "DELETE FROM t")).thenReturn(review);
+
+        service.submit(new SubmitRequestGroupCommand(group.getId(), orgId, userId, false, true, null,
+                null, null));
+
+        verify(sqlReviewFindingService).recordForGroupItem(item.getId(), review);
+        verify(stateService).apply(group, RequestGroupStatus.APPROVED);
+        verify(executionService).execute(group.getId(), userId, "break_glass");
     }
 
     @Test

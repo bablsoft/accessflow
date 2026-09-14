@@ -15,6 +15,8 @@ import com.bablsoft.accessflow.core.api.QueryTicketService;
 import com.bablsoft.accessflow.core.api.QueryStatus;
 import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingRenderer;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.workflow.api.QueryCsvExportService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService;
 import com.bablsoft.accessflow.workflow.api.QueryLifecycleService.CancelQueryCommand;
@@ -68,6 +70,8 @@ class QueryReadController {
     private final RoutingDecisionService routingDecisionService;
     private final AccessGrantLookupService accessGrantLookupService;
     private final QueryTicketService queryTicketService;
+    private final SqlReviewFindingService sqlReviewFindingService;
+    private final SqlReviewFindingRenderer sqlReviewFindingRenderer;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final MessageSource messageSource;
@@ -175,8 +179,11 @@ class QueryReadController {
         // has no use for a triage signal.
         var includeApprovalPrediction = caller.has(Permission.QUERY_REVIEW)
                 && !detail.submittedByUserId().equals(caller.userId());
+        var locale = LocaleContextHolder.getLocale();
+        var findings = SqlReviewFindingDetail.from(sqlReviewFindingService.findByQueryRequest(id),
+                finding -> sqlReviewFindingRenderer.message(finding, locale));
         return QueryDetailResponse.from(detail, matchedPolicy, approvingGrant, tickets,
-                includeApprovalPrediction);
+                includeApprovalPrediction, findings);
     }
 
     @PostMapping("/{id}/cancel")

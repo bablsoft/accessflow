@@ -18,6 +18,11 @@ import com.bablsoft.accessflow.core.api.SubmitQueryCommand;
 import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.BreakGlassNotPermittedException;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.BreakGlassInput;
 import com.bablsoft.accessflow.workflow.api.BreakGlassService.DeploymentBreakGlassReview;
@@ -42,6 +47,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -65,6 +71,8 @@ class DefaultBreakGlassServiceTest {
     @Mock QueryRequestStateService queryRequestStateService;
     @Mock QueryLifecycleService queryLifecycleService;
     @Mock BreakGlassEventRepository breakGlassEventRepository;
+    @Mock SqlReviewService sqlReviewService;
+    @Mock SqlReviewFindingService sqlReviewFindingService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
 
@@ -80,7 +88,7 @@ class DefaultBreakGlassServiceTest {
         service = new DefaultBreakGlassService(queryParser, datasourceAdminService,
                 permissionLookupService, quotaService, queryRequestPersistenceService,
                 queryRequestStateService, queryLifecycleService, breakGlassEventRepository,
-                eventPublisher, messageSource);
+                sqlReviewService, sqlReviewFindingService, eventPublisher, messageSource);
         when(messageSource.getMessage(anyString(), any(), any())).thenReturn("msg");
         when(breakGlassEventRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -117,6 +125,29 @@ class DefaultBreakGlassServiceTest {
         assertThat(entity.getValue().getQueryRequestId()).isEqualTo(queryId);
         assertThat(entity.getValue().getJustification()).isEqualTo("prod is down");
         verify(eventPublisher).publishEvent(any(BreakGlassExecutedEvent.class));
+    }
+
+    @Test
+    void breakGlassRecordsSqlReviewFindingsButIsNeverGatedByThem() {
+        stubDatasourceForUser(true);
+        stubParse("SELECT 1", QueryType.SELECT, Set.of());
+        stubPermission(true, false, false, true, null, List.of(), List.of());
+        when(queryRequestPersistenceService.submit(any())).thenReturn(queryId);
+        when(queryLifecycleService.executeBreakGlass(queryId, userId))
+                .thenReturn(new ExecutionOutcome(queryId, QueryStatus.EXECUTED, 3L, 12));
+        var review = new SqlReviewResult(true, List.of(new SqlReviewFinding("select_star",
+                SqlReviewSeverity.BLOCK, 0, 1, Map.of())));
+        when(sqlReviewService.evaluate(organizationId, datasourceId, "SELECT 1")).thenReturn(review);
+
+        var result = service.breakGlassExecute(input("SELECT 1", false));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.EXECUTED);
+        var order = org.mockito.Mockito.inOrder(queryRequestPersistenceService,
+                sqlReviewFindingService, queryRequestStateService);
+        order.verify(queryRequestPersistenceService).submit(any());
+        order.verify(sqlReviewFindingService).recordForQuery(queryId, review);
+        order.verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.APPROVED);
     }
 
     @Test

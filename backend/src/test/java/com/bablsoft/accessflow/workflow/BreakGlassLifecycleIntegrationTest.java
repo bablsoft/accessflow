@@ -120,6 +120,7 @@ class BreakGlassLifecycleIntegrationTest {
             poolManager.evict(datasource.getId());
         }
         jdbcTemplate.update("DELETE FROM audit_log");
+        jdbcTemplate.update("DELETE FROM sql_review_rulesets");
         jdbcTemplate.update("DELETE FROM query_request_results");
         jdbcTemplate.update("DELETE FROM break_glass_events");
         permissionRepository.deleteAll();
@@ -157,6 +158,32 @@ class BreakGlassLifecycleIntegrationTest {
             assertThat(rows.totalElements()).isEqualTo(1);
             assertThat(rows.content().get(0).metadata()).containsEntry("break_glass", true);
         });
+    }
+
+    /** #864: findings are recorded for the retro-review but never gate an emergency. */
+    @Test
+    void breakGlassRecordsBlockingSqlReviewFindingsAndStillExecutes() {
+        grantBreakGlass(submitter);
+        var rulesetId = UUID.randomUUID();
+        jdbcTemplate.update("INSERT INTO sql_review_rulesets (id, organization_id, name, environment, "
+                + "enabled) VALUES (?, ?, ?, NULL, true)", rulesetId, organization.getId(),
+                "Default " + rulesetId);
+        jdbcTemplate.update("INSERT INTO sql_review_rule_configs (id, ruleset_id, rule_id, severity, "
+                + "params) VALUES (?, ?, 'select_star', 'BLOCK'::sql_review_severity, NULL)",
+                UUID.randomUUID(), rulesetId);
+
+        var result = breakGlassService.breakGlassExecute(new BreakGlassInput(
+                datasource.getId(), "SELECT * FROM items", "prod is on fire", submitter.getId(),
+                organization.getId(), false, "10.0.0.1", "agent"));
+
+        assertThat(result.status()).isEqualTo(QueryStatus.EXECUTED);
+        assertThat(result.rowsAffected()).isEqualTo(2L);
+        var event = breakGlassAdminService.get(organization.getId(), result.eventId());
+        assertThat(event.status()).isEqualTo(BreakGlassStatus.PENDING_REVIEW);
+        assertThat(event.sqlReviewFindings())
+                .anyMatch(f -> f.ruleId().equals("select_star") && f.isBlocking());
+        assertThat(jdbcTemplate.queryForObject("SELECT count(*) FROM audit_log WHERE resource_id = ? "
+                + "AND action = 'SQL_REVIEW_BLOCKED'", Long.class, result.queryRequestId())).isZero();
     }
 
     @Test

@@ -28,6 +28,8 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
 import com.bablsoft.accessflow.proxy.api.RowSecurityClassificationService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationInput;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationResult;
 import com.bablsoft.accessflow.workflow.api.AccessSimulationService;
@@ -75,6 +77,7 @@ class DefaultAccessSimulationService implements AccessSimulationService {
     private final DatasourceUserPermissionLookupService permissionLookupService;
     private final RolePermissionHolderLookupService rolePermissionHolderLookupService;
     private final QueryDecisionEvaluator queryDecisionEvaluator;
+    private final SqlReviewService sqlReviewService;
     private final RoutingPolicyEngine routingPolicyEngine;
     private final ReviewPlanLookupService reviewPlanLookupService;
     private final ReviewerEligibilityService reviewerEligibilityService;
@@ -125,9 +128,19 @@ class DefaultAccessSimulationService implements AccessSimulationService {
             return blocked(steps, caveats);
         }
 
+        // Evaluated live and never persisted: the simulator has no submission to record against, so
+        // it asks the same engine the submission path asks (#864) and hands the evaluator the same
+        // shape the live listener reads back from query_sql_review_findings.
+        var blockingRuleIds = sqlReviewService.evaluate(organizationId, input.datasourceId(),
+                        input.sql()).findings().stream()
+                .filter(SqlReviewFinding::isBlocking)
+                .map(SqlReviewFinding::ruleId)
+                .distinct()
+                .sorted()
+                .toList();
         var decision = queryDecisionEvaluator.evaluate(
                 syntheticSnapshot(organizationId, input, parsed), input.aiOutcome(),
-                input.riskLevel(), input.effectiveRiskScore(), clock);
+                input.riskLevel(), input.effectiveRiskScore(), blockingRuleIds, clock);
         steps.addAll(withFullPolicyList(decision, organizationId, input.datasourceId()));
 
         steps.add(reviewerStep(input, decision.nextStatus()));

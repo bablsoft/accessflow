@@ -197,6 +197,27 @@ class QueryDetailResponseTest {
     }
 
     @Test
+    void sqlReviewFindingsAreEmptyUnlessSupplied() {
+        assertThat(QueryDetailResponse.from(minimalView()).sqlReviewFindings()).isEmpty();
+        assertThat(QueryDetailResponse.from(minimalView(), null, null, null, false)
+                .sqlReviewFindings()).isEmpty();
+        assertThat(QueryDetailResponse.from(minimalView(), null, null, null, false, null)
+                .sqlReviewFindings()).isEmpty();
+    }
+
+    @Test
+    void sqlReviewFindingsAreCopiedOntoTheResponse() {
+        var finding = new SqlReviewFindingDetail("select_star",
+                com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity.BLOCK, 0, 1,
+                "Avoid SELECT *");
+
+        var response = QueryDetailResponse.from(minimalView(), null, null, null, false,
+                List.of(finding));
+
+        assertThat(response.sqlReviewFindings()).containsExactly(finding);
+    }
+
+    @Test
     void linkedTicketsAreEmptyForThreeArgOverloadAndNullList() {
         assertThat(QueryDetailResponse.from(minimalView()).linkedTickets()).isEmpty();
         assertThat(QueryDetailResponse.from(minimalView(), null).linkedTickets()).isEmpty();

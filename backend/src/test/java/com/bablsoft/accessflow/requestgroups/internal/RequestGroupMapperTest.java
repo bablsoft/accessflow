@@ -12,6 +12,8 @@ import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupItemStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupTargetKind;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupEntity;
 import com.bablsoft.accessflow.requestgroups.internal.persistence.entity.RequestGroupItemEntity;
 import org.junit.jupiter.api.Test;
@@ -58,7 +60,7 @@ class RequestGroupMapperTest {
                 group.getOrganizationId(), true, null, null, Instant.now(), "en", false, Instant.now());
 
         var view = RequestGroupMapper.toView(group, List.of(item), submitter,
-                Map.of(datasourceId, new DatasourceRef(datasourceId, "prod-db")), Map.of(), Map.of(),
+                Map.of(datasourceId, new DatasourceRef(datasourceId, "prod-db")), Map.of(), Map.of(), Map.of(),
                 objectMapper, false);
 
         assertThat(view.submittedByDisplayName()).isEqualTo("Dana");
@@ -92,10 +94,25 @@ class RequestGroupMapperTest {
                 false, null);
 
         var view = RequestGroupMapper.toView(group, List.of(item), null, Map.of(), Map.of(),
-                Map.of(item.getId(), detail), objectMapper, true);
+                Map.of(item.getId(), detail), Map.of(), objectMapper, true);
 
         assertThat(view.items().get(0).aiAnalysis()).isSameAs(detail);
         assertThat(view.items().get(0).aiAnalysis().summary()).isEqualTo("Reads one row");
+    }
+
+    /** #864: findings are attached per member id; a member without any gets an empty list. */
+    @Test
+    void attachesSqlReviewFindingsPerMember() {
+        var group = group();
+        var item = queryItem();
+        var other = queryItem();
+        var finding = new SqlReviewFinding("select_star", SqlReviewSeverity.BLOCK, 0, 1, Map.of());
+
+        var view = RequestGroupMapper.toView(group, List.of(item, other), null, Map.of(), Map.of(),
+                Map.of(), Map.of(item.getId(), List.of(finding)), objectMapper, true);
+
+        assertThat(view.items().get(0).sqlReviewFindings()).containsExactly(finding);
+        assertThat(view.items().get(1).sqlReviewFindings()).isEmpty();
     }
 
     private RequestGroupEntity group() {
@@ -106,6 +123,18 @@ class RequestGroupMapperTest {
         group.setName("bundle");
         group.setStatus(RequestGroupStatus.DRAFT);
         return group;
+    }
+
+    private RequestGroupItemEntity queryItem() {
+        var item = new RequestGroupItemEntity();
+        item.setId(UUID.randomUUID());
+        item.setSequenceOrder(0);
+        item.setTargetKind(RequestGroupTargetKind.QUERY);
+        item.setDatasourceId(UUID.randomUUID());
+        item.setSqlText("SELECT 1");
+        item.setQueryType(QueryType.SELECT);
+        item.setStatus(RequestGroupItemStatus.PENDING);
+        return item;
     }
 
     private RequestGroupItemEntity apiItem() {
@@ -134,7 +163,7 @@ class RequestGroupMapperTest {
         item.setBinaryFilename(null);
 
         var view = RequestGroupMapper.toView(group(), List.of(item), null, Map.of(), Map.of(),
-                Map.of(), objectMapper, true);
+                Map.of(), Map.of(), objectMapper, true);
 
         var v = view.items().get(0);
         assertThat(v.requestHeaders()).containsEntry("X-Trace", "1");
@@ -151,7 +180,7 @@ class RequestGroupMapperTest {
     @Test
     void omitsCompositionOnListViews() {
         var view = RequestGroupMapper.toView(group(), List.of(apiItem()), null, Map.of(), Map.of(),
-                Map.of(), objectMapper, false);
+                Map.of(), Map.of(), objectMapper, false);
 
         var v = view.items().get(0);
         assertThat(v.requestHeaders()).isEmpty();
@@ -173,7 +202,7 @@ class RequestGroupMapperTest {
         item.setStatus(RequestGroupItemStatus.PENDING);
 
         var view = RequestGroupMapper.toView(group(), List.of(item), null, Map.of(), Map.of(),
-                Map.of(), objectMapper, true);
+                Map.of(), Map.of(), objectMapper, true);
 
         var v = view.items().get(0);
         assertThat(v.requestHeaders()).isEmpty();
@@ -189,7 +218,7 @@ class RequestGroupMapperTest {
         item.setFormFields("{\"broken\":");
 
         var view = RequestGroupMapper.toView(group(), List.of(item), null, Map.of(), Map.of(),
-                Map.of(), objectMapper, true);
+                Map.of(), Map.of(), objectMapper, true);
 
         var v = view.items().get(0);
         assertThat(v.requestHeaders()).isEmpty();

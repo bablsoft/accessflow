@@ -17,6 +17,8 @@ import com.bablsoft.accessflow.core.api.DecisionTraceStep;
 import com.bablsoft.accessflow.core.api.StepOutcome;
 import com.bablsoft.accessflow.workflow.internal.routing.ConditionContextFactory;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingMatch;
+import com.bablsoft.accessflow.workflow.api.RoutingAction;
+import com.bablsoft.accessflow.workflow.internal.SqlReviewSuppression.SuppressedAutoApproval;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingPolicyEngine;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -42,6 +44,12 @@ import java.util.Set;
  * disagree with enforcement the first time either side changed, which would make it worse than
  * useless.
  *
+ * <p>A {@code BLOCK} SQL review finding (#864) is an input, not a lookup: the live listener reads the
+ * findings persisted at submission, the simulator evaluates its hypothetical SQL read-only. Either
+ * way a block suppresses every path out of {@code PENDING_AI} that ends in {@code APPROVED} without a
+ * person — routing {@code AUTO_APPROVE}, the grant fast path and the plan's own approvals — and never
+ * touches {@code AUTO_REJECT}: a block escalates, it does not reject.
+ *
  * <p>This class reads, and only reads: no transition, no persistence, no published event, no AI call,
  * and no connection to a customer database.
  */
@@ -61,13 +69,16 @@ class QueryDecisionEvaluator {
     private final AccessGrantLookupService accessGrantLookupService;
 
     /**
-     * @param riskScore the AI's numeric score, or {@code -1} when there is none — the same "absent"
-     *                  sentinel the live completion event uses
+     * @param riskScore       the AI's numeric score, or {@code -1} when there is none — the same
+     *                        "absent" sentinel the live completion event uses
+     * @param blockingRuleIds the distinct SQL review rule ids that fired at {@code BLOCK} for this
+     *                        request, empty when none did (#864)
      */
     QueryDecision evaluate(QueryRequestSnapshot query, AiOutcome aiOutcome, RiskLevel riskLevel,
-                           int riskScore, Clock clock) {
+                           int riskScore, List<String> blockingRuleIds, Clock clock) {
+        var block = blockingRuleIds == null ? List.<String>of() : List.copyOf(blockingRuleIds);
         if (aiOutcome == AiOutcome.FAILED) {
-            return aiFailed();
+            return aiFailed(block);
         }
         // Only a COMPLETED analysis carries a risk signal. Normalising here rather than trusting the
         // caller keeps the SKIPPED branch identical to production, where the listener passes no risk
@@ -77,17 +88,19 @@ class QueryDecisionEvaluator {
         var plan = reviewPlanLookupService.findForDatasource(query.datasourceId()).orElse(null);
         var context = conditionContextFactory.forLiveQuery(query, effectiveRisk, effectiveScore,
                 clock);
-        var steps = new ArrayList<DecisionTraceStep>(3);
+        var steps = new ArrayList<DecisionTraceStep>(4);
+        steps.add(sqlReviewStep(block));
 
         var match = routingPolicyEngine.evaluate(query.organizationId(), query.datasourceId(),
                 context).orElse(null);
         if (match != null) {
-            return routed(query, match, plan, context, steps);
+            return routed(match, plan, context, steps, block);
         }
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.NO_MATCH,
                 "workflow.decision.routing.no_match"));
 
-        var grant = findCoveringGrant(query, context, steps);
+        var suppressed = new ArrayList<SuppressedAutoApproval>(2);
+        var grant = findCoveringGrant(query, context, steps, block, suppressed);
         if (grant != null) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                     "workflow.decision.plan.skipped_grant_covered", planDetails(plan)));
@@ -96,7 +109,29 @@ class QueryDecisionEvaluator {
                     new DecisionTrace(steps, QueryStatus.APPROVED));
         }
 
-        return planned(query, plan, effectiveRisk, context, steps);
+        return planned(query, plan, effectiveRisk, context, steps, block, suppressed);
+    }
+
+    /**
+     * The findings are recorded on the trace whether or not they end up changing anything, so a
+     * reader can tell "no block" from "a block that the plan made moot".
+     */
+    private static DecisionTraceStep sqlReviewStep(List<String> block) {
+        if (block.isEmpty()) {
+            return DecisionTraceStep.of(QueryDecisionStepKind.SQL_REVIEW, StepOutcome.NO_MATCH,
+                    "workflow.decision.sql_review.clear");
+        }
+        var details = new LinkedHashMap<String, Object>();
+        details.put("blocking_rule_ids", block);
+        details.put("blocking_count", block.size());
+        return new DecisionTraceStep(QueryDecisionStepKind.SQL_REVIEW, StepOutcome.MATCH,
+                "workflow.decision.sql_review.blocking", List.of(String.valueOf(block.size())),
+                details);
+    }
+
+    private static SqlReviewSuppression suppression(List<String> block,
+                                                    List<SuppressedAutoApproval> paths) {
+        return paths.isEmpty() ? null : new SqlReviewSuppression(block, paths);
     }
 
     /**
@@ -105,8 +140,9 @@ class QueryDecisionEvaluator {
      * auto-decision signal — and neither does the grant fast path or the review plan. Decided before
      * any lookup, mirroring the live listener, which builds no context at all.
      */
-    private static QueryDecision aiFailed() {
+    private static QueryDecision aiFailed(List<String> block) {
         var steps = List.of(
+                sqlReviewStep(block),
                 DecisionTraceStep.of(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.SKIP,
                         "workflow.decision.routing.skipped_ai_failed"),
                 DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
@@ -118,12 +154,21 @@ class QueryDecisionEvaluator {
                 new DecisionTrace(steps, QueryStatus.PENDING_REVIEW));
     }
 
-    private QueryDecision routed(QueryRequestSnapshot query, RoutingMatch match,
-                                 ReviewPlanSnapshot plan, ConditionContext context,
-                                 List<DecisionTraceStep> steps) {
+    /**
+     * The one routing outcome a block touches is {@code AUTO_APPROVE}: the policy still wins and is
+     * still recorded, but its effect becomes human review at the plan's default threshold. An
+     * {@code AUTO_REJECT} rejects regardless — a block never softens a rejection into a review.
+     */
+    private QueryDecision routed(RoutingMatch match, ReviewPlanSnapshot plan,
+                                 ConditionContext context, List<DecisionTraceStep> steps,
+                                 List<String> block) {
+        boolean suppressedApprove = match.action() == RoutingAction.AUTO_APPROVE && !block.isEmpty();
         var effect = switch (match.action()) {
-            case AUTO_APPROVE -> new RoutedEffect(QueryDecisionKind.ROUTING_AUTO_APPROVE,
-                    QueryStatus.APPROVED, null);
+            case AUTO_APPROVE -> suppressedApprove
+                    ? new RoutedEffect(QueryDecisionKind.ROUTING_AUTO_APPROVE_SUPPRESSED,
+                            QueryStatus.PENDING_REVIEW, null)
+                    : new RoutedEffect(QueryDecisionKind.ROUTING_AUTO_APPROVE,
+                            QueryStatus.APPROVED, null);
             case AUTO_REJECT -> new RoutedEffect(QueryDecisionKind.ROUTING_AUTO_REJECT,
                     QueryStatus.REJECTED, null);
             case REQUIRE_APPROVALS -> new RoutedEffect(QueryDecisionKind.ROUTING_REQUIRE_APPROVALS,
@@ -139,15 +184,23 @@ class QueryDecisionEvaluator {
         details.put("matched_policy_name", match.policyName());
         details.put("action", match.action().name());
         details.put("effective_min_approvals", effective);
-        steps.add(new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
-                "workflow.decision.routing.matched",
-                List.of(String.valueOf(match.policyName()), match.action().name()), details));
+        details.put("sql_review_suppressed", suppressedApprove);
+        steps.add(suppressedApprove
+                ? new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
+                        "workflow.decision.routing.matched_auto_approve_suppressed",
+                        List.of(String.valueOf(match.policyName())), details)
+                : new DecisionTraceStep(QueryDecisionStepKind.ROUTING_POLICIES, StepOutcome.MATCH,
+                        "workflow.decision.routing.matched",
+                        List.of(String.valueOf(match.policyName()), match.action().name()), details));
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.SKIP,
                 "workflow.decision.grant.skipped_routing_decided"));
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN, StepOutcome.SKIP,
                 "workflow.decision.plan.skipped_routing_decided", planDetails(plan)));
         return new QueryDecision(kind, nextStatus, match, effective, null, null, context,
-                new DecisionTrace(steps, nextStatus));
+                new DecisionTrace(steps, nextStatus),
+                suppressedApprove
+                        ? new SqlReviewSuppression(block, List.of(SuppressedAutoApproval.ROUTING_AUTO_APPROVE))
+                        : null);
     }
 
     /**
@@ -156,12 +209,16 @@ class QueryDecisionEvaluator {
      * the same semantics as the submission gate) approves it outright. Runs only after routing found
      * no match — an AUTO_REJECT / REQUIRE_APPROVALS / ESCALATE policy always wins. Suppressed on an
      * open behavioural anomaly and on HIGH/CRITICAL AI risk; the AI-skipped path (no risk signal) is
-     * allowed.
+     * allowed. A {@code BLOCK} SQL review finding (#864) is checked last, only once a grant would
+     * actually have approved: the suppression is then a fact about this request, not a hypothetical.
      *
+     * @param suppressed receives {@link SuppressedAutoApproval#GRANT_FAST_PATH} when a covering
+     *                   grant was found but a block kept it from approving
      * @return the first covering grant, or {@code null} to fall through to the review plan
      */
     private AccessGrantView findCoveringGrant(QueryRequestSnapshot query, ConditionContext context,
-                                              List<DecisionTraceStep> steps) {
+                                              List<DecisionTraceStep> steps, List<String> block,
+                                              List<SuppressedAutoApproval> suppressed) {
         if (context.anomalyActive()) {
             steps.add(DecisionTraceStep.of(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.NO_MATCH,
                     "workflow.decision.grant.suppressed_anomaly"));
@@ -199,6 +256,13 @@ class QueryDecisionEvaluator {
                 var details = consideredGrants(grants);
                 details.put("grant_id", grant.id());
                 details.put("approver_email", grant.approverEmail());
+                if (!block.isEmpty()) {
+                    suppressed.add(SuppressedAutoApproval.GRANT_FAST_PATH);
+                    steps.add(new DecisionTraceStep(QueryDecisionStepKind.GRANT_FAST_PATH,
+                            StepOutcome.NO_MATCH, "workflow.decision.grant.suppressed_sql_review",
+                            List.of(String.valueOf(grant.id())), details));
+                    return null;
+                }
                 steps.add(new DecisionTraceStep(QueryDecisionStepKind.GRANT_FAST_PATH, StepOutcome.MATCH,
                         "workflow.decision.grant.covered", List.of(String.valueOf(grant.id())),
                         details));
@@ -217,7 +281,8 @@ class QueryDecisionEvaluator {
 
     private QueryDecision planned(QueryRequestSnapshot query, ReviewPlanSnapshot plan,
                                   RiskLevel riskLevel, ConditionContext context,
-                                  List<DecisionTraceStep> steps) {
+                                  List<DecisionTraceStep> steps, List<String> block,
+                                  List<SuppressedAutoApproval> suppressed) {
         var details = planDetails(plan);
         QueryStatus nextStatus;
         String reasonKey;
@@ -235,6 +300,14 @@ class QueryDecisionEvaluator {
             nextStatus = QueryStatus.PENDING_REVIEW;
             reasonKey = "workflow.decision.plan.requires_review";
         }
+        // Decided un-guarded first so the trace says which plan rule WOULD have approved; the block
+        // then overrides the status alone (#864).
+        if (nextStatus == QueryStatus.APPROVED && !block.isEmpty()) {
+            suppressed.add(SuppressedAutoApproval.REVIEW_PLAN);
+            nextStatus = QueryStatus.PENDING_REVIEW;
+            reasonKey = "workflow.decision.plan.suppressed_sql_review";
+        }
+        details.put("sql_review_suppressed", suppressed.contains(SuppressedAutoApproval.REVIEW_PLAN));
         steps.add(DecisionTraceStep.of(QueryDecisionStepKind.REVIEW_PLAN,
                 nextStatus == QueryStatus.APPROVED ? StepOutcome.ALLOW : StepOutcome.DENY,
                 reasonKey, details));
@@ -242,7 +315,7 @@ class QueryDecisionEvaluator {
                 ? QueryDecisionKind.PLAN_APPROVED
                 : QueryDecisionKind.PLAN_PENDING_REVIEW;
         return new QueryDecision(kind, nextStatus, null, null, null, null, context,
-                new DecisionTrace(steps, nextStatus));
+                new DecisionTrace(steps, nextStatus), suppression(block, suppressed));
     }
 
     private static LinkedHashMap<String, Object> consideredGrants(List<AccessGrantView> grants) {

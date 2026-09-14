@@ -20,6 +20,11 @@ import com.bablsoft.accessflow.workflow.api.InvalidRecurrenceRuleException;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService.SubmissionInput;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewResult;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewSeverity;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +56,8 @@ class DefaultQuerySubmissionServiceTest {
     @Mock DatasourceUserPermissionLookupService permissionLookupService;
     @Mock QueryRequestPersistenceService queryRequestPersistenceService;
     @Mock com.bablsoft.accessflow.core.api.QuotaService quotaService;
+    @Mock SqlReviewService sqlReviewService;
+    @Mock SqlReviewFindingService sqlReviewFindingService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
 
@@ -73,6 +81,8 @@ class DefaultQuerySubmissionServiceTest {
                         fixedClock),
                 queryRequestPersistenceService,
                 quotaService,
+                sqlReviewService,
+                sqlReviewFindingService,
                 eventPublisher,
                 messageSource,
                 new com.bablsoft.accessflow.workflow.internal.config.WorkflowProperties(
@@ -92,6 +102,37 @@ class DefaultQuerySubmissionServiceTest {
         assertThat(result.id()).isEqualTo(queryId);
         assertThat(result.status()).isEqualTo(QueryStatus.PENDING_AI);
         verify(eventPublisher).publishEvent(new QuerySubmittedEvent(queryId));
+    }
+
+    @Test
+    void recordsSqlReviewFindingsAgainstTheSavedRowBeforePublishing() {
+        stubParse("SELECT 1", QueryType.SELECT);
+        stubActiveDatasourceForUser();
+        stubPermission(true, false, false, null);
+        var queryId = stubPersist();
+        var review = new SqlReviewResult(true, List.of(new SqlReviewFinding("select_star",
+                SqlReviewSeverity.BLOCK, 0, 1, Map.of())));
+        when(sqlReviewService.evaluate(organizationId, datasourceId, "SELECT 1")).thenReturn(review);
+
+        service.submit(input("SELECT 1", false));
+
+        var order = org.mockito.Mockito.inOrder(queryRequestPersistenceService,
+                sqlReviewFindingService, eventPublisher);
+        order.verify(queryRequestPersistenceService).submit(any());
+        order.verify(sqlReviewFindingService).recordForQuery(queryId, review);
+        order.verify(eventPublisher).publishEvent(new QuerySubmittedEvent(queryId));
+    }
+
+    @Test
+    void aRejectedSubmissionNeverReachesSqlReview() {
+        stubActiveDatasourceForUser();
+        stubParse("BEGIN", QueryType.OTHER);
+
+        assertThatThrownBy(() -> service.submit(input("BEGIN", false)))
+                .isInstanceOf(InvalidSqlException.class);
+
+        verify(sqlReviewService, never()).evaluate(any(), any(), any());
+        verify(sqlReviewFindingService, never()).recordForQuery(any(), any());
     }
 
     @Test

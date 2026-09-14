@@ -12,6 +12,8 @@ import com.bablsoft.accessflow.core.events.QuerySubmittedEvent;
 import com.bablsoft.accessflow.proxy.api.DatasourceUnavailableException;
 import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.QueryParser;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewService;
 import com.bablsoft.accessflow.workflow.api.InvalidRecurrenceRuleException;
 import com.bablsoft.accessflow.workflow.api.QuerySubmissionService;
 import com.bablsoft.accessflow.workflow.internal.config.WorkflowProperties;
@@ -34,6 +36,8 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
     private final DatasourcePermissionVerifier permissionVerifier;
     private final QueryRequestPersistenceService queryRequestPersistenceService;
     private final QuotaService quotaService;
+    private final SqlReviewService sqlReviewService;
+    private final SqlReviewFindingService sqlReviewFindingService;
     private final ApplicationEventPublisher eventPublisher;
     private final MessageSource messageSource;
     private final WorkflowProperties workflowProperties;
@@ -90,6 +94,11 @@ class DefaultQuerySubmissionService implements QuerySubmissionService {
                 input.recurrenceRule(),
                 input.recurrenceUntil(),
                 initialNextRunAt));
+        // Deterministic SQL review runs here, synchronously and before the AI is even asked (#864),
+        // so the findings exist for the review decision even when AI analysis is skipped or fails.
+        // Same transaction as the row itself; a not-applicable engine records nothing.
+        sqlReviewFindingService.recordForQuery(id,
+                sqlReviewService.evaluate(input.organizationId(), datasource.id(), input.sql()));
         eventPublisher.publishEvent(new QuerySubmittedEvent(id));
         return new QuerySubmissionResult(id, QueryStatus.PENDING_AI);
     }

@@ -1626,6 +1626,7 @@ The hash chain (added in V26) is per organization. Inserts are serialized by a P
 | `ROUTING_POLICY_CREATED` / `ROUTING_POLICY_UPDATED` / `ROUTING_POLICY_DELETED` | Admin creates / updates / deletes a routing policy via the `/admin/routing-policies` CRUD endpoints. Resource: `routing_policy`. |
 | `ROUTING_POLICY_REORDERED` | Admin reorders the org's routing policies via `PUT /admin/routing-policies/reorder`. Resource: `routing_policy`. |
 | `SQL_REVIEW_RULESET_CREATED` / `SQL_REVIEW_RULESET_UPDATED` / `SQL_REVIEW_RULESET_DELETED` | Admin creates / updates / deletes a SQL review ruleset via the `/admin/sql-review-rulesets` CRUD endpoints (#863). Resource: `sql_review_ruleset`. Metadata on create / update: `name`, `environment` (`DEFAULT` for the organization-wide default), `enabled`, `rule_count`. The read-only `POST /sql-review/evaluate` writes no audit row. |
+| `SQL_REVIEW_BLOCKED` | A `BLOCK` SQL review finding suppressed an auto-approve path and forced the request to human review (#864). System-attributed: `actor_id` is NULL. Resource: `query_request` (written by `QueryReviewStateMachine` after the transition) or `request_group` (written by `GroupAiAnalysisListener`). Metadata: `trigger: "sql_review"`, `blocking_rule_ids` (distinct, sorted), `suppressed_paths` — one or more of `ROUTING_AUTO_APPROVE`, `GRANT_FAST_PATH`, `REVIEW_PLAN` for a query, `GROUP_REVIEW_PLAN` for a group — plus `matched_policy_id` when routing was the suppressed path and `blocking_item_ids` for a group. Written **only when the guard changed the outcome**: never for `WARN`, never on a routing `AUTO_REJECT` (the rejection stands), never on the AI-failed path or a plan that already required review (the findings are still on the detail), and never for break-glass, which records findings but is not gated. |
 | `MASKING_POLICY_CREATED` / `MASKING_POLICY_UPDATED` / `MASKING_POLICY_DELETED` | Admin creates / updates / deletes a masking policy via the `/datasources/{id}/masking-policies` CRUD endpoints. Resource: `masking_policy`. |
 | `ROW_SECURITY_POLICY_CREATED` / `ROW_SECURITY_POLICY_UPDATED` / `ROW_SECURITY_POLICY_DELETED` | Admin creates / updates / deletes a row-security policy via the `/datasources/{id}/row-security-policies` CRUD endpoints (AF-380). Resource: `row_security_policy`. Applied row-security policy ids at execute time ride on `QUERY_EXECUTED` metadata (`applied_row_security_policy_ids`), not a separate action. |
 | `DATA_CLASSIFICATION_TAG_ADDED` / `DATA_CLASSIFICATION_TAG_REMOVED` | Admin tags / untags a datasource table or column via the `/datasources/{id}/classification-tags` endpoints (AF-447). Resource: `data_classification_tag`. Metadata records the table, column, classification, and (on add) whether masking was auto-applied. |
@@ -2779,7 +2780,11 @@ type foundation (migration `V170` + the `V171` permission seed); #862 the rule e
 fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
 #863 the ruleset administration, rule catalog and read-only evaluation endpoints (see
 [docs/04-api-spec.md → SQL Review Rulesets](04-api-spec.md#sql-review-rulesets-adminsql-review-rulesets-sql_review_manage-863));
-submission enforcement (#864) and the editor lint (#865) follow. Two PG enums, created in `V170`:
+#864 the submission enforcement — findings are written at submission (single queries **and**
+request-group members, migration `V172`), a `BLOCK` suppresses every auto-approve path, and the
+findings surface on the query detail, the reviewer queue, the break-glass retro-review and the
+request-group detail (see the "Submission enforcement (#864)" paragraph of [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
+the editor lint (#865) follows. Two PG enums, created in `V170`:
 
 - `datasource_environment` — `DEVELOPMENT` | `TEST` | `STAGING` | `PRODUCTION` (also the type of
   the new nullable [`datasources.environment`](#datasources) column).
@@ -2834,15 +2839,20 @@ ever written through any other path.
 
 ### query_sql_review_findings
 
-One row per rule violation on one statement of a submitted query. Rows are immutable once
-written (a re-evaluation replaces a query's findings wholesale) and never store a
-human-readable message — `rule_id` + `args` are rendered per reader through `MessageSource` in the
-reader's locale.
+One row per rule violation on one statement of a submitted query, or of a query member of a
+request group (#864, migration `V172` — the same widening `ai_analyses` got in `V106`). Rows are
+written once, at submission — by `DefaultQuerySubmissionService.submit()`,
+`DefaultBreakGlassService.breakGlassExecute()` and `DefaultRequestGroupService.submit()`, all
+through `sqlreview.api.SqlReviewFindingService.recordForQuery` / `recordForGroupItem`, which
+replaces the owner's rows wholesale — and never store a human-readable message — `rule_id` +
+`args` are rendered per reader through `MessageSource` in the reader's locale. A not-applicable
+engine or a clean evaluation leaves no rows behind.
 
 | Column | Type / Notes |
 |--------|-------------|
 | `id` | UUID PK |
-| `query_request_id` | UUID NOT NULL, FK → `query_requests` ON DELETE CASCADE |
+| `query_request_id` | UUID NULL (was NOT NULL before `V172`), FK → `query_requests` ON DELETE CASCADE |
+| `request_group_item_id` | UUID NULL, FK → `request_group_items` ON DELETE CASCADE (#864, `V172`). `chk_query_sql_review_findings_target` enforces `num_nonnulls(query_request_id, request_group_item_id) = 1` |
 | `rule_id` | VARCHAR(100) NOT NULL |
 | `severity` | `sql_review_severity` NOT NULL — the severity the resolved ruleset assigned at evaluation time |
 | `statement_index` | INTEGER NOT NULL DEFAULT 0 — zero-based index of the statement inside the submitted SQL |
@@ -2850,8 +2860,10 @@ reader's locale.
 | `args` | JSONB NULL — message arguments keyed by placeholder name (`table`, `predicate`, `pattern`, `function`, `glob`, `object_type`, `name`, `statement_type`); the rule's `messageArgKeys()` fixes the order in which they bind to `{0}`, `{1}`… of `sqlreview.rule.<rule_id>.message` |
 | `created_at` | TIMESTAMPTZ NOT NULL DEFAULT now() |
 
-> Index `idx_query_sql_review_findings_request` on `query_request_id`; reads order by
-> `(statement_index, line_number)`.
+> Indexes `idx_query_sql_review_findings_request` on `query_request_id` and
+> `idx_query_sql_review_findings_group_item` on `request_group_item_id`; reads order by
+> `(statement_index, line_number)`. The reviewer queue's `sql_review_blocking_count` is one
+> `GROUP BY query_request_id` over the page's ids with `severity = 'BLOCK'` bound as a parameter.
 
 ---
 

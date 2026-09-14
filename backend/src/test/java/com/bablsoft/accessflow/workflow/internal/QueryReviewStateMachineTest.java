@@ -1,6 +1,10 @@
 package com.bablsoft.accessflow.workflow.internal;
 
 import com.bablsoft.accessflow.access.api.AccessGrantLookupService;
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.access.api.AccessGrantStatus;
 import com.bablsoft.accessflow.access.api.AccessGrantView;
 import com.bablsoft.accessflow.core.api.ApproverRule;
@@ -12,6 +16,7 @@ import com.bablsoft.accessflow.core.api.QueryType;
 import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.events.AiAnalysisCompletedEvent;
@@ -63,6 +68,8 @@ class QueryReviewStateMachineTest {
     @Mock com.bablsoft.accessflow.ai.api.BehaviorAnomalyLookupService behaviorAnomalyLookupService;
     @Mock AccessGrantLookupService accessGrantLookupService;
     @Mock com.bablsoft.accessflow.core.api.QueryEstimateLookupService queryEstimateLookupService;
+    @Mock SqlReviewFindingService sqlReviewFindingService;
+    @Mock AuditLogService auditLogService;
     @Mock MessageSource messageSource;
     @Mock ApplicationEventPublisher eventPublisher;
 
@@ -89,7 +96,8 @@ class QueryReviewStateMachineTest {
         var evaluator = new QueryDecisionEvaluator(reviewPlanLookupService, contextFactory,
                 sqlParserService, routingPolicyEngine, accessGrantLookupService);
         stateMachine = new QueryReviewStateMachine(queryRequestLookupService, evaluator,
-                queryRequestStateService, routingDecisionService, messageSource, eventPublisher);
+                queryRequestStateService, routingDecisionService, sqlReviewFindingService,
+                auditLogService, messageSource, eventPublisher);
     }
 
     @BeforeEach
@@ -98,6 +106,8 @@ class QueryReviewStateMachineTest {
         // plan-fallthrough tests. evaluate() defaults to Optional.empty() unless a test overrides it.
         lenient().when(sqlParserService.parse(any()))
                 .thenReturn(new SqlParseResult(QueryType.SELECT, "SELECT 1"));
+        // No SQL review findings unless a test says otherwise (#864).
+        lenient().when(sqlReviewFindingService.blockingRuleIds(any())).thenReturn(List.of());
     }
 
     @Test
@@ -569,6 +579,114 @@ class QueryReviewStateMachineTest {
         stateMachine.onAiFailed(new AiAnalysisFailedEvent(queryId, "provider down"));
 
         verify(accessGrantLookupService, never()).findActivePreApprovedGrants(any(), any(), any());
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+    }
+
+    // ── SQL review BLOCK guard (#864) ─────────────────────────────────────────
+
+    @Test
+    void aBlockTurnsRoutingAutoApproveIntoReviewAndStillRecordsThePolicy() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_APPROVE, null);
+        when(sqlReviewFindingService.blockingRuleIds(queryId)).thenReturn(List.of("select_star"));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId, RiskLevel.LOW));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.PENDING_REVIEW),
+                any(RoutingMatch.class), eq(null));
+        var event = org.mockito.ArgumentCaptor.forClass(QueryReadyForReviewEvent.class);
+        verify(eventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().matchedPolicyId()).isEqualTo(policyId);
+        assertThat(event.getValue().effectiveMinApprovals()).isNull();
+        verify(eventPublisher, never()).publishEvent(any(QueryAutoApprovedEvent.class));
+
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().action()).isEqualTo(AuditAction.SQL_REVIEW_BLOCKED);
+        assertThat(audit.getValue().resourceType()).isEqualTo(AuditResourceType.QUERY_REQUEST);
+        assertThat(audit.getValue().resourceId()).isEqualTo(queryId);
+        assertThat(audit.getValue().organizationId()).isEqualTo(organizationId);
+        assertThat(audit.getValue().actorId()).isNull();
+        assertThat(audit.getValue().metadata())
+                .containsEntry("trigger", "sql_review")
+                .containsEntry("blocking_rule_ids", List.of("select_star"))
+                .containsEntry("suppressed_paths", List.of("ROUTING_AUTO_APPROVE"))
+                .containsEntry("matched_policy_id", policyId);
+    }
+
+    @Test
+    void aBlockTurnsThePlanFastPathIntoReviewOnTheSkippedPath() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, false, RiskLevel.LOW);
+        when(sqlReviewFindingService.blockingRuleIds(queryId)).thenReturn(List.of("select_star"));
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(eventPublisher).publishEvent(any(QueryReadyForReviewEvent.class));
+        var audit = org.mockito.ArgumentCaptor.forClass(AuditEntry.class);
+        verify(auditLogService).record(audit.capture());
+        assertThat(audit.getValue().metadata())
+                .containsEntry("suppressed_paths", List.of("REVIEW_PLAN"))
+                .doesNotContainKey("matched_policy_id");
+    }
+
+    @Test
+    void aBlockStillRejectsUnderRoutingAutoRejectWithoutAnAuditRow() {
+        givenPendingAiQuery(QueryType.DELETE);
+        givenPlan(false, true, RiskLevel.LOW);
+        givenPolicyMatch(RoutingAction.AUTO_REJECT, null);
+        when(sqlReviewFindingService.blockingRuleIds(queryId))
+                .thenReturn(List.of("missing_where_on_delete"));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId, RiskLevel.LOW));
+
+        verify(routingDecisionService).applyDecision(eq(queryId), eq(QueryStatus.REJECTED),
+                any(RoutingMatch.class), eq(null));
+        verify(eventPublisher).publishEvent(any(QueryAutoRejectedEvent.class));
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void noAuditRowWhenTheQueryWasHeadedToReviewAnyway() {
+        givenPendingAiQuery(QueryType.UPDATE);
+        givenPlan(false, true, RiskLevel.LOW);
+        when(sqlReviewFindingService.blockingRuleIds(queryId))
+                .thenReturn(List.of("missing_where_on_update"));
+
+        stateMachine.onAiCompleted(new AiAnalysisCompletedEvent(queryId, aiAnalysisId, RiskLevel.LOW));
+
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void theAiFailedPathReadsTheFindingsButWritesNoAuditRow() {
+        givenPendingAiQuery(QueryType.SELECT);
+        when(sqlReviewFindingService.blockingRuleIds(queryId)).thenReturn(List.of("select_star"));
+
+        stateMachine.onAiFailed(new AiAnalysisFailedEvent(queryId, "boom"));
+
+        verify(sqlReviewFindingService).blockingRuleIds(queryId);
+        verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
+                QueryStatus.PENDING_REVIEW);
+        verify(auditLogService, never()).record(any());
+    }
+
+    @Test
+    void anAuditWriteFailureDoesNotUndoTheTransition() {
+        givenPendingAiQuery(QueryType.SELECT);
+        givenPlan(false, false, RiskLevel.LOW);
+        when(sqlReviewFindingService.blockingRuleIds(queryId)).thenReturn(List.of("select_star"));
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit down"))
+                .when(auditLogService).record(any());
+
+        stateMachine.onAiSkipped(new AiAnalysisSkippedEvent(queryId, "ai_analysis_enabled=false"));
+
         verify(queryRequestStateService).transitionTo(queryId, QueryStatus.PENDING_AI,
                 QueryStatus.PENDING_REVIEW);
     }

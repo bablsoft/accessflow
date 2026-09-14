@@ -1,5 +1,9 @@
 package com.bablsoft.accessflow.workflow.internal;
 
+import com.bablsoft.accessflow.audit.api.AuditAction;
+import com.bablsoft.accessflow.audit.api.AuditEntry;
+import com.bablsoft.accessflow.audit.api.AuditLogService;
+import com.bablsoft.accessflow.audit.api.AuditResourceType;
 import com.bablsoft.accessflow.core.api.QueryRequestLookupService;
 import com.bablsoft.accessflow.core.api.QueryRequestSnapshot;
 import com.bablsoft.accessflow.core.api.QueryRequestStateService;
@@ -11,6 +15,8 @@ import com.bablsoft.accessflow.core.events.QueryAutoApprovedEvent;
 import com.bablsoft.accessflow.core.events.QueryAutoRejectedEvent;
 import com.bablsoft.accessflow.core.events.QueryReadyForReviewEvent;
 import com.bablsoft.accessflow.core.api.AiOutcome;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
+import com.bablsoft.accessflow.workflow.internal.SqlReviewSuppression.SuppressedAutoApproval;
 import com.bablsoft.accessflow.workflow.internal.routing.RoutingDecisionService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -21,6 +27,8 @@ import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -40,6 +48,11 @@ import java.util.UUID;
  * grant-covered fast-path (#582) runs next, and only then does the query fall through to the
  * datasource's review plan.
  *
+ * <p>Every entry point first reads the SQL review findings persisted at submission (#864) and hands
+ * the {@code BLOCK} rule ids to the evaluator, which turns every auto-approve path into human review
+ * when any are present. When that actually changed the outcome, one {@code SQL_REVIEW_BLOCKED} audit
+ * row is written here — system-attributed, {@code trigger=sql_review}.
+ *
  * <p>AI failure unconditionally lands in {@code PENDING_REVIEW} so a human can inspect the query. The
  * skipped path (datasource has {@code ai_analysis_enabled = false}) runs routing with no risk signal
  * — risk-based conditions evaluate to {@code false} — and otherwise respects
@@ -56,6 +69,8 @@ class QueryReviewStateMachine {
     private final QueryDecisionEvaluator queryDecisionEvaluator;
     private final QueryRequestStateService queryRequestStateService;
     private final RoutingDecisionService routingDecisionService;
+    private final SqlReviewFindingService sqlReviewFindingService;
+    private final AuditLogService auditLogService;
     private final MessageSource messageSource;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -73,7 +88,7 @@ class QueryReviewStateMachine {
         var query = load(event.queryRequestId(), "AiAnalysisCompletedEvent");
         if (query != null) {
             apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.COMPLETED,
-                    event.riskLevel(), event.riskScore(), clock));
+                    event.riskLevel(), event.riskScore(), blockingRuleIds(query), clock));
         }
     }
 
@@ -81,7 +96,8 @@ class QueryReviewStateMachine {
     void onAiSkipped(AiAnalysisSkippedEvent event) {
         var query = load(event.queryRequestId(), "AiAnalysisSkippedEvent");
         if (query != null) {
-            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.SKIPPED, null, -1, clock));
+            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.SKIPPED, null, -1,
+                    blockingRuleIds(query), clock));
         }
     }
 
@@ -89,8 +105,13 @@ class QueryReviewStateMachine {
     void onAiFailed(AiAnalysisFailedEvent event) {
         var query = load(event.queryRequestId(), "AiAnalysisFailedEvent");
         if (query != null) {
-            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.FAILED, null, -1, clock));
+            apply(query, queryDecisionEvaluator.evaluate(query, AiOutcome.FAILED, null, -1,
+                    blockingRuleIds(query), clock));
         }
+    }
+
+    private List<String> blockingRuleIds(QueryRequestSnapshot query) {
+        return sqlReviewFindingService.blockingRuleIds(query.id());
     }
 
     /** @return the query when it is present and still awaiting a decision, {@code null} otherwise. */
@@ -121,6 +142,14 @@ class QueryReviewStateMachine {
                 eventPublisher.publishEvent(
                         new QueryAutoApprovedEvent(query.id(), match.policyId(), match.reason()));
             }
+            case ROUTING_AUTO_APPROVE_SUPPRESSED -> {
+                // The policy still decided and is still recorded; its effect is review at the plan's
+                // default threshold (#864).
+                routingDecisionService.applyDecision(query.id(), QueryStatus.PENDING_REVIEW, match,
+                        null);
+                eventPublisher.publishEvent(new QueryReadyForReviewEvent(query.id(),
+                        match.policyId(), match.reason(), null));
+            }
             case ROUTING_AUTO_REJECT -> {
                 routingDecisionService.applyDecision(query.id(), QueryStatus.REJECTED, match, null);
                 eventPublisher.publishEvent(
@@ -148,6 +177,9 @@ class QueryReviewStateMachine {
             // otherwise fall through silently and strand the query in PENDING_AI forever.
             default -> throw new IllegalStateException("Unhandled decision kind " + decision.kind());
         }
+        if (decision.sqlReviewSuppression() != null) {
+            auditSqlReviewBlocked(query, decision);
+        }
         // Logged after the fact: a line claiming a query was auto-approved must not outlive a
         // persistence call that then failed.
         if (match != null) {
@@ -161,6 +193,30 @@ class QueryReviewStateMachine {
             // The one operational breadcrumb for a misconfigured datasource; it used to be an INFO
             // line inside the decision logic, which now also runs for simulations.
             log.info("Query {} has no review plan; routed to PENDING_REVIEW", query.id());
+        }
+    }
+
+    /**
+     * Exactly one row per query whose outcome the block changed. Written after the transition so it
+     * never claims a suppression that did not persist; a failure here must not undo the transition,
+     * hence the lifecycle service's swallow-and-log convention for audit writes.
+     */
+    private void auditSqlReviewBlocked(QueryRequestSnapshot query, QueryDecision decision) {
+        var suppression = decision.sqlReviewSuppression();
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("trigger", "sql_review");
+        metadata.put("blocking_rule_ids", suppression.blockingRuleIds());
+        metadata.put("suppressed_paths",
+                suppression.paths().stream().map(SuppressedAutoApproval::name).toList());
+        if (decision.routingMatch() != null) {
+            metadata.put("matched_policy_id", decision.routingMatch().policyId());
+        }
+        try {
+            auditLogService.record(new AuditEntry(AuditAction.SQL_REVIEW_BLOCKED,
+                    AuditResourceType.QUERY_REQUEST, query.id(), query.organizationId(), null,
+                    metadata, null, null));
+        } catch (RuntimeException ex) {
+            log.error("Audit write failed for SQL_REVIEW_BLOCKED on query {}", query.id(), ex);
         }
     }
 

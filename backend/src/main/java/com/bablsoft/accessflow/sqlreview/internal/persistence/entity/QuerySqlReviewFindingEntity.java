@@ -21,9 +21,11 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A persisted rule violation on a submitted query (#861). Immutable once written; cascades away
- * with its {@code query_requests} row. The query is a bare id (the cross-module convention) and
- * the message is never stored — {@code rule_id} + {@code args} are rendered per reader's locale.
+ * A persisted rule violation on a submitted query (#861) or on a request-group member (#864).
+ * Immutable once written; cascades away with its {@code query_requests} / {@code request_group_items}
+ * row — exactly one of the two ids is set (V172 CHECK). The owner is a bare id (the cross-module
+ * convention) and the message is never stored — {@code rule_id} + {@code args} are rendered per
+ * reader's locale.
  */
 @Entity
 @Table(name = "query_sql_review_findings")
@@ -36,8 +38,11 @@ public class QuerySqlReviewFindingEntity {
     @Id
     private UUID id;
 
-    @Column(name = "query_request_id", nullable = false, updatable = false)
+    @Column(name = "query_request_id", updatable = false)
     private UUID queryRequestId;
+
+    @Column(name = "request_group_item_id", updatable = false)
+    private UUID requestGroupItemId;
 
     @Column(name = "rule_id", nullable = false, length = 100)
     private String ruleId;

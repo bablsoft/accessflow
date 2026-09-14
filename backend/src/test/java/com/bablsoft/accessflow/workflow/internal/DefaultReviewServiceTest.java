@@ -19,6 +19,7 @@ import com.bablsoft.accessflow.core.api.ReviewPlanLookupService;
 import com.bablsoft.accessflow.core.api.ReviewPlanSnapshot;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFindingService;
 import com.bablsoft.accessflow.workflow.api.QueryNotPendingReviewException;
 import com.bablsoft.accessflow.workflow.api.ReviewService.ReviewerContext;
 import com.bablsoft.accessflow.workflow.api.ReviewService.RowStatus;
@@ -42,6 +43,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -67,6 +69,7 @@ class DefaultReviewServiceTest {
     @Mock com.bablsoft.accessflow.core.api.UserQueryService userQueryService;
     @Mock RoutingDecisionService routingDecisionService;
     @Mock ApprovalPredictionLookupService approvalPredictionLookupService;
+    @Mock SqlReviewFindingService sqlReviewFindingService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock MessageSource messageSource;
     @InjectMocks DefaultReviewService service;
@@ -368,6 +371,30 @@ class DefaultReviewServiceTest {
         assertThat(page.content().get(1).approvalProbability()).isNull();
         verify(approvalPredictionLookupService, times(1))
                 .findByQueryRequestIds(List.of(queryId, secondQueryId));
+    }
+
+    @Test
+    void listPendingResolvesSqlReviewBlockingCountsInASingleBatchLookup() {
+        var secondQueryId = UUID.randomUUID();
+        var first = view(QueryStatus.PENDING_REVIEW, submitterId);
+        var second = viewFor(secondQueryId, QueryStatus.PENDING_REVIEW, submitterId);
+        when(queryRequestLookupService.findPendingForReviewer(eq(organizationId), eq(reviewerId),
+                any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(first, second), 0, 20, 2, 1));
+        when(reviewPlanLookupService.findForDatasource(datasourceId))
+                .thenReturn(Optional.of(planWith(List.of(
+                        new ApproverRule(null, "REVIEWER", 1)))));
+        when(queryRequestStateService.listDecisions(any())).thenReturn(List.of());
+        when(sqlReviewFindingService.countBlockingByQueryRequests(List.of(queryId, secondQueryId)))
+                .thenReturn(Map.of(queryId, 2));
+
+        var page = service.listPendingForReviewer(reviewerContext(UserRoleType.REVIEWER),
+                PageRequest.of(0, 20));
+
+        assertThat(page.content().get(0).sqlReviewBlockingCount()).isEqualTo(2);
+        assertThat(page.content().get(1).sqlReviewBlockingCount()).isZero();
+        verify(sqlReviewFindingService, times(1))
+                .countBlockingByQueryRequests(List.of(queryId, secondQueryId));
     }
 
     @Test

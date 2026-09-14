@@ -498,6 +498,24 @@ caller cannot see is a **404**, never a 403, so the endpoint cannot be used to l
 row. A datasource's `environment` attribute is written under the existing `DATASOURCE_MANAGE`
 permission — it is datasource configuration, not policy.
 
+Since #864 a `BLOCK` finding is **enforced**, and the enforcement is a strengthening only: at the
+`PENDING_AI` decision point it suppresses every path that would have approved the query without a
+person — routing `AUTO_APPROVE`, the grant-covered fast path (#582) and the review plan's
+`requires_human_approval=false` / `auto_approve_reads` — and the query lands in `PENDING_REVIEW`.
+It never rejects (a routing `AUTO_REJECT` still rejects), never bypasses a reviewer, and never
+loosens anything. Findings are evaluated and persisted synchronously at submission, so they bind
+even when AI analysis is skipped or fails, and the same guard is applied to every query member of
+a request group. Every suppression is system-attributed in the audit log as `SQL_REVIEW_BLOCKED`
+(null actor, `trigger=sql_review`, the rule ids and the paths it closed).
+
+**Break-glass is the documented exemption**: an emergency execution records its findings on the mandatory
+`break_glass_events` retro-review but is not gated by them — emergency access stays an emergency
+path, and the compensating controls (admin fan-out, `QUERY_BREAK_GLASS_EXECUTED`, the
+admin-only acknowledgement) are unchanged. Findings are stored as `rule_id` + `args` and rendered
+per reader, so no English text is ever persisted; the reviewer-facing fields (`sql_review_findings`
+on the query detail, break-glass log and request-group detail; `sql_review_blocking_count` on the
+review queue) are subject to the same read authorization as the objects they hang off.
+
 ### Platform admin (super-admin) — `PLATFORM_ADMIN` authority (AF-456)
 
 `users.platform_admin` is an **orthogonal boolean flag, not a fifth role** — the four roles above are

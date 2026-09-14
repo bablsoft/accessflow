@@ -3,10 +3,12 @@ package com.bablsoft.accessflow.requestgroups.internal.web;
 import com.bablsoft.accessflow.core.api.RiskLevel;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupStatus;
 import com.bablsoft.accessflow.requestgroups.api.RequestGroupView;
+import com.bablsoft.accessflow.sqlreview.api.SqlReviewFinding;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 record RequestGroupResponse(
         UUID id,
@@ -29,12 +31,14 @@ record RequestGroupResponse(
         Instant updatedAt,
         List<RequestGroupItemResponse> items) {
 
-    static RequestGroupResponse from(RequestGroupView v) {
+    static RequestGroupResponse from(RequestGroupView v,
+                                     Function<SqlReviewFinding, String> renderFinding) {
         return new RequestGroupResponse(v.id(), v.organizationId(), v.submittedByUserId(),
                 v.submittedByDisplayName(), v.name(), v.description(), v.status(), v.continueOnError(),
                 v.scheduledFor(), v.aiRiskLevel(), v.aiRiskScore(), v.requiredApprovals(),
                 v.currentReviewStage(), v.errorMessage(), v.executionStartedAt(),
                 v.executionCompletedAt(), v.createdAt(), v.updatedAt(),
-                v.items().stream().map(RequestGroupItemResponse::from).toList());
+                v.items().stream().map(item -> RequestGroupItemResponse.from(item, renderFinding))
+                        .toList());
     }
 }
