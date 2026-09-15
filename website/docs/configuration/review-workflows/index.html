@@ -223,6 +223,7 @@
             <a href="#cfg-routing-policies">Routing policies</a>
             <a href="#cfg-sql-review">SQL review rules</a>
             <a href="#cfg-attestation">Access recertification campaigns</a>
+            <a href="#cfg-access-explainer">Effective-access explainer</a>
             <a href="#cfg-deployment-pipelines">Deployment pipelines</a>
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
@@ -753,6 +754,51 @@ APPROVED → FAILED (execution error)</pre>
         </section>
 
 <section class="docs-section">
+          <h2 id="cfg-access-explainer">Effective-access explainer</h2>
+          <p>
+            <strong>What it is.</strong> The answer to <em>why</em> — why would this query be
+            auto-approved, why did that one go to a reviewer, who could approve it — without
+            submitting a probe query against production to find out. An admin describes one
+            hypothetical request (a user, a datasource, the SQL) and AccessFlow replays it through
+            the very evaluators that decide real ones: the datasource and quota gates, the merged
+            effective permission with each contributing grant named, every routing policy in
+            priority order including the ones that nearly matched, the grant-covered fast path, the
+            review plan, who could review it, and the row-security and masking policies that would
+            apply. The result is an ordered, per-stage trace ending in the status the request would
+            reach.
+          </p>
+          <p>
+            <strong>What it is not.</strong> A simulation writes nothing, executes nothing, publishes
+            no event and never calls an AI provider — the AI verdict is the one stage a hypothetical
+            request cannot have, so the trace says so rather than guessing. Every other
+            approximation a hypothetical request cannot avoid is named in the response instead of
+            smoothed over. It is a read-only trace of the decision, not a dry run of the query — the
+            editor's <em>Dry run</em> action is for the latter.
+          </p>
+          <p>
+            <strong>Who can write to this table?</strong> The reverse question, which no permission
+            screen could answer: for one datasource and one table, every user who could submit a
+            read, a write or a DDL statement against it, one row per person, naming each source that
+            grants it — the direct permission row, each inherited group permission, an active
+            just-in-time grant (and whether it also skips review), break-glass, and the
+            <code>QUERY_ADMIN</code> holders who bypass the per-datasource gate entirely and would
+            otherwise appear nowhere. Table matching delegates to the enforcement gate's own rules,
+            so the report cannot drift from what actually happens at submission.
+          </p>
+          <p>
+            <strong>Where.</strong> Both are API endpoints for now — <code>POST
+            /api/v1/admin/access-simulations</code> and <code>GET /api/v1/admin/effective-access</code>
+            — gated by the permission that already governs datasource grants; the who-can-write
+            lookup is also open to the <code>AUDITOR</code> role, which reads exactly this from the
+            attestation and usage reports already. The same trace exists for
+            <a href="/docs/guides/api-governance/#guide-api-simulation">governed API calls</a> and for
+            <a href="/docs/guides/deployment-approval/#guide-deployment-simulation">deployments</a>,
+            where it can also answer "would a release at this moment be held by a freeze window?".
+            Every run is recorded in the audit log.
+          </p>
+        </section>
+
+<section class="docs-section">
           <h2 id="cfg-deployment-pipelines">Deployment pipelines</h2>
           <p>
             <strong>What it is.</strong> The same review machinery, applied to <strong>CI/CD
@@ -1012,7 +1058,7 @@ APPROVED → FAILED (execution error)</pre>
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
       </div>
     </div>
   </footer>

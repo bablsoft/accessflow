@@ -651,6 +651,19 @@
             how far behind the newest release it has fallen — filterable by the tags you set in
             step 4.
           </p>
+          <h3 id="guide-deployment-simulation">Asking "would this release be held?" without a release</h3>
+          <p>
+            A deployment is blocked by the <em>gate</em>, not only by the decision — so knowing a
+            request would be approved does not tell you it would ship. <code>POST
+            /api/v1/admin/deployment-simulations</code> replays one hypothetical deployment through
+            the very evaluator and the very releasable function the CI job blocks on, and answers
+            stage by stage: the trigger grant, the freeze window, routing policies, the environment's
+            own policy, who could approve, the deferred-release moment and the gate's verdict. It
+            accepts an optional <code>at</code>, so "would a release this Friday evening be held?" is
+            answerable now rather than on Friday evening. Nothing is created, nothing is notified,
+            nothing reaches the pipeline; it needs the same permission that manages pipelines and
+            every run is recorded in the audit log.
+          </p>
           <p>
             From here: <a href="/docs/configuration/review-workflows/#cfg-deployment-pipelines">deployment
             pipelines</a> covers freeze windows, routing policies, break-glass and rollback reviews
@@ -728,7 +741,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
       </div>
     </div>
   </footer>

@@ -482,6 +482,18 @@
             <li><strong>Chaining a call to a query</strong> — grouped requests bundle ordered members
               into one approval. Note there is no distributed rollback: if a later member fails, the
               earlier ones have already happened.</li>
+            <li id="guide-api-simulation"><strong>Explaining a decision without making the call</strong> —
+              <code>POST /api/v1/admin/api-call-simulations</code> replays one hypothetical call
+              through the very evaluator that decides real ones and returns a per-stage trace: the
+              connector gate, whether the operation counts as a read or a write and where that
+              classification came from, the schema catalog, the caller's effective connector
+              permission, every routing policy in priority order, the review requirement, who could
+              review it, and the masking rules that would rewrite the response. The governed API is
+              never contacted, nothing is persisted and no AI provider is called; it needs the same
+              permission that manages connectors, and every run is recorded in the audit log. The
+              query-side counterpart is the
+              <a href="/docs/configuration/review-workflows/#cfg-access-explainer">effective-access
+              explainer</a>.</li>
           </ul>
           <p>
             Connector fields, schema parsing detail and the full masking reference:
@@ -559,7 +571,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
       </div>
     </div>
   </footer>
