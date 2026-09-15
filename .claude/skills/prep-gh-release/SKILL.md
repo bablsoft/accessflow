@@ -43,7 +43,7 @@ If the user omits the version, ask for it once and stop. Do not guess from the r
   - `website/images/docs/` — SPA screenshots, a light + dark pair for every page.
   - `website/changelog/index.html` — the public changelog: one `<section class="docs-section scroll-pad" id="vX-Y-0">` per stable release, newest first, plus a TOC link per release. **This skill is the only thing that writes a new entry** (#836).
   - `website/version.json` — `{"version","released_at","changelog_url"}`; every self-hosted install polls it daily and shows an update hint when it is newer than the running build. Stable releases only — never a `-beta.N`.
-  - `website/sitemap.xml` — every website edit above needs its `<lastmod>` bumped here too (`websitePages.test.ts` pins it to the page's JSON-LD `dateModified`).
+  - `website/sitemap.xml` — every *content* edit above needs its `<lastmod>` bumped here too (`websitePages.test.ts` pins it to the page's JSON-LD `dateModified`); the footer version-status sweep across the other pages does not (see 4b).
 
 ## Workflow
 
@@ -308,7 +308,7 @@ Runs right after 4a and **before 4b**, so the whole website edit set lands in on
 
 - The roadmap section carries no version framing, so there is **no milestone card to flip**. Instead, move any feature that this release promoted out of `## Backlog / Unscheduled` into `## vX.Y` out of the `<div class="rm-planned">` band and into the matching `<div class="rm-cell">` group in the Available now grid. If nothing was promoted, the section needs no edit.
 - If the hero strip has a `badge-tag` referencing the prior version (e.g. `<span class="badge-tag">v1.1</span>`), update it to `vX.Y`.
-- In the footer bar, update `<span class="status">… <prev> generally available</span>` to `<span class="status">… vX.Y generally available</span>`.
+- In the footer bar, update `<span class="status">… <prev> generally available</span>` to `<span class="status">… vX.Y generally available</span>`. The same footer line is hand-copied on every other page under `website/` — update it everywhere, but **do not bump those pages' `dateModified` / `<lastmod>` / `<time>` for it**. A version-status sweep is not a content change; only the pages this skill actually rewrites (`/`, `/changelog/`, `/roadmap/`, and any docs chapter whose prose changed) move their dates. The v2.6 prep (`729c8c67`) moved all 53 `<lastmod>` values to one day, which is exactly the pattern that makes Google discount the field — the `website-drift.sh` hook will warn on each swept file; that warning is expected here.
 
 #### 4c. `website/styles.css`
 

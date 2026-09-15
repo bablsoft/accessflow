@@ -138,6 +138,8 @@ website/
 ├── styles.css       # Hi-tech dark theme — Geist + Geist Mono, OKLCH accents
 ├── app.js           # Vanilla JS: install tabs, copy buttons, how-it-works stepper
 ├── favicon.svg      # Brand mark (shared with frontend/public/favicon.svg)
+├── favicon.ico      # 32+16 px raster fallback — browsers and crawlers request it unprompted
+├── apple-touch-icon.png # 180 px, from logo.png — iOS ignores an SVG touch icon
 ├── og-image.png     # 1200×630 social-share image (Open Graph / Twitter Card)
 ├── robots.txt       # Crawler directives + sitemap pointer
 ├── sitemap.xml      # XML sitemap (homepage + topic pages + docs pages)
@@ -302,6 +304,14 @@ for its own name. `logo` must be raster (`logo.png`, 512×512, rasterized from `
 Google's logo guidelines reject SVG, so the earlier `favicon.svg` was silently ineligible.
 Both facts are tested.
 
+**Both entities carry an `alternateName` that names the other.** The domain has history:
+until late 2024 `accessflow.io` hosted an unrelated "on-demand access management" waitlist
+site, and some indexes still show that title. Anchoring alone does not tell a knowledge graph
+*which* AccessFlow this is, so `Organization` says `bablsoft (maker of AccessFlow)`,
+`SoftwareApplication` says `AccessFlow by bablsoft` / `bablsoft AccessFlow` and points its own
+`sameAs` at the repo, and the homepage adds a `screenshot`. Every page carries the pair — also
+tested. Add real profiles to `sameAs` when they exist; never invent one.
+
 `BreadcrumbList` depth follows URL depth: two levels for a
 top-level page, three for anything nested — the eleven `docs/` chapters
 (AccessFlow → Documentation → the chapter) and the three `/features/` spokes
@@ -458,7 +468,13 @@ tag and usually substitutes its own snippet. Whenever you edit content, bump all
 published dates together — `<lastmod>` in `sitemap.xml`, `dateModified` in the page's
 JSON-LD, and on a docs chapter the visible `<time datetime>` — because all three are
 hand-maintained in a folder with no build step. `websitePages.test.ts` fails when they
-disagree, but nothing can tell you an agreed date is stale. Do not add `HowTo` schema
+disagree, but nothing can tell you an agreed date is stale. **"Content" is the operative
+word:** a site-wide mechanical edit that changes nothing a reader came for — the footer
+`vX.Y generally available` status, the hero version badge, a shared nav or footer link, head
+boilerplate such as icon links or JSON-LD entity fields — does *not* move the dates. The v2.6
+release prep moved all 53 `<lastmod>` values to one day (`729c8c67`); when every URL's
+`lastmod` changes together on every release, Google stops trusting the field for the pages
+whose content really did change. Do not add `HowTo` schema
 (deprecated 2023) or `FAQPage` (Google retired FAQ rich results for all sites in May 2026).
 
 ### Response headers
@@ -469,7 +485,7 @@ every navigation. `_headers` overrides that:
 
 | Path | Cache-Control | Why |
 |---|---|---|
-| `/db-icons/*`, `/favicon.svg`, `/logo.png` | 1 year, `immutable` | Vendor logos, the favicon, and the raster Organization logo for JSON-LD — effectively static |
+| `/db-icons/*`, `/favicon.svg`, `/favicon.ico`, `/apple-touch-icon.png`, `/logo.png` | 1 year, `immutable` | Vendor logos, the favicon and its raster fallbacks, and the raster Organization logo for JSON-LD — effectively static |
 | `/fonts/*` | 1 year, `immutable` | Subsetted Geist woff2 — content-stable, and `geist-latin.woff2` is preloaded on every page |
 | `/images/*`, `/og-image.png` | 7 days | Screenshots are regenerated **under the same filenames** at release time, so `immutable` would strand viewers on a stale image |
 | `/version.json` | 1 hour, `must-revalidate` | The release manifest self-hosted installs poll for the update hint — edited in place at release time, so it gets the same short window as `/styles.css` and `/app.js` |

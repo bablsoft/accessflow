@@ -659,6 +659,21 @@ describe('website pages', () => {
       expect(org!.sameAs, `${rel(f)} keeps GitHub in sameAs`).toContain(
         'https://github.com/bablsoft',
       );
+      // The domain also has history — until late 2024 it hosted an unrelated
+      // "on-demand access management" site whose title some indexes still show.
+      // Anchoring says where the entity lives; alternateName says which one it is.
+      expect(org!.alternateName, `${rel(f)} Organization alternateName`).toBe(
+        'bablsoft (maker of AccessFlow)',
+      );
+      const software = graphOf(html, rel(f)).find((n) => n['@type'] === 'SoftwareApplication');
+      expect(software, `${rel(f)} has no SoftwareApplication node`).toBeDefined();
+      expect(software!.alternateName, `${rel(f)} SoftwareApplication alternateName`).toEqual([
+        'AccessFlow by bablsoft',
+        'bablsoft AccessFlow',
+      ]);
+      expect(software!.sameAs, `${rel(f)} SoftwareApplication sameAs`).toContain(
+        'https://github.com/bablsoft/accessflow',
+      );
     }
   });
 

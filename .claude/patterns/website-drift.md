@@ -65,7 +65,10 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
       `website/sitemap.xml`, `dateModified` in the page's JSON-LD, and — on a docs chapter — the
       visible `<p class="docs-updated"><time datetime>`. `websitePages.test.ts` fails when they
       disagree or one goes missing; **no test can tell you the date is stale**, only that the
-      three agree, so bumping is still on you.
+      three agree, so bumping is still on you. **Bump only pages whose content changed.** A
+      site-wide mechanical edit (footer version status, hero badge, shared nav/footer link, head
+      boilerplate, JSON-LD entity fields) leaves every date alone — the `website-drift.sh` hook
+      will warn on each such file; that warning is expected and is not a bump request.
 - [ ] New page → a new `<url>` block in `sitemap.xml`, **and a tier for it in
       `SITEMAP_PRIORITY`** (`websitePages.test.ts`). The gradient is pinned exactly, not as a
       range: `/` 1.0, top-level hubs 0.9, topic pages and the widely-read docs entry points 0.8
@@ -98,6 +101,10 @@ that is still the half `.claude/hooks/website-drift.sh` warns on, and the half t
 - **Editing a page without bumping `lastmod`/`dateModified`** → crawlers keep the stale date. The
   three copies are tested against *each other*, never against today, so a synchronized-but-stale
   set sails through CI and the drift compounds silently across releases.
+- **Bumping every page's date for a mechanical sweep** → the opposite failure. Release prep
+  `729c8c67` moved all 53 `<lastmod>` values to one day for a footer status change; a sitemap
+  whose dates all move together on every release trains Google to discount `lastmod` entirely,
+  so the pages that genuinely changed lose the recrawl signal too.
 - **Adding `HowTo` schema** → deprecated in 2023.
 - **Adding `FAQPage` schema** → Google retired FAQ rich results for all sites in May 2026. It is
   dead weight that can only hurt.

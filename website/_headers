@@ -43,6 +43,15 @@
 /favicon.svg
   Cache-Control: public, max-age=31536000, immutable
 
+# Raster fallbacks for the SVG favicon: /favicon.ico is what browsers and crawlers
+# request unprompted (it 404'd before), apple-touch-icon.png because iOS ignores an
+# SVG touch icon. Both derived from favicon.svg / logo.png, replaced never edited.
+/favicon.ico
+  Cache-Control: public, max-age=31536000, immutable
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=31536000, immutable
+
 # Organization logo for structured data — rasterized from favicon.svg, same
 # treatment: it changes by being replaced, never by being edited in place.
 /logo.png
