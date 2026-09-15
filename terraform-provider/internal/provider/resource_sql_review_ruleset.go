@@ -61,8 +61,8 @@ func (r *sqlReviewRulesetResource) Schema(_ context.Context, _ resource.SchemaRe
 			"environment": schema.StringAttribute{
 				Optional: true,
 				MarkdownDescription: "`DEVELOPMENT`, `TEST`, `STAGING`, or `PRODUCTION`; omit for the organization-wide " +
-					"default. An organization may hold one ruleset per environment plus one default — a second one " +
-					"fails with HTTP 409.",
+					"default, which also governs any datasource whose environment has no ruleset bound. An organization " +
+					"may hold one ruleset per environment plus one default — a second one fails with HTTP 409.",
 			},
 			"enabled": schema.BoolAttribute{
 				Optional:            true,
@@ -133,7 +133,11 @@ func (m *sqlReviewRulesetResourceModel) applyAPI(ctx context.Context, rs *client
 	m.Environment = strVal(rs.Environment)
 	m.Enabled = types.BoolValue(rs.Enabled)
 	if len(rs.Rules) == 0 {
-		m.Rules = nil
+		// A configured `rules = []` decodes to an empty non-nil slice and must round-trip as an
+		// empty set, not null, or Terraform reports an inconsistent result after apply.
+		if m.Rules != nil {
+			m.Rules = []sqlReviewRuleModel{}
+		}
 		return
 	}
 	m.Rules = make([]sqlReviewRuleModel, 0, len(rs.Rules))

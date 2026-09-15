@@ -197,9 +197,22 @@ resource "accessflow_sql_review_ruleset" "test" {
 				),
 			},
 			{
+				// rules = [] must round-trip as an empty set, not null (inconsistent result after apply).
+				Config: `
+resource "accessflow_sql_review_ruleset" "test" {
+  name        = "tf-acc-sqlreview"
+  environment = "TEST"
+  rules       = []
+}
+`,
+				Check: resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "rules.#", "0"),
+			},
+			{
 				ResourceName:      "accessflow_sql_review_ruleset.test",
 				ImportState:       true,
 				ImportStateVerify: true,
+				// Import reads no rules and leaves the set null; the config spelled it as [].
+				ImportStateVerifyIgnore: []string{"rules"},
 			},
 		},
 	})

@@ -1,5 +1,6 @@
 # One ruleset per environment per organization, plus at most one org-wide default
-# (no `environment`). A datasource without an environment falls through to the default.
+# (no `environment`). A datasource without an environment — or whose environment has no
+# ruleset bound — falls through to the default.
 resource "accessflow_sql_review_ruleset" "production" {
   name        = "Production"
   description = "Payroll is off limits; every unbounded read or write goes to a human"

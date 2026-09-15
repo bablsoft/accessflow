@@ -278,12 +278,12 @@
             reusable <strong>GitHub Actions</strong> + a <strong>GitLab CI template</strong> for
             managing governance resources declaratively over the REST API. Both authenticate with an
             API key — the provider manages datasources, review plans, routing / row-security /
-            masking policies, AI configs, and notification channels with the same authoritative-upsert
+            masking policies, SQL review rulesets, AI configs, and notification channels with the same authoritative-upsert
             semantics as the bootstrap reconciler.
 
           <h3>Can AccessFlow be managed with Terraform?</h3>
           <p>
-            Yes. The official <code>bablsoft/accessflow</code> provider works with both Terraform and OpenTofu, and manages datasources, review plans, routing, row-security and masking policies, AI configs, and notification channels. It authenticates with a service-account API key and upserts declaratively, the same way the GitOps bootstrap reconciler does.
+            Yes. The official <code>bablsoft/accessflow</code> provider works with both Terraform and OpenTofu, and manages datasources, review plans, routing, row-security and masking policies, SQL review rulesets, AI configs, and notification channels. It authenticates with a service-account API key and upserts declaratively, the same way the GitOps bootstrap reconciler does.
           </p>
           </p>
 
@@ -347,7 +347,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           <p>
             The provider drives the <strong>existing</strong> REST endpoints —
             <code>/datasources</code>, <code>/review-plans</code>, <code>/admin/routing-policies</code>,
-            <code>/admin/ai-configs</code>, <code>/admin/notification-channels</code>, and the nested
+            <code>/admin/ai-configs</code>, <code>/admin/notification-channels</code>, <code>/admin/sql-review-rulesets</code>, and the nested
             <code>/datasources/{id}/{row-security,masking}-policies</code>. No AccessFlow-specific
             endpoints were added for it. Idempotency comes from Terraform state (create → store UUID →
             read / update / delete by id), matching the bootstrap reconciler's authoritative-upsert

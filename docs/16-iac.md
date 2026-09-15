@@ -5,7 +5,8 @@ governance resources declaratively over the REST API, complementing the env-driv
 [`bootstrap` module](09-deployment.md#bootstrap-configuration):
 
 - a **Terraform / OpenTofu provider** (`bablsoft/accessflow`) for datasources, review plans,
-  routing / row-security / masking policies, AI configs, and notification channels;
+  routing / row-security / masking policies, SQL review rulesets, AI configs, and notification
+  channels;
 - reusable **GitHub Actions**, **GitLab CI templates** and an **Azure Pipelines step template**
   that wrap common operations (provision a datasource, submit and await a query, gate a
   deployment on approval and report its outcome — AF-694) for pipelines.
@@ -113,7 +114,7 @@ resource "accessflow_sql_review_ruleset" "production" {
 | `accessflow_masking_policy` | Nested under a datasource; import `datasource_id/policy_id` |
 | `accessflow_ai_config` | `api_key` write-only |
 | `accessflow_notification_channel` | `config` map; `channel_type` immutable (forces replacement) |
-| `accessflow_sql_review_ruleset` | Deterministic SQL review rules (#860); `rules` is a set of `{rule_id, severity, params}`, `environment` omitted = org-wide default |
+| `accessflow_sql_review_ruleset` | Deterministic SQL review rules; `rules` is a set of `{rule_id, severity, params}`, `environment` omitted = org-wide default |
 
 Data sources: `accessflow_datasource`, `accessflow_review_plan` (look up by `id`).
 

@@ -294,7 +294,8 @@
           <h3>Can AccessFlow be managed with Terraform?</h3>
           <p>
             Yes. The official provider manages datasources, review plans, routing, row-security and
-            masking policies, AI configs and notification channels over the REST API, authenticating
+            masking policies, SQL review rulesets, AI configs and notification channels over the REST
+            API, authenticating
             with a service-account API key. Requests themselves — queries, API calls, deployments —
             are runtime objects and are deliberately not Terraform-managed.
           </p>
@@ -487,7 +488,7 @@ terraform apply
                 <tr><td><code>accessflow_masking_policy</code></td><td>A column masking strategy, nested under a datasource.</td></tr>
                 <tr><td><code>accessflow_ai_config</code></td><td>An AI analyzer configuration. Its API key is write-only.</td></tr>
                 <tr><td><code>accessflow_notification_channel</code></td><td>A notification channel — email, Slack, webhook, Discord, Telegram, Microsoft Teams or PagerDuty. Changing its type replaces the resource.</td></tr>
-                <tr><td><code>accessflow_sql_review_ruleset</code></td><td>A SQL review ruleset — which built-in rules are off, warn, or block for one environment (or for every datasource without one). Set a datasource's <code>environment</code> to bind it.</td></tr>
+                <tr><td><code>accessflow_sql_review_ruleset</code></td><td>A SQL review ruleset — which built-in rules are off, warn, or block for one environment. Set a datasource's <code>environment</code> to bind it; a datasource with no environment, or one whose environment has no ruleset, uses the organization-wide default.</td></tr>
               </tbody>
             </table>
           </div>

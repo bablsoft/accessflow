@@ -14,7 +14,8 @@ A deterministic SQL review ruleset: per-rule `OFF` / `WARN` / `BLOCK` severity, 
 
 ```terraform
 # One ruleset per environment per organization, plus at most one org-wide default
-# (no `environment`). A datasource without an environment falls through to the default.
+# (no `environment`). A datasource without an environment — or whose environment has no
+# ruleset bound — falls through to the default.
 resource "accessflow_sql_review_ruleset" "production" {
   name        = "Production"
   description = "Payroll is off limits; every unbounded read or write goes to a human"
@@ -67,7 +68,7 @@ variable "prod_postgres_password" {
 
 - `description` (String)
 - `enabled` (Boolean) Defaults to `true`. A disabled ruleset evaluates no rules and does not fall through to the default.
-- `environment` (String) `DEVELOPMENT`, `TEST`, `STAGING`, or `PRODUCTION`; omit for the organization-wide default. An organization may hold one ruleset per environment plus one default — a second one fails with HTTP 409.
+- `environment` (String) `DEVELOPMENT`, `TEST`, `STAGING`, or `PRODUCTION`; omit for the organization-wide default, which also governs any datasource whose environment has no ruleset bound. An organization may hold one ruleset per environment plus one default — a second one fails with HTTP 409.
 - `rules` (Attributes Set) Rules configured explicitly; an unlisted rule runs at its built-in default severity. Rule ids are listed by `GET /api/v1/sql-review/rules`. (see [below for nested schema](#nestedatt--rules))
 
 ### Read-Only

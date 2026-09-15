@@ -94,7 +94,18 @@ func TestSqlReviewRulesetModel_ApplyAPI(t *testing.T) {
 
 	none := &client.SqlReviewRuleset{ID: "rs-2", OrganizationID: "org-1", Name: "Default"}
 	m.applyAPI(context.Background(), none, &diags)
-	if m.Rules != nil {
-		t.Errorf("no rules must map to nil, got %+v", m.Rules)
+	if m.Rules == nil || len(m.Rules) != 0 {
+		t.Errorf("a configured rule set that the API now reports empty must stay an empty set, got %+v", m.Rules)
+	}
+
+	omitted := sqlReviewRulesetResourceModel{}
+	omitted.applyAPI(context.Background(), none, &diags)
+	if omitted.Rules != nil {
+		t.Errorf("no rules with no configured set must map to nil (null), got %+v", omitted.Rules)
+	}
+	empty := sqlReviewRulesetResourceModel{Rules: []sqlReviewRuleModel{}}
+	empty.applyAPI(context.Background(), none, &diags)
+	if empty.Rules == nil || len(empty.Rules) != 0 {
+		t.Errorf("rules = [] must round-trip as an empty set, got %+v", empty.Rules)
 	}
 }
