@@ -112,9 +112,9 @@ com.bablsoft.accessflow/
 ├── workflow/       # Review state machine, approval chains
 │   ├── api/
 │   └── internal/
-├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama, Hugging Face)
+├── ai/             # AI analyzer strategy + adapters (OpenAI, Anthropic, Ollama, Hugging Face); in-app documentation help assistant (epic #899) in the `internal/help/` sub-package — the one documented departure from the flat-`internal/` layout (`apigov` precedent): corpus bundle loading from the classpath `help-corpus/**` (`HelpCorpusBundle`, fail-soft at boot, 400 `HELP_CORPUS_MISSING` on enable), per-org indexing into the shared `vector_store` under a `corpus=help` + `help_config_id` discriminator with NO `ai_config_id` key (so the AF-336 retriever never sees it — never "fix" `DefaultRagRetriever`'s filter), content-hash `corpusVersion` re-ingestion on startup/config change/`POST /admin/help-agent/reindex` under a per-org distributed lock, the docs-only multi-turn chat runtime (`HelpChatPromptRenderer` owns its own template — never `SystemPromptRenderer`, whose `{{sql}}` guard rejects it; model emits `[n]` indices, server resolves citations, no tools, no data access), `help_chat_sessions`/`help_chat_messages` persistence with `HelpChatRetentionJob`, per-user `HelpChatRateLimiter` on top of `AiRateLimiter`, help tokens counted in the monthly budget, optional off-by-default gh-pages corpus refresh (`HelpCorpusRemoteRefresher`, `ACCESSFLOW_HELP_CORPUS_*`). `AiRateLimiter` and `ChatModelInvoker` are `public` only so the sub-package can reach them. Every `website/**` edit regenerates `help-corpus/` (see "Don't let these drift")
 │   ├── api/
-│   └── internal/
+│   └── internal/   # + help/ (config service, indexer, retriever, chat runtime, sessions, retention, remote refresh)
 ├── security/       # JWT config, Spring Security filters, SAML 2.0 SSO
 │   ├── api/
 │   └── internal/

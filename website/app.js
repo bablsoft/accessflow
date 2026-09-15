@@ -216,6 +216,7 @@
   // — leaving it unmapped keeps the visitor on this hub, which lists them all.
   var LEGACY_DOCS_ANCHORS = {
       'guide-deployment-approval': '/docs/guides/deployment-approval/',
+      'guide-help-assistant': '/docs/guides/help-assistant/',
       'cfg-ai': '/docs/configuration/ai/',
       'cfg-ai-analyses': '/docs/configuration/ai/',
       'cfg-anomalies': '/docs/configuration/ai/',

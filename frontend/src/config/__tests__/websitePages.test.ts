@@ -126,6 +126,7 @@ const SITEMAP_PRIORITY = {
   '/docs/guides/api-governance/': '0.7',
   '/docs/guides/deployment-approval/': '0.7',
   '/docs/guides/terraform/': '0.7',
+  '/docs/guides/help-assistant/': '0.7',
   '/docs/configuration/users-roles/': '0.7',
   '/docs/configuration/datasources/': '0.7',
   '/docs/configuration/connectors/': '0.7',

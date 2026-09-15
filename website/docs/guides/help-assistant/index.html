@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ask the in-app help assistant — AccessFlow guide</title>
+  <meta name="description" content="Start AccessFlow, bind an AI provider, and ask the built-in help assistant anything about the app — answered from your version's own docs, with citations." />
+
+  <link rel="canonical" href="https://accessflow.io/docs/guides/help-assistant/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+
+  <script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Ask the in-app help assistant — AccessFlow guide" />
+  <meta property="og:description" content="Start AccessFlow, bind an AI provider, and ask the built-in help assistant anything about the app — answered from your version's own docs, with citations." />
+  <meta property="og:url" content="https://accessflow.io/docs/guides/help-assistant/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Ask the in-app help assistant — AccessFlow guide" />
+  <meta name="twitter:description" content="Start AccessFlow, bind an AI provider, and ask the built-in help assistant anything about the app — answered from your version's own docs, with citations." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "@id": "https://accessflow.io/docs/guides/help-assistant/#article",
+      "breadcrumb": { "@id": "https://accessflow.io/docs/guides/help-assistant/#breadcrumb" },
+      "headline": "Ask the in-app help assistant",
+      "name": "Ask the in-app help assistant — AccessFlow guide",
+      "description": "Start AccessFlow, bind an AI provider, and ask the built-in help assistant anything about the app — answered from your version's own docs, with citations.",
+      "inLanguage": "en",
+      "articleSection": "Guides",
+      "datePublished": "2026-09-15",
+      "dateModified": "2026-09-15",
+      "url": "https://accessflow.io/docs/guides/help-assistant/",
+      "mainEntityOfPage": "https://accessflow.io/docs/guides/help-assistant/",
+      "image": "https://accessflow.io/og-image.png",
+      "isPartOf": {
+        "@id": "https://accessflow.io/#website"
+      },
+      "about": {
+        "@id": "https://accessflow.io/#software"
+      },
+      "author": {
+        "@id": "https://accessflow.io/#org"
+      },
+      "publisher": {
+        "@id": "https://accessflow.io/#org"
+      }
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://accessflow.io/docs/guides/help-assistant/#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "AccessFlow",
+          "item": "https://accessflow.io/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Documentation",
+          "item": "https://accessflow.io/docs/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Guides",
+          "item": "https://accessflow.io/docs/guides/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Ask the help assistant",
+          "item": "https://accessflow.io/docs/guides/help-assistant/"
+        }
+      ]
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://accessflow.io/#org",
+      "name": "bablsoft",
+      "url": "https://accessflow.io/",
+      "logo": "https://accessflow.io/logo.png",
+      "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+      "sameAs": [
+        "https://github.com/bablsoft",
+        "https://github.com/bablsoft/accessflow"
+      ]
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://accessflow.io/#software",
+      "name": "AccessFlow",
+      "url": "https://accessflow.io/",
+      "applicationCategory": "DeveloperApplication",
+      "publisher": { "@id": "https://accessflow.io/#org" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://accessflow.io/#website",
+      "url": "https://accessflow.io/",
+      "name": "AccessFlow",
+      "publisher": { "@id": "https://accessflow.io/#org" },
+      "inLanguage": "en"
+    }
+  ]
+}
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/" aria-current="page" class="nav-link-active">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Documentation table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Ask the help assistant</p>
+            <a href="#guide-help-assistant">What you are getting</a>
+            <a href="#guide-help-assistant-start">1. Start AccessFlow</a>
+            <a href="#guide-help-assistant-ai">2. Create an AI configuration</a>
+            <a href="#guide-help-assistant-enable">3. Turn the assistant on</a>
+            <a href="#guide-help-assistant-ask">4. Ask it something</a>
+            <a href="#guide-help-assistant-sees">5. What it can and cannot see</a>
+            <a href="#guide-help-assistant-retrieval">6. Cited answers, or the quick reference</a>
+            <a href="#guide-help-assistant-limits">7. Conversations, limits and cost</a>
+            <a href="#guide-help-assistant-offline">8. Air-gapped installs and doc updates</a>
+            <a href="#guide-help-assistant-more">Going further</a>
+            <p class="docs-toc-label">Documentation</p>
+            <a href="/docs/">Overview</a>
+            <a href="/docs/install/">Install & first run</a>
+            <p class="docs-toc-label">Guides</p>
+            <a href="/docs/guides/">All guides</a>
+            <a href="/docs/guides/first-query/">Run your first query</a>
+            <a href="/docs/guides/datasource/">Add a datasource</a>
+            <a href="/docs/guides/notifications/">Send notifications</a>
+            <a href="/docs/guides/team/">Invite your team</a>
+            <a href="/docs/guides/sso/">Connect SSO</a>
+            <a href="/docs/guides/ai-analysis/">Turn on AI analysis</a>
+            <a href="/docs/guides/api-governance/">Govern an API call</a>
+            <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
+            <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <a href="/docs/guides/help-assistant/" class="docs-toc-current" aria-current="page">Ask the help assistant</a>
+            <p class="docs-toc-label">Reference</p>
+            <a href="/docs/configuration/users-roles/">Users & roles</a>
+            <a href="/docs/configuration/datasources/">Datasources</a>
+            <a href="/docs/configuration/connectors/">Connectors</a>
+            <a href="/docs/configuration/review-workflows/">Review workflows</a>
+            <a href="/docs/configuration/ai/">AI</a>
+            <a href="/docs/configuration/auth/">Auth & SSO</a>
+            <a href="/docs/configuration/notifications/">Notifications</a>
+            <a href="/docs/configuration/audit-compliance/">Audit & compliance</a>
+            <a href="/docs/workflows/">End-user workflows</a>
+            <a href="/docs/iac/">Infrastructure as Code</a>
+            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/docs/">Documentation</a></li>
+              <li><a href="/docs/guides/">Guides</a></li>
+              <li><span aria-current="page">Ask the help assistant</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Guides</span>
+          <h1>Ask the in-app help assistant.</h1>
+          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+        </header>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant">What you are getting</h2>
+          <p>
+            A chat panel inside AccessFlow that answers questions about AccessFlow. Press the round
+            question-mark button in the bottom-right corner of any screen, ask
+            <em>"how do I submit a query for review?"</em>, <em>"what does break-glass actually
+            do?"</em> or <em>"how do I connect Snowflake?"</em>, and the answer comes back with the
+            documentation sections it was drawn from, linked, so you can read the long version
+            without leaving the app or hunting through this site.
+          </p>
+          <p>
+            <strong>Have a question about the application? Ask the application.</strong> You do not
+            need a support contract or a search engine to find out what AccessFlow does or how to set
+            something up: start it locally, point it at an AI provider, and ask. Everything the
+            assistant knows is the same documentation you are reading now — shipped inside the release
+            you are running, so it describes the screens and settings you actually have, not the
+            ones the newest version has.
+          </p>
+
+          <h3>Who it is for</h3>
+          <ul>
+            <li><strong>New users</strong> who have just been invited and want to know what
+              happens after they press Submit, why a query is waiting, or what a status means — the
+              questions a first week is made of, answered where they come up rather than in a
+              chapter someone has to be told exists.</li>
+            <li><strong>Administrators</strong> setting the product up — which permission unlocks a
+              screen, what a review-plan setting does, which environment variable turns a job off,
+              how the connector catalog works — with the reference chapter cited so the short answer
+              can be checked against the full one.</li>
+            <li><strong>Anyone evaluating AccessFlow</strong>, who can spin up the demo stack in a
+              few minutes and interrogate the product itself instead of the marketing copy: what it
+              supports, what it deliberately does not, and how a feature behaves at the edges.</li>
+          </ul>
+
+          <div class="docs-callout info">
+            <strong>It is a documentation reader, not a data surface.</strong> The assistant has
+            no tools and performs no actions. It cannot see a query, a result set, an audit row, a
+            schema or a datasource, and it cannot approve, execute or change anything. Everything it
+            says comes from the documentation and, when you ask it, the name of the screen you are
+            on and which permissions you hold — never a row of your data. Section 5 spells out
+            exactly what is and is not sent.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-start">1. Start AccessFlow</h2>
+          <p>
+            Any running install will do. If you do not have one, the zero-config demo stack runs on
+            a laptop with nothing but Docker:
+          </p>
+          <div class="code-block">
+            <div class="code-block-head">
+              <span class="mono">shell — demo</span>
+              <button class="copy-btn" type="button" aria-label="Copy to clipboard">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1"/><path d="M3 11V3a1 1 0 0 1 1-1h8"/></svg>
+                <span data-copy-label>copy</span>
+              </button>
+            </div>
+<pre><span class="c-kw">git</span> clone https://github.com/bablsoft/accessflow.git
+<span class="c-kw">cd</span> accessflow
+<span class="c-kw">docker</span> compose up -d
+<span class="c-com"># open http://localhost:5173 — the in-app setup wizard creates the first admin</span>
+</pre>
+          </div>
+          <p>
+            The first account the setup wizard creates is an administrator, which is the role the
+            next two steps need. Everything else about getting a stack up — the production-style
+            compose file, the Helm chart, building from source — is in
+            <a href="/docs/install/">Install &amp; first run</a>.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-ai">2. Create an AI configuration</h2>
+          <p>
+            The assistant asks a language model on your behalf, and it uses the same AI
+            configurations as query risk analysis — there is no second provider set-up to learn.
+            Admin section → <strong>AI configurations</strong> (under <strong>System → AI</strong>)
+            → <strong>Add AI configuration</strong>: pick <strong>Anthropic</strong>, <strong>OpenAI</strong>,
+            <strong>Ollama</strong>, <strong>Hugging Face</strong> or any OpenAI-compatible endpoint,
+            give it a name, set the model and the key, and run the test prompt on the last step.
+            <a href="/docs/guides/ai-analysis/">Turn on AI risk analysis</a> walks through the
+            wizard field by field.
+          </p>
+          <p>
+            If you already analyze queries, you already have a configuration to bind and can skip to
+            the next step. If you would rather nothing about your questions left your network, point
+            the configuration at a local Ollama — the assistant works with a local model exactly as
+            it does with a hosted one.
+          </p>
+          <div class="docs-callout info">
+            <strong>Retrieval is optional, and decided later.</strong> A configuration that can only
+            chat is enough to get answers. Giving the assistant a knowledge base to search — which is
+            what lets it cite specific sections — additionally needs an embedding provider and a
+            vector store on that configuration. Section 6 explains the two modes; you can start
+            without retrieval and add it when you want citations.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-enable">3. Turn the assistant on</h2>
+          <p>
+            Admin section → <strong>Help assistant</strong> (under <strong>System → AI</strong>; it
+            needs the <code>AI_MANAGE</code> permission, which administrators have). Switch on
+            <strong>Enable the help assistant</strong>, choose the configuration from step 2 under
+            <strong>AI configuration</strong>, and save.
+          </p>
+          <p>
+            That is the whole set-up. The launcher appears in the bottom-right corner for
+            <strong>everyone in the organization</strong> — on your next page load, and for
+            colleagues already signed in within a few minutes or on their next reload. Every
+            signed-in user can ask, whatever their role, because there is nothing the assistant
+            could show them that they could not already read on this site. While the assistant is
+            off, the launcher is hidden for everyone and nobody is told it exists.
+          </p>
+          <p>
+            The rest of the page is tuning you can leave at its defaults (shown in brackets):
+          </p>
+          <ul>
+            <li><strong>Send screen and permission context</strong> (on) — tells the model which
+              screen you are on and which permissions you hold, so "how do I get to X from here?"
+              and "why can't I see Y?" get a useful answer. Never a URL, an id, or any data — see
+              section 5.</li>
+            <li><strong>Answer from indexed documentation</strong> (on) — search the documentation
+              for each question and cite what it found. Off is a supported mode: the assistant
+              answers from a built-in quick reference instead and cites nothing — section 6.</li>
+            <li><strong>Sections per answer</strong> (6) — how many documentation excerpts each
+              question retrieves. More is more thorough and more expensive.</li>
+            <li><strong>Similarity threshold</strong> (0.4) — how closely an excerpt must match the
+              question to be used at all.</li>
+            <li><strong>Conversation turns kept</strong> (8) — how many previous exchanges are
+              replayed with each new question, so a follow-up like "and in Helm?" still makes
+              sense.</li>
+            <li><strong>Maximum question length</strong> (2,000 characters) — longer questions are
+              cut at this length before they reach the model.</li>
+            <li><strong>Keep conversations for (days)</strong> (90) — conversations older than this
+              are deleted by a background job.</li>
+            <li><strong>Questions per user per minute</strong> (6) — a per-person ceiling, so one
+              enthusiastic user cannot spend the organization's whole AI budget.</li>
+          </ul>
+          <div class="docs-callout warn">
+            <strong>Deleting the bound AI configuration switches the assistant off.</strong> It does
+            not block the delete, the way a configuration bound to a datasource is protected. The
+            launcher simply disappears until an admin binds another configuration on this page.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-ask">4. Ask it something</h2>
+          <p>
+            Press the question-mark button. A panel slides in from the right without covering the
+            page, so you can keep working — or follow the instructions it gives you — while it
+            stays open. Type a question and press <strong>Enter</strong>
+            (<strong>Shift+Enter</strong> adds a line). While the assistant reads, the panel says
+            so; answers arrive whole rather than word by word.
+          </p>
+          <p>Questions it is built to answer, in the words a real person uses:</p>
+          <ul>
+            <li>"My query says <em>Pending review</em>. Who has to approve it, and can I see who
+              that is?"</li>
+            <li>"What is the difference between a review plan and a routing policy?"</li>
+            <li>"How do I give someone read-only access to one schema that expires next Friday?"</li>
+            <li>"Which environment variable stops the app from checking for new releases?"</li>
+            <li>"Does AccessFlow support Snowflake? What about Db2?"</li>
+          </ul>
+          <p>
+            Each answer ends with the documentation sections it used, shown as numbered chips.
+            Those chips are the only links the assistant ever produces: it cites a section by number
+            and AccessFlow itself turns the number into the link, so a link in the panel always
+            points at this documentation and nowhere else. An answer with no chips is one the
+            assistant gave from its built-in quick reference rather than from a retrieved section
+            (section 6) — still an answer, just an uncited one.
+          </p>
+          <p>
+            The assistant replies in your interface language. The documentation itself is
+            English-only, so when it tells you which button to press it gives the English label and
+            says so — your interface may show a translation of it.
+          </p>
+          <p>
+            A conversation is yours: nobody else in the organization can read it, and it stays open
+            as you move between screens until you start a new one with the <strong>New
+            conversation</strong> button in the panel's header. Start a new one when you change
+            subject — the previous exchanges are replayed with every question, and eight turns
+            about SSO are no help when you are asking about connectors.
+          </p>
+          <div class="docs-callout ok">
+            <strong>It says "I don't know" rather than inventing a screen.</strong> When the
+            documentation does not cover something, the assistant tells you so and names the closest
+            section, instead of confidently describing a setting that does not exist. And when a
+            documented list is complete — the supported engines, the sign-in methods, the AI
+            providers — it says plainly that AccessFlow does not offer the thing you asked about and
+            what the nearest alternative is.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-sees">5. What it can and cannot see</h2>
+          <p>
+            This is the guarantee the whole feature is built around, and it is what makes a free-text
+            AI chat acceptable inside a product whose job is to keep people away from data they
+            should not see.
+          </p>
+          <h3>What is sent to the model</h3>
+          <ul>
+            <li>Your question, and the recent turns of the same conversation.</li>
+            <li>The documentation excerpts retrieved for the question.</li>
+            <li>The <em>name</em> of the screen you are on — "Review queue", not its URL — if the
+              context setting is on.</li>
+            <li>The names of the permissions you hold, if the context setting is on.</li>
+          </ul>
+          <h3>What is never sent, and never readable</h3>
+          <ul>
+            <li>Your queries, their results, or anything in the query editor.</li>
+            <li>Audit log rows, review decisions, other people's requests.</li>
+            <li>Datasource definitions, credentials, schemas, table or column names.</li>
+            <li>User records, group memberships, anyone's email address.</li>
+          </ul>
+          <p>
+            The assistant has no tools. It cannot run a query, approve a review, change a setting,
+            or fetch anything on its own — it can only read the excerpts it was handed and write an
+            answer. That is why it is available to every user regardless of role, and why enabling
+            it needs no authorization review of its own: nothing an answer contains is something
+            the reader could not open on this site.
+          </p>
+          <p>
+            The screen-and-permission context exists so the assistant can say "you are on the review
+            queue, and you hold <code>QUERY_REVIEW</code>, so the Approve button is in the row's
+            expanded detail" rather than a generic paragraph. It is all-or-nothing: with
+            <strong>Send screen and permission context</strong> off, neither is sent — not even as an
+            empty heading — so an admin who switched it off can be sure nothing about the user
+            reaches the provider beyond the question itself.
+          </p>
+          <div class="docs-callout info">
+            <strong>Your provider still sees the questions.</strong> Like query analysis, the
+            assistant sends the prompt to whichever AI configuration you bound. A hosted provider
+            receives each question, the documentation excerpts and, if enabled, the screen and
+            permission names. If that is more than your policy allows, bind a configuration that runs
+            a local model and nothing leaves your network.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-retrieval">6. Cited answers, or the quick reference</h2>
+          <p>
+            The assistant has two ways of answering, and the settings page tells you which one you
+            are in.
+          </p>
+          <h3>With retrieval: search the documentation, cite the sections</h3>
+          <p>
+            AccessFlow ships the documentation inside each release as a few hundred pre-chunked
+            text passages. When the assistant is enabled with <strong>Answer from indexed
+            documentation</strong> on, the bound configuration's embedding model turns those passages
+            into vectors and stores them in its vector store — the same knowledge-base machinery the
+            AI configuration page offers for your own documents, kept strictly separate from them.
+            Every question is then matched against those passages, and the best few are handed to
+            the model with an instruction to answer only from them and to cite them by number.
+          </p>
+          <p>For this mode the bound AI configuration needs:</p>
+          <ul>
+            <li>the <strong>RAG knowledge base</strong> switched on, with a <strong>vector
+              store</strong> — the in-app pgvector store or an external Qdrant;</li>
+            <li>an <strong>embedding provider</strong>. Anthropic publishes no embeddings API, so an
+              Anthropic configuration needs a separate one — <strong>Voyage AI</strong> is offered
+              in the embedding list for exactly this case, and Ollama or OpenAI work too;</li>
+            <li>for pgvector, an embedding model whose vector width matches the one the database was
+              provisioned with (1536 by default; <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code>).</li>
+          </ul>
+          <p>
+            Turning retrieval on — or enabling the assistant with it on, or changing the binding —
+            checks all of that before the save is accepted, and the message names the specific gap — no embedding provider, an Anthropic embedder, the
+            pgvector extension not installed, the vector table never created because
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED</code> is off, or a width mismatch — rather than a
+            generic "unavailable". <strong>Test retrieval</strong> runs the same probe on demand, and
+            reports the embedding width it detected.
+          </p>
+          <p>
+            Indexing runs in the background once you save; on a CPU-only local embedder it takes
+            minutes, on a hosted one well under that. The <strong>Documentation corpus</strong> panel
+            on the settings page shows the indexed revision, when it was last indexed, and whether the
+            last pass succeeded. <strong>Re-index documentation</strong> forces a fresh pass — the
+            thing to press after restoring a database backup or if the status shows an error you have
+            since fixed. After an upgrade you do not need to press anything: the new release ships a
+            new corpus, notices it has not been indexed for your organization, and re-indexes on
+            start-up.
+          </p>
+          <h3>Without retrieval: the built-in quick reference</h3>
+          <p>
+            Switch <strong>Answer from indexed documentation</strong> off and no embedding provider,
+            vector store or indexing is needed at all. The assistant answers from a compact
+            orientation block bundled with the release — what AccessFlow is, the query lifecycle, the
+            rules that never bend, every screen and where it is in the menu, the main buttons by
+            their exact labels, and what the documentation covers. Answers are still correct and still
+            grounded; they just cannot cite a section, and the panel says <strong>Quick-reference
+            mode</strong> so nobody wonders where the chips went.
+          </p>
+          <p>
+            This is the mode to use when you want the assistant running in the next five minutes, when
+            pgvector is not available on your database, or when your only AI provider is Anthropic
+            and you would rather not add a second vendor for embeddings. It is also what the assistant
+            falls back to on its own, without failing, if retrieval is on but the index is missing,
+            stale after an upgrade, or reported an error — a question always gets an answer.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-limits">7. Conversations, limits and cost</h2>
+          <p>
+            <strong>Conversations are stored</strong> so a user can pick up where they left off and
+            so a follow-up question has its context. They are private to the person who asked, and a
+            background job deletes any conversation older than <strong>Keep conversations for</strong>
+            — 90 days by default, settable from 1 to 3,650. Switching the assistant off does not
+            freeze what is already stored; the sweep keeps running for as long as the organization
+            has ever configured it.
+          </p>
+          <p>
+            <strong>Two rate limits apply, and both count a question before it is answered.</strong>
+            The organization-wide AI request limit
+            (<code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code>, shared with query analysis)
+            comes first; then the per-person <strong>Questions per user per minute</strong>, default
+            6. Hitting either returns a clear "try again in a moment" in the panel rather than a
+            silent stall. Without the per-person limit one user holding Enter could exhaust the
+            organization's whole AI budget, including the share the query analyzer needs.
+          </p>
+          <p>
+            <strong>The tokens are real tokens.</strong> Help questions count against
+            <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> alongside query analysis, so a
+            monthly budget sized for analysis alone is reached sooner once the assistant is popular. A
+            busy conversation at the defaults sends roughly 8,000 prompt tokens per turn — the replayed
+            history dominates — which on a hosted model in the GPT-4o price class is a few cents per
+            question and around $30 per thousand at September 2026 list prices — re-check your
+            provider's pricing before you budget on it. A short conversation costs a third of that,
+            and a local Ollama costs only the hardware. To spend less per turn, lower
+            <strong>Sections per answer</strong>, <strong>Conversation turns kept</strong> or
+            <strong>Maximum question length</strong>.
+          </p>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-offline">8. Air-gapped installs and updated documentation</h2>
+          <p>
+            <strong>The documentation ships inside the release.</strong> The assistant never fetches a
+            page per question and never depends on this website being reachable: the whole corpus is
+            bundled in the backend, checksummed, and read from there. An air-gapped install gets the
+            full assistant — with retrieval, if it has a local embedding model — and answers about
+            exactly the version it is running, because the documentation and the binary were built
+            together.
+          </p>
+          <p>
+            <strong>Picking up corrected documentation between releases is opt-in, and off by
+            default.</strong> A typo fixed on this site after a release is not something a running
+            install sees unless the operator sets
+            <code>ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED=true</code>, in which case each backend
+            replica checks <strong>once, at start-up</strong>, for a newer corpus published for its
+            own version, verifies the pinned checksum, caches it, and re-indexes — so a correction
+            published next week reaches you on the next restart, not on its own. Leaving it off is a
+            perfectly defensible
+            choice — a stale typo is a smaller risk than an install describing something it does not
+            have. <code>ACCESSFLOW_HELP_CORPUS_OFFLINE=true</code> is the hard stop: with it set, no
+            request for a corpus ever leaves the process, whatever else is configured — the same
+            switch <code>ACCESSFLOW_DRIVERS_OFFLINE</code> provides for database drivers.
+          </p>
+          <div class="docs-callout info">
+            <strong>The AI provider is the one outbound call that remains.</strong> With the refresh
+            off, drivers offline and release checks disabled, AccessFlow itself never reaches the
+            internet — but the assistant still sends each question to whichever provider you bound.
+            For a fully offline assistant, bind a configuration running Ollama on your own hardware,
+            with an Ollama embedding model if you want retrieval.
+          </div>
+        </section>
+
+<section class="docs-section">
+          <h2 id="guide-help-assistant-more">Going further</h2>
+          <ul>
+            <li><strong>Every setting, and the environment variables behind indexing, retention and
+              the corpus refresh</strong> — the <a href="/docs/configuration/ai/#cfg-help-assistant">Help
+              assistant</a> section of the AI reference chapter.</li>
+            <li><strong>Where the assistant sits in the outbound picture</strong> — the
+              <a href="/docs/install/">Install &amp; first run</a> chapter lists every call
+              AccessFlow makes of its own accord and how to switch each one off.</li>
+            <li><strong>The AI configuration it uses</strong>, including the knowledge base and
+              embedding settings retrieval depends on —
+              <a href="/docs/guides/ai-analysis/">Turn on AI risk analysis</a> and the
+              <a href="/docs/configuration/ai/">AI</a> reference.</li>
+            <li><strong>What the assistant will tell you AccessFlow is not</strong> —
+              <a href="/docs/integrations/">Integrations &amp; boundaries</a> is the chapter it
+              treats as the complete list of what is supported.</li>
+          </ul>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
