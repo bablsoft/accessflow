@@ -45,6 +45,7 @@ type datasourceResourceModel struct {
 	TextToSQLEnabled    types.Bool   `tfsdk:"text_to_sql_enabled"`
 	JDBCURLOverride     types.String `tfsdk:"jdbc_url_override"`
 	LocalDatacenter     types.String `tfsdk:"local_datacenter"`
+	Environment         types.String `tfsdk:"environment"`
 	Active              types.Bool   `tfsdk:"active"`
 }
 
@@ -87,7 +88,13 @@ func (r *datasourceResource) Schema(_ context.Context, _ resource.SchemaRequest,
 			"text_to_sql_enabled":   schema.BoolAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()}},
 			"jdbc_url_override":     schema.StringAttribute{Optional: true},
 			"local_datacenter":      schema.StringAttribute{Optional: true, MarkdownDescription: "Required for Cassandra/ScyllaDB datasources."},
-			"active":                schema.BoolAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()}},
+			"environment": schema.StringAttribute{
+				Optional: true,
+				MarkdownDescription: "`DEVELOPMENT`, `TEST`, `STAGING`, or `PRODUCTION`. Selects the SQL-review ruleset " +
+					"bound to that environment (`accessflow_sql_review_ruleset`); omit to fall through to the " +
+					"organization-wide default ruleset.",
+			},
+			"active": schema.BoolAttribute{Optional: true, Computed: true, PlanModifiers: []planmodifier.Bool{boolplanmodifier.UseStateForUnknown()}},
 		},
 	}
 }
@@ -116,7 +123,19 @@ func (m *datasourceResourceModel) toRequest() client.DatasourceRequest {
 		TextToSQLEnabled:    boolPtr(m.TextToSQLEnabled),
 		JDBCURLOverride:     strPtr(m.JDBCURLOverride),
 		LocalDatacenter:     strPtr(m.LocalDatacenter),
+		Environment:         strPtr(m.Environment),
 	}
+}
+
+// clearEnvironmentFlag returns the clear_environment flag for an update: the datasource PUT
+// is a partial merge, so removing `environment` from the configuration has to be sent
+// explicitly or the API keeps the previous value forever.
+func clearEnvironmentFlag(prior, planned types.String) *bool {
+	if !planned.IsNull() || prior.IsNull() || prior.IsUnknown() {
+		return nil
+	}
+	clear := true
+	return &clear
 }
 
 // applyAPI maps an API response onto the model. The write-only password is preserved.
@@ -140,6 +159,7 @@ func (m *datasourceResourceModel) applyAPI(ds *client.Datasource) {
 	m.TextToSQLEnabled = types.BoolValue(ds.TextToSQLEnabled)
 	m.JDBCURLOverride = strVal(ds.JDBCURLOverride)
 	m.LocalDatacenter = strVal(ds.LocalDatacenter)
+	m.Environment = strVal(ds.Environment)
 	m.Active = types.BoolValue(ds.Active)
 }
 
@@ -182,12 +202,15 @@ func (r *datasourceResource) Read(ctx context.Context, req resource.ReadRequest,
 }
 
 func (r *datasourceResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan datasourceResourceModel
+	var plan, prior datasourceResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &prior)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	ds, err := r.client.UpdateDatasource(ctx, plan.ID.ValueString(), plan.toRequest())
+	body := plan.toRequest()
+	body.ClearEnvironment = clearEnvironmentFlag(prior.Environment, plan.Environment)
+	ds, err := r.client.UpdateDatasource(ctx, plan.ID.ValueString(), body)
 	if err != nil {
 		resp.Diagnostics.AddError("Updating datasource failed", err.Error())
 		return

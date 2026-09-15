@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-11",
+      "dateModified": "2026-09-15",
       "url": "https://accessflow.io/docs/iac/",
       "mainEntityOfPage": "https://accessflow.io/docs/iac/",
       "image": "https://accessflow.io/og-image.png",
@@ -263,7 +263,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-11">11 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
@@ -278,12 +278,12 @@
             reusable <strong>GitHub Actions</strong> + a <strong>GitLab CI template</strong> for
             managing governance resources declaratively over the REST API. Both authenticate with an
             API key — the provider manages datasources, review plans, routing / row-security /
-            masking policies, AI configs, and notification channels with the same authoritative-upsert
+            masking policies, SQL review rulesets, AI configs, and notification channels with the same authoritative-upsert
             semantics as the bootstrap reconciler.
 
           <h3>Can AccessFlow be managed with Terraform?</h3>
           <p>
-            Yes. The official <code>bablsoft/accessflow</code> provider works with both Terraform and OpenTofu, and manages datasources, review plans, routing, row-security and masking policies, AI configs, and notification channels. It authenticates with a service-account API key and upserts declaratively, the same way the GitOps bootstrap reconciler does.
+            Yes. The official <code>bablsoft/accessflow</code> provider works with both Terraform and OpenTofu, and manages datasources, review plans, routing, row-security and masking policies, SQL review rulesets, AI configs, and notification channels. It authenticates with a service-account API key and upserts declaratively, the same way the GitOps bootstrap reconciler does.
           </p>
           </p>
 
@@ -347,7 +347,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
           <p>
             The provider drives the <strong>existing</strong> REST endpoints —
             <code>/datasources</code>, <code>/review-plans</code>, <code>/admin/routing-policies</code>,
-            <code>/admin/ai-configs</code>, <code>/admin/notification-channels</code>, and the nested
+            <code>/admin/ai-configs</code>, <code>/admin/notification-channels</code>, <code>/admin/sql-review-rulesets</code>, and the nested
             <code>/datasources/{id}/{row-security,masking}-policies</code>. No AccessFlow-specific
             endpoints were added for it. Idempotency comes from Terraform state (create → store UUID →
             read / update / delete by id), matching the bootstrap reconciler's authoritative-upsert
@@ -365,6 +365,7 @@ resource <span class="c-str">"accessflow_datasource"</span> <span class="c-str">
               <tr><td><code>accessflow_masking_policy</code></td><td>Nested under a datasource; import as <code>datasource_id/policy_id</code></td></tr>
               <tr><td><code>accessflow_ai_config</code></td><td><code>api_key</code> is write-only</td></tr>
               <tr><td><code>accessflow_notification_channel</code></td><td><code>config</code> map; <code>channel_type</code> is immutable and forces replacement</td></tr>
+              <tr><td><code>accessflow_sql_review_ruleset</code></td><td>Deterministic SQL review rules; <code>rules</code> is a set of <code>rule_id</code> / <code>severity</code> / <code>params</code>, and leaving <code>environment</code> out makes it the organization-wide default. Pair it with the datasource's <code>environment</code> attribute</td></tr>
             </tbody>
           </table>
           <p>

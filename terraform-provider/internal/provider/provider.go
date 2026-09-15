@@ -39,7 +39,7 @@ func (p *accessflowProvider) Metadata(_ context.Context, _ provider.MetadataRequ
 func (p *accessflowProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Manage AccessFlow database & API access governance resources (datasources, review plans, " +
-			"routing/row-security/masking policies, AI configs, notification channels) via the REST API.",
+			"routing/row-security/masking policies, SQL review rulesets, AI configs, notification channels) via the REST API.",
 		Attributes: map[string]schema.Attribute{
 			"endpoint": schema.StringAttribute{
 				Optional: true,
@@ -101,6 +101,7 @@ func (p *accessflowProvider) Resources(_ context.Context) []func() resource.Reso
 		NewNotificationChannelResource,
 		NewRowSecurityPolicyResource,
 		NewMaskingPolicyResource,
+		NewSqlReviewRulesetResource,
 	}
 }
 

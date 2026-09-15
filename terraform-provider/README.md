@@ -2,8 +2,8 @@
 
 The official provider for [AccessFlow](https://accessflow.io/), the open-source
 database & API access governance platform. Manage datasources, review plans, routing / row-security /
-masking policies, AI configs, and notification channels declaratively through the AccessFlow REST
-API. Works with both [OpenTofu](https://opentofu.org) and Terraform.
+masking policies, SQL review rulesets, AI configs, and notification channels declaratively through
+the AccessFlow REST API. Works with both [OpenTofu](https://opentofu.org) and Terraform.
 
 Published at
 [registry.terraform.io/providers/bablsoft/accessflow](https://registry.terraform.io/providers/bablsoft/accessflow/latest)
@@ -35,6 +35,7 @@ provider "accessflow" {
 | `accessflow_masking_policy` | Column masking strategy (nested under a datasource) |
 | `accessflow_ai_config` | AI analyzer configuration |
 | `accessflow_notification_channel` | Email / Slack / Webhook / … channel |
+| `accessflow_sql_review_ruleset` | Deterministic SQL review rules with per-environment `OFF`/`WARN`/`BLOCK` severity |
 
 Data sources: `accessflow_datasource`, `accessflow_review_plan` (look up by id).
 

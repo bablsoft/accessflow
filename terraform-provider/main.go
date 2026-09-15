@@ -1,7 +1,7 @@
 // terraform-provider-accessflow is the Terraform / OpenTofu provider for AccessFlow,
 // the open-source database access governance platform. It manages datasources, review
-// plans, routing/row-security/masking policies, AI configs, and notification channels
-// declaratively through the AccessFlow REST API using an API key.
+// plans, routing/row-security/masking policies, SQL review rulesets, AI configs, and
+// notification channels declaratively through the AccessFlow REST API using an API key.
 package main
 
 import (

@@ -22,6 +22,7 @@ resource "accessflow_datasource" "prod_postgres" {
   username      = "af_reader"
   password      = var.prod_postgres_password # write-only
   ssl_mode      = "REQUIRE"
+  environment   = "PRODUCTION" # selects the SQL review ruleset bound to PRODUCTION
 
   require_review_writes = true
   ai_analysis_enabled   = true
@@ -50,6 +51,7 @@ variable "prod_postgres_password" {
 - `ai_config_id` (String)
 - `connection_pool_size` (Number)
 - `database_name` (String)
+- `environment` (String) `DEVELOPMENT`, `TEST`, `STAGING`, or `PRODUCTION`. Selects the SQL-review ruleset bound to that environment (`accessflow_sql_review_ruleset`); omit to fall through to the organization-wide default ruleset.
 - `host` (String)
 - `jdbc_url_override` (String)
 - `local_datacenter` (String) Required for Cassandra/ScyllaDB datasources.

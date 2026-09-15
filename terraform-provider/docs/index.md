@@ -8,9 +8,9 @@ description: |-
 
 The AccessFlow provider manages [AccessFlow](https://accessflow.io/) — the
 open-source database & API access governance platform — declaratively through its REST API. Use it to
-provision datasources, review plans, routing/row-security/masking policies, AI configs, and
-notification channels as code, with the same authoritative-upsert semantics as the built-in
-`bootstrap` GitOps reconciler.
+provision datasources, review plans, routing/row-security/masking policies, SQL review rulesets,
+AI configs, and notification channels as code, with the same authoritative-upsert semantics as the
+built-in `bootstrap` GitOps reconciler.
 
 It works with both [OpenTofu](https://opentofu.org) (`tofu`) and Terraform (`terraform`).
 
@@ -35,9 +35,9 @@ enforces configurable review and approval workflows before any query executes. C
   Actions, GitLab CI, and Azure Pipelines steps reduce the CI glue to one step.
 
 This provider manages the configuration surface listed under **Resources** — datasources, review
-plans, routing / row-security / masking policies, AI configs, and notification channels. Query, API
-call, and deployment *requests* are runtime objects created through the app, API, or CI, not
-Terraform-managed.
+plans, routing / row-security / masking policies, SQL review rulesets, AI configs, and notification
+channels. Query, API call, and deployment *requests* are runtime objects created through the app,
+API, or CI, not Terraform-managed.
 
 - Project website: [accessflow.io](https://accessflow.io/)
 - Source code: [github.com/bablsoft/accessflow](https://github.com/bablsoft/accessflow)
