@@ -60,7 +60,7 @@
         "articleSection": "Features",
         "inLanguage": "en",
         "datePublished": "2026-08-30",
-        "dateModified": "2026-09-09",
+        "dateModified": "2026-09-15",
         "url": "https://accessflow.io/features/database-access-governance/",
         "mainEntityOfPage": "https://accessflow.io/features/database-access-governance/",
         "image": "https://accessflow.io/og-image.png",
@@ -283,6 +283,9 @@
           <h3>See what a rule would do before you save it</h3>
           <p>A policy is easy to write and hard to predict: the condition that blocks one dangerous <code>DELETE</code> can quietly block a nightly job nobody remembered. So every routing, masking and row-security form has a <em>Simulate</em> button. Choose a date range and AccessFlow replays your own past queries <strong>twice</strong> — once against the rules you have today, once with the draft added or replacing the one you are editing — and reports the difference between those two runs: how many past requests would take a different path, which ones, and which people would feel it.</p>
           <p>It compares rules against rules rather than against history, because a past decision may have come from an emergency, a ticket or a standing grant the draft has no say over. And it is strictly a preview: nothing is saved, no query is re-run, and AccessFlow never connects to your database to produce it. Where the replay has to approximate — memberships are read as they stand today, and a couple of engines cannot work out a row rule offline — the result says so plainly, and lists those queries as unclassifiable rather than counting them as unaffected. Simulating is optional; nothing blocks you from saving. <a href="/docs/configuration/review-workflows/#cfg-routing-policies">Routing policy docs →</a></p>
+          <h3>Rules that are written down</h3>
+          <p>An AI verdict is a judgement and a routing policy is a single yes-or-no; neither tells an author, while they are still typing, that their SQL breaks a rule the organisation has actually agreed on. A catalog of fourteen named checks does — a <code>DELETE</code> with no <code>WHERE</code>, an always-true <code>WHERE 1 = 1</code> that would defeat that check, <code>SELECT *</code>, an unbounded read, a cross join, a leading-wildcard <code>LIKE</code>, <code>DROP</code> and <code>TRUNCATE</code>, a banned function, a protected table named by pattern, a data change outside a transaction. Each runs at a severity you set per environment — off, warn, or block — so production can be strict while development stays quiet, and the findings appear in the editor as the query is written, with no AI call and no cost.</p>
+          <p>Block is deliberately not reject. A blocking finding switches off every path that would have approved the query without a person — a routing auto-approve, a standing grant, a plan that waves reads through — and puts a reviewer in front of it; it never turns a query down on its own, and it never softens a routing rule that rejects. The check runs at submission, before the AI is asked, so it still holds on a datasource with AI analysis off or a provider that is down. <a href="/docs/configuration/review-workflows/#cfg-sql-review">SQL review rules docs →</a></p>
           <h3>Reviews that stall</h3>
           <p>The failure mode of an approval workflow is silence, so both remedies are built in and both are notify-only — waiting never changes who is allowed to approve.</p>
           <ul>

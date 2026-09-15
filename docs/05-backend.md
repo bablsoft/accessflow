@@ -1564,6 +1564,8 @@ behind `sqlreview.api.SqlReviewService.evaluate(organizationId, datasourceId, sq
 surface (below); #864 the enforcement at the submission chokepoint (`BLOCK` suppresses every
 auto-approve path and forces `PENDING_REVIEW` — it **never** rejects; see "Submission enforcement"
 below); the editor lint is #865. Storage: [docs/03-data-model.md → SQL review](03-data-model.md#sql-review-sqlreview-861--epic-860).
+The feature-level chapter — severity semantics, resolution, the full catalog with an example per
+rule, the exemptions — is [docs/19-sql-review.md](19-sql-review.md).
 
 **Applicability.** Every rule is a pure function of the parsed statement, so the catalog covers the
 in-process relational dialects only — `DefaultSqlReviewService.RELATIONAL_DIALECTS` =

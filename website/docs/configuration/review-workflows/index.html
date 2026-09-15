@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Review plans, routing policies &amp; recertification — AccessFlow docs</title>
-  <meta name="description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+  <title>Review plans, routing &amp; SQL review rules — AccessFlow docs</title>
+  <meta name="description" content="Build multi-stage approval chains with review plans, automate decisions with routing policies and SQL review rules, and run access recertification campaigns." />
 
   <link rel="canonical" href="https://accessflow.io/docs/configuration/review-workflows/" />
   <meta name="robots" content="index, follow" />
@@ -27,8 +27,8 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="Review plans, routing policies &amp; recertification — AccessFlow docs" />
-  <meta property="og:description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+  <meta property="og:title" content="Review plans, routing &amp; SQL review rules — AccessFlow docs" />
+  <meta property="og:description" content="Build multi-stage approval chains with review plans, automate decisions with routing policies and SQL review rules, and run access recertification campaigns." />
   <meta property="og:url" content="https://accessflow.io/docs/configuration/review-workflows/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
   <meta property="og:image:type" content="image/png" />
@@ -37,8 +37,8 @@
   <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Review plans, routing policies &amp; recertification — AccessFlow docs" />
-  <meta name="twitter:description" content="Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns." />
+  <meta name="twitter:title" content="Review plans, routing &amp; SQL review rules — AccessFlow docs" />
+  <meta name="twitter:description" content="Build multi-stage approval chains with review plans, automate decisions with routing policies and SQL review rules, and run access recertification campaigns." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
   <meta name="twitter:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
@@ -58,12 +58,12 @@
       "@id": "https://accessflow.io/docs/configuration/review-workflows/#article",
       "breadcrumb": { "@id": "https://accessflow.io/docs/configuration/review-workflows/#breadcrumb" },
       "headline": "Review workflows",
-      "name": "Review plans, routing policies & recertification \u2014 AccessFlow docs",
-      "description": "Build multi-stage approval chains with AccessFlow review plans, automate decisions with policy-as-code routing, and run access recertification campaigns.",
+      "name": "Review plans, routing & SQL review rules \u2014 AccessFlow docs",
+      "description": "Build multi-stage approval chains with review plans, automate decisions with routing policies and SQL review rules, and run access recertification campaigns.",
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-11",
+      "dateModified": "2026-09-15",
       "url": "https://accessflow.io/docs/configuration/review-workflows/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/review-workflows/",
       "image": "https://accessflow.io/og-image.png",
@@ -221,6 +221,7 @@
             <p class="docs-toc-label">Review workflows</p>
             <a href="#cfg-review-plans">Review plans</a>
             <a href="#cfg-routing-policies">Routing policies</a>
+            <a href="#cfg-sql-review">SQL review rules</a>
             <a href="#cfg-attestation">Access recertification campaigns</a>
             <a href="#cfg-deployment-pipelines">Deployment pipelines</a>
             <p class="docs-toc-label">Documentation</p>
@@ -265,7 +266,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Review workflows.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-11">11 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -568,6 +569,83 @@ APPROVED → FAILED (execution error)</pre>
           </div>
 
           <!-- AI -->
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-sql-review">SQL review rules</h2>
+          <p>
+            <strong>What it is.</strong> A catalog of named, deterministic checks that every SQL query
+            is measured against — the third opinion next to the
+            <a href="/docs/configuration/ai/#cfg-ai">AI analysis</a> and
+            <a href="#cfg-routing-policies">routing policies</a>. Where the AI gives a judgement and a
+            routing policy gives a single verdict, a rule gives a <em>named, repeatable</em> finding:
+            "this <code>DELETE</code> has no <code>WHERE</code> clause", "this touches a protected
+            table", "this pattern starts with a wildcard". The same query always produces the same
+            findings, they cost nothing to compute, and they keep working with AI analysis switched off.
+            Authors see them <strong>in the editor as they type</strong>, before anything is submitted.
+          </p>
+          <p>
+            <strong>Fourteen built-in rules</strong> — missing <code>WHERE</code> on
+            <code>UPDATE</code> or <code>DELETE</code>, an always-true <code>WHERE</code> such as
+            <code>1 = 1</code> that would otherwise defeat those two, <code>SELECT *</code>, a
+            <code>SELECT</code> with no row limit, <code>ORDER BY</code> without a limit, cross joins,
+            <code>LIKE '%…'</code>, <code>DROP</code>, <code>TRUNCATE</code>, any DDL, a call to a banned
+            function (<code>pg_sleep</code>, <code>sleep</code>, <code>benchmark</code>,
+            <code>load_file</code> out of the box), any statement touching a <strong>protected
+            table</strong> you name by pattern (<code>payroll.*</code>, <code>*.audit_log</code>), and a
+            data change submitted outside a <code>BEGIN … COMMIT</code> transaction. Every rule is
+            derived from the parsed statement alone — AccessFlow never connects to your database to
+            evaluate one.
+          </p>
+          <p>
+            <strong>Three severities, per rule.</strong> Each rule runs at one of
+            <em>Off</em> (not checked), <em>Warn</em> (the finding is recorded and shown to the author
+            and the reviewers, and changes nothing about the approval path), or <em>Block</em> (the
+            finding is recorded <strong>and the query can no longer be approved automatically</strong> —
+            a person must look at it). Out of the box the dangerous ones block — missing
+            <code>WHERE</code>, always-true <code>WHERE</code>, <code>DROP</code>,
+            <code>TRUNCATE</code>, banned functions, protected tables — and the rest warn: the
+            performance hints, any other DDL, and a data change outside a transaction.
+          </p>
+          <div class="docs-callout info">
+            <strong>Block means a person must look. It never rejects.</strong> A blocking finding
+            switches off every path that would have approved the query <em>without</em> a human —
+            a routing policy's auto-approve, a standing grant's pre-approval, a review plan that
+            auto-approves reads or needs no human sign-off — and sends the query to the reviewers
+            instead. It does not refuse the query, and it never overrides a routing policy that
+            <em>rejects</em>: nothing in this feature adds a new way for a query to be turned down
+            without someone deciding it. The author can still submit; the Submit button's tooltip says
+            how many blocking findings will require human approval. Every time a block changed the
+            outcome, the <a href="/docs/configuration/audit-compliance/#cfg-audit-log">audit log</a>
+            records which rules did it.
+          </div>
+          <p>
+            <strong>Configure it.</strong> Rulesets live at <code>/admin/sql-review</code> (the
+            <em>SQL review</em> entry in the <em>Security</em> nav group, next to <em>Routing
+            policies</em>; needs the <em>Manage SQL review rules</em> permission, which the built-in
+            <em>Admin</em> role holds):
+          </p>
+          <ol>
+            <li><strong>Give every datasource an environment.</strong> On the datasource's create wizard or settings page, set <em>Environment</em> to <em>Development</em>, <em>Test</em>, <em>Staging</em> or <em>Production</em> — or leave it unset. See <a href="/docs/configuration/datasources/#cfg-datasources">Datasources</a>.</li>
+            <li><strong>Open <code>/admin/sql-review</code></strong> and click <em>Add ruleset</em>. Name it, and bind it to one environment — or pick <em>Organization default</em>, the ruleset that applies to every datasource with no environment set (and to any environment that has no ruleset of its own). One ruleset per environment, one organization default.</li>
+            <li><strong>Set the severities.</strong> The rules table lists every built-in rule with its default severity underneath; change only the ones you want to. For <em>Protected table</em> add the table patterns; for <em>Disallowed function</em> add or replace the banned names. Rules left at their default are not stored, so a ruleset stays a short list of what you changed.</li>
+            <li><strong>Enable it.</strong> A ruleset can be switched off with the <em>Enabled</em> toggle — note that a disabled ruleset bound to an environment evaluates <em>no</em> rules and does <em>not</em> fall back to the organization default, so switching production off never quietly re-enables the default there.</li>
+          </ol>
+          <div class="docs-callout info">
+            <strong>How it decides.</strong> A query is checked <strong>at submission, before the AI is
+            asked</strong>, so its findings exist even on datasources where AI analysis is disabled, and
+            even when the AI provider is down — the cases where a written-down rule is the only signal
+            there is. The datasource's environment picks the ruleset; no environment means the
+            organization default; no default means no rules. Findings are shown to reviewers in their
+            own language on the query's detail page, as a <em>block</em> count on the review queue, on a
+            request group's member list, and on the retro-review of an emergency
+            <a href="/docs/configuration/users-roles/#cfg-break-glass">break-glass</a> run — which is
+            recorded but never held up by a rule, because emergency access stays an emergency path.
+            Rules apply to the SQL engines (PostgreSQL, MySQL, MariaDB, Oracle, SQL Server and custom
+            JDBC drivers); on MongoDB, Couchbase, Redis, Cassandra, ScyllaDB, Elasticsearch, OpenSearch,
+            Neo4j, DynamoDB and the cloud warehouses the check reports <em>not applicable</em> and never blocks — an engine without rule
+            support must never make its queries harder to approve than they are today.
+          </div>
         </section>
 
 <section class="docs-section">

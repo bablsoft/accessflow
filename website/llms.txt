@@ -64,7 +64,7 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [Users & roles](https://accessflow.io/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
 - [Datasources](https://accessflow.io/docs/configuration/datasources/): Add governed datasources, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health
 - [Connectors](https://accessflow.io/docs/configuration/connectors/): Install SQL, NoSQL and data-warehouse engine connectors from the catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors
-- [Review workflows](https://accessflow.io/docs/configuration/review-workflows/): Build multi-stage approval chains with review plans, automate decisions with policy-as-code routing, and run access recertification campaigns
+- [Review workflows](https://accessflow.io/docs/configuration/review-workflows/): Build multi-stage approval chains with review plans, automate decisions with routing policies and SQL review rules, and run access recertification campaigns
 - [AI](https://accessflow.io/docs/configuration/ai/): Configure AI providers for query risk analysis, add a RAG knowledge base, trace prompts with Langfuse, and enable behavioural anomaly detection
 - [Auth & SSO](https://accessflow.io/docs/configuration/auth/): Connect to your identity provider with OAuth 2.0 / OIDC or SAML 2.0 single sign-on — Google, GitHub, Microsoft, GitLab, Okta, Keycloak and more
 - [Notifications](https://accessflow.io/docs/configuration/notifications/): Route review and audit events to email, Slack, Discord, Telegram, Teams, PagerDuty, ServiceNow, Jira and signed webhooks, and configure system SMTP
@@ -93,6 +93,7 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [Infrastructure as Code](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/16-iac.md): Terraform/OpenTofu provider, CI Actions, service-account keys, registry publishing
 - [API Access Governance](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/17-api-governance.md): Govern outbound REST/SOAP/GraphQL/gRPC calls — connectors, schema ingestion, permissions
 - [Deployment Approval Governance](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/18-deployment-governance.md): Gate CI/CD deployments behind approval workflows — pipelines, environments, freeze windows, the fail-closed gate
+- [Deterministic SQL Review Rules](https://raw.githubusercontent.com/bablsoft/accessflow/main/docs/19-sql-review.md): The named rule catalog, per-environment OFF / WARN / BLOCK severities, ruleset resolution, the submission chokepoint where a BLOCK escalates to a person and never rejects, the live editor lint, and the documented exemptions
 
 ## Optional
 

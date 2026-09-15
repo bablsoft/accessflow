@@ -485,7 +485,7 @@ group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V14
 permission at all, is in
 [Deployment governance security](#deployment-governance-security-epic-af-682) below.
 
-**Deterministic SQL review (#861, epic #860):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
+**Deterministic SQL review (#861, epic #860 — full chapter: [docs/19-sql-review.md](19-sql-review.md)):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
 group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same
 `VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`). Since #863 it gates the ruleset CRUD
 (`/admin/sql-review-rulesets`, every mutation audited as `SQL_REVIEW_RULESET_*`) and the localized
