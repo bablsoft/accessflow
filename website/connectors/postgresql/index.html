@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PostgreSQL access governance — SQL query approval — AccessFlow</title>
+  <title>PostgreSQL access governance & query approval — AccessFlow</title>
   <meta name="description" content="How AccessFlow governs PostgreSQL: every statement is parsed and checked, risk-scored, approved, then run under masking and row-level security." />
 
   <link rel="canonical" href="https://accessflow.io/connectors/postgresql/" />
@@ -26,7 +26,7 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="AccessFlow" />
   <meta property="og:locale" content="en_US" />
-  <meta property="og:title" content="PostgreSQL access governance — SQL query approval — AccessFlow" />
+  <meta property="og:title" content="PostgreSQL access governance & query approval — AccessFlow" />
   <meta property="og:description" content="Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta property="og:url" content="https://accessflow.io/connectors/postgresql/" />
   <meta property="og:image" content="https://accessflow.io/og-image.png" />
@@ -36,13 +36,14 @@
   <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="PostgreSQL access governance — SQL query approval — AccessFlow" />
+  <meta name="twitter:title" content="PostgreSQL access governance & query approval — AccessFlow" />
   <meta name="twitter:description" content="Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security." />
   <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
 
   <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <link rel="apple-touch-icon" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="stylesheet" href="/styles.css" />
   <script src="/app.js" defer></script>
 
@@ -55,7 +56,7 @@
         "@id": "https://accessflow.io/connectors/postgresql/#article",
         "breadcrumb": { "@id": "https://accessflow.io/connectors/postgresql/#breadcrumb" },
         "headline": "PostgreSQL access governance — every statement reviewed before it runs",
-        "name": "PostgreSQL access governance — SQL query approval — AccessFlow",
+        "name": "PostgreSQL access governance & query approval — AccessFlow",
         "description": "Every PostgreSQL statement parsed and checked against a schema allow-list, risk-scored, routed to an approver, and executed under masking and row-level security.",
         "articleSection": "Connectors",
         "inLanguage": "en",
@@ -82,6 +83,7 @@
         "@type": "Organization",
         "@id": "https://accessflow.io/#org",
         "name": "bablsoft",
+        "alternateName": "bablsoft (maker of AccessFlow)",
         "url": "https://accessflow.io/",
         "logo": "https://accessflow.io/logo.png",
         "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
@@ -94,6 +96,8 @@
         "@type": "SoftwareApplication",
         "@id": "https://accessflow.io/#software",
         "name": "AccessFlow",
+        "alternateName": ["AccessFlow by bablsoft", "bablsoft AccessFlow"],
+        "sameAs": ["https://github.com/bablsoft/accessflow"],
         "url": "https://accessflow.io/",
         "applicationCategory": "DeveloperApplication",
         "publisher": { "@id": "https://accessflow.io/#org" }
