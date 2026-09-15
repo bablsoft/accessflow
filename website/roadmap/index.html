@@ -236,7 +236,7 @@
         <section class="docs-section scroll-pad" id="available">
           <h2>Available now</h2>
           <p>
-            Everything in this grid is generally available today in v2.5 — self-hosted with Docker
+            Everything in this grid is generally available today in v2.6 — self-hosted with Docker
             Compose or Helm, and governed by the same review pipeline and tamper-evident audit log
             throughout. The map itself is driven by community input and adapter contributions.
           </p>
@@ -268,6 +268,9 @@
               <li>Behavioral anomaly detection (UBA)</li>
               <li>AI optimization &amp; index recommendations</li>
               <li>Expanded MCP agent toolset</li>
+              <li>Suggested queries — drafts mined from your own approved history, no AI call needed</li>
+              <li>In-app help assistant — answers from the shipped documentation, cites its sources, reads no data</li>
+              <li>Voyage AI embeddings for RAG and the help assistant</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -285,6 +288,9 @@
               <li>Personalized dashboard &amp; weekly digest</li>
               <li>Request chaining &amp; grouping</li>
               <li>Group-based data &amp; API access grants</li>
+              <li>Deterministic SQL review rules — fourteen named checks, per-environment severity, lint as you type</li>
+              <li>Policy simulator — replay a draft routing, masking or row-security rule against past traffic</li>
+              <li>Effective-access explainer — trace why a request would be approved, routed or held, and who can write to a table</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -292,6 +298,7 @@
             <ul>
               <li>Outbound API access governance — REST · SOAP · GraphQL · gRPC</li>
               <li>Operation catalog · response masking · text-to-API</li>
+              <li>Decision trace for a hypothetical API call — never contacts the governed API</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -303,6 +310,8 @@
               <li>GitHub Actions · GitLab CI · Azure Pipelines gate steps</li>
               <li>Version tracking — which release runs on which environment, with environment tags</li>
               <li>Drift reporting — how many releases and days an environment is behind, on demand</li>
+              <li>Decision trace for a hypothetical deployment — "would a release at this moment be held?"</li>
+              <li>Dashboard widgets for pending reviews, recent deployments and environment drift</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -313,6 +322,7 @@
               <li>Result-export governance &amp; DLP — watermarked, policy-gated downloads</li>
               <li>Data lifecycle — retention, right-to-erasure &amp; pseudonymization</li>
               <li>Access recertification campaigns</li>
+              <li>Privileged-access report — every query admin and break-glass holder, with usage evidence</li>
             </ul>
           </div>
           <div class="rm-cell">
@@ -329,7 +339,7 @@
               <li>External secrets managers (Vault / AWS / Azure Key Vault)</li>
               <li>Backup / restore &amp; DR tooling — Helm hooks + audit-chain verification</li>
               <li>ServiceNow &amp; Jira ticketing — auto-created tickets + bi-directional status sync</li>
-              <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags</li>
+              <li>Automated sensitive-data discovery — scheduled column scanning proposes classification tags, nested document fields included, stale findings retired</li>
               <li>Least-privilege intelligence — unused-grant analytics with advisory revocation recommendations</li>
               <li>Release update hint — a self-hosted install says when a newer stable release exists</li>
             </ul>
@@ -361,28 +371,21 @@
             does, version by version since v1.0.
           </p>
           <p>
-            The two most recent shipped themes: <strong>v2.4</strong> added deployment approval governance —
-            CI/CD pipelines ask AccessFlow for permission to release and block on a fail-closed gate,
-            with per-environment policies, freeze windows, audited break-glass, and native GitHub
-            Actions, GitLab CI and Azure Pipelines steps. <strong>v2.5</strong> carried that past the
-            gate into what is actually running where: per-environment version tags and current-version
-            state, rollbacks that restore the version an environment is really on, a version matrix
-            with on-demand drift reporting, and an in-app hint telling every signed-in user when a
-            newer stable release is available.
-          </p>
-          <p>
-            <strong>v2.6 is in development</strong> and is not in the grid above yet. Among the
-            things it adds: the query editor turns the history an organisation has already built up
-            into something an analyst can use, offering draft queries taken from queries the
-            organisation has already had approved, filtered to what each person is allowed to run.
-            And a catalog of named SQL review rules — missing <code>WHERE</code>, protected tables,
-            banned functions and eleven more — checks every query as it is typed, at a severity set
-            per environment, where a blocking rule sends the query to a person rather than rejecting
-            it. And an in-app help assistant: a chat panel that answers questions about how to use
-            AccessFlow from the documentation shipped with the running version, cites the sections it
-            used, and reads nothing but that documentation — never a query, a result or an audit row.
-            The full in-progress scope is on
-            <a class="prose-link" href="https://github.com/bablsoft/accessflow/milestones">GitHub</a>.
+            The two most recent shipped themes: <strong>v2.5</strong> carried deployment governance
+            past the approval gate into what is actually running where — per-environment version tags
+            and current-version state, rollbacks that restore the version an environment is really
+            on, a version matrix with on-demand drift reporting, and an in-app hint telling every
+            signed-in user when a newer stable release is available. <strong>v2.6</strong> answers
+            from what AccessFlow already knows: the query editor offers draft queries mined from the
+            organisation's own approved history, filtered to what each person may run; a catalog of
+            fourteen named SQL review rules checks every query as it is typed, at a severity set per
+            environment, where a blocking rule sends the query to a person rather than rejecting it;
+            an effective-access explainer traces why a request would be approved, routed or held —
+            for queries, API calls and deployments alike — and answers who can write to a table; a
+            policy simulator replays a draft rule against past traffic before it is saved; a
+            privileged-access report names everyone who can bypass the permission gate; and an
+            in-app help assistant answers questions from the documentation shipped with the running
+            version, citing the sections it used and reading nothing else.
           </p>
           <p>
             What shipped when, release by release, is in
@@ -482,7 +485,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
       </div>
     </div>
   </footer>

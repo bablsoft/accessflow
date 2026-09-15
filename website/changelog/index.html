@@ -61,7 +61,7 @@
         "description": "What each AccessFlow release added, newest first — one stable link per version, from v1.0 onward. The page a self-hosted install's update hint opens.",
         "inLanguage": "en",
         "datePublished": "2026-09-03",
-        "dateModified": "2026-09-04",
+        "dateModified": "2026-09-15",
         "url": "https://accessflow.io/changelog/",
         "image": "https://accessflow.io/og-image.png",
         "isPartOf": { "@id": "https://accessflow.io/#website" },
@@ -192,6 +192,7 @@
           <summary>On this page</summary>
           <nav class="docs-toc">
             <p class="docs-toc-label">Releases</p>
+            <a href="#v2-6-0">v2.6.0</a>
             <a href="#v2-5-0">v2.5.0</a>
             <a href="#v2-4-0">v2.4.0</a>
             <a href="#v2-3-0">v2.3.0</a>
@@ -240,6 +241,28 @@
             <a href="/roadmap/" class="btn btn-ghost">What's planned next</a>
           </div>
         </header>
+
+        <section class="docs-section scroll-pad" id="v2-6-0">
+          <h2>v2.6.0 — Answering from what AccessFlow already knows</h2>
+          <p class="changelog-meta">
+            Released <time datetime="2026-09-15">15 September 2026</time> ·
+            <a href="https://github.com/bablsoft/accessflow/releases/tag/v2.6.0">Release on GitHub</a>
+          </p>
+          <ul>
+            <li><strong>Suggested queries in the editor.</strong> A third tab in the editor's right rail offers whole draft queries mined from your organisation's own approved history on that datasource, each with the evidence behind it — how often it was approved, by how many people, how recently. Ranking is a local heuristic, so there is no provider call, no cost, and it keeps working with AI switched off. Every suggestion is filtered against what you are actually allowed to run, break-glass and recurring runs never enter the corpus, and applying one only fills the editor: the draft is then analysed, routed and reviewed like any other query.</li>
+            <li><strong>An explainer for "why".</strong> Describe a hypothetical request and AccessFlow replays it through the very evaluators that decide real ones — the datasource and quota gates, the merged permission with each contributing grant named, every routing policy in priority order including the near misses, the grant fast path, the review plan, who could review it, and the row-security and masking that would apply — returning a stage-by-stage trace with the outcome. Nothing is written, run, published or sent to an AI provider, and what a hypothetical request cannot know is named rather than guessed. With it comes the reverse index: <em>who can write to this table</em>, one row per person, naming every source of the access — including the query-admin role that bypasses per-datasource permissions and appeared on no screen before.</li>
+            <li><strong>The same trace for API calls and deployments.</strong> A hypothetical governed API call can be traced through the connector gate, the read/write classification, the schema catalog, the effective permission, routing, the review requirement and the masking that would rewrite the response — without ever contacting the API. A hypothetical deployment reports the trigger grant, the freeze window, routing, the environment's own policy, the approvers, the deferred-release moment and the gate's own verdict, computed by the very function the CI job blocks on — and it takes an optional point in time, so "would a release this Friday evening be held?" is answerable today.</li>
+            <li><strong>Deterministic SQL review rules.</strong> A catalog of fourteen named checks — a <code>DELETE</code> or <code>UPDATE</code> with no <code>WHERE</code>, an always-true <code>WHERE</code>, <code>SELECT *</code>, unbounded or full-sort reads, cross joins, leading-wildcard <code>LIKE</code>, <code>DROP</code> / <code>TRUNCATE</code> / any DDL, banned functions, protected tables by pattern, and DML outside a transaction — each set to <em>off</em>, <em>warn</em> or <em>block</em> per environment. Tag a datasource development, test, staging or production, bind one ruleset per environment, and keep an organisation-wide default for the rest. Findings appear in the editor as you type and again on the query detail, the review queue, the break-glass retro-review and grouped requests. <strong>Block escalates, it never rejects:</strong> a blocking finding switches off every path that would have approved the query without a person and sends it to a reviewer, while a routing auto-reject still rejects.</li>
+            <li><strong>A privileged-access report.</strong> Everyone who can reach data without appearing in any permission table: holders of the query-admin permission — the built-in admin role or a custom role carrying it — and every break-glass grantee, direct or through a group. One row per person, with the role that carries the bypass, each break-glass datasource and its expiry, and how many queries — and how many break-glass runs — that person has actually submitted and when last. Readable by admins and auditors, recorded in the audit log on every read, and advisory only.</li>
+            <li><strong>An in-app help assistant.</strong> A launcher in the app shell opens a chat panel that answers "how do I submit a query for review?" or "how do I connect Snowflake?" from AccessFlow's own documentation, bundled with the running build so an install never describes a version it is not running, and cites the sections it used. An admin enables it and binds it to an AI configuration like any other AI-backed feature; where retrieval cannot be configured, a bundled quick-reference block answers instead. It is a documentation reader, not a data surface — no tools, no actions, and never a query, result, schema or audit row in the prompt. Conversations are private, retention-pruned, rate-limited per user and counted against the monthly AI token budget; remote corpus refresh is opt-in and off by default, and air-gapped installs can pin the corpus to what shipped.</li>
+            <li><strong>Policy simulator.</strong> Every routing, masking and row-security form has a <em>Simulate</em> button that replays a chosen window of your own past traffic twice — once under the current rules, once with the draft applied — and reports the difference: how many past queries would change outcome, which users would be affected, and which query shapes a row predicate would newly filter, deny or reject. Strictly a preview: nothing is saved, nothing is re-run, AccessFlow never connects to your database, and a shape an engine cannot classify offline is reported as unclassifiable rather than assumed safe.</li>
+            <li><strong>Onboarding by governance domain.</strong> The first-run wizard asks which of the three governed request kinds you intend to use — database access is always on; outbound API calls and CI/CD deployments are opt-in — and the answer shapes the dashboard checklist, the sidebar and the review hub, so an organisation that only governs databases never sees API or deployment navigation. It is visibility, not entitlement: every route and permission is unchanged, deep links keep working, and an admin can switch a domain on later. The dashboard also gains deployment widgets — pending deployment reviews, your recent deployments, and an environment version and drift tile.</li>
+            <li><strong>Sensitive-data discovery, hardened.</strong> The scanner now looks inside nested document and map values on MongoDB, Elasticsearch, DynamoDB and Neo4j, reporting findings under a dot-path field name so a confirmed tag lands on exactly the nested field the masker already understands. A pending finding that a scan of its table stops re-detecting is retired as stale and audited — never a finding on a table the run did not sample — and the "a scan is already running" guard is now cluster-wide, so two replicas can no longer sample the same datasource at once.</li>
+            <li><strong>Warehouse connectors.</strong> Snowflake key-pair authentication accepts a passphrase-protected private key, which Snowflake's own tooling generates by default. Databricks result sets larger than the inline limit are fetched through the API's external-links mode and streamed up to the proxy's own row and byte caps, with the temporary links never stored.</li>
+            <li><strong>Voyage AI embeddings.</strong> A first-class embedding provider for the RAG knowledge base and the help assistant, with a prefilled endpoint and model and an impossible vector dimension refused at configuration time rather than at ingest.</li>
+            <li><strong>Interface refinements.</strong> A permission created from an approved just-in-time access request now records which request produced it, so the explainer can say with certainty whether queries under that grant also skip review; help-assistant answers render as formatted text; and the datasource settings page adapts its credential fields to the engine.</li>
+          </ul>
+        </section>
 
         <section class="docs-section scroll-pad" id="v2-5-0">
           <h2>v2.5.0 — Deployment version tracking and drift</h2>
@@ -515,7 +538,7 @@
       </div>
       <div class="footer-bar">
         <span>© 2026 AccessFlow contributors · Apache 2.0</span>
-        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.5 generally available</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
       </div>
     </div>
   </footer>
