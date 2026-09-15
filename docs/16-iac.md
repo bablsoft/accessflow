@@ -82,6 +82,7 @@ resource "accessflow_datasource" "prod" {
   password       = var.prod_db_password # write-only
   ssl_mode       = "REQUIRE"
   review_plan_id = accessflow_review_plan.standard.id
+  environment    = "PRODUCTION" # picks the SQL review ruleset below
 }
 
 resource "accessflow_routing_policy" "block_deletes" {
@@ -89,6 +90,15 @@ resource "accessflow_routing_policy" "block_deletes" {
   priority  = 100
   action    = "AUTO_REJECT"
   condition = jsonencode({ type = "query_type", any_of = ["DELETE"] })
+}
+
+resource "accessflow_sql_review_ruleset" "production" {
+  name        = "Production"
+  environment = "PRODUCTION" # omit for the org-wide default ruleset
+  rules = [
+    { rule_id = "missing_limit_on_select", severity = "BLOCK" },
+    { rule_id = "protected_table", severity = "BLOCK", params = { globs = ["payroll.*"] } },
+  ]
 }
 ```
 
@@ -103,12 +113,14 @@ resource "accessflow_routing_policy" "block_deletes" {
 | `accessflow_masking_policy` | Nested under a datasource; import `datasource_id/policy_id` |
 | `accessflow_ai_config` | `api_key` write-only |
 | `accessflow_notification_channel` | `config` map; `channel_type` immutable (forces replacement) |
+| `accessflow_sql_review_ruleset` | Deterministic SQL review rules (#860); `rules` is a set of `{rule_id, severity, params}`, `environment` omitted = org-wide default |
 
 Data sources: `accessflow_datasource`, `accessflow_review_plan` (look up by `id`).
 
 The provider drives the **existing** REST endpoints (`/datasources`, `/review-plans`,
-`/admin/routing-policies`, `/admin/ai-configs`, `/admin/notification-channels`, and the nested
-`/datasources/{id}/{row-security,masking}-policies`) — no AccessFlow-specific endpoints were added.
+`/admin/routing-policies`, `/admin/ai-configs`, `/admin/notification-channels`,
+`/admin/sql-review-rulesets`, and the nested `/datasources/{id}/{row-security,masking}-policies`) —
+no AccessFlow-specific endpoints were added.
 Idempotency comes from Terraform state (create → store UUID → read/update/delete by id), matching
 the bootstrap reconciler's authoritative-upsert intent.
 
@@ -118,6 +130,14 @@ the bootstrap reconciler's authoritative-upsert intent.
 provider marks them `sensitive` and applies changes, but **cannot detect drift** on them — a manual
 change in the UI won't show in `plan`. Treat the HCL as the source of truth and rotate by changing
 the value.
+
+### Clearing a nullable datasource field
+
+`PUT /datasources/{id}` is a partial merge — an omitted field keeps its value — so removing an
+optional attribute from HCL is not enough on its own for fields the API only unsets through an
+explicit flag. The provider handles `environment`: when the planned value is null and the prior
+state was set, the update sends `"clear_environment": true`. (`ai_config_id` has the same
+`clear_ai_config` flag on the API side, which the provider does not send yet — unset it in the UI.)
 
 ### Local development
 

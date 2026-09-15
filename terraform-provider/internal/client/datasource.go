@@ -24,6 +24,7 @@ type Datasource struct {
 	TextToSQLEnabled    bool    `json:"text_to_sql_enabled"`
 	JDBCURLOverride     *string `json:"jdbc_url_override"`
 	LocalDatacenter     *string `json:"local_datacenter"`
+	Environment         *string `json:"environment"`
 	Active              bool    `json:"active"`
 }
 
@@ -48,7 +49,11 @@ type DatasourceRequest struct {
 	TextToSQLEnabled    *bool   `json:"text_to_sql_enabled,omitempty"`
 	JDBCURLOverride     *string `json:"jdbc_url_override,omitempty"`
 	LocalDatacenter     *string `json:"local_datacenter,omitempty"`
-	Active              *bool   `json:"active,omitempty"`
+	Environment         *string `json:"environment,omitempty"`
+	// ClearEnvironment unsets the environment on update: PUT /datasources/{id} is a partial
+	// merge, so an omitted environment keeps the old value (#861).
+	ClearEnvironment *bool `json:"clear_environment,omitempty"`
+	Active           *bool `json:"active,omitempty"`
 }
 
 func (c *Client) CreateDatasource(ctx context.Context, req DatasourceRequest) (*Datasource, error) {

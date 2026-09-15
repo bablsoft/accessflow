@@ -35,12 +35,14 @@ resource "accessflow_datasource" "test" {
   password            = "s3cret"
   ssl_mode            = "DISABLE"
   ai_analysis_enabled = false # no ai_config in the test stack; avoids 422 MissingAiConfigForDatasource
+  environment         = "STAGING"
 }
 `,
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttrSet("accessflow_datasource.test", "id"),
 					resource.TestCheckResourceAttr("accessflow_datasource.test", "name", "tf-acc-ds"),
 					resource.TestCheckResourceAttr("accessflow_datasource.test", "db_type", "POSTGRESQL"),
+					resource.TestCheckResourceAttr("accessflow_datasource.test", "environment", "STAGING"),
 				),
 			},
 			{
@@ -56,9 +58,13 @@ resource "accessflow_datasource" "test" {
   ssl_mode            = "DISABLE"
   ai_analysis_enabled = false
   max_rows_per_query  = 500
+  # environment dropped: the update must send clear_environment, not silently keep STAGING
 }
 `,
-				Check: resource.TestCheckResourceAttr("accessflow_datasource.test", "max_rows_per_query", "500"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("accessflow_datasource.test", "max_rows_per_query", "500"),
+					resource.TestCheckNoResourceAttr("accessflow_datasource.test", "environment"),
+				),
 			},
 			{
 				ResourceName:            "accessflow_datasource.test",
@@ -129,6 +135,71 @@ resource "accessflow_routing_policy" "test" {
 				// jsontypes.Normalized handles this for plan/refresh; ImportStateVerify compares
 				// literally, so skip it for this opaque JSON blob (all other attrs are verified).
 				ImportStateVerifyIgnore: []string{"condition"},
+			},
+		},
+	})
+}
+
+func TestAccSqlReviewRuleset_basic(t *testing.T) {
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "accessflow_sql_review_ruleset" "test" {
+  name        = "tf-acc-sqlreview"
+  description = "acceptance"
+  environment = "TEST"
+  rules = [
+    { rule_id = "select_star", severity = "BLOCK" },
+    { rule_id = "protected_table", severity = "BLOCK", params = { globs = ["payroll.*"] } },
+  ]
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttrSet("accessflow_sql_review_ruleset.test", "id"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "environment", "TEST"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "enabled", "true"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "rules.#", "2"),
+					resource.TestCheckTypeSetElemNestedAttrs("accessflow_sql_review_ruleset.test", "rules.*", map[string]string{
+						"rule_id":        "protected_table",
+						"severity":       "BLOCK",
+						"params.globs.#": "1",
+						"params.globs.0": "payroll.*",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "accessflow_sql_review_ruleset" "test" {
+  name        = "tf-acc-sqlreview"
+  environment = "TEST"
+  enabled     = false
+  rules = [
+    { rule_id = "select_star", severity = "WARN" },
+    { rule_id = "disallowed_function", severity = "BLOCK", params = { names = ["pg_sleep", "dblink"] } },
+  ]
+}
+`,
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "enabled", "false"),
+					resource.TestCheckNoResourceAttr("accessflow_sql_review_ruleset.test", "description"),
+					resource.TestCheckResourceAttr("accessflow_sql_review_ruleset.test", "rules.#", "2"),
+					resource.TestCheckTypeSetElemNestedAttrs("accessflow_sql_review_ruleset.test", "rules.*", map[string]string{
+						"rule_id":  "select_star",
+						"severity": "WARN",
+					}),
+					resource.TestCheckTypeSetElemNestedAttrs("accessflow_sql_review_ruleset.test", "rules.*", map[string]string{
+						"rule_id":        "disallowed_function",
+						"params.names.#": "2",
+					}),
+				),
+			},
+			{
+				ResourceName:      "accessflow_sql_review_ruleset.test",
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})

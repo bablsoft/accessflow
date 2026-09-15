@@ -7,6 +7,7 @@ resource "accessflow_datasource" "prod_postgres" {
   username      = "af_reader"
   password      = var.prod_postgres_password # write-only
   ssl_mode      = "REQUIRE"
+  environment   = "PRODUCTION" # selects the SQL review ruleset bound to PRODUCTION
 
   require_review_writes = true
   ai_analysis_enabled   = true

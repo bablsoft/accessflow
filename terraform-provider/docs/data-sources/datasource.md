@@ -36,6 +36,7 @@ output "prod_db_type" {
 - `ai_config_id` (String)
 - `database_name` (String)
 - `db_type` (String)
+- `environment` (String) `DEVELOPMENT`, `TEST`, `STAGING`, `PRODUCTION`, or unset.
 - `host` (String)
 - `name` (String)
 - `organization_id` (String)

@@ -30,6 +30,7 @@ type datasourceDataSourceModel struct {
 	ReviewPlanID      types.String `tfsdk:"review_plan_id"`
 	AIAnalysisEnabled types.Bool   `tfsdk:"ai_analysis_enabled"`
 	AIConfigID        types.String `tfsdk:"ai_config_id"`
+	Environment       types.String `tfsdk:"environment"`
 	Active            types.Bool   `tfsdk:"active"`
 }
 
@@ -53,6 +54,7 @@ func (d *datasourceDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 			"review_plan_id":      schema.StringAttribute{Computed: true},
 			"ai_analysis_enabled": schema.BoolAttribute{Computed: true},
 			"ai_config_id":        schema.StringAttribute{Computed: true},
+			"environment":         schema.StringAttribute{Computed: true, MarkdownDescription: "`DEVELOPMENT`, `TEST`, `STAGING`, `PRODUCTION`, or unset."},
 			"active":              schema.BoolAttribute{Computed: true},
 		},
 	}
@@ -84,6 +86,7 @@ func (d *datasourceDataSource) Read(ctx context.Context, req datasource.ReadRequ
 	model.ReviewPlanID = strVal(ds.ReviewPlanID)
 	model.AIAnalysisEnabled = types.BoolValue(ds.AIAnalysisEnabled)
 	model.AIConfigID = strVal(ds.AIConfigID)
+	model.Environment = strVal(ds.Environment)
 	model.Active = types.BoolValue(ds.Active)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &model)...)
 }

@@ -314,6 +314,12 @@ Errors: 404 `SQL_REVIEW_RULESET_NOT_FOUND`, 409 `SQL_REVIEW_RULESET_ENVIRONMENT_
 code), 422 `SQL_REVIEW_RULESET_INVALID`. The datasource's `environment` is written through the
 normal datasource endpoints under `DATASOURCE_MANAGE`.
 
+**Infrastructure as code.** The Terraform/OpenTofu provider drives the same endpoints:
+`accessflow_sql_review_ruleset` manages a ruleset (`rules` as a set of
+`{rule_id, severity, params}`; omit `environment` for the org-wide default) and
+`accessflow_datasource.environment` binds a datasource to one. See
+[docs/16-iac.md](16-iac.md#resources--data-sources).
+
 ---
 
 ## Audit & permissions
