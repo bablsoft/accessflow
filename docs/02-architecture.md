@@ -44,6 +44,7 @@ AccessFlow is composed of seven primary subsystems — Proxy Engine, Workflow, A
 | **Admin & Audit Service** | Datasource CRUD, user/role management, policy configuration, audit log queries, notification channel setup. |
 | **Notification Dispatcher** | Fanout service sending review events to Email, Slack, and configurable webhooks asynchronously. |
 | **Deployment Governance Service** | Gates CI/CD deployments (epic AF-682): accepts API-key-authenticated pipeline triggers, runs them through AI release-risk analysis, routing and human review, and answers a fail-closed **deployment gate** the pipeline blocks on. Also owns freeze windows, break-glass deploys and post-deploy outcome reporting. See [18-deployment-governance.md](18-deployment-governance.md). |
+| **SQL Review Service** | Deterministic, named SQL review rules (epic #860): fourteen AST-derived rules evaluated synchronously at submission against the ruleset resolved for the datasource's environment, each at an admin-set `OFF` / `WARN` / `BLOCK` severity. A `BLOCK` suppresses every auto-approve path and forces human review — it never rejects. Relational engines only; the same evaluation backs the editor's live lint. See [19-sql-review.md](19-sql-review.md). |
 
 ---
 

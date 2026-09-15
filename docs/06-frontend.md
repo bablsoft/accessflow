@@ -1442,7 +1442,9 @@ sparse), omits an empty param list rather than sending `[]`, and sends `enabled`
 go through `sqlReviewRulesetErrorMessage` (409 `SQL_REVIEW_RULESET_ENVIRONMENT_CONFLICT` /
 `_DEFAULT_CONFLICT`, 422 `_INVALID` preferring the backend's localized `detail`, 404 `_NOT_FOUND`),
 and the types (`SqlReviewRuleset`, `SqlReviewRule`, `SqlReviewFinding`, `SqlReviewSeverity`, …) live
-in `src/types/api.ts`. The page carries no `docsAnchor` yet — the website chapter is #866.
+in `src/types/api.ts`. The page header's *View docs* link is `docsAnchor="cfg-sql-review"` (#866 —
+`DOCS_ANCHOR_PAGES` → `configuration/review-workflows/`, the section beside routing policies). The
+feature chapter is [docs/19-sql-review.md](19-sql-review.md).
 
 ### OAuth 2.0 sign-in
 

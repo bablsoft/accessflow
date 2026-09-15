@@ -157,6 +157,7 @@ export function SqlReviewRulesetsPage() {
       <PageHeader
         title={t('admin.sql_review.title')}
         subtitle={t('admin.sql_review.subtitle')}
+        docsAnchor="cfg-sql-review"
         actions={
           <>
             <Button icon={<ReloadOutlined />} onClick={() => rulesetsQuery.refetch()}>

@@ -2784,7 +2784,7 @@ fourteen built-in rules (see [docs/05-backend.md → Deterministic SQL review ru
 request-group members, migration `V172`), a `BLOCK` suppresses every auto-approve path, and the
 findings surface on the query detail, the reviewer queue, the break-glass retro-review and the
 request-group detail (see the "Submission enforcement (#864)" paragraph of [docs/05-backend.md → Deterministic SQL review rules](05-backend.md#deterministic-sql-review-rules-sqlreview-862));
-the editor lint (#865) follows. Two PG enums, created in `V170`:
+the editor lint (#865) and the feature chapter [docs/19-sql-review.md](19-sql-review.md) complete the epic. Two PG enums, created in `V170`:
 
 - `datasource_environment` — `DEVELOPMENT` | `TEST` | `STAGING` | `PRODUCTION` (also the type of
   the new nullable [`datasources.environment`](#datasources) column).

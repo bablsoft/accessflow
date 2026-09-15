@@ -243,6 +243,7 @@
       'cfg-review-delegation': '/docs/configuration/review-workflows/',
       'cfg-review-escalation': '/docs/configuration/review-workflows/',
       'cfg-routing-policies': '/docs/configuration/review-workflows/',
+      'cfg-sql-review': '/docs/configuration/review-workflows/',
       'cfg-access-requests': '/docs/configuration/users-roles/',
       'cfg-break-glass': '/docs/configuration/users-roles/',
       'cfg-groups': '/docs/configuration/users-roles/',
