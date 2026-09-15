@@ -44,6 +44,7 @@ AccessFlow is composed of seven primary subsystems — Proxy Engine, Workflow, A
 | **Admin & Audit Service** | Datasource CRUD, user/role management, policy configuration, audit log queries, notification channel setup. |
 | **Notification Dispatcher** | Fanout service sending review events to Email, Slack, and configurable webhooks asynchronously. |
 | **Deployment Governance Service** | Gates CI/CD deployments (epic AF-682): accepts API-key-authenticated pipeline triggers, runs them through AI release-risk analysis, routing and human review, and answers a fail-closed **deployment gate** the pipeline blocks on. Also owns freeze windows, break-glass deploys and post-deploy outcome reporting. See [18-deployment-governance.md](18-deployment-governance.md). |
+| **In-app Help Assistant** | A documentation reader **outside the governance path** (epic #899, `ai/internal/help/`): a synchronous, multi-turn chat that answers "how do I use AccessFlow?" from the documentation corpus bundled with the running build (`help-corpus/`, embedded per organization into the same vector store as the RAG knowledge base but invisible to it), through the organization's chosen `ai_config`. It has **no tools and no data access** — it never reads a query, result, audit row, schema or datasource, and cannot act; the model emits `[n]` citation indices that the server resolves to `{title, url}` so it can never author a link. Enabled per organization on `/admin/help-agent`, reachable by every signed-in user once on, rate-limited per user and charged against the org's monthly AI token budget. |
 | **SQL Review Service** | Deterministic, named SQL review rules (epic #860): fourteen AST-derived rules evaluated synchronously at submission against the ruleset resolved for the datasource's environment, each at an admin-set `OFF` / `WARN` / `BLOCK` severity. A `BLOCK` suppresses every auto-approve path and forces human review — it never rejects. Relational engines only; the same evaluation backs the editor's live lint. See [19-sql-review.md](19-sql-review.md). |
 
 ---
@@ -80,6 +81,8 @@ AccessFlow is composed of seven primary subsystems — Proxy Engine, Workflow, A
 8. Reviewer approves via UI (or Slack/webhook) → status becomes `APPROVED`.
 9. Proxy opens JDBC connection to customer database, executes SQL, captures metadata.
 10. Audit log entry written. WebSocket event pushed to submitter. Status becomes `EXECUTED`.
+
+The in-app help assistant is deliberately absent from this flow. `POST /api/v1/help-chat/sessions/{id}/messages` retrieves documentation chunks, calls the bound `ai_config`, stores the transcript and returns — it touches no step above and reads none of their data. See [05-backend.md](05-backend.md) → "Help chat runtime".
 
 ### Deployment request flow (epic AF-682)
 

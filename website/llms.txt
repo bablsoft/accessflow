@@ -61,6 +61,7 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [Govern an API call](https://accessflow.io/docs/guides/api-governance/): Put review and approval in front of outbound REST, SOAP, GraphQL and gRPC calls
 - [Gate a CI/CD pipeline](https://accessflow.io/docs/guides/deployment-approval/): Make a CI/CD deploy job wait for human approval before it releases, and record who approved it
 - [Automate with Terraform](https://accessflow.io/docs/guides/terraform/): Declare datasources, review plans and policies as code with the Terraform / OpenTofu provider
+- [Ask the help assistant](https://accessflow.io/docs/guides/help-assistant/): Start AccessFlow, bind an AI provider, and ask the in-app assistant anything about the application — answered from the bundled documentation, with citations, for new users and admins alike
 - [Users & roles](https://accessflow.io/docs/configuration/users-roles/): Configure organizations and quotas, invite users, assign RBAC roles, group them, and grant just-in-time or break-glass access
 - [Datasources](https://accessflow.io/docs/configuration/datasources/): Add governed datasources, tag sensitive columns, apply masking and row-level security policies, upload JDBC drivers, and watch pool health
 - [Connectors](https://accessflow.io/docs/configuration/connectors/): Install SQL, NoSQL and data-warehouse engine connectors from the catalog, and register outbound REST, SOAP, GraphQL and gRPC API connectors

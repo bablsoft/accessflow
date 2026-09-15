@@ -24,7 +24,7 @@ website/
 └── docs/
     ├── index.html              # hub
     ├── install/
-    ├── guides/                 # task-oriented setup manuals: hub + 9 guides (AF-773)
+    ├── guides/                 # task-oriented setup manuals: hub + 10 guides (AF-773, #908)
     ├── configuration/{users-roles,datasources,connectors,review-workflows,ai,auth,notifications,audit-compliance}/
     ├── workflows/
     └── iac/

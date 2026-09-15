@@ -63,7 +63,7 @@
       "inLanguage": "en",
       "articleSection": "Configuration",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-11",
+      "dateModified": "2026-09-15",
       "url": "https://accessflow.io/docs/configuration/ai/",
       "mainEntityOfPage": "https://accessflow.io/docs/configuration/ai/",
       "image": "https://accessflow.io/og-image.png",
@@ -223,6 +223,7 @@
             <a href="#cfg-ai-analyses">AI analyses dashboard</a>
             <a href="#cfg-anomalies">Behavioural anomaly detection (UBA)</a>
             <a href="#cfg-approval-prediction">Approval-likelihood prediction</a>
+            <a href="#cfg-help-assistant">In-app help assistant</a>
             <p class="docs-toc-label">Documentation</p>
             <a href="/docs/">Overview</a>
             <a href="/docs/install/">Install & first run</a>
@@ -237,6 +238,7 @@
             <a href="/docs/guides/api-governance/">Govern an API call</a>
             <a href="/docs/guides/deployment-approval/">Gate a CI/CD pipeline</a>
             <a href="/docs/guides/terraform/">Automate with Terraform</a>
+            <a href="/docs/guides/help-assistant/">Ask the help assistant</a>
             <p class="docs-toc-label">Reference</p>
             <a href="/docs/configuration/users-roles/">Users & roles</a>
             <a href="/docs/configuration/datasources/">Datasources</a>
@@ -265,7 +267,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>AI configuration.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-11">11 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -591,6 +593,89 @@
             <code>0.01</code>), and <code>…_MAX_ITERATIONS</code> (training iteration cap,
             <code>500</code>). Switching the feature off does not hide it silently — each query still
             records why no likelihood is shown.
+          </p>
+        </section>
+
+<section class="docs-section">
+<h2 id="cfg-help-assistant">In-app help assistant</h2>
+          <div class="docs-callout info">
+            <strong>There is a guide for this.</strong> <a href="/docs/guides/help-assistant/">Ask the in-app help assistant</a>
+            is the short version: start AccessFlow, bind an AI configuration, and ask it anything about the application. This section is the reference behind it.
+          </div>
+          <p>
+            <strong>What it is.</strong> A chat panel, opened from a launcher in the bottom-right corner
+            of every authenticated screen, that answers questions about how to use AccessFlow from the
+            documentation bundled with the running release and cites the sections it used. It is
+            available to every signed-in user once an admin enables it, and it is a documentation reader
+            only: no tools, no actions, and no access to queries, results, audit rows, schemas or
+            datasources. The only links it ever shows are the citation chips AccessFlow itself resolves
+            from the retrieved sections — the model emits section numbers, never URLs.
+          </p>
+          <p>
+            <strong>Configure it.</strong> Admin section → <strong>Help assistant</strong> (under
+            <strong>System → AI</strong>; requires <code>AI_MANAGE</code>). One settings row per
+            organization: <strong>Enable the help assistant</strong> and the <strong>AI
+            configuration</strong> it asks — any of the configurations under
+            <a href="#cfg-ai">AI configurations</a>. Deleting a bound configuration unbinds the
+            assistant and hides the launcher; unlike a datasource binding, it never blocks the delete.
+            Saving with the assistant enabled is refused, with the specific reason, when no configuration
+            is bound, when retrieval is on but the bound configuration cannot embed (no
+            <a href="#cfg-rag">RAG knowledge base</a>, no embedding provider, an Anthropic embedder, the
+            pgvector extension missing, the vector table skipped by
+            <code>ACCESSFLOW_RAG_PGVECTOR_ENABLED=false</code>, or an embedding width that does not match
+            <code>ACCESSFLOW_RAG_PGVECTOR_DIMENSIONS</code>), and when the bundled documentation corpus
+            could not be loaded from the build at all. Every save is audited as
+            <code>HELP_AGENT_CONFIG_UPDATED</code>.
+          </p>
+          <p>
+            <strong>Two answer modes.</strong> With <strong>Answer from indexed documentation</strong>
+            on, the bound configuration's embedding model indexes the bundled corpus into its vector store
+            — kept apart from your own knowledge documents — and each question retrieves
+            <strong>Sections per answer</strong> (1–20, default 6) excerpts above the <strong>Similarity
+            threshold</strong> (0–1, default 0.4), which the model must answer from and cite. With it
+            off — a supported mode, and the only one an Anthropic-only install has — the assistant
+            answers from a built-in quick reference instead and cites nothing; the panel labels this
+            <em>Quick-reference mode</em>. Retrieval falls back to the quick reference on its own, never
+            to an error, when the index is missing, stale after an upgrade, or failed.
+          </p>
+          <p>
+            <strong>Indexing.</strong> Runs in the background on save and, by default, once on every
+            start-up for each organization with the assistant enabled — which is how an upgrade re-indexes
+            the documentation the new build ships. The <strong>Documentation corpus</strong> panel shows
+            the bundled and indexed revisions, the last indexing time and the last error;
+            <strong>Re-index documentation</strong> forces a pass and <strong>Test retrieval</strong>
+            probes the embedding model and vector store, reporting the embedding width it detected.
+            <code>ACCESSFLOW_HELP_AGENT_INDEX_ON_STARTUP</code> (default <code>true</code>) switches the
+            start-up pass off; <code>ACCESSFLOW_HELP_AGENT_INDEX_BATCH_SIZE</code> (<code>64</code>) sets
+            how many chunks go to the embedding model per call, and
+            <code>ACCESSFLOW_HELP_AGENT_INDEX_LOCK_AT_MOST_FOR</code> (<code>PT30M</code>) bounds the
+            per-organization lock that keeps a multi-replica deployment from indexing once per replica.
+          </p>
+          <p>
+            <strong>Context, conversations and limits.</strong> <strong>Send screen and permission
+            context</strong> (default on) adds the name of the user's current screen and their permission
+            names to the prompt — never a URL, an id or any data — and sends neither when off.
+            <strong>Conversation turns kept</strong> (1–50, default 8) bounds how much of the conversation
+            is replayed with each question, and <strong>Maximum question length</strong> (100–10,000
+            characters, default 2,000) truncates what reaches the model. Conversations are private to
+            their author and deleted after <strong>Keep conversations for</strong> (1–3,650 days, default
+            90) by a background job that runs every <code>ACCESSFLOW_HELP_AGENT_RETENTION_POLL_INTERVAL</code>
+            (<code>PT6H</code>) for every organization that ever configured the assistant. Two rate limits
+            apply, each counted before the model is called: the organization-wide
+            <code>ACCESSFLOW_AI_RATE_LIMIT_REQUESTS_PER_MINUTE</code> shared with query analysis, then
+            <strong>Questions per user per minute</strong> (1–120, default 6). Help tokens count against
+            <code>ACCESSFLOW_AI_RATE_LIMIT_TOKENS_PER_MONTH</code> alongside analysis; a busy conversation
+            at the defaults sends roughly 8,000 prompt tokens per turn.
+          </p>
+          <p>
+            <strong>Corpus updates and air-gaps.</strong> The documentation is bundled in the backend and
+            read from there, so an install always answers about the version it runs and needs no outbound
+            call. Picking up corrected documentation published between releases is opt-in:
+            <code>ACCESSFLOW_HELP_CORPUS_REMOTE_REFRESH_ENABLED</code> (default <code>false</code>) checks
+            <code>ACCESSFLOW_HELP_CORPUS_INDEX_URL</code> for a newer corpus, verifies its pinned checksum,
+            caches it under <code>ACCESSFLOW_HELP_CORPUS_CACHE_DIR</code> and re-indexes;
+            <code>ACCESSFLOW_HELP_CORPUS_OFFLINE=true</code> keeps every corpus fetch off whatever else is
+            set, the way <code>ACCESSFLOW_DRIVERS_OFFLINE</code> does for drivers.
           </p>
         </section>
 

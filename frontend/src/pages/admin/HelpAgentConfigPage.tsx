@@ -162,12 +162,10 @@ export function HelpAgentConfigPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* No docsAnchor yet: the public docs section for the help agent lands with the
-          documentation sweep (#908), and config/__tests__/docs.test.ts requires the anchor and the
-          website heading to ship together. */}
       <PageHeader
         title={t('admin.help_agent.title')}
         subtitle={t('admin.help_agent.subtitle')}
+        docsAnchor="guide-help-assistant"
       />
       <div style={{ flex: 1, overflow: 'auto', padding: 28 }}>
         {readiness === 'ready' ? null : (

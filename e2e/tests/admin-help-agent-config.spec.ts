@@ -35,6 +35,23 @@ test.describe.serial('/admin/help-agent — help assistant settings', () => {
     await expect(page.getByText('Never indexed')).toBeVisible();
   });
 
+  test('1b) the page header deep-links to the public help-assistant guide', async ({ page }) => {
+    await login(page);
+    await page.goto('/admin/help-agent');
+    await waitForConfigLoaded(page);
+
+    // Literal on purpose — config/__tests__/docs.test.ts checks every accessflow.io/docs URL in
+    // e2e/ against DOCS_ANCHOR_PAGES, so a moved section fails there rather than here.
+    const docsLink = page.getByRole('link', { name: /view docs/i });
+    await expect(docsLink).toBeVisible();
+    await expect(docsLink).toHaveAttribute(
+      'href',
+      'https://accessflow.io/docs/guides/help-assistant/#guide-help-assistant',
+    );
+    await expect(docsLink).toHaveAttribute('target', '_blank');
+    await expect(docsLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
   test('2) enabling with no AI configuration → server explains why, nothing is saved',
     async ({ page }) => {
       await login(page);
