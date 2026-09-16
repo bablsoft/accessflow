@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AccessFlow vs hoop.dev: statement review vs access gateway</title>
+  <meta name="description" content="AccessFlow vs hoop.dev, sourced from hoop.dev's docs: a submit-and-review proxy versus a gateway with native clients and session recording, and where each fits." />
+
+  <link rel="canonical" href="https://accessflow.io/compare/accessflow-vs-hoop-dev/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="AccessFlow vs hoop.dev: statement review vs access gateway" />
+  <meta property="og:description" content="AccessFlow and hoop.dev compared from hoop.dev's own docs: a proxy you submit statements to versus a gateway your clients connect through, and where hoop.dev wins." />
+  <meta property="og:url" content="https://accessflow.io/compare/accessflow-vs-hoop-dev/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AccessFlow vs hoop.dev: statement review vs access gateway" />
+  <meta name="twitter:description" content="AccessFlow and hoop.dev compared from hoop.dev's own docs: a proxy you submit statements to versus a gateway your clients connect through, and where hoop.dev wins." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.io/compare/accessflow-vs-hoop-dev/#page",
+        "breadcrumb": {
+          "@id": "https://accessflow.io/compare/accessflow-vs-hoop-dev/#breadcrumb"
+        },
+        "name": "AccessFlow vs hoop.dev: statement review vs access gateway",
+        "headline": "AccessFlow vs hoop.dev: a gateway you connect through versus a proxy you submit to",
+        "description": "AccessFlow and hoop.dev compared from hoop.dev's own docs: a proxy you submit statements to versus a gateway your clients connect through, and where hoop.dev wins.",
+        "inLanguage": "en",
+        "datePublished": "2026-09-16",
+        "dateModified": "2026-09-16",
+        "url": "https://accessflow.io/compare/accessflow-vs-hoop-dev/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": {
+          "@id": "https://accessflow.io/#website"
+        },
+        "about": {
+          "@id": "https://accessflow.io/#software"
+        },
+        "author": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/compare/accessflow-vs-hoop-dev/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "AccessFlow",
+            "item": "https://accessflow.io/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Compare",
+            "item": "https://accessflow.io/compare/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "AccessFlow vs hoop.dev",
+            "item": "https://accessflow.io/compare/accessflow-vs-hoop-dev/"
+          }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "alternateName": "bablsoft (maker of AccessFlow)",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "alternateName": [
+          "AccessFlow by bablsoft",
+          "bablsoft AccessFlow"
+        ],
+        "sameAs": [
+          "https://github.com/bablsoft/accessflow"
+        ],
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">AccessFlow vs hoop.dev</p>
+            <a href="#summary">The short version</a>
+            <a href="#matrix">Side by side</a>
+            <a href="#architecture">Where each one sits</a>
+            <a href="#accessflow-fit">Where AccessFlow fits</a>
+            <a href="#better-fit">Where hoop.dev fits</a>
+            <a href="#licence">Licence and editions</a>
+            <a href="#together">Running both</a>
+            <a href="#sources">Sources</a>
+            <p class="docs-toc-label">Every comparison</p>
+            <a href="/compare/">All comparisons</a>
+            <a href="/compare/accessflow-vs-bytebase/">AccessFlow vs Bytebase</a>
+            <a href="/compare/accessflow-vs-hoop-dev/" class="docs-toc-current" aria-current="page">AccessFlow vs hoop.dev</a>
+            <a href="/compare/open-source-strongdm-alternative/">Open-source StrongDM alternative</a>
+            <a href="/compare/open-source-teleport-database-access-alternative/">Open-source Teleport Database Access alternative</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+            <a href="/roadmap/">Roadmap</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/compare/">Compare</a></li>
+              <li><span aria-current="page">AccessFlow vs hoop.dev</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Compare</span>
+          <h1>AccessFlow vs hoop.dev: a gateway you connect through versus a proxy you submit to</h1>
+          <p>
+            hoop.dev and AccessFlow are both open source, both self-hosted, and both promise that a
+            risky statement gets looked at before it reaches production data. They get there by
+            opposite routes. hoop.dev is a gateway: your existing clients keep connecting, the
+            session is recorded, and rules or a reviewer intervene inline. AccessFlow is a proxy you
+            hand a statement to, which then parses, scores, routes and executes it on your behalf. That
+            one difference explains most of the table below.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/compare/" class="btn btn-ghost">All comparisons</a>
+          </div>
+        </header>
+
+        <div class="docs-callout info" id="disclaimer">
+          <strong>How to read this page.</strong> Product names are the property of their respective owners, and AccessFlow (made by bablsoft) is not affiliated with or endorsed by any of them. Everything said about another product comes from that vendor's public documentation as it read on the date in <a href="#sources">Sources</a>; where we could not find a capability documented, the table says <em>Not documented</em> rather than <em>No</em>.
+        </div>
+
+        <section class="docs-section scroll-pad" id="summary">
+          <h2>The short version</h2>
+          <p><strong>In one line:</strong> hoop.dev lets your existing clients connect through a gateway that records and can hold a command; AccessFlow makes you submit the statement and decides before it runs.</p>
+          <p>Choose hoop.dev when what you want is a single door for engineers to reach infrastructure through, with the tools they already use: <code>psql</code> by hostname, <code>kubectl</code>, SSH, remote desktop and the AWS command line all routed through one gateway that records the session and can hold a command for approval. Its newer sidecar goes further in one direction, sitting in front of a PostgreSQL, SQL Server or HTTP endpoint with a few milliseconds of overhead to block or mask what an AI agent sends and receives. Choose AccessFlow when what you want is a governance record of every statement: submitted through its editor, API or Model Context Protocol (MCP) server, checked against written rules, scored by an AI analyzer, routed by policy through a multi-stage approval chain, executed under row-level security and export controls, and written to an audit log that can prove it has not been edited since.</p>
+          <p>The products meet at the review step. hoop.dev's gateway can require approval of the exact command before it runs; AccessFlow requires it for everything by default and lets policy decide what does not need a person. Where they part is in what surrounds that step: hoop.dev reaches sideways into hosts, clusters and desktops, and AccessFlow reaches downwards into the data with masking, row rewriting, export governance and signed reports, and outwards into API calls and deployments.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="matrix">
+          <h2>Side by side</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table compare-table" aria-label="AccessFlow and hoop.dev capabilities side by side">
+              <thead>
+                <tr><th>Capability</th><th>AccessFlow</th><th>hoop.dev</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Licence and source</td><td>Apache 2.0, one edition, full source</td><td>MIT; a free tier with per-process rule caps and an Enterprise licence that lifts them</td></tr>
+                <tr><td>Hosting</td><td>Self-hosted only; no hosted edition</td><td>Self-hosted gateway and sidecar (binary, Docker, Kubernetes); the Control Plane for sidecar fleets is an Enterprise feature</td></tr>
+                <tr><td>How people reach the database</td><td>AccessFlow's web editor, REST API or MCP server; no wire protocol or driver</td><td>Web app, CLI, and native clients by hostname through a local tunnel daemon, with review and audit still enforced by the gateway</td></tr>
+                <tr><td>Engines</td><td>18 connectors across relational, warehouse, document, key-value, wide-column, search and graph engines</td><td>Gateway quickstarts for PostgreSQL, MySQL, MongoDB, SQL Server, DynamoDB, Oracle, BigQuery, Redis and Cassandra, plus raw TCP; the sidecar decodes PostgreSQL, SQL Server and HTTP</td></tr>
+                <tr><td>Every statement reviewed before it runs</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: parse, AI risk score, routing policy, approval, then execution, for reads and writes alike</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Gateway: yes, command-level "action" requests show reviewers the exact query first. Sidecar: human review is not shipped; the docs mark it as coming soon</td></tr>
+                <tr><td>AI risk review of the statement</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes, with Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint or Hugging Face, plus multi-model voting and guardrails</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: the sidecar's analyzer classifies a statement with Vertex, Anthropic or OpenAI and maps risk to allow, warn, block or defer; the gateway has a session analyzer</td></tr>
+                <tr><td>Approval chains and routing</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Multi-stage chains per datasource, plus ordered routing policies that auto-approve, auto-reject, require extra approvals or escalate</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Group-based reviewers, and multiple approval groups that must each approve; ordered stages: Not documented</td></tr>
+                <tr><td>Just-in-time, time-bound access</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: self-service requests, automatic expiry, optional pre-approval of covered queries</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: a connection request with a duration, approved in Slack, Teams or the web app, expiring on its own</td></tr>
+                <tr><td>Break-glass with mandatory retro-review</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: per-user, per-datasource, admins included; every admin is paged; a different admin must sign off afterwards</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Can requesters approve their own request</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Never, on any channel, for any role</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Written SQL review rules</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>14 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Guardrails: an ordered deny list by operation, table, substring, regex or detected entity; the free tier allows one rule per process</td></tr>
+                <tr><td>Column masking</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: full, partial, hash, email and format-preserving strategies; admins are masked too unless explicitly revealed</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: gateway live masking through Presidio, Google DLP or its own engine; the sidecar masks five entity types in responses</td></tr>
+                <tr><td>Row-level security</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: the statement is rewritten with a parameter-bound predicate, failing closed where an engine cannot</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Result export controls</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: allow, watermark, row cap or deny per datasource</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Audit and security event management (SIEM)</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Every query and decision; entries chained with a keyed hash; append-only writer role; Splunk, syslog, HTTPS and S3 Object Lock sinks</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Session capture with structured export and a SIEM integration; tamper-evidence: Not documented</td></tr>
+                <tr><td>Signed compliance reports</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: PDF and CSV with a detached signature</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>Session recording</td><td><span class="cmp-mark cmp-no" role="img" aria-label="Not available">✕</span>No: there is no interactive session; each statement is its own record</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: terminal and database sessions with in-browser playback and searchable metadata</td></tr>
+                <tr><td>Single sign-on and SCIM user provisioning</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>SAML 2.0, OAuth2/OpenID Connect (OIDC) (Google, GitHub, Microsoft, GitLab, generic OIDC) and SCIM 2.0, all included</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>OIDC guides for Auth0, Okta, Google, Microsoft Entra, JumpCloud, Cognito and Keycloak, SAML for OneLogin; SCIM: Not documented</td></tr>
+                <tr><td>Terraform provider</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>MCP server for AI agents</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes, for every engine, through the same review pipeline</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: an MCP gateway with policies, and a built-in MCP server</td></tr>
+                <tr><td>Governed API calls and CI/CD deployment gates</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>Yes: outbound REST, SOAP and GraphQL calls (gRPC targets can be registered and reviewed but not yet executed), and a fail-closed deployment gate for pipelines</td><td><span class="cmp-mark cmp-partial" role="img" aria-label="With caveats or in a paid edition">◐</span>HTTP traffic can pass through the gateway or sidecar under guardrails and masking; per-call approval and deployment gates: Not documented</td></tr>
+                <tr><td>Schema migrations and GitOps</td><td><span class="cmp-mark cmp-no" role="img" aria-label="Not available">✕</span>No</td><td><span class="cmp-mark cmp-nd" role="img" aria-label="Not documented">?</span>Not documented</td></tr>
+                <tr><td>SSH, Kubernetes or desktop access</td><td><span class="cmp-mark cmp-no" role="img" aria-label="Not available">✕</span>No</td><td><span class="cmp-mark cmp-yes" role="img" aria-label="Included">✓</span>Yes: SSH, Kubernetes, remote desktop, AWS CLI and more through the gateway</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="compare-legend"><span class="cmp-mark cmp-yes" aria-hidden="true">✓</span> Included <span aria-hidden="true">&middot;</span> <span class="cmp-mark cmp-partial" aria-hidden="true">◐</span> With caveats or in a paid edition <span aria-hidden="true">&middot;</span> <span class="cmp-mark cmp-no" aria-hidden="true">✕</span> Not available <span aria-hidden="true">&middot;</span> <span class="cmp-mark cmp-nd" aria-hidden="true">?</span> Not documented</p>
+          <p><em>Not documented</em> means we could not find the capability in hoop.dev's public documentation on the date in <a href="#sources">Sources</a>; it does not mean the product lacks it. Where the gateway and the sidecar differ, the cell says which one is meant.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="architecture">
+          <h2>Where each one sits in the path to the database</h2>
+          <p>hoop.dev today is two things in one repository. The gateway is the established product for human access: a person signs in with the organisation's identity provider, opens the web app or the CLI, and reaches a database, a shell, a cluster or a Windows desktop through it. A local tunnel daemon lets ordinary clients keep working, so <code>psql -h pg-prod.hoop</code> goes through the gateway with placeholder credentials while the real ones stay on the agent side. Along the way the session is recorded for playback, sensitive values in results are redacted by a detection engine, guardrail patterns block dangerous commands, and a connection or an individual command can be held until someone in the right group approves it from Slack, Teams or the web app. The sidecar is the newer piece, aimed at AI agents: a single binary next to a PostgreSQL, SQL Server or HTTP endpoint that decodes the wire protocol, applies an ordered deny list, optionally asks a language model to classify the statement, and rewrites the response before the client sees it, with an Enterprise control plane to manage a fleet of them.</p>
+          <p>AccessFlow is a single service, and it does not sit on the wire. A person types into its editor, an application calls its REST API, or an agent calls its MCP server, and what arrives is a statement to be judged, not a connection to be relayed. The statement is parsed so that its type and the exact tables and columns it touches are known, compared with the datasource's allow-list and, on the relational engines, its written review rules, sent to the AI analyzer for a risk score and a list of issues, and passed to a routing policy that decides who, if anyone, must approve it. Once approved it executes through the proxy under row-level security, masking and export rules, and the result is stored masked. Every step is an audit entry chained to the previous one with a keyed hash, so a later edit or deletion can be found by the built-in verifier, and the chain can be streamed to a SIEM or to write-once storage.</p>
+          <p>The consequence is symmetrical. hoop.dev gives you native tools and a recording of what happened; AccessFlow gives you a decision before anything happens, at the price of asking people to submit rather than connect. AccessFlow's roadmap lists a native wire-protocol gateway as unscheduled work, so if native-client access is a requirement today, that is a point for hoop.dev and not a gap that is about to close.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="accessflow-fit">
+          <h2>Where AccessFlow is the better fit</h2>
+          <ul class="compare-fit">
+            <li><strong>You want a decision before execution, for everything.</strong> Every statement goes through routing and, unless a policy or a covering grant says otherwise, through a review plan with named stages and a minimum number of approvers per stage; nobody can approve their own request from any channel.</li>
+            <li><strong>Your rules should be written down and predictable.</strong> Fourteen named checks with a severity per environment, a block that always puts a person in front of the query and never silently rejects it, and, for routing, masking and row rules, a simulator that replays your own past queries to show what a draft would have changed.</li>
+            <li><strong>Row-level and export controls matter.</strong> AccessFlow rewrites the query so a user only gets the rows they are cleared for, and can watermark, cap or deny a download; hoop.dev documents masking but not row rewriting or export governance.</li>
+            <li><strong>Auditors will ask how you know the log is intact.</strong> Keyed hash chaining, an append-only database role, a verify endpoint, signed PDF and CSV reports, and a write-once S3 sink with signed segments.</li>
+            <li><strong>Provisioning and infrastructure as code.</strong> SCIM 2.0 user and group lifecycle and an official Terraform provider are included; neither is documented for hoop.dev.</li>
+            <li><strong>The same sign-off should cover API calls and releases.</strong> Outbound REST, SOAP and GraphQL calls and CI/CD deployments go through the same review pipeline and the same audit trail.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="better-fit">
+          <h2>Where hoop.dev is the better fit</h2>
+          <ul class="compare-fit">
+            <li><strong>One gateway for hosts, clusters and desktops.</strong> SSH, Kubernetes, remote desktop, the AWS command line and HTTP endpoints all go through hoop.dev; AccessFlow governs databases, API calls and deployments and nothing else.</li>
+            <li><strong>Engineers keep their tools.</strong> The tunnel daemon lets <code>psql</code>, DBeaver and ORMs connect by hostname with review and audit still applied; AccessFlow has no native-client path.</li>
+            <li><strong>Session recording with playback.</strong> A full recording of what was typed and returned, viewable in the browser, is a different kind of evidence from a per-statement audit row and is what some compliance programmes ask for.</li>
+            <li><strong>A low-latency sidecar for agent traffic.</strong> If an AI agent is already talking directly to PostgreSQL or an HTTP API and you want masking and a deny list inline with a few milliseconds of overhead, the sidecar does that without changing the agent.</li>
+            <li><strong>Runbooks and parameterised scripts.</strong> Reusable, approvable templates for routine operational tasks are a hoop.dev feature with no AccessFlow equivalent.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="licence">
+          <h2>Licence, editions and what is gated</h2>
+          <p>hoop.dev's repository is MIT licensed and its pricing page describes an open-source tier that is free, self-hosted and needs no account. The documented caps are per process: an unlicensed sidecar or gateway enforces one guardrail rule and one data-masking rule, and an Enterprise licence lifts the cap for each feature it names, adds the centralised control plane with rule sets delivered to a fleet of sidecars, and comes with support and service levels, priced per identity connecting through the gateway. The licence-management page also notes a difference in failure mode: a gateway stops serving when its licence expires, while a sidecar keeps running under the free-tier caps.</p>
+          <p>AccessFlow is Apache 2.0 in one edition. Nothing on this page is behind a licence key, there is no rule cap, and there is no control plane to buy because there is one service to run. What you give up is a vendor: support comes from the project's issue tracker and discussions, and the roadmap is public rather than contractual. <a href="/roadmap/">What is available now and what is planned →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="together">
+          <h2>Running both</h2>
+          <p>The natural split is by surface. hoop.dev can be the door to hosts, clusters and desktops, and the tunnel through which engineers reach databases with their own tools, while AccessFlow is where a statement goes when it needs a written decision: the query a reviewer must sign off, the change an on-call engineer wants approved at night, the request an AI agent submits over MCP, the API call or the release that should not proceed on one person's say-so. Both stream to the same SIEM, and AccessFlow's entries carry their chain hashes, so an investigator can see the recorded session on one side and the approved, verified statement on the other. If only one is on the table, decide whether you are governing sessions or governing statements.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="sources">
+          <h2>Sources</h2>
+          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <ul class="docs-link-list">
+            <li><a href="https://github.com/hoophq/hoop" rel="nofollow noopener">hoop.dev repository</a> — the MIT licence, the sidecar and gateway positioning, and the supported protocol table</li>
+            <li><a href="https://hoop.dev/pricing" rel="nofollow noopener">hoop.dev pricing</a> — the open-source tier, its per-process rule caps and the Enterprise licence</li>
+            <li><a href="https://hoop.dev/docs/setup/license-management" rel="nofollow noopener">License management</a> — what the free licence includes and how the gateway and sidecar behave on expiry</li>
+            <li><a href="https://hoop.dev/docs/core-concepts/sidecar" rel="nofollow noopener">Sidecar</a> — the sidecar deployment model and the protocols it decodes</li>
+            <li><a href="https://hoop.dev/docs/core-concepts/control-plane" rel="nofollow noopener">Control plane</a> — fleet management as an Enterprise feature</li>
+            <li><a href="https://hoop.dev/docs/features/guardrails" rel="nofollow noopener">Guardrails</a> — the ordered deny list and the note that sidecar human review is not shipped</li>
+            <li><a href="https://hoop.dev/docs/features/agentic-access" rel="nofollow noopener">Agentic access</a> — the LLM analyzer, its providers and actions</li>
+            <li><a href="https://hoop.dev/docs/features/data-masking" rel="nofollow noopener">Data masking (sidecar)</a> — the entity types, strategies and free-tier limit</li>
+            <li><a href="https://hoop.dev/docs/learn/features/live-data-masking" rel="nofollow noopener">Live data masking (gateway)</a> — the detection engines and field types</li>
+            <li><a href="https://hoop.dev/docs/learn/features/access-requests/action" rel="nofollow noopener">Action access requests</a> — command-level approval, reviewer groups and channels</li>
+            <li><a href="https://hoop.dev/docs/learn/features/access-requests/jit" rel="nofollow noopener">Just-in-time access requests</a> — time-limited access with automatic expiry</li>
+            <li><a href="https://hoop.dev/docs/learn/features/session-recording" rel="nofollow noopener">Session recording</a> — what is recorded and how it is played back</li>
+            <li><a href="https://hoop.dev/docs/clients/hsh-tunnel" rel="nofollow noopener">Hoop tunnel</a> — native-client access by hostname and the connection types it supports</li>
+            <li><a href="https://hoop.dev/docs/setup/configuration/idp/get-started" rel="nofollow noopener">Identity providers</a> — the OIDC and SAML sign-in options</li>
+            <li><a href="https://hoop.dev/docs/integrations/siem" rel="nofollow noopener">SIEM integration</a> — event forwarding</li>
+            <li><a href="https://hoop.dev/docs/learn/features/mcp-server" rel="nofollow noopener">MCP server</a> — the built-in MCP server</li>
+            <li><a href="https://hoop.dev/docs/learn/features/runbooks" rel="nofollow noopener">Runbooks</a> — parameterised, reusable templates</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Compare</h3>
+          <ul>
+            <li><a href="/compare/">All comparisons</a></li>
+            <li><a href="/compare/accessflow-vs-bytebase/">vs Bytebase</a></li>
+            <li><a href="/compare/accessflow-vs-hoop-dev/">vs hoop.dev</a></li>
+            <li><a href="/compare/open-source-strongdm-alternative/">StrongDM alternative</a></li>
+            <li><a href="/compare/open-source-teleport-database-access-alternative/">Teleport alternative</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

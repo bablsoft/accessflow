@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AccessFlow vs Bytebase, hoop.dev, StrongDM &amp; Teleport</title>
+  <meta name="description" content="Sourced, dated comparisons of AccessFlow with Bytebase, hoop.dev, StrongDM and Teleport Database Access — including where each of them is the better fit." />
+
+  <link rel="canonical" href="https://accessflow.io/compare/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="AccessFlow vs Bytebase, hoop.dev, StrongDM &amp; Teleport" />
+  <meta property="og:description" content="Four sourced comparisons of the open-source AccessFlow query proxy with Bytebase, hoop.dev, StrongDM and Teleport Database Access, each saying where the other tool wins." />
+  <meta property="og:url" content="https://accessflow.io/compare/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AccessFlow vs Bytebase, hoop.dev, StrongDM &amp; Teleport" />
+  <meta name="twitter:description" content="Four sourced comparisons of the open-source AccessFlow query proxy with Bytebase, hoop.dev, StrongDM and Teleport Database Access, each saying where the other tool wins." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "CollectionPage",
+        "@id": "https://accessflow.io/compare/#page",
+        "breadcrumb": {
+          "@id": "https://accessflow.io/compare/#breadcrumb"
+        },
+        "name": "AccessFlow vs Bytebase, hoop.dev, StrongDM & Teleport",
+        "headline": "AccessFlow compared with Bytebase, hoop.dev, StrongDM and Teleport",
+        "description": "Four sourced comparisons of the open-source AccessFlow query proxy with Bytebase, hoop.dev, StrongDM and Teleport Database Access, each saying where the other tool wins.",
+        "inLanguage": "en",
+        "datePublished": "2026-09-16",
+        "dateModified": "2026-09-16",
+        "url": "https://accessflow.io/compare/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": {
+          "@id": "https://accessflow.io/#website"
+        },
+        "about": {
+          "@id": "https://accessflow.io/#software"
+        },
+        "author": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "mainEntity": {
+          "@id": "https://accessflow.io/compare/#comparisons"
+        }
+      },
+      {
+        "@type": "ItemList",
+        "@id": "https://accessflow.io/compare/#comparisons",
+        "name": "AccessFlow comparison pages",
+        "numberOfItems": 4,
+        "itemListOrder": "https://schema.org/ItemListUnordered",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "AccessFlow vs Bytebase",
+            "url": "https://accessflow.io/compare/accessflow-vs-bytebase/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "AccessFlow vs hoop.dev",
+            "url": "https://accessflow.io/compare/accessflow-vs-hoop-dev/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Open-source StrongDM alternative",
+            "url": "https://accessflow.io/compare/open-source-strongdm-alternative/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 4,
+            "name": "Open-source Teleport Database Access alternative",
+            "url": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/"
+          }
+        ]
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/compare/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "AccessFlow",
+            "item": "https://accessflow.io/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Compare",
+            "item": "https://accessflow.io/compare/"
+          }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "alternateName": "bablsoft (maker of AccessFlow)",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "alternateName": [
+          "AccessFlow by bablsoft",
+          "bablsoft AccessFlow"
+        ],
+        "sameAs": [
+          "https://github.com/bablsoft/accessflow"
+        ],
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Compare</p>
+            <a href="#how-we-compare">How these pages are written</a>
+            <a href="#pages">The four comparisons</a>
+            <a href="#what-accessflow-is">What AccessFlow is, and is not</a>
+            <a href="#read-first">Which one to read first</a>
+            <a href="#sources">Sources</a>
+            <p class="docs-toc-label">Every comparison</p>
+            <a href="/compare/" class="docs-toc-current" aria-current="page">All comparisons</a>
+            <a href="/compare/accessflow-vs-bytebase/">AccessFlow vs Bytebase</a>
+            <a href="/compare/accessflow-vs-hoop-dev/">AccessFlow vs hoop.dev</a>
+            <a href="/compare/open-source-strongdm-alternative/">Open-source StrongDM alternative</a>
+            <a href="/compare/open-source-teleport-database-access-alternative/">Open-source Teleport Database Access alternative</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+            <a href="/roadmap/">Roadmap</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><span aria-current="page">Compare</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Compare</span>
+          <h1>AccessFlow compared with Bytebase, hoop.dev, StrongDM and Teleport</h1>
+          <p>
+            Four sourced comparisons. Each one puts AccessFlow next to a product people
+            evaluate it against, says plainly where the other tool is the better choice, and cites
+            the vendor's own documentation for every claim it makes about them. AccessFlow is an
+            open-source, self-hosted proxy that reviews every database query, API call and
+            deployment before it runs; none of the four products below is quite the same thing,
+            and the pages are written to make the differences clear rather than to win.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/features/" class="btn btn-ghost">All 12 capabilities</a>
+          </div>
+        </header>
+
+        <div class="docs-callout info" id="disclaimer">
+          <strong>How to read this page.</strong> Product names are the property of their respective owners, and AccessFlow (made by bablsoft) is not affiliated with or endorsed by any of them. Everything said about another product comes from that vendor's public documentation as it read on the date in <a href="#sources">Sources</a>; where we could not find a capability documented, the table says <em>Not documented</em> rather than <em>No</em>. This AccessFlow is bablsoft's open-source database access governance project, and it is unrelated to Alcor's AccessFlow for ServiceNow or to any other product that shares the name.
+        </div>
+
+        <section class="docs-section scroll-pad" id="how-we-compare">
+          <h2>How these pages are written</h2>
+          <p>A comparison page is only useful if you can trust it, so every one of these follows the same four rules. First, a claim about another product has to be verifiable from that vendor's public documentation on the day the page was checked, and each page ends with the list of pages we relied on and the date we read them. Second, when we could not find a capability documented we say <em>Not documented</em>, never <em>No</em>: a vendor may well ship something they have not written up, and it is not our place to guess. Third, every page has a section titled "Where <em>the other product</em> is the better fit" with concrete situations, because each of these tools solves a real problem well and a page that only flatters AccessFlow would be worthless to you. Fourth, everything said about AccessFlow comes from its own source repository and the documentation on this site, so you can check it the same way.</p>
+          <p>There are no ratings, scores or "winner" badges on these pages, and no structured data that pretends there are. What you get is a side-by-side table, a plain description of where each product sits in the path between a person and a database, and two lists of situations: the ones where AccessFlow fits, and the ones where it does not.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="pages">
+          <h2>The four comparisons</h2>
+          <div class="feat-grid">
+            <div class="feat">
+              <h3>AccessFlow vs Bytebase</h3>
+              <p>Two open-source tools that both put a review in front of a database, aimed at different moments: Bytebase governs schema changes as they move through environments, AccessFlow governs every statement anyone runs. The page covers what each edition includes and where the two overlap. <a class="prose-link" href="/compare/accessflow-vs-bytebase/">Read the Bytebase comparison →</a></p>
+            </div>
+            <div class="feat">
+              <h3>AccessFlow vs hoop.dev</h3>
+              <p>hoop.dev is a gateway that keeps your existing clients working and records the session; AccessFlow is a proxy you submit a statement to and wait for a decision. The page explains why that difference matters more than any feature list. <a class="prose-link" href="/compare/accessflow-vs-hoop-dev/">Read the hoop.dev comparison →</a></p>
+            </div>
+            <div class="feat">
+              <h3>Open-source StrongDM alternative</h3>
+              <p>StrongDM is a proprietary, managed infrastructure access platform spanning databases, servers, clusters and clouds. This page is honest about which slice of that AccessFlow replaces and which it does not. <a class="prose-link" href="/compare/open-source-strongdm-alternative/">Read the StrongDM comparison →</a></p>
+            </div>
+            <div class="feat">
+              <h3>Open-source Teleport Database Access alternative</h3>
+              <p>Teleport connects native clients to databases with short-lived certificates and records what happened. AccessFlow reviews the statement before it runs. The page also walks through the two licences, which differ more than people expect. <a class="prose-link" href="/compare/open-source-teleport-database-access-alternative/">Read the Teleport comparison →</a></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="docs-section scroll-pad" id="what-accessflow-is">
+          <h2>What AccessFlow is, and is not</h2>
+          <p>AccessFlow is a governance layer you put between your team and your databases. A person or an AI agent submits a query through AccessFlow's own editor, REST API or Model Context Protocol (MCP) server; the statement is parsed, checked against a schema allow-list and, on the relational engines, a set of written review rules, then risk-scored by an AI analyzer, routed by policy to the right approvers, and only then executed, under column masking, row-level security and export controls, with every step written to an audit log whose entries are chained with a keyed hash so that a later edit is detectable. The same pipeline governs outbound API calls and CI/CD deployments. It is released under the Apache 2.0 licence, it has one edition with nothing held back, and it runs entirely inside your own infrastructure; with a local model behind it, it works with no internet access at all.</p>
+          <p>It is just as important to say what it is not. AccessFlow does not speak any database wire protocol and offers no driver, so <code>psql</code>, DBeaver, Tableau or an application cannot point at it as if it were the database; programmatic access goes through the REST API or MCP, and both paths pass through review. It does not govern SSH, Kubernetes or remote-desktop access, it does not record interactive sessions, it does not manage schema migrations as versioned files, and there is no hosted edition. Several of the products on these pages do exactly those things, which is why each comparison has a section on running both. <a href="/docs/integrations/#no-driver">The full list of what AccessFlow is not →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="read-first">
+          <h2>Which one to read first</h2>
+          <p>If your problem is migrations, that is, schema-changing DDL moving from a pull request through staging to production, start with <a href="/compare/accessflow-vs-bytebase/">Bytebase</a>; it is the only one of the four built around that lifecycle. If your engineers already have SSH or Kubernetes access through a single gateway and you want databases to follow the same door, read <a href="/compare/open-source-teleport-database-access-alternative/">Teleport</a> or <a href="/compare/accessflow-vs-hoop-dev/">hoop.dev</a>, depending on whether you lean towards certificates and a large managed-database catalogue or towards a lighter gateway with command-level reviews. If you are pricing a commercial platform and want to know what an open-source, self-hosted option covers and what it leaves out, read <a href="/compare/open-source-strongdm-alternative/">StrongDM</a>. And if the question is simply "who reviews the statement before it touches production data", every page answers that one the same way, because that is the thing AccessFlow was built to do.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="sources">
+          <h2>Sources</h2>
+          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <ul class="docs-link-list">
+            <li><a href="https://docs.bytebase.com/" rel="nofollow noopener">Bytebase documentation</a> — the documentation hub the Bytebase page draws on</li>
+            <li><a href="https://hoop.dev/docs" rel="nofollow noopener">hoop.dev documentation</a> — the documentation hub the hoop.dev page draws on</li>
+            <li><a href="https://docs.strongdm.com/" rel="nofollow noopener">StrongDM documentation</a> — the documentation hub the StrongDM page draws on</li>
+            <li><a href="https://goteleport.com/docs/enroll-resources/database-access/" rel="nofollow noopener">Teleport Database Access documentation</a> — the documentation section the Teleport page draws on</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Compare</h3>
+          <ul>
+            <li><a href="/compare/">All comparisons</a></li>
+            <li><a href="/compare/accessflow-vs-bytebase/">vs Bytebase</a></li>
+            <li><a href="/compare/accessflow-vs-hoop-dev/">vs hoop.dev</a></li>
+            <li><a href="/compare/open-source-strongdm-alternative/">StrongDM alternative</a></li>
+            <li><a href="/compare/open-source-teleport-database-access-alternative/">Teleport alternative</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
