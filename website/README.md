@@ -393,6 +393,8 @@ and `websitePages.test.ts` pins the editorial rules under `describe('comparison 
   AccessFlow is not affiliated, and (hub only) this AccessFlow is unrelated to Alcor's
   AccessFlow for ServiceNow. No competitor logos — the CSP is `img-src 'self'` anyway.
 
+Every non-descriptive matrix cell opens with a status mark the assembler derives from the cell text — green check (included), amber half-circle (with caveats or in a paid edition), red cross (not available), grey question mark (Not documented) — and the two "better fit" lists use check bullets (`ul.compare-fit`). A competitor cell that reads "Not documented" can only ever carry the grey mark, which the test pins.
+
 The matrix uses `table.docs-table.compare-table`; the modifier exists because the default
 `.docs-table` non-first column is an 80px centred accent-mono tick column, which would wrap
 "Not documented" and colour it like a "yes". The pages reach the 10-inbound-links floor

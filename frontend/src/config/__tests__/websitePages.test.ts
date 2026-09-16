@@ -885,6 +885,35 @@ describe('website pages', () => {
       }
     });
 
+    it('marks every matrix cell with a status that agrees with its text', () => {
+      // Green check, amber half-circle, red cross, grey question mark. The rows that
+      // describe rather than judge (licence, hosting, connectivity, engines) carry none;
+      // every other cell carries exactly one, and the mark can never contradict the
+      // text: a "Not documented" cell is grey, never red, and a "No" cell is red.
+      const DESCRIPTIVE = new Set(['Licence and source', 'Hosting', 'How people reach the database', 'Engines']);
+      for (const url of COMPARE_LEAVES) {
+        const html = read(fileOf(url));
+        const table = html.match(/<table class="docs-table compare-table"[\s\S]*?<\/table>/)![0];
+        for (const row of slice(table, '<tbody>', '</tbody>').matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
+          const cells = [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1]!);
+          const label = text(cells[0]!);
+          for (const cell of cells.slice(1)) {
+            const marks = [...cell.matchAll(/class="cmp-mark (cmp-[a-z]+)"/g)].map((m) => m[1]);
+            if (DESCRIPTIVE.has(label)) {
+              expect(marks, `${url} "${label}" is descriptive`).toEqual([]);
+              continue;
+            }
+            expect(marks, `${url} "${label}" mark count`).toHaveLength(1);
+            const body = text(cell.replace(/<span class="cmp-mark[\s\S]*?<\/span>/, ''));
+            if (/^Not documented/.test(body)) expect(marks[0], `${url} "${label}"`).toBe('cmp-nd');
+            if (/^No\b/.test(body)) expect(marks[0], `${url} "${label}"`).toBe('cmp-no');
+            if (marks[0] === 'cmp-no') expect(body, `${url} "${label}" red mark on a cell that does not say No`).toMatch(/^No\b/);
+          }
+        }
+        expect(html, `${url} legend`).toContain('<p class="compare-legend">');
+      }
+    });
+
     it('links every comparison from every comparison, marking only itself current', () => {
       for (const f of compareFiles) {
         const toc = slice(read(f), '<nav class="docs-toc">', '</nav>');
