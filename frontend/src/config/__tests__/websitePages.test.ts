@@ -102,7 +102,26 @@ const SPOKE_URLS = [
  * point a visitor lands on and browses rather than a leaf they arrive at; each
  * individual guide at 0.7, alongside the reference chapters — a guide answers one
  * task, which is the same size of question a chapter answers.
+ *
+ * The /compare/ hub sits at 0.8 with the other topic pages a visitor navigates to;
+ * its four comparison pages at 0.7, since each answers one question the way a guide
+ * or a connector page does.
  */
+/**
+ * The competitor comparison pages. They are trust pages, not ads: every claim about
+ * another product is sourced and dated, unverifiable cells say "Not documented" rather
+ * than "No", and each page says where the other product is the better fit. The
+ * guards below pin those editorial rules, because nothing on the page would show a
+ * regression in them.
+ */
+const COMPARE_HUB = '/compare/';
+const COMPARE_LEAVES = [
+  '/compare/accessflow-vs-bytebase/',
+  '/compare/accessflow-vs-hoop-dev/',
+  '/compare/open-source-strongdm-alternative/',
+  '/compare/open-source-teleport-database-access-alternative/',
+];
+
 const SITEMAP_PRIORITY = {
   '/': '1.0',
   '/features/': '0.9',
@@ -157,6 +176,11 @@ const SITEMAP_PRIORITY = {
   '/connectors/elasticsearch/': '0.7',
   '/connectors/opensearch/': '0.7',
   '/connectors/neo4j/': '0.7',
+  '/compare/': '0.8',
+  '/compare/accessflow-vs-bytebase/': '0.7',
+  '/compare/accessflow-vs-hoop-dev/': '0.7',
+  '/compare/open-source-strongdm-alternative/': '0.7',
+  '/compare/open-source-teleport-database-access-alternative/': '0.7',
 } as const satisfies Record<string, string>;
 
 /**
@@ -198,6 +222,7 @@ describe('website pages', () => {
     expect(files.map(rel)).toContain(path.join('features', 'database-access-governance', 'index.html'));
     expect(files.map(rel)).toContain(path.join('features', 'api-access-governance', 'index.html'));
     expect(files.map(rel)).toContain(path.join('features', 'deployment-governance', 'index.html'));
+    expect(files.map(rel)).toContain(path.join('compare', 'index.html'));
   });
 
   it('shares a byte-identical nav across every page', () => {
@@ -732,6 +757,167 @@ describe('website pages', () => {
     // Exact, not <=: removing an inline style must also lower the constant, which is
     // what forces website/_headers and website/README.md down in the same commit.
     expect(total, 'inline style="" attributes site-wide').toBe(INLINE_STYLE_BUDGET);
+  });
+
+  describe('comparison pages', () => {
+    const compareFiles = files.filter((f) => pageUrl(f).startsWith(COMPARE_HUB));
+    const fileOf = (url: string) => files.find((f) => pageUrl(f) === url)!;
+    const decode = (s: string) =>
+      s
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&(?:nbsp|ensp|emsp|thinsp);/g, ' ')
+        .replace(/&[a-z]+;|&#x?[0-9a-f]+;/gi, ' ');
+    const text = (fragment: string) => decode(stripNonProse(fragment).replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+    const section = (html: string, id: string) =>
+      slice(html, `<section class="docs-section scroll-pad" id="${id}"`, '</section>');
+    /** The page's own narrative: <main> minus the sidebar, every table, the disclaimer and the sources. */
+    const narrative = (html: string) =>
+      slice(html, '<main', '</main>')
+        .replace(/<aside[\s\S]*?<\/aside>/g, ' ')
+        .replace(/<table[\s\S]*?<\/table>/g, ' ')
+        .replace(/<div class="docs-callout info" id="disclaimer">[\s\S]*?<\/div>/, ' ')
+        .replace(section(html, 'sources'), ' ');
+
+    it('consists of exactly the hub and the four comparison pages', () => {
+      expect(compareFiles.map(pageUrl).sort()).toEqual([COMPARE_HUB, ...COMPARE_LEAVES].sort());
+    });
+
+    it('carries enough prose of its own — the table, sidebar and boilerplate do not count', () => {
+      // 900 words per comparison, 400 for the hub: the quality gate for a page that has
+      // to earn a query rather than restate a feature matrix.
+      for (const f of compareFiles) {
+        const words = mainWordCount(`<main>${narrative(read(f))}</main>`);
+        const floor = pageUrl(f) === COMPARE_HUB ? 400 : 900;
+        expect(words, `${rel(f)} narrative word count`).toBeGreaterThanOrEqual(floor);
+      }
+    });
+
+    it('ends with a dated Sources section of nofollow links, dated the same day as the page', () => {
+      for (const f of compareFiles) {
+        const html = read(f);
+        const src = section(html, 'sources');
+        expect(src, `${rel(f)} has no #sources section`).not.toBe('');
+        expect([...src.matchAll(/href="https:\/\//g)].length, `${rel(f)} sources link count`).toBeGreaterThan(0);
+        const external = [...src.matchAll(/<a\s[^>]*href="https?:\/\/[^"]*"[^>]*>/g)]
+          .map((m) => m[0])
+          .filter((a) => !a.includes('https://github.com/bablsoft/'));
+        for (const a of external) {
+          expect(a, `${rel(f)} competitor link must be nofollow noopener`).toContain('rel="nofollow noopener"');
+        }
+        const checked = [...src.matchAll(/<time datetime="([0-9-]+)"/g)].map((m) => m[1]!);
+        expect(checked, `${rel(f)} sources checked date`).toHaveLength(1);
+        const modified = html.match(/"dateModified":\s*"([0-9-]+)"/)![1];
+        // Re-checking the sources is a content change, so it moves the page's date too.
+        expect(checked[0], `${rel(f)} sources date vs dateModified`).toBe(modified);
+      }
+    });
+
+    it('says where the other product is the better fit, with concrete cases', () => {
+      for (const url of COMPARE_LEAVES) {
+        const html = read(fileOf(url));
+        for (const id of ['better-fit', 'accessflow-fit']) {
+          const s = section(html, id);
+          expect(s, `${url} has no #${id} section`).not.toBe('');
+          expect([...s.matchAll(/<li>/g)].length, `${url} #${id} cases`).toBeGreaterThanOrEqual(3);
+        }
+      }
+    });
+
+    it('is a WebPage on each comparison and a CollectionPage with an ItemList on the hub', () => {
+      for (const f of compareFiles) {
+        const graph = graphOf(read(f), rel(f));
+        const types = graph.map((n) => n['@type']);
+        expect(types, `${rel(f)} declares no TechArticle`).not.toContain('TechArticle');
+        if (pageUrl(f) === COMPARE_HUB) {
+          expect(types.filter((t) => t === 'CollectionPage')).toHaveLength(1);
+          const list = graph.find((n) => n['@type'] === 'ItemList');
+          expect(list?.numberOfItems, 'hub ItemList size').toBe(COMPARE_LEAVES.length);
+          const urls = (list!.itemListElement as unknown as { url: string }[]).map((i) => i.url.replace('https://accessflow.io', ''));
+          expect(urls.sort()).toEqual([...COMPARE_LEAVES].sort());
+        } else {
+          expect(types.filter((t) => t === 'WebPage'), `${rel(f)} page node`).toHaveLength(1);
+          expect(types).not.toContain('CollectionPage');
+        }
+      }
+    });
+
+    it('claims no ratings or reviews in structured data', () => {
+      // There are no ratings, and a Product/Review/AggregateRating node would assert some.
+      for (const f of compareFiles) {
+        const block = read(f).match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]!;
+        for (const t of ['"Product"', '"Review"', '"AggregateRating"', '"Rating"']) {
+          expect(block, `${rel(f)} declares ${t}`).not.toContain(t);
+        }
+      }
+    });
+
+    it('carries the non-affiliation disclaimer, and the hub the AccessFlow-name disambiguation', () => {
+      for (const f of compareFiles) {
+        const html = read(f);
+        const callout = html.match(/<div class="docs-callout info" id="disclaimer">[\s\S]*?<\/div>/)?.[0];
+        expect(callout, `${rel(f)} has no disclaimer callout`).toBeDefined();
+        expect(text(callout!)).toContain('not affiliated');
+        expect(text(callout!)).toContain('Not documented');
+        if (pageUrl(f) === COMPARE_HUB) expect(text(callout!)).toContain('Alcor');
+      }
+    });
+
+    it('never marks a competitor cell "No", and never leaves an AccessFlow cell undocumented', () => {
+      for (const url of COMPARE_LEAVES) {
+        const html = read(fileOf(url));
+        const tables = [...html.matchAll(/<table class="docs-table compare-table"[\s\S]*?<\/table>/g)];
+        expect(tables, `${url} compare tables`).toHaveLength(1);
+        const table = tables[0]![0];
+        const heads = [...slice(table, '<thead>', '</thead>').matchAll(/<th>([^<]*)<\/th>/g)].map((m) => m[1]);
+        expect(heads).toHaveLength(3);
+        expect(heads[1], `${url} second column is AccessFlow's`).toBe('AccessFlow');
+        for (const row of slice(table, '<tbody>', '</tbody>').matchAll(/<tr>([\s\S]*?)<\/tr>/g)) {
+          const cells = [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => text(m[1]!));
+          expect(cells, `${url} row "${cells[0]}" cell count`).toHaveLength(3);
+          // "If you cannot verify a capability, mark the cell Not documented — never No."
+          expect(cells[2], `${url} row "${cells[0]}" competitor cell`).not.toMatch(/^no\.?$/i);
+          // AccessFlow's own column is written from the repo; it can never be unknown.
+          expect(cells[1], `${url} row "${cells[0]}" AccessFlow cell`).not.toContain('Not documented');
+        }
+      }
+    });
+
+    it('links every comparison from every comparison, marking only itself current', () => {
+      for (const f of compareFiles) {
+        const toc = slice(read(f), '<nav class="docs-toc">', '</nav>');
+        for (const url of [COMPARE_HUB, ...COMPARE_LEAVES]) {
+          expect(toc, `${rel(f)} sidebar links ${url}`).toContain(`href="${url}"`);
+        }
+        const current = [...toc.matchAll(/<a href="([^"]+)" class="docs-toc-current" aria-current="page">/g)].map((m) => m[1]);
+        expect(current, `${rel(f)} current sidebar entry`).toEqual([pageUrl(f)]);
+      }
+    });
+
+    it('keeps the four comparisons written per competitor, not templated', () => {
+      // The matrix may share row labels; the narrative may not share sentences. Ratchet,
+      // not target: the connector pages drifted to 34–50% unique once, unnoticed.
+      const MAX_SHARED = 0.2;
+      const sentences = (url: string) =>
+        new Set(
+          text(narrative(read(fileOf(url))))
+            .split(/(?<=[.!?])\s+/)
+            .map((s) => s.toLowerCase().replace(/\s+/g, ' ').trim())
+            .filter((s) => s.split(' ').length >= 8),
+        );
+      const sets = new Map(COMPARE_LEAVES.map((u) => [u, sentences(u)]));
+      for (let i = 0; i < COMPARE_LEAVES.length; i += 1) {
+        for (let j = i + 1; j < COMPARE_LEAVES.length; j += 1) {
+          const a = sets.get(COMPARE_LEAVES[i]!)!;
+          const b = sets.get(COMPARE_LEAVES[j]!)!;
+          const shared = [...a].filter((s) => b.has(s));
+          const ratio = shared.length / Math.min(a.size, b.size);
+          expect(ratio, `${COMPARE_LEAVES[i]} and ${COMPARE_LEAVES[j]} share sentences:\n${shared.join('\n')}`).toBeLessThanOrEqual(MAX_SHARED);
+        }
+      }
+    });
   });
 
 });

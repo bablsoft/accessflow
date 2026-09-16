@@ -1469,7 +1469,7 @@ footer {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
   gap: 48px;
   margin-bottom: 64px;
 }
@@ -2061,6 +2061,12 @@ img, table, pre { max-width: 100%; }
 .docs-table tbody tr:last-child td { border-bottom: 0; }
 
 .docs-table tbody tr:nth-child(even) td { background: var(--tint-1); }
+
+/* Comparison matrix (/compare/): phrase-length cells in three columns. The default
+   .docs-table non-first column is an 80px centred accent-mono tick column, which
+   would wrap "Not documented" badly and colour it like a "yes". */
+.docs-table.compare-table thead th:not(:first-child) { width: auto; min-width: 150px; text-align: left; }
+.docs-table.compare-table tbody td:not(:first-child) { text-align: left; font-family: inherit; color: var(--fg-dim); }
 
 .docs-link-list {
   list-style: none;

@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AccessFlow vs Bytebase: statement review vs schema change</title>
+  <meta name="description" content="AccessFlow vs Bytebase, sourced from Bytebase's docs: statement-level review versus schema change management, what each edition includes, and where each fits." />
+
+  <link rel="canonical" href="https://accessflow.io/compare/accessflow-vs-bytebase/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="AccessFlow vs Bytebase: statement review vs schema change" />
+  <meta property="og:description" content="AccessFlow and Bytebase compared from Bytebase's own docs: every-statement review versus migrations as code, which edition each capability lives in, and where Bytebase wins." />
+  <meta property="og:url" content="https://accessflow.io/compare/accessflow-vs-bytebase/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AccessFlow vs Bytebase: statement review vs schema change" />
+  <meta name="twitter:description" content="AccessFlow and Bytebase compared from Bytebase's own docs: every-statement review versus migrations as code, which edition each capability lives in, and where Bytebase wins." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.io/compare/accessflow-vs-bytebase/#page",
+        "breadcrumb": {
+          "@id": "https://accessflow.io/compare/accessflow-vs-bytebase/#breadcrumb"
+        },
+        "name": "AccessFlow vs Bytebase: statement review vs schema change",
+        "headline": "AccessFlow vs Bytebase: reviewing every statement versus managing schema change",
+        "description": "AccessFlow and Bytebase compared from Bytebase's own docs: every-statement review versus migrations as code, which edition each capability lives in, and where Bytebase wins.",
+        "inLanguage": "en",
+        "datePublished": "2026-09-16",
+        "dateModified": "2026-09-16",
+        "url": "https://accessflow.io/compare/accessflow-vs-bytebase/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": {
+          "@id": "https://accessflow.io/#website"
+        },
+        "about": {
+          "@id": "https://accessflow.io/#software"
+        },
+        "author": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/compare/accessflow-vs-bytebase/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "AccessFlow",
+            "item": "https://accessflow.io/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Compare",
+            "item": "https://accessflow.io/compare/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "AccessFlow vs Bytebase",
+            "item": "https://accessflow.io/compare/accessflow-vs-bytebase/"
+          }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "alternateName": "bablsoft (maker of AccessFlow)",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "alternateName": [
+          "AccessFlow by bablsoft",
+          "bablsoft AccessFlow"
+        ],
+        "sameAs": [
+          "https://github.com/bablsoft/accessflow"
+        ],
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">AccessFlow vs Bytebase</p>
+            <a href="#summary">The short version</a>
+            <a href="#matrix">Side by side</a>
+            <a href="#architecture">Where each one sits</a>
+            <a href="#accessflow-fit">Where AccessFlow fits</a>
+            <a href="#better-fit">Where Bytebase fits</a>
+            <a href="#licence">Licence and editions</a>
+            <a href="#together">Running both</a>
+            <a href="#sources">Sources</a>
+            <p class="docs-toc-label">Every comparison</p>
+            <a href="/compare/">All comparisons</a>
+            <a href="/compare/accessflow-vs-bytebase/" class="docs-toc-current" aria-current="page">AccessFlow vs Bytebase</a>
+            <a href="/compare/accessflow-vs-hoop-dev/">AccessFlow vs hoop.dev</a>
+            <a href="/compare/open-source-strongdm-alternative/">Open-source StrongDM alternative</a>
+            <a href="/compare/open-source-teleport-database-access-alternative/">Open-source Teleport Database Access alternative</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+            <a href="/roadmap/">Roadmap</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/compare/">Compare</a></li>
+              <li><span aria-current="page">AccessFlow vs Bytebase</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Compare</span>
+          <h1>AccessFlow vs Bytebase: reviewing every statement versus managing schema change</h1>
+          <p>
+            Bytebase and AccessFlow are both open-source tools that put a review step in front of a
+            database, and both can be self-hosted, so they are often shortlisted together. They are
+            built around different moments, though. Bytebase is a database change-management
+            platform: migrations as code, rollouts across environments, a SQL editor alongside.
+            AccessFlow is a proxy that every ad-hoc statement passes through, with a human or a policy
+            deciding before it runs. This page sets the two side by side, including the editions each
+            capability actually lives in.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/compare/" class="btn btn-ghost">All comparisons</a>
+          </div>
+        </header>
+
+        <div class="docs-callout info" id="disclaimer">
+          <strong>How to read this page.</strong> Product names are the property of their respective owners, and AccessFlow (made by bablsoft) is not affiliated with or endorsed by any of them. Everything said about another product comes from that vendor's public documentation as it read on the date in <a href="#sources">Sources</a>; where we could not find a capability documented, the table says <em>Not documented</em> rather than <em>No</em>.
+        </div>
+
+        <section class="docs-section scroll-pad" id="summary">
+          <h2>The short version</h2>
+          <p><strong>In one line:</strong> Bytebase governs how the schema changes; AccessFlow governs what runs against the data. Both are open source, but only AccessFlow includes approvals, masking and just-in-time access without a paid edition.</p>
+          <p>Choose Bytebase when the thing you need to govern is the schema itself: schema-changing DDL that starts life in a pull request, gets linted against a couple of hundred rules, rolls out through development, staging and production, and can be rolled back. Choose AccessFlow when the thing you need to govern is what people and automated agents run against live data day to day, reads included, and you want each of those statements parsed, risk-scored, routed to an approver and executed under masking and row-level security, with a tamper-evident record of the whole exchange. The two overlap in the middle, where Bytebase's SQL editor, its query permissions and its just-in-time grants meet AccessFlow's editor and review queue, and that overlap is where most of this page lives.</p>
+          <p>The other axis is licensing. Both projects publish their source, but Bytebase's approval workflow, dynamic masking, just-in-time access, SCIM user provisioning and most single sign-on options are Enterprise features, while AccessFlow ships one Apache 2.0 edition with nothing held back. If you are comparing the free tiers, compare Bytebase Community with all of AccessFlow, and the picture is quite different from comparing the two Enterprise-sounding feature lists.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="matrix">
+          <h2>Side by side</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table compare-table" aria-label="AccessFlow and Bytebase capabilities side by side">
+              <thead>
+                <tr><th>Capability</th><th>AccessFlow</th><th>Bytebase</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Licence and source</td><td>Apache 2.0, one edition, full source</td><td>MIT for most of the code, with the enterprise directories under a separate licence</td></tr>
+                <tr><td>Hosting</td><td>Self-hosted only (Docker Compose, Helm, source); no hosted edition</td><td>Self-hosted (Docker, Kubernetes) or Bytebase Cloud; the Pro plan is cloud-only</td></tr>
+                <tr><td>How people reach the database</td><td>AccessFlow's web editor, REST API or Model Context Protocol (MCP) server; no wire protocol or driver, so native clients cannot connect through it</td><td>Bytebase's web SQL Editor; native-client passthrough: Not documented</td></tr>
+                <tr><td>Engines</td><td>18 connectors across relational, warehouse, document, key-value, wide-column, search and graph engines</td><td>Around 25, including TiDB, OceanBase, CockroachDB, Spanner, Redshift, Hive, StarRocks and Cosmos DB</td></tr>
+                <tr><td>Every statement reviewed before it runs</td><td>Yes: parse, AI risk score, routing policy, approval, then execution, for reads and writes alike</td><td>Change workflow: yes. Ad-hoc SQL Editor queries run on permission; a just-in-time grant can cover one approved read-only statement</td></tr>
+                <tr><td>AI risk review of the statement</td><td>Yes, with Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint or Hugging Face, plus multi-model voting</td><td>Risk levels are computed from statement type; an AI assistant helps write SQL. LLM review of a statement: Not documented</td></tr>
+                <tr><td>Approval chains and routing</td><td>Multi-stage chains per datasource, plus ordered routing policies that auto-approve, auto-reject, require extra approvals or escalate</td><td>Sequential multi-node custom approval, matched by condition and risk level (Enterprise)</td></tr>
+                <tr><td>Just-in-time, time-bound access</td><td>Yes: self-service requests, automatic expiry, optional pre-approval of covered queries</td><td>Yes: time-boxed roles from one week to a year, single-statement grants from one hour to seven days (Enterprise)</td></tr>
+                <tr><td>Break-glass with mandatory retro-review</td><td>Yes: per-user, per-datasource, admins included; every admin is paged; a different admin must sign off afterwards</td><td>Not documented</td></tr>
+                <tr><td>Can requesters approve their own request</td><td>Never, on any channel, for any role</td><td>Setting, disabled by default</td></tr>
+                <tr><td>Written SQL review rules</td><td>14 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td>Over 200 lint rules (Community)</td></tr>
+                <tr><td>Column masking</td><td>Yes: full, partial, hash, email and format-preserving strategies; admins are masked too unless explicitly revealed</td><td>Yes: semantic types and exemptions (Enterprise); not available on every engine</td></tr>
+                <tr><td>Row-level security</td><td>Yes: the statement is rewritten with a parameter-bound predicate, failing closed where an engine cannot</td><td>Not documented</td></tr>
+                <tr><td>Result export controls</td><td>Yes: allow, watermark, row cap or deny per datasource, with the watermark baked in before signing</td><td>Yes: export permission and a watermark setting</td></tr>
+                <tr><td>Audit and security event management (SIEM)</td><td>Every query and decision; entries chained with a keyed hash; append-only writer role; Splunk, syslog, HTTPS and S3 Object Lock sinks</td><td>Configuration and SQL query events with row data redacted, streamed as JSON to a SIEM (Pro and Enterprise); tamper-evidence: Not documented</td></tr>
+                <tr><td>Signed compliance reports</td><td>Yes: PDF and CSV with a detached signature</td><td>Not documented</td></tr>
+                <tr><td>Session recording</td><td>No: there is no interactive session; each statement is its own record</td><td>Not documented</td></tr>
+                <tr><td>Single sign-on and SCIM</td><td>SAML 2.0, OAuth2/OpenID Connect (OIDC) (Google, GitHub, Microsoft, GitLab, generic OIDC) and SCIM 2.0, all included</td><td>OAuth2, OIDC and LDAP (Enterprise; Google and GitHub on Pro), SCIM (Enterprise); SAML: Not documented</td></tr>
+                <tr><td>Terraform provider</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>MCP server for AI agents</td><td>Yes, for every engine, through the same review pipeline</td><td>Yes, inheriting the user's permissions and masking</td></tr>
+                <tr><td>Governed API calls and CI/CD deployment gates</td><td>Yes: outbound REST, SOAP and GraphQL calls (gRPC targets can be registered and reviewed but not yet executed), and a fail-closed deployment gate for pipelines</td><td>Not documented</td></tr>
+                <tr><td>Schema migrations and GitOps</td><td>No: AccessFlow reviews DDL statements but ships no migration lifecycle</td><td>Yes, the core product: releases, plans and rollouts from pull requests, batch changes, rollback</td></tr>
+                <tr><td>SSH, Kubernetes or desktop access</td><td>No</td><td>Not documented</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><em>Not documented</em> means we could not find the capability in Bytebase's public documentation on the date in <a href="#sources">Sources</a>; it does not mean the product lacks it. <em>Enterprise</em> and <em>Pro</em> follow Bytebase's published plan table.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="architecture">
+          <h2>Where each one sits in the path to the database</h2>
+          <p>Bytebase's centre of gravity is the change pipeline. A developer writes a migration file in a branch, a pull request triggers lint and review, and once merged a CI job creates a release, a plan and a rollout that carries the change through each environment in turn, skipping anything already applied. Alongside that pipeline sits a SQL editor: a person with the right project role can run queries, write statements need a separate permission or go back through the change workflow, and results are masked according to the column's semantic type. Access requests, whether for a time-boxed role or for a single approved statement, go through the same custom approval flows as changes, and those flows can be conditioned on a computed risk level.</p>
+          <p>AccessFlow's centre of gravity is the individual statement. There is no migration repository and no environment promotion; instead every query that anyone submits, through the editor, the REST API or an AI agent talking MCP, is parsed before anything else happens, so that the statement type and the exact tables and columns it touches are known up front. AccessFlow checks them against the datasource's allow-list and, on the relational engines, its written review rules, asks the configured AI provider for a risk score and a list of issues, and hands the result to a routing policy that decides whether the request is auto-approved, auto-rejected, escalated or sent to a review plan for people to decide. When it finally runs, it runs through the proxy: row-level security rewrites the predicate, masking rewrites the result, export rules decide what may leave, and the audit entry is chained to the previous one with a keyed hash so that anyone editing history later can be caught.</p>
+          <p>The honest gap on AccessFlow's side is connectivity. Bytebase documents no native-client passthrough either, but a Bytebase user still has the migration pipeline as their main road into production, whereas AccessFlow expects the statement to arrive through its own front doors. If your team lives in DataGrip and wants to keep doing so, neither product changes that today, and AccessFlow's roadmap lists a native wire-protocol gateway as unscheduled work rather than as a promise.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="accessflow-fit">
+          <h2>Where AccessFlow is the better fit</h2>
+          <ul>
+            <li><strong>You need reads reviewed, not just writes.</strong> A support engineer's <code>SELECT</code> against a customer table is a data-exposure event; AccessFlow scores and routes it like anything else, and can auto-approve the routine ones by policy so the queue stays short.</li>
+            <li><strong>You want an AI opinion on the statement itself.</strong> The analyzer reads the SQL and returns a risk score, the issues it found and a suggested rewrite, from whichever provider you choose, including a local model when nothing may leave the building.</li>
+            <li><strong>Row-level security and export governance matter.</strong> Bytebase documents column masking; AccessFlow additionally rewrites the query so a user only receives the rows they are cleared for, and can watermark, cap or deny what leaves as a file.</li>
+            <li><strong>You need an emergency path with consequences.</strong> Break-glass runs the statement immediately under every data control, pages every admin, and cannot be closed by the person who used it.</li>
+            <li><strong>You want all of it in the free edition.</strong> Approval chains, masking, just-in-time access, SCIM and SAML are included in the only edition AccessFlow has; in Bytebase they are Enterprise features.</li>
+            <li><strong>Databases are not your only governed surface.</strong> The same pipeline gates outbound API calls and CI/CD releases, with one audit trail behind all three.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="better-fit">
+          <h2>Where Bytebase is the better fit</h2>
+          <ul>
+            <li><strong>Schema migrations as code.</strong> If DDL should live in a repository, be reviewed in a pull request and roll out through environments as a release with a plan and a rollback path, that is Bytebase's core product and AccessFlow has nothing comparable.</li>
+            <li><strong>Migration linting at scale.</strong> Bytebase's catalogue of over 200 review rules, available in the Community edition, is built for catching a bad <code>ALTER TABLE</code> before it reaches staging; AccessFlow's fourteen rules are aimed at ad-hoc statements.</li>
+            <li><strong>Multi-environment schema management.</strong> Batch changes across databases that share a schema, state-based schema definitions, and synchronisation between environments are Bytebase features with no AccessFlow equivalent.</li>
+            <li><strong>Engines AccessFlow does not connect to.</strong> TiDB, OceanBase, CockroachDB, Spanner, Redshift, Hive, StarRocks and Cosmos DB are on Bytebase's list and not on AccessFlow's, though any JDBC engine can be added to AccessFlow by uploading a driver.</li>
+            <li><strong>One tool for change management and querying.</strong> If you want the migration pipeline and the day-to-day SQL editor from a single vendor with a single permission model, Bytebase covers both; AccessFlow only covers the second.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="licence">
+          <h2>Licence, editions and what is gated</h2>
+          <p>Bytebase's repository carries an MIT licence for the bulk of the code, with its enterprise directories and the code that enables plan-gated features under a separate enterprise licence. The published plan table draws the line clearly: the Community edition is free for up to twenty users and ten database instances and includes the change workflow, GitOps, the SQL review rules and the AI assistant; the Pro plan adds Google and GitHub sign-in and a short audit-log retention window and is cloud-only; and custom approval workflows, dynamic data masking, just-in-time access, SCIM, the wider OIDC and LDAP sign-in options, custom roles and environment tiers are Enterprise. Audit logging itself is documented as a Pro and Enterprise feature.</p>
+          <p>AccessFlow is released under the Apache 2.0 licence in one edition. There is no seat count, no instance count, no cloud-only tier and no feature held back for a commercial version: the approval chains, routing policies, masking, row-level security, break-glass, SAML, SCIM, audit sinks and signed compliance reports on this page are all in the same download. The trade-off is the obvious one: there is no vendor to buy support from, and the project is younger and narrower than Bytebase. <a href="/roadmap/">What is available now and what is planned →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="together">
+          <h2>Running both</h2>
+          <p>Because the two govern different moments, running them together is coherent rather than redundant. A common arrangement is Bytebase for schema change, with migrations flowing from pull requests through its rollout pipeline, and AccessFlow in front of the same databases for everything that is not a migration: the ad-hoc read a support engineer needs, the one-off <code>UPDATE</code> an on-call engineer wants approved at three in the morning, the queries an AI agent submits, and the API calls and deployments that need the same sign-off. Each keeps its own audit trail, and AccessFlow's can be streamed to the same SIEM as Bytebase's JSON log. If you only have budget or attention for one, the question to ask is whether your risk lives in the schema or in the data.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="sources">
+          <h2>Sources</h2>
+          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <ul class="docs-link-list">
+            <li><a href="https://github.com/bytebase/bytebase/blob/main/LICENSE" rel="nofollow noopener">Bytebase LICENSE file</a> — the MIT licence and the separate enterprise licence for the enterprise directories</li>
+            <li><a href="https://www.bytebase.com/pricing/" rel="nofollow noopener">Bytebase pricing</a> — which capabilities belong to the Community, Pro and Enterprise plans</li>
+            <li><a href="https://docs.bytebase.com/introduction/supported-databases/" rel="nofollow noopener">Supported databases</a> — the engine list and per-engine feature support, including where masking is unavailable</li>
+            <li><a href="https://docs.bytebase.com/change-database/change-workflow" rel="nofollow noopener">Change workflow</a> — the migration-based change pipeline</li>
+            <li><a href="https://docs.bytebase.com/gitops/overview" rel="nofollow noopener">GitOps overview</a> — pull-request driven releases, plans and rollouts</li>
+            <li><a href="https://docs.bytebase.com/change-database/approval" rel="nofollow noopener">Custom approval</a> — condition- and risk-based multi-node approval flows and the self-approval setting</li>
+            <li><a href="https://docs.bytebase.com/security/database-permission/just-in-time" rel="nofollow noopener">Just-in-time access</a> — time-boxed roles and single-statement access grants</li>
+            <li><a href="https://docs.bytebase.com/sql-editor/overview" rel="nofollow noopener">SQL Editor overview</a> — the editor, its permissions and masking in results</li>
+            <li><a href="https://docs.bytebase.com/sql-editor/run-queries" rel="nofollow noopener">Running queries</a> — read and write permissions in the editor and export behaviour</li>
+            <li><a href="https://docs.bytebase.com/sql-review/review-rules" rel="nofollow noopener">SQL review rules</a> — the lint rule catalogue</li>
+            <li><a href="https://docs.bytebase.com/security/data-masking/overview" rel="nofollow noopener">Dynamic data masking</a> — semantic types, column masking and exemptions</li>
+            <li><a href="https://docs.bytebase.com/security/database-permission/export" rel="nofollow noopener">Export permission</a> — export controls</li>
+            <li><a href="https://docs.bytebase.com/security/watermark" rel="nofollow noopener">Watermark</a> — the watermark setting</li>
+            <li><a href="https://docs.bytebase.com/security/audit-log" rel="nofollow noopener">Audit log</a> — what is recorded, SIEM streaming and the plan restriction</li>
+            <li><a href="https://docs.bytebase.com/administration/sso/overview/" rel="nofollow noopener">SSO overview</a> — the OAuth2, OIDC and LDAP protocols and provider guides</li>
+            <li><a href="https://docs.bytebase.com/administration/scim/overview" rel="nofollow noopener">SCIM</a> — directory synchronisation</li>
+            <li><a href="https://docs.bytebase.com/integrations/terraform/overview" rel="nofollow noopener">Terraform provider</a> — the provider</li>
+            <li><a href="https://docs.bytebase.com/integrations/mcp" rel="nofollow noopener">MCP server</a> — the MCP server and its permission inheritance</li>
+            <li><a href="https://docs.bytebase.com/get-started/self-host/deploy-with-docker" rel="nofollow noopener">Deploy with Docker</a> — self-hosting</li>
+            <li><a href="https://docs.bytebase.com/administration/license" rel="nofollow noopener">Manage license</a> — plan limits and which features need an Enterprise licence</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Compare</h3>
+          <ul>
+            <li><a href="/compare/">All comparisons</a></li>
+            <li><a href="/compare/accessflow-vs-bytebase/">vs Bytebase</a></li>
+            <li><a href="/compare/accessflow-vs-hoop-dev/">vs hoop.dev</a></li>
+            <li><a href="/compare/open-source-strongdm-alternative/">StrongDM alternative</a></li>
+            <li><a href="/compare/open-source-teleport-database-access-alternative/">Teleport alternative</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

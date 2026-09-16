@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open-source Teleport Database Access alternative</title>
+  <meta name="description" content="AccessFlow vs Teleport Database Access, from Teleport's docs: statement review, masking and audit versus certificate-based sessions, and the two licences." />
+
+  <link rel="canonical" href="https://accessflow.io/compare/open-source-teleport-database-access-alternative/" />
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content="bablsoft" />
+  <meta name="theme-color" content="#0A0D11" />
+  <meta name="color-scheme" content="dark light" />
+<script>
+    // Prevent FOUC: apply persisted theme before first paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('accessflow.theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* private mode — ignore */ }
+    })();
+  </script>
+
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="AccessFlow" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:title" content="Open-source Teleport Database Access alternative" />
+  <meta property="og:description" content="AccessFlow as an Apache 2.0 alternative to Teleport Database Access: reviewing the statement rather than the session, with masking and a chained audit log, and where Teleport wins." />
+  <meta property="og:url" content="https://accessflow.io/compare/open-source-teleport-database-access-alternative/" />
+  <meta property="og:image" content="https://accessflow.io/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="AccessFlow — governed database, API &amp; deployment access, built for engineers." />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Open-source Teleport Database Access alternative" />
+  <meta name="twitter:description" content="AccessFlow as an Apache 2.0 alternative to Teleport Database Access: reviewing the statement rather than the session, with masking and a chained audit log, and where Teleport wins." />
+  <meta name="twitter:image" content="https://accessflow.io/og-image.png" />
+  <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/#page",
+        "breadcrumb": {
+          "@id": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/#breadcrumb"
+        },
+        "name": "Open-source Teleport Database Access alternative",
+        "headline": "An open-source alternative to Teleport Database Access: reviewing the statement instead of the session",
+        "description": "AccessFlow as an Apache 2.0 alternative to Teleport Database Access: reviewing the statement rather than the session, with masking and a chained audit log, and where Teleport wins.",
+        "inLanguage": "en",
+        "datePublished": "2026-09-16",
+        "dateModified": "2026-09-16",
+        "url": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/",
+        "image": "https://accessflow.io/og-image.png",
+        "isPartOf": {
+          "@id": "https://accessflow.io/#website"
+        },
+        "about": {
+          "@id": "https://accessflow.io/#software"
+        },
+        "author": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "@id": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/#breadcrumb",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "AccessFlow",
+            "item": "https://accessflow.io/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Compare",
+            "item": "https://accessflow.io/compare/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": "Open-source Teleport Database Access alternative",
+            "item": "https://accessflow.io/compare/open-source-teleport-database-access-alternative/"
+          }
+        ]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://accessflow.io/#org",
+        "name": "bablsoft",
+        "alternateName": "bablsoft (maker of AccessFlow)",
+        "url": "https://accessflow.io/",
+        "logo": "https://accessflow.io/logo.png",
+        "description": "bablsoft builds AccessFlow, an open-source access proxy that puts AI review, human approval workflows and a tamper-evident audit log in front of databases, cloud data warehouses and outbound APIs.",
+        "sameAs": [
+          "https://github.com/bablsoft",
+          "https://github.com/bablsoft/accessflow"
+        ]
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://accessflow.io/#software",
+        "name": "AccessFlow",
+        "alternateName": [
+          "AccessFlow by bablsoft",
+          "bablsoft AccessFlow"
+        ],
+        "sameAs": [
+          "https://github.com/bablsoft/accessflow"
+        ],
+        "url": "https://accessflow.io/",
+        "applicationCategory": "DeveloperApplication",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        }
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://accessflow.io/#website",
+        "url": "https://accessflow.io/",
+        "name": "AccessFlow",
+        "publisher": {
+          "@id": "https://accessflow.io/#org"
+        },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<header class="nav">
+    <div class="wrap nav-inner">
+      <a href="/#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+            <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+            <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+            <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+          </svg>
+        </span>
+        accessflow
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="/features/">Features</a>
+        <a href="/connectors/">Connectors</a>
+        <a href="/use-cases/">Use cases</a>
+        <a href="/security/">Security</a>
+        <a href="/roadmap/">Roadmap</a>
+        <a href="/docs/">Docs</a>
+      </nav>
+      <details class="nav-mobile">
+        <summary aria-label="Open navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20" aria-hidden="true">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </summary>
+        <nav class="nav-mobile-panel" aria-label="Mobile primary">
+          <a href="/features/">Features</a>
+          <a href="/connectors/">Connectors</a>
+          <a href="/use-cases/">Use cases</a>
+          <a href="/security/">Security</a>
+          <a href="/roadmap/">Roadmap</a>
+          <a href="/docs/">Docs</a>
+          <div class="nav-mobile-divider" aria-hidden="true"></div>
+          <a href="/#install">Quick start</a>
+          <button class="theme-toggle nav-mobile-theme" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false">
+            <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+            <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <span class="nav-mobile-theme-label">Switch theme</span>
+          </button>
+        </nav>
+      </details>
+      <div class="nav-right">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to light theme" aria-pressed="false" title="Toggle theme">
+          <svg class="theme-toggle-icon theme-toggle-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+          <svg class="theme-toggle-icon theme-toggle-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" aria-hidden="true">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <a class="gh-stars" href="https://github.com/bablsoft/accessflow" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-hidden="true">
+            <path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.4 7 9.7.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.7-1.4-2.3-.3-4.6-1.2-4.6-5.1 0-1.1.4-2 1-2.8-.1-.3-.5-1.3.1-2.7 0 0 .8-.3 2.8 1.1.8-.2 1.7-.3 2.5-.3.9 0 1.7.1 2.5.3 1.9-1.4 2.8-1.1 2.8-1.1.5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.8 0 3.9-2.3 4.8-4.6 5 .4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5 4.1-1.4 7-5.2 7-9.7C22 6.6 17.5 2 12 2z"/>
+          </svg>
+          bablsoft/accessflow
+        </a>
+        <a href="/#install" class="btn btn-ghost">Quick start</a>
+        <a href="/#install" class="btn btn-primary">
+          Get AccessFlow
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-main">
+    <div class="wrap docs-layout">
+
+      <aside class="docs-sidebar" aria-label="Page table of contents">
+        <details class="docs-sidebar-mobile" open>
+          <summary>On this page</summary>
+          <nav class="docs-toc">
+            <p class="docs-toc-label">Teleport alternative</p>
+            <a href="#summary">The short version</a>
+            <a href="#matrix">Side by side</a>
+            <a href="#architecture">Where each one sits</a>
+            <a href="#accessflow-fit">Where AccessFlow fits</a>
+            <a href="#better-fit">Where Teleport fits</a>
+            <a href="#licence">Licence and editions</a>
+            <a href="#together">Running both</a>
+            <a href="#sources">Sources</a>
+            <p class="docs-toc-label">Every comparison</p>
+            <a href="/compare/">All comparisons</a>
+            <a href="/compare/accessflow-vs-bytebase/">AccessFlow vs Bytebase</a>
+            <a href="/compare/accessflow-vs-hoop-dev/">AccessFlow vs hoop.dev</a>
+            <a href="/compare/open-source-strongdm-alternative/">Open-source StrongDM alternative</a>
+            <a href="/compare/open-source-teleport-database-access-alternative/" class="docs-toc-current" aria-current="page">Open-source Teleport Database Access alternative</a>
+            <p class="docs-toc-label">Related</p>
+            <a href="/features/database-access-governance/">Database access governance</a>
+            <a href="/connectors/">Database connectors</a>
+            <a href="/security/">Security architecture</a>
+            <a href="/docs/integrations/">Integrations &amp; boundaries</a>
+            <a href="/roadmap/">Roadmap</a>
+          </nav>
+        </details>
+      </aside>
+
+      <article class="docs-content">
+
+        <header class="docs-hero">
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="/">AccessFlow</a></li>
+              <li><a href="/compare/">Compare</a></li>
+              <li><span aria-current="page">Open-source Teleport Database Access alternative</span></li>
+            </ol>
+          </nav>
+          <span class="eyebrow">Compare</span>
+          <h1>An open-source alternative to Teleport Database Access: reviewing the statement instead of the session</h1>
+          <p>
+            Teleport's Database Access connects engineers to databases with short-lived certificates
+            instead of passwords, records the session, and lets them request roles or resources for
+            a limited time. AccessFlow does something adjacent but different: it decides whether a
+            particular statement may run, and under what masking and row filters, before it runs.
+            Both can be self-hosted and both publish their source, but the licences are far apart.
+            This page compares the two on capability and on licence, and says where Teleport is the
+            better choice.
+          </p>
+          <div class="hero-cta">
+            <a href="/#install" class="btn btn-primary">
+              Get AccessFlow
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+            <a href="/compare/" class="btn btn-ghost">All comparisons</a>
+          </div>
+        </header>
+
+        <div class="docs-callout info" id="disclaimer">
+          <strong>How to read this page.</strong> Product names are the property of their respective owners, and AccessFlow (made by bablsoft) is not affiliated with or endorsed by any of them. Everything said about another product comes from that vendor's public documentation as it read on the date in <a href="#sources">Sources</a>; where we could not find a capability documented, the table says <em>Not documented</em> rather than <em>No</em>.
+        </div>
+
+        <section class="docs-section scroll-pad" id="summary">
+          <h2>The short version</h2>
+          <p><strong>In one line:</strong> Teleport governs the connection with certificates and recordings; AccessFlow governs the statement with review, masking and a chained audit log. Their licences differ as much as their designs.</p>
+          <p>Choose Teleport when you already run it, or intend to, for SSH, Kubernetes and applications, and you want databases behind the same door: one identity, one set of roles, one audit stream, and engineers connecting from DBeaver, pgAdmin, DataGrip or <code>psql</code> through a local proxy with certificates that expire on their own. Teleport's role model can restrict which database accounts and which databases a person may use and, with automatic user provisioning, which tables they may touch; access requests let them ask for more for a limited time, with two reviewers required if you want; and every session is recorded, with per-statement events for PostgreSQL that can be replayed. Choose AccessFlow when the control you need is on the statement rather than on the connection: every query parsed, checked against written rules, risk-scored by an AI analyzer, routed by policy to a multi-stage approval chain, and executed under column masking, row-level security and export controls, with a hash-chained audit log to prove none of it was altered afterwards.</p>
+          <p>The licence axis matters here more than on any other page. Teleport's source is published under the AGPL, but the Community Edition binaries are documented as commercial with restrictions, free only for companies under a hundred employees and ten million dollars in revenue, and access requests, single sign-on beyond GitHub, SCIM user provisioning and device trust are Enterprise features. AccessFlow is Apache 2.0, one edition, with every capability on this page included and no threshold on who may use it.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="matrix">
+          <h2>Side by side</h2>
+          <div class="docs-table-wrap">
+            <table class="docs-table compare-table" aria-label="AccessFlow and Teleport Database Access capabilities side by side">
+              <thead>
+                <tr><th>Capability</th><th>AccessFlow</th><th>Teleport</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Licence and source</td><td>Apache 2.0, one edition, full source, no usage threshold</td><td>Source on GitHub under AGPL-3.0; Community Edition binaries are commercial with restrictions, free for companies under 100 employees and US$10M revenue; Enterprise is a paid licence</td></tr>
+                <tr><td>Hosting</td><td>Self-hosted only; no hosted edition</td><td>Self-hosted (Community and Enterprise) or Teleport Cloud (Enterprise)</td></tr>
+                <tr><td>How people reach the database</td><td>AccessFlow's web editor, REST API or Model Context Protocol (MCP) server; no wire protocol or driver</td><td>Native clients and GUI tools through a local proxy started by <code>tsh</code> or Teleport Connect, with short-lived certificates; also the web UI</td></tr>
+                <tr><td>Engines</td><td>18 connectors across relational, warehouse, document, key-value, wide-column, search and graph engines</td><td>Self-hosted PostgreSQL, MySQL, SQL Server, Oracle, MongoDB, Redis, Cassandra, ClickHouse, CockroachDB, Elasticsearch and Vitess, plus a large catalogue of AWS, Azure and Google Cloud managed databases, MongoDB Atlas, Snowflake and Oracle Exadata</td></tr>
+                <tr><td>Every statement reviewed before it runs</td><td>Yes: parse, AI risk score, routing policy, approval, then execution, for reads and writes alike</td><td>Not documented: access requests approve a role or a resource for a period; per-statement review before execution is not described</td></tr>
+                <tr><td>AI risk review of the statement</td><td>Yes, with Anthropic, OpenAI, Ollama, any OpenAI-compatible endpoint or Hugging Face, plus multi-model voting</td><td>Not documented</td></tr>
+                <tr><td>Approval chains and routing</td><td>Multi-stage chains per datasource, plus ordered routing policies that auto-approve, auto-reject, require extra approvals or escalate</td><td>Access requests with configurable approver thresholds and dual authorisation, notified through plugins (Enterprise); ordered multi-stage chains: Not documented</td></tr>
+                <tr><td>Just-in-time, time-bound access</td><td>Yes: self-service requests, automatic expiry, optional pre-approval of covered queries</td><td>Yes: role and resource access requests with a configurable duration (Enterprise; the Community Edition can request roles from the command line only)</td></tr>
+                <tr><td>Break-glass with mandatory retro-review</td><td>Yes: per-user, per-datasource, admins included; every admin is paged; a different admin must sign off afterwards</td><td>Not documented</td></tr>
+                <tr><td>Can requesters approve their own request</td><td>Never, on any channel, for any role</td><td>Never: users cannot approve their own access requests</td></tr>
+                <tr><td>Written SQL review rules</td><td>14 named rules for the relational engines, at off, warn or block per environment; a block forces human review and never rejects</td><td>Not documented</td></tr>
+                <tr><td>Column masking</td><td>Yes: full, partial, hash, email and format-preserving strategies; admins are masked too unless explicitly revealed</td><td>Not documented</td></tr>
+                <tr><td>Row-level security</td><td>Yes: the statement is rewritten with a parameter-bound predicate, failing closed where an engine cannot</td><td>Table-level permissions per role through database object labels and auto-provisioned users; row-level: Not documented</td></tr>
+                <tr><td>Result export controls</td><td>Yes: allow, watermark, row cap or deny per datasource</td><td>Not documented</td></tr>
+                <tr><td>Audit and security event management (SIEM)</td><td>Every query and decision; entries chained with a keyed hash; append-only writer role; Splunk, syslog, HTTPS and S3 Object Lock sinks</td><td>Session start, query and end events, with the query text recorded; audit export to a SIEM in every edition; tamper-evidence: Not documented</td></tr>
+                <tr><td>Signed compliance reports</td><td>Yes: PDF and CSV with a detached signature</td><td>Not documented</td></tr>
+                <tr><td>Session recording</td><td>No: there is no interactive session; each statement is its own record</td><td>Yes: database sessions are recorded and PostgreSQL sessions can be played back statement by statement</td></tr>
+                <tr><td>Hardware keys and device trust</td><td>No</td><td>Yes (Enterprise)</td></tr>
+                <tr><td>Single sign-on and SCIM</td><td>SAML 2.0, OAuth2/OpenID Connect (OIDC) (Google, GitHub, Microsoft, GitLab, generic OIDC) and SCIM 2.0, all included</td><td>Community: GitHub only. Enterprise: SAML, OIDC, Okta, Entra ID, Google Workspace and others, plus SCIM</td></tr>
+                <tr><td>Terraform provider</td><td>Yes</td><td>Yes</td></tr>
+                <tr><td>MCP server for AI agents</td><td>Yes, for every engine, through the same review pipeline</td><td>Yes: an MCP query tool for PostgreSQL databases, tied to a signed-in <code>tsh</code> session</td></tr>
+                <tr><td>Governed API calls and CI/CD deployment gates</td><td>Yes: outbound REST, SOAP and GraphQL calls (gRPC targets can be registered and reviewed but not yet executed), and a fail-closed deployment gate for pipelines</td><td>Application access exists; per-call approval and deployment gates: Not documented</td></tr>
+                <tr><td>Schema migrations and GitOps</td><td>No</td><td>Not documented</td></tr>
+                <tr><td>SSH, Kubernetes or desktop access</td><td>No</td><td>Yes: servers, Kubernetes clusters, applications and desktops in every edition</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p><em>Not documented</em> means we could not find the capability in Teleport's public documentation on the date in <a href="#sources">Sources</a>; it does not mean the product lacks it. Edition labels follow Teleport's published feature matrix.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="architecture">
+          <h2>Where each one sits in the path to the database</h2>
+          <p>Teleport is an access plane built around certificates. A Teleport agent running the Database Service proxies connections to the databases it protects; an engineer signs in once, and <code>tsh</code> or the Teleport Connect desktop app starts a local proxy that their GUI client or command-line tool connects to, authenticated by a certificate that expires within hours, so no database password ever reaches the laptop. Which database instances, which database accounts and which database names a person may use come from their Teleport roles, and with automatic user provisioning Teleport can create the database user on the fly and grant table-level permissions from labels on imported objects. When someone needs more, an access request asks for a role or a specific resource for a set time, one or two reviewers approve it through whichever chat or ticketing plugin is configured, and the elevated permissions lapse on their own. Throughout, the session is recorded: start, each query, and end, with PostgreSQL sessions replayable statement by statement, and the whole event stream exportable to a SIEM.</p>
+          <p>AccessFlow does not proxy the connection; it proxies the statement. Whatever arrives, through its editor, its REST API or its MCP server, is parsed first, so that the statement type and the exact tables and columns it references are known before anything else happens. The statement is checked against the datasource's allow-list and, on the relational engines, against fourteen written review rules, then sent to the AI analyzer for a risk score and a list of issues, then handed to a routing policy that decides whether the request is auto-approved, auto-rejected, escalated or sent to a review plan for people to decide, with named stages and a minimum number of approvers per stage. When it runs, row-level security rewrites the predicate, masking rewrites the result, and export rules decide what may be downloaded. Every step is an audit entry chained to the previous one with a keyed hash and written by a database role that cannot update or delete, so an investigator can verify the chain rather than trust it.</p>
+          <p>The gap on AccessFlow's side is connectivity: there is no local proxy, no certificate flow and no way for pgAdmin to connect through it, and the roadmap lists a native wire-protocol gateway as unscheduled work. The gap on Teleport's side, as far as its documentation goes, is everything that happens to the statement itself: no pre-execution review of a query, no AI opinion on it, no masking of what comes back, and no rewriting of the rows it may see.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="accessflow-fit">
+          <h2>Where AccessFlow is the better fit</h2>
+          <ul>
+            <li><strong>The decision is about the statement.</strong> A support engineer may be allowed to connect and still not be allowed to run <em>this</em> <code>UPDATE</code> without a second person; AccessFlow reviews the query, Teleport reviews the access.</li>
+            <li><strong>You want an AI opinion and written rules before a person spends time.</strong> A risk score, the issues found, a suggested rewrite, and a catalogue of named checks that can force human review without ever rejecting on their own.</li>
+            <li><strong>What comes back needs shaping.</strong> Column masking with no admin bypass, row-level security rewriting the query, and export governance that can watermark, cap or deny a download; none of these is documented for Teleport's database access.</li>
+            <li><strong>Auditors ask whether the log could have been edited.</strong> Keyed hash chaining, an append-only writer role, a verify endpoint, signed PDF and CSV reports, and a write-once S3 sink with signed segments.</li>
+            <li><strong>AI agents should be governed like people, across every engine.</strong> AccessFlow's MCP server covers all eighteen engines and puts an agent's statements through the same review and audit; Teleport's MCP database tool is documented for PostgreSQL only.</li>
+            <li><strong>Everything must be included, at any company size.</strong> Access requests, SAML and OIDC sign-in, SCIM and the rest are in AccessFlow's single Apache 2.0 edition; in Teleport they are Enterprise, and the free Community binaries carry an employee and revenue threshold.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="better-fit">
+          <h2>Where Teleport is the better fit</h2>
+          <ul>
+            <li><strong>You already run Teleport for SSH, Kubernetes or applications.</strong> Adding databases to the same plane gives one identity, one role model and one audit stream; AccessFlow would be a second system with its own login and its own log.</li>
+            <li><strong>Passwordless, native-client access.</strong> Engineers keep DBeaver, pgAdmin, DataGrip, Compass or <code>psql</code>, and no database credential ever lives on a laptop; AccessFlow has no native-client path at all.</li>
+            <li><strong>Session recording and replay.</strong> A recorded session that can be played back statement by statement is the evidence some compliance regimes expect, and AccessFlow has no interactive sessions to record.</li>
+            <li><strong>Cloud-managed databases with cloud identity.</strong> Teleport's catalogue of RDS, Aurora, Redshift, DynamoDB, ElastiCache, Cloud SQL, AlloyDB, Spanner and Azure databases, with IAM-based authentication and automatic user provisioning, is far broader than AccessFlow's eighteen connectors.</li>
+            <li><strong>Hardware keys, device trust and per-session MFA.</strong> If posture checks on the connecting device are part of the requirement, Teleport documents them and AccessFlow does not have them.</li>
+          </ul>
+        </section>
+
+        <section class="docs-section scroll-pad" id="licence">
+          <h2>Licence, editions and what is gated</h2>
+          <p>Teleport's feature matrix describes three editions. The Community Edition's code is on GitHub under the AGPL-3.0, but the matrix describes the binaries as commercial with restrictions: free to use for companies with fewer than a hundred employees and less than ten million US dollars in annual revenue. In that edition, single sign-on is GitHub only, access requests are limited to requesting roles from the command line, and SCIM, hardware keys, device trust and moderated sessions are absent; database, Kubernetes, SSH and application access, session recording and audit export to a SIEM are included. Teleport Enterprise, self-hosted or as Teleport Cloud, adds SAML and OIDC providers, the full access-request workflow with its notification plugins, SCIM provisioning, device trust and hardware-key support, and support contracts.</p>
+          <p>AccessFlow is released under the Apache 2.0 licence, which is permissive rather than copyleft, in one edition, with no employee, revenue or seat threshold. The approval chains, SAML and OIDC sign-in, SCIM, masking, row-level security, audit sinks and signed reports on this page are all in the same download. The trade-off is that there is no vendor behind it: support is the public issue tracker, and the project is much younger and narrower than Teleport. <a href="/roadmap/">What is available now and what is planned →</a></p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="together">
+          <h2>Running both</h2>
+          <p>These two fit together more naturally than they compete. Teleport can remain the way engineers reach infrastructure, including the database sessions they need native tools for, with certificates, recordings and access requests governing the connection. AccessFlow can be where a statement goes when it needs a written decision rather than a session: the query a reviewer must sign off, the change an on-call engineer wants approved at night, the request an AI agent submits over MCP, and the API call or the deployment that should not proceed on one person's word. Both export to the same SIEM, so the recorded session and the approved, hash-chained statement sit side by side. If you can only have one, ask whether your risk is in who can connect or in what runs once they have.</p>
+        </section>
+
+        <section class="docs-section scroll-pad" id="sources">
+          <h2>Sources</h2>
+          <p>Checked on <time datetime="2026-09-16">16 September 2026</time>. AccessFlow's own claims come from its <a href="https://github.com/bablsoft/accessflow">source repository</a> and the pages of this site they link to. If a vendor's documentation has changed since, please <a href="https://github.com/bablsoft/accessflow/issues/new">open an issue</a> and we will correct the page.</p>
+          <ul class="docs-link-list">
+            <li><a href="https://goteleport.com/docs/feature-matrix/" rel="nofollow noopener">Teleport feature matrix</a> — which capabilities are in the Community, Enterprise and Enterprise Cloud editions, and the Community Edition licence statement</li>
+            <li><a href="https://goteleport.com/docs/enroll-resources/database-access/" rel="nofollow noopener">Database Access</a> — the supported self-hosted and cloud-managed databases and the Database Service</li>
+            <li><a href="https://goteleport.com/docs/enroll-resources/database-access/rbac/" rel="nofollow noopener">Database Access Controls</a> — role fields, table-level permissions and the dependency on automatic user provisioning</li>
+            <li><a href="https://goteleport.com/docs/enroll-resources/database-access/auto-user-provisioning/" rel="nofollow noopener">Automatic user provisioning</a> — on-the-fly database users</li>
+            <li><a href="https://goteleport.com/docs/connect-your-client/third-party/gui-clients/" rel="nofollow noopener">Database GUI clients</a> — connecting DBeaver, pgAdmin, DataGrip and others through a local proxy</li>
+            <li><a href="https://goteleport.com/docs/identity-governance/access-requests/" rel="nofollow noopener">Access Requests</a> — role and resource requests, dual authorisation, the self-approval rule and the Enterprise restriction</li>
+            <li><a href="https://goteleport.com/docs/enroll-resources/database-access/reference/audit/" rel="nofollow noopener">Database access audit events</a> — session start, query and end events and PostgreSQL playback</li>
+            <li><a href="https://goteleport.com/docs/connect-your-client/model-context-protocol/database-access/" rel="nofollow noopener">Access databases over MCP</a> — the PostgreSQL-only MCP query tool</li>
+            <li><a href="https://goteleport.com/docs/configuration/terraform-provider/" rel="nofollow noopener">Terraform provider</a> — the provider</li>
+            <li><a href="https://goteleport.com/docs/faq/" rel="nofollow noopener">Teleport FAQ</a> — the edition split and the Enterprise-only sign-in and SCIM features</li>
+          </ul>
+        </section>
+
+      </article>
+    </div>
+  </main>
+
+<footer>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <a href="/#top" class="logo">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="3" width="20" height="6" rx="1" stroke="currentColor" stroke-width="1.6" />
+                <rect x="2" y="15" width="20" height="6" rx="1" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+                <path d="M8 9v2M12 9v2M16 9v2" stroke="currentColor" stroke-width="1.6" />
+                <path d="M8 13v2M12 13v2M16 13v2" stroke="oklch(0.82 0.17 145)" stroke-width="1.6" />
+              </svg>
+            </span>
+            accessflow
+          </a>
+          <p class="footer-tag">Open-source database &amp; API access governance. Self-hosted, AI-assisted, audit-ready.</p>
+        </div>
+        <div class="footer-col">
+          <h3>Product</h3>
+          <ul>
+            <li><a href="/features/">Features</a></li>
+            <li><a href="/features/database-access-governance/">Database governance</a></li>
+            <li><a href="/features/api-access-governance/">API governance</a></li>
+            <li><a href="/features/deployment-governance/">Deployment governance</a></li>
+            <li><a href="/connectors/">Connectors</a></li>
+            <li><a href="/use-cases/">Use cases</a></li>
+            <li><a href="/security/">Security</a></li>
+            <li><a href="/#how">How it works</a></li>
+            <li><a href="/roadmap/">Roadmap</a></li>
+            <li><a href="/changelog/">Changelog</a></li>
+            <li><a href="/ai-agents/">AI agents</a></li>
+            <li><a href="/#install">Quick start</a></li>
+            <li><a href="/#questions">Questions</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Compare</h3>
+          <ul>
+            <li><a href="/compare/">All comparisons</a></li>
+            <li><a href="/compare/accessflow-vs-bytebase/">vs Bytebase</a></li>
+            <li><a href="/compare/accessflow-vs-hoop-dev/">vs hoop.dev</a></li>
+            <li><a href="/compare/open-source-strongdm-alternative/">StrongDM alternative</a></li>
+            <li><a href="/compare/open-source-teleport-database-access-alternative/">Teleport alternative</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Docs</h3>
+          <ul>
+            <li><a href="/docs/">User documentation</a></li>
+            <li><a href="/docs/install/">Install &amp; first run</a></li>
+            <li><a href="/docs/guides/">Guides</a></li>
+            <li><a href="/docs/configuration/auth/">Auth &amp; SSO</a></li>
+            <li><a href="/docs/workflows/">End-user workflows</a></li>
+            <li><a href="/docs/iac/">Infrastructure as Code</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/docs/04-api-spec.md">REST API (GitHub)</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Community</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow">GitHub</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/discussions">Discussions</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues">Issues</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/CLAUDE.md">Agent rulebook</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h3>Legal</h3>
+          <ul>
+            <li><a href="https://github.com/bablsoft/accessflow/blob/main/LICENSE.md">Apache 2.0 license</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/security">Security policy</a></li>
+            <li><a href="https://github.com/bablsoft/accessflow/issues/new">Report an issue</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bar">
+        <span>© 2026 AccessFlow contributors · Apache 2.0</span>
+        <span class="status"><span class="status-dot" aria-hidden="true"></span> v2.6 generally available</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

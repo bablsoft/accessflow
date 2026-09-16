@@ -107,6 +107,7 @@ the right.
 | [`docs/05-backend.md`](../docs/05-backend.md) "AI provider fallback pool" (AF-458), [`docs/03-data-model.md`](../docs/03-data-model.md) `ai_config.fallback_priority`, [`docs/04-api-spec.md`](../docs/04-api-spec.md) AI Configurations `fallback_priority` | the `Fallback pool` chip on the "AI query analysis" hub card (`/features/#database`) — chip only — plus the fallback-pool sentence at `/features/database-access-governance/#ai` + the "Offline AI fallback" item in `/roadmap/`'s available-now **AI &amp; monitoring** group + the "Fallback pool" paragraph under "AI configurations" in [`docs/configuration/ai/index.html`](docs/configuration/ai/index.html) |
 | [`docs/05-backend.md`](../docs/05-backend.md) "Automatic query suggestions" (#776), [`docs/03-data-model.md`](../docs/03-data-model.md) `query_suggestions`, [`docs/04-api-spec.md`](../docs/04-api-spec.md) "Automatic query suggestions", [`docs/06-frontend.md`](../docs/06-frontend.md) QueryEditorPage suggestions rail, [`docs/07-security.md`](../docs/07-security.md) "Automatic query suggestion visibility", [`docs/09-deployment.md`](../docs/09-deployment.md) `ACCESSFLOW_WORKFLOW_QUERY_SUGGESTIONS_*` env vars | the "Suggested queries" subsection (`#flow-suggestions`) under "End-user workflows" in [`docs/workflows/index.html`](docs/workflows/index.html). the "Suggested queries" line in the **AI &amp; monitoring** group of `/roadmap/`'s available-now grid (joined at the v2.6 release prep, which is the lifecycle the `/roadmap/` page describes in its own words) |
 | [`docs/05-backend.md`](../docs/05-backend.md) "Access explainer" (AF-859), [`docs/04-api-spec.md`](../docs/04-api-spec.md) `/admin/access-simulations`, `/admin/effective-access`, `/admin/api-call-simulations`, `/admin/deployment-simulations`, [`docs/07-security.md`](../docs/07-security.md) "Access explainer" (permission gates), [`docs/17-api-governance.md`](../docs/17-api-governance.md) "Decision trace" + [`docs/18-deployment-governance.md`](../docs/18-deployment-governance.md) "Decision trace" (AF-967) | the "Effective-access explainer" section (`#cfg-access-explainer`) under Review workflows in [`docs/configuration/review-workflows/index.html`](docs/configuration/review-workflows/index.html); the `#guide-api-simulation` item under "Worth knowing" in [`docs/guides/api-governance/index.html`](docs/guides/api-governance/index.html); the `#guide-deployment-simulation` subsection at the end of [`docs/guides/deployment-approval/index.html`](docs/guides/deployment-approval/index.html); the "Ask why, instead of probing production" paragraphs at `/features/database-access-governance/#review`; the `Decision traces` chip on the review-workflows card of [`features/index.html`](features/index.html); the "Who can write to this table?" benefit on the compliance use case in [`use-cases/index.html`](use-cases/index.html); the two matrix rows in [`docs/configuration/users-roles/index.html`](docs/configuration/users-roles/index.html); the explainer lines in the **Review &amp; access**, **API governance** and **Deployment governance** groups of [`roadmap/index.html`](roadmap/index.html) |
+| [`README.md`](../README.md), [`LICENSE.md`](../LICENSE.md), [`docs/05-backend.md`](../docs/05-backend.md), [`docs/07-security.md`](../docs/07-security.md) (masking, row security, the HMAC-SHA256 audit chain, SSO/SCIM), [`docs/13-mcp.md`](../docs/13-mcp.md), [`docs/16-iac.md`](../docs/16-iac.md), [`docs/17-api-governance.md`](../docs/17-api-governance.md), [`docs/18-deployment-governance.md`](../docs/18-deployment-governance.md), [`docs/19-sql-review.md`](../docs/19-sql-review.md), [`docs/12-roadmap.md`](../docs/12-roadmap.md) (the wire-protocol gateway is **backlog**), `website/features/**`, `website/connectors/**`, `website/security/`, [`docs/integrations/index.html`](docs/integrations/index.html) — for the **AccessFlow** column; the vendor pages listed in each page's `#sources` section — for the **competitor** column | **`/compare/` hub and the four comparison pages** ([`compare/`](compare/)) — the "how does it compare" answer. The AccessFlow column of every matrix and every AccessFlow sentence must trace to one of the sources on the left; a capability added or removed in the product changes all four matrices together. The competitor column changes only when the vendor's documentation does, and moving it moves the page's three dates. See "The comparison pages" under SEO for the rules the tests pin |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) | **Roadmap stub** (homepage, `#roadmap`) — since [#789](https://github.com/bablsoft/accessflow/issues/789) a two-line stub that keeps the `#roadmap` id alive and links the `/roadmap/` page. [#791](https://github.com/bablsoft/accessflow/issues/791) took `#roadmap` out of the nav, which does **not** retire the id: it is still in the nav of every already-deployed page and in the wild, and a fragment can never be redirect-repaired. The `/roadmap/` page owns the capability map |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) (milestone grouping, `✅ released` / `🚧 in progress` status markers, Backlog list, Contribution Path), the [GitHub milestones](https://github.com/bablsoft/accessflow/milestones) (live status of the release in progress — note the doc grouping runs about one release offset from the GitHub milestones, so reconcile against both) | **`/roadmap/` page** ([`roadmap/index.html`](roadmap/index.html)) — the status answer: the **Available now** capability grid (ten groups: Proxy &amp; data access · AI &amp; monitoring · Review &amp; access · API governance · Deployment governance · Compliance · Auth &amp; audit · Security &amp; ops · Automation &amp; IaC · Deploy) above a compact **Planned** band — the **only** copy since [#789](https://github.com/bablsoft/accessflow/issues/789) cut the homepage `#roadmap` section to a stub. Grouped by capability, never by release; a feature moving out of the doc's Backlog into a released milestone must move out of the Planned band into the matching available-now group. Plus what the homepage cannot afford: per-milestone context for the recent releases, the in-progress milestone's scope, and links to the GitHub milestones. Never name website work as a roadmap item — the page describes the product |
 | [`docs/12-roadmap.md`](../docs/12-roadmap.md) (the `✅ released` milestone sections — theme + scope bullets), the [GitHub releases](https://github.com/bablsoft/accessflow/releases) (publish dates and patch tags) | **`/changelog/` page** ([`changelog/index.html`](changelog/index.html)) — one `<section id="vX-Y-0">` per stable release, newest first, each with a `Released <time>` line, the GitHub release link and the milestone's scope rewritten as release-note prose. Seeded with v1.0 → v2.4 by [#836](https://github.com/bablsoft/accessflow/issues/836); from then on the `prep-gh-release` skill (step 4a′) appends the entry when a milestone ships, so a hand-edit here is a sign the skill was bypassed. Pre-releases are never listed. The anchor is what the app's update hint deep-links to, so **never rename one** |
@@ -164,6 +165,11 @@ website/
 │   ├── database-access-governance/  # Deep dive — proxy, AI, review, grouping, lifecycle (AF-788)
 │   ├── api-access-governance/       # Deep dive — connectors, catalog, masking (AF-788)
 │   └── deployment-governance/       # Deep dive — pipelines, gate, freeze windows (AF-788)
+├── compare/         # Competitor comparisons — hub + four sourced, dated pages (see "The comparison pages")
+│   ├── accessflow-vs-bytebase/
+│   ├── accessflow-vs-hoop-dev/
+│   ├── open-source-strongdm-alternative/
+│   └── open-source-teleport-database-access-alternative/
 ├── docs/            # Public user documentation — one page per chapter
 │   ├── index.html   #   hub: read-this-first, chapter index, legacy-anchor forwarder
 │   ├── install/     #   Docker Compose / Helm / from source + first-run setup
@@ -284,8 +290,9 @@ with a modern browser User-Agent, and download the `.woff2` URLs it returns.
 Every HTML page ships a full SEO meta block — canonical URL, Open Graph, Twitter Card,
 `theme-color`, and a JSON-LD `@graph`. The page-specific node is `WebPage` on the homepage;
 `TechArticle` on each docs chapter, on `/security/`, on `/ai-agents/` and on the three
-`/features/` spokes; `CollectionPage` + `ItemList` on the `/connectors/`, `/use-cases/` and
-`/features/` catalog pages; plain `WebPage` on `/roadmap/` and `/changelog/`. Every page except the homepage
+`/features/` spokes; `CollectionPage` + `ItemList` on the `/connectors/`, `/use-cases/`, `/features/` and
+`/compare/` catalog pages; plain `WebPage` on `/roadmap/`, `/changelog/` and the four
+`/compare/` comparison pages (they are not tutorials). Every page except the homepage
 also carries a `BreadcrumbList`.
 
 **Every graph is self-contained.** `Organization`, `SoftwareApplication` and `WebSite` are
@@ -314,8 +321,9 @@ tested. Add real profiles to `sameAs` when they exist; never invent one.
 
 `BreadcrumbList` depth follows URL depth: two levels for a
 top-level page, three for anything nested — the eleven `docs/` chapters
-(AccessFlow → Documentation → the chapter) and the three `/features/` spokes
-(AccessFlow → Features → the spoke).
+(AccessFlow → Documentation → the chapter), the three `/features/` spokes
+(AccessFlow → Features → the spoke) and the four `/compare/` pages
+(AccessFlow → Compare → the comparison).
 
 **Every `BreadcrumbList` has a visible counterpart.** The trail renders as
 `<nav class="breadcrumb">` at the top of `<header class="docs-hero">`, and the page node
@@ -357,6 +365,41 @@ mechanics — that is the failure mode this tier is prone to, and the fix was to
 and link out, not to add words. `scylladb` and `opensearch` are the other trap: they share an AccessFlow
 engine with `cassandra` and `elasticsearch`, so they are written to answer "is it the same?" directly
 rather than to paraphrase their sibling.
+
+### The comparison pages
+
+`/compare/` is a hub plus four pages — `accessflow-vs-bytebase`, `accessflow-vs-hoop-dev`,
+`open-source-strongdm-alternative`, `open-source-teleport-database-access-alternative` — that
+compete for the "X vs Y" and "open-source X alternative" queries. They are trust pages, not ads,
+and `websitePages.test.ts` pins the editorial rules under `describe('comparison pages')`:
+
+- **Every claim about another product is verifiable from that vendor's public documentation**
+  on the day the page was checked. Each page ends with `<section id="sources">` listing the
+  URLs relied on and a `<time datetime>` for the check date, which must equal the page's
+  `dateModified` and `<lastmod>` — re-checking the sources *is* a content change. Competitor
+  links carry `rel="nofollow noopener"`.
+- **A cell we could not verify says `Not documented`, never `No`.** The AccessFlow column is
+  written from the repo (`README.md`, `docs/`, `website/features/**`, `website/connectors/**`,
+  `website/security/`, `website/docs/integrations/`) and may say `No` where that is the truth:
+  no wire protocol, no SSH/Kubernetes access, no session recording, no migration lifecycle.
+- **Each page has a "Where <competitor> is the better fit" section** with at least three
+  concrete cases, and an AccessFlow counterpart. A page that only flatters AccessFlow fails.
+- **≥ 900 words of narrative per comparison, ≥ 400 on the hub**, counted with the sidebar,
+  the matrix, the disclaimer and the sources stripped out; and no two comparisons may share
+  more than 20% of their sentences — the matrix may share row labels, the prose may not.
+- **`WebPage` on the comparisons, `CollectionPage` + `ItemList` on the hub; never
+  `Product`, `Review` or `AggregateRating`** — there are no ratings.
+- A shared `docs-callout` disclaimer under every hero: names are their owners' property,
+  AccessFlow is not affiliated, and (hub only) this AccessFlow is unrelated to Alcor's
+  AccessFlow for ServiceNow. No competitor logos — the CSP is `img-src 'self'` anyway.
+
+The matrix uses `table.docs-table.compare-table`; the modifier exists because the default
+`.docs-table` non-first column is an 80px centred accent-mono tick column, which would wrap
+"Not documented" and colour it like a "yes". The pages reach the 10-inbound-links floor
+through the **Compare** footer column, which is the only way a five-page family can — that
+column is a mechanical chrome edit and never moves another page's dates. `/compare/` is
+excluded from the help corpus (`EXCLUDED_PREFIXES` in `build-help-corpus.mjs`): claims about
+other vendors are not documentation the in-app assistant should restate.
 
 ### Regenerating og-image.png
 

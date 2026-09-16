@@ -46,6 +46,16 @@ One page per governed engine — how AccessFlow connects to it, what it parses, 
 - [OpenSearch access governance](https://accessflow.io/connectors/opensearch/): the same engine as Elasticsearch over a different HTTP client stack
 - [Neo4j access governance](https://accessflow.io/connectors/neo4j/): Cypher over Bolt, with row security spliced onto each MATCH clause
 
+## Comparisons
+
+Sourced, dated comparisons with the products AccessFlow is evaluated against. Every claim about another product cites its public documentation, unverifiable cells say "Not documented", and each page names where the other tool is the better fit.
+
+- [Compare AccessFlow with Bytebase, hoop.dev, StrongDM and Teleport](https://accessflow.io/compare/): The hub — how the comparisons are written, what AccessFlow is and is not, and which page to read first
+- [AccessFlow vs Bytebase](https://accessflow.io/compare/accessflow-vs-bytebase/): Every-statement review versus schema change management, with the edition each capability lives in
+- [AccessFlow vs hoop.dev](https://accessflow.io/compare/accessflow-vs-hoop-dev/): A proxy you submit a statement to versus a gateway your existing clients connect through
+- [Open-source StrongDM alternative](https://accessflow.io/compare/open-source-strongdm-alternative/): What the self-hosted proxy replaces in StrongDM's database slice, and what it does not
+- [Open-source Teleport Database Access alternative](https://accessflow.io/compare/open-source-teleport-database-access-alternative/): Reviewing the statement instead of the session, and the two licences compared
+
 ## Docs
 
 - [Governed database access for AI agents](https://accessflow.io/ai-agents/): How AI agents query production through AccessFlow's MCP server — scoped API keys, the twelve-tool surface, AI risk analysis and human approval before execution, masking and row-level security on samples, caller-scoped audit

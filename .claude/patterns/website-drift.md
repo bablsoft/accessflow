@@ -21,6 +21,7 @@ website/
 ├── version.json                # release manifest self-hosted installs poll daily (#836) — stable versions only
 ├── roadmap/                    # capability grid + milestone context
 ├── changelog/                  # one anchored section per release (#836) — written by prep-gh-release, never renamed
+├── compare/                    # competitor comparisons — hub + 4 sourced, dated pages; guarded by describe('comparison pages')
 └── docs/
     ├── index.html              # hub
     ├── install/

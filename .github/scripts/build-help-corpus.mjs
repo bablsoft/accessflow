@@ -85,6 +85,10 @@ const EXCLUDED_PREFIXES = [
   'website/roadmap/',
   // Version-specific; the corpus already ships with the version it documents.
   'website/changelog/',
+  // Competitor comparisons (/compare/): claims about other vendors' products, dated and sourced
+  // from their documentation. Not documentation of this application — an in-app help answer
+  // must never restate them — and five ~1,200-word pages would push the chunk count past MAX_CHUNKS.
+  'website/compare/',
 ];
 const EXCLUDED_FILES = [
   'website/404.html',                    // error page, no prose

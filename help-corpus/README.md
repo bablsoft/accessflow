@@ -62,6 +62,9 @@ Excluded on purpose:
 - **`website/roadmap/`** — it describes unbuilt work, and an agent that retrieves it will
   confidently explain features the user does not have.
 - **`website/changelog/`** — version-specific.
+- **`website/compare/`** — competitor comparisons. Claims about other vendors' products, dated and
+  sourced from their documentation, are not documentation of this application, and the help
+  assistant must never restate them as if they were.
 - **Every page's shared nav, sidebar and footer** — otherwise ~10k words of near-duplicate link
   text would dominate similarity search across all 50 sources.
 - **Decorative product mock-ups** (`aria-hidden="true"`, or the site's `mock` class) — the
