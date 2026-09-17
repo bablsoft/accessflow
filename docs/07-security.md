@@ -273,7 +273,7 @@ Secrets at rest: `slack_app_config.bot_token_encrypted` and `signing_secret_encr
 ## Authorization — Roles & the permission catalog (AF-522)
 
 Functional authorization is **permission-based**. A fixed, code-defined catalog of functional
-permissions (`core.api.Permission`, 44 values grouped for display — see
+permissions (`core.api.Permission`, 45 values grouped for display — see
 `GET /api/v1/admin/permissions`) is composed into **roles**:
 
 - The **5 system roles** (`ADMIN`, `REVIEWER`, `ANALYST`, `READONLY`, `AUDITOR`) are immutable
@@ -389,6 +389,7 @@ without a per-datasource grant) → `QUERY_ADMIN`; "always an eligible approver"
 | Manage deployment pipelines (`DEPLOYMENT_PIPELINE_MANAGE`, #684) | — | — | — | ✓ | — |
 | Review deployment requests (`DEPLOYMENT_REVIEW`, #684) | — | — | ✓ | ✓ | — |
 | Manage SQL review rulesets + read the rule catalog (`SQL_REVIEW_MANAGE`, #861/#863) | — | — | — | ✓ | — |
+| Manage service accounts (`SERVICE_ACCOUNT_MANAGE`, #868) | — | — | — | ✓ | — |
 | Lint SQL against a visible datasource's ruleset (`POST /sql-review/evaluate`, #863) | ✓ | ✓ | ✓ | ✓ | — |
 | Manage notification channels | — | — | — | ✓ | — |
 | Configure AI provider | — | — | — | ✓ | — |
@@ -484,6 +485,18 @@ group, seeded by `V151` (same `VARCHAR`-catalog convention as `V134`/`V146`/`V14
 `REVIEWER`). What each one gates, and why triggering a deployment deliberately has no functional
 permission at all, is in
 [Deployment governance security](#deployment-governance-security-epic-af-682) below.
+
+**Service accounts (#868, epic #867):** `SERVICE_ACCOUNT_MANAGE` sits in the `USERS` group beside
+`USER_MANAGE` / `GROUP_MANAGE` / `ROLE_MANAGE` and is held by `ADMIN` only (seeded by `V174`, same
+`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`/`V171`). It will gate the admin CRUD,
+key issuance and rotation that #871 adds; #868 ships the catalog value, the seed, the
+`users.principal_type` discriminator and the `service_accounts` detail table only, so nothing is
+gated by it yet and a service account still authenticates and is authorized exactly as the role on
+its **own** `users` row dictates — `owner_user_id` (the human it acts for) confers nothing. The discriminator is set only through `UserAdminService.setPrincipalType`,
+called from the `serviceaccounts` module in the same transaction as the detail row — no other code
+path can type a user (`PrincipalTypeChokepointTest`, an ArchUnit rule, fails the build on any other
+caller), and `security` never depends on `serviceaccounts` (it reads `principalType`
+off `core.api.UserView`).
 
 **Deterministic SQL review (#861, epic #860 — full chapter: [docs/19-sql-review.md](19-sql-review.md)):** `SQL_REVIEW_MANAGE` sits in the `WORKFLOW_ADMIN`
 group beside `ROUTING_POLICY_MANAGE` and is held by `ADMIN` only (seeded by `V171`, same

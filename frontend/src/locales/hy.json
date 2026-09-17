@@ -3171,6 +3171,7 @@
       "USER_MANAGE": "Կառավարել օգտատերերին",
       "GROUP_MANAGE": "Կառավարել խմբերը",
       "ROLE_MANAGE": "Կառավարել դերերը",
+      "SERVICE_ACCOUNT_MANAGE": "Կառավարել ծառայողական հաշիվները",
       "AI_MANAGE": "Կառավարել ԱԲ կազմաձևումը",
       "NOTIFICATION_CHANNEL_MANAGE": "Կառավարել ծանուցումների ալիքները",
       "SSO_CONFIGURE": "Կազմաձևել SSO-ն",

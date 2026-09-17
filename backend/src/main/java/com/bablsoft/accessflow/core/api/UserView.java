@@ -20,16 +20,28 @@ public record UserView(
         boolean platformAdmin,
         Instant createdAt,
         String scimExternalId,
-        Instant updatedAt
+        Instant updatedAt,
+        PrincipalType principalType
 ) {
     /**
      * {@code role} is the legacy system-role enum — null for users on a custom role (AF-522).
      * {@code roleName} is always populated: the assigned role's name (system or custom).
      * {@code scimExternalId} is the IdP-side SCIM identifier, null unless SCIM-managed (#621);
      * {@code updatedAt} feeds SCIM {@code meta.lastModified} and may be null for views built by
-     * legacy callers.
+     * legacy callers. {@code principalType} tells a person from a service account (#868).
      */
     public UserView {
+    }
+
+    /** Convenience constructor for callers that predate the principal-type discriminator (#868). */
+    public UserView(UUID id, String email, String displayName, UserRoleType role, UUID roleId,
+                    String roleName, UUID organizationId, boolean active,
+                    AuthProviderType authProvider, String passwordHash, Instant lastLoginAt,
+                    String preferredLanguage, boolean totpEnabled, boolean platformAdmin,
+                    Instant createdAt, String scimExternalId, Instant updatedAt) {
+        this(id, email, displayName, role, roleId, roleName, organizationId, active, authProvider,
+                passwordHash, lastLoginAt, preferredLanguage, totpEnabled, platformAdmin,
+                createdAt, scimExternalId, updatedAt, PrincipalType.HUMAN);
     }
 
     /** Convenience constructor for callers that predate the SCIM columns (#621). */

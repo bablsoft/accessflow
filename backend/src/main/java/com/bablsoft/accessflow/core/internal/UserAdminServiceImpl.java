@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
 import com.bablsoft.accessflow.core.api.PageRequest;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.SortOrder;
 import com.bablsoft.accessflow.core.api.PageResponse;
 import com.bablsoft.accessflow.core.api.Permission;
@@ -154,6 +155,14 @@ class UserAdminServiceImpl implements UserAdminService {
         var entity = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
         entity.setPlatformAdmin(platformAdmin);
+        return toView(entity);
+    }
+
+    @Override
+    @Transactional
+    public UserView setPrincipalType(UUID id, UUID organizationId, PrincipalType principalType) {
+        var entity = loadInOrganization(id, organizationId);
+        entity.setPrincipalType(principalType);
         return toView(entity);
     }
 

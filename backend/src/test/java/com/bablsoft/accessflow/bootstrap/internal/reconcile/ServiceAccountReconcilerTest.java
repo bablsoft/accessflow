@@ -13,6 +13,8 @@ import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountProvisioningService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -43,6 +45,7 @@ class ServiceAccountReconcilerTest {
     @Mock ApiKeyService apiKeyService;
     @Mock PasswordEncoder passwordEncoder;
     @Mock BootstrapStateTracker stateTracker;
+    @Mock ServiceAccountProvisioningService provisioningService;
     @Spy SpecFingerprinter fingerprinter = new SpecFingerprinter();
     @InjectMocks ServiceAccountReconciler reconciler;
 
@@ -73,7 +76,10 @@ class ServiceAccountReconcilerTest {
         assertThat(cmd.getValue().passwordHash()).isEqualTo("ENCODED");
         assertThat(cmd.getValue().passwordHash()).isNotEqualTo("af_raw_key");
 
-        verify(apiKeyService).importOrUpdate(newUserId, ORG_ID, "terraform", "af_raw_key", null);
+        // #868: typed as a bootstrap-managed service account, before the key import.
+        var order = org.mockito.Mockito.inOrder(provisioningService, apiKeyService);
+        order.verify(provisioningService).ensureRegistered(ORG_ID, newUserId, ServiceAccountSource.BOOTSTRAP);
+        order.verify(apiKeyService).importOrUpdate(newUserId, ORG_ID, "terraform", "af_raw_key", null);
 
         var event = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
         verify(stateTracker).recordFingerprintAndPublish(eq(ORG_ID),
@@ -116,6 +122,7 @@ class ServiceAccountReconcilerTest {
                 new ServiceAccountSpec("ci@acme.com", "CI", null, "terraform", "af_rotated", null)));
 
         verify(userAdminService, never()).createUser(any());
+        verify(provisioningService).ensureRegistered(ORG_ID, existingId, ServiceAccountSource.BOOTSTRAP);
         verify(apiKeyService).importOrUpdate(existingId, ORG_ID, "terraform", "af_rotated", null);
 
         var event = ArgumentCaptor.forClass(BootstrapResourceUpsertedEvent.class);
@@ -138,6 +145,7 @@ class ServiceAccountReconcilerTest {
                 new ServiceAccountSpec("ci@acme.com", "CI", null, "terraform", "af_key", null)));
 
         verify(apiKeyService, never()).importOrUpdate(any(), any(), any(), any(), any());
+        verify(provisioningService, never()).ensureRegistered(any(), any(), any());
         verify(stateTracker, never()).recordFingerprintAndPublish(any(), any(), any(), any(), any());
     }
 

@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
 import com.bablsoft.accessflow.core.api.EmailAlreadyExistsException;
 import com.bablsoft.accessflow.core.api.IllegalUserOperationException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.QuotaExceededException;
 import com.bablsoft.accessflow.core.api.QuotaService;
 import com.bablsoft.accessflow.core.api.QuotaType;
@@ -143,6 +144,30 @@ class UserAdminServiceImplTest {
 
         assertThat(result.platformAdmin()).isTrue();
         assertThat(entity.isPlatformAdmin()).isTrue();
+    }
+
+    @Test
+    void setPrincipalTypeFlipsTheDiscriminatorInsideTheOrganization() {
+        var entity = buildUser(userId, orgId, "ci@example.com", UserRoleType.ADMIN);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(entity));
+
+        var result = service.setPrincipalType(userId, orgId, PrincipalType.SERVICE_ACCOUNT);
+
+        assertThat(result.principalType()).isEqualTo(PrincipalType.SERVICE_ACCOUNT);
+        assertThat(entity.getPrincipalType()).isEqualTo(PrincipalType.SERVICE_ACCOUNT);
+    }
+
+    @Test
+    void setPrincipalTypeThrowsWhenUserMissingOrInAnotherOrganization() {
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.setPrincipalType(userId, orgId, PrincipalType.SERVICE_ACCOUNT))
+                .isInstanceOf(UserNotFoundException.class);
+
+        var foreign = buildUser(userId, otherOrgId, "ci@example.com", UserRoleType.ADMIN);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(foreign));
+        assertThatThrownBy(() -> service.setPrincipalType(userId, orgId, PrincipalType.SERVICE_ACCOUNT))
+                .isInstanceOf(UserNotFoundException.class);
+        assertThat(foreign.getPrincipalType()).isEqualTo(PrincipalType.HUMAN);
     }
 
     @Test

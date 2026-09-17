@@ -3171,6 +3171,7 @@
       "USER_MANAGE": "Gérer les utilisateurs",
       "GROUP_MANAGE": "Gérer les groupes",
       "ROLE_MANAGE": "Gérer les rôles",
+      "SERVICE_ACCOUNT_MANAGE": "Gérer les comptes de service",
       "AI_MANAGE": "Gérer la configuration de l'IA",
       "NOTIFICATION_CHANNEL_MANAGE": "Gérer les canaux de notification",
       "SSO_CONFIGURE": "Configurer le SSO",

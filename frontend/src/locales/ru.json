@@ -3171,6 +3171,7 @@
       "USER_MANAGE": "Управлять пользователями",
       "GROUP_MANAGE": "Управлять группами",
       "ROLE_MANAGE": "Управлять ролями",
+      "SERVICE_ACCOUNT_MANAGE": "Управлять сервисными учётными записями",
       "AI_MANAGE": "Управлять конфигурацией ИИ",
       "NOTIFICATION_CHANNEL_MANAGE": "Управлять каналами уведомлений",
       "SSO_CONFIGURE": "Настраивать SSO",

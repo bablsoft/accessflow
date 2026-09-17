@@ -61,6 +61,7 @@ an identity provider over SCIM 2.0 (#621).
 | `totp_enabled` | BOOLEAN NOT NULL DEFAULT false — flipped to true only after the user confirms enrolment with a valid code |
 | `totp_backup_codes_encrypted` | TEXT — AES-256-GCM ciphertext of a JSON array of bcrypt hashes (one per single-use recovery code). Codes are removed from the array as they're consumed. Null when 2FA is not enabled. |
 | `attributes` | JSONB NOT NULL DEFAULT `'{}'` (AF-380) — admin-editable per-user attribute map, resolvable in row-security predicates as `:user.<key>`. Set via the user admin API; **not** synced from the IdP. Added by `V61__add_users_attributes.sql`. |
+| `principal_type` | ENUM `principal_type`: `HUMAN` \| `SERVICE_ACCOUNT`, NOT NULL DEFAULT `HUMAN` (#868, V173, epic #867) — the person-vs-non-human discriminator. A service account is **still a `users` row** (every actor FK points at `users(id)`; the self-approval invariant is a `UUID.equals` on it) with a 1:1 detail row in [`service_accounts`](#service_accounts-serviceaccounts-868--epic-867). At runtime only `UserAdminService.setPrincipalType`, called from `ServiceAccountProvisioningService.ensureRegistered` in the same transaction as the detail row, ever flips it; the one other writer is the V173 backfill, which flipped exactly the users recorded in `bootstrap_state` as `SERVICE_ACCOUNT`. Nothing enforces it yet (#869 blocks interactive sign-in, #872 MCP allow-lists, #873 rate limits). |
 | `scim_external_id` | VARCHAR(255), nullable (#621, V139) — the IdP-side SCIM `externalId`. Partial unique index `uq_users_org_scim_external_id ON (organization_id, scim_external_id) WHERE scim_external_id IS NOT NULL`. |
 | `created_at` | TIMESTAMPTZ |
 | `updated_at` | TIMESTAMPTZ NOT NULL (#621, V139; backfilled from `created_at`) — maintained by JPA `@PreUpdate`, feeds SCIM `meta.lastModified`. |
@@ -96,8 +97,9 @@ roles these rows are display/catalog data only (runtime resolution answers from
 | `permission` | VARCHAR(100) NOT NULL — a `Permission` enum name |
 
 Catalog values added after `V114` are seeded for the system roles that hold them by their own
-one-file migration (`V134`, `V146`, `V148`, `V151`, `V171` — the last seeds `SQL_REVIEW_MANAGE` for
-`ADMIN`, #861); `SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
+one-file migration (`V134`, `V146`, `V148`, `V151`, `V171`, `V174` — the last two seed
+`SQL_REVIEW_MANAGE` (#861) and `SERVICE_ACCOUNT_MANAGE` (#868) for `ADMIN`);
+`SystemRoleSeedParityIntegrationTest` fails when a value lands without its seed.
 
 ---
 
@@ -129,6 +131,40 @@ permissions exactly — there is no separate scope model.
 The raw key uses the format `af_<32-byte base64url, no padding>` (~38 chars). The plaintext is
 **never persisted** — only the `key_hash` and `key_prefix` are. See `docs/07-security.md` →
 "API key authentication" and `docs/13-mcp.md` for the full lifecycle and auth flow.
+
+---
+
+## service_accounts (`serviceaccounts`, #868 / epic #867)
+
+The 1:1 detail row of a non-human identity — an MCP-connected agent, the Terraform provider, a CI
+job. #868 lands the schema, the discriminator on `users`, the backfill, the module's read-side
+lookup (`ServiceAccountLookupService`), the single write chokepoint
+(`ServiceAccountProvisioningService.ensureRegistered` — flips `users.principal_type` and upserts
+this row in one transaction; the bootstrap reconciler is its only caller until #871) and the
+`SERVICE_ACCOUNT_MANAGE` permission (`USERS` group, `ADMIN` only, seeded by `V174`);
+the columns marked *(reserved)* are populated by later sub-issues and nothing reads them yet. The
+detail row **is part of the identity**, so unlike other modules' cross-module references these are
+real foreign keys: deleting the user deletes the account, deleting the owning human only detaches
+ownership. Created by `V173`.
+
+| Column | Type / Notes |
+|--------|-------------|
+| `user_id` | UUID PK, FK → `users` ON DELETE CASCADE — the `users` row this extends; there is no separate identity id |
+| `organization_id` | FK → `organizations` ON DELETE CASCADE. Indexed (`idx_service_accounts_org`) |
+| `description` | VARCHAR(500), nullable — *(reserved, #871)* |
+| `owner_user_id` | FK → `users` ON DELETE SET NULL, nullable — the human the account acts for *(reserved, #871/#874)* |
+| `managed_by` | ENUM `service_account_source`: `UI` \| `BOOTSTRAP`, NOT NULL — which surface owns the declared fields — email, display name and role on `users`, the declared key in `api_keys`. The bootstrap reconciler stamps `BOOTSTRAP` on every create and update; `UI` accounts arrive with #871. The remaining columns are UI-owned on both and are never touched by a bootstrap re-run |
+| `mcp_tool_allow_list` | TEXT[], nullable — MCP tool names the account may invoke *(reserved, enforced by #872)*. **`NULL` = every tool, `'{}'` = none.** Tool names rather than an enum type, so a renamed tool never makes a row unreadable; the catalog is `serviceaccounts.api.McpToolName`, kept equal to the registered `@Tool` set by `McpToolNameParityTest` |
+| `rate_limit_per_minute` | INTEGER, nullable — *(reserved, #873)*; `NULL` = unlimited |
+| `rate_limit_per_day` | INTEGER, nullable — *(reserved, #873)*; `NULL` = unlimited |
+| `version` | BIGINT NOT NULL DEFAULT 0 — optimistic lock |
+| `created_at` / `updated_at` | TIMESTAMPTZ NOT NULL DEFAULT `CURRENT_TIMESTAMP` — `updated_at` maintained by JPA `@PreUpdate` |
+
+> **Backfill (V173):** `BootstrapStateTracker` records every reconciler-created service account as a
+> `bootstrap_state` row with `resource_type = 'SERVICE_ACCOUNT'` and `resource_id = users.id`, so
+> the pre-existing set is exactly identifiable: those users are flipped to `SERVICE_ACCOUNT` and get
+> a `managed_by = 'BOOTSTRAP'` row; every other user stays `HUMAN`.
+> `ServiceAccountIdentityBackfillIntegrationTest` replays the shipped statements.
 
 ---
 

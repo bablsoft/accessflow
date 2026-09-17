@@ -7,10 +7,13 @@ import com.bablsoft.accessflow.bootstrap.internal.BootstrapStateTracker;
 import com.bablsoft.accessflow.bootstrap.internal.SpecFingerprinter;
 import com.bablsoft.accessflow.bootstrap.internal.spec.ServiceAccountSpec;
 import com.bablsoft.accessflow.core.api.CreateUserCommand;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserAdminService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountProvisioningService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,7 +30,14 @@ import java.util.UUID;
  * used by the Terraform provider and the reusable CI Actions. Mirrors {@link AiConfigReconciler}'s
  * fingerprint-skip / authoritative-upsert flow, keyed on the service-account user id. The supplied
  * raw API key is imported (hash stored) via {@link ApiKeyService#importOrUpdate}; password login is
- * disabled by seeding an unusable random hash.
+ * disabled by seeding an unusable random hash. Since #868 the account is also a typed identity:
+ * on every create or update it is registered through
+ * {@link ServiceAccountProvisioningService#ensureRegistered} as {@code SERVICE_ACCOUNT} /
+ * {@code managed_by = BOOTSTRAP}. The UI-owned fields of that row (tool allow-list, rate limits,
+ * owner, description) are deliberately outside the spec and its fingerprint, so an admin's edit
+ * survives a restart and an existing install adopts the feature with no YAML change. A declared
+ * email that already belongs to a plain user is adopted (typed on the next changed reconcile) and
+ * logged at WARN, since there is no reverse path.
  */
 @Component
 @RequiredArgsConstructor
@@ -40,6 +50,7 @@ public class ServiceAccountReconciler {
     private final PasswordEncoder passwordEncoder;
     private final BootstrapStateTracker stateTracker;
     private final SpecFingerprinter fingerprinter;
+    private final ServiceAccountProvisioningService serviceAccountProvisioningService;
 
     public Map<String, UUID> reconcile(UUID organizationId, List<ServiceAccountSpec> specs) {
         var byEmail = new HashMap<String, UUID>();
@@ -79,6 +90,10 @@ public class ServiceAccountReconciler {
         }
 
         var changeKind = storedFingerprint == null ? BootstrapChangeKind.CREATE : BootstrapChangeKind.UPDATE;
+        // Type the identity before the key import: a failed import must leave a correctly typed
+        // user rather than a keyed HUMAN.
+        serviceAccountProvisioningService.ensureRegistered(organizationId, userId,
+                ServiceAccountSource.BOOTSTRAP);
         apiKeyService.importOrUpdate(userId, organizationId, spec.apiKeyName(), spec.apiKey(),
                 spec.apiKeyExpiresAt());
         log.info("Bootstrap: {} service-account API key '{}' for '{}' (userId={})",
@@ -106,6 +121,14 @@ public class ServiceAccountReconciler {
                 throw new IllegalStateException(
                         "Service account email '%s' is registered against a different organization"
                                 .formatted(spec.email()));
+            }
+            if (user.principalType() != PrincipalType.SERVICE_ACCOUNT) {
+                // Adoption is deliberate (a pre-#868 install declares accounts that already exist
+                // as plain users), but a typo naming a real person's email must be loud: once #869
+                // lands, that person can no longer sign in interactively.
+                log.warn("Bootstrap: service account '{}' matches an existing {} user {} — "
+                        + "adopting it as a SERVICE_ACCOUNT; interactive sign-in for it will be blocked",
+                        spec.email(), user.principalType(), user.id());
             }
             return user.id();
         }
