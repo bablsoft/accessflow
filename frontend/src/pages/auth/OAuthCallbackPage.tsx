@@ -19,6 +19,7 @@ const KNOWN_ERROR_CODES = new Set([
   'OAUTH2_ORG_NOT_ALLOWED',
   'OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED',
   'ACCOUNT_DISABLED',
+  'SERVICE_ACCOUNT_SIGN_IN_BLOCKED',
 ]);
 
 export function OAuthCallbackPage() {

@@ -13,6 +13,7 @@ import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.api.LoginCommand;
 import com.bablsoft.accessflow.security.api.PasswordResetService;
+import com.bablsoft.accessflow.security.api.ServiceAccountSignInException;
 import com.bablsoft.accessflow.security.api.StepUpService;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
@@ -250,7 +251,8 @@ class AuthController {
     @Operation(summary = "Authenticate with email and password, returns JWT access token")
     @ApiResponse(responseCode = "200", description = "Login successful")
     @ApiResponse(responseCode = "400", description = "Validation error")
-    @ApiResponse(responseCode = "401", description = "Invalid credentials")
+    @ApiResponse(responseCode = "401", description = "Invalid credentials, or a service account "
+            + "(SERVICE_ACCOUNT_SIGN_IN_BLOCKED — service accounts authenticate by API key only)")
     ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
                                         RequestAuditContext auditContext,
                                         HttpServletResponse response) {
@@ -265,6 +267,11 @@ class AuthController {
             throw ex;
         } catch (TotpAuthenticationException ex) {
             recordLoginFailureAudit(AuditAction.USER_LOGIN_TOTP_FAILED, request.email(), auditContext,
+                    ex.getMessage());
+            throw ex;
+        } catch (ServiceAccountSignInException ex) {
+            // Not a Spring AuthenticationException (api-package purity), so audit it explicitly.
+            recordLoginFailureAudit(AuditAction.USER_LOGIN_FAILED, request.email(), auditContext,
                     ex.getMessage());
             throw ex;
         } catch (AuthenticationException ex) {
@@ -292,7 +299,8 @@ class AuthController {
     @PostMapping("/refresh")
     @Operation(summary = "Exchange refresh token cookie for a new access token")
     @ApiResponse(responseCode = "200", description = "Token refreshed successfully")
-    @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token, or the user "
+            + "has become a service account (SERVICE_ACCOUNT_SIGN_IN_BLOCKED)")
     ResponseEntity<LoginResponse> refresh(
             @CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken,
             HttpServletResponse response) {

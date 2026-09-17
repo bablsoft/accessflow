@@ -6,8 +6,10 @@ import com.bablsoft.accessflow.core.api.OrganizationLookupService;
 import com.bablsoft.accessflow.core.api.UserProfileService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
+import com.bablsoft.accessflow.security.api.ApiKeyAuthentication;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
 import com.bablsoft.accessflow.security.api.JwtClaims;
+import com.bablsoft.accessflow.security.api.ResolvedApiKey;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,7 +68,7 @@ class ApiKeyAuthenticationFilterTest {
     void x_api_key_header_populates_principal_with_jwt_claims() throws Exception {
         var userId = UUID.randomUUID();
         var orgId = UUID.randomUUID();
-        when(apiKeyService.resolveUserId("af_valid")).thenReturn(Optional.of(userId));
+        when(apiKeyService.resolve("af_valid")).thenReturn(Optional.of(new ResolvedApiKey(UUID.randomUUID(), userId)));
         when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, orgId));
 
         var req = new MockHttpServletRequest();
@@ -85,7 +87,7 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void authorization_apikey_scheme_also_supported() throws Exception {
         var userId = UUID.randomUUID();
-        when(apiKeyService.resolveUserId("af_xyz")).thenReturn(Optional.of(userId));
+        when(apiKeyService.resolve("af_xyz")).thenReturn(Optional.of(new ResolvedApiKey(UUID.randomUUID(), userId)));
         when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, UUID.randomUUID()));
 
         var req = new MockHttpServletRequest();
@@ -97,7 +99,7 @@ class ApiKeyAuthenticationFilterTest {
 
     @Test
     void unknown_key_does_not_authenticate_but_still_passes_chain() throws Exception {
-        when(apiKeyService.resolveUserId("af_unknown")).thenReturn(Optional.empty());
+        when(apiKeyService.resolve("af_unknown")).thenReturn(Optional.empty());
         var req = new MockHttpServletRequest();
         req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_unknown");
         filter.doFilter(req, new MockHttpServletResponse(), chain);
@@ -108,7 +110,7 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void inactive_user_does_not_authenticate() throws Exception {
         var userId = UUID.randomUUID();
-        when(apiKeyService.resolveUserId("af_inactive")).thenReturn(Optional.of(userId));
+        when(apiKeyService.resolve("af_inactive")).thenReturn(Optional.of(new ResolvedApiKey(UUID.randomUUID(), userId)));
         when(userProfileService.getProfile(userId)).thenReturn(inactiveUser(userId));
         var req = new MockHttpServletRequest();
         req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_inactive");
@@ -120,7 +122,7 @@ class ApiKeyAuthenticationFilterTest {
     void disabled_organization_does_not_authenticate() throws Exception {
         var userId = UUID.randomUUID();
         var orgId = UUID.randomUUID();
-        when(apiKeyService.resolveUserId("af_disabled_org")).thenReturn(Optional.of(userId));
+        when(apiKeyService.resolve("af_disabled_org")).thenReturn(Optional.of(new ResolvedApiKey(UUID.randomUUID(), userId)));
         when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, orgId));
         when(organizationLookupService.isDisabled(orgId)).thenReturn(true);
         var req = new MockHttpServletRequest();
@@ -132,11 +134,46 @@ class ApiKeyAuthenticationFilterTest {
     @Test
     void already_authenticated_skips_lookup() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(new ApiKeyAuthenticationToken(
+                UUID.randomUUID(),
                 JwtClaims.forSystemRole(UUID.randomUUID(), "a@b.c", UserRoleType.ADMIN, UUID.randomUUID())));
         var req = new MockHttpServletRequest();
         req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_anything");
         filter.doFilter(req, new MockHttpServletResponse(), chain);
-        verify(apiKeyService, never()).resolveUserId(any());
+        verify(apiKeyService, never()).resolve(any());
+    }
+
+    @Test
+    void resolved_token_exposes_the_originating_api_key_id() throws Exception {
+        var userId = UUID.randomUUID();
+        var apiKeyId = UUID.randomUUID();
+        when(apiKeyService.resolve("af_valid")).thenReturn(Optional.of(new ResolvedApiKey(apiKeyId, userId)));
+        when(userProfileService.getProfile(userId)).thenReturn(activeUser(userId, UUID.randomUUID()));
+
+        var req = new MockHttpServletRequest();
+        req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_valid");
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(auth).isInstanceOf(ApiKeyAuthentication.class);
+        assertThat(((ApiKeyAuthentication) auth).apiKeyId()).isEqualTo(apiKeyId);
+        // The principal is byte-for-byte the JWT-path shape: the key id rides beside it, not in it.
+        assertThat(((JwtClaims) auth.getPrincipal()).userId()).isEqualTo(userId);
+    }
+
+    @Test
+    void jwt_authenticated_request_is_left_alone_and_is_not_api_key_authentication() throws Exception {
+        var jwtToken = new JwtAuthenticationToken(
+                JwtClaims.forSystemRole(UUID.randomUUID(), "a@b.c", UserRoleType.ADMIN, UUID.randomUUID()));
+        SecurityContextHolder.getContext().setAuthentication(jwtToken);
+        var req = new MockHttpServletRequest();
+        req.addHeader(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_anything");
+
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        assertThat(auth).isSameAs(jwtToken);
+        assertThat(auth).isNotInstanceOf(ApiKeyAuthentication.class);
+        verify(apiKeyService, never()).resolve(any());
     }
 
     private UserView activeUser(UUID userId, UUID orgId) {

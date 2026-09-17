@@ -162,6 +162,7 @@
         "oauth2_org_not_allowed": "您的服务商账号不属于 AccessFlow 允许的任何组织。",
         "oauth2_email_domain_not_allowed": "您的邮箱域名不在 AccessFlow 允许的范围内。",
         "account_disabled": "您的 AccessFlow 账户当前已被禁用。",
+        "service_account_sign_in_blocked": "此账户是服务账户。服务账户仅通过 API 密钥进行身份验证，无法交互式登录。",
         "generic": "单点登录失败,请稍后再试。"
       }
     },
@@ -178,6 +179,7 @@
         "saml_not_configured": "本部署尚未配置 SAML SSO。",
         "saml_unexpected_auth": "SAML SSO 返回了意外的认证状态。",
         "account_disabled": "您的 AccessFlow 账户当前已被禁用。",
+        "service_account_sign_in_blocked": "此账户是服务账户。服务账户仅通过 API 密钥进行身份验证，无法交互式登录。",
         "generic": "SAML 登录失败,请稍后再试。"
       }
     },
@@ -326,6 +328,7 @@
   },
   "errors": {
     "auth_invalid": "邮箱或密码不正确。",
+    "service_account_sign_in_blocked": "服务账户仅通过 API 密钥进行身份验证，无法交互式登录。",
     "auth_generic": "登录失败，请重试。",
     "setup_already_complete": "系统已完成初始设置 — 请登录。",
     "email_already_exists": "该邮箱的用户已存在。",

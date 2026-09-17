@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal.filter;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -41,6 +42,7 @@ class ApiKeyAuthIntegrationTest {
     @Autowired ApiKeyService apiKeyService;
 
     private MockMvcTester mvc;
+    private OrganizationEntity org;
     private UserEntity user;
     private String rawKey;
 
@@ -56,7 +58,7 @@ class ApiKeyAuthIntegrationTest {
         userRepository.deleteAll();
         organizationRepository.deleteAll();
 
-        var org = new OrganizationEntity();
+        org = new OrganizationEntity();
         org.setId(UUID.randomUUID());
         org.setName("Acme");
         org.setSlug("acme-" + UUID.randomUUID());
@@ -110,6 +112,32 @@ class ApiKeyAuthIntegrationTest {
                 .header(ApiKeyAuthenticationFilter.API_KEY_HEADER, "af_invalid")
                 .exchange();
         assertThat(result).hasStatus(401);
+    }
+
+    // #869: the API key is the ONLY credential a service account has — it must keep working
+    // while every interactive path (see AuthControllerIntegrationTest) is closed to it.
+    @Test
+    void service_account_key_still_authenticates() {
+        var bot = new UserEntity();
+        bot.setId(UUID.randomUUID());
+        bot.setEmail("ci-bot@example.com");
+        bot.setDisplayName("CI bot");
+        bot.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+        bot.setRole(UserRoleType.ADMIN);
+        bot.setAuthProvider(AuthProviderType.LOCAL);
+        bot.setActive(true);
+        bot.setOrganization(org);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        userRepository.save(bot);
+        var botKey = apiKeyService.issue(bot.getId(), org.getId(), "ci", null).rawKey();
+
+        var result = mvc.get().uri("/api/v1/me")
+                .header(ApiKeyAuthenticationFilter.API_KEY_HEADER, botKey)
+                .exchange();
+
+        assertThat(result).hasStatus(200);
+        assertThat(result).bodyJson().extractingPath("$.email").asString()
+                .isEqualTo("ci-bot@example.com");
     }
 
     @Test

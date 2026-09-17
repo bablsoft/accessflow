@@ -48,6 +48,9 @@ export function authErrorMessage(err: unknown): string {
     const code = ax.response?.data?.error;
     if (code === 'TOTP_INVALID') return i18n.t('errors.totp_invalid');
     if (code === 'TOTP_REQUIRED') return i18n.t('errors.totp_required');
+    if (code === 'SERVICE_ACCOUNT_SIGN_IN_BLOCKED') {
+      return i18n.t('errors.service_account_sign_in_blocked');
+    }
     if (ax.response?.status === 401) return i18n.t('errors.auth_invalid');
     const body = ax.response?.data;
     if (body?.title) return body.title;

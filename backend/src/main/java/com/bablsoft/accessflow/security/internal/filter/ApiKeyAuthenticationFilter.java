@@ -49,15 +49,18 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
             var rawKey = extractApiKey(request);
             if (rawKey != null) {
-                resolveClaims(rawKey).ifPresent(claims -> SecurityContextHolder.getContext()
-                        .setAuthentication(new ApiKeyAuthenticationToken(claims)));
+                authenticate(rawKey).ifPresent(token -> SecurityContextHolder.getContext()
+                        .setAuthentication(token));
             }
         }
         filterChain.doFilter(request, response);
     }
 
-    private Optional<JwtClaims> resolveClaims(String rawKey) {
-        return apiKeyService.resolveUserId(rawKey).flatMap(this::loadClaims);
+    private Optional<ApiKeyAuthenticationToken> authenticate(String rawKey) {
+        // The key id rides on the token beside the claims (#869); the claims themselves are built
+        // exactly as before, so downstream consumers of JwtClaims see no difference.
+        return apiKeyService.resolve(rawKey).flatMap(resolved -> loadClaims(resolved.userId())
+                .map(claims -> new ApiKeyAuthenticationToken(resolved.apiKeyId(), claims)));
     }
 
     private Optional<JwtClaims> loadClaims(UUID userId) {

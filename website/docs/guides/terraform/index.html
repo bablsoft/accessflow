@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Guides",
       "datePublished": "2026-09-01",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-17",
       "url": "https://accessflow.io/docs/guides/terraform/",
       "mainEntityOfPage": "https://accessflow.io/docs/guides/terraform/",
       "image": "https://accessflow.io/og-image.png",
@@ -278,7 +278,7 @@
           </nav>
           <span class="eyebrow">Guides</span>
           <h1>Manage AccessFlow with Terraform.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-17">17 September 2026</time></p>
         </header>
 
 <section class="docs-section">
@@ -310,9 +310,9 @@
           <h2 id="guide-terraform-credentials">1. Get a service-account API key</h2>
           <p>
             Terraform needs credentials that do not depend on anyone's browser session. The
-            intended path is a <strong>service account</strong>: an API-key-only user whose password
-            login is disabled and whose key you generate yourself, so AccessFlow only ever stores
-            its hash.
+            intended path is a <strong>service account</strong>: an API-key-only user that can never
+            sign in interactively (by password or single sign-on) and whose key you generate
+            yourself, so AccessFlow only ever stores its hash.
           </p>
           <p>Generate a key first — it is just a random token with an <code>af_</code> prefix:</p>
           <div class="code-block">

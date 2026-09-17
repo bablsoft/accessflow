@@ -75,6 +75,7 @@ import com.bablsoft.accessflow.security.api.PasswordResetTokenNotFoundException;
 import com.bablsoft.accessflow.security.api.PasswordResetTokenRevokedException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigInvalidException;
 import com.bablsoft.accessflow.security.api.OAuth2ConfigNotFoundException;
+import com.bablsoft.accessflow.security.api.ServiceAccountSignInException;
 import com.bablsoft.accessflow.security.api.SystemSmtpNotConfiguredForInviteException;
 import com.bablsoft.accessflow.security.api.StepUpRequiredException;
 import com.bablsoft.accessflow.security.api.StepUpVerificationException;
@@ -136,6 +137,15 @@ class GlobalExceptionHandler {
         // HandlerMethodValidationException.
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, msg("error.validation_failed"));
         pd.setProperty("error", "VALIDATION_ERROR");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ServiceAccountSignInException.class)
+    ProblemDetail handleServiceAccountSignIn(ServiceAccountSignInException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+                msg("error.service_account_sign_in_blocked"));
+        pd.setProperty("error", "SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

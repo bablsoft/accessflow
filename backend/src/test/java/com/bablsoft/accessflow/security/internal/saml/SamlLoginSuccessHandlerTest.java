@@ -6,6 +6,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.ServiceAccountUserException;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -173,6 +174,26 @@ class SamlLoginSuccessHandlerTest {
                 "email", "displayName", null,
                 null, java.util.Map.of(),
                 UserRoleType.ANALYST, true, Instant.now(), Instant.now());
+    }
+
+    @Test
+    void serviceAccountRedirectsWithSpecificErrorAndIssuesNoCode() throws Exception {
+        var auth = samlAuth("bot", Map.of(
+                "email", List.<Object>of("bot@example.com"),
+                "displayName", List.<Object>of("CI bot")));
+        var request = mockRequest();
+        var response = org.mockito.Mockito.mock(HttpServletResponse.class);
+
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(samlConfigService.getOrDefault(orgId)).thenReturn(activeConfig());
+        when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
+                .thenThrow(new ServiceAccountUserException("bot@example.com"));
+
+        handler.onAuthenticationSuccess(request, response, auth);
+
+        assertThat(lastRedirect(response)).contains("error=SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
+        verify(exchangeCodeStore, never()).issue(any());
+        verify(auditLogService, never()).record(any());
     }
 
     private UserView view(UUID id, String email) {

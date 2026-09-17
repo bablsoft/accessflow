@@ -162,6 +162,7 @@
         "oauth2_org_not_allowed": "Dein Anbieter-Konto gehört zu keiner von AccessFlow zugelassenen Organisation.",
         "oauth2_email_domain_not_allowed": "Deine E-Mail-Domain ist in AccessFlow nicht zugelassen.",
         "account_disabled": "Dein AccessFlow-Konto ist derzeit deaktiviert.",
+        "service_account_sign_in_blocked": "Dieses Konto ist ein Dienstkonto. Dienstkonten authentifizieren sich ausschließlich per API-Schlüssel und können sich nicht interaktiv anmelden.",
         "generic": "Single Sign-on ist fehlgeschlagen. Bitte erneut versuchen."
       }
     },
@@ -178,6 +179,7 @@
         "saml_not_configured": "SAML SSO ist für diese Bereitstellung nicht konfiguriert.",
         "saml_unexpected_auth": "SAML SSO hat einen unerwarteten Authentifizierungsstatus zurückgegeben.",
         "account_disabled": "Dein AccessFlow-Konto ist derzeit deaktiviert.",
+        "service_account_sign_in_blocked": "Dieses Konto ist ein Dienstkonto. Dienstkonten authentifizieren sich ausschließlich per API-Schlüssel und können sich nicht interaktiv anmelden.",
         "generic": "SAML-Anmeldung ist fehlgeschlagen. Bitte erneut versuchen."
       }
     },
@@ -326,6 +328,7 @@
   },
   "errors": {
     "auth_invalid": "Ungültige E-Mail oder ungültiges Passwort.",
+    "service_account_sign_in_blocked": "Dienstkonten authentifizieren sich ausschließlich per API-Schlüssel und können sich nicht interaktiv anmelden.",
     "auth_generic": "Anmeldung fehlgeschlagen. Bitte erneut versuchen.",
     "setup_already_complete": "Die Einrichtung ist bereits abgeschlossen — bitte anmelden.",
     "email_already_exists": "Es existiert bereits ein Benutzer mit dieser E-Mail-Adresse.",

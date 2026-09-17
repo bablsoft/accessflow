@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal.web;
 
 import com.bablsoft.accessflow.TestcontainersConfig;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -41,6 +42,8 @@ class AuthControllerIntegrationTest {
     @Autowired com.bablsoft.accessflow.core.api.CredentialEncryptionService encryptionService;
 
     private MockMvcTester mvc;
+    private OrganizationEntity org;
+    private UserEntity user;
 
     private static final String EMAIL = "integration@example.com";
     private static final String PASSWORD = "Password123!";
@@ -57,13 +60,13 @@ class AuthControllerIntegrationTest {
         userRepository.deleteAll();
         organizationRepository.deleteAll();
 
-        var org = new OrganizationEntity();
+        org = new OrganizationEntity();
         org.setId(UUID.randomUUID());
         org.setName("Test Org");
         org.setSlug("test-org");
         organizationRepository.save(org);
 
-        var user = new UserEntity();
+        user = new UserEntity();
         user.setId(UUID.randomUUID());
         user.setEmail(EMAIL);
         user.setDisplayName("Integration User");
@@ -89,6 +92,60 @@ class AuthControllerIntegrationTest {
         assertThat(result).bodyJson().extractingPath("$.token_type").asString().isEqualTo("Bearer");
         assertThat(result.getResponse().getHeader(HttpHeaders.SET_COOKIE)).contains("refresh_token=");
         assertThat(result.getResponse().getHeader(HttpHeaders.SET_COOKIE)).contains("HttpOnly");
+    }
+
+    // #869: a service account is refused before its password is even checked, with a distinct
+    // code — the seeded row carries a real, known password to prove the rule is the reason.
+    @Test
+    void loginAsServiceAccountReturns401WithDistinctCodeEvenWithCorrectPassword() {
+        var bot = new UserEntity();
+        bot.setId(UUID.randomUUID());
+        bot.setEmail("ci-bot@example.com");
+        bot.setDisplayName("CI bot");
+        bot.setPasswordHash(passwordEncoder.encode(PASSWORD));
+        bot.setRole(UserRoleType.ADMIN);
+        bot.setAuthProvider(AuthProviderType.LOCAL);
+        bot.setActive(true);
+        bot.setOrganization(org);
+        bot.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        userRepository.save(bot);
+
+        var result = mvc.post().uri("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email":"ci-bot@example.com","password":"%s"}
+                        """.formatted(PASSWORD))
+                .exchange();
+
+        assertThat(result).hasStatus(401);
+        assertThat(result).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
+        assertThat(result.getResponse().getHeader(HttpHeaders.SET_COOKIE)).isNull();
+    }
+
+    // #869: a person adopted as a service account (bootstrap) loses the session on next refresh.
+    @Test
+    void refreshIsRejectedOnceTheUserBecomesAServiceAccount() {
+        var loginResult = mvc.post().uri("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"email":"%s","password":"%s"}
+                        """.formatted(EMAIL, PASSWORD))
+                .exchange();
+        assertThat(loginResult).hasStatus(200);
+        var refreshToken = extractRefreshToken(loginResult.getResponse().getHeader(HttpHeaders.SET_COOKIE));
+
+        var adopted = userRepository.findById(user.getId()).orElseThrow();
+        adopted.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        userRepository.save(adopted);
+
+        var refreshResult = mvc.post().uri("/api/v1/auth/refresh")
+                .cookie(new Cookie("refresh_token", refreshToken))
+                .exchange();
+
+        assertThat(refreshResult).hasStatus(401);
+        assertThat(refreshResult).bodyJson().extractingPath("$.error").asString()
+                .isEqualTo("SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
     }
 
     @Test

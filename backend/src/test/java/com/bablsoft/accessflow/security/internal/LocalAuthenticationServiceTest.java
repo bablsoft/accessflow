@@ -2,11 +2,13 @@ package com.bablsoft.accessflow.security.internal;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.TotpVerificationService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.LoginCommand;
+import com.bablsoft.accessflow.security.api.ServiceAccountSignInException;
 import com.bablsoft.accessflow.security.api.JwtClaims;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
@@ -97,6 +99,46 @@ class LocalAuthenticationServiceTest {
         assertThatThrownBy(() -> service.issueForUser(userId))
                 .isInstanceOf(DisabledException.class);
         verify(jwtService, never()).generateAccessToken(any());
+    }
+
+    // #869: service accounts authenticate by API key only — all three minting paths refuse them.
+
+    @Test
+    void loginRejectsServiceAccountBeforeCheckingThePassword() {
+        when(userQueryService.findByEmail("bot@example.com")).thenReturn(Optional.of(serviceAccount()));
+
+        assertThatThrownBy(() -> service.login(new LoginCommand("bot@example.com", "secret")))
+                .isInstanceOf(ServiceAccountSignInException.class);
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(jwtService, never()).generateAccessToken(any());
+        verify(refreshTokenStore, never()).store(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void refreshRejectsServiceAccount() {
+        var claims = JwtClaims.forSystemRole(userId, "bot@example.com", UserRoleType.ADMIN, orgId);
+        when(refreshTokenStore.isRevoked("old-refresh")).thenReturn(false);
+        when(jwtService.parseRefreshToken("old-refresh")).thenReturn(claims);
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(serviceAccount()));
+
+        assertThatThrownBy(() -> service.refresh("old-refresh"))
+                .isInstanceOf(ServiceAccountSignInException.class);
+        verify(refreshTokenStore, never()).store(anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void issueForUserRejectsServiceAccount() {
+        when(userQueryService.findById(userId)).thenReturn(Optional.of(serviceAccount()));
+
+        assertThatThrownBy(() -> service.issueForUser(userId))
+                .isInstanceOf(ServiceAccountSignInException.class);
+        verify(jwtService, never()).generateAccessToken(any());
+    }
+
+    private UserView serviceAccount() {
+        return new UserView(userId, "bot@example.com", "CI bot", UserRoleType.ADMIN, null, "ADMIN",
+                orgId, true, AuthProviderType.LOCAL, "hashed", null, "en", false, false,
+                null, null, null, PrincipalType.SERVICE_ACCOUNT);
     }
 
     @Test

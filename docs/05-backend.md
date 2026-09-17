@@ -122,7 +122,13 @@ lock prevents two concurrent first-time calls from racing.
 
 Account-linking model — the success handler rejects with `SAML_LOCAL_EMAIL_CONFLICT` if an
 existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin
-must manually convert the account. See [docs/07-security.md](07-security.md).
+must manually convert the account. It also rejects with `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` when
+the matched user is a `SERVICE_ACCOUNT` (#869): `findOrProvision` throws
+`core.api.ServiceAccountUserException` ahead of the LOCAL-conflict rule (a bootstrap-seeded bot
+is `LOCAL` with an unusable hash), the handler redirects before group sync, the exchange code and
+the audit row, and `LocalAuthenticationService.issueForUser` refuses the same principal again at
+the exchange, so a bot can never get a session through SSO. See
+[docs/07-security.md](07-security.md).
 
 ### OAuth 2.0 / OIDC login (DB-driven)
 
@@ -160,7 +166,10 @@ the stateless API chain is `@Order(3)`). It runs Spring's `oauth2Login()` config
 
 Account-linking model — the success handler rejects with `OAUTH2_LOCAL_EMAIL_CONFLICT` if an
 existing user with the same email is `auth_provider=LOCAL` and has a password hash; admin
-must manually convert the account. See [docs/07-security.md](07-security.md).
+must manually convert the account. It also rejects with `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` when
+the matched user is a `SERVICE_ACCOUNT` (#869 — `ServiceAccountUserException` from
+`findOrProvision`, ahead of the conflict rule), exactly as the SAML handler does. See
+[docs/07-security.md](07-security.md).
 
 ### SSO group sync (AF-353)
 
@@ -3713,7 +3722,7 @@ Lives in `core/` (services) and `security/internal/web/` (REST surface). Endpoin
 - `core/api/TotpVerificationService` (implemented by `DefaultTotpVerificationService`) is consumed by `LocalAuthenticationService.login` at sign-in to verify a 6-digit TOTP **or** consume a single-use backup recovery code. Backup codes are stored as a JSON array of bcrypt hashes, AES-256-GCM-encrypted via the existing `CredentialEncryptionService`; verified codes are removed from the array on use.
 - The TOTP shared secret is AES-256-GCM-encrypted on the user row (`totp_secret_encrypted`, `@JsonIgnore`). It is decrypted briefly inside the verification service and never returned to the API surface.
 - Password change and 2FA disable revoke **all** of the user's refresh tokens. The bridge is `core/api/SessionRevocationService`, implemented by `security/internal/DefaultSessionRevocationService` (delegates to `RefreshTokenStore.revokeAllForUser`). Keeping the interface in `core.api` keeps modulith boundaries clean — `core.internal` never references `security.internal`.
-- Login flow change: `LocalAuthenticationService.login` runs the password check first, then `totpVerificationService.isEnabled(userId)`. If 2FA is enabled it requires `LoginCommand.totpCode`. Missing code → `TotpRequiredException` (mapped to 401 `TOTP_REQUIRED`); bad code → `TotpAuthenticationException` (401 `TOTP_INVALID`). Both extend Spring's `AuthenticationException` so existing filters keep working; `GlobalExceptionHandler` has dedicated mappers that produce stable error codes the frontend switches on.
+- Login flow change: `LocalAuthenticationService.login` runs the password check first, then `totpVerificationService.isEnabled(userId)`. If 2FA is enabled it requires `LoginCommand.totpCode`. Missing code → `TotpRequiredException` (mapped to 401 `TOTP_REQUIRED`); bad code → `TotpAuthenticationException` (401 `TOTP_INVALID`). Both are plain `RuntimeException`s in `security/api` (the api-package purity rule forbids a Spring base class); `GlobalExceptionHandler` has dedicated mappers that produce stable error codes the frontend switches on. #869 adds `ServiceAccountSignInException` (401 `SERVICE_ACCOUNT_SIGN_IN_BLOCKED`) on the same model, thrown by `login`, `refresh` and `issueForUser` for a `SERVICE_ACCOUNT` principal — before the password check on the login path, and audited as `USER_LOGIN_FAILED` by an explicit catch in `AuthController` (it is not an `AuthenticationException`).
 - SAML-authenticated accounts (`auth_provider = SAML`) cannot change their password or enrol in 2FA — `DefaultUserProfileService` short-circuits with `PasswordChangeNotAllowedException` for those paths. They may still update their display name via `PUT /me/profile`.
 
 ---
@@ -3901,13 +3910,19 @@ User-managed API keys live alongside the rest of authentication in the **`securi
   `security.internal.persistence.entity.ApiKeyEntity` + `repo.ApiKeyRepository`.
 - **Service.** `security.api.ApiKeyService` (public — also consumed by the MCP tools' filter
   pipeline) with `DefaultApiKeyService` under `security.internal.apikey`. Issue / list / revoke
-  / resolveUserId. Plaintext is shown once on creation and stored as SHA-256 only.
+  / `resolve` — which returns `ResolvedApiKey(apiKeyId, userId)` (#869); `resolveUserId` is a
+  `default` method over it, kept for callers that only need the owner. Plaintext is shown once
+  on creation and stored as SHA-256 only.
 - **Hashing.** `security.internal.apikey.ApiKeyHasher` — `af_<32-byte base64url>` format,
   SHA-256 hex hash, 12-char display prefix.
 - **Auth filter.** `security.internal.filter.ApiKeyAuthenticationFilter`, registered into the
   main Spring Security chain before `JwtAuthenticationFilter` in `SecurityConfiguration`. Reads
-  `X-API-Key` or `Authorization: ApiKey …`, resolves to `JwtClaims`, populates an
-  `ApiKeyAuthenticationToken` — same shape as the JWT path so downstream code is auth-agnostic.
+  `X-API-Key` or `Authorization: ApiKey …`, resolves the key, builds the same `JwtClaims`
+  shape as the JWT path (so downstream code is auth-agnostic) and populates an
+  `ApiKeyAuthenticationToken` that also carries the key id through the public
+  `security.api.ApiKeyAuthentication` marker (`apiKeyId()`, #869). The key id is deliberately
+  beside the claims, not inside them — `JwtClaims` is unchanged, so permission resolution can
+  never read request-channel data.
 - **Web.** `security.internal.web.ApiKeysController` exposes `/api/v1/me/api-keys` CRUD;
   `ApiKeysExceptionHandler` maps `ApiKeyDuplicateNameException` / `ApiKeyNotFoundException` to
   RFC 9457 `ProblemDetail`.

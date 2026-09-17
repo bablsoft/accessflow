@@ -4,6 +4,7 @@ import com.bablsoft.accessflow.audit.api.AuditLogService;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.ServiceAccountUserException;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -266,6 +267,26 @@ class OAuth2LoginSuccessHandlerTest {
                 java.util.Map.of(),
                 defaultRole, true,
                 Instant.now(), Instant.now());
+    }
+
+    @Test
+    void serviceAccountRedirectsWithSpecificErrorAndIssuesNoCode() throws Exception {
+        stubAuthorizedClient("github");
+        var token = oauth2Token("github", Map.of("id", 1, "email", "bot@b.com"));
+        when(emailResolver.resolve(eq(OAuth2ProviderType.GITHUB), any(), anyString(), any(), any(), any(), any()))
+                .thenReturn(new OAuth2EmailResolver.Resolved("bot@b.com", "CI bot", true));
+        when(organizationLookupService.singleOrganization()).thenReturn(orgId);
+        when(oauth2ConfigService.getOrDefault(orgId, OAuth2ProviderType.GITHUB))
+                .thenReturn(view(OAuth2ProviderType.GITHUB, UserRoleType.ANALYST, List.of(), List.of()));
+        when(userProvisioningService.findOrProvision(any(), any(), any(), any(), any()))
+                .thenThrow(new ServiceAccountUserException("bot@b.com"));
+
+        handler.onAuthenticationSuccess(request, response, token);
+
+        verify(response).sendRedirect(contains("error=SERVICE_ACCOUNT_SIGN_IN_BLOCKED"));
+        verify(exchangeCodeStore, never()).issue(any());
+        verify(auditLogService, never()).record(any());
+        verify(userGroupService, never()).syncIdpMemberships(any(), any(), any());
     }
 
     private UserView provisionedUser() {

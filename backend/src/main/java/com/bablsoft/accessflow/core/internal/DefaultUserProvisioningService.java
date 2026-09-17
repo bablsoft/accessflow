@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
+import com.bablsoft.accessflow.core.api.ServiceAccountUserException;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.api.UserView;
@@ -36,6 +38,11 @@ class DefaultUserProvisioningService implements UserProvisioningService {
         if (existing != null) {
             if (!existing.isActive()) {
                 throw new InactiveUserException(normalizedEmail);
+            }
+            // #869: before the LOCAL-conflict rule — a bootstrap-seeded bot is LOCAL with an
+            // unusable hash and would otherwise surface as a misleading account conflict.
+            if (existing.getPrincipalType() == PrincipalType.SERVICE_ACCOUNT) {
+                throw new ServiceAccountUserException(normalizedEmail);
             }
             if (existing.getAuthProvider() == AuthProviderType.LOCAL
                     && existing.getPasswordHash() != null) {
