@@ -27,7 +27,8 @@ final class UserViews {
                 entity.isPlatformAdmin(),
                 entity.getCreatedAt(),
                 entity.getScimExternalId(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                entity.getPrincipalType()
         );
     }
 }

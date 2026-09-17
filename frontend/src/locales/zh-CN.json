@@ -3171,6 +3171,7 @@
       "USER_MANAGE": "管理用户",
       "GROUP_MANAGE": "管理群组",
       "ROLE_MANAGE": "管理角色",
+      "SERVICE_ACCOUNT_MANAGE": "管理服务账号",
       "AI_MANAGE": "管理 AI 配置",
       "NOTIFICATION_CHANNEL_MANAGE": "管理通知渠道",
       "SSO_CONFIGURE": "配置 SSO",

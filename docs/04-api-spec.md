@@ -3359,7 +3359,7 @@ permission-matrix UI. Admins compose roles from the catalog but can never add or
 {
   "groups": [
     { "group": "QUERIES", "permissions": ["QUERY_SUBMIT_SELECT", "QUERY_SUBMIT_DML", "QUERY_SUBMIT_DDL", "QUERY_VIEW_ALL", "QUERY_REVIEW", "REVIEW_OVERRIDE", "QUERY_ADMIN"] },
-    { "group": "USERS", "permissions": ["USER_MANAGE", "GROUP_MANAGE", "ROLE_MANAGE"] }
+    { "group": "USERS", "permissions": ["USER_MANAGE", "GROUP_MANAGE", "ROLE_MANAGE", "SERVICE_ACCOUNT_MANAGE"] }
   ]
 }
 ```

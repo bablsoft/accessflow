@@ -104,6 +104,8 @@ public enum Permission {
     GROUP_MANAGE(PermissionGroup.USERS),
     /** Manage custom roles and view the permission catalog. */
     ROLE_MANAGE(PermissionGroup.USERS),
+    /** Manage service accounts: non-human identities, their keys, tool allow-lists and limits (#868, epic #867). */
+    SERVICE_ACCOUNT_MANAGE(PermissionGroup.USERS),
 
     /** Manage AI: provider configs, analyses history, knowledge base, Langfuse, RAG. */
     AI_MANAGE(PermissionGroup.AI),

@@ -40,8 +40,10 @@ class SeededReferenceDataParityTest {
      * Tables a migration inserts into where the INSERT is a data migration over pre-existing rows
      * ({@code INSERT ... SELECT ... FROM <table>}), not a reference-data seed. On the empty
      * database a test run starts from, these insert nothing, so there is nothing to restore.
+     * {@code service_accounts} is V173's backfill of the bootstrap-declared accounts (#868).
      */
-    private static final Set<String> DATA_MIGRATION_ONLY = Set.of("datasource_read_replicas");
+    private static final Set<String> DATA_MIGRATION_ONLY =
+            Set.of("datasource_read_replicas", "service_accounts");
 
     @Test
     @DisplayName("every table seeded by a migration is restored after the inter-class truncate")

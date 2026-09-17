@@ -3171,6 +3171,7 @@
       "USER_MANAGE": "Benutzer verwalten",
       "GROUP_MANAGE": "Gruppen verwalten",
       "ROLE_MANAGE": "Rollen verwalten",
+      "SERVICE_ACCOUNT_MANAGE": "Dienstkonten verwalten",
       "AI_MANAGE": "KI-Konfiguration verwalten",
       "NOTIFICATION_CHANNEL_MANAGE": "Benachrichtigungskanäle verwalten",
       "SSO_CONFIGURE": "SSO konfigurieren",

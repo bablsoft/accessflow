@@ -28,5 +28,14 @@ public interface UserAdminService {
      */
     UserView setPlatformAdmin(UUID id, boolean platformAdmin);
 
+    /**
+     * Sets the person-vs-service-account discriminator (#868). The {@code serviceaccounts} module
+     * is the only intended caller: it pairs this with the {@code service_accounts} detail row in one
+     * transaction so the two can never drift; {@code PrincipalTypeChokepointTest} (ArchUnit) fails
+     * the build on any other caller. Throws
+     * {@link UserNotFoundException} when the user is not in {@code organizationId}.
+     */
+    UserView setPrincipalType(UUID id, UUID organizationId, PrincipalType principalType);
+
     Map<UUID, UserView> findByIds(UUID organizationId, Collection<UUID> ids);
 }

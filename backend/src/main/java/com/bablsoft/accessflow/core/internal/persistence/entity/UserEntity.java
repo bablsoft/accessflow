@@ -1,6 +1,7 @@
 package com.bablsoft.accessflow.core.internal.persistence.entity;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,6 +52,13 @@ public class UserEntity {
     @JdbcType(PostgreSQLEnumJdbcType.class)
     @Column(name = "auth_provider", nullable = false, columnDefinition = "auth_provider_type")
     private AuthProviderType authProvider = AuthProviderType.LOCAL;
+
+    // Person vs non-human identity (#868). Only UserAdminService.setPrincipalType, called from the
+    // serviceaccounts module alongside the service_accounts detail row, ever flips this.
+    @Enumerated(EnumType.STRING)
+    @JdbcType(PostgreSQLEnumJdbcType.class)
+    @Column(name = "principal_type", nullable = false, columnDefinition = "principal_type")
+    private PrincipalType principalType = PrincipalType.HUMAN;
 
     @Column(name = "saml_subject", length = 255)
     private String samlSubject;

@@ -3195,6 +3195,7 @@
       "USER_MANAGE": "Manage users",
       "GROUP_MANAGE": "Manage groups",
       "ROLE_MANAGE": "Manage roles",
+      "SERVICE_ACCOUNT_MANAGE": "Manage service accounts",
       "AI_MANAGE": "Manage AI configuration",
       "NOTIFICATION_CHANNEL_MANAGE": "Manage notification channels",
       "SSO_CONFIGURE": "Configure SSO",
