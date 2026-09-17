@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.security.api.ApiKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.security.api.ApiKeyDuplicateNameException;
 import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -32,11 +33,23 @@ class ApiKeysExceptionHandlerTest {
         assertThat(pd.getProperties()).containsEntry("error", "API_KEY_DUPLICATE_NAME");
     }
 
+    @Test
+    void bootstrap_declared_maps_to_409_with_the_key_id() {
+        var keyId = UUID.randomUUID();
+        var pd = handler.handleBootstrapDeclared(new ApiKeyBootstrapDeclaredException(keyId));
+        assertThat(pd.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+        assertThat(pd.getProperties()).containsEntry("error", "API_KEY_BOOTSTRAP_DECLARED");
+        assertThat(pd.getProperties()).containsEntry("apiKeyId", keyId.toString());
+        assertThat(pd.getProperties()).containsKey("timestamp");
+        assertThat(pd.getDetail()).isEqualTo("declared");
+    }
+
     private static MessageSource staticMessages() {
         var source = new StaticMessageSource();
         source.addMessage("error.api_key.not_found", Locale.getDefault(), "API key not found");
         source.addMessage("error.api_key.duplicate_name", Locale.getDefault(),
                 "An API key with that name already exists. Pick a different name.");
+        source.addMessage("error.api_key.bootstrap_declared", Locale.getDefault(), "declared");
         return source;
     }
 }

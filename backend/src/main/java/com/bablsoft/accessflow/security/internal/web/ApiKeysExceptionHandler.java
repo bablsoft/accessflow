@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.web;
 
+import com.bablsoft.accessflow.security.api.ApiKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.security.api.ApiKeyDuplicateNameException;
 import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,15 @@ class ApiKeysExceptionHandler {
     ProblemDetail handleDuplicateName(ApiKeyDuplicateNameException ex) {
         var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.api_key.duplicate_name"));
         pd.setProperty("error", "API_KEY_DUPLICATE_NAME");
+        pd.setProperty("timestamp", Instant.now().toString());
+        return pd;
+    }
+
+    @ExceptionHandler(ApiKeyBootstrapDeclaredException.class)
+    ProblemDetail handleBootstrapDeclared(ApiKeyBootstrapDeclaredException ex) {
+        var pd = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, msg("error.api_key.bootstrap_declared"));
+        pd.setProperty("error", "API_KEY_BOOTSTRAP_DECLARED");
+        pd.setProperty("apiKeyId", ex.apiKeyId().toString());
         pd.setProperty("timestamp", Instant.now().toString());
         return pd;
     }

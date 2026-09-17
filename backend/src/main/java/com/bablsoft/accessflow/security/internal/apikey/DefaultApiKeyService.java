@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.apikey;
 
+import com.bablsoft.accessflow.security.api.ApiKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.security.api.ApiKeyDuplicateNameException;
 import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
@@ -14,9 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -65,9 +69,15 @@ public class DefaultApiKeyService implements ApiKeyService {
         entity.setKeyPrefix(ApiKeyHasher.prefixOf(rawKey));
         entity.setKeyHash(ApiKeyHasher.hash(rawKey));
         entity.setExpiresAt(expiresAt);
-        // Re-importing a declared key reactivates it if a prior run (or an admin) had revoked it.
+        // Re-importing a declared key reactivates it if a prior run had revoked it. This is why
+        // revoke() refuses a declared key outright (#871): an admin revoke would otherwise be
+        // silently undone here on the next changed reconcile.
         entity.setRevokedAt(null);
-        return toView(apiKeyRepository.save(entity));
+        entity.setBootstrapDeclared(true);
+        var saved = apiKeyRepository.save(entity);
+        // At most one declared key per account: a renamed api-key-name demotes the previous row.
+        apiKeyRepository.clearBootstrapDeclaredForOtherKeys(userId, saved.getId());
+        return toView(saved);
     }
 
     @Override
@@ -79,18 +89,50 @@ public class DefaultApiKeyService implements ApiKeyService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, List<ApiKeyView>> listByUserIds(Collection<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        return apiKeyRepository.findByUserIdInOrderByCreatedAtDesc(userIds).stream()
+                .map(DefaultApiKeyService::toView)
+                .collect(Collectors.groupingBy(ApiKeyView::userId));
+    }
+
+    @Override
     @Transactional
     public void revoke(UUID userId, UUID keyId) {
+        var entity = loadOwned(userId, keyId);
+        if (entity.isBootstrapDeclared()) {
+            throw new ApiKeyBootstrapDeclaredException(keyId);
+        }
+        if (entity.getRevokedAt() == null) {
+            entity.setRevokedAt(Instant.now());
+            apiKeyRepository.save(entity);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void expireAt(UUID userId, UUID keyId, Instant expiresAt) {
+        var entity = loadOwned(userId, keyId);
+        // Same trap as revoke: importOrUpdate re-asserts expires_at from the spec on the next
+        // changed reconcile, so an expiry set here on a declared key would be silently undone.
+        if (entity.isBootstrapDeclared()) {
+            throw new ApiKeyBootstrapDeclaredException(keyId);
+        }
+        entity.setExpiresAt(expiresAt);
+        apiKeyRepository.save(entity);
+    }
+
+    private ApiKeyEntity loadOwned(UUID userId, UUID keyId) {
         var entity = apiKeyRepository.findById(keyId)
                 .orElseThrow(() -> new ApiKeyNotFoundException(keyId));
         if (!entity.getUserId().equals(userId)) {
             // Don't leak existence of another user's key — treat as not found.
             throw new ApiKeyNotFoundException(keyId);
         }
-        if (entity.getRevokedAt() == null) {
-            entity.setRevokedAt(Instant.now());
-            apiKeyRepository.save(entity);
-        }
+        return entity;
     }
 
     @Override
@@ -130,7 +172,8 @@ public class DefaultApiKeyService implements ApiKeyService {
                 entity.getCreatedAt(),
                 entity.getLastUsedAt(),
                 entity.getExpiresAt(),
-                entity.getRevokedAt()
+                entity.getRevokedAt(),
+                entity.isBootstrapDeclared()
         );
     }
 }

@@ -6,6 +6,8 @@ import com.bablsoft.accessflow.core.api.OrganizationProvisioningService;
 import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserRoleType;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountAdminService;
+import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountLookupService;
 import com.bablsoft.accessflow.serviceaccounts.api.ServiceAccountSource;
 import org.junit.jupiter.api.AfterEach;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Drives {@link ServiceAccountReconciler} against the real database (#868): a declared account
@@ -36,6 +39,7 @@ class ServiceAccountReconcilerIntegrationTest {
     @Autowired OrganizationProvisioningService organizationProvisioningService;
     @Autowired UserQueryService userQueryService;
     @Autowired ServiceAccountLookupService serviceAccountLookupService;
+    @Autowired ServiceAccountAdminService serviceAccountAdminService;
     @Autowired JdbcTemplate jdbcTemplate;
 
     private UUID organizationId;
@@ -120,6 +124,51 @@ class ServiceAccountReconcilerIntegrationTest {
         assertThat(account.rateLimitPerDay()).isEqualTo(7);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT revoked_at FROM api_keys WHERE user_id = ?", OffsetDateTime.class, userId)).isNull();
+    }
+
+    @Test
+    void declaredKeyRevokeIsRefusedRatherThanUndoneByTheNextReconcile() {
+        var userId = reconciler.reconcile(organizationId, List.of(spec("af_first_key"))).get(email);
+        var keyId = declaredKeyId(userId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT bootstrap_declared FROM api_keys WHERE id = ?", Boolean.class, keyId)).isTrue();
+
+        // #871: the admin surface refuses, and says so, instead of a revoke that the next changed
+        // reconcile would silently undo through importOrUpdate's setRevokedAt(null).
+        assertThatThrownBy(() -> serviceAccountAdminService.revokeKey(organizationId, userId, keyId))
+                .isInstanceOf(ServiceAccountKeyBootstrapDeclaredException.class);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT revoked_at FROM api_keys WHERE id = ?", OffsetDateTime.class, keyId)).isNull();
+
+        // A changed spec re-imports the same row: still unrevoked, still declared, same id.
+        var again = reconciler.reconcile(organizationId, List.of(spec("af_rotated_key"))).get(email);
+        assertThat(again).isEqualTo(userId);
+        assertThat(declaredKeyId(userId)).isEqualTo(keyId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT revoked_at FROM api_keys WHERE id = ?", OffsetDateTime.class, keyId)).isNull();
+    }
+
+    @Test
+    void renamingTheDeclaredKeyDemotesThePreviousRowToARevocableKey() {
+        var userId = reconciler.reconcile(organizationId, List.of(spec("af_first_key"))).get(email);
+        var oldKeyId = declaredKeyId(userId);
+
+        reconciler.reconcile(organizationId, List.of(new ServiceAccountSpec(email, "CI runner",
+                UserRoleType.REVIEWER, "terraform-v2", "af_second_key", null))).get(email);
+
+        var newKeyId = declaredKeyId(userId);
+        assertThat(newKeyId).isNotEqualTo(oldKeyId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT bootstrap_declared FROM api_keys WHERE id = ?", Boolean.class, oldKeyId)).isFalse();
+        // At most one declared key per account — and the demoted one is an ordinary key now.
+        serviceAccountAdminService.revokeKey(organizationId, userId, oldKeyId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT revoked_at FROM api_keys WHERE id = ?", OffsetDateTime.class, oldKeyId)).isNotNull();
+    }
+
+    private UUID declaredKeyId(UUID userId) {
+        return jdbcTemplate.queryForObject(
+                "SELECT id FROM api_keys WHERE user_id = ? AND bootstrap_declared", UUID.class, userId);
     }
 
     private ServiceAccountSpec spec(String apiKey) {

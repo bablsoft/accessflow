@@ -516,10 +516,21 @@ permission at all, is in
 
 **Service accounts (#868, epic #867):** `SERVICE_ACCOUNT_MANAGE` sits in the `USERS` group beside
 `USER_MANAGE` / `GROUP_MANAGE` / `ROLE_MANAGE` and is held by `ADMIN` only (seeded by `V174`, same
-`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`/`V171`). It will gate the admin CRUD,
-key issuance and rotation that #871 adds; #868 ships the catalog value, the seed, the
-`users.principal_type` discriminator and the `service_accounts` detail table, so nothing is
-gated by the permission yet. Since #869 the discriminator itself is enforced on the sign-in
+`VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`/`V171`). Since #871 it gates the whole
+`/admin/service-accounts` surface — create / update / deactivate and issuing, rotating and revoking
+API keys **on behalf of** an account — every mutation audited as `SERVICE_ACCOUNT_*` against
+resource `service_account`. Three rules there are security-relevant: (1) a UI-created account
+defaults to `READONLY`, not the bootstrap reconciler's `ADMIN`; (2) rotation never revokes — it
+issues the replacement and *expires* the old key after a grace window (`ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE`,
+default 24 h, or a per-request `grace_period`), so a leaked key is handled by **revoke**, not rotate;
+(3) the one key bootstrap declares (`api_keys.bootstrap_declared`) can be neither revoked nor
+rotated, on the admin surface *or* through the account's own `/me/api-keys` — `importOrUpdate`
+clears `revoked_at` on every changed reconcile, so a revoke would only appear to work until the
+next restart; the 409 names the real remediation (rotate the secret at the bootstrap source, then
+restart). **Known limitation:** `PUT /admin/users/{id}` (`USER_MANAGE`) does not consult
+`principal_type`, so it can still change a `BOOTSTRAP` account's display name or role — the
+bootstrap-managed 409 is enforced on the service-account surface only, and #875 hides service
+accounts from the users page. Since #869 the discriminator itself is enforced on the sign-in
 surface — password, refresh, SAML and OAuth2 all reject a `SERVICE_ACCOUNT` (see "API key
 authentication" above) — while by API key a service account still authenticates and is authorized
 exactly as the role on its **own** `users` row dictates — `owner_user_id` (the human it acts for)

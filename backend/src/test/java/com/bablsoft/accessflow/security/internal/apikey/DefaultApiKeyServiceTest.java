@@ -1,5 +1,6 @@
 package com.bablsoft.accessflow.security.internal.apikey;
 
+import com.bablsoft.accessflow.security.api.ApiKeyBootstrapDeclaredException;
 import com.bablsoft.accessflow.security.api.ApiKeyDuplicateNameException;
 import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
 import com.bablsoft.accessflow.security.api.ResolvedApiKey;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -84,6 +86,9 @@ class DefaultApiKeyServiceTest {
         assertThat(captor.getValue().getKeyPrefix()).isEqualTo(ApiKeyHasher.prefixOf(raw));
         assertThat(captor.getValue().getUserId()).isEqualTo(userId);
         assertThat(captor.getValue().getOrganizationId()).isEqualTo(orgId);
+        assertThat(captor.getValue().isBootstrapDeclared()).isTrue();
+        assertThat(view.bootstrapDeclared()).isTrue();
+        verify(apiKeyRepository).clearBootstrapDeclaredForOtherKeys(userId, captor.getValue().getId());
     }
 
     @Test
@@ -100,7 +105,97 @@ class DefaultApiKeyServiceTest {
         assertThat(view.id()).isEqualTo(originalId);
         assertThat(existing.getKeyHash()).isEqualTo(ApiKeyHasher.hash(raw));
         assertThat(existing.getRevokedAt()).isNull();
+        assertThat(existing.isBootstrapDeclared()).isTrue();
         verify(apiKeyRepository).save(existing);
+        // A renamed api-key-name must demote the previous declared row — at most one per account.
+        verify(apiKeyRepository).clearBootstrapDeclaredForOtherKeys(userId, originalId);
+    }
+
+    @Test
+    void importOrUpdate_rejects_a_key_without_the_expected_prefix_before_touching_the_repository() {
+        assertThatThrownBy(() -> service.importOrUpdate(userId, orgId, "ci", "not-a-key", null))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(apiKeyRepository, never()).clearBootstrapDeclaredForOtherKeys(any(), any());
+    }
+
+    @Test
+    void listByUserIds_groups_views_by_owner_newest_first() {
+        var other = UUID.randomUUID();
+        var mine = newEntity(userId);
+        var theirs = newEntity(other);
+        when(apiKeyRepository.findByUserIdInOrderByCreatedAtDesc(Set.of(userId, other)))
+                .thenReturn(List.of(mine, theirs));
+
+        var result = service.listByUserIds(Set.of(userId, other));
+
+        assertThat(result).containsOnlyKeys(userId, other);
+        assertThat(result.get(userId)).singleElement().satisfies(v -> {
+            assertThat(v.id()).isEqualTo(mine.getId());
+            assertThat(v.bootstrapDeclared()).isFalse();
+        });
+        assertThat(result.get(other)).singleElement().extracting(v -> v.id()).isEqualTo(theirs.getId());
+    }
+
+    @Test
+    void listByUserIds_short_circuits_on_an_empty_input() {
+        assertThat(service.listByUserIds(List.of())).isEmpty();
+        verify(apiKeyRepository, never()).findByUserIdInOrderByCreatedAtDesc(any());
+    }
+
+    @Test
+    void revoke_refuses_a_bootstrap_declared_key() {
+        var entity = newEntity(userId);
+        entity.setBootstrapDeclared(true);
+        when(apiKeyRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.revoke(userId, entity.getId()))
+                .isInstanceOf(ApiKeyBootstrapDeclaredException.class)
+                .satisfies(ex -> assertThat(((ApiKeyBootstrapDeclaredException) ex).apiKeyId())
+                        .isEqualTo(entity.getId()));
+        assertThat(entity.getRevokedAt()).isNull();
+        verify(apiKeyRepository, never()).save(any());
+    }
+
+    @Test
+    void expireAt_sets_the_expiry_and_leaves_revocation_alone() {
+        var entity = newEntity(userId);
+        var until = Instant.now().plusSeconds(3600);
+        when(apiKeyRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        service.expireAt(userId, entity.getId(), until);
+
+        assertThat(entity.getExpiresAt()).isEqualTo(until);
+        assertThat(entity.getRevokedAt()).isNull();
+        verify(apiKeyRepository).save(entity);
+    }
+
+    @Test
+    void expireAt_refuses_a_bootstrap_declared_key() {
+        var entity = newEntity(userId);
+        entity.setBootstrapDeclared(true);
+        when(apiKeyRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+
+        assertThatThrownBy(() -> service.expireAt(userId, entity.getId(), Instant.now()))
+                .isInstanceOf(ApiKeyBootstrapDeclaredException.class);
+        assertThat(entity.getExpiresAt()).isNull();
+        verify(apiKeyRepository, never()).save(any());
+    }
+
+    @Test
+    void expireAt_throws_not_found_when_key_is_unknown() {
+        var unknown = UUID.randomUUID();
+        when(apiKeyRepository.findById(unknown)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.expireAt(userId, unknown, Instant.now()))
+                .isInstanceOf(ApiKeyNotFoundException.class);
+    }
+
+    @Test
+    void expireAt_treats_other_users_key_as_not_found() {
+        var entity = newEntity(UUID.randomUUID());
+        when(apiKeyRepository.findById(entity.getId())).thenReturn(Optional.of(entity));
+        assertThatThrownBy(() -> service.expireAt(userId, entity.getId(), Instant.now()))
+                .isInstanceOf(ApiKeyNotFoundException.class);
+        verify(apiKeyRepository, never()).save(any());
     }
 
     @Test

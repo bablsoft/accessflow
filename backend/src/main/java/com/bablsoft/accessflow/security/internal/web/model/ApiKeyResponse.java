@@ -12,7 +12,8 @@ public record ApiKeyResponse(
         Instant createdAt,
         Instant lastUsedAt,
         Instant expiresAt,
-        Instant revokedAt
+        Instant revokedAt,
+        boolean bootstrapDeclared
 ) {
     public static ApiKeyResponse from(ApiKeyView view) {
         return new ApiKeyResponse(
@@ -22,7 +23,8 @@ public record ApiKeyResponse(
                 view.createdAt(),
                 view.lastUsedAt(),
                 view.expiresAt(),
-                view.revokedAt()
+                view.revokedAt(),
+                view.bootstrapDeclared()
         );
     }
 }
