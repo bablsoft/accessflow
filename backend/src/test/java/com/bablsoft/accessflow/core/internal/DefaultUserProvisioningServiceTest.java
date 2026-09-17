@@ -3,6 +3,8 @@ package com.bablsoft.accessflow.core.internal;
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
+import com.bablsoft.accessflow.core.api.PrincipalType;
+import com.bablsoft.accessflow.core.api.ServiceAccountUserException;
 import com.bablsoft.accessflow.core.api.UserRoleType;
 import com.bablsoft.accessflow.core.internal.persistence.entity.OrganizationEntity;
 import com.bablsoft.accessflow.core.internal.persistence.entity.UserEntity;
@@ -62,6 +64,22 @@ class DefaultUserProvisioningServiceTest {
         assertThatThrownBy(() -> service.findOrProvision(orgId, "admin@example.com", "Admin",
                 AuthProviderType.OAUTH2, UserRoleType.ANALYST))
                 .isInstanceOf(ExternalLocalAccountConflictException.class);
+    }
+
+    // #869: refused ahead of the LOCAL-conflict rule — this fixture is exactly how bootstrap
+    // seeds a bot (LOCAL + a password hash), which would otherwise report a misleading conflict.
+    @Test
+    void rejectsServiceAccountBeforeTheLocalConflictRule() {
+        var existing = newUser("bot@example.com", AuthProviderType.LOCAL);
+        existing.setPasswordHash("$2a$10$unusable");
+        existing.setPrincipalType(PrincipalType.SERVICE_ACCOUNT);
+        when(userRepository.findByEmail("bot@example.com")).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> service.findOrProvision(orgId, "bot@example.com", "CI bot",
+                AuthProviderType.SAML, UserRoleType.ANALYST))
+                .isInstanceOf(ServiceAccountUserException.class)
+                .satisfies(ex -> assertThat(((ServiceAccountUserException) ex).email())
+                        .isEqualTo("bot@example.com"));
     }
 
     @Test

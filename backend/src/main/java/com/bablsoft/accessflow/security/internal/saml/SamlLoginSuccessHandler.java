@@ -8,6 +8,7 @@ import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.ExternalLocalAccountConflictException;
 import com.bablsoft.accessflow.core.api.InactiveUserException;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.ServiceAccountUserException;
 import com.bablsoft.accessflow.core.api.UserGroupService;
 import com.bablsoft.accessflow.core.api.UserProvisioningService;
 import com.bablsoft.accessflow.security.api.SamlConfigService;
@@ -82,6 +83,11 @@ public class SamlLoginSuccessHandler implements AuthenticationSuccessHandler {
             recordAudit(user.id(), organizationId, samlAuthentication, request);
             SecurityContextHolder.clearContext();
             redirectWithCode(response, code);
+        } catch (ServiceAccountUserException ex) {
+            // #869: an IdP that owns a bot's email must not mint it an interactive session.
+            // Refused before group sync, the exchange code and the USER_LOGIN audit row.
+            log.info("SAML login refused — {} is a service account", ex.email());
+            redirectWithError(response, "SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
         } catch (ExternalLocalAccountConflictException ex) {
             log.info("SAML login refused — email {} bound to LOCAL account", ex.email());
             redirectWithError(response, "SAML_LOCAL_EMAIL_CONFLICT");

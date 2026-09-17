@@ -162,6 +162,7 @@
         "oauth2_org_not_allowed": "Your provider account does not belong to an organization that AccessFlow allows.",
         "oauth2_email_domain_not_allowed": "Your email address is not in an AccessFlow-allowed domain.",
         "account_disabled": "Your AccessFlow account is currently disabled.",
+        "service_account_sign_in_blocked": "This account is a service account. Service accounts authenticate with API keys only and cannot sign in interactively.",
         "generic": "Single sign-on failed. Please try again."
       }
     },
@@ -178,6 +179,7 @@
         "saml_not_configured": "SAML SSO is not configured for this deployment.",
         "saml_unexpected_auth": "SAML SSO returned an unexpected authentication state.",
         "account_disabled": "Your AccessFlow account is currently disabled.",
+        "service_account_sign_in_blocked": "This account is a service account. Service accounts authenticate with API keys only and cannot sign in interactively.",
         "generic": "SAML sign-on failed. Please try again."
       }
     },
@@ -326,6 +328,7 @@
   },
   "errors": {
     "auth_invalid": "Invalid email or password.",
+    "service_account_sign_in_blocked": "Service accounts authenticate with API keys only and cannot sign in interactively.",
     "auth_generic": "Sign in failed. Please try again.",
     "setup_already_complete": "Setup is already complete — please sign in.",
     "email_already_exists": "A user with that email already exists.",

@@ -5,6 +5,7 @@ import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
 import com.bablsoft.accessflow.security.api.ApiKeyService;
 import com.bablsoft.accessflow.security.api.ApiKeyView;
 import com.bablsoft.accessflow.security.api.IssuedApiKey;
+import com.bablsoft.accessflow.security.api.ResolvedApiKey;
 import com.bablsoft.accessflow.security.internal.persistence.entity.ApiKeyEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.ApiKeyRepository;
 import lombok.RequiredArgsConstructor;
@@ -94,7 +95,7 @@ public class DefaultApiKeyService implements ApiKeyService {
 
     @Override
     @Transactional
-    public Optional<UUID> resolveUserId(String rawKey) {
+    public Optional<ResolvedApiKey> resolve(String rawKey) {
         if (!ApiKeyHasher.hasExpectedShape(rawKey)) {
             return Optional.empty();
         }
@@ -116,7 +117,7 @@ public class DefaultApiKeyService implements ApiKeyService {
         } catch (RuntimeException ex) {
             log.warn("Failed to touch last_used_at for api key {}: {}", entity.getId(), ex.getMessage());
         }
-        return Optional.of(entity.getUserId());
+        return Optional.of(new ResolvedApiKey(entity.getId(), entity.getUserId()));
     }
 
     static ApiKeyView toView(ApiKeyEntity entity) {

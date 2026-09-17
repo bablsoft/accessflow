@@ -41,7 +41,8 @@ class SamlExchangeController {
     @Operation(summary = "Exchange a one-time SAML code for an access token")
     @ApiResponse(responseCode = "200", description = "Login successful; refresh cookie set")
     @ApiResponse(responseCode = "400", description = "Validation error (missing code)")
-    @ApiResponse(responseCode = "401", description = "Code missing, expired, or already consumed")
+    @ApiResponse(responseCode = "401", description = "Code missing, expired, or already consumed; or the "
+            + "user is a service account (SERVICE_ACCOUNT_SIGN_IN_BLOCKED)")
     @SecurityRequirements
     ResponseEntity<LoginResponse> exchange(@Valid @RequestBody SamlExchangeRequest request,
                                            HttpServletResponse response) {

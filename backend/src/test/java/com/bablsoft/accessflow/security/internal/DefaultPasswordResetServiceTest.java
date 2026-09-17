@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.SystemSmtpSendingConfig;
 import com.bablsoft.accessflow.core.api.SystemSmtpService;
@@ -101,6 +102,12 @@ class DefaultPasswordResetServiceTest {
                 Instant.now(), "en", false, Instant.now());
     }
 
+    private UserView serviceAccountUser() {
+        return new UserView(userId, "alice@example.com", "Alice", UserRoleType.ANALYST, null, "ANALYST",
+                orgId, true, AuthProviderType.LOCAL, "hashed", Instant.now(), "en", false, false,
+                Instant.now(), null, Instant.now(), PrincipalType.SERVICE_ACCOUNT);
+    }
+
     private void smtpConfigured() {
         when(systemSmtpService.resolveSendingConfig(orgId)).thenReturn(Optional.of(
                 new SystemSmtpSendingConfig(orgId, "h", 587, "u", "p", true, "f@x.com", "F")));
@@ -134,6 +141,18 @@ class DefaultPasswordResetServiceTest {
         when(userQueryService.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
 
         service.requestReset("ghost@example.com");
+
+        verify(repository, never()).save(any());
+        verifyNoInteractions(systemSmtpService);
+    }
+
+    @Test
+    void requestResetSilentlyNoopsForServiceAccount() {
+        // #869: a service account can never sign in with the password a reset would set.
+        when(userQueryService.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(serviceAccountUser()));
+
+        service.requestReset("alice@example.com");
 
         verify(repository, never()).save(any());
         verifyNoInteractions(systemSmtpService);

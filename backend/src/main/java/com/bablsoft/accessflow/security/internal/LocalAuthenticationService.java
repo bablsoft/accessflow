@@ -1,12 +1,14 @@
 package com.bablsoft.accessflow.security.internal;
 
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.TotpVerificationService;
 import com.bablsoft.accessflow.core.api.UserQueryService;
 import com.bablsoft.accessflow.core.api.UserView;
 import com.bablsoft.accessflow.security.api.AuthResult;
 import com.bablsoft.accessflow.security.api.AuthenticationService;
 import com.bablsoft.accessflow.security.api.LoginCommand;
+import com.bablsoft.accessflow.security.api.ServiceAccountSignInException;
 import com.bablsoft.accessflow.security.api.TotpAuthenticationException;
 import com.bablsoft.accessflow.security.api.TotpRequiredException;
 import com.bablsoft.accessflow.security.internal.config.JwtProperties;
@@ -45,6 +47,7 @@ public class LocalAuthenticationService implements AuthenticationService {
             throw new DisabledException("Account is disabled");
         }
         ensureOrganizationEnabled(user);
+        ensureInteractivePrincipal(user);
 
         if (user.passwordHash() == null
                 || !passwordEncoder.matches(command.password(), user.passwordHash())) {
@@ -79,6 +82,7 @@ public class LocalAuthenticationService implements AuthenticationService {
             throw new DisabledException("Account is disabled");
         }
         ensureOrganizationEnabled(user);
+        ensureInteractivePrincipal(user);
 
         refreshTokenStore.revoke(refreshToken);
         return issueTokenPair(user);
@@ -99,6 +103,7 @@ public class LocalAuthenticationService implements AuthenticationService {
             throw new DisabledException("Account is disabled");
         }
         ensureOrganizationEnabled(user);
+        ensureInteractivePrincipal(user);
         return issueTokenPair(user);
     }
 
@@ -108,6 +113,15 @@ public class LocalAuthenticationService implements AuthenticationService {
         if (organizationLookupService.isDisabled(user.organizationId())) {
             throw new DisabledException(messageSource.getMessage(
                     "error.organization_disabled", null, LocaleContextHolder.getLocale()));
+        }
+    }
+
+    // #869: a service account never holds an interactive session — not by password, not via a
+    // refresh it somehow still holds (a person adopted as a service account by bootstrap), and
+    // not through the SSO exchange. The same three chokepoints as the tenant guard above.
+    private void ensureInteractivePrincipal(UserView user) {
+        if (user.principalType() == PrincipalType.SERVICE_ACCOUNT) {
+            throw new ServiceAccountSignInException();
         }
     }
 

@@ -58,7 +58,7 @@ All JWT mechanisms remain in place. Additionally:
   - Otherwise, on the first call that needs the keypair (`/init`, `/metadata`, or `/acs`) AccessFlow generates a self-signed RSA-2048 keypair, encrypts the private key with `ENCRYPTION_KEY` (AES-256-GCM via `CredentialEncryptionService`), and persists both PEMs into `saml_config.sp_private_key_pem` / `saml_config.sp_certificate_pem` so the values survive restarts.
 - On successful SAML assertion:
   1. Extract `attr_email`, `attr_display_name`, optional `attr_role` per the org's mapping config (defaults `email` / `displayName`).
-  2. Look up the user by email. If they already exist with `auth_provider=SAML`, the row is reused. If they exist with `auth_provider=LOCAL` and a populated `password_hash`, sign-in is rejected with `SAML_LOCAL_EMAIL_CONFLICT` — auto-linking is unsafe because anyone able to assert the same email at the IdP could otherwise take over the local account.
+  2. Look up the user by email. If they already exist with `auth_provider=SAML`, the row is reused. If they exist with `auth_provider=LOCAL` and a populated `password_hash`, sign-in is rejected with `SAML_LOCAL_EMAIL_CONFLICT` — auto-linking is unsafe because anyone able to assert the same email at the IdP could otherwise take over the local account. If the matched user is a `SERVICE_ACCOUNT` (#869), `findOrProvision` throws `ServiceAccountUserException` — checked **ahead of** the LOCAL-conflict rule, because a bootstrap-seeded bot is `LOCAL` with an unusable hash and would otherwise surface as a misleading conflict — and the handler redirects with `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` before any group sync, exchange code or audit row. An IdP that happens to own a bot's email must never mint it an interactive session.
   3. Otherwise JIT-provision a new user with `auth_provider=SAML` and `role = saml_config.default_role` (or the asserted role when `attr_role` is configured and the value matches a known `UserRoleType`).
   4. Mint a one-time exchange code in Redis (`saml:exchange:` namespace, 60s default TTL configurable via `ACCESSFLOW_SAML_EXCHANGE_CODE_TTL`) and 302 to `${ACCESSFLOW_SAML_FRONTEND_CALLBACK_URL}?code=<code>`. The frontend posts the code to `/api/v1/auth/saml/exchange`, which consumes it (single-use) and returns the same JWT pair shape as `/auth/login`. Tokens never appear in the redirect URL.
 - Both successful and failed sign-ins write to `audit_log` via `USER_LOGIN` / `USER_LOGIN_FAILED`.
@@ -112,7 +112,12 @@ trusting those operators with the equivalent of full SSO control.
    `auth_provider=LOCAL` **and** a populated `password_hash`. The admin must manually
    convert the account before the user can sign in via OAuth — auto-linking would let
    anyone who controls a provider account with the same email take over a local account.
-5. JIT-provisions a new user otherwise, with `auth_provider=OAUTH2` and `role =
+5. Rejects with `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` when the matched user is a
+   `SERVICE_ACCOUNT` (#869) — `findOrProvision` checks this **before** the LOCAL-conflict rule
+   in step 4 (a bootstrap-seeded bot is `LOCAL` with an unusable hash), and the handler
+   redirects before group sync, the exchange code and the audit row. A service account
+   authenticates by API key only; an IdP account with the same email is not a way around that.
+6. JIT-provisions a new user otherwise, with `auth_provider=OAUTH2` and `role =
    oauth2_config.default_role` (per-provider).
 
 **Redirect handshake.** Spring Security's `oauth2Login()` handles the browser redirect to
@@ -250,10 +255,33 @@ server and other programmatic clients without a browser session. The flow:
 - **Filter placement.** `ApiKeyAuthenticationFilter` (in the `security` module, sibling to
   `JwtAuthenticationFilter`) runs before
   `JwtAuthenticationFilter` in the main security chain. If no API key header is present, the
-  JWT filter still gets a chance. Both filters end up populating a `JwtAuthenticationToken`
-  with the same `JwtClaims` shape, so downstream controllers and MCP tools are auth-agnostic.
+  JWT filter still gets a chance. The API-key filter resolves the key to
+  `ResolvedApiKey(apiKeyId, userId)` and populates an `ApiKeyAuthenticationToken` — a token that
+  implements the public `security.api.ApiKeyAuthentication` marker (exposing `apiKeyId()`, #869)
+  and carries the **same `JwtClaims` principal** the JWT path mints, so downstream controllers
+  and MCP tools are auth-agnostic. The key id lives on the token beside the claims, never inside
+  them: `JwtClaims` is the permission-carrying principal and is deliberately unchanged, so nothing
+  read during permission resolution can ever see which key (or, later, which on-behalf-of human)
+  made the request.
 - **Audit.** `api_keys.last_used_at` is bumped on each successful authentication. Bumps are
   best-effort and swallow exceptions to avoid impacting auth latency.
+- **Service accounts are API-key-only (#869).** A `users` row with
+  `principal_type = SERVICE_ACCOUNT` (#868) can never hold an interactive session:
+  `POST /auth/login`, `POST /auth/refresh` and both SSO exchanges (`/auth/oauth2/exchange`,
+  `/auth/saml/exchange`) reject it with HTTP 401 `SERVICE_ACCOUNT_SIGN_IN_BLOCKED`
+  (`security.api.ServiceAccountSignInException`, thrown by `LocalAuthenticationService` at the
+  same three chokepoints as the disabled-tenant guard), and the SAML / OAuth2 success handlers
+  redirect with `error=SERVICE_ACCOUNT_SIGN_IN_BLOCKED` before issuing an exchange code. The
+  password-login check runs before the password is verified, so the rule holds regardless of
+  the (bootstrap-seeded, unusable) hash. **Accepted trade-off:** this makes `/auth/login` the one
+  pre-credential outcome that is not collapsed into the generic `UNAUTHORIZED` envelope — an
+  anonymous caller who already knows a bot's email can confirm it is a service account. That
+  reveals nothing usable (a bot has no password to guess and its key carries 256 bits of entropy)
+  and was chosen over a generic 401 so the rule is observable and testable; flip the order of the
+  guard and the password check in `LocalAuthenticationService.login` if the oracle ever matters.
+  A password reset is likewise never emailed for a service account. The refresh guard means a person adopted as a service account by bootstrap loses their
+  session on the next token rotation. The key itself keeps working — it is the only credential a
+  service account has.
 
 See `docs/13-mcp.md` for the end-user guide.
 
@@ -490,9 +518,12 @@ permission at all, is in
 `USER_MANAGE` / `GROUP_MANAGE` / `ROLE_MANAGE` and is held by `ADMIN` only (seeded by `V174`, same
 `VARCHAR`-catalog convention as `V134`/`V146`/`V148`/`V151`/`V171`). It will gate the admin CRUD,
 key issuance and rotation that #871 adds; #868 ships the catalog value, the seed, the
-`users.principal_type` discriminator and the `service_accounts` detail table only, so nothing is
-gated by it yet and a service account still authenticates and is authorized exactly as the role on
-its **own** `users` row dictates — `owner_user_id` (the human it acts for) confers nothing. The discriminator is set only through `UserAdminService.setPrincipalType`,
+`users.principal_type` discriminator and the `service_accounts` detail table, so nothing is
+gated by the permission yet. Since #869 the discriminator itself is enforced on the sign-in
+surface — password, refresh, SAML and OAuth2 all reject a `SERVICE_ACCOUNT` (see "API key
+authentication" above) — while by API key a service account still authenticates and is authorized
+exactly as the role on its **own** `users` row dictates — `owner_user_id` (the human it acts for)
+confers nothing. The discriminator is set only through `UserAdminService.setPrincipalType`,
 called from the `serviceaccounts` module in the same transaction as the detail row — no other code
 path can type a user (`PrincipalTypeChokepointTest`, an ArchUnit rule, fails the build on any other
 caller), and `security` never depends on `serviceaccounts` (it reads `principalType`

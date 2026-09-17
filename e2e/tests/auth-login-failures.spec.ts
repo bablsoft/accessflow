@@ -1,6 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
 const ADMIN_EMAIL = 'e2e@accessflow.test';
+// Seeded by ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_* in docker-compose.e2e.yml (#869).
+const SERVICE_ACCOUNT_EMAIL = 'ci-bot@accessflow.test';
 
 // All four scenarios share a single page and the /login URL — the form lives in
 // an in-memory React tree, so we reset its state by reloading rather than by
@@ -73,6 +75,22 @@ test.describe('login failure modes', () => {
     // Email retained, password cleared.
     await expect(page.locator('#login-email')).toHaveValue(ADMIN_EMAIL);
     await expect(page.locator('#login-password')).toHaveValue('');
+    expect(new URL(page.url()).pathname).toBe('/login');
+  });
+
+  // #869: service accounts authenticate by API key only. The guard runs before the password is
+  // checked, so any password gets the distinct message — not the generic "Invalid email or
+  // password." the wrong-password case above sees.
+  test('service account sign-in is refused with its own message', async ({ page }) => {
+    await page.locator('#login-email').fill(SERVICE_ACCOUNT_EMAIL);
+    await page.locator('#login-password').fill('AnyPassword!123');
+    await page.locator('button[type="submit"]').click();
+
+    const alert = page.getByRole('alert').filter({
+      hasText: 'Service accounts authenticate with API keys only and cannot sign in interactively.',
+    });
+    await expect(alert).toBeVisible();
+    await expect(page.getByText('Invalid email or password.')).toHaveCount(0);
     expect(new URL(page.url()).pathname).toBe('/login');
   });
 

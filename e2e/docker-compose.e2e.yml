@@ -157,6 +157,14 @@ services:
       ACCESSFLOW_BOOTSTRAP_ADMIN_EMAIL: e2e@accessflow.test
       ACCESSFLOW_BOOTSTRAP_ADMIN_DISPLAY_NAME: "E2E Admin"
       ACCESSFLOW_BOOTSTRAP_ADMIN_PASSWORD: "E2ePassword!123"
+      # A bootstrap-seeded service account (#869) so auth-login-failures.spec.ts can prove an
+      # interactive sign-in as a bot is refused with its own message. READONLY so it never
+      # appears as an approver or admin in any other spec; nothing else references it.
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_EMAIL: ci-bot@accessflow.test
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_DISPLAY_NAME: "E2E CI bot"
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_ROLE: READONLY
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY_NAME: e2e
+      ACCESSFLOW_BOOTSTRAP_SERVICE_ACCOUNTS_0_API_KEY: af_e2e-ci-bot-key-not-a-secret
       # System SMTP points at the in-stack Mailcrab catcher so password reset
       # (and any future transactional email) actually issues tokens and lets
       # auth-forgot-password.spec.ts pull the rendered email back.

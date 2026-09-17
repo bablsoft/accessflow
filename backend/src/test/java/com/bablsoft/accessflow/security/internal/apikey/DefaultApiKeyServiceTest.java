@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal.apikey;
 
 import com.bablsoft.accessflow.security.api.ApiKeyDuplicateNameException;
 import com.bablsoft.accessflow.security.api.ApiKeyNotFoundException;
+import com.bablsoft.accessflow.security.api.ResolvedApiKey;
 import com.bablsoft.accessflow.security.internal.persistence.entity.ApiKeyEntity;
 import com.bablsoft.accessflow.security.internal.persistence.repo.ApiKeyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -159,6 +160,81 @@ class DefaultApiKeyServiceTest {
                 .isInstanceOf(ApiKeyNotFoundException.class);
         verify(apiKeyRepository, never()).save(any());
     }
+
+    @Test
+    void resolve_returns_key_and_user_ids_for_valid_key_and_touches_last_used() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+
+        var result = service.resolve(raw);
+
+        assertThat(result).contains(new ResolvedApiKey(entity.getId(), userId));
+        verify(apiKeyRepository).touchLastUsedAt(eq(entity.getId()), any(Instant.class));
+    }
+
+    @Test
+    void resolve_still_succeeds_when_last_used_touch_fails() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
+                .when(apiKeyRepository).touchLastUsedAt(eq(entity.getId()), any(Instant.class));
+
+        assertThat(service.resolve(raw)).contains(new ResolvedApiKey(entity.getId(), userId));
+    }
+
+    @Test
+    void resolve_empty_for_malformed_input() {
+        assertThat(service.resolve(null)).isEmpty();
+        assertThat(service.resolve("nope")).isEmpty();
+        assertThat(service.resolve("af_")).isEmpty();
+        verify(apiKeyRepository, never()).findByKeyHash(any());
+    }
+
+    @Test
+    void resolve_empty_for_unknown_hash() {
+        var raw = ApiKeyHasher.generate();
+        when(apiKeyRepository.findByKeyHash(ApiKeyHasher.hash(raw))).thenReturn(Optional.empty());
+        assertThat(service.resolve(raw)).isEmpty();
+    }
+
+    @Test
+    void resolve_empty_for_revoked_key() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        entity.setRevokedAt(Instant.now().minusSeconds(60));
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+        assertThat(service.resolve(raw)).isEmpty();
+        verify(apiKeyRepository, never()).touchLastUsedAt(any(), any());
+    }
+
+    @Test
+    void resolve_empty_for_expired_key() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        entity.setExpiresAt(Instant.now().minusSeconds(60));
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+        assertThat(service.resolve(raw)).isEmpty();
+        verify(apiKeyRepository, never()).touchLastUsedAt(any(), any());
+    }
+
+    @Test
+    void resolve_honours_a_future_expiry() {
+        var raw = ApiKeyHasher.generate();
+        var entity = newEntity(userId);
+        entity.setKeyHash(ApiKeyHasher.hash(raw));
+        entity.setExpiresAt(Instant.now().plusSeconds(3600));
+        when(apiKeyRepository.findByKeyHash(entity.getKeyHash())).thenReturn(Optional.of(entity));
+        assertThat(service.resolve(raw)).isPresent();
+    }
+
+    // resolveUserId is now the interface default over resolve(); the resolveUserId_* tests
+    // below are kept verbatim from before #869 to prove its behaviour is unchanged.
 
     @Test
     void resolveUserId_returns_user_for_valid_key_and_touches_last_used() {

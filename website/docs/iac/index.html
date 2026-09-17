@@ -64,7 +64,7 @@
       "inLanguage": "en",
       "articleSection": "Infrastructure as Code",
       "datePublished": "2026-08-03",
-      "dateModified": "2026-09-15",
+      "dateModified": "2026-09-17",
       "url": "https://accessflow.io/docs/iac/",
       "mainEntityOfPage": "https://accessflow.io/docs/iac/",
       "image": "https://accessflow.io/og-image.png",
@@ -268,7 +268,7 @@
           </nav>
           <span class="eyebrow">Documentation</span>
           <h1>Infrastructure as Code.</h1>
-          <p class="docs-updated">Last updated <time datetime="2026-09-15">15 September 2026</time></p>
+          <p class="docs-updated">Last updated <time datetime="2026-09-17">17 September 2026</time></p>
         </header>
 
 <section id="iac" class="docs-section">
@@ -295,8 +295,8 @@
           <h3 id="iac-service-account">Service-account API keys</h3>
           <p>
             A pipeline needs credentials without an interactive login. Bootstrap can seed a
-            <strong>service account</strong> — an API-key-only user (password login disabled) whose
-            raw key you supply from a Secret (only its hash is stored, rotated in place when it
+            <strong>service account</strong> — an API-key-only user that can never sign in
+            interactively, by password or single sign-on — whose raw key you supply from a Secret (only its hash is stored, rotated in place when it
             changes). Set these operator env vars (or the equivalent Helm
             <code>bootstrap.serviceAccounts[]</code> with an <code>apiKeySecretRef</code>):
           </p>

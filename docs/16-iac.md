@@ -19,8 +19,8 @@ inherits its owner's permissions, so use an admin (or admin-role **service accou
 ## Authentication: bootstrap a service account
 
 A pipeline needs credentials without an interactive login. The `bootstrap` module can seed a
-**service account** — an API-key-only user (password login disabled) whose raw key you supply from
-a Secret (only its hash is stored). The key is upserted by `(user, api_key_name)` and rotated in
+**service account** — an API-key-only user (interactive sign-in — password or SSO — is blocked,
+#869) whose raw key you supply from a Secret (only its hash is stored). The key is upserted by `(user, api_key_name)` and rotated in
 place when it changes — the same authoritative-upsert semantics as the rest of bootstrap.
 
 ```yaml

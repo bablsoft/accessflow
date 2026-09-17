@@ -2,6 +2,7 @@ package com.bablsoft.accessflow.security.internal;
 
 import com.bablsoft.accessflow.core.api.AuthProviderType;
 import com.bablsoft.accessflow.core.api.OrganizationLookupService;
+import com.bablsoft.accessflow.core.api.PrincipalType;
 import com.bablsoft.accessflow.core.api.SystemSmtpNotConfiguredException;
 import com.bablsoft.accessflow.core.api.SystemSmtpService;
 import com.bablsoft.accessflow.core.api.UserProfileService;
@@ -122,6 +123,10 @@ class DefaultPasswordResetService implements PasswordResetService {
             return false;
         }
         if (user.authProvider() != AuthProviderType.LOCAL) {
+            return false;
+        }
+        // A service account can never use the password a reset would set (#869).
+        if (user.principalType() != PrincipalType.HUMAN) {
             return false;
         }
         if (!user.active()) {

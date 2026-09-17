@@ -124,8 +124,8 @@ public class ServiceAccountReconciler {
             }
             if (user.principalType() != PrincipalType.SERVICE_ACCOUNT) {
                 // Adoption is deliberate (a pre-#868 install declares accounts that already exist
-                // as plain users), but a typo naming a real person's email must be loud: once #869
-                // lands, that person can no longer sign in interactively.
+                // as plain users), but a typo naming a real person's email must be loud: since #869
+                // that person can no longer sign in interactively (password, refresh, or SSO).
                 log.warn("Bootstrap: service account '{}' matches an existing {} user {} — "
                         + "adopting it as a SERVICE_ACCOUNT; interactive sign-in for it will be blocked",
                         spec.email(), user.principalType(), user.id());

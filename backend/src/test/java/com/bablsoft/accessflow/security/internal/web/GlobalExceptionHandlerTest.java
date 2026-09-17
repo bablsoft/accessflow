@@ -26,6 +26,7 @@ import com.bablsoft.accessflow.core.api.InvalidSqlException;
 import com.bablsoft.accessflow.proxy.api.PoolInitializationException;
 import com.bablsoft.accessflow.core.api.QueryExecutionFailedException;
 import com.bablsoft.accessflow.core.api.QueryExecutionTimeoutException;
+import com.bablsoft.accessflow.security.api.ServiceAccountSignInException;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -109,6 +110,15 @@ class GlobalExceptionHandlerTest {
         @SuppressWarnings("unchecked")
         var fields = (Map<String, String>) pd.getProperties().get("fields");
         assertThat(fields).containsEntry("email", "first message");
+    }
+
+    @Test
+    void serviceAccountSignInReturns401WithDistinctCode() {
+        var pd = handler.handleServiceAccountSignIn(new ServiceAccountSignInException());
+
+        assertThat(pd.getStatus()).isEqualTo(401);
+        assertThat(pd.getDetail()).isEqualTo("error.service_account_sign_in_blocked");
+        assertThat(pd.getProperties()).containsEntry("error", "SERVICE_ACCOUNT_SIGN_IN_BLOCKED");
     }
 
     @Test

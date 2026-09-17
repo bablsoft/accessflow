@@ -106,6 +106,7 @@ The response also sets a `refresh_token` cookie scoped to `Path=/api/v1/auth` wi
 - `UNAUTHORIZED` — invalid credentials, disabled account, or unknown email.
 - `TOTP_REQUIRED` — credentials are valid and the account has 2FA enabled; the client must re-submit with `totp_code`.
 - `TOTP_INVALID` — credentials are valid but the supplied `totp_code` (or backup code) did not verify.
+- `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` — the email belongs to a service account (`principal_type = SERVICE_ACCOUNT`, #869). Service accounts authenticate with an API key only and can never obtain an interactive session; the check runs before the password is verified, so it fires regardless of the credentials supplied.
 
 ### POST /auth/refresh
 
@@ -113,7 +114,7 @@ Exchanges the `refresh_token` cookie for a new access token. Reads the refresh t
 
 **Response 200:** Same shape as `POST /auth/login`. A rotated `refresh_token` cookie is set on the response.
 
-**Response 401:** Cookie missing, expired, malformed, or revoked.
+**Response 401:** Cookie missing, expired, malformed, or revoked (`UNAUTHORIZED`); or the user has since become a service account (`SERVICE_ACCOUNT_SIGN_IN_BLOCKED`, #869 — a person adopted as a service account by bootstrap loses the session on the next rotation).
 
 ### POST /auth/logout
 
@@ -5026,7 +5027,7 @@ Preview an invitation before accepting it.
 
 ### Password reset (`/auth/password/...`)
 
-Public endpoints, no auth required. The flow is enumeration-safe: the request endpoint always succeeds and only sends an email when the address matches an active LOCAL account with a password hash. SSO-only accounts and inactive accounts are silently skipped, as are requests for an organization with no system SMTP configured.
+Public endpoints, no auth required. The flow is enumeration-safe: the request endpoint always succeeds and only sends an email when the address matches an active LOCAL account with a password hash. SSO-only accounts, inactive accounts and service accounts (`principal_type = SERVICE_ACCOUNT`, #869 — they can never sign in with a password) are silently skipped, as are requests for an organization with no system SMTP configured.
 
 #### POST /auth/password/forgot
 
@@ -6413,6 +6414,7 @@ Possible error codes:
 | `OAUTH2_EMAIL_DOMAIN_NOT_ALLOWED` | The provider's email domain is not in the config's `allowed_email_domains` allowlist |
 | `OAUTH2_ORG_NOT_ALLOWED` | The provider-side membership (GitHub orgs, GitLab/Microsoft groups) did not intersect the config's `allowed_organizations` allowlist |
 | `ACCOUNT_DISABLED` | The matched user is inactive |
+| `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` | The matched user is a service account (#869) — API-key-only; no exchange code is issued |
 
 ### POST /auth/oauth2/exchange
 
@@ -6431,6 +6433,7 @@ Trade the one-time `code` emitted by the success handler for an access token + r
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | `code` is missing or empty |
 | `UNAUTHORIZED` | 401 | Code is invalid, expired, or already consumed |
+| `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` | 401 | The code's user is a service account (#869) — no session is ever minted for one |
 
 ### GET /auth/saml/init/{registrationId}
 
@@ -6464,6 +6467,7 @@ Possible error codes:
 | `SAML_NOT_CONFIGURED` | No active SAML registration exists for this deployment |
 | `SAML_UNEXPECTED_AUTH` | Spring Security did not pass back a `Saml2Authentication` (should not happen in practice) |
 | `ACCOUNT_DISABLED` | The matched user is inactive |
+| `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` | The matched user is a service account (#869) — API-key-only; no exchange code is issued |
 
 Tokens never appear in the redirect URL — only the one-time `code`, which the frontend trades via `POST /auth/saml/exchange` for the standard JWT envelope.
 
@@ -6484,6 +6488,7 @@ Trade the one-time `code` emitted by the SAML success handler for an access toke
 |---|---|---|
 | `VALIDATION_ERROR` | 400 | `code` is missing or empty |
 | `UNAUTHORIZED` | 401 | Code is invalid, expired, or already consumed |
+| `SERVICE_ACCOUNT_SIGN_IN_BLOCKED` | 401 | The code's user is a service account (#869) — no session is ever minted for one |
 
 ### GET /admin/oauth2-config
 

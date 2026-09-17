@@ -18,6 +18,7 @@ const KNOWN_ERROR_CODES = new Set([
   'SAML_NOT_CONFIGURED',
   'SAML_UNEXPECTED_AUTH',
   'ACCOUNT_DISABLED',
+  'SERVICE_ACCOUNT_SIGN_IN_BLOCKED',
 ]);
 
 export function SamlCallbackPage() {

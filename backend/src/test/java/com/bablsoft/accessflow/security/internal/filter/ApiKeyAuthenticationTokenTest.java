@@ -14,8 +14,10 @@ class ApiKeyAuthenticationTokenTest {
     @Test
     void principal_and_authorities_reflect_claims() {
         var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.REVIEWER, UUID.randomUUID());
-        var token = new ApiKeyAuthenticationToken(claims);
+        var apiKeyId = UUID.randomUUID();
+        var token = new ApiKeyAuthenticationToken(apiKeyId, claims);
         assertThat(token.isAuthenticated()).isTrue();
+        assertThat(token.apiKeyId()).isEqualTo(apiKeyId);
         assertThat(token.getPrincipal()).isSameAs(claims);
         assertThat(token.getCredentials()).isNull();
         assertThat(token.getAuthorities())
@@ -26,6 +28,8 @@ class ApiKeyAuthenticationTokenTest {
     @Test
     void implementsApiKeyAuthenticationMarkerForChannelDetection() {
         var claims = JwtClaims.forSystemRole(UUID.randomUUID(), "u@e.c", UserRoleType.ANALYST, UUID.randomUUID());
-        assertThat(new ApiKeyAuthenticationToken(claims)).isInstanceOf(ApiKeyAuthentication.class);
+        var token = new ApiKeyAuthenticationToken(UUID.randomUUID(), claims);
+        assertThat(token).isInstanceOf(ApiKeyAuthentication.class);
+        assertThat(((ApiKeyAuthentication) token).apiKeyId()).isEqualTo(token.apiKeyId());
     }
 }

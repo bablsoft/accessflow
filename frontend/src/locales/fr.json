@@ -162,6 +162,7 @@
         "oauth2_org_not_allowed": "Votre compte fournisseur n'appartient à aucune organisation autorisée par AccessFlow.",
         "oauth2_email_domain_not_allowed": "Votre domaine de courriel n'est pas autorisé par AccessFlow.",
         "account_disabled": "Votre compte AccessFlow est actuellement désactivé.",
+        "service_account_sign_in_blocked": "Ce compte est un compte de service. Les comptes de service s'authentifient uniquement par clé API et ne peuvent pas se connecter de manière interactive.",
         "generic": "L'authentification unique a échoué. Veuillez réessayer."
       }
     },
@@ -178,6 +179,7 @@
         "saml_not_configured": "L'authentification SAML n'est pas configurée pour ce déploiement.",
         "saml_unexpected_auth": "L'authentification SAML a renvoyé un état d'authentification inattendu.",
         "account_disabled": "Votre compte AccessFlow est actuellement désactivé.",
+        "service_account_sign_in_blocked": "Ce compte est un compte de service. Les comptes de service s'authentifient uniquement par clé API et ne peuvent pas se connecter de manière interactive.",
         "generic": "La connexion SAML a échoué. Veuillez réessayer."
       }
     },
@@ -326,6 +328,7 @@
   },
   "errors": {
     "auth_invalid": "E-mail ou mot de passe invalide.",
+    "service_account_sign_in_blocked": "Les comptes de service s'authentifient uniquement par clé API et ne peuvent pas se connecter de manière interactive.",
     "auth_generic": "Échec de la connexion. Réessaie.",
     "setup_already_complete": "La configuration est déjà terminée — connecte-toi.",
     "email_already_exists": "Un utilisateur avec cet e-mail existe déjà.",

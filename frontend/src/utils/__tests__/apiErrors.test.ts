@@ -99,6 +99,11 @@ describe('authErrorMessage', () => {
       .toBe('Invalid email or password.');
   });
 
+  it('maps SERVICE_ACCOUNT_SIGN_IN_BLOCKED ahead of the generic 401 message', () => {
+    expect(authErrorMessage(buildAxiosError(401, { error: 'SERVICE_ACCOUNT_SIGN_IN_BLOCKED' })))
+      .toBe('Service accounts authenticate with API keys only and cannot sign in interactively.');
+  });
+
   it('uses ProblemDetail.title when present and not 401', () => {
     expect(authErrorMessage(buildAxiosError(500, { title: 'Server exploded' })))
       .toBe('Server exploded');

@@ -162,6 +162,7 @@
         "oauth2_org_not_allowed": "Tu cuenta del proveedor no pertenece a ninguna organización autorizada por AccessFlow.",
         "oauth2_email_domain_not_allowed": "Tu dominio de correo no está autorizado en AccessFlow.",
         "account_disabled": "Tu cuenta de AccessFlow está actualmente deshabilitada.",
+        "service_account_sign_in_blocked": "Esta cuenta es una cuenta de servicio. Las cuentas de servicio se autentican únicamente con claves de API y no pueden iniciar sesión de forma interactiva.",
         "generic": "El inicio de sesión único falló. Inténtalo de nuevo."
       }
     },
@@ -178,6 +179,7 @@
         "saml_not_configured": "SAML SSO no está configurado para este despliegue.",
         "saml_unexpected_auth": "SAML SSO devolvió un estado de autenticación inesperado.",
         "account_disabled": "Tu cuenta de AccessFlow está actualmente deshabilitada.",
+        "service_account_sign_in_blocked": "Esta cuenta es una cuenta de servicio. Las cuentas de servicio se autentican únicamente con claves de API y no pueden iniciar sesión de forma interactiva.",
         "generic": "El inicio de sesión SAML falló. Inténtalo de nuevo."
       }
     },
@@ -326,6 +328,7 @@
   },
   "errors": {
     "auth_invalid": "Correo electrónico o contraseña no válidos.",
+    "service_account_sign_in_blocked": "Las cuentas de servicio se autentican únicamente con claves de API y no pueden iniciar sesión de forma interactiva.",
     "auth_generic": "No se pudo iniciar sesión. Inténtalo de nuevo.",
     "setup_already_complete": "La configuración inicial ya está completa — inicia sesión.",
     "email_already_exists": "Ya existe un usuario con ese correo electrónico.",
