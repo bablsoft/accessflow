@@ -49,10 +49,13 @@ async function submitAccessRequest(
   await expect(page.getByText('Access request submitted')).toBeVisible({ timeout: 15_000 });
 }
 
+// Scoped to the requester's row: the admin queue is shared with every parallel spec that leaves a
+// request pending, so an unscoped `.first()` would approve someone else's request.
 async function approveNewestAccessRequest(page: Page, requesterEmail: string): Promise<void> {
   await page.goto('/admin/access-requests');
-  await expect(page.getByText(requesterEmail).first()).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Approve' }).first().click();
+  const queueRow = page.getByRole('row').filter({ hasText: requesterEmail }).first();
+  await expect(queueRow).toBeVisible({ timeout: 15_000 });
+  await queueRow.getByRole('button', { name: 'Approve' }).click();
   await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
 }
 
@@ -102,8 +105,9 @@ test.describe.serial('grant-covered query auto-approval (#582)', () => {
     // 2. The approving admin sees exactly what they authorize — the blue tag.
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
-    await expect(page.getByText('Pre-approves queries').first()).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Approve' }).first().click();
+    const queueRow = page.getByRole('row').filter({ hasText: requesterEmail });
+    await expect(queueRow.getByText('Pre-approves queries')).toBeVisible({ timeout: 15_000 });
+    await queueRow.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
 
     // 3. A covered SELECT auto-approves with NO reviewer action (the datasource

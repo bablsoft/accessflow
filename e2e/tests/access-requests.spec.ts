@@ -81,8 +81,11 @@ test.describe.serial('access requests (AF-378)', () => {
     // 2. Admin approves it in the access-request queue.
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/admin/access-requests');
-    await expect(page.getByText(requesterEmail)).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('button', { name: 'Approve' }).first().click();
+    // Scope to this requester's row: the queue is shared with every parallel spec that leaves a
+    // request pending, so an unscoped `.first()` would approve someone else's request.
+    const queueRow = page.getByRole('row').filter({ hasText: requesterEmail });
+    await expect(queueRow).toBeVisible({ timeout: 15_000 });
+    await queueRow.getByRole('button', { name: 'Approve' }).click();
     await expect(page.getByText('Access request approved')).toBeVisible({ timeout: 15_000 });
 
     // 3. Back as the requester: the grant is materialised — APPROVED + a TTL chip.
