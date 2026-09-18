@@ -26,7 +26,10 @@ inputs:
     description: "Optional submission justification."
     required: false
   timeout-seconds:
-    description: "How long to wait for a terminal status before giving up."
+    description: >-
+      How long to wait for a terminal status before giving up. Rate-limited calls (HTTP 429 —
+      every API key is capped per identity) are retried within this budget, honouring the
+      server's Retry-After header.
     required: false
     default: "300"
   poll-interval-seconds:

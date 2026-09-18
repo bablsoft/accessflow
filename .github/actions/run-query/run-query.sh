@@ -13,21 +13,55 @@ base="${AF_ENDPOINT%/}/api/v1"
 auth=(-H "Authorization: ApiKey ${AF_API_KEY}" -H "X-AccessFlow-CI: true")
 out="${GITHUB_OUTPUT:-/dev/stdout}"
 
-# request METHOD URL [BODY] — captures body + HTTP status and prints the RFC 9457 ProblemDetail
-# on a >=400 before failing, instead of a bare `curl --fail` exit code.
-request() {
-  local method="$1" url="$2" data="${3:-}" resp code
-  if [ -n "$data" ]; then
-    resp="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
-      -d "$data" -w $'\n%{http_code}' "$url")"
+timeout_s="${AF_TIMEOUT_SECONDS:-300}"
+interval="${AF_POLL_INTERVAL_SECONDS:-5}"
+# One wall-clock budget for the whole run: submission, the status polls and the execute call all
+# share it, so a rate-limited call (HTTP 429, #873) is retried honouring Retry-After until it
+# elapses instead of failing the job on the first 429.
+deadline=$(( SECONDS + timeout_s ))
+
+# retry_delay RETRY_AFTER — seconds to sleep before the next attempt: the server's Retry-After when
+# it sent one (capped at the time left before the deadline, so a long window ends in the normal
+# timeout path instead of an over-long sleep), otherwise the fixed poll interval.
+retry_delay() {
+  local remaining=$(( deadline - SECONDS ))
+  if [ -n "${1:-}" ]; then
+    if [ "$1" -lt "$remaining" ]; then echo "$1"; else echo $(( remaining > 0 ? remaining : 0 )); fi
   else
-    resp="$(curl -sS -X "$method" "${auth[@]}" -w $'\n%{http_code}' "$url")"
+    echo "$interval"
   fi
-  code="${resp##*$'\n'}"
-  local payload="${resp%$'\n'*}"
+}
+
+# request METHOD URL [BODY] — captures body + HTTP status, retries a 429 (per-identity API-key rate
+# limit) honouring Retry-After while the deadline allows, and prints the RFC 9457 ProblemDetail on
+# any other >=400 before failing, instead of a bare `curl --fail` exit code. A 429 is answered by
+# the rate-limit filter ahead of the controller, so re-sending an execute call is safe.
+request() {
+  local method="$1" url="$2" data="${3:-}" resp code payload hdr retry_after delay
+  while :; do
+    hdr="$(mktemp)"
+    if [ -n "$data" ]; then
+      resp="$(curl -sS -X "$method" "${auth[@]}" -H 'Content-Type: application/json' \
+        -d "$data" -D "$hdr" -w $'\n%{http_code}' "$url")" || { rm -f "$hdr"; return 1; }
+    else
+      resp="$(curl -sS -X "$method" "${auth[@]}" -D "$hdr" -w $'\n%{http_code}' "$url")" \
+        || { rm -f "$hdr"; return 1; }
+    fi
+    code="${resp##*$'\n'}"
+    payload="${resp%$'\n'*}"
+    retry_after="$(sed -n -E 's/^[Rr]etry-[Aa]fter:[[:space:]]*([0-9]+)[[:space:]]*$/\1/p' "$hdr" | tail -n1)"
+    rm -f "$hdr"
+    if [ "$code" = "429" ] && [ "$SECONDS" -lt "$deadline" ]; then
+      delay="$(retry_delay "$retry_after")"
+      echo "  rate limited (HTTP 429), retrying ${method} in ${delay}s…" >&2
+      sleep "$delay"
+      continue
+    fi
+    break
+  done
   if [ "$code" -ge 400 ]; then
     echo "::error::AccessFlow API ${method} ${url} returned HTTP ${code}" >&2
-    jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" 2>/dev/null >&2 \
+    jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" >&2 2>/dev/null \
       || echo "  $payload" >&2
     return 1
   fi
@@ -49,8 +83,6 @@ fi
 echo "query-id=$query_id" >>"$out"
 echo "Submitted query $query_id; awaiting terminal status…"
 
-deadline=$(( SECONDS + ${AF_TIMEOUT_SECONDS:-300} ))
-interval="${AF_POLL_INTERVAL_SECONDS:-5}"
 status="UNKNOWN"
 triggered=0
 while [ "$SECONDS" -lt "$deadline" ]; do
@@ -95,5 +127,5 @@ while [ "$SECONDS" -lt "$deadline" ]; do
 done
 
 echo "status=$status" >>"$out"
-echo "::error::Timed out after ${AF_TIMEOUT_SECONDS:-300}s waiting for query $query_id (last status: $status)"
+echo "::error::Timed out after ${timeout_s}s waiting for query $query_id (last status: $status)"
 exit 1

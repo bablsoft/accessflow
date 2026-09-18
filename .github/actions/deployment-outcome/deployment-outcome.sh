@@ -102,6 +102,6 @@ if [ "$code" = "409" ] && [ "$err" = "DEPLOYMENT_REQUEST_INVALID_STATE" ]; then
   exit 0
 fi
 echo "::error::AccessFlow API POST ${base}/deployment-requests/${AF_REQUEST_ID}/outcome returned HTTP ${code}" >&2
-jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" 2>/dev/null >&2 \
+jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$payload" >&2 2>/dev/null \
   || echo "  $payload" >&2
 exit 1

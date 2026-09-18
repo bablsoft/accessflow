@@ -315,10 +315,11 @@
             optional daily cap (<code>…_REQUESTS_PER_DAY</code>, unlimited by default). A service
             account can carry its own limits, set by an admin through
             <code>PUT /api/v1/admin/service-accounts/{id}</code>. Over the cap the API answers
-            HTTP 429 with a <code>Retry-After</code> header. The deployment-gate wrappers below
-            wait it out; the <code>provision-datasource</code> and <code>run-query</code> wrappers
-            and the Terraform provider do not retry a 429 yet, so raise the account's limit before
-            fanning many jobs out on one key. A signed-in person in the browser is never limited.
+            HTTP 429 with a <code>Retry-After</code> header. Every wrapper on this page waits it
+            out rather than failing the job — the GitHub Actions and GitLab jobs for provisioning
+            and queries within their own timeout, the deployment-gate wrappers below within the
+            wait timeout, and the Terraform provider for up to five attempts — so a busy pipeline
+            slows down instead of breaking. A signed-in person in the browser is never limited.
           </p>
 
           <h3 id="iac-provider">Terraform / OpenTofu provider</h3>

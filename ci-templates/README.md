@@ -23,7 +23,8 @@ See [`examples/github-workflow.yml`](examples/github-workflow.yml) and
 
 [`gitlab/accessflow.gitlab-ci.yml`](gitlab/accessflow.gitlab-ci.yml) exposes two `extends`-able
 hidden jobs — `.accessflow_provision_datasource` and `.accessflow_run_query` — that mirror the
-GitHub Actions. `include:` the file and extend a job, setting the `AF_*` variables.
+GitHub Actions. `include:` the file and extend a job, setting the `AF_*` variables
+(`AF_RETRY_TIMEOUT`, default `2m`, bounds the provision job's 429 retries).
 
 See [`examples/gitlab-pipeline.yml`](examples/gitlab-pipeline.yml). The deployment-gate hidden
 jobs live in a separate file — see the next section.
@@ -44,8 +45,8 @@ green light: the gate also folds in freeze windows (`frozen`) and deferred relea
 rate-limited call — every API key is capped per identity (#873), and a `429` at any of the four
 beats is retried honouring the server's `Retry-After` header (capped at the remaining deadline;
 the fixed interval is the fallback when the header is missing). The `provision-datasource` /
-`run-query` wrappers do **not** retry a 429 yet — raise the account's `rate_limit_per_minute` before
-fanning many query jobs out on one key.
+`run-query` wrappers (GitHub and GitLab alike) retry a 429 the same way — see
+[Rate limits](#rate-limits) below.
 
 ### GitHub Action inputs — `deployment-gate`
 
@@ -119,6 +120,24 @@ masked/protected CI secret. Triggering needs a per-pipeline `can_trigger` grant 
 it; break-glass has **no** admin bypass). The scripts never enable `set -x` and only ever place
 the key in the `Authorization` header; on Azure the key is mapped through `env:` rather than
 inlined, so it cannot leak into expanded logs.
+
+## Rate limits
+
+Every API key is capped per identity (#873; 120 requests/minute by default, an optional daily
+cap, and per-account overrides). Over the cap the API answers `429` with a `Retry-After` header,
+and every wrapper here waits it out instead of failing the job — the request never reached the
+controller, so a replay is safe:
+
+| Wrapper | Retry budget | Fallback when `Retry-After` is missing |
+|---|---|---|
+| `run-query` action / `.accessflow_run_query` | `timeout-seconds` / `AF_TIMEOUT_SECONDS` (shared with the status polls) | `poll-interval-seconds` / `AF_POLL_INTERVAL_SECONDS` |
+| `provision-datasource` action / `.accessflow_provision_datasource` | `retry-timeout` / `AF_RETRY_TIMEOUT` (default `2m`) | 5 s |
+| `deployment-gate` (all three platforms) | `wait-timeout` (shared with the gate polls) | `poll-interval` |
+| `deployment-outcome` (all three platforms) | `retry-timeout` (default `2m`) | 5 s |
+
+A `Retry-After` longer than the remaining budget is capped at it, so the job ends in its normal
+timeout path. The Terraform provider retries a 429 too (up to five times, honouring `Retry-After`
+up to two minutes per wait).
 
 ## Notes
 

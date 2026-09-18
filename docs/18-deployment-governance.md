@@ -388,7 +388,9 @@ Copy-paste snippets and input reference live in
 [16-iac.md → Deployment gate](16-iac.md); the admin UI additionally renders a ready-made CI setup
 panel for each pipeline. The wrappers are exercised offline by a fake-curl harness under
 `.github/actions/tests/` (which also scripts response headers, so the 429-then-200 sequences and
-the `Retry-After` handling are covered without a backend).
+the `Retry-After` handling are covered without a backend); the GitLab and Azure inline bodies are
+extracted from their YAML (`extract-template-scripts.py`) and run — and shellchecked — through the
+same double by `ci-templates-test.sh`.
 
 **Service-account setup.** Mint an AccessFlow API key for a dedicated service-account user
 (`POST /api/v1/me/api-keys`, or declaratively through the `bootstrap` module's

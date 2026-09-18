@@ -6,15 +6,11 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=harness.sh
+. "$here/harness.sh"
 gate_script="$here/../deployment-gate/deployment-gate.sh"
 outcome_script="$here/../deployment-outcome/deployment-outcome.sh"
-
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
-mkdir -p "$tmp/bin"
-cp "$here/fake-curl.sh" "$tmp/bin/curl"
-chmod +x "$tmp/bin/curl"
-export PATH="$tmp/bin:$PATH"
 
 export AF_ENDPOINT="http://accessflow.test"
 export AF_API_KEY="af_test_key"
@@ -26,86 +22,8 @@ export AF_RUN_URL="http://ci.test/runs/4242"
 export AF_WAIT_TIMEOUT="30s"
 export AF_POLL_INTERVAL="0s"
 
-failures=0
-
-scenario() {
-  MOCK_DIR="$tmp/scenario-$1"
-  mkdir -p "$MOCK_DIR/responses"
-  export MOCK_DIR
-  export GITHUB_OUTPUT="$MOCK_DIR/github-output"
-  : >"$GITHUB_OUTPUT"
-  echo "--- $1"
-}
-
-# resp N CODE JSON… — script the Nth curl call's response (first line = HTTP code or "EXIT n").
-resp() {
-  local n="$1" code="$2"
-  shift 2
-  { echo "$code"; printf '%s\n' "$*"; } >"$MOCK_DIR/responses/$n"
-}
-
-run() {
-  set +e
-  run_log="$("$1" 2>&1)"
-  run_rc=$?
-  set -e
-}
-
-# Indent a captured multi-line log for failure output (sed is the right tool here).
-# shellcheck disable=SC2001
-dump_log() { sed 's/^/    | /' <<<"$run_log"; }
-
-assert_eq() {
-  if [ "$2" = "$3" ]; then return 0; fi
-  echo "FAIL: $1 — expected '$2', got '$3'"
-  dump_log
-  failures=$((failures + 1))
-}
-
-assert_log_contains() {
-  if grep -qF "$1" <<<"$run_log"; then return 0; fi
-  echo "FAIL: log does not contain '$1'"
-  dump_log
-  failures=$((failures + 1))
-}
-
-assert_log_not_contains() {
-  if ! grep -qF "$1" <<<"$run_log"; then return 0; fi
-  echo "FAIL: log unexpectedly contains '$1'"
-  dump_log
-  failures=$((failures + 1))
-}
-
-assert_output() {
-  if grep -qxF "$1" "$GITHUB_OUTPUT"; then return 0; fi
-  echo "FAIL: GITHUB_OUTPUT does not contain '$1' — got:"
-  sed 's/^/    | /' "$GITHUB_OUTPUT"
-  failures=$((failures + 1))
-}
-
-confirm_calls() {
-  grep -c 'POST .*confirm-execution' "$MOCK_DIR/calls.log" || true
-}
-
-submit_calls() {
-  grep -c 'POST .*/deployment-requests$' "$MOCK_DIR/calls.log" || true
-}
-
-# hdr N HEADER… — script the Nth call's response headers (served through curl's `-D`), e.g. the
-# Retry-After a 429 carries (#873). Calls without a sidecar get a bare status line.
-hdr() {
-  local n="$1"
-  shift
-  mkdir -p "$MOCK_DIR/headers"
-  { printf 'HTTP/1.1 429 Too Many Requests\r\n'; printf '%s\r\n' "$@"; printf '\r\n'; } >"$MOCK_DIR/headers/$n"
-}
-
-# assert_body_field N JQ_FILTER EXPECTED — pin the wire format of the Nth call's JSON body.
-assert_body_field() {
-  local actual
-  actual="$(jq -r "$2" "$MOCK_DIR/bodies/$1" 2>/dev/null || echo '<unparseable>')"
-  assert_eq "body #$1 field $2" "$3" "$actual"
-}
+confirm_calls() { calls 'POST .*confirm-execution'; }
+submit_calls() { calls 'POST .*/deployment-requests$'; }
 
 scenario "releasable-on-third-poll-confirms-once"
 resp 1 202 '{"id":"req-1","status":"PENDING_AI"}'
@@ -158,6 +76,8 @@ run "$gate_script"
 assert_eq "exit code" 1 "$run_rc"
 assert_eq "confirm-execution calls" 0 "$(confirm_calls)"
 assert_log_contains "fail closed"
+# The ProblemDetail is echoed under the error line so the failure is debuggable from the log.
+assert_log_contains "Not Found: deployment request not found"
 
 scenario "5xx-blip-is-retried"
 resp 1 202 '{"id":"req-5","status":"PENDING_AI"}'
@@ -271,6 +191,7 @@ hdr 1 'Retry-After: 1'
 AF_WAIT_TIMEOUT="1s" run "$gate_script"
 assert_eq "exit code" 1 "$run_rc"
 assert_log_contains "Deployment request submission failed (HTTP 429)"
+assert_log_contains "limit is 1 per minute"
 assert_eq "confirm-execution calls" 0 "$(confirm_calls)"
 
 export AF_REQUEST_ID="req-1"
@@ -303,6 +224,7 @@ resp default 429 '{"title":"Too Many Requests","error":"SERVICE_ACCOUNT_RATE_LIM
 AF_RETRY_TIMEOUT="1s" AF_JOB_STATUS="success" run "$outcome_script"
 assert_eq "exit code" 1 "$run_rc"
 assert_log_contains "returned HTTP 429"
+assert_log_contains "Too Many Requests"
 
 scenario "outcome-conflict-fails"
 resp 1 409 '{"title":"Conflict","error":"DEPLOYMENT_OUTCOME_CONFLICT"}'
@@ -320,8 +242,4 @@ AF_JOB_STATUS="cancelled" run "$outcome_script"
 assert_eq "exit code" 0 "$run_rc"
 assert_eq "curl calls" 0 "$(grep -c '' "$MOCK_DIR/calls.log" 2>/dev/null || echo 0)"
 
-if [ "$failures" -gt 0 ]; then
-  echo "$failures assertion(s) failed"
-  exit 1
-fi
-echo "All action script tests passed."
+report "deployment action script"
