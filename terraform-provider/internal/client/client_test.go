@@ -3,9 +3,11 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestCreateDatasource_SendsAuthAndBody(t *testing.T) {
@@ -232,5 +234,168 @@ func TestUpdateDatasource_SendsClearEnvironment(t *testing.T) {
 	}
 	if ds.Environment != nil {
 		t.Errorf("absent environment should be nil, got %q", *ds.Environment)
+	}
+}
+
+// rateLimited serves `limited` 429s (each carrying retryAfterHeader when non-empty) before the
+// given success body, recording every attempt's body and the sleeps the client asked for.
+type rateLimited struct {
+	limited          int
+	retryAfterHeader string
+	success          string
+	attempts         []string
+	sleeps           []time.Duration
+}
+
+func (r *rateLimited) handler(w http.ResponseWriter, req *http.Request) {
+	raw, _ := io.ReadAll(req.Body)
+	r.attempts = append(r.attempts, string(raw))
+	if len(r.attempts) <= r.limited {
+		if r.retryAfterHeader != "" {
+			w.Header().Set("Retry-After", r.retryAfterHeader)
+		}
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"title":"Too Many Requests","error":"SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED","detail":"limit is 120 per minute"}`))
+		return
+	}
+	_, _ = w.Write([]byte(r.success))
+}
+
+func (r *rateLimited) client(t *testing.T) (*Client, func()) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(r.handler))
+	c := New(srv.URL, "k", srv.Client())
+	c.sleep = func(_ context.Context, d time.Duration) error {
+		r.sleeps = append(r.sleeps, d)
+		return nil
+	}
+	return c, srv.Close
+}
+
+func TestDo_RetriesA429HonouringRetryAfter(t *testing.T) {
+	r := &rateLimited{limited: 2, retryAfterHeader: "3", success: `{"id":"ds-1","name":"prod","active":true}`}
+	c, closeSrv := r.client(t)
+	defer closeSrv()
+
+	name := "prod"
+	ds, err := c.CreateDatasource(context.Background(), DatasourceRequest{Name: &name})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ds.ID != "ds-1" {
+		t.Errorf("unexpected response: %+v", ds)
+	}
+	if len(r.attempts) != 3 {
+		t.Fatalf("attempts = %d, want 3", len(r.attempts))
+	}
+	for i, body := range r.attempts {
+		if !contains(body, `"name":"prod"`) {
+			t.Errorf("attempt %d did not re-send the body: %q", i, body)
+		}
+	}
+	if len(r.sleeps) != 2 || r.sleeps[0] != 3*time.Second || r.sleeps[1] != 3*time.Second {
+		t.Errorf("sleeps = %v, want [3s 3s]", r.sleeps)
+	}
+}
+
+func TestDo_429WithoutRetryAfterUsesTheFallback(t *testing.T) {
+	r := &rateLimited{limited: 1, success: `{"id":"ds-1","name":"prod","active":true}`}
+	c, closeSrv := r.client(t)
+	defer closeSrv()
+
+	if _, err := c.GetDatasource(context.Background(), "ds-1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(r.sleeps) != 1 || r.sleeps[0] != defaultRetryAfter {
+		t.Errorf("sleeps = %v, want [%v]", r.sleeps, defaultRetryAfter)
+	}
+}
+
+func TestDo_429WithHTTPDateRetryAfterIsHonoured(t *testing.T) {
+	at := time.Now().Add(20 * time.Second).UTC().Format(http.TimeFormat)
+	r := &rateLimited{limited: 1, retryAfterHeader: at, success: `{"id":"ds-1","name":"prod","active":true}`}
+	c, closeSrv := r.client(t)
+	defer closeSrv()
+
+	if _, err := c.GetDatasource(context.Background(), "ds-1"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(r.sleeps) != 1 || r.sleeps[0] <= 15*time.Second || r.sleeps[0] > 20*time.Second {
+		t.Errorf("sleeps = %v, want one wait of roughly 20s", r.sleeps)
+	}
+}
+
+func TestDo_429BeyondTheRetryAfterCapFailsFast(t *testing.T) {
+	r := &rateLimited{limited: 1, retryAfterHeader: "3600", success: `{}`}
+	c, closeSrv := r.client(t)
+	defer closeSrv()
+
+	_, err := c.GetDatasource(context.Background(), "ds-1")
+	apiErr, ok := err.(*APIError)
+	if !ok || apiErr.StatusCode != http.StatusTooManyRequests || apiErr.ErrorCode != "SERVICE_ACCOUNT_RATE_LIMIT_EXCEEDED" {
+		t.Fatalf("want a 429 APIError, got %v", err)
+	}
+	if len(r.attempts) != 1 || len(r.sleeps) != 0 {
+		t.Errorf("attempts = %d, sleeps = %v — a %v window must not be waited out", len(r.attempts), r.sleeps, time.Hour)
+	}
+}
+
+func TestDo_Persistent429SurfacesAfterBoundedRetries(t *testing.T) {
+	r := &rateLimited{limited: 100, retryAfterHeader: "1", success: `{}`}
+	c, closeSrv := r.client(t)
+	defer closeSrv()
+
+	_, err := c.GetDatasource(context.Background(), "ds-1")
+	apiErr, ok := err.(*APIError)
+	if !ok || apiErr.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("want a 429 APIError, got %v", err)
+	}
+	if !contains(err.Error(), "limit is 120 per minute") {
+		t.Errorf("error should carry the ProblemDetail: %v", err)
+	}
+	if len(r.attempts) != maxRateLimitRetries+1 || len(r.sleeps) != maxRateLimitRetries {
+		t.Errorf("attempts = %d, sleeps = %d — want %d retries", len(r.attempts), len(r.sleeps), maxRateLimitRetries)
+	}
+}
+
+func TestDo_CancelledContextStopsTheRetryWait(t *testing.T) {
+	r := &rateLimited{limited: 1, retryAfterHeader: "30", success: `{}`}
+	srv := httptest.NewServer(http.HandlerFunc(r.handler))
+	defer srv.Close()
+	c := New(srv.URL, "k", srv.Client()) // the real, context-aware sleep
+
+	// The first attempt completes well inside the deadline; the 30s Retry-After wait cannot.
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, err := c.GetDatasource(ctx, "ds-1")
+	if err == nil || !contains(err.Error(), "waiting to retry rate-limited GET") || !contains(err.Error(), context.DeadlineExceeded.Error()) {
+		t.Fatalf("want a deadline error from the retry wait, got %v", err)
+	}
+	if time.Since(started) > 5*time.Second {
+		t.Errorf("the retry wait ignored the context deadline")
+	}
+	if len(r.attempts) != 1 {
+		t.Errorf("attempts = %d, want 1", len(r.attempts))
+	}
+}
+
+func TestDo_Other4xxIsNotRetried(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = w.Write([]byte(`{"title":"Unprocessable","error":"VALIDATION_FAILED"}`))
+	}))
+	defer srv.Close()
+	c := New(srv.URL, "k", srv.Client())
+	c.sleep = func(context.Context, time.Duration) error { t.Fatal("must not sleep on a 422"); return nil }
+
+	_, err := c.GetDatasource(context.Background(), "ds-1")
+	if apiErr, ok := err.(*APIError); !ok || apiErr.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("want a 422 APIError, got %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1", calls)
 	}
 }

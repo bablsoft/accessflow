@@ -223,7 +223,8 @@ Located in [`.github/actions/`](../.github/actions/) and
 `provision-datasource` is idempotent (look up by name → create or update). `run-query` submits with
 an `X-AccessFlow-CI: true` header (so context-aware routing policies recognise the CI origin) and
 waits for a terminal status, failing the step on anything other than `EXECUTED`. Pair with an
-`AUTO_APPROVE` routing policy for unattended execution.
+`AUTO_APPROVE` routing policy for unattended execution. Both retry a rate-limited call (HTTP 429,
+honouring `Retry-After`) — see the deployment-gate section below for the budgets.
 
 **Deployment gate (AF-694)** — wrappers for the deployment-governance machine API (epic AF-682):
 
@@ -251,10 +252,13 @@ The gate action submits a deployment request (idempotent on the CI run id), poll
 terminal status, or the `wait-timeout` fails the job, while transient 5xx / network errors and
 rate-limited calls (HTTP 429 — every API key is capped per identity, #873) are retried within
 `wait-timeout`, honouring the server's `Retry-After` header; the outcome action retries a 429 for
-`retry-timeout` (default `2m`). **Known limitation:** only the deployment wrappers retry a 429 — the
-`provision-datasource` / `run-query` actions, their GitLab hidden jobs and the Terraform provider
-still fail on it, so raise the service account's `rate_limit_per_minute` (or the deployment default)
-before fanning many jobs out on one key. GitLab (`.accessflow_deployment_gate` /
+`retry-timeout` (default `2m`). The same applies to every other wrapper: `run-query` retries a
+429 within its `timeout-seconds`, `provision-datasource` for its own `retry-timeout` (default
+`2m`), the GitLab hidden jobs mirror both (`AF_TIMEOUT_SECONDS` / `AF_RETRY_TIMEOUT`), and the
+Terraform provider's HTTP client replays a rate-limited call up to five times, honouring
+`Retry-After` up to two minutes per wait (a longer window — the daily cap — surfaces the 429
+immediately rather than stalling an apply). A 429 is answered ahead of the controller, so a
+replay never duplicates a side effect. GitLab (`.accessflow_deployment_gate` /
 `.accessflow_deployment_outcome` in `ci-templates/gitlab/accessflow-deployment.gitlab-ci.yml`)
 and Azure Pipelines (`ci-templates/azure/accessflow-deployment.yml`, a step template with a
 `deploySteps` list) mirror the same flow, and

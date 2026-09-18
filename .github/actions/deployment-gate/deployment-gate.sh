@@ -68,7 +68,7 @@ retry_delay() {
 # debuggable instead of surfacing as a bare exit code.
 problem() {
   echo "::error::$1" >&2
-  jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$2" 2>/dev/null >&2 \
+  jq -r '"  \(.title // "error"): \(.detail // .message // .)"' <<<"$2" >&2 2>/dev/null \
     || echo "  $2" >&2
 }
 
