@@ -24,6 +24,7 @@ class ApiKeyResponseTest {
         assertThat(response.lastUsedAt()).isEqualTo(view.lastUsedAt());
         assertThat(response.expiresAt()).isEqualTo(view.expiresAt());
         assertThat(response.revokedAt()).isEqualTo(view.revokedAt());
+        assertThat(response.bootstrapDeclared()).isTrue();
     }
 
     @Test
@@ -41,6 +42,6 @@ class ApiKeyResponseTest {
                 Instant.parse("2026-05-10T00:00:00Z"),
                 Instant.parse("2026-05-11T00:00:00Z"),
                 Instant.parse("2026-12-01T00:00:00Z"),
-                null);
+                null, true);
     }
 }

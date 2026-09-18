@@ -44,6 +44,17 @@ authenticating exactly as a revoked one does — 401 on the next request, on `/m
 endpoint. Expiry is checked at every resolve, so nothing has to run for it to take effect. The
 profile list shows the key's `expires_at` and marks the row **Expired** once that instant passes.
 
+**Service accounts (#871).** A non-human agent should not borrow a person's key. An admin with
+`SERVICE_ACCOUNT_MANAGE` creates a service account (`POST /api/v1/admin/service-accounts` —
+`principal_type = SERVICE_ACCOUNT`, no interactive sign-in, default role `READONLY`) and issues,
+rotates and revokes its keys on its behalf under `/api/v1/admin/service-accounts/{id}/api-keys`.
+Rotation issues the replacement and lets the old key keep working for a grace window
+(`ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE`, default 24 h), so a running agent is never cut off
+mid-session; the account's `mcp_tool_allow_list` is stored here and *will* narrow which of the tools
+below it may call once #872 lands the per-invocation enforcement (nothing reads it yet). Keys declared in bootstrap YAML cannot be revoked or rotated from
+either surface — rotate the secret at the source and restart. Full contract:
+[04-api-spec.md → Service Accounts](04-api-spec.md#service-accounts-adminservice-accounts-service_account_manage-871).
+
 The **Create API key** form carries an optional **Expires** field, a date-and-time picker whose
 past dates and hours are greyed out. Leave it empty and the key never expires, and revoking it is
 then the only way to cut it off.

@@ -3174,6 +3174,14 @@ Deletes one of the caller's conversations and, by cascade, its messages.
 | `POST` | `/admin/users/invitations` | Invite a user by email |
 | `POST` | `/admin/users/invitations/{id}/resend` | Reissue the token and resend the invitation email |
 | `DELETE` | `/admin/users/invitations/{id}` | Revoke a pending invitation |
+| `GET` | `/admin/service-accounts` | List the organization's service accounts, paginated, newest first; optional `managed_by=UI|BOOTSTRAP` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `POST` | `/admin/service-accounts` | Create a service account (`201`, `Location` header) — a `SERVICE_ACCOUNT` user with an unusable password, `managed_by = UI`, default role `READONLY` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `GET` | `/admin/service-accounts/{id}` | Get a service account with its API keys (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `PUT` | `/admin/service-accounts/{id}` | Update a service account — every field null-means-unchanged, UI-owned fields reset by name via `clear`; a changed bootstrap-declared field on a `BOOTSTRAP` account is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `DELETE` | `/admin/service-accounts/{id}` | Deactivate a service account (`204`; its keys stop authenticating, nothing is revoked) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `POST` | `/admin/service-accounts/{id}/api-keys` | Issue an API key on behalf of the account — plaintext shown once (`201`) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `POST` | `/admin/service-accounts/{id}/api-keys/{keyId}/rotate` | Rotate a key: issue the replacement and expire the old one after a grace window (`201`) (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
+| `DELETE` | `/admin/service-accounts/{id}/api-keys/{keyId}` | Revoke a key (`204`); a bootstrap-declared key is refused with `409 SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` (#871) *(`SERVICE_ACCOUNT_MANAGE`)* |
 | `GET` | `/admin/system-smtp` | Get the organization's system SMTP configuration (404 when unset) |
 | `PUT` | `/admin/system-smtp` | Create or update the system SMTP configuration |
 | `DELETE` | `/admin/system-smtp` | Remove the system SMTP configuration |
@@ -3347,6 +3355,219 @@ Soft-deactivates the user (`active=false`) and revokes all of their refresh toke
 **Response 204:** No content.
 **Response 404:** User does not exist in the caller's organization. `error: USER_NOT_FOUND`.
 **Response 422:** Admins cannot deactivate their own account. `error: ILLEGAL_USER_OPERATION`.
+
+### Service Accounts (`/admin/service-accounts`) *(`SERVICE_ACCOUNT_MANAGE`)* (#871)
+
+Admin management of non-human identities (epic #867): a service account is a `users` row with `principal_type = SERVICE_ACCOUNT` plus a 1:1 [`service_accounts`](03-data-model.md#service_accounts-serviceaccounts-868--epic-867) detail row. It can never sign in interactively (#869) — its API keys are its only credential — so this surface is also where an admin issues, rotates and revokes keys **on behalf of** the account (the self-service [`/me/api-keys`](#api-keys-meapi-keys) routes remain owner-scoped).
+
+All endpoints require `SERVICE_ACCOUNT_MANAGE` (`USERS` group, held by the system `ADMIN` role) and operate within the caller's organization — an account in another organization is indistinguishable from a missing one (`404`, never `403`). Every mutation writes an audit row against resource type `service_account` (`resource_id` = the account's user id): `SERVICE_ACCOUNT_CREATED` / `SERVICE_ACCOUNT_UPDATED` / `SERVICE_ACCOUNT_DEACTIVATED` / `SERVICE_ACCOUNT_KEY_ISSUED` / `SERVICE_ACCOUNT_KEY_ROTATED` / `SERVICE_ACCOUNT_KEY_REVOKED`. (Accounts reconciled from bootstrap YAML are additionally audited as `API_KEY_CREATED` / `API_KEY_UPDATED` with `source = BOOTSTRAP`, as before.)
+
+**Coexistence with the bootstrap reconciler.** `managed_by` says which surface owns the account's *declared* fields:
+
+| Field | `managed_by = UI` | `managed_by = BOOTSTRAP` |
+|-------|-------------------|--------------------------|
+| `email` | immutable (never updatable here) | immutable |
+| `display_name`, `role` / `role_id` | editable | **read-only** — a value that *differs* from the current one is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`; sending the current value is a no-op |
+| the bootstrap-declared API key (`bootstrap_declared: true`) | n/a | **cannot be revoked or rotated** (`409 SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED`) — the next changed reconcile would silently reactivate it; rotate the secret in the bootstrap source and restart instead |
+| `active` | editable | editable — the reconciler never resurrects a deactivated account; `PUT { "active": true }` is the remediation (and, every field being null-means-unchanged, touches nothing else) |
+| `description`, `owner_user_id`, `mcp_tool_allow_list`, `rate_limit_per_minute`, `rate_limit_per_day` | editable | editable — never touched by a bootstrap re-run |
+| additional (undeclared) API keys | issue / rotate / revoke | issue / rotate / revoke |
+
+This split is what lets an existing install adopt the feature without editing a line of YAML.
+
+#### Service account object
+
+```json
+{
+  "id": "uuid",
+  "email": "ci-bot@company.com",
+  "display_name": "GitHub Actions deployer",
+  "role": "READONLY",
+  "role_id": "uuid",
+  "role_name": "READONLY",
+  "active": true,
+  "managed_by": "UI",
+  "description": "Runs the nightly reporting queries",
+  "owner_user_id": "uuid",
+  "mcp_tool_allow_list": ["list_datasources", "validate_sql"],
+  "rate_limit_per_minute": 60,
+  "rate_limit_per_day": null,
+  "active_api_key_count": 1,
+  "last_used_at": "2026-09-16T08:11:02Z",
+  "last_login_at": null,
+  "created_at": "2026-09-10T12:00:00Z",
+  "updated_at": "2026-09-16T08:00:00Z",
+  "api_keys": [
+    {
+      "id": "uuid",
+      "name": "github-actions",
+      "key_prefix": "af_kQ7abcde",
+      "bootstrap_declared": false,
+      "created_at": "2026-09-10T12:00:00Z",
+      "last_used_at": "2026-09-16T08:11:02Z",
+      "expires_at": null,
+      "revoked_at": null
+    }
+  ]
+}
+```
+
+`id` is the account's `users.id` — the same value every actor FK in the system points at. `role` is the legacy system-role enum (`null` on a custom role); `role_name` is always populated. `mcp_tool_allow_list` is `null` for *every tool* and `[]` for *none* — stored and validated here, *enforced at MCP invocation by #872* (nothing reads it yet). `rate_limit_*` are `null` for unlimited — *enforced by #873*. `active_api_key_count` counts keys that are neither revoked nor expired; `last_used_at` is the latest `last_used_at` across the account's keys (`null` if never used). `api_keys` (newest first, raw secrets never included) is populated on `GET /{id}` only — the list always returns it as `[]`, and the summary fields are the way to read key state there.
+
+#### GET /admin/service-accounts — Query Parameters
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | int | Page number (default 0) |
+| `size` | int | Page size (default 20, max 100) |
+| `sort` | string | Only `createdAt` is sortable (default `createdAt,desc`) — the user columns live in another module and are joined after paging |
+| `managed_by` | `UI` \| `BOOTSTRAP` | Optional filter |
+
+**Response 200:** `{ "content": [ … ], "page": 0, "size": 20, "total_elements": 1, "total_pages": 1 }` — each `content[]` element is a service account object with `api_keys: []`.
+
+#### POST /admin/service-accounts — Request Body
+
+```json
+{
+  "email": "ci-bot@company.com",
+  "display_name": "GitHub Actions deployer",
+  "role": "READONLY",
+  "role_id": null,
+  "description": "Runs the nightly reporting queries",
+  "owner_user_id": "uuid",
+  "mcp_tool_allow_list": ["list_datasources", "validate_sql"],
+  "rate_limit_per_minute": 60,
+  "rate_limit_per_day": null
+}
+```
+
+| Field | Constraints |
+|-------|-------------|
+| `email` | `@NotBlank`, `@Email`, `@Size(max=255)` — globally unique across organizations, like every user |
+| `display_name` | `@NotBlank`, `@Size(max=255)` |
+| `role` / `role_id` | Both optional; `role_id` (any role visible to the org) wins over the legacy enum. **Defaults to `READONLY`** — deliberately narrow, unlike the bootstrap reconciler's `ADMIN` default |
+| `description` | Optional, `@Size(max=500)` |
+| `owner_user_id` | Optional — must be an active `HUMAN` user of the same organization; it records who the account acts for and confers nothing |
+| `mcp_tool_allow_list` | Optional (`null` = every tool, `[]` = none); every entry `@NotBlank` and a known tool name from the [MCP catalog](13-mcp.md) |
+| `rate_limit_per_minute`, `rate_limit_per_day` | Optional, `@Positive` |
+
+The account is created with `auth_provider = LOCAL`, an unusable random password hash (exactly as the bootstrap reconciler does), `principal_type = SERVICE_ACCOUNT`, `managed_by = UI` and `active = true`. It counts toward the organization's user quota. No key is issued — call `POST /{id}/api-keys` next.
+
+**Response 201:** Service account object (with an empty `api_keys`). `Location` header points to `/api/v1/admin/service-accounts/{id}`.
+**Response 400:** `VALIDATION_ERROR`.
+**Response 404:** `ROLE_NOT_FOUND` — `role_id` is not visible to the organization.
+**Response 409:** `EMAIL_ALREADY_EXISTS`; `QUOTA_EXCEEDED`.
+**Response 422:** `SERVICE_ACCOUNT_OWNER_INVALID` — `owner_user_id` is unknown, inactive, in another organization or itself a service account; `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` — an allow-list entry is not a known tool name (the `ProblemDetail` carries `tool`).
+
+#### GET /admin/service-accounts/{id} — Response 200
+
+Full service account object including `api_keys`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` — the id is unknown, belongs to another organization, or is a human user.
+
+#### PUT /admin/service-accounts/{id} — Request Body
+
+```json
+{
+  "display_name": "GitHub Actions deployer",
+  "role": null,
+  "role_id": "uuid",
+  "active": true,
+  "description": "Runs the nightly reporting queries",
+  "owner_user_id": "uuid",
+  "mcp_tool_allow_list": ["list_datasources"],
+  "rate_limit_per_minute": 60,
+  "rate_limit_per_day": null,
+  "clear": ["RATE_LIMIT_PER_DAY"]
+}
+```
+
+**Every field is `null` / omitted = unchanged.** A client that sends only what it means to change can never widen anything by accident — in particular an omitted `mcp_tool_allow_list` never re-opens every tool, which is why `PUT { "active": true }` is a safe reactivation.
+
+- **Declared fields** — `display_name`, `role` / `role_id`. On a `BOOTSTRAP` account a value that differs from the current one is `409 SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` (the `ProblemDetail` carries `field`); an equal value is accepted as a no-op, so a full-form client need not special-case bootstrap accounts. `display_name`, when sent, must not be blank.
+- **`active`** — never bootstrap-declared. `false` behaves like `DELETE`; `true` reactivates.
+- **UI-owned fields** — `description`, `owner_user_id`, `mcp_tool_allow_list` (`[]` = no tool), `rate_limit_per_minute`, `rate_limit_per_day` — are set when sent and **reset by name** through `clear`, a set of `DESCRIPTION` \| `OWNER_USER_ID` \| `MCP_TOOL_ALLOW_LIST` (→ `null`, every tool) \| `RATE_LIMIT_PER_MINUTE` \| `RATE_LIMIT_PER_DAY` (→ `null`, unlimited). A field that is both sent and named in `clear` is `400 VALIDATION_ERROR`.
+
+**Response 200:** Updated service account object. **Response 400:** `VALIDATION_ERROR`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `ROLE_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED`. **Response 422:** `SERVICE_ACCOUNT_OWNER_INVALID` / `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL`; `ILLEGAL_USER_OPERATION` when the caller is itself the target (a service account on an admin role, authenticating with its own key, cannot deactivate itself or drop its own user-management role — the same self-protection as `PUT /admin/users/{id}`).
+
+#### DELETE /admin/service-accounts/{id}
+
+Soft-deactivates the account (`active = false`) — the same `UserDeactivatedEvent` fan-out as `DELETE /admin/users/{id}` (JIT grants revoked, sessions revoked). Its API keys are **not** revoked: the API-key filter already rejects an inactive user, and leaving the keys intact makes `PUT { "active": true }` a clean restore (of the account exactly as it was — the update never touches an omitted field). Idempotent.
+
+**Response 204:** No content. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND`. **Response 422:** `ILLEGAL_USER_OPERATION` — the caller is the target account itself.
+
+#### POST /admin/service-accounts/{id}/api-keys — Request Body
+
+Issues a key owned by the service account. The plaintext `raw_key` is the only chance to capture the secret — it is never persisted and never audited.
+
+```json
+{ "name": "github-actions", "expires_at": null }
+```
+
+| Field | Constraints |
+|-------|-------------|
+| `name` | `@NotBlank`, `@Size(max=100)` — unique per account |
+| `expires_at` | Optional ISO-8601 timestamp; `null` for non-expiring |
+
+**Response 201:**
+```json
+{
+  "api_key": { "id": "uuid", "name": "github-actions", "key_prefix": "af_kQ7abcde", "bootstrap_declared": false, "created_at": "…", "last_used_at": null, "expires_at": null, "revoked_at": null },
+  "raw_key": "af_kQ7abcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+**Response 400:** `VALIDATION_ERROR`. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_KEY_NAME_CONFLICT` — the account already has a key with this name.
+
+#### POST /admin/service-accounts/{id}/api-keys/{keyId}/rotate — Request Body
+
+Rotation must not kill a running agent: it issues a **replacement** key and sets the old key's `expires_at = now + grace_period` (or the old key's own `expires_at` if that is sooner), leaving `revoked_at` untouched. The old key keeps authenticating until the window elapses, so a deployment can swap the secret without a hard cut-over.
+
+```json
+{ "name": "github-actions-2026-09", "expires_at": null, "grace_period": "PT24H" }
+```
+
+| Field | Constraints |
+|-------|-------------|
+| `name` | `@NotBlank`, `@Size(max=100)` — the replacement key's name; must not collide with an existing key of the account |
+| `expires_at` | Optional expiry of the **replacement** key |
+| `grace_period` | Optional ISO-8601 duration, must be positive. Defaults to `ACCESSFLOW_SERVICEACCOUNTS_ROTATION_GRACE` (`PT24H`, see [09-deployment.md](09-deployment.md)) |
+
+**Response 201:**
+```json
+{
+  "api_key": { "id": "uuid", "name": "github-actions-2026-09", "key_prefix": "af_9zXabcde", "bootstrap_declared": false, "created_at": "…", "last_used_at": null, "expires_at": null, "revoked_at": null },
+  "raw_key": "af_9zXabcdeXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "superseded_key": { "id": "uuid", "name": "github-actions", "key_prefix": "af_kQ7abcde", "bootstrap_declared": false, "created_at": "…", "last_used_at": "…", "expires_at": "2026-09-17T08:00:00Z", "revoked_at": null }
+}
+```
+
+`Location` points at the account (`/api/v1/admin/service-accounts/{id}`). **Response 400:** `VALIDATION_ERROR` (blank `name`, non-positive `grace_period`). **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `SERVICE_ACCOUNT_KEY_NOT_FOUND` (unknown key, or a key owned by someone else). **Response 409:** `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` (the declared key's expiry belongs to the bootstrap source); `SERVICE_ACCOUNT_KEY_REVOKED` (rotate a live key, or issue a fresh one); `SERVICE_ACCOUNT_KEY_NAME_CONFLICT`.
+
+#### DELETE /admin/service-accounts/{id}/api-keys/{keyId}
+
+Revokes the key immediately (`revoked_at = now`). Idempotent for an already-revoked key.
+
+A **bootstrap-declared** key is refused rather than silently un-revoked later: `DefaultApiKeyService.importOrUpdate` clears `revoked_at` on every changed reconcile, so a revoke here would only appear to succeed until the next restart. The `detail` names the real remediation — rotate the secret in the bootstrap source (the YAML / Secret feeding `accessflow.bootstrap.service-accounts[].api-key`), then restart. The same guard applies to the account revoking its own declared key through `DELETE /me/api-keys/{id}` (`409 API_KEY_BOOTSTRAP_DECLARED`).
+
+**Response 204:** No content. **Response 404:** `SERVICE_ACCOUNT_NOT_FOUND` / `SERVICE_ACCOUNT_KEY_NOT_FOUND`. **Response 409:** `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED`.
+
+#### Service-accounts Error Codes
+
+| Status | `error` code | Cause |
+|--------|--------------|-------|
+| 400 | `VALIDATION_ERROR` | Bean Validation failure (including a field both sent and named in `clear`), or an unreadable body (unknown `role` / `clear` / `managed_by` literal, malformed `grace_period`) |
+| 403 | `FORBIDDEN` | Caller lacks `SERVICE_ACCOUNT_MANAGE` |
+| 404 | `SERVICE_ACCOUNT_NOT_FOUND` | Unknown id, another organization, or a human user |
+| 404 | `SERVICE_ACCOUNT_KEY_NOT_FOUND` | Unknown key id, or the key is not owned by this account |
+| 404 | `ROLE_NOT_FOUND` | `role_id` is not visible to the organization |
+| 409 | `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` | A bootstrap-declared field (`display_name`, `role`, `role_id`) would change on a `BOOTSTRAP` account (`field` property) |
+| 409 | `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` | Revoke / rotate of the key declared in bootstrap YAML — rotate the secret at the source and restart |
+| 409 | `SERVICE_ACCOUNT_KEY_REVOKED` | Rotate of an already-revoked key |
+| 409 | `SERVICE_ACCOUNT_KEY_NAME_CONFLICT` | The account already has a key with that name |
+| 409 | `EMAIL_ALREADY_EXISTS` | A user (of any organization) already has that email |
+| 409 | `QUOTA_EXCEEDED` | The organization's user quota is exhausted — service accounts count |
+| 422 | `SERVICE_ACCOUNT_OWNER_INVALID` | `owner_user_id` is unknown, inactive, in another organization or not a human |
+| 422 | `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | An `mcp_tool_allow_list` entry is not a catalog tool name (`tool` property) |
+| 422 | `ILLEGAL_USER_OPERATION` | The caller (a service account on an admin role, using its own key) tried to deactivate itself or drop its own user-management role |
 
 ### Roles & the permission catalog (`/admin/roles`, `/admin/permissions`) *(ROLE_MANAGE — system ADMIN)* (AF-522)
 
@@ -6121,7 +6342,7 @@ later. See `docs/13-mcp.md` for end-to-end usage.
 
 #### GET /me/api-keys
 
-Lists the calling user's API keys (newest first). The raw key is never included.
+Lists the calling user's API keys (newest first). The raw key is never included. `bootstrap_declared` (#871) marks the key the bootstrap reconciler declared for a service account — the one key an admin cannot revoke or rotate here.
 
 **Response 200:**
 ```json
@@ -6130,6 +6351,7 @@ Lists the calling user's API keys (newest first). The raw key is never included.
     "id": "uuid",
     "name": "claude-mcp",
     "key_prefix": "af_kQ7abcde",
+    "bootstrap_declared": false,
     "created_at": "2026-05-10T12:34:56Z",
     "last_used_at": "2026-05-12T08:11:02Z",
     "expires_at": null,
@@ -6162,6 +6384,7 @@ Creates a new API key. The plaintext `raw_key` is the only chance to capture the
     "id": "uuid",
     "name": "claude-mcp",
     "key_prefix": "af_kQ7abcde",
+    "bootstrap_declared": false,
     "created_at": "2026-05-10T12:34:56Z",
     "last_used_at": null,
     "expires_at": null,
@@ -6187,6 +6410,7 @@ Revokes the API key. Idempotent — revoking an already-revoked key returns 204.
 | Code | Status | Cause |
 |------|--------|-------|
 | `API_KEY_NOT_FOUND` | 404 | Unknown id, or the key is owned by another user |
+| `API_KEY_BOOTSTRAP_DECLARED` | 409 | The key is a service account's bootstrap-declared key (#871): the next changed reconcile would reactivate it, so the revoke is refused — rotate the secret in the bootstrap source and restart |
 
 #### Using an API key
 
@@ -8122,6 +8346,15 @@ The following codes are returned in addition to the per-endpoint codes documente
 | `ILLEGAL_LOCALIZATION_CONFIG` | 400 | `IllegalLocalizationConfigException` | Empty `available_languages`, or `default_language` not in `available_languages`. |
 | `API_KEY_NOT_FOUND` | 404 | `ApiKeyNotFoundException` | Unknown API key id, or the key is owned by another user. |
 | `API_KEY_DUPLICATE_NAME` | 409 | `ApiKeyDuplicateNameException` | The caller already has an API key with the requested name. |
+| `API_KEY_BOOTSTRAP_DECLARED` | 409 | `ApiKeyBootstrapDeclaredException` | Revoke of a service account's bootstrap-declared key (#871) — a changed reconcile would reactivate it; rotate the secret at the bootstrap source and restart. Body includes `apiKeyId`. |
+| `SERVICE_ACCOUNT_NOT_FOUND` | 404 | `ServiceAccountNotFoundException` | Unknown service account id, another organization, or a human user (#871). Body includes `serviceAccountId`. |
+| `SERVICE_ACCOUNT_KEY_NOT_FOUND` | 404 | `ServiceAccountKeyNotFoundException` | Unknown API key id, or the key is not owned by that service account (#871). Body includes `apiKeyId`. |
+| `SERVICE_ACCOUNT_BOOTSTRAP_MANAGED` | 409 | `ServiceAccountBootstrapManagedException` | A bootstrap-declared field (`display_name`, `role`, `role_id`) would change on a `managed_by = BOOTSTRAP` account (#871). Body includes `field`. |
+| `SERVICE_ACCOUNT_KEY_BOOTSTRAP_DECLARED` | 409 | `ServiceAccountKeyBootstrapDeclaredException` | Revoke / rotate of the key declared in bootstrap YAML (#871). `detail` names the remediation. Body includes `apiKeyId`. |
+| `SERVICE_ACCOUNT_KEY_REVOKED` | 409 | `ServiceAccountKeyRevokedException` | Rotate of an already-revoked key (#871). Body includes `apiKeyId`. |
+| `SERVICE_ACCOUNT_KEY_NAME_CONFLICT` | 409 | `ServiceAccountKeyNameConflictException` | The service account already has a key with that name (#871). Body includes `name`. |
+| `SERVICE_ACCOUNT_OWNER_INVALID` | 422 | `ServiceAccountOwnerInvalidException` | `owner_user_id` is unknown, inactive, in another organization or not a `HUMAN` principal (#871). Body includes `ownerUserId`. |
+| `SERVICE_ACCOUNT_UNKNOWN_MCP_TOOL` | 422 | `ServiceAccountUnknownMcpToolException` | An `mcp_tool_allow_list` entry is not a catalog tool name (#871). Body includes `tool`. |
 | `ROUTING_POLICY_NOT_FOUND` | 404 | `RoutingPolicyNotFoundException` | Unknown routing-policy id, or the policy is in another organization. |
 | `ROUTING_POLICY_PRIORITY_CONFLICT` | 409 | `RoutingPolicyPriorityConflictException` | Another routing policy in the organization already uses that priority. |
 | `ROUTING_POLICY_INVALID` | 422 | `RoutingPolicyInvalidException` | Malformed condition tree, action/`required_approvals` mismatch, or a reorder set that doesn't match the org's policies. |

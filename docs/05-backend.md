@@ -3924,10 +3924,78 @@ User-managed API keys live alongside the rest of authentication in the **`securi
   beside the claims, not inside them — `JwtClaims` is unchanged, so permission resolution can
   never read request-channel data.
 - **Web.** `security.internal.web.ApiKeysController` exposes `/api/v1/me/api-keys` CRUD;
-  `ApiKeysExceptionHandler` maps `ApiKeyDuplicateNameException` / `ApiKeyNotFoundException` to
-  RFC 9457 `ProblemDetail`.
+  `ApiKeysExceptionHandler` maps `ApiKeyDuplicateNameException` / `ApiKeyNotFoundException` /
+  `ApiKeyBootstrapDeclaredException` to RFC 9457 `ProblemDetail`.
+- **Bootstrap-declared keys (#871).** `api_keys.bootstrap_declared` (V175) marks the one key the
+  bootstrap reconciler declares for a service account. `importOrUpdate` sets it and, in the same
+  transaction, clears it on the user's other keys (a renamed `api-key-name` demotes the old row to an
+  ordinary key). `revoke` refuses a declared key with `ApiKeyBootstrapDeclaredException` — the guard
+  lives here, at the chokepoint, and not only on the admin surface, because a service account can
+  reach `/me/api-keys` with its own key: `importOrUpdate` clears `revoked_at` on every changed
+  reconcile, so a revoke would only appear to succeed until the next restart. `expireAt` (owner-scoped
+  like `revoke`) is the primitive the admin rotation uses to close the old key after a grace window,
+  and `listByUserIds` batches the per-account key listing for the admin list page. `expireAt`
+  carries the same declared-key guard as `revoke`: a changed reconcile re-asserts `expires_at`
+  from the spec, so an expiry set on the declared key would be undone just like a revoke.
 
 The full REST contract is in `docs/04-api-spec.md` → "API Keys".
+
+## Service accounts (serviceaccounts module, epic #867)
+
+The **`serviceaccounts/` module** (`com.bablsoft.accessflow.serviceaccounts`) owns the non-human
+identity: the 1:1 `service_accounts` detail row behind a `users.principal_type = SERVICE_ACCOUNT`
+discriminator (#868; schema in `docs/03-data-model.md`). It depends on `core.api`, `security.api`
+(`ApiKeyService`) and `audit.api`; `bootstrap` and `mcp` depend on it, and `security` never does — it
+reads `principalType` off `core.api.UserView` (#869 sign-in blocking).
+
+- **Chokepoint.** `api.ServiceAccountProvisioningService.ensureRegistered(orgId, userId, source)` is
+  the only code that flips the discriminator (`PrincipalTypeChokepointTest`, ArchUnit): it calls
+  `UserAdminService.setPrincipalType` and upserts the detail row in one transaction, re-asserting
+  `managed_by` and never touching the UI-owned fields. Two callers: `ServiceAccountReconciler`
+  (`BOOTSTRAP`, inside its changed-fingerprint branch only) and, since #871, the admin service (`UI`).
+- **Admin service (#871).** `api.ServiceAccountAdminService` with `DefaultServiceAccountAdminService`
+  (`update` is null-means-unchanged for every field, with UI-owned resets asked for by name through
+  `ServiceAccountClearableField` — so an omitted `mcp_tool_allow_list` can never silently re-open
+  every tool, and `PUT { "active": true }` restores an account exactly as it was):
+  paginated list / get (the detail row is paged and sorted by `created_at`; the `users` columns and
+  the key list are joined afterwards through `UserAdminService.findByIds` and one
+  `ApiKeyService.listByUserIds` call), create, update, deactivate, and key issue / rotate / revoke.
+  *Create* mints the `users` row through `UserAdminService.createUser` with an unusable random
+  password hash — exactly as the reconciler does — but defaults the role to `READONLY` rather than
+  the reconciler's `ADMIN`, then `ensureRegistered(UI)`, then sets the UI-owned fields. `owner_user_id`
+  must be an active `HUMAN` of the same organization and `mcp_tool_allow_list` entries must be
+  `McpToolName` wire names (both 422). *Deactivate* delegates to `UserAdminService.deactivateUser`
+  (same `UserDeactivatedEvent` fan-out as a human) and revokes nothing: the API-key filter already
+  rejects an inactive user, and a later `active = true` restores the account intact.
+- **Bootstrap coexistence.** `managed_by` decides who owns the *declared* fields (email, display
+  name, role, the `bootstrap_declared` key). On a `BOOTSTRAP` account the admin service throws
+  `ServiceAccountBootstrapManagedException(field)` (409) when a declared field would **change** —
+  sending the current value is a no-op, so a full-form client needs no special case — and refuses to
+  revoke or rotate the declared key (`ServiceAccountKeyBootstrapDeclaredException`, 409, whose
+  detail names the remediation: rotate the secret in the bootstrap source, then restart). Everything
+  else — `active`, description, owner, allow-list, rate limits, additional keys — is UI-owned on both
+  and survives a reconcile, which is what lets an existing install adopt the feature with no YAML
+  churn. The reconciler itself only *uses* display name and role on create and never resurrects a
+  deactivated account.
+- **Rotation.** `rotateKey` issues the replacement (caller-supplied name, optional expiry) and sets
+  the old key's `expires_at = min(existing, now + grace)` through `ApiKeyService.expireAt`,
+  leaving `revoked_at` untouched: the old key keeps authenticating until the window elapses, so a
+  running agent or CI job is never cut off mid-deploy. The grace comes from the request
+  (`grace_period`, must be positive) or from `accessflow.serviceaccounts.rotation-grace`
+  (`ServiceAccountsProperties`, default `PT24H`). A leaked key is handled by **revoke**, never by
+  rotate. Rotating a revoked key is 409; a duplicate replacement name is 409.
+- **Web.** `internal.web.ServiceAccountController` under `/api/v1/admin/service-accounts`, gated on
+  `SERVICE_ACCOUNT_MANAGE`, writes the audit rows controller-side (the sqlreview / admin-users
+  convention, so `ip_address` / `user_agent` come from the live request): `SERVICE_ACCOUNT_CREATED` /
+  `_UPDATED` / `_DEACTIVATED` / `_KEY_ISSUED` / `_KEY_ROTATED` / `_KEY_REVOKED` against resource
+  `service_account`, never carrying a raw key. `ServiceAccountExceptionHandler`
+  (`@Order(HIGHEST_PRECEDENCE)`) maps the module's exceptions; core and security exceptions
+  (`EMAIL_ALREADY_EXISTS`, `QUOTA_EXCEEDED`, `ROLE_NOT_FOUND`) keep their global mapping.
+- **Known limitation.** `PUT /admin/users/{id}` does not consult `principal_type`, so a `USER_MANAGE`
+  holder can still edit a `BOOTSTRAP` account's display name or role there; #875 hides service
+  accounts from the users page.
+
+The full REST contract is in `docs/04-api-spec.md` → "Service Accounts".
 
 ## SCIM provisioning (scim module, #621)
 

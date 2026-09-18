@@ -47,6 +47,14 @@ public class ApiKeyEntity {
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
+    /**
+     * True on the one key the bootstrap reconciler declared for a service account (#871). Such a
+     * key can be neither revoked nor rotated: {@code importOrUpdate} clears {@code revoked_at} on
+     * every changed reconcile, so a revoke would only appear to succeed until the next restart.
+     */
+    @Column(name = "bootstrap_declared", nullable = false)
+    private boolean bootstrapDeclared;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 }

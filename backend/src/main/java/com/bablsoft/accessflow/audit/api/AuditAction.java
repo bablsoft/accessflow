@@ -111,6 +111,19 @@ public enum AuditAction {
     SQL_REVIEW_RULESET_DELETED,
 
     /**
+     * Admin lifecycle of a service account and of the API keys issued on its behalf via
+     * {@code /admin/service-accounts} (#871). Resource type {@code SERVICE_ACCOUNT}, resource id
+     * = the account's user id. Accounts reconciled from bootstrap YAML keep auditing as
+     * {@code API_KEY_CREATED} / {@code API_KEY_UPDATED} with {@code source = BOOTSTRAP}.
+     */
+    SERVICE_ACCOUNT_CREATED,
+    SERVICE_ACCOUNT_UPDATED,
+    SERVICE_ACCOUNT_DEACTIVATED,
+    SERVICE_ACCOUNT_KEY_ISSUED,
+    SERVICE_ACCOUNT_KEY_ROTATED,
+    SERVICE_ACCOUNT_KEY_REVOKED,
+
+    /**
      * A {@code BLOCK} SQL review finding suppressed an auto-approve path and forced the request to
      * human review (#864). System-attributed — null actor, {@code trigger=sql_review}. Written only
      * when the guard changed the outcome; never for {@code WARN}, never on a rejection.
